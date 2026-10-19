@@ -439,17 +439,13 @@ Classification does not add a construction to the grammar. Comments beside each 
 
 The unsupported classes are BAhEI, BEIhE, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, JAIhA, JAIhI, JIhOI and KAUhU. They also include LA, LIhEI, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
 
-Corpus evidence also supplies words in SIhIhEI, SIhOI, TAhOI and TOIhO. Their constructions still wait for #212. The Y word `ie'o` retains its dictionary class and acts as hesitation in the words stage.
-
-The ZOI delimiter rule skips hesitation alone. Before `bu`, `ie'o` forms a letter word that can act as a delimiter.
+Corpus evidence also supplies words in SIhIhEI, SIhOI, TAhOI and TOIhO. Their constructions still wait for #212.
 
 Some words belong to supported classes but need different constructions. Their comments also name #212. The following notes distinguish their current readings from their defined uses.
 
 The dictionary gives `la'ai` class LOhU for names delimited by pauses. The words stage instead reads through the next `le'u`. Thus `la'ai .alis. cu klama` rejects at the end. A later `le'u` can instead close a quotation that swallows the intervening sentence. Its pause-delimited use waits for #212.
 
 The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The indicator stage instead requires an indicator immediately after it. Thus `mi fu'ei klama fu'o` rejects at `klama`. With an indicator, `fu'ei ui mi klama fu'o` parses as an indicator group and a sentence, without a quotation. Its quotation use waits for #212.
-
-The dictionary gives `ze'ei` class SI, but the words stage treats that spelling as a joiner. Its result takes the right word's grammar and normalized value. The complete expression remains in its image. A magic right word and a missing right word both reject.
 
 The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The words stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
 
@@ -464,6 +460,12 @@ The dictionary gives `pe'ei` class BAhE for a connective with maximal scope. The
 The dictionary gives `xo'ei` class VUhU for a digit-string operator with an optional argument. Without that argument, its length is unspecified. The syntax instead requires an ordinary operator construction with operands. It does not accept `li xo'ei lo'o` as a number. Its implicit-argument construction waits for #212.
 
 ### Other baseline differences
+
+The Y word `ie'o` retains its dictionary class and acts as hesitation in the words stage.
+
+The ZOI delimiter rule skips a hesitation that no BU follows. Before `bu`, `ie'o` forms a letter word that can act as a delimiter.
+
+The dictionary gives `ze'ei` class SI, but the words stage treats that spelling as a joiner. Its result takes the right word's grammar and normalized value. The complete expression remains in its image. A magic right word and a missing right word both reject.
 
 `ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The dialect accepts `ro'oi broda` as a quantified description.
 

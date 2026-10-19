@@ -57,7 +57,6 @@ For example, camxes-exp nests `fu'e ui` inside DAhO in `mi da'o fu'e ui klama`. 
 
 In `mi .e ui da'o nai do`, camxes-exp nests bare NAI inside DAhO, under UI. This layer attaches the separate indicators UI, DAhO and NAI directly to `.e`.
 
-
 LUhEI and CIhAU add indicator boundaries that camxes-exp lacks. LUhEI preserves quoted initial attitudes, while CIhAU preserves converted attitudes for syntax instead of attaching them to its opener.
 
 Zantufa also gives LUhEI a grammatical text body, but its lexicon does not attach indicators in this stage. The experimental boundary preserves the same quoted-content distinction with its ordinary indicator processing.

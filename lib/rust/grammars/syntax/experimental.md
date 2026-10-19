@@ -101,7 +101,9 @@ An initial connective cannot immediately follow a leading free modifier in the s
 
 IhAU returns to the outer connected statement of the current text. It closes inner constructions before a continuation of terms or a run of free modifiers.
 
-The marker is written, not an omitted terminator. Its following `tail-terms` permits a written VAU and preserves ordinary free slots.
+The marker is written, not an omitted terminator. A reset after a complete statement or fragment takes `tail-terms`, which permits a written VAU and ordinary free slots.
+
+A reset after an unfinished head takes the rest of its bridi. A reset after leading free modifiers can take a whole statement. Heads retain ordinary CU positions and repeated prenexes.
 
 The reset also permits an unfinished head, a fragment, or leading free modifiers. Thus `doi djan iau ui mi klama` keeps the vocative before the reset and the bridi after it.
 
@@ -148,14 +150,14 @@ The prefix condition keeps adjacent leading free modifiers together. Otherwise, 
 
 %rule reset-statement
   | statement {IhAU # tail-terms}
-  | [prenex] terms IhAU # headed-bridi-tail [sentence-link] [{IhAU # tail-terms}]
+  | [{prenex}] bridi-tail-head IhAU # headed-bridi-tail [sentence-link] [{IhAU # tail-terms}]
 
 %rule reset-fragment
   fragment {IhAU # tail-terms}
 
 %rule reset-free
   | $f:reset-free-prefix {IhAU # tail-terms}
-  | $f:reset-free-prefix IhAU # headed-bridi-tail [sentence-link] [{IhAU # tail-terms}]
+  | $f:reset-free-prefix IhAU # statement [{IhAU # tail-terms}]
 %conditions
   ¬$f.preceded-by(free)
 
@@ -1215,10 +1217,9 @@ camxes-exp also nests the second subscript of `xa xi xa xi xa`. camxes-std inste
 
 CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. This layer and the official parser attach the parenthesis in `mi broda xi pa boi to do toi` to `broda`. camxes-exp reads the subscript operand as `mex_2`, whose final free slot takes the parenthesis. This layer excludes that exposed attachment but retains modifiers inside VEI, LAhE or PEhO when the actual constructor boundary follows them.
 
-
 ### Newer experimental constructions
 
-camxes-exp lacks GOhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, LUhEI, LIhAU, and CIhAU. This layer admits their dictionary constructions with the stated boundaries.
+camxes-exp lacks GOhOI, MUhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, LUhEI, LIhAU, and CIhAU. This layer admits their dictionary constructions with the stated boundaries.
 
 GOhOI and MUhOI use the predicate roles of Zantufa's `tanru_unit_1`. LUhEI also follows its grammatical text body and elidable LIhAU.
 
@@ -1226,9 +1227,9 @@ The [NOIhA proposal](https://solpahi.wordpress.com/2016/10/13/noiha/) places a c
 
 This layer uses FEhU alone and requires BE for the converted predicate's inner arguments. It does not turn NOIhA into a sumti relative clause.
 
-IhAU follows Zantufa's statement wrapper, with ordinary `tail-terms` after every reset. It resets a whole connected statement, including an `.i je` chain.
+IhAU follows Zantufa's wrapper for a completed statement, followed by `tail-terms`. The wrapper resets the whole connected statement, including an `.i je` chain.
 
-The extra head, fragment, and free-prefix shapes support a reset before the main bridi. The free-prefix condition removes duplicate placements of leading modifiers.
+The head shape accepts repeated prenexes and the ordinary `bridi-tail-head`. It takes a remaining bridi after IhAU. The free-prefix shape takes a whole statement. The fragment shape takes `tail-terms`. The free-prefix condition removes duplicate placements of leading modifiers.
 
 DOhOI follows its dictionary expansion as `doi la'oi`, including a preceding COI run and an optional DOhU. The inspected Zantufa grammar has no DOhOI construction.
 
@@ -1243,7 +1244,6 @@ CIhAU follows the attitude conversion of dictionary definition 71992, with the C
 DAhO, FUhE, and FUhO require a written CIhAUhU before their external use. This explicit boundary is a deliberate restriction because the conversion proposal leaves their internal meaning unspecified.
 
 The inspected Zantufa grammar has no SOhOI, CAhEI, or CIhAU construction. These additions introduce no new ranking flags.
-
 
 [^cll-s18-13]: [CLL 1.1, section 18.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-subscripts-math.html).
 

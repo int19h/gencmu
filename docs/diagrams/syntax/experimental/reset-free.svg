@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="719" height="186" viewBox="0 0 719 186" role="img" aria-label="Railroad diagram of the rule reset-free">
+<svg xmlns="http://www.w3.org/2000/svg" width="721" height="132" viewBox="0 0 721 132" role="img" aria-label="Railroad diagram of the rule reset-free">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">reset-free</text>
@@ -15,34 +15,27 @@
 <g class="rule"><rect x="324" y="34" width="100" height="24" rx="0"/><text x="374" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
 <path d="M424 46H444"/>
 <path d="M424 46a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H229a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M444 46H699"/>
+<path d="M444 46H701"/>
 <path d="M20 46a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M40 100h20"/>
-<g class="rule"><rect x="60" y="88" width="159" height="24" rx="0"/><text x="139.5" y="105" textLength="142.8" lengthAdjust="spacingAndGlyphs">reset-free-prefix</text></g>
-<path d="M219 100h10"/>
-<g class="terminal"><rect x="229" y="88" width="50" height="24" rx="12"/><text x="254" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
-<path d="M279 100h10"/>
-<g class="rule"><rect x="289" y="88" width="25" height="24" rx="0"/><text x="301.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M314 100h10"/>
-<g class="rule"><rect x="324" y="88" width="159" height="24" rx="0"/><text x="403.5" y="105" textLength="142.8" lengthAdjust="spacingAndGlyphs">headed-bridi-tail</text></g>
-<path d="M483 100h10"/>
-<path d="M493 100h20"/>
-<g class="rule"><rect x="513" y="88" width="126" height="24" rx="0"/><text x="576" y="105" textLength="109.2" lengthAdjust="spacingAndGlyphs">sentence-link</text></g>
-<path d="M639 100H659"/>
-<path d="M493 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H639a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<path d="M659 100H659a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V144a10 10 0 0 0 10 10"/>
-<path d="M60 154h20"/>
-<path d="M80 154h20"/>
-<g class="terminal"><rect x="100" y="142" width="50" height="24" rx="12"/><text x="125" y="159" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
-<path d="M150 154h10"/>
-<g class="rule"><rect x="160" y="142" width="25" height="24" rx="0"/><text x="172.5" y="159" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M185 154h10"/>
-<g class="rule"><rect x="195" y="142" width="100" height="24" rx="0"/><text x="245" y="159" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
-<path d="M295 154H315"/>
-<path d="M295 154a10 10 0 0 1 10 10V166a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V164a10 10 0 0 1 10 -10"/>
-<path d="M315 154H335"/>
-<path d="M60 154a10 10 0 0 0 10 -10V142a10 10 0 0 1 10 -10H315a10 10 0 0 1 10 10V144a10 10 0 0 0 10 10"/>
-<path d="M335 154H679"/>
-<path d="M679 154H679a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M699 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="40" y="88" width="159" height="24" rx="0"/><text x="119.5" y="105" textLength="142.8" lengthAdjust="spacingAndGlyphs">reset-free-prefix</text></g>
+<path d="M199 100h10"/>
+<g class="terminal"><rect x="209" y="88" width="50" height="24" rx="12"/><text x="234" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
+<path d="M259 100h10"/>
+<g class="rule"><rect x="269" y="88" width="25" height="24" rx="0"/><text x="281.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M294 100h10"/>
+<g class="rule"><rect x="304" y="88" width="92" height="24" rx="0"/><text x="350" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">statement</text></g>
+<path d="M396 100h10"/>
+<path d="M406 100h20"/>
+<path d="M426 100h20"/>
+<g class="terminal"><rect x="446" y="88" width="50" height="24" rx="12"/><text x="471" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
+<path d="M496 100h10"/>
+<g class="rule"><rect x="506" y="88" width="25" height="24" rx="0"/><text x="518.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M531 100h10"/>
+<g class="rule"><rect x="541" y="88" width="100" height="24" rx="0"/><text x="591" y="105" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
+<path d="M641 100H661"/>
+<path d="M641 100a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H446a10 10 0 0 1 -10 -10V110a10 10 0 0 1 10 -10"/>
+<path d="M661 100H681"/>
+<path d="M406 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H661a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M681 100H681a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M701 46h6m0 -8v16m4 -16v16"/>
 </svg>

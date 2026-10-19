@@ -82,6 +82,8 @@ The joiner uses ZEI's clean gaps and groups repeated operations from the left. B
 
 A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
 
+Experimental's constrained `ze'ei` operand reads a tested Cmavo directly so its diagnostic names the forbidden operation classes.
+
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
 The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base.
@@ -170,7 +172,6 @@ The empty-prefix alternatives handle both an empty stream and a nonempty stream.
 ## Differences from camxes-exp
 
 camxes-exp rejects CgV in names and borrowings. This dialect admits those word forms, as [experimental.md](experimental.md) explains. The default warning reports only word reads that rely on this extension. Opaque bodies and post-FAhO text do not rely on it.
-
 
 GOhOI, MUhOI, DOhOI, `ze'ei`, and the global eraser add word operations that camxes-exp lacks. Their quotations retain the shared Magic Words opacity rules.
 

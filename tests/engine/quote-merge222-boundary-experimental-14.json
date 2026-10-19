@@ -1,10 +1,10 @@
 {
-  "description": "The ZO target reader skips hesitation, quotes UI, and retains the full source image.",
+  "description": "The tree condition sees the complete ZO quote, and UI attaches to that quote.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "input": "zo ie'o ui cmavo",
+  "input": "zo ba'ei ui cmavo",
   "options": {},
   "expect": {
     "result": {
@@ -24,25 +24,39 @@
           "verdict": "unique",
           "output": [
             {
-              "value": "zo ui",
-              "image": "zo ie'o ui",
-              "source": [
-                0,
-                10
-              ],
+              "value": "zo ba'ei",
+              "image": "zo ba'ei",
               "tags": [
                 "Cmavo",
                 "Word",
                 "ZO"
+              ],
+              "source": [
+                0,
+                8
+              ]
+            },
+            {
+              "value": "ui",
+              "image": "ui",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "UI",
+                "Word"
+              ],
+              "source": [
+                9,
+                11
               ]
             },
             {
               "value": "cmavo",
               "image": "cmavo",
-              "source": [
-                11,
-                16
-              ],
               "tags": [
                 "BRIVLA",
                 "Continued",
@@ -50,6 +64,10 @@
                 "Run-Final",
                 "Run-Initial",
                 "Word"
+              ],
+              "source": [
+                12,
+                17
               ]
             }
           ]
@@ -62,6 +80,6 @@
         }
       ]
     },
-    "brackets": "(zo ie'o ui cmavo)"
+    "brackets": "([zo ba'ei ui] cmavo)"
   }
 }
