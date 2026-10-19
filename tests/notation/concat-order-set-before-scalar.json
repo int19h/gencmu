@@ -1,0 +1,10 @@
+{
+  "description": "Concatenation examines each known operand before reading later operands (engine §9.3).",
+  "document": "```jbogenbau\n%const $S (\"a\" \"b\") ++ $_D800\n%rule text \"x\"\n%ambiguity-resolution greedy\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

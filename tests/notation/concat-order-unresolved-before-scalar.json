@@ -1,0 +1,10 @@
+{
+  "description": "An unresolved operand defers its type, so a later invalid scalar is read first (engine §9.3).",
+  "document": "```jbogenbau\n%const $S $Missing ++ $_D800\n%rule text \"x\"\n%ambiguity-resolution greedy\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 23
+    }
+  }
+}

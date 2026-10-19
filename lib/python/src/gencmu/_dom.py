@@ -1062,13 +1062,13 @@ class DomBuilder:
             items = []
             for part in nodes:
                 value = yield self._term(part, argument and len(nodes) == 1)
+                if len(nodes) > 1:
+                    kind, problem = term_type(value, memo=self.types)
+                    if not self.feature_context and (problem or kind not in ("string", "any")):
+                        raise self.fail(node, problem or "++ requires string operands")
                 items.extend(value.get("concat", [value]))
             if len(nodes) == 1:
                 return items[0] if len(items) == 1 else {"concat": items}
-            for item in items:
-                kind, problem = term_type(item, memo=self.types)
-                if not self.feature_context and (problem or kind not in ("string", "any")):
-                    raise self.fail(node, problem or "++ requires string operands")
             return {"concat": items}
         if rule == "intersection":
             parts = self.some(node, "concatenation")

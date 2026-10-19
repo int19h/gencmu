@@ -403,6 +403,9 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	if problem != "" && !b.featureContext {
 		b.fail(n, "%s", problem)
 	}
+	if n.Rule == "concatenation" && ty != tyString && ty != tyAny && !b.featureContext {
+		b.fail(n, "++ requires string operands")
+	}
 	f.items = append(f.items, t)
 	f.types = append(f.types, ty)
 	if len(f.items) < len(f.parts) {
@@ -410,10 +413,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	}
 	if n.Rule == "concatenation" {
 		var items []*domTerm
-		for i, t := range f.items {
-			if f.types[i] != tyString && f.types[i] != tyAny && !b.featureContext {
-				b.fail(n, "++ requires string operands")
-			}
+		for _, t := range f.items {
 			if t.Kind == tmConcat {
 				items = append(items, t.Items...)
 			} else {
