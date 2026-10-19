@@ -71,6 +71,9 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 %rule unit
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
+%rule constructor-word
+  bu-word | zei-word
+
 %rule erasure
   si-erasure | sa-su? sa-erasure
 
@@ -93,13 +96,14 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   ¬$.following-tokens.begins(read-word)
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>sa-tail</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>text</code> to <code>sa-tail</code></summary>
 <p><img src="../../docs/diagrams/words/stream/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/words/stream/text-start.svg" alt="Railroad diagram of the rule text-start"></p>
 <p><img src="../../docs/diagrams/words/stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
 <p><img src="../../docs/diagrams/words/stream/su-cleared.svg" alt="Railroad diagram of the rule su-cleared"></p>
 <p><img src="../../docs/diagrams/words/stream/stream.svg" alt="Railroad diagram of the rule stream"></p>
 <p><img src="../../docs/diagrams/words/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
+<p><img src="../../docs/diagrams/words/stream/constructor-word.svg" alt="Railroad diagram of the rule constructor-word"></p>
 <p><img src="../../docs/diagrams/words/stream/erasure.svg" alt="Railroad diagram of the rule erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/fault-unit.svg" alt="Railroad diagram of the rule fault-unit"></p>
 <p><img src="../../docs/diagrams/words/stream/faho-group.svg" alt="Railroad diagram of the rule faho-group"></p>
@@ -179,7 +183,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings there. `brivla-token` and `cmevla-token` likewise let a dialect warn when it reads a predicate word or name. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Most particle readers use `cmavo-token`. Experimental's constrained `ze'ei` operand reads a tested Cmavo directly so its diagnostic names the forbidden operation classes. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings there. `brivla-token` and `cmevla-token` likewise let a dialect warn when it reads a predicate word or name. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -708,6 +712,8 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 </details>
 
 ## Compounds
+
+The `constructor-word` rule names the operators that construct a word from a preceding unit. Replacement-quote markers use it for their constructor fallback.
 
 BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 

@@ -13,6 +13,30 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
+## Hesitation words
+
+The filler `ie'o` has class Y and acts as hesitation. The forms stage marks it `Hesitation`, so every words-stage reader uses the same classification.
+
+It carries no ordinary `Word` or `Cmavo` tag. Thus a raw quote body cannot read it through two competing token kinds.
+
+The words stage drops hesitation outside opaque bodies, except before BU. That exception forms a letter word and also supports letter-word delimiters.
+
+```jbogenbau
+%redefine-rule source-word
+  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
+  | $y:cmavo-shape :: Hesitation ∪ Y ∪ $y.tags
+  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
+  | $h:hesitation-shape :: Hesitation ∪ $h.tags
+%conditions
+  Y ⊈ $c.value.classify(lexicon),
+  Y ⊆ $y.value.classify(lexicon)
+```
+
+<details><summary>Railroad diagram of <code>source-word</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/source-word.svg" alt="Railroad diagram of the rule source-word"></p>
+</details>
+
 ## The pair mz
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
@@ -382,3 +406,8 @@ camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel,
 [^cll-s3-4]: [CLL 1.1, section 3.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-diphthongs.html).
 
 [^cll-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L208).
+
+
+The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa also recognizes it, but restricts where hesitation counts as spacing.
+
+This dialect keeps its existing broader spacing behavior. Both raw one-word quote gaps and ordinary word gaps skip the same hesitation classification.

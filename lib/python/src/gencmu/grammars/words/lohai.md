@@ -14,7 +14,7 @@ A free modifier adds information outside predicate arguments. The syntax reads t
 
 The quote token carries its opening class and the tag `Quote`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. A tag marks a token by an identifier. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
 
-In the experimental dialect, an unfinished marker carries `Fault` unless BU or ZEI takes it as a base. [The word stream](stream.md) reads no word where a quote begins, and only there. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
+In the experimental dialect, an unfinished marker carries `Fault` unless a word constructor takes it as a base. [The word stream](stream.md) reads no word where a quote begins, and only there. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. An eraser can remove the fault. A surviving fault rejects the words stage at the missing LEhAI. The Zantufa word stream has its own rules for such a marker.
 
 ```jbogenbau
 %redefine-rule word
@@ -27,7 +27,7 @@ In the experimental dialect, an unfinished marker carries `Fault` unless BU or Z
   $
 
 %rule lohai-constructor-tail
-  skipped bu-word | skipped zei-word
+  skipped constructor-word
 
 %extend-rule quote
   (* LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces? *)
