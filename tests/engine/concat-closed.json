@@ -1,0 +1,17 @@
+{
+  "description": "String concatenation closed.",
+  "grammar": "%const $A \"a\" ++ \"b\"\n%const $B $A ++ \"c\"\n%rule text $B",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "abc"
+    }
+  ]
+}

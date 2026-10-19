@@ -52,7 +52,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
-Grammar documents decompose too. Written string segments decompose, but interpolated engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
+Grammar documents decompose too. Written string segments decompose, but concatenated engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
 
 The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
 

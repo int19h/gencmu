@@ -1,0 +1,26 @@
+{
+  "description": "String concatenation plain dollars.",
+  "grammar": "%rule text \"$(NAME)\" \"$$\" \"$\"",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "$(NAME)"
+    },
+    {
+      "text": "b",
+      "tags": [],
+      "value": "$$"
+    },
+    {
+      "text": "c",
+      "tags": [],
+      "value": "$"
+    }
+  ]
+}

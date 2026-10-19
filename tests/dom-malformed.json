@@ -5176,5 +5176,318 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "The DOM tests two string operands.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The DOM tests nested string concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "concat": [
+                  {
+                    "string": "b"
+                  },
+                  {
+                    "string": "c"
+                  }
+                ]
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The DOM tests empty concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": []
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The DOM tests one operand outside recipes.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The DOM tests set operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "union": [
+                  {
+                    "string": "b"
+                  },
+                  {
+                    "string": "c"
+                  }
+                ]
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The DOM tests span operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The DOM tests tag operand.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "tag": "A"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The DOM tests removed interpolation node.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "interpolate": [
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

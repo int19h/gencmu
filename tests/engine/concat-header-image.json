@@ -1,0 +1,21 @@
+{
+  "description": "The header recipe joins capture strings.",
+  "grammar": "%rule text :- $a.value ++ \"-\" ++ $b.value | $a:\"a\" $b:\"b\" %emits",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "ab",
+              "image": "a-b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

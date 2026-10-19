@@ -1,0 +1,17 @@
+{
+  "description": "String concatenation forward.",
+  "grammar": "%const $S $A ++ \"b\"\n%const $A \"a\"\n%rule text $S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "ab"
+    }
+  ]
+}

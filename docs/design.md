@@ -298,7 +298,7 @@ The following grammar gives `x` for input `a`, and `xb` for input `ab`:
 
 The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The [dialect author guide](dialects.md) uses this rule for quote bodies and gaps.
 
-Recipes use a closed string language. They concatenate literals, string constants, and seven captured string methods. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
+Recipes use a closed string language. They join literals, string constants, and seven captured string methods with `++`. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 
 Only requested selected recipes run. `.emitted` reads a constituent before the current item's override. Cross-channel reads can terminate through an explicit recipe. An effective constituent channel that depends on itself causes a document cycle error, even when an item overrides its runtime string. Engine §11 states occurrence identity and suppressed dependencies.
 
@@ -401,7 +401,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 33 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 14 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 34 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 14 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -712,7 +712,7 @@ The Zantufa comparison uses a local `zantufa-1.9999.peg` from Guskant's `gerna_c
 node tools/peg-lexicon.js zantufa-1.9999.peg grammars/words/lexicon-zantufa.md
 ```
 
-The comparison accepts lexicons without feature gates. It resolves interpolated keys and membership removals through the JavaScript library. It compares classifier classes, without implication tags. Bare `y+` denotes hesitation, not a cmavo. The `ybu` and `digit` PEG branches describe input constructs, so they supply no literal classifier keys. A mixed Y list retains its canonical `y` key.
+The comparison accepts lexicons without feature gates. It resolves literal keys and membership removals through the JavaScript library. It compares classifier classes, without implication tags. Bare `y+` denotes hesitation, not a cmavo. The `ybu` and `digit` PEG branches describe input constructs, so they supply no literal classifier keys. A mixed Y list retains its canonical `y` key.
 
 For a new lexicon, bootstrap mode prints a fresh classifier to standard output. It prints no implication:
 

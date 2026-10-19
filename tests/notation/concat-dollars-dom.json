@@ -1,0 +1,21 @@
+{
+  "description": "Dollar syntax remains plain string content.",
+  "document": "```jbogenbau\n%rule text \"$(S)$$$\"\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "$(S)$$$"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

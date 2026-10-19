@@ -1,0 +1,8 @@
+{
+  "description": "Concatenation requires scalar string operands.",
+  "grammar": "%rule text $x:\"a\" %conditions ∅ ++ \"c\" = \"ac\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -312,9 +312,9 @@ Attachments are named captures in parentheses around a named carrier. The reader
 
 ## Tags and string recipes
 
-`::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe concatenates its atoms in written order.
+`::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe joins its string atoms with `++` in written order.
 
-Recognition reads each recipe atom as a term. In recipes, the reader expands adjacent string literals into separate concatenated atoms. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
+Recognition reads each recipe atom as a term. Adjacent string literals form a set, so the reader rejects them and tells the author to use `++`. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
 
 This wider recognition lets the reader reject a written operator or forbidden method at its atom. It does not make those atoms valid recipes.
 
@@ -347,7 +347,7 @@ This wider recognition lets the reader reject a written operator or forbidden me
 
 A term can be a string, a set, a pattern, a capture, a span, or a method result. Its context determines the type of `∅`.
 
-`∩` binds tighter than `∪` and `∖`. Union and difference group from the left. Outside a recipe, adjacent tags or strings form one union.
+`++` binds tighter than `∩`, which binds tighter than `∪` and `∖`. These operators group from the left. Adjacent tags or strings form one union.
 
 A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A guard binds less tightly than set operators.
 
@@ -374,7 +374,10 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   ["∪"] {intersection / ("∪" | "∖")}
 
 %rule intersection
-  ["∩"] {term-atom / "∩"}
+  ["∩"] {concatenation / "∩"}
+
+%rule concatenation
+  {term-atom / "++"}
 
 %rule tag-run
   tag tag [{tag}]
@@ -425,11 +428,12 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   String
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>term</code> to <code>string</code></summary>
+<details><summary>Railroad diagrams of the 21 rules from <code>term</code> to <code>string</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/notation/syntax/guarded-term.svg" alt="Railroad diagram of the rule guarded-term"></p>
 <p><img src="../../docs/diagrams/notation/syntax/union.svg" alt="Railroad diagram of the rule union"></p>
 <p><img src="../../docs/diagrams/notation/syntax/intersection.svg" alt="Railroad diagram of the rule intersection"></p>
+<p><img src="../../docs/diagrams/notation/syntax/concatenation.svg" alt="Railroad diagram of the rule concatenation"></p>
 <p><img src="../../docs/diagrams/notation/syntax/tag-run.svg" alt="Railroad diagram of the rule tag-run"></p>
 <p><img src="../../docs/diagrams/notation/syntax/string-run.svg" alt="Railroad diagram of the rule string-run"></p>
 <p><img src="../../docs/diagrams/notation/syntax/term-atom.svg" alt="Railroad diagram of the rule term-atom"></p>

@@ -1,0 +1,10 @@
+{
+  "description": "String concatenation condition.",
+  "grammar": "%rule text $l:\"a\" \"y\" $r:\"b\" %conditions $l.value ++ $r.value = \"ab\"",
+  "input": "ayb",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

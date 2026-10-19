@@ -1,0 +1,21 @@
+{
+  "description": "The item recipe joins capture strings.",
+  "grammar": "%rule text $a:\"a\" $b:\"b\" %emits $ :- $a.value ++ \"-\" ++ $b.value",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "ab",
+              "image": "a-b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "description": "String concatenation redefine.",
+  "grammar": "%const $S \"a\"\n%redefine-const $S $S ++ \"b\"\n%rule text $S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "ab"
+    }
+  ]
+}

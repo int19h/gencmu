@@ -1,0 +1,26 @@
+{
+  "description": "Concatenation preserves empty operands and flattens grouped joins.",
+  "document": "```jbogenbau\n%const $S \"a\" ++ (\"\" ++ \"b\")\n```",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "constants": [
+        {
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": ""
+              },
+              {
+                "string": "b"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

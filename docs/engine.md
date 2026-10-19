@@ -33,7 +33,7 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks and private-use scalars. It also uses interpolation for Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling joins literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, nonspacing marks and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
 
@@ -41,7 +41,7 @@ A private-use scalar lies in three fixed ranges. These are U+E000 to U+F8FF, U+F
 
 A nonspacing mark has general category Mn in the configured Unicode table. Scalars with a `decompose` record, Hangul syllables and scalars of nonzero combining class also require escaping. Stage zero changes each of them in a grammar document. Other marks need no escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
 
-U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
+U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` as a separate string term. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
 
 Stage zero is named `input`. It first decomposes the text into its canonical decomposition, Unicode Normalization Form D, with the configured Unicode table. Each scalar c at position i becomes its decomposition. That is the table's `decompose` record for c, the jamo of a Hangul syllable, or c itself. Each resulting scalar has origin i. Then each maximal run of scalars whose combining class is not 0 is sorted by combining class.
 
@@ -151,7 +151,7 @@ An item states a constant in one of two ways. `%const $NAME t` (`define`) define
 
 `t` is a closed term (§10). Every user constant reference binds to its name's final definition in the stitched stage. Other names can refer forward. Inside `%redefine-const $X t`, `$X` binds to X's immediately preceding definition. This lexical exception applies inside nested patterns, but never through another referenced constant.
 
-Engine scalar references from §9.1 resolve directly to their scalar strings. They need no declaration and never enter the user constant version graph. Declarations cannot use their names. This rule covers references in bodies, patterns, recipes, ranges, and interpolation.
+Engine scalar references from §9.1 resolve directly to their scalar strings. They need no declaration and never enter the user constant version graph. Declarations cannot use their names. This rule covers references in bodies, patterns, recipes, ranges, and concatenation.
 
 Each declaration creates an immutable version `(name, declaration-index)`. A redefinition records its predecessor. After stitching, the loader records each name's final version. It resolves self-references in a redefinition to its predecessor and all other references to final versions. These resolved edges never change during evaluation.
 
@@ -1289,19 +1289,19 @@ An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. T
 
 An Integer token is a nonempty run of ASCII decimal digits. Section 9.3 defines its validity as a method argument.
 
-String delimiters are straight double quotes. `$$` decodes to `$`. `$(NAME)` refers to a string constant without its leading `$`. The reference retains a source position. Interpolation happens after stage constant binding, not while the document DOM is cached.
+String delimiters are straight double quotes. Their contents are plain text. Dollar signs are ordinary characters, including `$$` and `$(NAME)`. The reader stores the decomposed token value between the delimiters.
 
-In a string outside an include path, a dollar sign starting neither interpolation nor `$$` is a lexical document error. Backslash has no escape meaning and is a lexical error. A quote within a string uses `$(_0022)`. A backslash value uses `$(_005C)`.
+Backslash has no escape meaning and is a lexical error. A string containing a quote or backslash joins `$_0022` or `$_005C` with `++`.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use ordinary string decoding. A backslash is still a lexical error. Paths use `/` separators.
+An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. Paths use `/` separators.
 
 A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
 
 The lexer reads `¬` separately only when no guard starts immediately after it. It has no negated-warning token. Thus `%rule r ¬cbm! A` fails lexically at `!`, column 13. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard with an invalid feature or a negated warning fails at that guard.
 
-Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape or interpolation processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
+Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
-Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+Canonical string-terminal diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal. A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins their canonical string literals with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1368,7 +1368,8 @@ recipe-atom = term
 term = union | guarded-term
 guarded-term = any-of "⟹" {any-of "⟹"} union
 union = ["∪"] intersection {("∪" | "∖") intersection}
-intersection = ["∩"] term-atom {"∩" term-atom}
+intersection = ["∩"] concatenation {"∩" concatenation}
+concatenation = term-atom {"++" term-atom}
 tag-run = tag tag {tag}
 string-run = string-literal string-literal {string-literal}
 term-atom = plain-term-atom | method-chain
@@ -1456,7 +1457,7 @@ Names, capture references, method names, engine-tag tokens, strings, include pat
 
 `%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
-Thus `%include "a.md" "b$c.md"` fails lexically at `$`, column 19. With two well-formed quoted operands, the reader reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
+Thus `%include "a.md" "b$c.md"` reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
 Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder. This is a reader error, so an earlier reader error wins after syntax recognition succeeds.
 
@@ -1487,7 +1488,8 @@ string-operand = string-literal | string-constant
 item = ("$" | named-capture | "ε") [clauses] | attached-item
 attached-item = {attachment} named-capture {attachment} [clauses]
 attachment = "(" named-capture ")"
-recipe-atom = string-literal | string-constant | capture-string-method
+recipe-atom = recipe-string {"++" recipe-string}
+recipe-string = string-literal | string-constant | capture-string-method
 capture-string-method = capture-reference "." string-method
 string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
@@ -1509,7 +1511,7 @@ Its remainder is a sequence of primaries. It cannot contain captures.
 
 Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immediately after `{` or after the whole item. A chain is the whole alternative expression. Captures cannot occur inside either repetition form. Tests cannot follow a group, capture, optional, repeat, `ε`, or `#`.
 
-The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token in the atom, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension.
+The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 
 In recipes, the reader expands an unparenthesized `string-run` node into consecutive string atoms before term conversion. Interpolated literals retain their order. The run never becomes a string set.
 
@@ -1585,7 +1587,8 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `emit-target` | One capture, `ε`, name, tag, or range | Require a capture or `ε`. Produce capture name, empty name, or `insert:true`. |
 | `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order |
 | `recipe` | One or more `recipe-atom` parts | Ordered `concat` |
-| `recipe-atom` | One recognized term | Check its written form before conversion. Expand an unparenthesized string run into string atoms. Otherwise require a closed string atom, with methods restricted by §11. |
+| `recipe-atom` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
+| `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands |
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `method-name`, then optional `arguments` | Method name, prior receiver, ordered argument terms |
@@ -1593,7 +1596,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
 | `argument` | One `term` or `integer` | Term, integer argument, or rule/classifier name in the signature's name position |
 | `integer` | One Integer token | `integer`, retaining its positive decimal digits without leading zeros |
-| `string` | String token | Decode its value left to right, with decomposed written segments and exact constant scalars |
+| `string` | String token | Remove delimiters from its decomposed token value |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
@@ -1625,9 +1628,9 @@ Each declaration's `at` records its first token's line and column, counted from 
 
 The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. Interpolation positions count the original text. An include path keeps the token's original text, without its quotes.
 
-For a string token, the reader removes only its delimiters. It scans the content left to right, preserving ordinary characters and decoding `$$`. Each `$(NAME)` adds a constant reference with the dollar sign's source position. Its name excludes both delimiters. Adjacent literal segments merge, and empty segments disappear unless all segments are empty.
+For a string token, the reader removes only its delimiters. It preserves every character of the decomposed token value, including dollar signs.
 
-The result is `string` when no interpolation remains, otherwise ordered `interpolate` parts. An engine scalar reference remains unresolved in the DOM like a user reference. Its scalar value resolves directly under §2. A literal include path uses none of this interpolation decoding.
+The result is always `string`. An engine scalar reference outside a string remains unresolved in the DOM like a user reference. Its scalar value resolves directly under §2. An include path retains its original spelling.
 
 Header, alternative, and item clauses use the same channel constructors. The reader looks up tags, value, then image. A value clause cannot supply an image clause's recipe. Attachment names come from their capture-reference parts, never from their emitted strings.
 
@@ -1652,7 +1655,7 @@ The following compact examples show the additional conversions. Positions illust
 | `:: $f.tags ∪ Run-Initial Run-Final` | `{"union":[{"method":"tags","receiver":{"capture":"f"},"args":[]},{"tag":"Run-Initial"},{"tag":"Run-Final"}]}` |
 | `A ∪ (B ∪ C)` | `{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}` |
 | `(Word BY) ∩ $l.tags` | `{"intersection":[{"union":[{"tag":"Word"},{"tag":"BY"}]},{"method":"tags","receiver":{"capture":"l"},"args":[]}]}` |
-| `"a$(_0301)"` | `{"interpolate":[{"string":"a"},{"const":"_0301","at":[1,3]}]}` |
+| `"a" ++ $_0301` | `{"concat":[{"string":"a"},{"const":"_0301","at":[1,8]}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |
 | `Word ∪ ($c ⟹ $c.value.classify(lexicon))` | `{"union":[{"tag":"Word"},{"if":{"captured":"c"},"then":{"method":"classify","receiver":{"method":"value","receiver":{"capture":"c"},"args":[]},"args":[{"classifier":"lexicon"}]}}]}` |
 | `%emits ($b) $w ($a) :- "i"` | `{"items":[{"capture":"w","image":{"concat":[{"string":"i"}]},"before":["b"],"after":["a"]}]}` |
@@ -1668,7 +1671,7 @@ Reader set type errors stand at the set expression or comparison that requires i
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
-`+` is the sole elision marker and has no other use. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings use interpolation rather than backslash escapes. Outside comments, a bare backslash in grammar text is an error. Comments can contain `(* see C:\temp *)`.
+`+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings contain plain text and have no backslash escapes. Outside comments, a bare backslash in grammar text is an error. Comments can contain `(* see C:\temp *)`.
 
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 
@@ -1797,13 +1800,13 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An `&` of more than 16 items is an error.
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
-  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. `concat` occurs only at a recipe root.
+  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
 
   | Form | Depth of its children |
   | --- | --- |
   | Expression `seq`, `choice`, `ranked`, `and`, `optional`, `repeat`, `capture`, or `test` | Parent depth plus one |
   | Expression `literal` or `range` | Parent depth for the string term or each endpoint |
-  | Term `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, `method`, or `pattern` | Parent depth plus one |
+  | Term `union`, `intersection`, `difference`, `if`, `concat`, `method`, or `pattern` | Parent depth plus one |
   | Condition `any`, `all`, `not`, `if`, `method`, or comparison | Parent depth plus one |
   | Pattern `union`, `intersection`, `difference`, `children`, path, or `test` | Parent depth plus one |
   | Pattern `literal` or `range` | Parent depth for the string term or each endpoint |
@@ -1811,7 +1814,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A repeat's item and separator have the same depth. A test's target and operands count from the test's depth. A guarded term's condition and result count from the term's depth. A method's receiver and term arguments count from the method's depth. Rule, terminal, classifier, and integer arguments add no depth. A `pattern` term adds one before its pattern's root, and each subsequent pattern constructor continues that count.
 
-  Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. An integer argument is a leaf. Condition `captured` is a leaf. Pattern `name`, `terminal`, `constant`, and `wildcard`, and children `siblings`, are leaves. A literal's string term can still contain an `interpolate` constructor, which adds depth under the term rule.
+  Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. An integer argument is a leaf. Condition `captured` is a leaf. Pattern `name`, `terminal`, `constant`, and `wildcard`, and children `siblings`, are leaves. A `concat` term adds depth under the term rule.
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
@@ -1911,7 +1914,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
 The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text. Interpolated constants keep their exact scalar values.
 
-String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. §9.1 defines scalar constants and canonical diagnostic spelling.
+String decoding preserves dollar signs literally. `++` joins string operands in conditions, constants, closed terms, and recipes. Include paths keep their original spelling. §9.1 defines scalar constants and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
@@ -1979,7 +1982,13 @@ A constant value is a closed term with string, string-set, tag-set or pattern ty
 
 `..` joins range endpoints only in terminal syntax. It cannot construct a set in a condition. Stored property tests use tags, as in `_L ⊆ $c.tags`. Recipes use only the closed string language of §11.
 
-In a set operation, a scalar string converts to its singleton string set. This includes empty strings, interpolated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
+`++` requires scalar strings on both sides. It performs no capture, span, tag, pattern, or set conversion. Use an explicit string method for captures and spans.
+
+Method selection binds tighter than `++`. Concatenation binds tighter than intersection, union or difference, and comparisons, in that order. It associates left. Parentheses group terms outside recipes. The reader flattens nested concatenations in written order without folding their strings or resolving constants.
+
+A concatenation is closed exactly when every operand is closed. Constant binding resolves each operand before joining its exact string. Written literal text already follows stage-zero decomposition. Concatenation performs no further normalization.
+
+In a set operation, a scalar string converts to its singleton string set. This includes empty strings, concatenated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
 
 `∪`, `∩`, and `∖` combine tag sets, string sets, or patterns of one type. Plain parentheses preserve type. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
@@ -2053,7 +2062,7 @@ A whole capture's `.tags` reads constituent tags. Other spans union their origin
 
 The context is the stage's input or the nested query's bounds (§4). `.onward` and `.following-tokens` end at that context boundary. `.starts-input` compares the projected start with that context's start. Recipe methods never start queries or use restored spans.
 
-A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Interpolated literals count as strings. Constant references and method calls require explicit operators.
+A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Constant references and method calls require explicit operators.
 
 Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside `@(…)`, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
 
@@ -2159,9 +2168,9 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 ### 11.3 Recipe evaluation and cycles
 
-A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
+A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms join with `++` from left to right without a separator. Every other atom is a document error.
 
-Recipes are also an exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
+Juxtaposed literals form a string set everywhere terms permit them. A recipe requires a string. The reader rejects juxtaposed recipe strings and tells the author to use `++`. Recipe atoms cannot use grouping parentheses or method arguments.
 
 Input methods read the original projected span. `.emitted` reads the string walk with constituent recipes, before any override on the current item. It can read a captured constituent that has no `%emits`. An erased part's `.emitted` gives empty strings on both channels.
 
@@ -2181,12 +2190,12 @@ A selected recipe runs only when an emitted string or another evaluated recipe n
 %rule t := "a"
   | "a"
 %emits
-  $ := $.emitted.value "b"
+  $ := $.emitted.value ++ "b"
 ```
 
 `r` and `s` give `x` on both channels. `t` gives `ab` on both channels. Its item reads the constituent value `a` before its override.
 
-A cycle exists when a requested constituent channel depends on that same occurrence's active channel before returning. `:= $.emitted.value "x"` cycles directly. `:= $.emitted.image` without an explicit image recipe cycles through the implied image. Cross-channel references alone do not establish a cycle, as `r` and `s` show.
+A cycle exists when a requested constituent channel depends on that same occurrence's active channel before returning. `:= $.emitted.value ++ "x"` cycles directly. `:= $.emitted.image` without an explicit image recipe cycles through the implied image. Cross-channel references alone do not establish a cycle, as `r` and `s` show.
 
 The loader analyzes each production's effective constituent recipes after alternative and definition channel selection. It validates these two channels before considering item overrides. Overridden definition recipes remain inactive on the channels replaced by alternative recipes. Tests and feature gates excuse no active document cycle.
 

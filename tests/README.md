@@ -225,7 +225,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 33. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 34. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -488,4 +488,4 @@ Lines that begin with `#` are comments. An entry that the check does not need is
 
 `unicode/NormalizationTest.txt` is the complete Unicode 15.1 normalization conformance file from Unicode.org. Each library tests its canonical decomposition against every data line. Columns 1, 2 and 3 decompose to column 3. Columns 4 and 5 decompose to column 5. Every scalar that part 1 omits decomposes to itself.
 
-The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact interpolated constants, original interpolation positions and original include paths.
+The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact concatenated constants, original constant reference positions and original include paths.

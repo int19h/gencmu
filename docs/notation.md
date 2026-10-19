@@ -116,7 +116,7 @@ An engine tag can stand in a tag test, a pattern, a condition, and a body termin
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`, and engine-constant interpolation for special characters. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes. `$(NAME)` interpolates a string constant and `$$` writes a dollar sign. `$(_0022)` writes a quote. The section "Constants" gives errors and resolution.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The section "Constants" describes engine scalar constants for special characters.
 
 ## Tests
 
@@ -374,7 +374,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 
 The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
-The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
+The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. A pattern constant can read engine tags as terminal atoms or tag requirements.
 
@@ -394,16 +394,26 @@ The loader gives the constants their values when it stitches each stage. So a do
 
 A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. Engine constants start with `$_` and four to six uppercase hexadecimal digits. A grammar cannot define or redefine an engine constant.
 
-Outside include paths, strings interpolate only string constants. A dollar sign starting neither `$$` nor `$(` is a document error, including a final lone dollar sign. In a redefinition, `$(X)` follows the same immediately preceding self-definition rule as `$X`.
+A string literal is plain text between straight double quotes. A dollar sign is an ordinary character, including in `$(NAME)` and `$$`. A backslash remains a lexical error.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use ordinary string decoding. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
+An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
 
 ```jbogenbau
-%const $ACCENTED "a$(_0301)"
-%const $QUOTED "$(_0022)Hello!$(_0022)"
-%const $DOLLAR "$$"
+%const $ACCENTED "a" ++ $_0301
+%const $QUOTED $_0022 ++ "Hello!" ++ $_0022
+%const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
+
+### String concatenation
+
+`a ++ b` joins string `a` followed by string `b`, without a separator. Both operands must be strings. Sets, tags, patterns, captures, and spans are errors, so use `$x.value` to read a captured string.
+
+Method selection binds tighter than `++`. Concatenation binds tighter than `∩`, then `∪` and `∖`, then comparisons. Concatenation groups from the left. Parentheses can group terms outside recipes.
+
+A concatenation of closed strings is closed and can define a constant. For example, `%const $PAIR "b" ++ "r"` defines `"br"`. Conditions can test `$l.value ++ $r.value ∈ $INITIAL`.
+
+A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`. A single atom needs no operator. This applies to value and image recipes on definitions, alternatives, and emission items.
 
 ## Tree patterns
 
@@ -809,7 +819,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Inside `@(…)` | Child sequence | `@(A B ∪ C)` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
-| A recipe | String concatenation | `:= $a.value " " $b.value` |
+| A recipe | String set, rejected because a recipe requires a string | `:= "a" ++ "b"` |
 | A classifier entry | Separate keys | `"mi" "do" ∈ KOhA` |
 | Directive operands | A list | `%features cbm su-boundary` |
 | Other tag-set atoms | Error | `:: $m.tags Word` |
@@ -906,7 +916,7 @@ A part that an emission list does not name remains a counted part, although it e
 
 %rule quoted-word
   $m:word-quote-marker $g:word-gap $w:read-word
-    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+    :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -937,9 +947,9 @@ Recipe priority follows this table, from strongest to weakest. A capture item's 
 
 At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
 
-Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
+Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
-Recipes are also an exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
+Juxtaposition forms a string set in recipes too. A recipe requires a string, so the reader rejects adjacent strings and tells the author to use `++`. Recipe atoms cannot use parentheses or method arguments.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 
@@ -955,7 +965,7 @@ Only selected recipes run. A weaker recipe runs only when another evaluated reci
 %emits
 ```
 
-A recipe supplies a string. Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides.
+A recipe supplies a string. Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value ++ "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides.
 
 Engine §11 defines the selected constituent dependencies.
 

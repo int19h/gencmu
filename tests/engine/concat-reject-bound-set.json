@@ -1,0 +1,8 @@
+{
+  "description": "The loader rejects an invalid string concatenation.",
+  "grammar": "%const $S \"a\" \"b\"\n%const $T $S ++ \"c\"\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "description": "The loader rejects an invalid string concatenation.",
+  "grammar": "%rule text := \"a\" \"b\" | \"x\"",
+  "input": "",
+  "expect": {
+    "error": "grammar"
+  }
+}
