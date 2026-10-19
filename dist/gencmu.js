@@ -117,7 +117,7 @@
     if (node.op) return [node.left, node.right];
     if (node.if) return [node.if, node.then];
     if (node.not) return [node.not];
-    for (const key of ["any", "all", "union", "intersection", "difference", "interpolate", "concat", "items"]) {
+    for (const key of ["any", "all", "union", "intersection", "difference", "concat", "items"]) {
       if (node[key]) return node[key];
     }
     if (node.const) return node.value === undefined ? [] : [node.value];
@@ -845,19 +845,21 @@
    * @returns {string}
    */
   function stringName(value, unicode) {
-    let written = '"';
+    const parts = [];
+    let literal = "";
     for (const character of value) {
       const code = /** @type {number} */ (character.codePointAt(0));
-      if (character === "$") written += "$$";
-      else if (character === '"' || character === "\\" || code <= 0x1f ||
+      if (character === '"' || character === "\\" || code <= 0x1f ||
           (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) || unicode.changesInDocument?.(code) ||
           (code >= 0xe000 && code <= 0xf8ff) ||
           (code >= 0xf0000 && code <= 0xffffd) ||
           (code >= 0x100000 && code <= 0x10fffd)) {
-        written += `$(_${code.toString(16).toUpperCase().padStart(4, "0")})`;
-      } else written += character;
+        if (literal) { parts.push('"' + literal + '"'); literal = ""; }
+        parts.push(`$_${code.toString(16).toUpperCase().padStart(4, "0")}`);
+      } else literal += character;
     }
-    return written + '"';
+    if (literal) parts.push('"' + literal + '"');
+    return parts.length ? parts.join(" ++ ") : '""';
   }
 
   /**
@@ -2547,7 +2549,7 @@
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
         if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern position';
         if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
-        if ('literal' in n && (!n.literal || !['string', 'const', 'interpolate'].some(key => key in n.literal))) return 'a malformed pattern literal';
+        if ('literal' in n && (!n.literal || !['string', 'const', 'concat'].some(key => key in n.literal))) return 'a malformed pattern literal';
         if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
       } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
         const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant'].some(key => key in value);
@@ -3833,7 +3835,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 33;
+  const DOM_FORMAT = 34;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3961,7 +3963,7 @@
     /** @type {(value: any, fields: string[]) => boolean} */
     const exact = (value, fields) => object(value) && Object.keys(value).every(key => fields.includes(key));
     /** @type {(value: any) => boolean} */
-    const stringTerm = value => object(value) && ["string", "const", "interpolate"].some(key => key in value);
+    const stringTerm = value => object(value) && ["string", "const"].some(key => key in value);
     /** @type {(value: any) => boolean} */
     const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && PROPERTY_NAMES.has(value.slice(1))));
     /** @type {(value: any) => boolean} */
@@ -4119,7 +4121,7 @@
         if (value.range) for (const endpoint of value.range) push("term", endpoint, depth);
         for (const item of patternParts(value)) if (item !== value.value) child("pattern-part", item);
       } else {
-        if (!hasOneForm(value, [["string"], ["interpolate"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
+        if (!hasOneForm(value, [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
         if ("string" in value) { if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return "a malformed scalar string"; }
         else if (value.tag) { if (!tag(value.tag)) return "a malformed tag"; }
         else if (value.const) { if (!constant(value.const) || !position(value.at)) return "a malformed constant reference"; }
@@ -4136,9 +4138,9 @@
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
           }
-        } else if (value.interpolate) {
-          if (!Array.isArray(value.interpolate) || !value.interpolate.length || !value.interpolate.every(item => object(item) && ("string" in item || "const" in item))) return "a malformed interpolation";
-          for (const segment of value.interpolate) child("term", segment);
+        } else if (value.concat) {
+          if (!Array.isArray(value.concat) || value.concat.length < 2) return "a malformed concatenation";
+          for (const segment of value.concat) child("term", segment);
         } else if (value.pattern) child("pattern", value.pattern);
         else if (value.if) { child("condition", value.if); child("term", value.then); }
         else {
@@ -5391,11 +5393,11 @@
       return {type:"pattern"};
     }
     if (typeof term.string === "string") return { type: "string" };
-    if (Array.isArray(term.interpolate) || Array.isArray(term.concat)) {
-      for (const part of term.interpolate ?? term.concat) {
+    if (Array.isArray(term.concat)) {
+      for (const part of term.concat) {
         const found = yield typing(part, constants);
         if ("problem" in found) return found;
-        const wrong = expectedProblem(found.type, "string");
+        const wrong = !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
         if (wrong) return { problem: wrong, node: term };
       }
       return { type: "string" };
@@ -5676,7 +5678,7 @@
         if (!["split", "ngrams"].includes(current.method)) return current;
         items = [current.receiver, .../** @type {any} */ (current).args];
       } else {
-        const key = ["union", "intersection", "difference", "interpolate"].find((name) => Array.isArray(current[name]));
+        const key = ["union", "intersection", "difference", "concat"].find((name) => Array.isArray(current[name]));
         if (key) items = /** @type {unknown[]} */ (current[key]);
       }
       for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
@@ -6871,7 +6873,7 @@
         return "string" in value ? value.string : "";
       };
       if ("string" in term) return { string: term.string };
-      if ("interpolate" in term) return { string: term.interpolate.map(string).join("") };
+      if ("concat" in term) return { string: term.concat.map(string).join("") };
       if ("tag" in term) return { set: tagSet([term.tag]) };
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
       if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
@@ -10463,7 +10465,7 @@
       const where = observe(context, spanOf(context, term, scope), scope, "value");
       return { string: where.context.tokens.slice(where.start, where.end).map(token => token.value).join("") };
     }
-    if ("interpolate" in term) return interpolateFrom(context, term.interpolate, 0, "", scope);
+    if ("concat" in term) return concatFrom(context, term.concat, 0, "", scope);
     if ("method" in term) {
       const receiver = term.receiver;
       const args = term.args;
@@ -10519,10 +10521,10 @@
   }
 
   /** @param {ParseContext} context @param {Argument[]} parts @param {number} at @param {string} value @param {Scope} scope @returns {TermValue | Halt} */
-  function interpolateFrom(context, parts, at, value, scope) {
+  function concatFrom(context, parts, at, value, scope) {
     for (; at < parts.length; at++) {
       const found = evaluate(context, parts[at], scope);
-      if (found === HALT) return pause(result => interpolateFrom(context, parts, at + 1, value + asString(result), scope));
+      if (found === HALT) return pause(result => concatFrom(context, parts, at + 1, value + asString(result), scope));
       value += asString(found);
     }
     return { string: value };
@@ -11530,7 +11532,7 @@
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
     if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
-    if ("interpolate" in term) return leaf(quoted(term.interpolate.map(part => "string" in part ? part.string.replaceAll("$", "$$") : `$(${part.const})`).join("")));
+    if ("concat" in term) return {parts: term.concat.map(asTerm), combine: texts => texts.join(" ++ ")};
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);
     if ("integer" in term) return leaf(term.integer);
@@ -15928,32 +15930,21 @@
       const concat = [];
       for (const atom of some(node, "recipe-atom")) {
         if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
-        let current = only(atom, "term");
-        for (const kind of ["term", "union", "intersection", "term-atom"]) {
-          if (ruleOf(current) !== kind) fail("a recipe requires a closed string atom", atom);
-          const children = parts(current);
-          if (children.some(child => child.kind === "token")) fail("a recipe atom has no operator or grouping", atom);
-          const nodes = children.filter(child => child.kind === "rule");
-          if (nodes.length !== 1) fail("a recipe requires one string atom", atom);
-          current = nodes[0];
-        }
-        if (ruleOf(current) === "string-run") {
-          const strings = some(current, "string");
-          if (strings.length < 2) fail("a string run requires at least two strings", current);
-          for (const string of strings) concat.push(yield readTerm(string));
-          continue;
-        }
-        if (!["string", "constant-reference", "method"].includes(ruleOf(current))) fail("a recipe requires a string or captured string method", atom);
+        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["∪", "∩", "∖", "⟹"].includes(token.value))) fail("a recipe atom has no set operator", atom);
         recipeContext = true;
-        const term = yield readTerm(current);
+        const term = yield readTerm(only(atom, "term"));
         recipeContext = false;
-        if (term.method) {
-          const receiver = term.receiver;
-          const input = ["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
-          const emitted = ["value", "image"].includes(term.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
-          if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
+        const items = "concat" in term ? term.concat : [term];
+        if (concat.length || items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++; use ++ between string atoms", atom);
+        for (const item of items) {
+          if ("method" in item) {
+            const receiver = item.receiver;
+            const input = ["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(item.method) && receiver.capture !== undefined;
+            const emitted = ["value", "image"].includes(item.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
+            if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
+          } else if (!("string" in item || "const" in item)) fail("a recipe requires a string or captured string method", atom);
+          concat.push(item);
         }
-        concat.push(term);
       }
       const recipe = { concat };
       recipeLocations.set(recipe,at(node));
@@ -16195,8 +16186,24 @@
         });
         return result;
       }
+      if (ruleOf(node) === "concatenation") {
+        const nodes = some(node, "term-atom");
+        const items = [];
+        for (const part of nodes) {
+          const term = yield readTerm(part, argument && nodes.length === 1);
+          if ("concat" in term) items.push(...term.concat);
+          else items.push(term);
+        }
+        if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};
+        for (const item of items) {
+          const found = termType(item);
+          const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
+          if (problem && !featureContext) fail(problem, node);
+        }
+        return {concat: items};
+      }
       if (ruleOf(node) === "intersection") {
-        const found = some(node, "term-atom");
+        const found = some(node, "concatenation");
         /** @type {Term[]} */
         const items = [];
         for (const item of found) items.push(yield readTerm(item, argument && found.length === 1));
@@ -16400,47 +16407,7 @@
 
     /** @param {ResultNode} tokenNode @returns {any} */
     function decode(tokenNode) {
-      const spelled = [...valueOf(tokenNode)].slice(1, -1);
-      const original = [...sourceText(tokenNode)].slice(1, -1);
-      let originalIndex = 0;
-      const segments = [];
-      let literal = "";
-      for (let index = 0; index < spelled.length; index++) {
-        if (spelled[index] !== "$") literal += spelled[index];
-        else if (spelled[index + 1] === "$") { literal += "$"; index++; }
-        else {
-          if (literal) { segments.push({ string: literal }); literal = ""; }
-          let end = index + 2;
-          while (spelled[end] !== ")") end++;
-          const name = spelled.slice(index + 2, end).join("");
-          const [line, column] = at(tokenNode);
-          while (originalIndex < original.length && !(original[originalIndex] === "$" && original[originalIndex + 1] === "(")) {
-            originalIndex += original[originalIndex] === "$" && original[originalIndex + 1] === "$" ? 2 : 1;
-          }
-          const before = original.slice(0, originalIndex);
-          while (originalIndex < original.length && original[originalIndex] !== ")") originalIndex++;
-          originalIndex++;
-          let referenceLine = line;
-          let referenceColumn = column + 1;
-          for (let i = 0; i < before.length; i++) {
-            if (before[i] === "\r" || before[i] === "\n") {
-              if (before[i] === "\r" && before[i + 1] === "\n") i++;
-              referenceLine++; referenceColumn = 1;
-            } else referenceColumn++;
-          }
-          if (name.startsWith("_")) {
-            const value = parseInt(name.slice(1), 16);
-            if (!/^_[0-9A-F]{4,6}$/.test(name) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
-              throw new GencmuError("grammar", `${path}:${referenceLine}:${referenceColumn}: an invalid interpolated engine constant`, { document: path, line: referenceLine, column: referenceColumn });
-            }
-          }
-          segments.push({ const: name, at: [referenceLine, referenceColumn] });
-          index = end;
-        }
-      }
-      if (!segments.length) return { string: literal };
-      if (literal) segments.push({ string: literal });
-      return { interpolate: segments };
+      return { string: [...valueOf(tokenNode)].slice(1, -1).join("") };
     }
 
     /** @param {ResultNode} tokenNode @returns {string} */
@@ -16560,7 +16527,7 @@
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
     "constant-definer", "definer", "rule-name", "rule-flags", "rule-flag", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
     "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
-    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "any-of", "all-of", "condition", "comparator", "tree-comparator",
+    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
 
@@ -18052,7 +18019,7 @@
    * A term of a condition or a tags clause: a string, a tag literal, the
    * empty set, a set expression, a guarded term, a method, or a span
    * (engine §10).
-   * @typedef {{method: string, receiver: Term, args: Argument[]} | {interpolate: ({string: string} | ConstantTerm)[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+   * @typedef {{method: string, receiver: Term, args: Argument[]} | {concat: Term[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
    *   | {intersection: Term[]} | {difference: [Term, Term]} | {capture: string} | ConstantTerm} Term
    */
 

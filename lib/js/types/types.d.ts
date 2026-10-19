@@ -493,9 +493,7 @@ export type Term = {
     receiver: Term;
     args: Argument[];
 } | {
-    interpolate: ({
-        string: string;
-    } | ConstantTerm)[];
+    concat: Term[];
 } | {
     pattern: Pattern;
 } | {
@@ -1178,7 +1176,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A term of a condition or a tags clause: a string, a tag literal, the
  * empty set, a set expression, a guarded term, a method, or a span
  * (engine §10).
- * @typedef {{method: string, receiver: Term, args: Argument[]} | {interpolate: ({string: string} | ConstantTerm)[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+ * @typedef {{method: string, receiver: Term, args: Argument[]} | {concat: Term[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
  *   | {intersection: Term[]} | {difference: [Term, Term]} | {capture: string} | ConstantTerm} Term
  */
 /**

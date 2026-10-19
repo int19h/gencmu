@@ -98,17 +98,7 @@ function lex(text, originalPositions) {
     let j = from;
     while (j < n && chars[j] !== '"') {
       if (chars[j] === "\\") return { end: n + 1, reach: j };
-      if (!path && chars[j] === "$") {
-        if (chars[j + 1] === "$") j += 2;
-        else if (chars[j + 1] === "(") {
-          let k = j + 2;
-          if (chars[k] === "_") k = scalarEnds[k + 1];
-          else if (isCapital(chars[k] || "")) k = runEnds[k];
-          else return { end: n + 1, reach: j };
-          if (chars[k] !== ")") return { end: n + 1, reach: j };
-          j = k + 1;
-        } else return { end: n + 1, reach: j };
-      } else j++;
+      j++;
     }
     return { end: j + 1, reach: j };
   };
@@ -206,6 +196,7 @@ function lex(text, originalPositions) {
       reach = Math.max(reach, chars[i + 1] === "." ? Math.min(i + 3, n) : i + 1);
     }
     if (["=", "∈", "⊆", "≅"].includes(c) && chars[i + 1] === "̸") found.push([i + 2, ({ "=": "≠", "∈": "∉", "⊆": "⊈", "≅": "≇" })[c]]);
+    if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
     if (SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
@@ -733,9 +724,16 @@ class Parser {
     const start = this.index;
     const children = [];
     if (this.is("∩")) children.push(this.tok());
-    children.push((yield this.termAtom()));
-    while (this.is("∩")) children.push(this.tok(), (yield this.termAtom()));
+    children.push((yield this.concatenation()));
+    while (this.is("∩")) children.push(this.tok(), (yield this.concatenation()));
     return this.node("intersection", start, children);
+  }
+
+  *concatenation() {
+    const start = this.index;
+    const children = [(yield this.termAtom())];
+    while (this.is("++")) children.push(this.tok(), (yield this.termAtom()));
+    return this.node("concatenation", start, children);
   }
 
   *termAtom() {
