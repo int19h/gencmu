@@ -103,9 +103,9 @@ IhAU returns to the outer connected statement of the current text. It closes inn
 
 The marker is written, not an omitted terminator. A reset after a complete statement or fragment takes `tail-terms`, which permits a written VAU and ordinary free slots.
 
-A reset after an unfinished head takes the rest of its bridi. A reset after leading free modifiers can take a whole statement. Heads retain ordinary CU positions and repeated prenexes.
+A reset after an unfinished head takes the rest of its bridi. The head requires at least one term after any prenexes. It permits CU before or between terms. One CU can follow those terms, before or after IhAU. The condition forbids CU on both sides of the reset.
 
-The reset also permits an unfinished head, a fragment, or leading free modifiers. Thus `doi djan iau ui mi klama` keeps the vocative before the reset and the bridi after it.
+A reset after leading free modifiers takes `tail-terms` or a whole statement. Thus `doi djan iau ui mi klama` keeps the vocative before the reset and the bridi after it.
 
 A reset needs an earlier construction, so `iau mi klama` rejects. An `.i je` connection before IhAU belongs to the whole statement that the reset marks.
 
@@ -150,7 +150,12 @@ The prefix condition keeps adjacent leading free modifiers together. Otherwise, 
 
 %rule reset-statement
   | statement {IhAU # tail-terms}
-  | [{prenex}] bridi-tail-head IhAU # headed-bridi-tail [sentence-link] [{IhAU # tail-terms}]
+  | [{prenex}] $h:reset-head IhAU # $b:headed-bridi-tail [sentence-link] [{IhAU # tail-terms}]
+%conditions
+  $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰)
+
+%rule reset-head
+  [CU #] {terms / CU #} [CU #]
 
 %rule reset-fragment
   fragment {IhAU # tail-terms}
@@ -171,7 +176,7 @@ The prefix condition keeps adjacent leading free modifiers together. Otherwise, 
   ¬$i.following-tokens.begins(joik-jek-ek)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>text</code> to <code>lone-i</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
@@ -183,6 +188,7 @@ The prefix condition keeps adjacent leading free modifiers together. Otherwise, 
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph-item.svg" alt="Railroad diagram of the rule paragraph-item"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/reset-statement.svg" alt="Railroad diagram of the rule reset-statement"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-head.svg" alt="Railroad diagram of the rule reset-head"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/reset-fragment.svg" alt="Railroad diagram of the rule reset-fragment"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/reset-free.svg" alt="Railroad diagram of the rule reset-free"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/reset-free-prefix.svg" alt="Railroad diagram of the rule reset-free-prefix"></p>
@@ -1227,9 +1233,11 @@ The [NOIhA proposal](https://solpahi.wordpress.com/2016/10/13/noiha/) places a c
 
 This layer uses FEhU alone and requires BE for the converted predicate's inner arguments. It does not turn NOIhA into a sumti relative clause.
 
-IhAU follows Zantufa's wrapper for a completed statement, followed by `tail-terms`. The wrapper resets the whole connected statement, including an `.i je` chain.
+IhAU uses Zantufa's wrapper for a completed statement, with `tail-terms` after the marker. The wrapper resets the whole connected statement, including an `.i je` chain.
 
-The head shape accepts repeated prenexes and the ordinary `bridi-tail-head`. It takes a remaining bridi after IhAU. The free-prefix shape takes a whole statement. The fragment shape takes `tail-terms`. The free-prefix condition removes duplicate placements of leading modifiers.
+The head shape accepts repeated prenexes and requires a term before IhAU. Its `reset-head` permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it. This condition retains the ordinary head after IhAU, including further terms.
+
+The free-prefix shape takes `tail-terms` or a whole statement. The fragment shape takes `tail-terms`. The free-prefix condition removes duplicate placements of leading modifiers.
 
 DOhOI follows its dictionary expansion as `doi la'oi`, including a preceding COI run and an optional DOhU. The inspected Zantufa grammar has no DOhOI construction.
 

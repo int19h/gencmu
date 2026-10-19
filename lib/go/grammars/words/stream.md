@@ -981,7 +981,7 @@ The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ i
 6. ZOI compares whole raw runs by exact stored values, including FOREIGN values from decomposed source text. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
 
-8. The shared defaults for SU are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its [word layer](experimental-stream.md#erasure-and-grammatical-quotations). Except in Zantufa, the last surviving boundary word remains. Later closing words do not cancel it. camxes-std's [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
+8. Except in Zantufa, SU erases back to the last surviving boundary word, and that word survives. The shared boundary classes are NIhO, LU, TUhE, and TO. Magic Words and camxes-std name these four boundaries. Experimental also stops at LUhEI through its [word layer](experimental-stream.md#erasure-and-grammatical-quotations). Later closing words do not cancel it. The boundary survives as in camxes-std, whose [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
 
    CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO follows Magic Words and camxes-std alone.
 
@@ -1013,7 +1013,7 @@ These dialects instead use the next word's class and select the nearest matching
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-In cll-ebnf, bpfk, and experimental, the shared SU defaults are NIhO, LU, TUhE, and TO. These defaults come from Magic Words and camxes-std. The [experimental word layer](experimental-stream.md#erasure-and-grammatical-quotations) adds LUhEI.
+In cll-ebnf, bpfk, and experimental, the shared SU boundary classes are NIhO, LU, TUhE, and TO. These four boundary classes come from Magic Words and camxes-std. The [experimental word layer](experimental-stream.md#erasure-and-grammatical-quotations) adds LUhEI.
 
 The boundary word survives as in camxes-std. Later LIhU, LIhAU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
 
