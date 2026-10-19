@@ -6190,3 +6190,5 @@ i212.r6.zantufa-forethought-bare-term
 i212.r6.zantufa-forethought-reset
 i212.r6.forethought-bare-term
 i212.r6.forethought-reset
+i212.r7.closed-vau-parenthesis
+i212.r7.closed-vau-sei
