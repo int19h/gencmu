@@ -684,7 +684,7 @@ pub fn bootstrap_hash() -> String {
 mod tests {
     use super::{normalize, read_grammar_document};
     use crate::json::Json;
-    use crate::work::{assert_mutant_stops, budget, counted, reset, Mutant, Work};
+    use crate::work::{assert_linear, assert_mutant_stops, budget, counted, reset, Mutant, Work};
     use std::path::Path;
 
     #[test]
@@ -811,25 +811,25 @@ mod tests {
         }
     }
 
-    /// The search for the origins of a derivation, in a version that
-    /// builds the positions of the chart's items at each call or that walks
-    /// the longer list of origins, stops at the first count past the budget
-    /// of `reading_deep_nesting_grows_linearly`. Negations nest each
-    /// constituent at one end, where the longer list holds every origin.
+    /// Tree construction over a right-recursive rule must stop quadratic
+    /// searches for origins at the linear budget.
     #[test]
     fn quadratic_searches_for_origins_stop_at_the_budget() {
         for mutant in [Mutant::PositionsPerCall, Mutant::WalkEnding] {
             std::thread::Builder::new()
                 .stack_size(2 << 20)
                 .spawn(move || {
-                    let text =
-                        |n: usize| format!("```jbogenbau\n%rule text $x:A %conditions {}$x\n```\n", "¬".repeat(n));
-                    // Once first, so that loading the notation counts in
-                    // neither.
-                    let _ = read_grammar_document(&text(1));
-                    assert_mutant_stops(Work::Walked, mutant, 250, &mut |n| {
-                        let _ = read_grammar_document(&text(n));
-                    });
+                    let dialect = crate::load_dialect_sources(
+                        [("p.md", "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" text | \"b\"\n```\n")],
+                        "p.md",
+                    ).expect("the recursive grammar");
+                    let mut parse = |n| {
+                        let text = format!("{}b", "a".repeat(n));
+                        let result = dialect.parse(&text, &crate::ParseOptions::default()).expect("a parse");
+                        assert!(result.ok);
+                    };
+                    assert_linear(Work::Walked, 250, &mut parse);
+                    assert_mutant_stops(Work::Walked, mutant, 250, &mut parse);
                 })
                 .expect("a thread")
                 .join()
