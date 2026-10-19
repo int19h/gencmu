@@ -2124,7 +2124,10 @@ impl<'a> Reader<'a> {
         let mut union = union;
         loop {
             let [intersection] = Self::rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
-            let [atom] = Self::rules(intersection, "term-atom").collect::<Vec<_>>()[..] else { return None };
+            let [concatenation] = Self::rules(intersection, "concatenation").collect::<Vec<_>>()[..] else {
+                return None;
+            };
+            let [atom] = Self::rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
             let inner = self.inner(atom, ATOMS).ok()?;
             match rule_name(inner) {
                 "name" => {

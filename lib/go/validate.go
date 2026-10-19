@@ -1223,7 +1223,7 @@ func readsOwnTags(t *domTerm) bool {
 		}
 		switch p.t.Kind {
 		case tmCapture:
-		case tmIf, tmUnion, tmIntersection, tmDifference:
+		case tmIf, tmUnion, tmIntersection, tmDifference, tmConcat:
 			stack = append(stack, p.children()...)
 		case tmCall:
 			if (p.t.Str == "tags" || p.t.Str == "classes") && len(p.t.Items) == 1 {

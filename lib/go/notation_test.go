@@ -374,7 +374,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_S _Sm"},
-		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`$_005C`, "String"}, {"}", "_P _Pe"},
+		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_P _Pe"},
 		{"[", "_P _Ps"}, {"+", "_S _Sm"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_P _Pe"}, {"[", "_P _Ps"}, {"+", "_S _Sm"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_P _Pe"},
 		{"|", "_S _Sm"}, {"g!", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_S _Sm"}, {"h", "Identifier Lowercase-Name"},
 		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_L", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},

@@ -245,7 +245,7 @@ const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
 const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
-const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "∪", "∩", "∖"]);
+const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
 const TERM_STARTS = new Set(["identifier", "tag", "string", "capture", "constant", "(", "∅", "@", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
 const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "#", "ε"]);

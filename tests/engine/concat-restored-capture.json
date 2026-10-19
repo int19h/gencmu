@@ -1,0 +1,17 @@
+{
+  "grammar": "%rule text $x:r %conditions $x.without-elision.value ++ \"\" = \"a\"\n%rule r A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "String concatenation preserves capture presence and restored input observations."
+}

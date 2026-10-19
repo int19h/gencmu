@@ -1159,8 +1159,8 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
     for (rules, marker, path) in [
         ("%rule text A := \"prefix\" ++ $.emitted.value", "\"prefix\"", "value -> value"),
         ("%rule text A := $.emitted.image :- \"close\" ++ $.emitted.value", "\"close\"", "value -> image -> value"),
-        ("%rule text A := $.emitted.image $.emitted.value :- $.emitted.image", ":- $.emitted.image", "value -> image -> image"),
-        ("%rule text A := $.emitted.value $.emitted.image :- $.emitted.image", ":= $.emitted.value", "value -> value"),
+        ("%rule text A := $.emitted.image ++ $.emitted.value :- $.emitted.image", ":- $.emitted.image", "value -> image -> image"),
+        ("%rule text A := $.emitted.value ++ $.emitted.image :- $.emitted.image", ":= $.emitted.value", "value -> value"),
         ("%rule text A := \"prefix\" ++ $.emitted.image", "\"prefix\"", "value -> value"),
         ("%rule text := $.emitted.image |\n A :- \"close\" ++ $.emitted.value", "\"close\"", "value -> image -> value"),
         ("%rule text A\n%rule other B := \"early\" ++ $.emitted.value\n%extend-rule text C := $.emitted.image :- $.emitted.value", "\"early\"", "value -> value"),

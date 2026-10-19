@@ -1,0 +1,8 @@
+{
+  "description": "An empty concatenated delimiter fails before a feature condition runs.",
+  "grammar": "%features f\n%conditions $.value.split(\"\" ++ \"\") = ∅\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

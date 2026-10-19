@@ -68,12 +68,12 @@ class Values(unittest.TestCase):
                 self.assertFalse(value["ok"])
                 self.assertEqual(value["error"]["kind"], "rejected")
 
-    def test_binding_checks_string_types_and_scalar_ranges_before_gates(self) -> None:
+    def test_loading_checks_string_types_and_scalar_ranges_before_gates(self) -> None:
         for grammar in (
             "%const $S A\n%rule text $S",
             "%const $S A\n%rule text A := $S",
             '%const $S "ab"\n%rule text gate? $S.."z" | A',
-            '%const $S A\n%classifier x\n "a" ∈ A f! "b" ∈ A\n%rule text A',
+            '%const $S A\n%classifier x\n $S ∈ A\n%rule text A',
         ):
             with self.subTest(grammar=grammar):
                 value, _, error, _ = run_case({"grammar": grammar})
@@ -85,7 +85,7 @@ class Values(unittest.TestCase):
     def test_private_recipe_exports_precede_capture_pruning_and_cycles(self) -> None:
         # Engine §11.4 requires scope analysis before absent-item pruning
         # and effective dependency analysis.
-        for recipe in ("$x.value", "$.emitted.value $x.value"):
+        for recipe in ("$x.value", "$.emitted.value ++ $x.value"):
             with self.subTest(recipe=recipe):
                 value, _, error, _ = run_case(
                     {

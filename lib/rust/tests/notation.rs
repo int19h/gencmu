@@ -195,6 +195,7 @@ fn pattern_test_order_precedes_invalid_bases() {
         r#"%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)"#,
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
-        assert_eq!((error.line, error.column), (Some(2), Some(49)), "{body}: {error}");
+        let column = body[..body.find("<A>").unwrap()].chars().count() + 1;
+        assert_eq!((error.line, error.column), (Some(2), Some(column)), "{body}: {error}");
     }
 }

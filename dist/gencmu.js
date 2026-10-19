@@ -4238,7 +4238,7 @@
         continue;
       }
       if (current.op === "≅" || current.op === "≇") continue;
-      const key = ["union", "intersection", "difference", "any", "all"].find((name) => Array.isArray(current[name]));
+      const key = ["union", "intersection", "difference", "concat", "any", "all"].find((name) => Array.isArray(current[name]));
       if (key) for (const item of /** @type {unknown[]} */ (current[key])) stack.push(item);
       else for (const name of ["left", "right", "not", "if", "then"]) stack.push(current[name]);
     }
@@ -16191,7 +16191,7 @@
         const items = [];
         for (const part of nodes) {
           const term = yield readTerm(part, argument && nodes.length === 1);
-          if ("concat" in term) items.push(...term.concat);
+          if ("concat" in term) for (const child of term.concat) items.push(child);
           else items.push(term);
         }
         if (nodes.length === 1) return items.length === 1 ? items[0] : {concat: items};

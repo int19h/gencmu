@@ -95,7 +95,7 @@ class GrammarReading(unittest.TestCase):
         for value in ("é", "à", "ź", "한", "\u302e\u1b44"):
             with self.subTest(value=value):
                 texts = {"p.md": document('%stage main\n%include "g.md"'),
-                         "g.md": document('%ambiguity-resolution greedy\n%rule text ' + spelling(value, table))}
+                         "g.md": document('%ambiguity-resolution greedy\n%const $S ' + spelling(value, table) + '\n%rule text $S')}
                 dialect = gencmu.load_dialect_sources(texts, "p.md")
                 token = gencmu.Token("", frozenset(), (0, 1), (0, 0), value=value)
                 self.assertTrue(dialect.parse_tokens([token], "").ok)

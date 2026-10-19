@@ -178,7 +178,7 @@ class Lexical(unittest.TestCase):
         """Stored token tags follow the lexical grammar.
 
         Punctuation retains its stage-zero categories. Strings carry their
-        lexical tag. Backslash values use engine interpolation (engine §9).
+        lexical tag. Dollar forms inside strings stay literal (engine §9).
         """
         notation = gencmu.load_dialect("notation")
         result = notation.parse(

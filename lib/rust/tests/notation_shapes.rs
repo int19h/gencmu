@@ -244,7 +244,8 @@ fn pattern_string_terminal_constructors_and_tests() {
     for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "$_D800=\"a\"<A>"] {
         let rules = format!("%const $P @({pattern})\n%rule text A");
         let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
-        let alternate = load_pattern_probe(&rules, &changed).unwrap_err();
+        let bootstrap = if pattern.starts_with('$') { &constants } else { &changed };
+        let alternate = load_pattern_probe(&rules, bootstrap).unwrap_err();
         assert_eq!(ordinary, alternate, "{pattern}");
         assert_eq!(alternate.kind, gencmu::ErrorKind::Grammar);
         assert!(alternate.message.contains("pattern test target or order"), "{alternate}");
@@ -393,7 +394,7 @@ fn missing_pattern_parts_are_grammar_errors() {
 }
 
 /// A supplied tree can test grouped and nested literals. Their target
-/// error precedes any invalid string inside the base.
+/// error precedes an invalid scalar constant inside the base.
 #[test]
 fn grouped_pattern_tests_fail_before_base_conversion() {
     let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();

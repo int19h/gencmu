@@ -33,7 +33,9 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling joins literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, nonspacing marks and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal.
+
+Canonical string spelling joins literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, nonspacing marks and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
 
@@ -1301,7 +1303,9 @@ The lexer reads `¬` separately only when no guard starts immediately after it. 
 
 Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
-Canonical string-terminal diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal. A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+Canonical string-terminal diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal.
+
+A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins their canonical string literals with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1976,7 +1980,7 @@ Every tag name is written in the grammar. No method constructs a tag from a stri
 
 `s.ngrams(n)` takes one positive decimal integer literal without leading zeros. An n-gram is a run of adjacent code points. Its value is the set of all length-`n` substrings, with duplicates removed. A string shorter than `n` gives `∅`, including when `n` exceeds any machine integer. Constants cannot supply `n` because the term language has no integer type. Noninteger, zero, negative, missing, and extra arguments are document errors.
 
-A closed term reads no capture, span, query, classifier, or guarded term. It can contain strings, tags, constants, patterns, contextual `∅`, set operators, and `.split` or `.ngrams` on closed strings. Ranges are terminals only. `.classify` is not closed because its classifier depends on features.
+A closed term reads no capture, span, query, classifier, or guarded term. It can contain strings, tags, constants, patterns, contextual `∅`, set operators, concatenations, and `.split` or `.ngrams` on closed strings. Ranges are terminals only. `.classify` is not closed because its classifier depends on features.
 
 A constant value is a closed term with string, string-set, tag-set or pattern type. So is the value of a test (§2), whose type is a string or a tag set. So is each side of an implication, whose type is a tag set. The loader evaluates constants after resolving the stage's version graph (§2).
 

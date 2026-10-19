@@ -1,6 +1,6 @@
 {
-  "description": "String concatenation plain dollars.",
-  "grammar": "%rule text \"$(NAME)\" \"$$\" \"$\"",
+  "description": "Balanced and incomplete dollar forms are plain string characters.",
+  "grammar": "%rule text \"$(NAME)\" \"$$\" \"$\" \"$(\" \"$(foo\"",
   "expect": {
     "result": {
       "ok": true
@@ -21,6 +21,16 @@
       "text": "c",
       "tags": [],
       "value": "$"
+    },
+    {
+      "text": "d",
+      "tags": [],
+      "value": "$("
+    },
+    {
+      "text": "e",
+      "tags": [],
+      "value": "$(foo"
     }
   ]
 }

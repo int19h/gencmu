@@ -108,6 +108,7 @@ test("both readers admit every new family of written forms", () => {
     '%rule r A %emits ε :: ∅ := "x"',
     '%rule r $a:A $b:B %emits ($a) $b :- $b.image',
     '%rule r $x:A %conditions $x.value = "X,Y", $x.image ≠ ""',
+    '%rule r $l:A $r:B %conditions $l.value ++ $r.value ∈ "ab".split(" "), ($l.value ++ $r.value) = "ab"',
     '%rule r $x:A %conditions $x.without-elision.onward.begins(next)',
     '%rule r $x:A %conditions $x ≅ @A<B>="x"',
     '%rule r $x:A %conditions $x ≅ @(A B)',

@@ -158,7 +158,7 @@ func simplifyTerm(t *domTerm, has func(string) bool) *domTerm {
 			return t
 		}
 		return &domTerm{Kind: tmDifference, Items: []*domTerm{l, r}}
-	case tmUnion, tmIntersection, tmCall:
+	case tmUnion, tmIntersection, tmConcat, tmCall:
 		// An empty set, written ∅ or left by a guard, is dropped from a
 		// union and makes an intersection empty.
 		var items []*domTerm
@@ -337,7 +337,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 	kids := func(p clausePart) []clausePart {
 		if p.t != nil {
 			switch p.t.Kind {
-			case tmIf, tmUnion, tmIntersection, tmDifference:
+			case tmIf, tmUnion, tmIntersection, tmDifference, tmConcat:
 				return p.children()
 			}
 			return nil
