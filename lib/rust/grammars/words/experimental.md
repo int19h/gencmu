@@ -4,7 +4,7 @@ This document is part of the forms stage in the [experimental](../dialects/exper
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [bpfk.md](bpfk.md). A lookahead tests input without reading it.
 
-The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../dialects/zantufa.md) dialect shares the `ie'o` hesitation and the permitted `mz` pair, as [zantufa.md](zantufa.md) describes. [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -403,7 +403,7 @@ camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel,
 
 The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa also recognizes it, but restricts where hesitation counts as spacing.
 
-This dialect keeps its existing broader spacing behavior. Both raw one-word quote gaps and ordinary word gaps skip the same hesitation classification.
+Hesitation counts as spacing in every gap, in raw one-word quotes and between words.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 

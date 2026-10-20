@@ -45,7 +45,7 @@ latin-strict.md reads straight and curly quotation marks as apostrophes. This do
 The left neighbor needs a test of the whole run because the notation has no backward token-span query. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
 
 - The mark has only ignored characters and marks before it in the run.
-- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark, punctuation and `ー` are no letters here.
+- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark and punctuation are no letters here.
 - A mark stands between an ignored character and the quotation mark, so the mark belongs to no letter.
 
 `letters`, `capital-run` and `non-lojban-char-run` refuse a run that matches it. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks. A letter is a character of category L that is not ignored. So `ー`, which has category Lm, is no letter, and neither is a zbalermorna letter, which is private use. zbalermorna writes its own apostrophe.
@@ -100,7 +100,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   | [{_}] $b:_ [{mark-or-ignored}] quote-mark [{_}]
   | [{_}] ignored [{mark-or-ignored}] combining-mark [{mark-or-ignored}] quote-mark [{_}]
 %conditions
-  ¬$b.matches(alpha-char) ∨ $b.matches(ignored),
+  ¬$b.matches(alpha-char),
   ¬$b.matches(mark-or-ignored)
 
 %rule letter-after-ignored
@@ -442,7 +442,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
 
 A dieresis on a vowel letter means an apostrophe before it, as in an orthography without apostrophes. So `aï` is `a'i`, and `uï` is `u'i`. The apostrophe ends the vowel group before it, so the vowel with the dieresis starts a new group.
 
-`dieresis-start` inserts the apostrophe and then reads the vowel. It works for every vowel letter: plain, stressed, capital, glide and diphthong letters. A vowel group can begin with it, and such a group can follow another vowel group. At the start of a run, `ïa` gives `'ia`, which the word forms reject, as they reject a written `'ia`.
+`dieresis-start` inserts the apostrophe and then reads the vowel. It works for every vowel letter: plain, stressed, capital, glide and diphthong letters. A vowel group can begin with it, and such a group can follow another vowel group. At the start of a run, `ïa` gives `'ia`, which the word forms reject, as they reject `hia`.
 
 ```jbogenbau
 %rule dieresis-apostrophe

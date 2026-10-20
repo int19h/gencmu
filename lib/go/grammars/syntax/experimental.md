@@ -253,6 +253,8 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each bridi-tail rule takes this tag from its final tail. KE and NA wrappers retain the tag.
 
+A leading NA belongs to a following forethought opener. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. Whole-bridi negation uses a KE wrapper, as in `na ke ge broda gi brode ke'e`.
+
 An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
 
 The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
@@ -331,7 +333,9 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 %redefine-rule gek-sentence
   | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ Closed-Bridi
   | [tag] KE # $g:gek-sentence [+KEhE] # :: ($g.tags ∩ Closed-Bridi) ∪ ($ ≅ @(⋯ KEhE≠"" [#]) ⟹ Closed-Bridi)
-  | NA # $g:gek-sentence :: $g.tags ∩ Closed-Bridi
+  | $n:NA # $g:gek-sentence :: $g.tags ∩ Closed-Bridi
+%conditions
+  ¬$n.onward.begins(gek)
 
 %rule(fewest) bridi-tail-connective
   gihek # | connective
@@ -369,11 +373,11 @@ Plain connections group from the left. A run of BO connections groups from the r
 
 A term stands in heads, tails, prenexes, fragments, and NUhI termsets. BE, BEI, GOI, LAhE, and NAhE each take one term. Branches of a bare forethought termset also take terms.
 
-A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zo'u`, `ce'e`, `pe'e`, and a written terminator of a surrounding construction. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. An omitted terminator never counts as a closing word.
+A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zi'e`, `zo'u`, `ce'e`, and `pe'e`. Written terminators of surrounding constructions also close the place. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. An omitted terminator never counts as a closing word.
 
 A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
-JA, A, JOI, and VUhU alone do not close a term's place. These words can also connect tenses or terms.
+JA, A, JOI, and VUhU alone do not close a term's place. These words can also connect tenses or terms. ZIhE only joins relative clauses, so it closes a term's place.
 
 A bare NA term can also omit KU before any term in the same reading. These terms include sumti, tagged terms, termsets, SOI terms, and other bare NA terms. Thus `ro da na ka'e` and `na fa mi klama` parse. A tag term keeps the closing-word rule. A tag with its own sumti uses the separate tagged-term alternative and needs no KU.
 
@@ -427,7 +431,7 @@ Before the main predicate, an omitted KUhEI lets that predicate continue the eve
 
 In `mi klama ca'ei do cadzu ti`, the following `ti` stays inside the event clause. In `mi klama ca'ei do cadzu ku'ei ti`, it belongs to the main bridi.
 
-These terms carry no span or connection flag. Their contained predicates still use the existing `fewest` and late-elision preferences.
+These terms carry no span or connection flag. Their contained predicates use the `fewest` and late-elision preferences.
 
 ```jbogenbau
 %redefine-rule terms-1
@@ -454,7 +458,7 @@ These terms carry no span or connection flag. Their contained predicates still u
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
-%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
+%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
 %const $BARE-TAG @(tag KU="" [#])
 %const $BARE-NA @(NA [#] KU="" [#])
@@ -644,7 +648,9 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-`joik-jek-ek` groups joik, jek and ek. `connective` adds VUhU. All four families connect selbri and tanru units. Abstraction markers use those four families, as in `mi nu e ka broda` and `mi nu su'i ka broda`. A KE connection uses only `joik-jek-ek`.
+`joik-jek-ek` groups joik, jek and ek. `connective` adds VUhU. All four families connect selbri and tanru units. Abstraction markers use those four families, as in `mi nu e ka broda` and `mi nu su'i ka broda`. KE and BO connections use only `joik-jek-ek`.
+
+The recursive NA alternative uses the forethought-opener condition of `gek-sentence`. This condition gives NA to the mathematical opener in `na je gi pa boi gi re boi moi vau`.
 
 A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
@@ -669,12 +675,18 @@ In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the who
 A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, contains a subsentence, and ends with `ku'oi`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
 ```jbogenbau
+%redefine-rule selbri-1
+  | selbri-2
+  | $n:NA # selbri
+%conditions
+  ¬$n.onward.begins(gek)
+
 %redefine-rule selbri-4
   | selbri-5
   | selbri-4 (joik-jek-ek [stag] KE # selbri-3 [+KEhE] # ≻ connective selbri-5)
 
 %redefine-rule selbri-5
-  {selbri-6 ... / connective [stag] BO #}
+  {selbri-6 ... / joik-jek-ek [stag] BO #}
 
 %redefine-rule tanru-unit
   {tanru-unit-1 / CEI #} [selbri-relative-clauses]
@@ -720,7 +732,8 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>selbri-1</code> to <code>links</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
@@ -1108,7 +1121,7 @@ Within a paragraph break, `.i ni'o` can stand once, after a topic run and its fr
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
-This layer permits all four initial connective families, as in `je mi klama`, `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1`, so a bare `e` remains a fragment. camxes-exp contains the wider form, but `text_1` can match nothing. Thus its `(!text_1 joik_jek)?` never consumes a connective. This layer makes that connective reachable. No reachable rule calls the CLL rule `joik-jek`.
+This layer permits all four initial connective families, as in `je mi klama`, `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1`, so a bare `e` remains a fragment. camxes-exp contains the wider form, but `text_1` can match an empty span. Thus its `(!text_1 joik_jek)?` never consumes a connective. This layer makes that connective reachable. No reachable rule calls the CLL rule `joik-jek`.
 
 Where both complete, the ek fragment takes priority over the initial connective. Thus `e ni'o` and `e .i mi klama` keep their fragment readings. This preference also applies after the initial name run with `cbm` off.
 
@@ -1126,7 +1139,9 @@ The headless-selbri exclusion also applies after a free modifier. Thus this laye
 
 ### Terms and descriptions
 
-The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Tagged and bare-`na` single terms, including those in bare forethought branches, correspond to `tag_term`. `tag_term` has no `!selbri` or `!gek_sentence` lookahead.
+The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and plain selbri connectives too. Selbri KE and BO connections exclude VUhU, as camxes-exp does.
+
+This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Tagged and bare-`na` single terms, including those in bare forethought branches, correspond to `tag_term`. `tag_term` has no `!selbri` or `!gek_sentence` lookahead.
 
 The KU rule keeps NA on the outer predicate in `le nu do klama na brode`. It also keeps PU there in `le nu do klama pu brode`. The abstraction and description close before those words.
 
@@ -1208,7 +1223,7 @@ CLL has a dedicated KE form only for joik.[^cll-s21-1] This layer also gives jek
 
 Where only the plain reading completes, this layer and camxes-exp keep it. The [official parser](cll.md#printed-rules-and-translations) rejects `mi broda joi ke brode ke'e bo brodi`. A lexer divides text into tokens. That parser's lexer treats `joi ke` as one token.
 
-Preposed linked arguments follow camxes-exp. This layer and camxes-exp give a `be` group to the preceding unit when one exists. camxes-std, the standard grammar of the camxes parser, agrees. Thus `zdani be mi vorme` gives `be mi` to `zdani`, and `le tutci be sigdanva le marna` gives an empty group to `tutci`. The alternative attachments elide the same terminators. In `be mi klama be do`, both this layer and camxes-exp give `be do` to `klama`.
+Preposed linked arguments follow camxes-exp. If a unit precedes a `be` group, this layer and camxes-exp give the group to that unit. In `zdani be mi vorme`, camxes-std also gives `be mi` to `zdani`. In `le tutci be sigdanva le marna`, this layer and camxes-exp give an empty group to `tutci`. The alternative attachments elide the same terminators. In `be mi klama be do`, both this layer and camxes-exp give `be do` to `klama`.
 
 ### Mekso and connectives
 
@@ -1280,7 +1295,7 @@ camxes-exp also nests the second subscript of `xa xi xa xi xa`. camxes-std inste
 
 CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. This layer and the official parser attach the parenthesis in `mi broda xi pa boi to do toi` to `broda`. camxes-exp reads the subscript operand as `mex_2`, whose final free slot takes the parenthesis. This layer excludes that exposed attachment but retains modifiers inside VEI, LAhE or PEhO when the actual constructor boundary follows them.
 
-### Newer experimental constructions
+### Constructions beyond camxes-exp
 
 camxes-exp lacks GOhOI, MUhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, LUhEI, LIhAU, and CIhAU. This layer admits their dictionary constructions with the stated boundaries.
 

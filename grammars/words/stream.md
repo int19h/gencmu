@@ -424,7 +424,7 @@ Both spacing routes use `delimiter-hesitation`, which refuses the opening y lett
 
 The quotes close at the first matching whole run of nonpause tokens by exact value. Every pause, including punctuation, bounds such a delimiter run. ZOI compares foreign runs by their exact values too.
 
-The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa and experimental also form such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) and [the experimental lexicon](lexicon-experimental.md) describe. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. A pause separates the body from the closing run. Attached marks around either delimiter add no value. A mark before another word stays in spacing.
 

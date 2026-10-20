@@ -257,7 +257,7 @@ The dialect also reads `sa` by a different rule. The words stage erases with `sa
 
 ### Feature choices
 
-camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This dialect keeps those boundaries by choice and also stops SU at LUhEI.
+camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This dialect stops SU by class: NIhO, LU, TUhE, TO, and LUhEI. Thus `la'au` and `tu'ai`, which belong to LU, also stop SU.
 
 camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
 

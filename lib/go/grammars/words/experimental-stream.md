@@ -183,6 +183,6 @@ Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zan
 
 Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follows its dictionary definition's right-word grammar, while rejecting magic right operands.
 
-An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp and Zantufa have no such reading, because `ze'ei` erases there.
+An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp lacks `ze'ei`. Zantufa has no such reading because `ze'ei` erases there.
 
 The LUhEI boundary extends experimental SU's stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.
