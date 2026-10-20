@@ -253,7 +253,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each bridi-tail rule takes this tag from its final tail. KE and NA wrappers retain the tag.
 
-A leading NA belongs to a following forethought opener. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. Whole-bridi negation uses a KE wrapper, as in `na ke ge broda gi brode ke'e`.
+When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE permits whole-bridi negation of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
 
 An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
 

@@ -6322,7 +6322,7 @@ i212.r8.lohai.bu-experimental
 i212.r8.lohai.bu-zantufa
 i212.r8.lohai.zei-experimental
 i212.r8.lohai.zei-zantufa
-adhoc.experimental.fr4-w2.vuhu-bo-tail
+adhoc.experimental.fr4-w2.1
 adhoc.experimental.fr4-w2.2
 adhoc.experimental.fr4-w2.3
 adhoc.experimental.fr4-w2.4
@@ -6333,6 +6333,8 @@ adhoc.experimental.fr4-w2.8
 adhoc.experimental.fr4-w2.9
 adhoc.experimental.fr4-w2.10
 adhoc.experimental.fr4-w2.11
+adhoc.experimental.fr4-w2.12
+adhoc.experimental.fr4-w2.13
 adhoc.experimental.fr4-w2.14
 adhoc.experimental.fr4-w2.15
 adhoc.experimental.fr4-w2.16
