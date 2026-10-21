@@ -1156,7 +1156,7 @@ Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi 
 
 Only the final connection has the connective's KE-group alternative. This layer therefore accepts `mi broda gi'e ke ge brode gi brodi ke'e gi'e brodo` as a non-final plain connection, while camxes-exp rejects it.
 
-The headless-selbri exclusion also applies after a free modifier. Thus this layer rejects `mi broda gi'e to do toi ke brode ke'e gi'e brodo`, which camxes-exp accepts. This keeps the same KE boundary with or without a free modifier.
+At a final connection, `mi broda gi'e to do toi ke brode ke'e` takes the connective's KE group. The plain KE-unit exclusion applies there with or without a free modifier. camxes-exp instead reads a plain connection when a free modifier separates its gihek from KE.
 
 ### Terms and descriptions
 
