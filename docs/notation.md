@@ -90,7 +90,7 @@ Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifie
 
 An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
 
-Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent eligible scalars form separate name tokens. Emoji names work wherever rule names work, including template declarations, calls, captures, tests, patterns, and queries. Other identifier kinds keep their ASCII naming rules.
+Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent eligible scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
 
 `#` introduces patterns, and `@` introduces parameters. Neither is a rule name. `/` remains the separator inside braces. `~` and `^` have no syntax role.
 
@@ -146,7 +146,7 @@ The emitted letter word `broda bu` has value `broda bu` when its gap recipe supp
 
 `s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain signed tags, tag-set constants, or template parameters. A parameter can splice a requirement list, as "Parameterized rules" explains. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
 
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows only a rule reference, a call, or a terminal. A test after a group, optional, braces, or `ε` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows a rule reference, call, terminal, or parameter whose argument must be one symbol. A test after a group, optional, braces, or `ε` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
@@ -382,11 +382,11 @@ A template is a rule with load-time parameters. A call supplies arguments and na
 
 The opening parenthesis follows the name directly. `pair ("a", "b")` is not a call. The comment opener `(*` still starts a comment. A template and an ordinary rule cannot share a name.
 
-Formals start with `@` and an ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. Case counts. A declaration has one or more distinct formals. Calls supply exactly that many positional arguments. No defaults, variable argument counts, or overloading exist.
+Parameters start with `@` and an ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. Case counts. A declaration has one or more distinct parameters. Calls supply exactly that many positional arguments. No defaults, variable argument counts, or overloading exist.
 
-Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Actual arguments cannot declare or read captures, including `$` and capture methods. Recipes written in the template can read that template's captures.
+Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Recipes written in the template can read that template's captures.
 
-Each argument is one term. A parenthesized body expression or `ε` passes a sequence as one argument:
+Each argument is one term. A parenthesized body expression or `ε` passes a sequence as one argument. A parenthesized single symbol reads as that symbol:
 
 ```jbogenbau
 %rule link(@Prefix, @Body)
@@ -398,7 +398,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. They cannot construct identifiers, declarations, flags, guards, capture names, carriers, attachments, method names, or directive operands. A terminator after `[+` remains a directly written user tag.
+Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. A terminator after `[+` remains a directly written user tag.
 
 ### The two list substitutions
 
@@ -419,11 +419,11 @@ A query-target choice splices into one complete target entry, in written order. 
 
 Here the letter query tests `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A query-target choice must remain nonempty.
 
-These are the only list substitutions. A parenthesized body choice does not splice into query targets. Other terms retain their usual grouping and type rules. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
+These are the only list substitutions. A parenthesized body choice does not splice into query targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
 
 ### Names and layering
 
-A named instantiation gives one call a public rule name:
+A binding assigns a public name to an instance:
 
 ```jbogenbau
 %rule connection(@Unit, @Separator)
@@ -432,23 +432,23 @@ A named instantiation gives one call a public rule name:
 %rule connected-terms = connection(term, (CEhE 🆓))
 ```
 
-The name adds no wrapper node. Every call with that instance key uses `connected-terms` in trees, JSON, inserted tokens, warnings, and error witnesses. One instance has at most one public name.
+An instance key uniquely identifies an instance. The name adds no wrapper node. Every call with that instance key uses `connected-terms` in trees, JSON, inserted tokens, warnings, and error witnesses. One instance has at most one public name.
 
-An unnamed instance uses its canonical call spelling, such as `pair("a", "b")`. Instance identity uses argument syntax trees, not evaluated values or expanded rule bodies. Constants and nominal rule references retain their names. Engine §2.3 defines the complete spelling and identity rules.
+An unnamed instance uses its canonical call spelling, such as `pair("a", "b")`. Instance identity uses argument syntax trees, not evaluated values or expanded rule bodies. A nominal reference names a rule without expanding it. Constants and nominal references retain their names. Engine §2.3 defines the complete spelling and identity rules.
 
-Template edits write formals, as `%extend-rule pair(@Left, @Right)`. Instance edits name one public name or one closed call, as `%extend-rule pair("a", "b")`. Both kinds apply in source order. A later template redefinition replaces earlier local edits. A later template extension also reaches locally redefined instances.
+A closed call contains no parameter references. Template edits write parameters, as `%extend-rule pair(@Left, @Right)`. Instance edits name one public name or one closed call, as `%extend-rule pair("a", "b")`. Both kinds apply in source order. A later template redefinition replaces earlier local edits. A later template extension also reaches locally redefined instances.
 
-A template's flag applies to its instances. Each instance contributes its actual constituents to the existing shared ranking profiles. A named binding adds no flag or ranking occurrence.
+A template's flag applies to its instances. Each instance contributes its actual constituents to the existing shared ranking profiles. A binding adds no flag or ranking occurrence.
 
 ### Patterns, queries, and finite expansion
 
-A bare template atom in a pattern matches every instance of that template, including named instances. `#(pair)` matches the family, while `#(pair("a", "b"))` names one instance. An ordinary public name can name that same instance.
+A bare template atom in a pattern matches every instance of that template, including named instances. `#(pair)` matches the family, while `#(pair("a", "b"))` names one instance. Its public name identifies it too.
 
 A recognition or neighbor query must name one instance or an ordinary rule. A bare template target is a load error. The same restriction applies to `.tags(rule)` and `.without-elision-except(family)`.
 
-The loader rejects unbounded expansion through a static parameter-flow analysis. Passing a formal unchanged creates an unchanged edge. Placing it inside another constructor creates a growing edge. A cycle containing a growing edge is an error, even in an uncalled template. Unchanged recursion, parameter permutations, and self-passing rule names remain valid.
+The loader rejects unbounded expansion through a static parameter-flow analysis. Passing a parameter unchanged creates an unchanged edge. Placing it inside another wrapping form creates a growing edge. A parenthesized single parameter adds no growth. A cycle containing a growing edge is an error, even in an uncalled template. Unchanged recursion, parameter permutations, and self-passing rule names remain valid.
 
-Expansion precedes ordinary rule validation and lowering. Errors identify the template use and originating argument. Diagrams show each template once, with its parameters and call arguments. The audit records instances and their names, origins, edits, flags, unused formals, and uncalled templates.
+Expansion precedes ordinary rule validation and lowering. Errors identify the template use and originating argument. Diagrams show each template once, with its parameters and call arguments. The audit records instances and their names, origins, edits, flags, unused parameters, and uncalled templates.
 
 ## Constants
 
@@ -716,9 +716,13 @@ A condition term has five types: captures or spans, strings, string sets, tag se
 
 The first type includes spans, sequences of tokens. A capture `$x` retains its matched constituent and its input span. `$` spans the whole constituent. `$x.first-token` is its first token, `$x.tokens-after-first` the rest, and `$x.last-token` the last.
 
-`$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. `$x.preceding-tokens` runs from the context start to its start and returns ordinary input. These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
+`$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. `$x.preceding-tokens` runs from the context start to its start and returns ordinary input.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. Phoneme recipes supply lowercase vowel values. Stress lives only in the `Stressed` tag, while images retain visible stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
+These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings.
+
+They never supply constituent tags after a span method.
+
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [dialect guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -1405,6 +1409,6 @@ A diagram shows only what a rule reads. It leaves out the captures, the tag term
 
 A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
 
-A template diagram shows the formal list in its title and `@` names in parameter boxes. A call box shows its arguments and links to the template. A concrete named instance uses its public label and shows the call as its substitution. A named binding shows the name and substitution without an extra grammar constituent. Instance edits show their written bodies, while unnamed instances receive no separate diagrams.
+A template diagram shows the parameter list in its title and `@` names in parameter boxes. A call box shows its arguments and links to the template. A binding shows the named instance and its substitution without an extra grammar constituent. Instance edits show their written bodies, while unnamed instances receive no separate diagrams.
 
 An emoji rule's diagram filename is `_u` plus lowercase hexadecimal, without unnecessary leading zeros. `🆓` uses `_u1f193.svg`. Diagram titles retain the emoji. Engine §2.3 and the design document define instance and audit ordering.

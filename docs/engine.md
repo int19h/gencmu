@@ -35,7 +35,9 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 
 A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal.
 
-Canonical string diagnostics join nonempty quoted literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, nonspacing marks and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+Canonical string diagnostics join nonempty quoted literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, format scalars, nonspacing marks, and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+
+A format scalar has general category Cf in the configured table.
 
 A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
 
@@ -195,7 +197,7 @@ No directive names elidable terminators. A rule marks each elidable optional in 
 
 A lowercase name is a rule reference and must be defined in the stage. `🆓` is an ordinary rule name. A capital name or engine tag is a tag terminal. A string literal or string constant is a value terminal. A range matches one scalar value, and `_` matches any ordinary token. Section 9 specifies lexical forms and terminal identity.
 
-A rule reference, call, or terminal accepts one tag test and one value test, in that order. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or tag-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
+A rule reference, call, terminal, or parameter accepts one tag test and one value test, in that order. A tested parameter must receive one symbol. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or tag-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
 
 Tests use a terminal token's own tags and value, or a reference's constituent tags and input value. Both test kinds can occur, with the tag test first. Both must hold. Tests do not alter terminal identity.
 
@@ -266,13 +268,13 @@ A template is a rule with load-time parameters. An instance is one template with
 
 Parameters belong to one definition, including its alternatives, clauses, conditions, and emission. They have no dynamic scope. Another template receives a parameter only through an explicit argument.
 
-A formal parameter starts with `@` and an ASCII letter. Its remaining characters are ASCII letters, digits, hyphens, or underscores. Case counts. A declaration contains one or more distinct formals, separated by commas. Default arguments, variable argument counts, and overloaded names do not exist.
+A parameter starts with `@` and an ASCII letter. Its remaining characters are ASCII letters, digits, hyphens, or underscores. Case counts. A declaration contains one or more distinct parameters, separated by commas. Default arguments, variable argument counts, and overloaded names do not exist.
 
 A template and an ordinary rule never share a name in one stage. Redefinition cannot convert one kind into the other. Their names follow the same rules, including eligible emoji names (§9.1). After substitution, bare template references are errors outside pattern rule atoms. An argument can carry such a name only to pattern uses. A call of an ordinary rule is an error.
 
 A call has `(` immediately after its name, without whitespace or a comment. The comment opener `(*` takes priority, so `r(* note *)` remains a reference followed by a comment. `r (x)` is a reference followed by a group. A template declaration uses the same adjacency rule.
 
-A call is a rule symbol. Captures, tests, patterns, rule-valued method arguments, and close families can name it. It creates one instance even when no body references that instance. Normal reachability requirements still apply to neighbor targets.
+A call is a rule symbol. Captures, tests, patterns, rule-valued method arguments, and close families can name it. A call in retained syntax creates one instance even when no body references that instance. Normal reachability requirements still apply to neighbor targets.
 
 #### Arguments and substitution
 
@@ -293,7 +295,11 @@ The argument reader tries these forms in order:
 3. A parenthesized body expression, optional, repetition, or `ε`.
 4. An ordinary term or tested symbol, including names, calls, literals, constants, ranges, wildcard, tag sets, strings, and patterns.
 
-A parenthesized expression that cannot parse as a body follows ordinary term syntax. A body argument retains its category boundary, even when its body contains one symbol. Inner redundant parentheses add no node. An unparenthesized run of body symbols is not one argument. Bare tag runs retain their ordinary tag-set meaning.
+A parenthesized expression that cannot parse as a body follows ordinary term syntax. A parenthesized argument with one symbol reads as that symbol. This includes a parameter, a tested symbol, and a literal.
+
+Other bodies retain their argument category. Parentheses alone add no node. An unparenthesized run of body symbols is not one argument.
+
+Bare tag runs retain their ordinary tag-set meaning.
 
 Optionals and repetitions also remain single body arguments. A tested symbol retains its tests as one argument.
 
@@ -306,7 +312,7 @@ The use determines the conversion, before ordinary validation:
 | Position | Accepted argument and conversion |
 | --- | --- |
 | Body operand | Body EXPR, one symbol atom, or a target choice converted to one choice |
-| Captured or tested symbol | One symbol, including a body's sole symbol |
+| Captured or tested symbol | One symbol after argument conversion |
 | Query target | Rule name, call, user tag, or spliced target choice |
 | One rule argument | Ordinary rule name or exact instance |
 | Tag term | Tag, tag-set constant, or tag-set term |
@@ -314,11 +320,11 @@ The use determines the conversion, before ordinary validation:
 | Value test or range endpoint | String literal or string constant |
 | Value or image recipe | String literal, string constant, or closed concatenation |
 | Pattern operand | Name, call, tag, string, constant, terminal atom, or pattern predicate |
-| General term | Argument with that position's required term type |
+| General term | Term whose type after constant binding is the required string, string-set, tag-set, or pattern type |
 
 A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string or scalar constant becomes a body or pattern `literal`, or retains its term form. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
 
-An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A body argument can supply its sole symbol, but a sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
+An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
 A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The terminator directly after `[+` must remain a written user tag. Parameters cannot replace that head.
 
@@ -346,27 +352,51 @@ A requirement list is distinct from a tag set. An empty `<>` splices no requirem
 
 A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a tag set or a pattern. Parenthesized body choices never splice into query targets. A target list must remain nonempty after substitution.
 
-Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution. Parameters carry no runtime state.
+Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution.
+
+Substitution also flattens concatenations inside recipes before ordinary validation. Their operands enter in order, including empty operands. Each operand retains its source attribution.
+
+Parameters carry no runtime state.
 
 #### Identity and names
 
-An instance key contains its stage, template identity, and ordered argument syntax trees after parameter substitution. Keys ignore positions and inner redundant grouping. They use the reader's normal flattening of unions and concatenations, including for supplied DOMs. They retain argument categories, operator order, constants by name, and rule references by name. They never expand a referenced rule's body or compare evaluated argument values.
+An instance key uniquely identifies an instance. It contains the stage, template identity, and ordered argument DOMs after parameter substitution and argument conversion. Keys remove source positions.
 
-A nested call contributes its own template and argument key. Giving that nested instance a public name does not change the key of its enclosing call. A nominal reference to the public name remains a distinct argument. Thus `f(named-pair)` and `f(pair("a", "b"))` have different keys.
+They flatten only unions, concatenations, and runs as the reader does, including in supplied DOMs. Nested `seq`, `choice`, `and`, and `ranked` nodes remain distinct. A supplied DOM with other nesting therefore gives another key.
 
-`%rule NAME = CALL` gives one instance its public name. It creates no alternative, wrapper constituent, or extra ranking occurrence. All calls with that key use NAME throughout the stage, including calls before the binding. One key has at most one public name. One public name binds at most one key.
+They retain argument categories, operator order, constants by name, and rule references by name. They never expand a referenced rule's body or compare evaluated argument values.
+
+A nominal reference names a rule without expanding it. A nested call contributes its own template and argument key. Giving that nested instance a public name does not change the key of its enclosing call. A nominal reference to the public name remains a distinct argument. Thus `f(named-pair)` and `f(pair("a", "b"))` have different keys.
+
+A binding assigns a public name to an instance. `%rule NAME = CALL` writes that assignment. It creates no alternative, wrapper constituent, or extra ranking occurrence.
+
+All calls with that key use NAME throughout the stage, including calls before the binding. One key has at most one public name. One public name binds at most one key.
+
+A public name cannot equal a template name.
 
 `%redefine-rule NAME = CALL` can replace an earlier ordinary rule with a named instance. It cannot rebind an already named instance to a different key. Repeating the same binding through `%redefine-rule` is an error too. `%extend-rule NAME = CALL` is an error.
 
 A binding accepts no flags, clauses, conditions, or output directive. An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
-An unnamed instance uses its canonical call spelling. The canonical printer preserves the argument tree, without expanding constants or public instance names. It joins arguments with `, `, places `(` directly after the template name, and writes `)` after the last argument.
+An unnamed instance uses its canonical call spelling. The printer preserves the normalized argument DOM, without expanding constants or named instances. It joins arguments with `, `, places `(` directly after the template name, and writes `)` after the last argument.
 
-Names, calls, tags, constants, ranges, `_`, `ε`, and `∅` retain their lexical spellings. Strings use JSON quoting, with literal non-ASCII scalars and JSON escapes for quotes, backslashes, and controls. Quotes and backslashes use their two-character JSON escapes. The five short control escapes cover backspace, tab, newline, form feed, and carriage return. Other controls use lowercase four-digit Unicode escapes. Slashes remain literal. This diagnostic spelling adds no escape syntax to grammar strings. It distinguishes a literal argument from an explicit concatenation argument. Signed requirements use `<A ¬B>`, including `<>`. Target choices use `a | b`.
+Names, calls, tags, constants, `_`, `ε`, and `∅` retain their lexical spellings. A range joins its endpoints with `..`, without spaces. Signed requirements use `<A ¬B>`, including `<>`. Target choices use `a | b`.
 
-Body arguments retain outer parentheses, except bare `ε`. The printer separates sequence items with one space. It uses ` | `, ` ≻ `, and ` & ` between operands. It encloses nested operator expressions in parentheses. Optionals and braces retain their delimiters, markers, and `/` separators.
+String arguments use JSON quoting. Quotes and backslashes use their two-character JSON escapes. The five short control escapes cover backspace, tab, newline, form feed, and carriage return. Other controls use lowercase four-digit Unicode escapes. Slashes remain literal.
 
-Other term and pattern operators use one space on each side. Their nested operator operands retain parentheses. Pattern literals use the full `#(…)` form. Tests follow their symbol without spaces. Method selectors follow their receiver without spaces and separate arguments according to their method's signature.
+The printer also escapes every scalar that §9.1 spells as an engine constant. Those scalars use lowercase JSON Unicode escapes, with a surrogate pair above U+FFFF. Other non-ASCII scalars remain literal. This diagnostic spelling adds no escape syntax to grammar strings. It distinguishes a literal argument from an explicit concatenation argument.
+
+Body arguments retain outer parentheses, except bare `ε`, optionals, and repetitions. The printer separates sequence items with one space. It uses ` | `, ` ≻ `, and ` & ` between operands. An optional has no internal padding. Braces have no internal padding except the spaces around `/` and between a chain marker and its item.
+
+Parentheses follow binding strength. In bodies, sequence binds tighter than `&`, and `&` binds tighter than either choice operator. A weaker child requires parentheses. A nested `seq`, `choice`, `and`, or `ranked` retains parentheses when omitting them changes its stored nesting. Other unnecessary grouping is absent. Thus a choice argument prints `(a b | c)`, while a nested sequence prints `(a (b c))`.
+
+A union containing only bare tags prints as a run with single spaces. A union containing only string literals also prints as a run with single spaces. Other unions use ` ∪ `. Intersections, differences, and concatenations use ` ∩ `, ` ∖ `, and ` ++ `. A run beside `∩` or `∖` retains parentheses as the source grammar requires.
+
+For other term operators, the printer follows §9.2 binding and associativity. It adds parentheses exactly where removing them changes the normalized DOM. It prints no leading no-op operator. Pattern operators follow the binding rules in `docs/notation.md`, with the same grouping rule.
+
+Pattern literals use the full `#(…)` form. Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. A sibling gap prints as `⋯`. Sequence items, including gaps, have one separating space and no padding at either end. A grouped sequence under a path retains its parentheses.
+
+Tests follow their symbol without spaces. Method selectors follow their receiver without spaces. Methods use ` | ` for target choices and `, ` for other argument lists. A zero-argument selector has no parentheses. Call parentheses follow the same no-space adjacency rule.
 
 Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. They do not require a grammar parser to accept diagnostic string escapes.
 
@@ -374,9 +404,13 @@ The effective name appears in trees, display JSON, canonical JSON, `insertedBy`,
 
 #### Source order and flags
 
-Template declarations and edits use formal parameter heads. `%redefine-rule f(@X)` replaces the template body and flag. `%extend-rule f(@X)` appends alternatives with that statement's own clauses. Both require an earlier template with the same arity. Formal names can change because binding is positional.
+Template declarations and edits use parameter heads. `%redefine-rule f(@X)` replaces the template body and flag. `%extend-rule f(@X)` appends alternatives with that statement's own clauses. Both require an earlier template with the same arity. Parameter names can change because binding is positional.
 
-An instance-specific edit names its public name or its exact closed call. `%redefine-rule f(a)` replaces that instance's body and flag. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance. A prior body call is unnecessary.
+A closed call contains no parameter references. An instance-specific edit names its public name or its exact closed call. An edit by public name requires an earlier binding in the stage. Before that binding, a defined ordinary name still addresses its ordinary rule. A future binding cannot make an undefined earlier edit valid.
+
+`%redefine-rule f(a)` replaces that instance's body and flag. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance.
+
+A prior body call is unnecessary.
 
 The loader applies template-wide and instance-specific events in source order for every instance. It replays earlier events even for an instance first discovered later. A later template redefinition replaces earlier local bodies, extensions, clauses, and flags. A later template extension reaches every instance, including one with an earlier local redefinition. A later local edit changes only its addressed instance.
 
@@ -398,23 +432,23 @@ For example, the later template redefinition removes the earlier local extension
 
 The final named instance reads `"a" "c"`, `"d"`, or `"e"`, with flag `fewest`. Another instance `slot("x")` reads `"x" "c"` or `"e"`, with the same flag.
 
-A template flag becomes the ordinary flag of each instance. Extensions keep the instance's current flag. Redefinitions replace it, and a redefinition without a flag removes it. Named bindings add no flag. Instances contribute actual nonempty constituents to the shared profiles of §6, with no new ranking tier.
+A template flag becomes the ordinary flag of each instance. Extensions keep the instance's current flag. Redefinitions replace it, and a redefinition without a flag removes it. Bindings add no flag. Instances contribute actual nonempty constituents to the shared profiles of §6, with no new ranking tier.
 
 #### Patterns and exact targets
 
 A bare template atom in a pattern matches every instance originating from that template, including named and locally redefined instances. It tests family identity through the ordinary unary pattern walk. It creates no instance and matches nothing when the template has no instance.
 
-An exact call in a pattern identifies one instance. Its public name identifies that same instance. Template-family membership remains internal metadata.
+An exact call in a pattern identifies one instance. An instance referenced only by patterns receives the ordinary unreachable-rule note. Its public name identifies that same instance. Template-family membership remains internal metadata.
 
 Recognition and neighbor targets accept ordinary rules, exact calls, named instances, and permitted user tags. A bare template name is a load error, including in `.tags(R)` and `.without-elision-except(F)`. An exact instance used as a close family follows §2.2 after expansion.
 
 #### Finite expansion and errors
 
-The loader constructs a directed parameter-flow graph before expansion. A node identifies one formal position of one template. For every call in a template definition, each argument creates edges from every formal that it contains to the callee's corresponding position.
+The loader constructs a directed parameter-flow graph before expansion. A node identifies one parameter position of one template. For every call in a template definition, each argument creates edges from every parameter that it contains to the callee's corresponding position.
 
-An edge is unchanged when that argument is exactly the source formal. Otherwise the edge grows. Nested calls, expressions, groups, and lists count as constructors. Ground arguments create no edge. The loader includes calls at every depth and every definition, including replaced definitions and uncalled templates.
+An edge is unchanged when that argument is exactly the source parameter. Otherwise the edge grows. Nested calls, expressions, and lists count as wrapping forms. A parenthesized single parameter stays unchanged and adds no growth. Arguments with no parameter references create no edge. The loader includes calls at every depth and every definition, including replaced definitions and uncalled templates.
 
-A directed cycle with a growing edge causes `unbounded-instantiation`. The error names the cycle, growing constructor, and source locations. Unchanged recursive calls, permutations, and passing a nominal rule name remain valid. An arbitrary expansion-depth limit cannot replace this analysis.
+A directed cycle with a growing edge causes `unbounded-instantiation`. The error names the cycle, growing wrapping form, and source locations. Unchanged recursive calls, permutations, and passing a nominal rule name remain valid. An arbitrary expansion-depth limit cannot replace this analysis.
 
 ```jbogenbau
 %rule stable(@X, @Y)
@@ -426,13 +460,23 @@ A directed cycle with a growing edge causes `unbounded-instantiation`. The error
 
 The second declaration fails even when nothing calls it. The first declaration has only unchanged edges.
 
-The loader first records declaration order, bindings, template signatures, and edits. It then resolves names, constants, and parameter binders and performs the flow analysis. It discovers instances from closed calls in source order, with depth-first argument traversal. Newly discovered instance bodies enter a first-in, first-out worklist. A repeated key reuses the existing rule, including recursive references.
+The loader first records declaration order, bindings, template signatures, and edits. It then resolves names, constants, and parameter binders and performs the flow analysis. It records only closed calls during instance discovery.
 
-For each instance, the loader replays applicable events and substitutes its arguments using each event's formal names. Ordinary document rules apply to each expanded definition, including replaced definitions. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused formals and uncalled templates are audit notes, not errors.
+The source pass visits declarations in source order. A binding visits its instance call, and an exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
 
-An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate formal, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
+Within each retained definition, the pass uses the reference traversal of §2.2. It visits a call's arguments from left to right and finishes each argument before recording the enclosing call. Inner closed calls therefore precede outer closed calls.
 
-The audit lists templates, instance keys, effective names, first calls, named bindings, flags, unused formals, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Instance order follows first discovery. Template order follows declaration order.
+Calls that still contain parameters wait for substitution.
+
+The source pass finishes before the loader reads the discovery queue. Each new instance adds its effective expanded definitions to this first-in, first-out queue. Each definition includes its body, tag clauses, conditions, and emission clauses. The loader uses the same reference traversal and inner-first argument walk there. A repeated key adds nothing, including a recursive reference.
+
+For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. A retained binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
+
+Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
+
+An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
+
+The audit lists templates, instance keys, effective names, first calls, bindings, flags, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Instance order follows first discovery. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
 
 ## 3. Lowering
 
@@ -963,7 +1007,11 @@ A shared key holds what the content key of one parse holds, with each token's ta
 
 `matches` and `tags` share a kind. `begins` and `ends` have separate kinds.
 
-Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags. An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each rule target. A terminal target reads its token directly and keeps none.
+Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags.
+
+An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each rule target.
+
+A terminal target reads its token directly and keeps none.
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
@@ -1002,7 +1050,11 @@ The method holds when some permitted completion has an eligible proof tree. A nu
 
 On the two tokens with values `b` and `a`, `.ends(start-a)` is false. The target starts after the fixed window's beginning. Parsing the final token alone with `.matches(start-a)` instead holds.
 
-All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs. The query selects no longest suffix. A grammar error reached by that computation remains an error even when another suffix succeeds.
+All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs.
+
+The query selects no longest suffix. A grammar error reached by that computation remains an error even when another suffix succeeds. An error first raised at input boundary p fails requests ending at p or later.
+
+It does not fail a request ending before p.
 
 An aligned `.ends(R)` uses the restored receiver's fixed context and match window from §4. Its witness can start inside that window and must end at its end. Within the overlap with the captured observation, it retains every ordered close and opaque block. It cannot split a group of closes at either boundary or start inside a ranked block.
 
@@ -1038,9 +1090,9 @@ An inserted `ε` token has no input parts. Its default strings are empty, and it
 
 Every emitted token stores a value and image, including empty strings. Stage-zero tokens store both too. Empty tag sets are legal. Implications alter tags without changing strings. No tag-to-string mapping exists.
 
-`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The bundled phoneme stages supply comparison values directly. The engine supplies no lowercase mapping or comma removal.
+`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The engine supplies no lowercase mapping or comma removal. The [dialect guide](dialects.md#phoneme-values-and-stress) describes the bundled comparison policy.
 
-The input value keeps every character that its tokens store. For example, a grammar can give `lA` value `la` and image `lA`. It can give `nu,iork` value `nuiork` and image `nu,iork`. Bundled phoneme mappings store stress only in `Stressed`. Their vowel values are plain lowercase vowels, with visible stress retained in images. Syllable commas use empty values, image `,`, and `Syllable-Break`. These are grammar mappings, not comparison behavior.
+The input value keeps every character that its tokens store. A grammar can supply different value and image strings through recipes. Those mappings belong to the grammar, not comparison behavior.
 
 Every comparison is exact.
 
@@ -1550,11 +1602,19 @@ The reader selects the longest punctuation token. `...`, `..`, and `.` are disti
 
 The lexer reads maximal names before the reader checks them. A lowercase name matches `[a-z][A-Za-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`. An underscore token matches `_[A-Za-z0-9_]*`. `_` alone is the wildcard, and a name in §1 is an engine tag. Any other underscore token is a document error at that token.
 
-Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a wildcard or engine tag followed by a name. An emoji rule name contains exactly one scalar with `Emoji_Presentation=Yes` and `Emoji_Component=No` in the configured Unicode table. The bundled version is Unicode 15.1.0. Each eligible scalar is its own token. Adjacent emoji names do not combine. Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names.
+Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a wildcard or engine tag followed by a name. An emoji rule name contains exactly one scalar with `Emoji_Presentation=Yes` and `Emoji_Component=No` in the configured Unicode table.
+
+The bundled version is Unicode 15.1.0. Each eligible scalar is its own token. Adjacent emoji names do not combine.
+
+Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names.
 
 Emoji names work wherever rule names work, including template heads and calls. They cannot name tags, classifiers, stages, constants, captures, features, or parameters. `#` starts a pattern and never names a rule. `@` starts a parameter and never starts a pattern. `/` remains the brace separator. `~` and `^` remain unused.
 
-A parameter token is `@` followed directly by `[A-Za-z][A-Za-z0-9_-]*`. A bare `@`, separated name, or `@(` is a lexical error. A call-name token is a rule name immediately followed by `(`, except the comment opener `(*`. It contains the name only and retains its ordinary name kind. Method and keyword constructors still read their names in their own positions. Whitespace or a comment before `(` prevents this token. This is the notation's explicit adjacency rule.
+A parameter token is `@` followed directly by `[A-Za-z][A-Za-z0-9_-]*`. A bare `@`, separated name, or `@(` is a lexical error. A call-name token is a rule name immediately followed by `(`, except the comment opener `(*`.
+
+It contains the name only. It can name a call or a call-shaped rule head. Method and keyword constructors can consume it in their name positions.
+
+It never reads directly as a reference, ordinary rule name, or bare pattern name. Whitespace or a comment before `(` prevents this token. This is the notation's explicit adjacency rule.
 
 A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must match `[a-z][a-z0-9_-]*`. `$fooBar:A` therefore reports the capture-name error at `$fooBar`. A user constant reference is `$` followed by an uppercase name.
 
@@ -1572,11 +1632,15 @@ A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name 
 
 The lexer reads `¬` separately only when no guard starts immediately after it. It has no negated-warning token. Thus `%rule r ¬cbm! A` fails lexically at `!`, column 13. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard with an invalid feature or a negated warning fails at that guard.
 
-Whitespace and comments separate tokens but add no grammar node. Call-name adjacency follows the exception above. Comments discard their contents, including backslashes, without escape processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
+Whitespace and comments separate tokens but add no grammar node. Call-name adjacency follows the exception above. Comments discard their contents, including backslashes, without escape processing.
+
+Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal.
+
+`$x : A < B >` has the same meaning.
 
 Canonical string diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal. This diagnostic spelling need not parse as a terminal. A string constant can hold the displayed join.
 
-A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+A quote, backslash, control, format scalar, nonspacing mark, private-use scalar, decomposable scalar, or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins the canonical spellings of its endpoints with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1600,12 +1664,12 @@ flags = "(" name {"," name} ")"
 rule-head = rule-name | call
 rule-name = name | emoji-name
 call = call-name "(" call-argument {"," call-argument} ")"
-call-argument = requirement-list | target-choice | body-argument | call-term
+call-argument = requirement-list ≻ target-choice ≻ body-argument ≻ call-term
 requirement-list = "<" {requirement} ">"
 target-choice = call-target "|" call-target {"|" call-target}
 call-target = reference | tag | call | parameter
 body-argument = "(" choice ")" | optional | repetition | "ε"
-call-term = tested-symbol | term | range | "_"
+call-term = tested | term | "_"
 parameter = parameter-token
 clauses = tags-clause [value-clause] [image-clause]
         | value-clause [image-clause] | image-clause
@@ -1708,7 +1772,9 @@ classifier-key = string-literal | constant-reference
 implication-declaration = "%implies" union "⟹" union
 ```
 
-A call-shaped rule head with only distinct parameter arguments declares or edits a template. Mixed formal and concrete heads are errors. A closed call head addresses one instance and requires `%redefine-rule` or `%extend-rule`. A named binding requires a plain rule name on its left and exactly one call on its right.
+A call-shaped rule head with only distinct parameter arguments declares or edits a template. Mixed parameter and concrete heads are errors. A closed call head addresses one instance and requires `%redefine-rule` or `%extend-rule`. A binding requires a plain rule name on its left and exactly one call on its right.
+
+The unquoted `≻` between argument forms denotes recognition priority. It does not denote a token inside the argument.
 
 Call arguments follow the ordered alternatives of §2.3, independently of the template declaration. A target choice inside one call argument belongs to that argument. Parenthesized body arguments retain their argument boundary. Calls introduce no statement clauses inside their argument list.
 
@@ -1772,7 +1838,7 @@ Valid-form productions:
 ```text
 captured = named-capture ":" tested-symbol
 tested-symbol = symbol [tag-test] [value-test]
-symbol = reference | call | tag | string-terminal | range | "_"
+symbol = reference | call | parameter | tag | string-terminal | range | "_"
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] (tag | tag-set-constant | parameter)
 value-test = ("=" | "≠") (string-literal | string-constant | parameter)
@@ -1841,10 +1907,10 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `rule` | Definer, head, flags, then binding call or ordinary body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Header clauses precede body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
-| `call-argument` | Requirement list, target choice, body argument, or term | ARG from `docs/output.md`, preserving its category |
+| `call-argument` | Requirement list, target choice, body argument, tested symbol, or term | ARG from `docs/output.md`, preserving its category |
 | `requirement-list` | Ordered `tag-requirement` parts | `requirements`, including an empty array |
 | `target-choice` | Two or more ordered call targets | `targets` array |
-| `body-argument` | One choice or `ε` | `body` containing its EXPR |
+| `body-argument` | One choice, optional, repetition, or `ε` | Convert to EXPR. Return a sole symbol as its common ARG atom. Otherwise retain `body:EXPR`. |
 | `definer` | One definition keyword token | `define`, `redefine`, or `extend` |
 | `rule-name` | One rule-name token | Lowercase name or eligible emoji scalar |
 | `rule-flags` | One or more `rule-flag` parts | Ordered flags. Reject extension flags before reading flag tokens. |
@@ -1869,7 +1935,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag, tag-set constant, or parameter. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
 | `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
-| `test-operand` | One recognized operand | Require a string literal or string constant for a value test. Produce unresolved STRINGTERM. |
+| `test-operand` | One recognized operand | Require a string literal, string constant, or declared parameter for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base accepts every rule reference or call, including emoji rules. |
 | `group` | One `choice` | Child expression |
 | `optional` | One `choice`, then `+` markers if present | `optional`, with `elidable:true` for one valid marker |
@@ -1919,7 +1985,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-intersection` | One or more `pattern-sequence` | Intersection, or sole predicate |
 | `pattern-sequence` | One or more `pattern-item` | Concatenate plain groups. Multiple siblings become `children`. |
 | `pattern-item` | Atom, brackets, repeat, path, or sibling ellipsis | Corresponding child predicate or `siblings:true` |
-| `pattern-atom` | One name, call, parameter, terminal constructor, constant, nested literal, or grouped union. All written tests on a name, terminal, or constant atom. | Require a terminal or string constant for tests, with tag then value order. Produce named rule, tested terminal, constant, or child predicate. |
+| `pattern-atom` | One name, call, parameter, terminal constructor, constant, nested literal, or grouped union. All written tests on a name, terminal, or constant atom. | Require a terminal, string constant, or parameter pending substitution for tests, with tag then value order. Produce named rule, tested terminal, constant, or child predicate. |
 | `pattern-brackets` | One `pattern-union` | Ordinary optional children |
 | `pattern-repeat` | One item union and optional separator union | Repeated children |
 | `pattern-path` | One path token and one `pattern-atom` | Descendant, first, or last path |
@@ -2040,9 +2106,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the syntax stage at `(`, column 23. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A rule name that is neither an eligible emoji scalar nor a name beginning with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
-- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, tag terminal, string terminal, range, wildcard, or a tested form with one of these bases. For this capture check, a rule reference includes `🆓`. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
+- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, call, parameter, tag terminal, string terminal, range, wildcard, or a tested form of one. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
 
-  Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16. `%rule r $x:🆓<A>` fails at `<`, column 13.
+  Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16. `%rule r $x:A="a"<B>` fails at `<`, column 17, because a tag test cannot follow a value test.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A grouped value-test operand is a reader error at its opening parenthesis.
 - A body constant must resolve to a string terminal or scalar range endpoint. A tag-set or pattern constant in that position is a document error.
@@ -2050,7 +2116,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture name that one production of an alternative holds twice is an error. It is reported at the second capture in the text that such a production reads. Several productions can read a name twice, at different second captures. The error then stands at the one of those captures that comes first in the text. So `($x:A | $y:B) ($y:C | $x:D)` is an error at `$y:C`, the second capture of the production `B C`. `A D` reads `$x` twice too, but its second capture, `$x:D`, comes later.
 
   The productions are the expansions of §3.2, taken before any gate applies. So the error does not depend on the features: `f? [$x:A] $x:B` is an error with `f` off too. A name in two branches of a choice is no error, since no expansion reads both, as in `A ($x:B | $x:C)`. A name in two items of `&`, or in an optional and beside it, is an error, since some expansion reads both.
-- A test after anything but a rule reference, call, or terminal is an error, reported at the test. So a test after a group, an optional, braces, a capture, or `ε` is an error. The syntax grammar permits tests after any primary, in any number and order. After a capture binder, source tests belong to its target. Only a supplied notation tree can test the capture itself.
+- A test requires a rule reference, call, terminal, or parameter whose argument is one symbol. Other targets cause an error at the test. So a test after a group, an optional, braces, a capture, or `ε` is an error. The syntax grammar permits tests after any primary, in any number and order. After a capture binder, source tests belong to its target. Only a supplied notation tree can test the capture itself.
 
   A symbol accepts one tag test followed by one value test, with either test absent. Every other sequence fails at its first disallowed test. A repeated kind or a tag test after a value test therefore fails at the second test.
 
@@ -2143,9 +2209,9 @@ Each of the following is an error of the document too, and the reader reports it
 
 A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom stands only in `%conditions` and in an emission item's tag clause.
 
-Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. An instance target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
+Its target is one ordinary rule, exact instance, user tag, or a choice of these. `🆓` counts as a rule name. Each target must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
 
-A terminal argument of `.matches` or `.begins` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
+A terminal argument of `.matches`, `.begins`, or `.ends` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
 
 A receiver cannot be a list capture or a method of one. Each violation is a document error at the atom, at the name, or at the second atom. The limit of one atom per item and the receiver limit bind `%conditions` only. An emission tag clause can hold several atoms, because it reads the chosen derivation.
 
@@ -2377,7 +2443,11 @@ For a bare name after either tree comparator, report at that name: `tree compari
 
 ### Method selection and juxtaposition
 
-Token selectors return an empty span if the original projection is empty. Context methods can extend an empty receiver toward their context boundary. `.tokens-after-first` then returns that same empty span. `.onward` preserves restoration constraints, including through repeated calls. Other span methods discard them after projection. Neither restoration method can follow another span method. The error directs the author to `$x.without-elision.onward`.
+Token selectors return an empty span if the original projection is empty. `.tokens-after-first` then returns that same empty span. Context methods can extend an empty receiver toward their context boundary.
+
+`.onward` preserves restoration constraints, including through repeated calls. Other span methods discard them after projection. Neither restoration method can follow another span method.
+
+The error directs the author to `$x.without-elision.onward`.
 
 A whole capture's `.tags` reads constituent tags. Other spans union their original tokens' tags. Span methods never retain constituent tags. A restored span's `.tags` reads only original token tags. `.classes` filters the same set for names beginning and ending with uppercase ASCII letters and not beginning with `_`.
 

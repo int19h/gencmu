@@ -432,13 +432,19 @@ The extension also supplies its own `%emits`. A two-symbol alternative inherits 
 
 A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
 
+## Phoneme values and stress
+
+The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order. They contain no `normalize` stage. Therefore `until: "normalize"` is an unknown-stage usage error.
+
+A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage. A missing stress tag does not cause a separate normalization failure.
+
 The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
 
-A syllable comma uses this covering emission in the phoneme stage:
+The `syllable-break` rule in [latin-strict.md](../grammars/phonemes/latin-strict.md) reads `commas`. Its covering emission sets the comparison value:
 
 ```jbogenbau
 %rule syllable-break
-  {","}
+  commas
 %emits
   $ :: Syllable-Break := "" :- ","
 ```

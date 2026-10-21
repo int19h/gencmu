@@ -78,7 +78,11 @@ The engine works with these objects:
 
 The four libraries implement one specification, `docs/engine.md`. It defines the same behavior for all four implementations. It covers:
 
-1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects). See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering. Its errors carry file, line and column.
+1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects).
+
+See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering.
+
+Its errors carry file, line and column.
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and flat `{ }`, and diagnostics hide these rules.
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `.onward` and `.following-tokens`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
@@ -266,11 +270,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Phoneme values and stress
 
-The phoneme stage supplies comparison values directly. The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order. They contain no `normalize` stage.
-
-A stressed vowel has its plain lowercase vowel value and the `Stressed` tag. Its image retains visible stress, such as `A`. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
-
-A script extension that forwards another rule relies on tag inheritance. An explicit tag clause replaces that inheritance and can lose `Syllabic` or `Stressed`. A missing stress tag does not cause a separate normalization failure. Phoneme fixtures must cover stress tags and images.
+The [dialect guide](dialects.md#phoneme-values-and-stress) owns the bundled stage list and phoneme mappings. The engine concatenates stored values without a separate normalization policy. A script extension controls its own tags and image recipes. Phoneme fixtures must cover the grammar's declared tags and images.
 
 ## Two walks and recipe placement
 
@@ -832,7 +832,11 @@ The product provides these diagnostics and debugging tools:
 
 Each stage's audit also exposes `templates` and `instances` lists. Templates follow declaration order, and instances follow first discovery order (engine §2.3). A template entry contains `template`, `parameters`, `document`, `line`, `column`, and `notes`. Its notes identify `unused-parameter` with `parameter`, or `uncalled-template`.
 
-An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCall`, `flags`, and `events`. Arguments use the unresolved ARG schema without source positions. The template and ordered arguments encode its key within the stage. `binding` is null for an unnamed instance. Otherwise it names the binding's document, line, and column. `firstCall` records that call's document, line, and column.
+An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCall`, `flags`, `events`, and `notes`. Arguments use the unresolved ARG schema without source positions. The template and ordered arguments encode its key within the stage. `binding` is null for an unnamed instance. Otherwise it names the binding's document, line, and column. `firstCall` records that call's document, line, and column.
+
+An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in first-discovery order.
+
+Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. The comparison follows the finite written argument trees and never expands a nominal reference's body. It accepts either direction of that replacement. It also applies inside nested argument forms.
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `flagsBefore`, and `flagsAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `flags` gives the final effective flag list. The printed report shows the same facts and names public bindings without implying wrapper rules.
 
@@ -907,11 +911,17 @@ The check of quoted texts relies on this rule, since it gives each text the line
 
 A railroad diagram draws a grammar rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. "Railroad diagrams" in [the notation document](notation.md#railroad-diagrams) explains how to read them, and what they leave out.
 
-`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files. An emoji filename uses `_u` followed by lowercase hexadecimal, without unnecessary leading zeros. Thus `🆓` uses `_u1f193.svg`. Generated names cannot collide with ASCII rule names because those start lowercase.
+`node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document.
 
-A template diagram appears once, with its formal list in the title. Parameter boxes show their `@` names. Call boxes show arguments and link to the template. A concrete named instance uses its public label and shows the call as its substitution. A named binding shows its name and substitution without suggesting another parse-tree node.
+So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files. An emoji filename uses `_u` followed by lowercase hexadecimal, without unnecessary leading zeros.
 
-An instance-specific edit receives a diagram of its written body. Diagrams never enumerate unnamed instances automatically. Multiple statements for one name use a source-order suffix after the first filename, starting with `.2`. Names that differ only in case share this counter. The suffix also distinguishes template and instance edits under one template name.
+Thus `🆓` uses `_u1f193.svg`. Generated names cannot collide with ASCII rule names because those start lowercase.
+
+A template diagram appears once, with its parameter list in the title. Parameter boxes show their `@` names. Call boxes show arguments and link to the template. A binding shows the named instance and its substitution without suggesting another parse-tree node.
+
+An instance-specific edit receives a diagram of its written body. Diagrams never enumerate unnamed instances automatically. A template statement or closed-call edit uses the template name as its filename stem. A binding or edit written with a public name uses that public name as its stem.
+
+An emoji stem uses `_u` plus lowercase hexadecimal, without unnecessary leading zeros. Statements with the same case-folded stem share one source-order counter. Their filenames are `stem.svg`, `stem.2.svg`, and so on.
 
 A ranked choice numbers its options in preferred order inside a dashed frame. Its shared label is `≻ same span`. A qualified higher proof removes a lower proof over the same span only when its open facts dominate the lower proof. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
 

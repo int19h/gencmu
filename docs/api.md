@@ -75,13 +75,13 @@ A failed result retains features enabled before the failure, including earlier d
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`. Phonemes supply lowercase vowel values directly, with stress only in `Stressed`. There is no `normalize` stage, so `until: "normalize"` is an unknown-stage usage error.
+The [dialect guide](dialects.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
 A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by dialect. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
-Rule names in results are strings, including eligible emoji and canonical call spellings. A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A named binding adds no tree node.
+Rule names in results are strings, including eligible emoji and canonical call spellings. A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
