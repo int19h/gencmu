@@ -1,0 +1,46 @@
+{
+  "description": "The preceded-by method uses a mixed target choice in a ranked expression.",
+  "grammar": "%rule text (previous $x:part ≻ fallback) ::∅ %conditions $x.preceded-by(C | other | T | T)\n%rule part A\n%rule previous T | B | other\n%rule fallback B A\n%rule never Z Z Z\n%rule other C",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "T",
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "previous",
+            "children": [
+              {
+                "terminal": "T"
+              }
+            ]
+          },
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

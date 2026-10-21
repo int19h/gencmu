@@ -1,0 +1,39 @@
+{
+  "description": "An emission tag term can query a tag when the grammar also contains a ranked choice.",
+  "grammar": "%rule text $p:A (B ≻ C) ::∅ %emits $p :: ($p.begins(P) ⟹ MARK)",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": [
+                "MARK"
+              ],
+              "value": "p"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

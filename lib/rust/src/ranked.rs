@@ -487,7 +487,8 @@ impl RankedGroups {
         let mut helpers = FxMap::default();
         for production in &lowered.prods {
             let helper = lowered.rules[production.rule as usize].helper;
-            let slot = production.slot.as_ref().expect("ranked validation metadata");
+            // Query helpers have no written slot and never occur in a rule body.
+            let Some(slot) = &production.slot else { continue };
             if let Some(path) = slot.path {
                 if let Some(group) = self.expressions.get(&path) {
                     helpers.insert(*group, production.rule);

@@ -1,0 +1,38 @@
+{
+  "description": "The preceded-by method uses a tag target in a ranked expression and rejects a false tag test.",
+  "grammar": "%rule text (previous $x:part ≻ fallback) ::∅ %conditions $x.preceded-by(T)\n%rule part A\n%rule previous T | B\n%rule fallback B A\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

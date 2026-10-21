@@ -1,0 +1,44 @@
+{
+  "description": "A false tag query makes the nested ranked group select its fallback.",
+  "grammar": "%rule text $p:A ((($x:part ≻ fallback) B) ≻ outer) ::∅ %conditions $p.matches(P) ∧ $x.matches(T)\n%rule part A\n%rule fallback A\n%rule outer A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "rule": "fallback"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

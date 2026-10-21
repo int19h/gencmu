@@ -2075,6 +2075,10 @@ Targets use `|` separators, without constants, strings, or commas. Parentheses a
 
 `s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does. Each rule target includes the empty prefix if that rule reads nothing. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
+The lowerer represents each tag target of `matches` or `begins` with a private helper that reads that terminal.
+
+It keeps the written grammar and ranked group identities unchanged. The same lowering applies inside ranked choices and outside them. Boundary methods retain terminal names under §4.2.
+
 Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 
 `s.starts-input` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.

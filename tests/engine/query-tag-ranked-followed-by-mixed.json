@@ -1,0 +1,46 @@
+{
+  "description": "The followed-by method uses a mixed target choice in a ranked expression.",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(C | other | T | T)\n%rule part A\n%rule next T | B | other\n%rule fallback A B\n%rule never Z Z Z\n%rule other C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "T",
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          },
+          {
+            "rule": "next",
+            "children": [
+              {
+                "terminal": "T"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

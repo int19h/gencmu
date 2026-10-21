@@ -1,0 +1,38 @@
+{
+  "description": "The begins method uses a tag target in a plain expression.",
+  "grammar": "%rule text $x:part ::∅ %conditions $x.begins(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

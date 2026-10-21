@@ -1,0 +1,21 @@
+{
+  "description": "The matches method uses a tag target in a plain expression and rejects a false tag test.",
+  "grammar": "%rule text $x:part ::∅ %conditions $x.matches(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

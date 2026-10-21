@@ -240,6 +240,9 @@ class RankedGroups:
         unsafe, users, helpers = set(), {}, {}
         for production in lowered.productions:
             slot = production.slot
+            # Query helpers have no written slot and never occur in a rule body.
+            if slot is None:
+                continue
             if slot.path in self.expressions:
                 helpers[self.expressions[slot.path]] = production.lhs
             terms = slot.tags if production.helper else [term for term in (slot.source.tags, slot.source.rule_tags) if term is not None]

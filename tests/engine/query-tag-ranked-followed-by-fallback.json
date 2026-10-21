@@ -1,0 +1,38 @@
+{
+  "description": "The followed-by method uses a tag target in a ranked expression and rejects a false tag test.",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next T | B\n%rule fallback A B\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

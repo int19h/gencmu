@@ -682,6 +682,8 @@ Repeated targets are accepted and change nothing. Engine tags are excluded becau
 
 Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens. Restored queries retain their alignment rules for every alternative.
 
+Inside a ranked choice, a tag target has the same meaning as outside it. The lowerer uses a private single-terminal helper for `matches` and `begins`. This helper preserves the written ranked groups and their capture scopes. Boundary methods keep their meaning as tests on neighboring nodes.
+
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
