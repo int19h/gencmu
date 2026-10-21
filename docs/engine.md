@@ -394,7 +394,11 @@ The braces of a chain (§3.3) have no helper: they are lowered into the rule's o
 
 Every expansion of the alternative that goes through a helper's place shares that helper. So an item of `&`, or a place inside the item or the separator of braces, has one helper however many expansions use it.
 
+### 3.10 Query helpers
 
+For each distinct tag named by `matches` or `begins`, stage lowering creates one query helper. Every occurrence of that terminal target shares the helper. Its single production reads one token through that terminal. The helper has no flags, symbol tests, conditions, or written clauses. It inherits the token's tags.
+
+Query helpers follow every production from the written grammar, including its helpers, in tag-name order. No body can name a query helper. Query helpers appear in no grammar DOM, written-grammar analysis, output tree, or audit.
 
 ## 4. Recognition
 
@@ -459,9 +463,9 @@ The order between steps, between items and between sets is not observable either
 
 A target choice is a nonempty set of rule names and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag, through a helper (§10). A rule target runs a nested parse of that rule.
 
-`span.matches(S)` and `span.begins(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target.
+`span.matches(S)` and `span.begins(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target. A rule target resolves where its rule is defined in the stage (§9). A terminal target of `matches` or `begins` resolves by its name alone (§10).
 
-`span.matches(rule)`, `span.begins(rule)` and `span.tags(rule)` each run a nested parse for a rule target. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
+`span.matches(rule)`, `span.begins(rule)` and `span.tags(rule)` each run a nested parse for a rule target. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does. For a terminal target, the nested parse starts from its helper (§3.10), and `rule` below names that helper.
 
 A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
@@ -771,7 +775,7 @@ A conditional `%features` declaration (§13) holds or fails before its stage par
 
 The shared memo holds only ordinary queries with a key of content. A key of position names a place in one input, so it stays in the memo of one parse. An aligned query also stays there, since its key holds observations of one parse.
 
-A shared key holds what the content key of one parse holds, with each token's tags by name. So it holds the query kind and the rule. It also holds the original text over the source of the span. For each token of the span, it holds the tags, text, value, image, and the source offsets, counted from the start of that text.
+A shared key holds what the content key of one parse holds, with each token's tags by name. So it holds the query kind and the rule. For a terminal target, the rule field names its query helper (§3.10). It also holds the original text over the source of the span. For each token of the span, it holds the tags, text, value, image, and the source offsets, counted from the start of that text.
 
 `matches` and `tags` share a kind. `begins` has its own.
 
@@ -2075,7 +2079,9 @@ Targets use `|` separators, without constants, strings, or commas. Parentheses a
 
 `s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does. Each rule target includes the empty prefix if that rule reads nothing. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
-Lowering gives each terminal target of `matches` or `begins` a helper (§3) that reads one token through that terminal. Lowering adds the helper outside the written grammar, so the identities of the ranked groups do not change. The same lowering applies inside ranked choices and outside them. A terminal target of a boundary atom gets no helper. It names the token nodes that its terminal read (§4.2).
+A rule target resolves where its rule is defined in the stage (§9). A terminal target of `matches` or `begins` resolves by its name alone. It need not stand in any body or tag term. If no input token carries its tag, the query never holds. A boundary target must also be buildable (§9.3).
+
+Lowering gives each terminal target of `matches` or `begins` a helper (§3.10) that reads one token through that terminal. Lowering adds the helper outside the written grammar, so the identities of the ranked groups do not change. The same lowering applies in ranked alternatives and in ordinary alternatives. A terminal target of a boundary atom has no helper. It names the token nodes that its terminal read (§4.2).
 
 Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 

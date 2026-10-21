@@ -1,5 +1,5 @@
 {
-  "description": "The followed-by method uses a tag target in a ranked expression and rejects a false tag test.",
+  "description": "The ranked choice falls back when its followed-by tag test is false.",
   "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next T | B\n%rule fallback A B\n%rule never Z Z Z",
   "tokens": [
     {

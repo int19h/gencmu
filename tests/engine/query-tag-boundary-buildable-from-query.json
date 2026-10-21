@@ -1,0 +1,33 @@
+{
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next B\n%rule fallback A B\n%rule unused $q:A %conditions $q.matches(T)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  },
+  "description": "A terminal query makes its target buildable without making a different terminal read count for a boundary atom."
+}

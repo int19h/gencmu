@@ -1,5 +1,5 @@
 {
-  "description": "The preceded-by method uses a tag target in a ranked expression and rejects a false tag test.",
+  "description": "The ranked choice falls back when its preceded-by tag test is false.",
   "grammar": "%rule text (previous $x:part ≻ fallback) ::∅ %conditions $x.preceded-by(T)\n%rule part A\n%rule previous T | B\n%rule fallback B A\n%rule never Z Z Z",
   "tokens": [
     {

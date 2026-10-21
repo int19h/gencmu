@@ -1,0 +1,40 @@
+{
+  "grammar": "%rule text $s:part other ::∅ %conditions ¬$s.onward.begins(KE)\n%rule part A\n%rule other (B ≻ C) ::∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          },
+          {
+            "rule": "other",
+            "children": [
+              {
+                "terminal": "B"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "description": "An onward terminal query resolves its target when a different rule contains the ranked choice."
+}

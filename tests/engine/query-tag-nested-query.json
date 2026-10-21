@@ -1,0 +1,27 @@
+{
+  "grammar": "%rule text $x:pair %conditions $x.matches(inner)\n%rule inner ($y:A ≻ B) ::∅ %conditions $y.matches(T)\n%rule pair A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "pair"
+          }
+        ]
+      }
+    }
+  },
+  "description": "A nested query can target a rule whose ranked alternative queries a terminal."
+}

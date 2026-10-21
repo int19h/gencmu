@@ -1,0 +1,46 @@
+{
+  "description": "A false begins query contributes no tags in a ranked tag term.",
+  "grammar": "%rule text $p:A (($x:part ≻ fallback) B) :: ($p.begins(P) ⟹ MARK) %conditions $x.begins(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "tags": [],
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "rule": "part"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

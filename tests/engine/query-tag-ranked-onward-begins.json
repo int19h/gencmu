@@ -1,0 +1,27 @@
+{
+  "description": "An onward query from a private capture resolves its terminal target.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.onward.begins(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

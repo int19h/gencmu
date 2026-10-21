@@ -1,0 +1,28 @@
+{
+  "grammar": "%rule text ($x:A ≻ B) ::∅ %conditions $x.begins(NEVERZZ)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B",
+        "NEVERZZ"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "terminal": "A"
+          }
+        ]
+      }
+    }
+  },
+  "description": "A terminal query resolves an unmentioned tag and holds when the caller supplies it."
+}

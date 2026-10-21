@@ -1,0 +1,33 @@
+{
+  "description": "A following token that carries the target tag does not count unless that terminal read it.",
+  "grammar": "%rule text (($x:part next ≻ fallback) | T T T) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next B\n%rule fallback A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

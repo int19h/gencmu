@@ -1,0 +1,21 @@
+{
+  "grammar": "%rule text $x:pair %conditions $x.matches(inner)\n%rule inner ($y:A ≻ B) ::∅ %conditions $y.matches(T)\n%rule pair A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  },
+  "description": "A nested query fails when its target rule cannot satisfy the terminal query in its ranked alternative."
+}

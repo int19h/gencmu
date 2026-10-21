@@ -1,5 +1,5 @@
 {
-  "description": "The begins method uses a tag target in a ranked expression and rejects a false tag test.",
+  "description": "The ranked choice falls back when its begins tag test is false.",
   "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.begins(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
   "tokens": [
     {
