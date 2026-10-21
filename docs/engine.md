@@ -457,7 +457,7 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-A target choice is a nonempty set of rule names and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. A rule target runs a nested parse of that rule.
+A target choice is a nonempty set of rule names and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag, through a helper (§10). A rule target runs a nested parse of that rule.
 
 `span.matches(S)` and `span.begins(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target.
 
@@ -775,7 +775,7 @@ A shared key holds what the content key of one parse holds, with each token's ta
 
 `matches` and `tags` share a kind. `begins` has its own.
 
-Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags. An entry for `begins` holds whether a prefix is accepted. A choice of targets (§10) keeps one entry for each rule target. A terminal target reads its token directly and keeps none.
+Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags. An entry for `begins` holds whether a prefix is accepted. A choice of targets (§10) keeps one entry for each target. A terminal target keeps the entry of its helper (§10).
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
@@ -2075,9 +2075,7 @@ Targets use `|` separators, without constants, strings, or commas. Parentheses a
 
 `s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does. Each rule target includes the empty prefix if that rule reads nothing. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
-The lowerer represents each tag target of `matches` or `begins` with a private helper that reads that terminal.
-
-The lowerer keeps the written grammar and the identities of its ranked groups unchanged. The same lowering applies inside ranked choices and outside them. Boundary methods retain terminal names under §4.2.
+Lowering gives each terminal target of `matches` or `begins` a helper (§3) that reads one token through that terminal. Lowering adds the helper outside the written grammar, so the identities of the ranked groups do not change. The same lowering applies inside ranked choices and outside them. A terminal target of a boundary atom gets no helper. It names the token nodes that its terminal read (§4.2).
 
 Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 

@@ -1,0 +1,41 @@
+{
+  "description": "A restored terminal query in a ranked choice can match a prefix of its captured span.",
+  "grammar": "%rule text ($x:part ≻ fallback) B ::∅ %conditions $x.without-elision.begins(T)\n%rule part A A\n%rule fallback A A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "children": [
+          {
+            "rule": "part"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}
