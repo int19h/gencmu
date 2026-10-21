@@ -59,7 +59,7 @@ The layer permits ambiguity beyond omitted terminators. It uses these rules to s
 
 - A free modifier's span is settled before the `fewest` ranking. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer counted bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
+- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
@@ -396,7 +396,7 @@ The same KU rule applies in lists and single-term positions. A written KU permit
 
 A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
 
-After span ranking, `fewest` also favors term connections over readings with more counted bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
+After span ranking, `fewest` also favors term connections over readings with more bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
 
 Three tags carry these facts through the tree. `Link-Extensible-End` marks a sumti that a plain connective can extend. `Bo-Extensible-End` marks one that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. `$EXTENSIBLE-END` holds the two end tags.
 

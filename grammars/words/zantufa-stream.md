@@ -21,10 +21,11 @@ As in [stream.md](stream.md), the word `zei` rejects visible punctuation on eith
 
 A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`. The Zantufa lexicon has no word of ZOhOI or MEhOI. So no Zantufa word quotes the rest of a run.
 
-The marker constants extend the shared class sets. The marker readers retain their boundary tests and emissions.
+This layer changes only the class sets. The shared marker readers apply.
 
 ```jbogenbau
 %redefine-const $WORD-QUOTE-MARKERS
+  (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
   $WORD-QUOTE-MARKERS ∪ GOhOI
 
 ```
@@ -60,10 +61,11 @@ The marker constants extend the shared class sets. The marker readers retain the
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](stream.md)). So the dialect needs only the marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](stream.md)). So the dialect adds only the MUhOI class to the shared marker.
 
 ```jbogenbau
 %redefine-const $ZOI-MARKERS
+  (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
   $ZOI-MARKERS ∪ MUhOI
 
 ```
@@ -105,13 +107,13 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
 <p><img src="../../docs/diagrams/words/zantufa-stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
 </details>
 
-A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words, so a bare LOhAI or LEhAI is never a plain word. A bare marker is an opener that forms no complete quote. Only the classes in the [later `bare-marker` rule](#bare-markers) have the SI/BU fallback.
+A magic word is never a plain word. `$MAGIC-WORDS` includes the extended marker sets and adds RAhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words, so a bare LOhAI or LEhAI is never a plain word. A bare marker is an opener that forms no complete quote. Only the classes in the [later `bare-marker` rule](#bare-markers) have the SI/BU fallback.
 
 A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `Opener-Space` to the hesitation after such a word. A tag marks a token by an identifier. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
-  $MAGIC-WORDS ∪ RAhOI ∪ GOhOI ∪ MUhOI ∪ LOhAI ∪ LEhAI
+  $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 
 %const $TEXT-OPENERS
   LU ∪ TO ∪ LUhEI
@@ -196,7 +198,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 <p><img src="../../docs/diagrams/words/zantufa-stream/bare-marker.svg" alt="Railroad diagram of the rule bare-marker"></p>
 </details>
 
-The BU paths use `cmavo-token<BU>` directly and retain its warnings. The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
+The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
 
 Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
 

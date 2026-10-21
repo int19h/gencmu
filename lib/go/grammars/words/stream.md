@@ -203,7 +203,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 
 ```jbogenbau
 %const $MAGIC-WORDS
-  ZO ∪ ZOI ∪ LOhU ∪ LEhU ∪ ZOhOI ∪ MEhOI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
+  $WORD-QUOTE-MARKERS ∪ $ZOI-MARKERS ∪ $SINGLE-QUOTE-MARKERS ∪ LOhU ∪ LEhU ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
 
 %rule read-word
   | $c:cmavo-token :: $c.tags
@@ -301,6 +301,8 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 
 `quote-attachment` contributes no value at a closing edge. `quote-end-mark` keeps a closing mark only before another pause or the text end. A mark before a following word stays in the gap, so BU keeps its separating space.
 
+`$WORD-QUOTE-MARKERS` names the classes of the one-word quote marker. Such a marker quotes one word or one standalone material stretch.
+
 ```jbogenbau
 %rule quoted-word
   | $m:word-quote-marker $g:word-quote-gap $w:word-quote-target
@@ -361,8 +363,6 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 <p><img src="../../docs/diagrams/words/stream/zo-punctuation.svg" alt="Railroad diagram of the rule zo-punctuation"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
-
-`$WORD-QUOTE-MARKERS` names the classes that quote one Lojban word. Layers extend this set without changing the marker reader.
 
 ### Single-run quotes
 
@@ -730,7 +730,9 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each dialect one place to name its constructors.
 
-The constructors use class tests on `cmavo-token`, so their reads retain its warnings. BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
+BU, ZEI and SA read `cmavo-token` with a class filter. So the warnings of `cmavo-token` apply to them.
+
+BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 
 The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU operand. In `da zei de bu`, the final BU takes the completed compound.
 
@@ -842,7 +844,7 @@ The survivor has no emission clause, so a standalone survivor forwards only its 
 
 These examples show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
-The SA rules use `cmavo-token<SA>` directly. The `su-word` hook reads SU, with a layer-specific restriction in Zantufa.
+The `su-word` hook reads SU, with a layer-specific restriction in Zantufa.
 
 The rule `sa-key` refuses an SA key because a run of SA forms one counted erasure. The rule `next-word-class` tests the whole remaining span through `$.following-tokens.tags(next-word-class)`. Its optional `raw-tokens` reads everything after the key, including material after FAhO ([notation, Conditions](../../docs/notation.md#conditions)). The rule reads those tokens without word operations, as quote bodies and the active FAhO suffix do.
 

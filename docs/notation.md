@@ -371,10 +371,10 @@ A constant names a value that several rules use, such as a list of classes. Its 
 ```jbogenbau
 %const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
 %const $PAUSE " "
-%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ GOhOI ∪ MUhOI ∪ LOhAI ∪ LEhAI
+%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Quote marker classes enter through the marker constants. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 

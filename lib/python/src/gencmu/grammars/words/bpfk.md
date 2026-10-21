@@ -842,93 +842,93 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 
 
 
-The `letter-ban` hook rejects a following syllable-initial apostrophe or glide. Each consonant letter applies this ban and refuses the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
 ```jbogenbau
 %rule letter-ban
   h | glide
 
-%rule l  (* This consonant forbids the shared letter ban and a repeated letter. *)
+%rule l  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
   $c:"l"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | l)
 
-%rule m  (* This consonant forbids the shared letter ban and a repeated letter. It forbids z. *)
+%rule m  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
   $c:"m"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | m | z)
 
-%rule n  (* This consonant forbids the shared letter ban and a repeated letter. It forbids an affricate. *)
+%rule n  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
   $c:"n"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | n | affricate)
 
-%rule r  (* This consonant forbids the shared letter ban and a repeated letter. *)
+%rule r  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
   $c:"r"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | r)
 
-%rule b  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule b  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"b"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | b | unvoiced)
 
-%rule d  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule d  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"d"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | d | unvoiced)
 
-%rule g  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule g  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"g"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | g | unvoiced)
 
-%rule v  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule v  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"v"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | v | unvoiced)
 
-%rule j  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
+%rule j  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
   $c:"j"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | j | z | unvoiced)
 
-%rule z  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
+%rule z  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
   $c:"z"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | z | j | unvoiced)
 
-%rule s  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
+%rule s  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
   $c:"s"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | s | c | voiced)
 
-%rule c  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
+%rule c  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
   $c:"c"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | c | s | x | voiced)
 
-%rule x  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
+%rule x  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
   $c:"x"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | x | c | k | voiced)
 
-%rule k  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
+%rule k  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
   $c:"k"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | k | x | voiced)
 
-%rule f  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. *)
+%rule f  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
   $c:"f"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | f | voiced)
 
-%rule p  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. *)
+%rule p  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
   $c:"p"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | p | voiced)
 
-%rule t  (* This consonant forbids the shared letter ban and a repeated letter. It also forbids a voiced consonant. *)
+%rule t  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
   $c:"t"
 %conditions
   ¬$c.following-tokens.begins(letter-ban | t | voiced)

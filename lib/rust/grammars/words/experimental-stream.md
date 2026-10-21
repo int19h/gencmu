@@ -10,8 +10,6 @@ An opaque foreign body contains no such word reads. Thus ZOI bodies, including `
 
 `brivla-token` and `cmevla-token` read the marked and unmarked cases separately. They remove the marker tag after the test. Each warning retains the whole word's source range.
 
-The marker constants extend the shared class sets. The marker readers retain their boundary tests and emissions.
-
 ```jbogenbau
 %features experimental-cgv
 
@@ -39,11 +37,13 @@ DOhOI quotes one raw run as a listener's name. Its body follows the same boundar
 
 Each completed quotation is one opaque unit. Later erasers and joiners act on the whole quotation, and indicators mark it as a whole.
 
-The constant excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
+`$MAGIC-WORDS` excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
+
+This layer changes only the class sets. The shared marker readers apply.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
-  $MAGIC-WORDS ∪ GOhOI ∪ MUhOI ∪ DOhOI ∪ SUhUhUhUhUhUhUhU
+  $MAGIC-WORDS ∪ SUhUhUhUhUhUhUhU
 
 %redefine-const $WORD-QUOTE-MARKERS
   $WORD-QUOTE-MARKERS ∪ GOhOI
@@ -73,8 +73,6 @@ SA matches an existing nonce word by its inherited class, as in `broda ze'ei ko'
 Inherited BAhE, UI, CAI, NAI, DAhO, FUhE, and FUhO classes act in the indicator stage like their template words. In `mi broda ze'ei ba'e klama`, the nonce word emphasizes `klama`. In `mi broda ze'ei fu'e ui klama`, it opens the indicator run.
 
 A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
-
-The left gaps apply the punctuation tag filter directly to the shared gap readers. The named `zei-right-gap` keeps the right gap free of erasure.
 
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
@@ -145,19 +143,13 @@ The empty-prefix alternatives handle both an empty stream and a nonempty stream.
 %redefine-const $SU-STOPS
   $SU-STOPS ∪ LUhEI
 
-%rule global-su-word
-  $q:cmavo-token
-%conditions
-  SUhUhUhUhUhUhUhU ⊆ $q.classes
-
 %extend-rule empty
-  | empty global-su-word spacing
-  | stream spacing global-su-word spacing
+  | empty cmavo-token<SUhUhUhUhUhUhUhU> spacing
+  | stream spacing cmavo-token<SUhUhUhUhUhUhUhU> spacing
 %erased
 ```
 
-<details><summary>Railroad diagrams of <code>global-su-word</code> and <code>empty</code></summary>
-<p><img src="../../docs/diagrams/words/experimental-stream/global-su-word.svg" alt="Railroad diagram of the rule global-su-word"></p>
+<details><summary>Railroad diagram of <code>empty</code></summary>
 <p><img src="../../docs/diagrams/words/experimental-stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
 </details>
 
