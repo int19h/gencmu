@@ -41,13 +41,13 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
-The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
 %redefine-rule m              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins(h | m)
+  ¬$c.following-tokens.begins(letter-ban | m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
@@ -56,7 +56,7 @@ The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a gl
 
 ## Consonants before glides
 
-Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
+The `letter-ban` hook rejects only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
 
 The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
@@ -135,88 +135,11 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %conditions
   $c.value ≠ "r"
 
-%redefine-rule l  (* This consonant forbids an apostrophe and a repeated letter. *)
-  $c:"l"
-%conditions
-  ¬$c.following-tokens.begins(h | l)
-
-%redefine-rule n  (* This consonant forbids an apostrophe and a repeated letter. It forbids an affricate. *)
-  $c:"n"
-%conditions
-  ¬$c.following-tokens.begins(h | n | affricate)
-
-%redefine-rule r  (* This consonant forbids an apostrophe and a repeated letter. *)
-  $c:"r"
-%conditions
-  ¬$c.following-tokens.begins(h | r)
-
-%redefine-rule b  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"b"
-%conditions
-  ¬$c.following-tokens.begins(h | b | unvoiced)
-
-%redefine-rule d  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"d"
-%conditions
-  ¬$c.following-tokens.begins(h | d | unvoiced)
-
-%redefine-rule g  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"g"
-%conditions
-  ¬$c.following-tokens.begins(h | g | unvoiced)
-
-%redefine-rule v  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"v"
-%conditions
-  ¬$c.following-tokens.begins(h | v | unvoiced)
-
-%redefine-rule j  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
-  $c:"j"
-%conditions
-  ¬$c.following-tokens.begins(h | j | z | unvoiced)
-
-%redefine-rule z  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
-  $c:"z"
-%conditions
-  ¬$c.following-tokens.begins(h | z | j | unvoiced)
-
-%redefine-rule s  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
-  $c:"s"
-%conditions
-  ¬$c.following-tokens.begins(h | s | c | voiced)
-
-%redefine-rule c  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
-  $c:"c"
-%conditions
-  ¬$c.following-tokens.begins(h | c | s | x | voiced)
-
-%redefine-rule x  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
-  $c:"x"
-%conditions
-  ¬$c.following-tokens.begins(h | x | c | k | voiced)
-
-%redefine-rule k  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
-  $c:"k"
-%conditions
-  ¬$c.following-tokens.begins(h | k | x | voiced)
-
-%redefine-rule f  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"f"
-%conditions
-  ¬$c.following-tokens.begins(h | f | voiced)
-
-%redefine-rule p  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"p"
-%conditions
-  ¬$c.following-tokens.begins(h | p | voiced)
-
-%redefine-rule t  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"t"
-%conditions
-  ¬$c.following-tokens.begins(h | t | voiced)
+%redefine-rule letter-ban
+  h
 ```
 
-<details><summary>Railroad diagrams of the 30 rules from <code>cmevla-shape</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>
 <p><img src="../../docs/diagrams/words/experimental/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../docs/diagrams/words/experimental/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
@@ -231,22 +154,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 <p><img src="../../docs/diagrams/words/experimental/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-cluster-form.svg" alt="Railroad diagram of the rule cgv-cluster-form"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-rafsi-continuation.svg" alt="Railroad diagram of the rule cgv-rafsi-continuation"></p>
-<p><img src="../../docs/diagrams/words/experimental/l.svg" alt="Railroad diagram of the rule l"></p>
-<p><img src="../../docs/diagrams/words/experimental/n.svg" alt="Railroad diagram of the rule n"></p>
-<p><img src="../../docs/diagrams/words/experimental/r.svg" alt="Railroad diagram of the rule r"></p>
-<p><img src="../../docs/diagrams/words/experimental/b.svg" alt="Railroad diagram of the rule b"></p>
-<p><img src="../../docs/diagrams/words/experimental/d.svg" alt="Railroad diagram of the rule d"></p>
-<p><img src="../../docs/diagrams/words/experimental/g.svg" alt="Railroad diagram of the rule g"></p>
-<p><img src="../../docs/diagrams/words/experimental/v.svg" alt="Railroad diagram of the rule v"></p>
-<p><img src="../../docs/diagrams/words/experimental/j.svg" alt="Railroad diagram of the rule j"></p>
-<p><img src="../../docs/diagrams/words/experimental/z.svg" alt="Railroad diagram of the rule z"></p>
-<p><img src="../../docs/diagrams/words/experimental/s.svg" alt="Railroad diagram of the rule s"></p>
-<p><img src="../../docs/diagrams/words/experimental/c.svg" alt="Railroad diagram of the rule c"></p>
-<p><img src="../../docs/diagrams/words/experimental/x.svg" alt="Railroad diagram of the rule x"></p>
-<p><img src="../../docs/diagrams/words/experimental/k.svg" alt="Railroad diagram of the rule k"></p>
-<p><img src="../../docs/diagrams/words/experimental/f.svg" alt="Railroad diagram of the rule f"></p>
-<p><img src="../../docs/diagrams/words/experimental/p.svg" alt="Railroad diagram of the rule p"></p>
-<p><img src="../../docs/diagrams/words/experimental/t.svg" alt="Railroad diagram of the rule t"></p>
+<p><img src="../../docs/diagrams/words/experimental/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
 </details>
 
 ## Extended rafsi
