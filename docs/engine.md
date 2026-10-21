@@ -2077,7 +2077,7 @@ Targets use `|` separators, without constants, strings, or commas. Parentheses a
 
 The lowerer represents each tag target of `matches` or `begins` with a private helper that reads that terminal.
 
-It keeps the written grammar and ranked group identities unchanged. The same lowering applies inside ranked choices and outside them. Boundary methods retain terminal names under §4.2.
+The lowerer keeps the written grammar and the identities of its ranked groups unchanged. The same lowering applies inside ranked choices and outside them. Boundary methods retain terminal names under §4.2.
 
 Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 
