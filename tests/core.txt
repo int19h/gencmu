@@ -6427,3 +6427,8 @@ adhoc.experimental.fr4-w3.31
 adhoc.experimental.fr4-w3.32
 adhoc.experimental.fr4-w3.33
 adhoc.experimental.fr4-w3.34
+followups.nohoi.kuhoi
+followups.nohoi.kuho
+followups.nohoi.elided
+followups.nohoi.nested-kuho
+followups.nohoi.nested-control

@@ -29,7 +29,7 @@ The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
 - A mekso is a mathematical expression.
 - VUhU is the class of mathematical operator words.
 
-[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
+[The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminators `ku'oi` and `ku'o`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
 
 [The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
 
@@ -667,7 +667,7 @@ So `zdani be mi vorme` gives `be mi` to `zdani`, and `le tutci be sigdanva le ma
 
 In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the whole unit. In `be mi klama be do`, `be do` belongs to `klama`. The whole unit cannot take it, because `klama` then stands directly before `be`.
 
-A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, contains a subsentence, and ends with `ku'oi`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
+A tanru unit can take a selbri relative clause. The clause opens with NOhOI (`no'oi` or `po'oi`) and contains a subsentence. It ends with `ku'oi` or `ku'o`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. The clauses join with `zi'e`, a joik, a jek or an ek. Forethought connections join two groups of clauses.
 
 ```jbogenbau
 %redefine-rule selbri-1
@@ -718,7 +718,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | gek selbri-relative-clauses gik selbri-relative-clauses
 
 %rule selbri-relative-clause
-  NOhOI # subsentence [+KUhOI] #
+  NOhOI # subsentence ([+KUhOI] | KUhO) #
 
 %redefine-rule linkargs
   BE # [term] [links] [+BEhO] #
@@ -1223,6 +1223,18 @@ The corpus records these examples that camxes-exp accepts and this layer rejects
 The rule also changes accepted readings. In `ge mi ti gi do na klama`, this layer puts NA on the following selbri. camxes-exp puts it in the termset's second branch. The same difference applies to `ge mi ti gi do pu klama`. An omitted NUhU permits no KU omission before `klama`.
 
 In `na pa to joi re moi mi`, this layer puts `joi re moi` inside the parenthesis. camxes-exp puts only `joi` there. The final `mi` follows the parenthesis in both readings.
+
+### NOhOI closers
+
+NOhOI clauses close with `ku'oi` or `ku'o`. Only the KUhOI alternative permits omission, so an omitted closer always records KUhOI. This avoids two omitted spellings for the same clause.
+
+This use of `ku'oi` departs from jbovlaste [definition 73011](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ku%27oi/en-73011.md), created in 2022. That definition makes it the terminator of ZUhEI constructs.
+
+In [2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-06-27.txt#L122-L128), latros coined `ku'oi` as NOhOI's terminator and described it as "simsa zo ku'o". Real uses followed in [2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-09-03.txt#L145) and [2013](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2013/2013-03-07.txt#L207). camxes-exp implements NOhOI with KUhOI, as [changelog item 18](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L57-L58) states.
+
+In [2015](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2015/2015-04-25.txt#L356-L358), a user asked why NOhOI did not close with `ku'o`. Nobody in that exchange knew a reason. This layer accepts both closers by maintainer decision.
+
+Late elision gives the written `ku'o` in `lo broda noi brode no'oi brodi ku'o` to the inner NOhOI clause. The outer NOI clause omits its closer. In `lo broda noi brode no'oi brodi ku'oi ku'o`, the two written closers close their respective clauses.
 
 ### Tanru and linked arguments
 
