@@ -303,7 +303,7 @@ All 255 experimental cmavo whose highest English score is at least three appear 
 
 The lexicon also includes `ci'au'u` as a required companion of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because the CIhAU construction needs its written terminator.
 
-The dictionary gives `la'ai` class LOhU. Every written example in [definition 56471](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/la%27ai/en-56471.md) closes with `le'u`. Reading through `le'u` follows that definition. The dialect accepts `la'ai meri.celi le'u` and `la'ai li bai le'u jungo prenu`.
+The dictionary gives `la'ai` class LOhU. Every written example in [definition 56471](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/la%27ai/en-56471.md) closes with `le'u`. The words stage reads the quote through `le'u`, as that definition shows. The dialect accepts `la'ai meri.celi le'u` and `la'ai li bai le'u jungo prenu`.
 
 English definitions determine the classes, rather than the combined classes in `word.toml`. Among the 255 words that meet the score threshold, no highest-voted definition ties or lists several classes. The following table records their disagreements about base classes between English definitions. Definition numbers identify the English files in the dictionary snapshot.
 
@@ -344,7 +344,7 @@ Six camxes-exp entries take dictionary classes here. They are `li'oi` in UI, `o'
 
 The threshold does not remove existing camxes-exp words. Thirteen of those words have a highest English score below three in this snapshot. They are `ai'i`, `cei'a`, `co'au'a`, `co'u'a`, `de'i'a`, `de'i'i`, `de'i'o`, `de'i'u`, `fi'oi`, `ku'au`, `ku'oi`, `sau'a` and `su'ei`.
 
-`fi'oi` retains camxes-exp's SOI class. This follows Ilmen's own [merge of FIhOI into SOI](https://github.com/Ntsekees/ilmentufa/commit/a1105c3cebc75958b014e0ebc0b204f44af5e79d). The commit dates from 2014-06-26 and is titled "Merging FIhOI and new-SOI".
+`fi'oi` retains camxes-exp's SOI class. This follows Ilmen's own [merge of FIhOI into SOI](https://github.com/Ntsekees/ilmentufa/commit/a1105c3cebc75958b014e0ebc0b204f44af5e79d). The commit dates from 2014-06-26. Its title is "Merging FIhOI and new-SOI".
 
 Ilmen wrote [definition 53170](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/fi%27oi/en-53170.md) on 2014-03-14, three months before that merge. It gives FIhOI with a score of two and names `fi'au` as the terminator. The definition received no update after the merge.
 
@@ -418,7 +418,7 @@ The TAhE definition 66121 of `dei'a` scores two and means decreasingly. Definiti
 
 The two English definitions of `so'oi`, 71817 and 72780, tie with a score of one and both give SOhOI. Both introduce an adverbial relative clause closed by `se'u`. They differ on whether the outer clause is claimed. Corpus evidence supports their shared construction, so the word keeps SOhOI without choosing between those meanings. Its subsentence construction supports both definitions.
 
-Definition 60530 gives `bi'ai` class CAhA for a bridi that must be true. Its text also describes a tagged sumti. CAhA is an atom of `tag` here, so both constructions work. Thus `mi klama bi'ai lo nu do cadzu` gives `bi'ai` the sumti `lo nu do cadzu`.
+Definition 60530 gives `bi'ai` class CAhA as a marker for a tagged sumti. The bridi must be true under the conditions that the tagged sumti names. Corpus evidence supports its bare modal use, as in `bi'ai klama`, so the lexicon admits it despite its score of two. CAhA is an atom of `tag` here, so the grammar accepts both uses. Thus `mi klama bi'ai lo nu do cadzu` gives `bi'ai` the sumti `lo nu do cadzu`.
 
 The review excludes the following twelve words. Eleven have uses that conflict with their top English definitions. `pu'ei` has no English definition, and its use also differs from its Lojban definition. The table gives the reviewer's reason for each exclusion.
 
@@ -469,7 +469,7 @@ The dictionary gives `xo'ei` class VUhU for a digit-string operator with an opti
 
 ### Other baseline differences
 
-The [replacement quote grammar](lohai.md) accepts any two LOhAI runs, in either order, including two runs with the same marker. This departs from [definition 16350](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/le%27ai/en-16350.md), which pairs one mistaken part with one replacement part. Either part can precede the other or be absent. The grammar retains camxes-exp's broader form.
+The [replacement quote grammar](lohai.md) reads up to two LOhAI runs before `le'ai`. A bare `le'ai` also forms a whole quote. Both runs can open with the same word, as in `mi lo'ai do lo'ai ko'a le'ai klama`. [Definition 16350](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/le%27ai/en-16350.md) instead pairs a mistaken part after `lo'ai` with a replacement part after `sa'ai`. Either part can come first or be absent. The grammar retains camxes-exp's broader form.
 
 The Y word `ie'o` retains its dictionary class and acts as hesitation in the words stage.
 

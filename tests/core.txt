@@ -6435,3 +6435,4 @@ followups.nohoi.nested-control
 followups.lexicon.laai-name
 followups.lexicon.laai-name-and-predicate
 followups.lexicon.biai-tagged-sumti
+followups.lexicon.lohai-repeated-marker

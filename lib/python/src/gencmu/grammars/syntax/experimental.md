@@ -1226,15 +1226,15 @@ In `na pa to joi re moi mi`, this layer puts `joi re moi` inside the parenthesis
 
 ### NOhOI closers
 
-NOhOI clauses close with `ku'oi` or `ku'o`. Only the KUhOI alternative permits omission, so an omitted closer always records KUhOI. This avoids two omitted spellings for the same clause.
+NOhOI clauses close with `ku'oi` or `ku'o`. Only the KUhOI alternative permits omission. The tree records every omitted NOhOI closer as KUhOI.
 
-This use of `ku'oi` departs from jbovlaste [definition 73011](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ku%27oi/en-73011.md), created in 2022. That definition makes it the terminator of ZUhEI constructs.
+This use of `ku'oi` departs from dictionary [definition 73011](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ku%27oi/en-73011.md), created in 2022. That definition makes it the terminator of ZUhEI constructs.
 
-In [2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-06-27.txt#L122-L128), latros coined `ku'oi` as NOhOI's terminator and described it as "simsa zo ku'o". Real uses followed in [2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-09-03.txt#L145) and [2013](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2013/2013-03-07.txt#L207). camxes-exp implements NOhOI with KUhOI, as [changelog item 18](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L57-L58) states.
+The [first recorded use](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-02-05.txt#L341) in the corpus is by latros in February 2012. In [June 2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-06-27.txt#L122-L128), latros described `ku'oi` as NOhOI's terminator and said "simsa zo ku'o". Other uses appear in [June 2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-06-01.txt#L203), [September 2012](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2012/2012-09-03.txt#L145) and [March 2013](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2013/2013-03-07.txt#L207). camxes-exp implements NOhOI with KUhOI, as [changelog item 18](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L57-L58) states.
 
 In [2015](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2015/2015-04-25.txt#L356-L358), a user asked why NOhOI did not close with `ku'o`. Nobody in that exchange knew a reason. This layer accepts both closers by maintainer decision.
 
-Late elision gives the written `ku'o` in `lo broda noi brode no'oi brodi ku'o` to the inner NOhOI clause. The outer NOI clause omits its closer. In `lo broda noi brode no'oi brodi ku'oi ku'o`, the two written closers close their respective clauses.
+Late elision gives the written `ku'o` in `lo broda noi brode no'oi brodi ku'o` to the inner NOhOI clause. The outer NOI clause omits its closer. In `lo broda noi brode no'oi brodi ku'oi ku'o`, `ku'oi` closes the NOhOI clause, and `ku'o` closes the NOI clause.
 
 ### Tanru and linked arguments
 
