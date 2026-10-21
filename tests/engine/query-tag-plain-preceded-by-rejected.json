@@ -1,0 +1,28 @@
+{
+  "description": "The preceded-by method uses a tag target in a plain expression and rejects a false tag test.",
+  "grammar": "%rule text previous $x:part ::∅ %conditions $x.preceded-by(T)\n%rule part A\n%rule previous T | B\n%rule fallback B A\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

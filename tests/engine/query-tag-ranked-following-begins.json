@@ -1,0 +1,36 @@
+{
+  "description": "A query on the following tokens resolves its terminal target in a ranked alternative.",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.following-tokens.begins(T)\n%rule part A\n%rule next B\n%rule fallback A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          },
+          {
+            "rule": "next"
+          }
+        ]
+      }
+    }
+  }
+}

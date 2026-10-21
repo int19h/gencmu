@@ -132,6 +132,35 @@ class CaptureGrowth(unittest.TestCase):
                 self.assertEqual(self.whole_items("%rule text t\n%rule t $l:t $r:t | A", n), n - 1)
 
 
+class QueryHelpers(unittest.TestCase):
+    def test_query_helpers_are_shared_ordered_and_inherit_token_tags(self) -> None:
+        text = "%rule text $x:A %conditions $x.matches(Z | T | Z)"
+        aux = "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.matches(Q)"
+        for grammar in (text + "\n" + aux, aux + "\n" + text):
+            dialect, error = load_case_dialect({"grammar": grammar})
+            assert dialect is not None, error
+            lowered = dialect.lowered(0, frozenset())
+            helpers = [p for p in lowered.productions if p.rule_name.startswith("\0query:")]
+            self.assertEqual([p.rule_name for p in helpers], ["\0query:Q", "\0query:T", "\0query:Z"])
+            self.assertEqual([p.id for p in helpers], list(range(len(lowered.productions) - 3, len(lowered.productions))))
+            tags = frozenset({"Q", "T", "Z", "EXTRA"})
+            for helper in helpers:
+                self.assertIsNone(helper.source)
+                self.assertIsNone(helper.slot)
+                self.assertFalse(helper.contextual)
+                self.assertFalse(helper.private_names)
+                self.assertFalse(helper.captures)
+                self.assertIsNone(helper.rule_flag)
+                self.assertIsNone(helper.tests)
+                self.assertFalse(helper.conds_predict)
+                self.assertFalse(helper.conds_at)
+                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", dialect.unicode)
+                context.count = count_roots
+                forest = Parser(context).parse(helper.lhs)
+                self.assertEqual(len(forest.roots), 1)
+                self.assertEqual(context.tagtab.get(forest.tag[forest.roots[0]]), tags)
+
+
 if __name__ == "__main__":
     unittest.main()
 

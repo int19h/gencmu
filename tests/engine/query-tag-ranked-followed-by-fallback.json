@@ -1,0 +1,38 @@
+{
+  "description": "The ranked choice falls back when its followed-by tag test is false.",
+  "grammar": "%rule text ($x:part next ≻ fallback) ::∅ %conditions $x.followed-by(T)\n%rule part A\n%rule next T | B\n%rule fallback A B\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "description": "The ranked choice falls back when its begins tag test is false.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.begins(T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

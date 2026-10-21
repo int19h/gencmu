@@ -1,0 +1,32 @@
+{
+  "description": "The matches method uses a mixed target choice in a ranked expression.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.matches(Z | never | T | T)\n%rule part A [A]\n%rule fallback A [A]\n%rule never Z Z Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

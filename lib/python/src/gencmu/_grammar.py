@@ -1591,7 +1591,7 @@ class _Lowerer:
             self.rule_names.append(name)
             self.rule_display.append(name)
             self.rule_ids[name] = lhs
-            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(-1,), logical=(("symbol", 0),)))
+            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), logical=(("symbol", 0),), inherited=0))
         if not self.validation:
             self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]

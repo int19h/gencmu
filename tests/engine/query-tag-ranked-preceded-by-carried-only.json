@@ -1,0 +1,33 @@
+{
+  "description": "A preceding token that carries the target tag does not count unless that terminal read it.",
+  "grammar": "%rule text ((previous $x:part ≻ fallback) | T T T) ::∅ %conditions $x.preceded-by(T)\n%rule part A\n%rule previous B\n%rule fallback B A",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "T"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

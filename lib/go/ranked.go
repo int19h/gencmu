@@ -413,6 +413,10 @@ func (r *rankedGroups) validateTags(g *lowered) *Error {
 	users := map[int32][]*production{}
 	helpers := map[*rankedGroup]int32{}
 	for _, p := range g.prods {
+		// Query helpers have no written slot and never occur in a rule body.
+		if p.slot == nil {
+			continue
+		}
 		if p.slot.path != nil {
 			if group := r.expressions[p.slot.path]; group != nil {
 				helpers[group] = p.lhs
