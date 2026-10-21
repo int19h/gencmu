@@ -640,6 +640,7 @@ adhoc.camxes-exp.connectives.je-gi-gek.zantufa
 adhoc.camxes-exp.connectives.gi-je-gihek.experimental
 adhoc.camxes-exp.connectives.gi-je-gihek.zantufa
 adhoc.camxes-exp.connectives.gi-stag-bo.experimental
+adhoc.camxes-exp.connectives.gi-stag-ke.experimental
 adhoc.camxes-exp.connectives.gi-stag-bo.zantufa
 adhoc.camxes-exp.connectives.i-e-at-text-start.experimental
 adhoc.camxes-exp.connectives.i-e-at-text-start.zantufa

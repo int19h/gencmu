@@ -19,10 +19,8 @@
 <path d="M461 90a10 10 0 0 0 10 -10V78a10 10 0 0 1 10 -10H531a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
 <path d="M551 90H571"/>
 <path d="M238 90a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="258" y="112" width="33" height="24" rx="12"/><text x="274.5" y="129" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
-<path d="M291 124h10"/>
-<g class="rule"><rect x="301" y="112" width="50" height="24" rx="0"/><text x="326" y="129" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
-<path d="M351 124H551a10 10 0 0 0 10 -10V100a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="258" y="112" width="168" height="24" rx="0"/><text x="342" y="129" textLength="151.2" lengthAdjust="spacingAndGlyphs">gi-stag-connective</text></g>
+<path d="M426 124H551a10 10 0 0 0 10 -10V100a10 10 0 0 1 10 -10"/>
 <path d="M571 90h10"/>
 <g class="terminal"><rect x="581" y="78" width="33" height="24" rx="12"/><text x="597.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
 <path d="M614 90h10"/>

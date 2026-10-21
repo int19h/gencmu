@@ -1,0 +1,208 @@
+{
+  "description": "Both forethought branches inside NUhI use the shared terms family in grammars/syntax/experimental.md. The two written closers select the bare inner termset.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "nu'i ge mi ti gi do nu'u nu'u klama",
+  "options": {
+    "until": "syntax"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "text-1",
+            "children": [
+              {
+                "rule": "paragraphs",
+                "children": [
+                  {
+                    "rule": "paragraph",
+                    "children": [
+                      {
+                        "rule": "paragraph-item",
+                        "children": [
+                          {
+                            "rule": "statement",
+                            "children": [
+                              {
+                                "rule": "statement-1",
+                                "children": [
+                                  {
+                                    "rule": "statement-2",
+                                    "children": [
+                                      {
+                                        "rule": "statement-3",
+                                        "children": [
+                                          {
+                                            "rule": "top-sentence",
+                                            "children": [
+                                              {
+                                                "rule": "reset-bridi",
+                                                "children": [
+                                                  {
+                                                    "rule": "headed-bridi-tail",
+                                                    "children": [
+                                                      {
+                                                        "rule": "bridi-tail-head",
+                                                        "children": [
+                                                          {
+                                                            "rule": "terms",
+                                                            "children": [
+                                                              {
+                                                                "rule": "terms-1",
+                                                                "children": [
+                                                                  {
+                                                                    "rule": "terms-2",
+                                                                    "children": [
+                                                                      {
+                                                                        "rule": "term",
+                                                                        "children": [
+                                                                          {
+                                                                            "rule": "term-bo-group",
+                                                                            "children": [
+                                                                              {
+                                                                                "rule": "term-3",
+                                                                                "children": [
+                                                                                  {
+                                                                                    "rule": "termset",
+                                                                                    "children": [
+                                                                                      {
+                                                                                        "rule": "termset-with-nuhi",
+                                                                                        "children": [
+                                                                                          {},
+                                                                                          {},
+                                                                                          {
+                                                                                            "rule": "terms",
+                                                                                            "children": [
+                                                                                              {
+                                                                                                "rule": "terms-1",
+                                                                                                "children": [
+                                                                                                  {
+                                                                                                    "rule": "terms-2",
+                                                                                                    "children": [
+                                                                                                      {
+                                                                                                        "rule": "term",
+                                                                                                        "children": [
+                                                                                                          {
+                                                                                                            "rule": "term-bo-group",
+                                                                                                            "children": [
+                                                                                                              {
+                                                                                                                "rule": "term-3",
+                                                                                                                "children": [
+                                                                                                                  {
+                                                                                                                    "rule": "termset",
+                                                                                                                    "children": [
+                                                                                                                      {},
+                                                                                                                      {
+                                                                                                                        "rule": "termset-branch",
+                                                                                                                        "children": [
+                                                                                                                          {
+                                                                                                                            "rule": "terms",
+                                                                                                                            "children": [
+                                                                                                                              {
+                                                                                                                                "rule": "terms-1",
+                                                                                                                                "children": [
+                                                                                                                                  {
+                                                                                                                                    "rule": "terms-2"
+                                                                                                                                  }
+                                                                                                                                ]
+                                                                                                                              },
+                                                                                                                              {
+                                                                                                                                "rule": "terms-1",
+                                                                                                                                "children": [
+                                                                                                                                  {
+                                                                                                                                    "rule": "terms-2"
+                                                                                                                                  }
+                                                                                                                                ]
+                                                                                                                              }
+                                                                                                                            ]
+                                                                                                                          },
+                                                                                                                          {},
+                                                                                                                          {}
+                                                                                                                        ]
+                                                                                                                      },
+                                                                                                                      {},
+                                                                                                                      {
+                                                                                                                        "rule": "terms",
+                                                                                                                        "children": [
+                                                                                                                          {
+                                                                                                                            "rule": "terms-1",
+                                                                                                                            "children": [
+                                                                                                                              {
+                                                                                                                                "rule": "terms-2"
+                                                                                                                              }
+                                                                                                                            ]
+                                                                                                                          }
+                                                                                                                        ]
+                                                                                                                      },
+                                                                                                                      {},
+                                                                                                                      {}
+                                                                                                                    ]
+                                                                                                                  }
+                                                                                                                ]
+                                                                                                              }
+                                                                                                            ]
+                                                                                                          }
+                                                                                                        ]
+                                                                                                      }
+                                                                                                    ]
+                                                                                                  }
+                                                                                                ]
+                                                                                              }
+                                                                                            ]
+                                                                                          },
+                                                                                          {},
+                                                                                          {}
+                                                                                        ]
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {}
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([nu'i {ge (mi ti) gi do nu'u} nu'u] klama)",
+    "warnings": []
+  }
+}

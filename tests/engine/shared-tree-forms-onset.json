@@ -1,0 +1,151 @@
+{
+  "description": "The forms tree in grammars/words/experimental.md places the syllable-onset hook above ordinary and consonant-glide onsets.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "atkuila",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "runs",
+            "children": [
+              {
+                "rule": "run",
+                "children": [
+                  {
+                    "rule": "word-run",
+                    "children": [
+                      {
+                        "rule": "run-words",
+                        "children": [
+                          {
+                            "rule": "first-word",
+                            "children": [
+                              {
+                                "rule": "ordinary-first-word",
+                                "children": [
+                                  {
+                                    "rule": "source-word",
+                                    "children": [
+                                      {
+                                        "rule": "brivla-shape",
+                                        "children": [
+                                          {
+                                            "rule": "brivla-word",
+                                            "children": [
+                                              {
+                                                "rule": "fuhivla",
+                                                "children": [
+                                                  {
+                                                    "rule": "brivla-head",
+                                                    "children": [
+                                                      {
+                                                        "rule": "unstressed-syllable",
+                                                        "children": [
+                                                          {
+                                                            "rule": "unstressed-plain-syllable",
+                                                            "children": [
+                                                              {
+                                                                "rule": "syllable",
+                                                                "children": [
+                                                                  {
+                                                                    "rule": "syllable-onset",
+                                                                    "children": [
+                                                                      {
+                                                                        "rule": "brivla-onset",
+                                                                        "children": [
+                                                                          {
+                                                                            "rule": "onset"
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  },
+                                                                  {},
+                                                                  {}
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "rule": "stressed-syllable",
+                                                    "children": [
+                                                      {
+                                                        "rule": "syllable",
+                                                        "children": [
+                                                          {
+                                                            "rule": "syllable-onset",
+                                                            "children": [
+                                                              {
+                                                                "rule": "brivla-onset",
+                                                                "children": [
+                                                                  {
+                                                                    "rule": "cgv-onset"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          },
+                                                          {}
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "rule": "final-syllable",
+                                                    "children": [
+                                                      {
+                                                        "rule": "syllable-onset",
+                                                        "children": [
+                                                          {
+                                                            "rule": "brivla-onset",
+                                                            "children": [
+                                                              {
+                                                                "rule": "onset"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      },
+                                                      {}
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "brackets": "([a t] [{k u} i] [l a])",
+    "warnings": []
+  }
+}

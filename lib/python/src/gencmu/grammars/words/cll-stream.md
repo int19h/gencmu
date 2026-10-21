@@ -28,8 +28,8 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 ```jbogenbau
 %redefine-rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
-  | $u:unit<¬Trailing-Pause> compound-gap bu-word
-  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
+  | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %conditions
   CMEVLA ⊈ $u.tags ∨ Run-Initial ⊆ $u.tags
 %emits

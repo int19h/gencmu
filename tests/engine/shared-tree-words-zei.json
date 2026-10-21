@@ -1,0 +1,55 @@
+{
+  "description": "The ZEI constructor in grammars/words/stream.md reads cmavo-token without a separate word wrapper.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi zei do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "stream",
+            "children": [
+              {},
+              {
+                "rule": "unit",
+                "children": [
+                  {
+                    "rule": "zei-compound",
+                    "children": [
+                      {
+                        "rule": "unit"
+                      },
+                      {
+                        "rule": "compound-gap"
+                      },
+                      {
+                        "rule": "cmavo-token"
+                      },
+                      {
+                        "rule": "zei-right-gap"
+                      },
+                      {
+                        "rule": "read-word"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {}
+        ]
+      }
+    },
+    "brackets": "(mi   zei   do)",
+    "warnings": []
+  }
+}

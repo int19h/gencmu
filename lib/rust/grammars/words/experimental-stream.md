@@ -31,42 +31,28 @@ An opaque foreign body contains no such word reads. Thus ZOI bodies, including `
 
 GOhOI quotes the same targets as ZO and makes a predicate unit. `ta'ai` describes word shape, `go'oi` repeats a bridi, and `ze'oi` describes meaning.
 
-The marker rule shares ZO's word reader and standalone material targets. MUhOI shares ZOI's delimiters and raw body, including an empty body.
+GOhOI uses ZO's marker rule, with its word reader and standalone material targets. MUhOI uses ZOI's marker rule, with its delimiters and raw body, including an empty body.
 
 DOhOI quotes one raw run as a listener's name. Its body follows the same boundaries as ZOhOI and MEhOI.
 
 Each completed quotation is one opaque unit. Later erasers and joiners act on the whole quotation, and indicators mark it as a whole.
 
-The constant excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
+`$MAGIC-WORDS` excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
-  $MAGIC-WORDS ∪ GOhOI ∪ MUhOI ∪ DOhOI ∪ SUhUhUhUhUhUhUhU
+  $MAGIC-WORDS ∪ SUhUhUhUhUhUhUhU
 
-%redefine-rule word-quote-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $WORD-QUOTE-MARKERS
+  $WORD-QUOTE-MARKERS ∪ GOhOI
 
-%redefine-rule zoi-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $ZOI-MARKERS
+  $ZOI-MARKERS ∪ MUhOI
 
-%redefine-rule single-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZOhOI ∪ MEhOI ∪ DOhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $SINGLE-QUOTE-MARKERS
+  $SINGLE-QUOTE-MARKERS ∪ DOhOI
+
 ```
-
-<details><summary>Railroad diagrams of <code>word-quote-marker</code>, <code>zoi-marker</code> and <code>single-marker</code></summary>
-<p><img src="../../docs/diagrams/words/experimental-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
-<p><img src="../../docs/diagrams/words/experimental-stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
-<p><img src="../../docs/diagrams/words/experimental-stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
-</details>
 
 ## Nonce words
 
@@ -98,8 +84,8 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   zehei-word
 
 %rule zehei-compound :: Word ∪ $r.classes ∪ ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪ (Fault ∩ $l.tags)
-  | $l:unit<¬Trailing-Pause> zei-left-gap zehei-word zei-right-gap $r:nonmagic-zehei-right
-  | su-boundary? $l:unit<Trailing-Pause> zei-suppressed-gap zehei-word zei-right-gap $r:nonmagic-zehei-right
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
 %emits
   $ := $r.emitted.value :- $.source-text
 
@@ -155,19 +141,13 @@ The empty-prefix alternatives handle both an empty stream and a nonempty stream.
 %redefine-const $SU-STOPS
   $SU-STOPS ∪ LUhEI
 
-%rule global-su-word
-  $q:cmavo-token
-%conditions
-  SUhUhUhUhUhUhUhU ⊆ $q.classes
-
 %extend-rule empty
-  | empty global-su-word spacing
-  | stream spacing global-su-word spacing
+  | empty cmavo-token<SUhUhUhUhUhUhUhU> spacing
+  | stream spacing cmavo-token<SUhUhUhUhUhUhUhU> spacing
 %erased
 ```
 
-<details><summary>Railroad diagrams of <code>global-su-word</code> and <code>empty</code></summary>
-<p><img src="../../docs/diagrams/words/experimental-stream/global-su-word.svg" alt="Railroad diagram of the rule global-su-word"></p>
+<details><summary>Railroad diagram of <code>empty</code></summary>
 <p><img src="../../docs/diagrams/words/experimental-stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
 </details>
 
