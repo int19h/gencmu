@@ -306,7 +306,9 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 		lhs := int32(len(l.rules))
 		l.byName[name] = lhs
 		l.rules = append(l.rules, &lrule{name: name, owner: name, helper: true, scc: -1})
-		lw.newProduction(lhs, []slot{{sym: lw.terminal(terminal)}})
+		p := lw.newProduction(lhs, []slot{{sym: lw.terminal(terminal)}})
+		p.helper = true
+		p.transparent = true
 	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
