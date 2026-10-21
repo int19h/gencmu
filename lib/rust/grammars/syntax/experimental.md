@@ -1234,7 +1234,13 @@ The [first recorded use](https://github.com/int19h/jbocirvei/blob/8c1579254e73c7
 
 In [2015](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2015/2015-04-25.txt#L356-L358), a user asked why NOhOI did not close with `ku'o`. Nobody in that exchange knew a reason. This layer accepts both closers by maintainer decision.
 
-Late elision gives the written `ku'o` in `lo broda noi brode no'oi brodi ku'o` to the inner NOhOI clause. The outer NOI clause omits its closer. In `lo broda noi brode no'oi brodi ku'oi ku'o`, `ku'oi` closes the NOhOI clause, and `ku'o` closes the NOI clause.
+When a NOhOI clause stands inside a NOI clause, a written `ku'o` after NOhOI closes the NOhOI clause. The NOI clause stays open, so words after that closer remain inside it until that clause closes. The pair `ku'oi ku'o` closes both clauses.
+
+camxes-exp closes NOhOI only with `ku'oi`. Its `ku'o` closes the surrounding NOI clause, so words after it stand outside that clause. This layer retains late elision for these clauses. The maintainer accepts the resulting departure from camxes-exp.
+
+In `lo broda noi brode no'oi brodi ku'o do cu klama`, `do` belongs to the NOI clause. The reading is `([{lo (broda [noi {(brode [no'oi brodi ku'o]) do}])} cu] klama)`.
+
+In `lo broda noi brode no'oi brodi ku'oi ku'o do cu klama`, the two closers end NOhOI and NOI before `do`. The term `do` belongs to the main bridi, as in camxes-exp. The reading is `([{(lo [broda {noi (brode [no'oi brodi ku'oi]) ku'o}]) do} cu] klama)`.
 
 ### Tanru and linked arguments
 
