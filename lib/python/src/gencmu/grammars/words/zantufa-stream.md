@@ -21,18 +21,13 @@ As in [stream.md](stream.md), the word `zei` rejects visible punctuation on eith
 
 A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`. The Zantufa lexicon has no word of ZOhOI or MEhOI. So no Zantufa word quotes the rest of a run.
 
-```jbogenbau
-%redefine-rule word-quote-marker
-  (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
-```
+The marker constants extend the shared class sets. The marker readers retain their boundary tests and emissions.
 
-<details><summary>Railroad diagram of <code>word-quote-marker</code></summary>
-<p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
-</details>
+```jbogenbau
+%redefine-const $WORD-QUOTE-MARKERS
+  $WORD-QUOTE-MARKERS ∪ GOhOI
+
+```
 
 `ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The shared quote gap permits attached punctuation, as in `ra'oi "klama"`. It cannot skip standalone punctuation or ignored material. A mark before another word stays in spacing, as in the shared quote.
 
@@ -68,17 +63,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 `mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
-%redefine-rule zoi-marker
-  (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
-```
+%redefine-const $ZOI-MARKERS
+  $ZOI-MARKERS ∪ MUhOI
 
-<details><summary>Railroad diagram of <code>zoi-marker</code></summary>
-<p><img src="../../docs/diagrams/words/zantufa-stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
-</details>
+```
 
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letteral.
 

@@ -340,10 +340,13 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 %conditions
   $.ends-input ∨ $.following-tokens.begins(quiet-pause)
 
+%const $WORD-QUOTE-MARKERS
+  ZO
+
 %rule word-quote-marker
   $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZO ⊆ $q.classes,
+  $q.classes ∩ $WORD-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
 ```
 
@@ -359,9 +362,13 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 <p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
+`$WORD-QUOTE-MARKERS` names the classes that quote one Lojban word. Layers extend this set without changing the marker reader.
+
 ### Single-run quotes
 
 ZOhOI and MEhOI quote one raw stretch between whitespace or periods in the experimental dialect. A decimal point between digits stays inside its run. `zo'oi` and `la'oi` use ZOhOI, and `me'oi` uses MEhOI. Punctuation, ignored characters and attached brackets belong to the stretch. The body must end before a quiet pause or the input end.
+
+`$SINGLE-QUOTE-MARKERS` names the classes that quote a raw run. Layers extend this set while keeping the shared boundary tests.
 
 `zohoi-gap` starts with a quiet pause and skips hesitation through `zohoi-hesitation`. It contributes one space, including pauses around erased hesitation.
 
@@ -379,10 +386,13 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %emits
   $
 
+%const $SINGLE-QUOTE-MARKERS
+  ZOhOI ∪ MEhOI
+
 %rule single-marker
   $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅,
+  $q.classes ∩ $SINGLE-QUOTE-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
 
 %rule raw-y-letter
@@ -432,6 +442,8 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 
+`$ZOI-MARKERS` names the classes that open delimited quotes. Layers extend this set while keeping the shared delimiter rules.
+
 ```jbogenbau
 %const $Y-PROPERTIES
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
@@ -464,10 +476,13 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %emits
   $
 
+%const $ZOI-MARKERS
+  ZOI
+
 %rule zoi-marker
   $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZOI ⊆ $q.classes,
+  $q.classes ∩ $ZOI-MARKERS ≠ ∅,
   ¬$.following-tokens.begins(quote-marker-end)
 
 %rule delimiter

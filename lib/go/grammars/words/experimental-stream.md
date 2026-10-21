@@ -10,6 +10,8 @@ An opaque foreign body contains no such word reads. Thus ZOI bodies, including `
 
 `brivla-token` and `cmevla-token` read the marked and unmarked cases separately. They remove the marker tag after the test. Each warning retains the whole word's source range.
 
+The marker constants extend the shared class sets. The marker readers retain their boundary tests and emissions.
+
 ```jbogenbau
 %features experimental-cgv
 
@@ -43,30 +45,16 @@ The constant excludes these openers and the global eraser from ordinary words. A
 %redefine-const $MAGIC-WORDS
   $MAGIC-WORDS ∪ GOhOI ∪ MUhOI ∪ DOhOI ∪ SUhUhUhUhUhUhUhU
 
-%redefine-rule word-quote-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $WORD-QUOTE-MARKERS
+  $WORD-QUOTE-MARKERS ∪ GOhOI
 
-%redefine-rule zoi-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $ZOI-MARKERS
+  $ZOI-MARKERS ∪ MUhOI
 
-%redefine-rule single-marker
-  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  $q.classes ∩ (ZOhOI ∪ MEhOI ∪ DOhOI) ≠ ∅,
-  ¬$.following-tokens.begins(quote-marker-end)
+%redefine-const $SINGLE-QUOTE-MARKERS
+  $SINGLE-QUOTE-MARKERS ∪ DOhOI
+
 ```
-
-<details><summary>Railroad diagrams of <code>word-quote-marker</code>, <code>zoi-marker</code> and <code>single-marker</code></summary>
-<p><img src="../../docs/diagrams/words/experimental-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
-<p><img src="../../docs/diagrams/words/experimental-stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
-<p><img src="../../docs/diagrams/words/experimental-stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
-</details>
 
 ## Nonce words
 
