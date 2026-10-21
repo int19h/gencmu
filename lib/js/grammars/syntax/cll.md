@@ -27,11 +27,11 @@ The prose uses these Lojban terms before the sections that explain them:
 
 The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../words/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
-[The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, before syntax reads them.
+[The indicator stage](../indicators/cll.md), with any dialect-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 
-The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished quote from the words stage arrives as one token of its opening class.
+The earlier stages supply cmavo classes from the dialect's selected lexicon. Each finished quote from the words stage arrives as one token of its opening class.
 
-[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
+[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. In this base grammar, an elided terminator takes its `#` with it. Thus an elided `[+X #]` leaves no free-modifier slot (see `#` below). The [experimental layer](experimental.md#the-experimental-grammar) instead keeps the free slot after an elided terminator. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
 
 CLL writes repetition as `x ...`, and the notation writes it with braces. CLL's notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
@@ -185,7 +185,9 @@ A lookahead tests the input that follows a construct. The condition needs no loo
 
 In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late-elision` then keeps `gi'a brodi` inside the abstraction.
 
-In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The cll-ebnf and bpfk dialects still read one `ke` group, so `pu` stays on the connective. The plain parse remains where the group cannot read the same words:
+In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The cll-ebnf and bpfk dialects still read one `ke` group, so `pu` stays on the connective.
+
+The plain parse remains where the group cannot read the same words. The [experimental layer](experimental.md#sentences-and-bridi-tails) keeps these continuing KE-unit readings with its own whole-tail patterns. Its connectives permit free modifiers before KE, so its free-modifier case has a different reading. The base grammar preserves these plain readings:
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
@@ -713,13 +715,15 @@ A time tense contains these parts in this order[^cll-s10-4][^cll-s10-9]:
 
 A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interval, and a `mo'i` movement. A space interval is `ve'a` or `vi'a` or both, with an optional direction, and then interval properties. Either of those two parts can stand alone, as in `mi ve'a klama` and `mi fe'e ta'e klama`. `fe'e` before an interval property applies that property to space rather than time. An interval property is `roi` with a number, `ta'e` and the others of TAhE, or a ZAhO event contour. Each can take `nai`.
 
+This base grammar flags simple tense-modal groups. The [experimental tense layer](experimental.md#tenses-and-modals) replaces these rules and their grouping preference.
+
 The `leftmost-longest` flag prefers the earliest simple tense-modal group, then the longest one at that start. It ranks complete parses before the dialect compares elided terminators. A longer group cannot win when it leaves no complete parse.
 
 The rules can divide words before `gi` between an outer tag and the connective's stag in several ways. Those parses elide the same terminators, so `late-elision` ties them. The flag settles this tie.
 
-In `mi viska pu ca gi do gi la djan`, `pu ca gi` forms one connective. In `mi viska pu va ca gi do gi la djan`, `pu va` stays outside the connective `ca gi`.
+In this base grammar, `pu ca gi` forms one connective in `mi viska pu ca gi do gi la djan`. In `mi viska pu va ca gi do gi la djan`, `pu va` stays outside the connective `ca gi`.
 
-In `mi viska ba'o pu gi do gi la djan`, `ba'o` stays a tag over the forethought sumti. These time forms cannot form one simple tense-modal. In `mi viska fi'o kansa pu gi do gi la djan`, the modal stays outside the connective. A free modifier between the forms also keeps the separate tag.
+In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag over the forethought sumti. These time forms cannot form one simple tense-modal. In `mi viska fi'o kansa pu gi do gi la djan`, the modal stays outside the connective. A free modifier between the forms also keeps the separate tag.
 
 ```jbogenbau
 %rule tag
@@ -822,9 +826,11 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ## Choosing among parses
 
-Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`. The experimental layer declares only `late-elision`.
+Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`. The experimental layer declares `late-elision` and adds a `fewest` ranking step.
 
-The flag described under ["Tenses and modals"](#tenses-and-modals) applies first. `late-elision` then compares parses with equal flagged groups. It prefers the parse that omits a terminator later. Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
+In this base grammar, the flag described under ["Tenses and modals"](#tenses-and-modals) applies first. `late-elision` then compares parses with equal flagged groups. It prefers the parse that omits a terminator later. Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
+
+The [experimental layer](experimental.md#the-experimental-grammar) instead ranks spans, counted connective links and elision boundaries, in that order.
 
 In cll-ebnf and bpfk, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../docs/notation.md#elided-terminators) gives the check exactly.
 
@@ -851,7 +857,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
    The repair admits `ba za ki`, `na'e ka'e`, `pu ki`, and `na'e ca'a` as single simple-tense-modal forms. The alternative precedence preserves rule 972's intended scope but splits `ZEhA [PU [NAI]]` in rule 1030. Either precedence therefore needs a repair. This grammar also parenthesizes `(ZEhA [PU [NAI]])` in `time`. Those parentheses leave its chosen reading unchanged.
 2. A text can begin with `.i` separators followed by `ni'o` markers, as in `.i ni'o mi klama`. The printed `text-1` makes the two alternatives. YACC rule 2 (`text_B_2`) lets any number of `.i` forms precede a `ni'o` run. The grammars of camxes, another Lojban parser, call the printed form "a bug in the BNF".
 3. A `lo'u ... le'u` quote can be empty, `lo'u le'u`. The printed `sumti-6` requires at least one word. YACC rule 436 reads the body of the quote as one token that can be empty.
-4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed.
+4. The free-modifier slot after a `lu ... li'u` quote follows the quote whether or not `li'u` is written, so `lu cy. to toi` is a quote followed by a parenthesis. The printed `sumti-6` writes `/LIhU#/`, which drops the slot with the elided `li'u`. YACC rule 432 (`quote_arg`) attaches free modifiers to the whole quote, and its `LIhU` gap carries none. Every other elidable terminator keeps its slot as printed in this base grammar. The [experimental layer](experimental.md#the-experimental-grammar) instead keeps the free slot outside the elision brackets.
 5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes and says that FUhO "cancels all in-force attitudinals". This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
 
    A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
@@ -903,7 +909,9 @@ The words stage implements CLL's non-formal erasure rule `null = any-word SI | u
 
 ### Free modifiers after terminators
 
-This grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where the CLL example[^cll-e17-38] writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
+The [experimental layer](experimental.md#the-experimental-grammar) supersedes this policy and keeps free slots after elided terminators.
+
+This base grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where the CLL example[^cll-e17-38] writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
 
 CLL itself says so in two places. CLL[^cll-s14-17] gives the example[^cll-e14-154], `xy. boi xi vei by. ce'o dy. [ve'o]`. After it, CLL says that "the boi in [that example] is not elidable, because the xi subscript needs something to attach to". CLL[^cll-s6-11] says that free modifiers can stand after any elidable terminator, "which, however, must not then be elided". The one exception is `li'u`, as item 4 above says.
 

@@ -664,7 +664,7 @@ The experimental dialect redefines `selbri-4` and `operator`, with the same rank
 
 The dialect also states three conventions as rules:
 
-- A sumti connection takes priority over a term connection. After span ranking, `fewest` prefers fewer bridi-tail links in the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
+- A sumti connection takes priority over a term connection. After span ranking, `fewest` prefers fewer links built by `bridi-tail-connective` across the whole reading. Direct GI-stag links before BO or KE contribute nothing to this count. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 

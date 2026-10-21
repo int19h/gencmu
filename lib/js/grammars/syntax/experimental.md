@@ -47,7 +47,9 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 `free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
 
-The `bridi-tail-connective` rule carries `fewest`, which counts bridi-tail links in the whole reading. After span ranking, a smaller count wins. Equal counts leave late elision to decide, which can keep the first description open. The same ranking applies to A, JA, JOI, and VUhU. Each family can connect sumti and bridi-tails. The flag compares whole readings because their omitted terminators fall under different parents and at different boundaries.
+The `bridi-tail-connective` rule carries `fewest`, which counts links built by that rule across the whole reading. Links built directly by `GI stag` before BO or KE do not contribute.
+
+After span ranking, a smaller count wins. Equal counts leave late elision to decide, which can keep the first description open. The same ranking applies to A, JA, JOI, and VUhU. Each family can connect sumti and bridi-tails. The flag compares whole readings because their omitted terminators fall under different parents and at different boundaries.
 
 This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
@@ -57,7 +59,7 @@ The layer permits ambiguity beyond omitted terminators. It uses these rules to s
 
 - A free modifier's span is settled before the `fewest` ranking. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
+- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer counted bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
@@ -107,7 +109,7 @@ While the main bridi is open, IhAU permits more terms, a written VAU and free mo
 
 The terms after IhAU stand after the whole bridi-tail of the sentence. Connected bridi-tails share them, as they share terms after the last connected tail. A bridi-tail connection cannot follow the reset. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. Thus `mi klama lo nu do cadzu iau do gi'e tavla` rejects. The written form `mi klama lo nu do cadzu vau kei ku do gi'e tavla` parses.
 
-IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama i'au ko danfu`. There it closes the constructions in those terms. That head reset needs a term before IhAU. A CU can stand before the reset or after it, but not on both sides.
+IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama i'au ko danfu`. There it closes the constructions in those terms. That head reset needs a term before IhAU. A final CU directly before IhAU cannot combine with an initial CU directly after it. Other CU positions in the heads remain available.
 
 A reset after leading free modifiers closes them, as `do'u` closes a vocative. A sentence, a prenex, a TUhE group or a fragment can follow it.
 
@@ -121,7 +123,9 @@ A reset needs an earlier construction, so `iau mi klama` rejects. A reset after 
 
 The prefix condition keeps adjacent leading free modifiers together. Otherwise, a free slot before the sentence and the reset prefix can split the same modifiers into duplicate readings.
 
-A written final VAU closes the main bridi. A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
+A written VAU closes a simple main bridi. After connected tails, only a written VAU in the shared tail terms closes it. A VAU inside a forethought branch closes that branch alone.
+
+A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
 
 ```jbogenbau
 %const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
@@ -243,15 +247,15 @@ A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
 
-A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The first-child pattern follows the selected tail to its selbri, including an initial tag. The `gek-sentence` alternative still permits its KE wrapper.
+A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU with nonempty shared tail terms also keeps it.
 
-A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a whole KE-wrapped forethought sentence, so the connective owns that KE group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
+A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
 
 The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
-The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each bridi-tail rule takes this tag from its final tail. KE and NA wrappers retain the tag.
+The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each connected-tail rule takes this tag from the shared tail terms after its last connection. A simple tail takes it from its own tail terms. KE and NA wrappers retain the tag.
 
 When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE permits whole-bridi negation of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
 
@@ -307,20 +311,19 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
   | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %const $KE-FORETHOUGHT @([tag] KE [#] gek-sentence KEhE [#])
+%const $CONNECTED-KE-SELBRI @([tag] $KE-UNIT)
+%const $CONNECTED-KE-TAIL @($CONNECTED-KE-SELBRI tail-terms) ∪ $KE-FORETHOUGHT
+%const $CONNECTED-KE-WITH-VAU @($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
 
 %redefine-rule bridi-tail-1-final
   | bridi-tail-2
   | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 %conditions
-  $b ≇ $KE-FORETHOUGHT
-
-%const $KE-START @(KE ⋰) ∪ @(tag @(KE ⋰))
+  $b ≇ $CONNECTED-KE-TAIL ∨ ($b ≅ $CONNECTED-KE-WITH-VAU ∧ $t.source-text ≠ "")
 
 %rule connected-bridi-tail
   | bridi-tail-head bridi-tail-2
-  | $b:bridi-tail-2
-%conditions
-  $b ≇ @((selbri ∩ $KE-START) ⋰)
+  | bridi-tail-2
 
 %redefine-rule bridi-tail-2
   | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
@@ -389,7 +392,7 @@ The same KU rule applies in lists and single-term positions. A written KU permit
 
 A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
 
-After span ranking, `fewest` also favors term connections over readings with more bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
+After span ranking, `fewest` also favors term connections over readings with more counted bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
 
 Three tags carry these facts through the tree. `Link-Extensible-End` marks a sumti that a plain connective can extend. `Bo-Extensible-End` marks one that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. `$EXTENSIBLE-END` holds the two end tags.
 
@@ -1147,7 +1150,9 @@ BO scope differs too. In `mi klama do .e bo tavla ti gi'a cadzu ko'a`, this laye
 
 A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer includes it. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri. The final plain connection also excludes a whole KE-wrapped forethought sentence to keep that KE on the connective. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
+camxes-exp uses lookahead after its gihek. This layer tests the whole selected tail. Only a complete KE-unit tail or KE-wrapped forethought sentence yields to the final connective's KE group. A continuing selbri, an earlier link, or written inner VAU with nonempty outer terms keeps the plain reading. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
+
+Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi broda gi'e ke brode ke'e bo brodi`. Their selbri continue beyond KEhE. It also keeps `mi broda gi'e ke brode ke'e gi'e brodo`, whose KE unit precedes another link. In `mi broda gi'e ke brode ke'e vau do`, written inner VAU separates the two tail-term runs. The whole-tail tests preserve these plain readings because the connective's KE group cannot read the same words.
 
 Only the final connection has the connective's KE-group alternative. This layer therefore accepts `mi broda gi'e ke ge brode gi brodi ke'e gi'e brodo` as a non-final plain connection, while camxes-exp rejects it.
 
@@ -1177,7 +1182,7 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-The `fewest` flag compares the number of bridi-tail links in the whole reading after span ranking. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+The `fewest` flag counts links built by `bridi-tail-connective` across the whole reading after span ranking. The direct `GI stag` links before BO or KE lie outside that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
 
 Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
 
@@ -1194,6 +1199,8 @@ No preference based only on form selects the intended meaning in every text. Thi
 In `lo ka smuni .e fe lo ka pemci cu melbi`, this layer connects terms before the main selbri `melbi`. camxes-exp keeps the connection inside the first abstraction and reads the whole text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading instead puts `cu` inside an abstraction.
 
 The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
+
+After `vu'o`, a connected sumti can follow with or without relative clauses. Thus `mi viska ko'a vu'o .e ko'e` connects sumti. The relative-clause form `mi viska ko'a vu'o noi broda ku'o .e ko'e` also connects sumti. camxes-exp requires relative clauses before that connection. This layer keeps both forms because VUhO already marks the boundary.
 
 ### Deliberate KU omission limits
 
@@ -1243,7 +1250,11 @@ Preposed linked arguments follow camxes-exp. If a unit precedes a `be` group, th
 
 ### Mekso and connectives
 
-The mekso rules follow camxes-exp.peg except for mixed numbers and letter strings, and forethought operators without PEhO. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists. NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
+The mekso rules follow camxes-exp.peg except for mixed numbers and letter strings, forethought operators without PEhO, and free modifiers after FUhA. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists.
+
+FUhA takes a free-modifier slot here, as other mathematical introducers do. Thus `li fu'a to mi toi pa boi re su'i` accepts here. camxes-exp's `mex_2` has no slot after FUhA and rejects that parenthesis.
+
+NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
 
 CLL permits PA words inside a letter string and lerfu words inside a number.[^cll-s21-1] This layer keeps both forms because real dates mix letters and digits, as in `dy pa my pa`. camxes-exp excludes these mixtures and rejects `li cy mu my ci no`. It reads `li re no pa ze ny pa ly mu dy` as separate sumti, while this layer reads one number.
 
@@ -1313,7 +1324,7 @@ CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. Th
 
 ### Constructions beyond camxes-exp
 
-camxes-exp lacks GOhOI, MUhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, LUhEI, LIhAU, and CIhAU. This layer admits their dictionary constructions with the stated boundaries.
+camxes-exp lacks GOhOI, MUhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, KUhEI, LUhEI, LIhAU, CIhAU, and CIhAUhU. This layer admits their dictionary constructions with the stated boundaries.
 
 GOhOI and MUhOI use the predicate roles of Zantufa's `tanru_unit_1`. LUhEI also follows its grammatical text body and elidable LIhAU.
 
@@ -1337,7 +1348,7 @@ A bridi-tail connection cannot follow a reset here. Issue [#240](https://github.
 
 The head reset uses `reset-head`, which permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it.
 
-DOhOI follows its dictionary expansion as `doi la'oi`, including a preceding COI run and an optional DOhU. The inspected Zantufa grammar has no DOhOI construction.
+DOhOI follows its dictionary expansion as `doi la'oi`, including a preceding COI run, relative clauses and an optional DOhU. Thus `do'oi Alice noi broda` permits a relative clause on the quoted name. The inspected Zantufa grammar has no DOhOI construction.
 
 SOhOI follows the [new-soi proposal](https://mw.lojban.org/papri/new_soi) as a subsentence term. Its two selected dictionary definitions, 71817 and 72780, disagree about claiming the outer bridi.
 

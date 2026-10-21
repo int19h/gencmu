@@ -144,7 +144,9 @@ A bridi-tail is a predicate with its following terms.
 
 A span is a range between input token boundaries.
 
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer bridi-tail connections in the whole reading. `late-elision` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer links built by `bridi-tail-connective` across the whole reading. `late-elision` ranks the remaining readings.
+
+Direct `GI stag` links before BO or KE do not pass through `bridi-tail-connective`, so they contribute nothing to that count.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
@@ -166,7 +168,7 @@ The syntax layer preserves these camxes-exp preferences among complete readings,
 
 - A free modifier or a tense takes the earliest and longest span before connection ranking (`leftmost-longest`, [parse preferences](../syntax/experimental.md#choosing-among-parses)).
 - An ek, a jek or a joik directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
-- After span ranking, `fewest` prefers fewer bridi-tail links in the whole reading ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
+- After span ranking, `fewest` prefers fewer counted bridi-tail links in the whole reading ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
 - A final bridi-tail connective owns a following `ke` group, with or without an intervening tag. A bare `gi` with a tag also owns its following `ke` group ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - Without written BOI, a number consumes every following number part or letter word. A letter string consumes every following letter word or PA ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
