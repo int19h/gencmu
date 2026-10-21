@@ -47,7 +47,7 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 `free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
 
-The `bridi-tail-connective` rule carries `fewest`, which counts links built by that rule across the whole reading. Links built directly by `GI stag` before BO or KE do not contribute.
+The `bridi-tail-connective` and `gi-stag-connective` rules carry `fewest`. Together they count every bridi-tail link across the whole reading.
 
 After span ranking, a smaller count wins. Equal counts leave late elision to decide, which can keep the first description open. The same ranking applies to A, JA, JOI, and VUhU. Each family can connect sumti and bridi-tails. The flag compares whole readings because their omitted terminators fall under different parents and at different boundaries.
 
@@ -245,7 +245,7 @@ A bridi-tail can have terms before its selbri. The terms and `cu` before a selbr
 
 A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. And `mi na klama` negates its selbri.
 
-The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
+The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. The `gi-stag-connective` rule also opens these groups with `gi` and a stag, as in `mi klama gi ba bo tavla`.
 
 A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU with nonempty shared tail terms also keeps it.
 
@@ -304,7 +304,7 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 
 %redefine-rule bridi-tail
   | $b:bridi-tail-1-final :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-1-final (bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | bridi-tail-1-final (bridi-tail-connective [stag] | gi-stag-connective) KE # headed-bridi-tail [+KEhE] # $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %redefine-rule bridi-tail-1
   | bridi-tail-2
@@ -327,7 +327,7 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 
 %redefine-rule bridi-tail-2
   | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-3 (bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | bridi-tail-3 (bridi-tail-connective [stag] | gi-stag-connective) BO # headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %redefine-rule bridi-tail-3
   | selbri $t:tail-terms :: $t.tags ∩ Closed-Bridi
@@ -340,6 +340,9 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 %conditions
   ¬$n.onward.begins(gek)
 
+%rule(fewest) gi-stag-connective
+  GI stag
+
 %rule(fewest) bridi-tail-connective
   gihek # | connective
 
@@ -347,7 +350,7 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
   | [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/reset-bridi.svg" alt="Railroad diagram of the rule reset-bridi"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
@@ -364,6 +367,7 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gi-stag-connective.svg" alt="Railroad diagram of the rule gi-stag-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 </details>
@@ -1182,7 +1186,7 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-The `fewest` flag counts links built by `bridi-tail-connective` across the whole reading after span ranking. The direct `GI stag` links before BO or KE lie outside that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+The `fewest` flag counts every bridi-tail link across the whole reading after span ranking. The `gi-stag-connective` rule includes GI with a stag before BO or KE in that count. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
 
 Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
 
