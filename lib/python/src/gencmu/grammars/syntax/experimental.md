@@ -1131,17 +1131,17 @@ Connections between sentences follow camxes-exp, including `mi klama joi .i do k
 
 ### Bridi-tail connections
 
-In camxes-exp, [`gihek_1`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L336-L341) gives JA and JOI the GIhA level for bridi-tail connections. A, VUhU and BIhI use a [looser outer loop](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L80-L91) with no shared tail terms. When their gihek reading fails, JA and JOI also use that loop.
+In camxes-exp, [`gihek_1`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L336-L341) gives JA and JOI the GIhA level for bridi-tail connections. A, VUhU and BIhI use a [looser outer loop](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L80-L88) with no shared tail terms. When their gihek reading fails, JA and JOI also use that loop.
 
 The [2014-03-19 changelog entry](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L89) calls JACU Selpa'i's alternative to GIhA. The [2014-10-17 fix](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L124) shows shared tail terms in `brode ja cu brodo vau mi`.
 
 PEG ordering and the incomplete `gihek_1` list produce the looser binding and missing shared terms. These effects do not follow from JACU's JA/JOI replacement for GIhA. This layer gives A, JA, JOI and VUhU CLL's GIhA grouping, shared terms and final-KE boundary, including BIhI intervals through joik.
 
-Scope differs against GIhA. In `mi klama do .e tavla ti gi'a cadzu ko'a`, this layer groups `(klama do .e tavla ti) gi'a cadzu ko'a`. camxes-exp groups `klama do .e (tavla ti gi'a cadzu ko'a)`. The same difference applies with `su'i` or `bi'i` in place of `.e`.
+Scope beside a GIhA connection also differs. In `mi klama do .e tavla ti gi'a cadzu ko'a`, this layer groups `(klama do .e tavla ti) gi'a cadzu ko'a`. camxes-exp groups `klama do .e (tavla ti gi'a cadzu ko'a)`. The same difference applies with `su'i` or `bi'i` in place of `.e`.
 
 Shared tail terms also differ. This layer accepts `mi klama do .e tavla vau ti` and shares `ti` across both tails. camxes-exp rejects the final `ti` because its outer loop has no shared tail terms.
 
-A connective-owned KE group stands only at a final bridi-tail connection in this layer. Thus `mi klama do .e ke tavla ti ke'e .e cadzu ko'a` rejects at `cadzu`. The JA form `mi klama do je ke tavla ti ke'e je cadzu ko'a` also rejects there. camxes-exp accepts both, using its outer loop even for JA.
+A connective-owned KE group stands only at a final bridi-tail connection in this layer. Thus `mi klama do .e ke tavla ti ke'e .e cadzu ko'a` rejects at `cadzu`. The JA form `mi klama do je ke tavla ti ke'e je cadzu ko'a` also rejects there. camxes-exp accepts both. Its outer loop takes the second link, even for JA.
 
 BO scope differs too. In `mi klama do .e bo tavla ti gi'a cadzu ko'a`, this layer joins `klama do` to `tavla ti` before GIhA. In camxes-exp, `.e bo` takes the whole `tavla ti gi'a cadzu ko'a` as its right operand.
 
@@ -1289,7 +1289,7 @@ This layer also accepts `ge mi klama pu gi do klama` and `ge mi pu gi do nu'u kl
 
 The free-modifier preference compares complete readings. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
 
-In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. JACU permits `.e` between bridi-tails. The `free` rule's span preference selects the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The CLL grammar also closes before `.e`, which cannot connect its bridi-tails.
+In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. The experimental syntax permits `.e` between bridi-tails, as its [connection departures](#bridi-tail-connections) explain. The `free` rule's span preference selects the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The CLL grammar also closes before `.e`, which cannot connect its bridi-tails.
 
 camxes-exp's PEG greedily reads `le nu brode melbi` as a description inside the parenthesis. That leaves no selbri for the second bridi-tail. camxes-exp does not backtrack into that completed description, so the inner connection fails. This layer also considers a description that ends before `melbi` and keeps the parenthesis open.
 
