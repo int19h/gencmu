@@ -4,7 +4,7 @@ This document is part of the forms stage in the [experimental](../dialects/exper
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [bpfk.md](bpfk.md). A lookahead tests input without reading it.
 
-The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../dialects/zantufa.md) dialect shares the `ie'o` hesitation and the permitted `mz` pair, as [zantufa.md](zantufa.md) describes. [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -15,7 +15,7 @@ The prose uses these Lojban terms for words:
 
 ## Hesitation words
 
-The filler `ie'o` has class Y and acts as hesitation. The forms stage marks it `Hesitation`, so every words-stage reader uses the same classification.
+The filler `ie'o` has class Y and acts as hesitation. The forms stage marks it `Hesitation`, so every words-stage reader uses the same classification. It also marks it `Uncounted`, like other hesitation.
 
 It carries no ordinary `Word` or `Cmavo` tag. Thus a raw quote body cannot read it through two competing token kinds.
 
@@ -24,7 +24,7 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 ```jbogenbau
 %redefine-rule source-word
   | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
-  | $y:cmavo-shape :: Hesitation ∪ Y ∪ $y.tags
+  | $y:cmavo-shape :: Hesitation ∪ Y ∪ Uncounted ∪ $y.tags
   | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
   | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
   | $h:hesitation-shape :: Hesitation ∪ $h.tags
@@ -62,55 +62,57 @@ The consonant rules retain every restriction except the glide ban. A borrowing s
 
 A coda is a syllable's ending consonant group. `brivla-onset` serves borrowing syllables, their stress tests and their head test. The coda lookahead uses it too. Thus a preceding syllable cannot take the consonant before `iy` or `uy` as its coda. The rafsi slot still uses ordinary `onset`.
 
-A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV whose consonant differs from `r`.
+A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. At a borrowing's start, a CVC or CCV rafsi cannot directly precede one consonant, a glide and its nucleus unless that consonant is `r`.
 
 CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-letter limit for borrowings.[^cll-a3-3] The word must resolve as one brivla. Thus `puamamakla` is legal despite its late cluster.
 
-Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows the separate treatment of `r` in jbotci, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
+Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard tests the one consonant directly after the initial rafsi. It follows jbotci's `r` exception, so `lanruage` and `blaruage` remain borrowings.
+
+The guard excludes neither cluster onsets nor CVV rafsi nor rafsi later in a borrowing. Thus `lanstia`, `baltcuiska`, `baistia` and `bailanguaska` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
 The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](experimental-stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
 
 ```jbogenbau
-%redefine-rule cmevla-shape
+%redefine-rule cmevla-shape  (* A name ends in a consonant, unlike a predicate word. The warning test inspects only this complete word. *)
   $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset) ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
-%redefine-rule brivla-shape
+%redefine-rule brivla-shape  (* A predicate word ends in a vowel, unlike a name. The warning test inspects only this complete word. *)
   $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset) ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
-%rule cgv-form
+%rule cgv-form  (* This boolean span test requires a consonant, glide and nucleus. Several possible positions give the same truth value. *)
   [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
 
-%rule brivla-onset
+%rule brivla-onset  (* An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset. *)
   onset | cgv-onset
 
-%redefine-rule onset-nucleus-coda
+%redefine-rule onset-nucleus-coda  (* The optional coda is nonempty. A medial coda cannot begin any syllable, including one with CgV. *)
   brivla-onset nucleus [coda]
 
-%redefine-rule syllable
+%redefine-rule syllable  (* A counted syllable excludes y as its nucleus. The coda lookahead prevents it from taking the consonant of a following CgV onset. *)
   $o:brivla-onset nucleus [coda]
 %conditions
   ¬$o.following-tokens.begins(y)
 
-%redefine-rule final-syllable
+%redefine-rule final-syllable  (* The last syllable excludes y and written stress. Its complete word boundary fixes its end and excludes a following name. *)
   $o:brivla-onset $n:nucleus
 %conditions
   ¬$o.following-tokens.begins(y | stressed),
   ¬$n.following-tokens.begins(cmevla),
   $n.following-tokens.begins(post-word)
 
-%redefine-rule stressed
+%redefine-rule stressed  (* This lookahead reads the onset before written vowel stress. The ordinary and CgV onsets remain disjoint. *)
   brivla-onset stress-mark
 
-%redefine-rule brivla-head
+%redefine-rule brivla-head  (* The head excludes particles, slinku'i forms and apostrophe starts. Stress fixes its unstressed syllables, and its onset test includes CgV. *)
   [{unstressed-syllable}]
 %conditions
   ¬$.onward.begins(cmavo | slinkuhi | h),
   $.onward.begins(brivla-onset)
 
-%rule cgv-onset
+%rule cgv-onset  (* The nonempty consonant initial precedes one glide. The glide requires a following nucleus. *)
   cgv-initial glide
 
-%rule cgv-initial
+%rule cgv-initial  (* Affricates differ from initial-parts in their consonant order. Both forms require the last consonant before the glide, and initial-parts cannot be empty. *)
   | $a:affricate
   | $p:initial-parts
 %conditions
@@ -118,17 +120,17 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
   ¬$p.following-tokens.begins(consonant),
   $p.value ≠ ""
 
-%redefine-rule fuhivla
+%redefine-rule fuhivla  (* Only a complete CgV borrowing bypasses the rafsi-string exclusion. The initial-rafsi conditions exclude the competing compound, while the cluster and continuation tests constrain the borrowing. *)
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
 %conditions
   ¬$b.onward.begins(rafsi-string) ∨ $.matches(cgv-form),
   ¬$.onward.begins(cgv-rafsi-continuation),
   $.matches(cgv-cluster-form)
 
-%rule cgv-cluster-form
+%rule cgv-cluster-form  (* This boolean span test requires adjacent consonants. Different possible cluster positions give the same truth value. *)
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
-%rule cgv-rafsi-continuation
+%rule cgv-rafsi-continuation  (* CVC and CCV differ in their second letter. Stress separates their variants, and the tested single consonant directly before the glide cannot be r. *)
   (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) $c:consonant glide
 %conditions
   $c.value ≠ "r"
@@ -270,7 +272,7 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 <p><img src="../../docs/diagrams/words/experimental/long-rafsi-vowel.svg" alt="Railroad diagram of the rule long-rafsi-vowel"></p>
 </details>
 
-A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.
+A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` rejects that start with a CCV rafsi, `'y` and the next onset, which `slihykru` tests. This onset includes CgV, so `bla'ykuiska`, `kla'ykuiska` and `bla'ytcuiska` are foreign too. Thus `kerlybla'ykla` is one word, but `bla'ykla` is not. The plain and stressed CCV choices need no order because their vowel stress differs. Only `brivla` reads `slihykru`.
 
 ```jbogenbau
 %redefine-rule brivla  (* A predicate word excludes a particle start and the CCV-apostrophe-y start that slihykru detects. Its unstressed rafsi precede the stressed core. *)
@@ -278,8 +280,8 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %conditions
   ¬$.onward.begins(cmavo | slihykru)
 
-%rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and an onset. Vowel stress separates the CCV forms. *)
-  (ccv-rafsi | stressed-ccv-rafsi) h y onset
+%rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and a borrowing onset, including CgV. Vowel stress separates the CCV forms. *)
+  (ccv-rafsi | stressed-ccv-rafsi) h y brivla-onset
 ```
 
 <details><summary>Railroad diagrams of <code>brivla</code> and <code>slihykru</code></summary>
@@ -379,7 +381,7 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 
 camxes-exp extends the working word forms of the BPFK, the Lojban language planning committee. This layer retains its changes except the redundant glide lookahead described in [the dialect departures](../dialects/experimental.md#where-it-reads-texts-differently-from-camxes-exp).
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The working morphology has two kinds of extended rafsi, which let a word, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is the head of a brivla of two syllables or more, followed by `'y`, as in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing, followed by an onset and `y`, as in `spageiybroda`.
 
@@ -403,7 +405,7 @@ camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel,
 
 The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa also recognizes it, but restricts where hesitation counts as spacing.
 
-This dialect keeps its existing broader spacing behavior. Both raw one-word quote gaps and ordinary word gaps skip the same hesitation classification.
+Hesitation counts as spacing in every gap, in raw one-word quotes and between words.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 

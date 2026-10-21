@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The maintainers edit this lexicon by hand. Its baseline is the word lists of camxes-exp, the experimental grammar of the camxes parser. The source is `camxes-exp.peg` in ilmentufa, at commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). The lexicon contains CLL (*The Complete Lojban Language*) cmavo and experimental cmavo. The closing section lists its additions and class differences.
 
-The dictionary additions follow the [policy for issue #211](https://github.com/int19h/gencmu/issues/211#issuecomment-6204819697). The dictionary is the Lensisku export of September 13, 2026, in [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict). An experimental cmavo qualifies when its highest-voted English definition has a score of at least three. The highest-voted definition supplies its class. Numeric subcategories do not affect classification, so UI7a becomes UI and KOhA3 becomes KOhA. Every camxes-exp word remains, regardless of its score.
+The dictionary additions follow the [policy for issue #211](https://github.com/int19h/gencmu/issues/211#issuecomment-6204819697). The dictionary is the Lensisku export of September 13, 2026, in [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict). An experimental cmavo qualifies when its highest-voted English definition has a score of at least three. The highest-voted definition supplies its class. Numeric subcategories do not affect classification, so UI3a becomes UI and KOhA3 becomes KOhA. Every camxes-exp word remains, regardless of its score.
 
 An experimental cmavo below that score also qualifies when real text uses it consistently with its highest-voted English definition. Both its meaning and its selma'o must match that definition. The closing section identifies the words that qualify through corpus evidence and the words excluded for inconsistent use.
 
@@ -55,7 +55,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "cei" ∈ CEI
   "ce'e" ∈ CEhE
   "ci'au" ∈ CIhAU
-  (* #212: score-two exception, explained under Dictionary additions. *)
+  (* Score-two exception, explained under Dictionary additions. *)
   "ci'au'u" ∈ CIhAUhU
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
@@ -323,7 +323,7 @@ English definitions determine the classes, rather than the combined classes in `
 | `xei'e` | 72962 | 7 | FAhA | 72250: KOhA, 3 |
 | `xi'o` | 73346 | 3 | KOhA | 66915: XOhI, -6 |
 | `xo'e` | 18316 | 13 | PA | 15103: LE, 3 |
-| `xoi` | 56726 | 5 | SEI | 73767: XOI, 1 / 15601: FIhO, 0 / 36692: UI, ROI or NA, 0 |
+| `xoi` | 56726 | 5 | SEI | 73767: XOI, 1 / 15601: FIhO, 0 / 36692: UI1 / ROI / NA, 0 |
 | `zai'e` | 66440 | 3 | BAhE | 66411: XOhEhOhE, -1 |
 | `zo'au` | 67203 | 6 | ZOhAU | 36725: LA, 1 |
 
@@ -432,7 +432,9 @@ The review excludes the following twelve words. Eleven have uses that conflict w
 
 The other reviewed words lack clear evidence or appear as different words, so this policy does not add them.
 
-`ni'au` has one English definition, 57080 by gleki, with a score of one. It describes a Chinese-style greeting and points to `coi`, but files the word in CAI. The maintainers assign COI from that meaning and its attested vocative use. The evidence includes about 59 IRC lines by at least six speakers. Examples include `ni'au .cntr.`, `ni'au ma`, `ni'au nai` and `doi ksion ni'au`. This class correction follows meaning and use rather than the dictionary's CAI filing.
+`ni'au` has one English definition, 57080 by gleki, with a score of one. It describes a Chinese-style greeting and points to `coi`, but files the word in CAI. The maintainers assign COI from that meaning and its attested vocative use.
+
+The broader IRC search finds 59 matching lines, including mentions and substring matches. The [evidence table](../../docs/experimental-cmavo-evidence.md#consistent-use) counts two inspected excerpts. Examples of greeting use include `ni'au .cntr.`, `ni'au ma`, `ni'au do` and `doi ksion ni'au`. This class correction follows meaning and use rather than the dictionary's CAI filing.
 
 ### Classes and words without their defined constructions
 

@@ -11,13 +11,13 @@ Stage zero decomposes every text, so an accented letter arrives as its base lett
 - A length mark, such as `~`, and the middle dot `·` are ignored wherever they stand.
 - An acute or grave accent marks stress. A dieresis on a vowel means an apostrophe before it.
 - `ɩ` and `q` write the i-glide, and `w` writes the u-glide. A breve on `i` or `u` writes a glide too. These glide letters are glides wherever they stand.
-- The krulermorna letters `ą`, `ę`, `ǫ`, `ǎ` and `ꜷ` write the diphthongs ai, ei, oi and au.
+- Krulermorna is a Lojban spelling system. Its letters `ą`, `ę`, `ǫ`, `ǎ` and `ꜷ` write the diphthongs ai, ei, oi and au.
 - Every other combining mark on a Latin letter is accepted and ignored.
 - Text in another script stays foreign.
 
 ## Genuine punctuation
 
-A word break is genuine punctuation: a character of Unicode category P, punctuation, or S, symbol, that no letter rule reads. The marks after it belong to it. latin.md finds punctuation by exclusion, so numbers and other characters count as punctuation there. This document excludes them too.
+Genuine punctuation is a word break: a character of Unicode category P, punctuation, or S, symbol, that no letter rule reads. The marks after it belong to it. latin.md finds punctuation by exclusion, so numbers and other characters count as punctuation there. This document excludes them too.
 
 So a number other than an ASCII digit makes its run foreign. A control character other than white space, a private-use character and an unassigned code point do the same. The zbalermorna characters stay letters and marks of their script.
 
@@ -45,16 +45,18 @@ latin-strict.md reads straight and curly quotation marks as apostrophes. This do
 The left neighbor needs a test of the whole run because the notation has no backward token-span query. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
 
 - The mark has only ignored characters and marks before it in the run.
-- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark, punctuation and `ー` are no letters here.
+- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark and punctuation are no letters here.
 - A mark stands between an ignored character and the quotation mark, so the mark belongs to no letter.
 
-`letters`, `capital-run` and `non-lojban-char-run` refuse a run that matches it. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks. A letter is a character of category L that is not ignored. So `ー`, which has category Lm, is no letter, and neither is a zbalermorna letter, which is private use. zbalermorna writes its own apostrophe.
+`letters`, `capital-run` and `non-lojban-char-run` refuse a run that matches it. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks.
+
+A letter is a character of category L that is neither ignored nor a script period. The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
 Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `matches`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
 ```jbogenbau
 %redefine-rule apostrophe
-  | "ʼ"
+  | "ʼ" [letter-marks]
   | ("h" | "H") [letter-marks]
 %emits
   $ :: ∅ := "'"
@@ -100,14 +102,15 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   | [{_}] $b:_ [{mark-or-ignored}] quote-mark [{_}]
   | [{_}] ignored [{mark-or-ignored}] combining-mark [{mark-or-ignored}] quote-mark [{_}]
 %conditions
-  ¬$b.matches(alpha-char) ∨ $b.matches(ignored),
+  (¬$b.matches(alpha-char) ∨ $b.matches(period-char)),
   ¬$b.matches(mark-or-ignored)
 
 %rule letter-after-ignored
   [{ignored}] $a:_
 %conditions
   $a.matches(alpha-char),
-  ¬$a.matches(ignored)
+  ¬$a.matches(ignored),
+  ¬$a.matches(period-char)
 
 %rule ignored
   $c:_
@@ -132,7 +135,8 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   [{_}] $b:_ [{combining-mark}] [{ignored}]
 %conditions
   $b.matches(alpha-char),
-  ¬$b.matches(ignored)
+  ¬$b.matches(ignored),
+  ¬$b.matches(period-char)
 ```
 
 <details><summary>Railroad diagrams of the 18 rules from <code>apostrophe</code> to <code>letter-final</code></summary>
@@ -156,7 +160,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/letter-final.svg" alt="Railroad diagram of the rule letter-final"></p>
 </details>
 
-`apostrophe` keeps `h`, which latin.md adds, and takes the marks after it. `run` keeps the three kinds of run, the capital run of latin.md included.
+`apostrophe` keeps `h`, which latin.md adds. Both `h` and the modifier apostrophe U+02BC take following combining marks. `run` keeps the three kinds of run, the capital run of latin.md included.
 
 So a mark that touches a digit, another quotation mark, a stray combining mark or the run's edge has only its punctuation reading. `mi''do` is `mi do`, and `mi'` followed by U+0301 is `mi`, because punctuation takes the marks after it. U+0301 followed by `'a` gives a foreign run of the mark, a pause and `a`. `zoi gy. ß'a .gy.` quotes the one foreign run `ß'a`, and `zo'oibrodaß` stays one foreign run. `zoi gy. ß'٣ .gy.` splits at the mark, because `٣` is no letter.
 
@@ -184,7 +188,7 @@ A combining mark after a silent mark has no letter, so it makes its run foreign,
 
 A silent mark beside a quotation mark is skipped by the neighbor test of "Quotation marks", so `ko~'a` and `ko·'a` are `ko'a`.
 
-`any-lojban-char` reads a comma, so a silent mark inside a foreign run belongs to the run. A foreign run never begins or ends with a comma or a silent mark. At an ignored-only edge beside a word, a mark belongs to no token. A material stretch with punctuation keeps its marks. Thus the foreign run of `クリボー` has value `クリボ`.
+`any-lojban-char` reads a comma, so a silent mark inside a foreign run belongs to the run. A foreign run never begins or ends with a comma or a silent mark. At an ignored-only edge beside a word, a mark belongs to no token. A material stretch with punctuation keeps its marks. Thus the foreign run of `クリボー` has image `クリボ`.
 
 The run's image is its source text. A quote body keeps its verbatim text, so `zoi gy. クリボー .gy.` still shows `クリボー`.
 
@@ -442,7 +446,7 @@ An ogonek and a caron together on `a` give no reading, so the run is foreign. On
 
 A dieresis on a vowel letter means an apostrophe before it, as in an orthography without apostrophes. So `aï` is `a'i`, and `uï` is `u'i`. The apostrophe ends the vowel group before it, so the vowel with the dieresis starts a new group.
 
-`dieresis-start` inserts the apostrophe and then reads the vowel. It works for every vowel letter: plain, stressed, capital, glide and diphthong letters. A vowel group can begin with it, and such a group can follow another vowel group. At the start of a run, `ïa` gives `'ia`, which the word forms reject, as they reject a written `'ia`.
+`dieresis-start` inserts the apostrophe and then reads the vowel. It works for every vowel letter: plain, stressed, capital, glide and diphthong letters. A vowel group can begin with it, and such a group can follow another vowel group. At the start of a run, `ïa` gives `'ia`, which the word forms reject, as they reject `hia`.
 
 ```jbogenbau
 %rule dieresis-apostrophe
@@ -512,6 +516,10 @@ An accented capital keeps its stress in an all-capital run, as latin.md says, an
 ## Differences from CLL and camxes-exp
 
 CLL describes none of these conventions. camxes-exp, the baseline of the experimental syntax, reads none of these letters and marks. It also treats only some punctuation as a pause. The dialect does not follow camxes-exp on punctuation or diacritics. It reads what written Lojban means.
+
+The shared Latin rules treat non-ASCII numbers as punctuation. This layer excludes them because numeric characters do not mark word boundaries. Thus `mi½klama` forms one foreign run instead of the two words that BPFK reads.
+
+Silent marks show length or visual separation without adding phonemes or word boundaries. Thus `bro~da` forms one word here. BPFK instead treats `~` as punctuation and separates `bro` from `da`.
 
 Neither CLL nor camxes-exp defines the contextual apostrophe use of U+0060 or U+00B4. The experimental dialect accepts these keyboard spellings between letters and treats either mark as punctuation at a word edge. The neighbor rules treat them like straight and curly quotation marks. They apply across ignored characters and in foreign and capital runs.
 

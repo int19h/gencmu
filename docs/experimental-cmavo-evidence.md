@@ -2,7 +2,9 @@
 
 A cmavo is a Lojban particle. A selma'o is its word class. This summary records a review of 140 experimental cmavo found in real text. The review considers words below score three and words without an English definition.
 
-The definitions and scores come from the [Lensisku dictionary snapshot](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict) dated September 13, 2026. Each definition number links to its file in that snapshot. The line count gives the number of excerpts that the reviewer inspected. The class column records the reviewer's classification. The lexicon states the maintainer's corrections.
+The definitions and scores come from the [Lensisku dictionary snapshot](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict) dated September 13, 2026. Each definition number links to its file in that snapshot. The line count gives the number of excerpts that the reviewer inspected. The class column records the reviewer's classification.
+
+For `iu'e` and `iu'i`, the reviewer infers UI from the attitudinal definitions. Neither definition records a selma'o. The lexicon states the maintainer's corrections.
 
 The review labels 95 words CONSISTENT, twelve INCONSISTENT, 27 UNCLEAR and six NOT-THE-WORD. These labels record the reviewer's assessment of corpus evidence. The [experimental lexicon](../grammars/words/lexicon-experimental.md#additions-from-real-text) states the admission policy and the maintainer's class corrections. Missing constructions wait for [issue #212](https://github.com/int19h/gencmu/issues/212).
 

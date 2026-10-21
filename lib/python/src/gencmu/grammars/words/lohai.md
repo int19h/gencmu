@@ -8,7 +8,7 @@ A magic word acts on other words. The words inside are plain words, whatever the
 
 So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral, a letter word of class BY, as [stream.md](stream.md) defines it.
 
-The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. `lohai-stream` also joins two words with no gap. The first alternative of `lohai-run` reads a bare marker, so a stream always holds a word.
+The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. `lohai-stream` also joins two words with no gap. The first alternative of `lohai-run` reads a bare marker, so a stream always holds a run.
 
 A free modifier adds information outside predicate arguments. The syntax reads the quote as a free modifier.
 

@@ -25,7 +25,7 @@ Punctuation beside a quiet pause emits a separate token tagged `PAUSE` and `Quot
 
 Punctuation between letters also emits such a token, as in `klama!do`. Outside quotes, all these tokens still act as pauses.
 
-Quotes read `Quote-Material` as body text. Thus `zo'oi :)` quotes `:)`, and `zoi gy. !!! .gy.` keeps `!!!`.
+Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. In experimental, `zo'oi :)` also quotes `:)`.
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
@@ -452,7 +452,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 
 ## Differences from CLL and the working morphology
 
-These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and silent runs between pauses change readings that [latin-strict.md](latin-strict.md) also permits.
+These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and material preserved between pauses change readings that [latin-strict.md](latin-strict.md) also permits.
 
 The working morphology's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the working morphology rejects. It also accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`.
 

@@ -6,7 +6,7 @@ This document is part of the words stage in the [experimental](../dialects/exper
 
 The warning covers each marked word that the chosen derivation reads as Lojban. ZO targets, grammatical quotes, and ungrammatical quotes retain it. Replacement quotes still read Lojban words, so their marked words warn too. Erasure keeps warnings from the words that it reads. An opening delimiter also reads as a word and can warn.
 
-An opaque foreign body contains no such word reads. Thus ZOI, LAhO and raw one-word bodies cannot warn about their contents. Text after active FAhO cannot warn either. A raw closing delimiter also supplies no predicate or name read. `zoi gy. atkuila .gy.` needs no CgV word form in its body.
+An opaque foreign body contains no such word reads. Thus ZOI bodies, including `la'o`, and raw one-word bodies cannot warn about their contents. Text after active FAhO cannot warn either. A raw closing delimiter also supplies no predicate or name read. `zoi gy. atkuila .gy.` needs no CgV word form in its body.
 
 `brivla-token` and `cmevla-token` read the marked and unmarked cases separately. They remove the marker tag after the test. Each warning retains the whole word's source range.
 
@@ -82,7 +82,7 @@ The joiner uses ZEI's clean gaps and groups repeated operations from the left. B
 
 SA matches an existing nonce word by its inherited class, as in `broda ze'ei ko'a sa ko'a`. Before constructing a nonce word, SA instead takes its next raw word as the key. Thus `ko'e brodi sa broda ze'ei ko'a` keeps `ko'e` and the nonce word.
 
-Inherited BAhE, CAI, DAhO, FUhE, and FUhO classes act in the indicator stage like their template words. In `mi broda ze'ei ba'e klama`, the nonce word emphasizes `klama`. In `mi broda ze'ei fu'e ui klama`, it opens the indicator run.
+Inherited BAhE, UI, CAI, NAI, DAhO, FUhE, and FUhO classes act in the indicator stage like their template words. In `mi broda ze'ei ba'e klama`, the nonce word emphasizes `klama`. In `mi broda ze'ei fu'e ui klama`, it opens the indicator run.
 
 A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
 
@@ -183,6 +183,6 @@ Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zan
 
 Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follows its dictionary definition's right-word grammar, while rejecting magic right operands.
 
-An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp and Zantufa have no such reading, because `ze'ei` erases there.
+An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp lacks `ze'ei`. Zantufa has no such reading because `ze'ei` erases there.
 
 The LUhEI boundary extends experimental SU's stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.

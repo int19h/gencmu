@@ -1,0 +1,42 @@
+{
+  "description": "The experimental forms stage marks ie'o as uncounted hesitation, like y.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ie'o",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "ie'o",
+              "tags": [
+                "Continued",
+                "Hesitation",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Uncounted",
+                "Y"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

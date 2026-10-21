@@ -10,7 +10,7 @@ An attitudinal expresses an attitude. A `nai` directly after an attitudinal atta
 
 Without the condition below, the grammar admits both attachments of `nai`. The condition removes the reading where `nai` attaches separately to the word. This document restates `indicator-run` with that condition. If a run ends in an attitudinal, its next indicator of its own is not a `nai`. A `fu'e` before that `nai` lifts this. A `ba'e` between an attitudinal and its `nai` goes with the `nai`, as in the CLL document.
 
-A `nai` is an indicator here, so a run of items never begins with one.
+A `nai` is an indicator here, so an `item-run` never begins with one.
 
 A leading run needs no pair form. The syntax reads `ui` and `nai` as separate indicators there. So this document restates `leading` without the pair form of the CLL document. After this, nothing reads the rule `leading-attitudinal-nai` of the CLL document.
 

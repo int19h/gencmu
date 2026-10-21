@@ -171,4 +171,8 @@ The Cyrillic of CLL, in [cyrillic-cll.md](cyrillic-cll.md), ignores unknown mark
 
 camxes-exp reads no Cyrillic orthography. These Cyrillic conventions belong to gencmu.
 
+The experimental pipeline inherits the genuine-punctuation boundary from [latin-experimental.md](latin-experimental.md#genuine-punctuation). Non-ASCII numbers remain foreign because numeric characters do not mark word boundaries. Thus `ми½клама` forms one foreign run here, while BPFK reads two words.
+
+The pipeline also inherits silent marks for length or visual separation without new phonemes or word boundaries. Thus `кла~ма` reads as `klama` here. BPFK treats `~` as punctuation and separates the two runs.
+
 Joined vowels retain the apostrophe insertion of cyrillic.md. Their emitted tokens expose only the public vowel tags, as isolated vowels do.
