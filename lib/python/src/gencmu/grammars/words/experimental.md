@@ -85,7 +85,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule brivla-onset  (* An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset. *)
   onset | cgv-onset
 
-%redefine-rule syllable-onset
+%redefine-rule syllable-onset  (* This hook permits a consonant before a glide in syllables but leaves rafsi onsets unchanged. *)
   brivla-onset
 
 %rule cgv-onset  (* The nonempty consonant initial precedes one glide. The glide requires a following nucleus. *)
@@ -114,7 +114,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %conditions
   $c.value ≠ "r"
 
-%redefine-rule letter-ban
+%redefine-rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide. *)
   h
 ```
 

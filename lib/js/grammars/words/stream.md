@@ -84,11 +84,8 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   $
 
 %rule faho-group
-  faho-word [raw-tokens]
+  read-word<FAhO> [raw-tokens]
 %erased
-
-%rule faho-word
-  read-word<FAhO>
 
 %rule sa-tail
   sa-su? sa-run spacing
@@ -96,7 +93,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   ¬$.following-tokens.begins(read-word)
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>text</code> to <code>sa-tail</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>sa-tail</code></summary>
 <p><img src="../../docs/diagrams/words/stream/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/words/stream/text-start.svg" alt="Railroad diagram of the rule text-start"></p>
 <p><img src="../../docs/diagrams/words/stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
@@ -107,7 +104,6 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 <p><img src="../../docs/diagrams/words/stream/erasure.svg" alt="Railroad diagram of the rule erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/fault-unit.svg" alt="Railroad diagram of the rule fault-unit"></p>
 <p><img src="../../docs/diagrams/words/stream/faho-group.svg" alt="Railroad diagram of the rule faho-group"></p>
-<p><img src="../../docs/diagrams/words/stream/faho-word.svg" alt="Railroad diagram of the rule faho-word"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-tail.svg" alt="Railroad diagram of the rule sa-tail"></p>
 </details>
 
@@ -730,7 +726,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each dialect one place to name its constructors.
 
-BU, ZEI and SA read `cmavo-token` with a tag test. So the warnings of `cmavo-token` apply to them.
+The warnings of `cmavo-token` apply to every operator that it reads.
 
 BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 

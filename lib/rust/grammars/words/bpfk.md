@@ -618,7 +618,7 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %rule any-syllable  (* A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable. *)
   onset-nucleus-coda | consonantal-syllable
 
-%rule syllable-onset
+%rule syllable-onset  (* This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead. *)
   onset
 
 %rule onset-nucleus-coda  (* A vowel-bearing syllable has an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable. *)
@@ -845,7 +845,7 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
 ```jbogenbau
-%rule letter-ban
+%rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
   h | glide
 
 %rule l  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
