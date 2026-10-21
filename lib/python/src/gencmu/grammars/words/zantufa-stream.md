@@ -182,7 +182,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
   $b.following-tokens.begins(bare-marker-tail)
 
 %rule bare-marker-tail
-  skipped si-word | skipped bu-word
+  skipped si-word | skipped cmavo-token<BU>
 
 %rule bare-marker
   $q:read-word
@@ -196,7 +196,7 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 <p><img src="../../docs/diagrams/words/zantufa-stream/bare-marker.svg" alt="Railroad diagram of the rule bare-marker"></p>
 </details>
 
-The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
+The BU paths use `cmavo-token<BU>` directly and retain its warnings. The shared BU constructor also takes a bare marker when no quote begins there. Zantufa keeps its reference parser's quote-first fallback. A complete quote takes priority over a bare marker.
 
 Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
 
@@ -206,7 +206,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ```jbogenbau
 %extend-rule unit
-  $s:su-letter-base compound-gap bu-word :: Word ∪ BY
+  $s:su-letter-base compound-gap cmavo-token<BU> :: Word ∪ BY
 %emits
   $
 
@@ -216,7 +216,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   SU ⊆ $q.classes
 
 %rule su-letter-tail
-  skipped bu-word
+  skipped cmavo-token<BU>
 
 %redefine-rule su-word
   $q:read-word

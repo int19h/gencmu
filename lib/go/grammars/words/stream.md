@@ -72,13 +72,13 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
 %rule constructor-word
-  bu-word | zei-word
+  cmavo-token<BU> | cmavo-token<ZEI>
 
 %rule erasure
   si-erasure | sa-su? sa-erasure
 
 %rule fault-unit
-  | empty bu-word :: Word ∪ BY ∪ Fault
+  | empty cmavo-token<BU> :: Word ∪ BY ∪ Fault
   | lehu-marker :: Word ∪ LEhU ∪ Fault
 %emits
   $
@@ -218,7 +218,7 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   CMEVLA
 
 %rule y-bu-word
-  $b:y-key [pause-run] $u:bu-word
+  $b:y-key [pause-run] $u:cmavo-token<BU>
     :: Word ∪ BY ∪ Y-Letter ∪ $b.tags
      ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
 %emits
@@ -396,7 +396,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   ¬$.following-tokens.begins(quote-marker-end)
 
 %rule raw-y-letter
-  raw-y-base [pause-run] bu-word
+  raw-y-base [pause-run] cmavo-token<BU>
 
 %rule zohoi-hesitation
   $h:y-run
@@ -730,7 +730,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each dialect one place to name its constructors.
 
-BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
+The constructors use class tests on `cmavo-token`, so their reads retain its warnings. BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 
 The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU operand. In `da zei de bu`, the final BU takes the completed compound.
 
@@ -753,53 +753,28 @@ cll-ebnf requires pauses around a direct name base of BU. It tests the source ru
   skipped := ""
 
 %rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
-  | $u:unit<¬Trailing-Pause> compound-gap bu-word
-  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
+  | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %emits
   $
 
-%rule bu-word
-  $q:cmavo-token
-%conditions
-  BU ⊆ $q.classes
-
 %rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
-  | $l:unit<¬Trailing-Pause> zei-left-gap zei-word zei-right-gap $r:read-word
-  | su-boundary? $l:unit<Trailing-Pause> zei-suppressed-gap zei-word zei-right-gap $r:read-word
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> cmavo-token<ZEI> zei-right-gap $r:read-word
 %emits
   $
 
 %rule zei-right-gap
-  $g:word-gap
-%conditions
-  Punctuation-Material ⊈ $g.tags
+  word-gap<¬Punctuation-Material>
 
-%rule zei-left-gap
-  $g:compound-gap
-%conditions
-  Punctuation-Material ⊈ $g.tags
-
-%rule zei-suppressed-gap
-  $g:suppressed-gap
-%conditions
-  Punctuation-Material ⊈ $g.tags
-
-%rule zei-word
-  $q:cmavo-token
-%conditions
-  ZEI ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>compound-gap</code> to <code>zei-right-gap</code></summary>
 <p><img src="../../docs/diagrams/words/stream/compound-gap.svg" alt="Railroad diagram of the rule compound-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/suppressed-gap.svg" alt="Railroad diagram of the rule suppressed-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
-<p><img src="../../docs/diagrams/words/stream/bu-word.svg" alt="Railroad diagram of the rule bu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-right-gap.svg" alt="Railroad diagram of the rule zei-right-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/zei-left-gap.svg" alt="Railroad diagram of the rule zei-left-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/zei-suppressed-gap.svg" alt="Railroad diagram of the rule zei-suppressed-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/zei-word.svg" alt="Railroad diagram of the rule zei-word"></p>
 </details>
 
 
@@ -867,6 +842,8 @@ The survivor has no emission clause, so a standalone survivor forwards only its 
 
 These examples show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
+The SA rules use `cmavo-token<SA>` directly. The `su-word` hook reads SU, with a layer-specific restriction in Zantufa.
+
 The rule `sa-key` refuses an SA key because a run of SA forms one counted erasure. The rule `next-word-class` tests the whole remaining span through `$.following-tokens.tags(next-word-class)`. Its optional `raw-tokens` reads everything after the key, including material after FAhO ([notation, Conditions](../../docs/notation.md#conditions)). The rule reads those tokens without word operations, as quote bodies and the active FAhO suffix do.
 
 ```jbogenbau
@@ -877,8 +854,8 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %erased
 
 %rule sa-nest
-  | $u:sa-open spacing sa-word :: $u.classes
-  | $u:sa-open spacing $n:sa-nest spacing sa-word :: $u.classes ∩ $n.classes
+  | $u:sa-open spacing cmavo-token<SA> :: $u.classes
+  | $u:sa-open spacing $n:sa-nest spacing cmavo-token<SA> :: $u.classes ∩ $n.classes
 %conditions
   $u.classes ≠ ∅,
   $u.classes ∩ $n.classes ≠ ∅
@@ -898,16 +875,11 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %rule next-word-class
   spacing $w:read-word [raw-tokens] :: $w.classes ∪ Has-Word
 
-%rule sa-word
-  $q:cmavo-token
-%conditions
-  SA ⊆ $q.classes
-
 %rule sa-run
-  sa-word | sa-run spacing sa-word
+  cmavo-token<SA> | sa-run spacing cmavo-token<SA>
 
 %rule sa-run-twice
-  sa-word spacing sa-run
+  cmavo-token<SA> spacing sa-run
 
 %rule sa-wiped
   | empty sa-run spacing $k:sa-key
@@ -922,7 +894,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 
 %rule sa-wipe-core
   | $u:sa-open spacing sa-run-twice :: $u.classes
-  | $u:sa-open spacing $n:sa-wipe-core spacing sa-word :: $u.classes ∩ $n.classes
+  | $u:sa-open spacing $n:sa-wipe-core spacing cmavo-token<SA> :: $u.classes ∩ $n.classes
 %conditions
   $u.classes ∩ $n.classes ≠ ∅
 
@@ -948,18 +920,15 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   | su-reach spacing erasure
 
 %rule su-word
-  $q:cmavo-token
-%conditions
-  SU ⊆ $q.classes
+  cmavo-token<SU>
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>sa-erasure</code> to <code>su-word</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>sa-erasure</code> to <code>su-word</code></summary>
 <p><img src="../../docs/diagrams/words/stream/sa-erasure.svg" alt="Railroad diagram of the rule sa-erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-nest.svg" alt="Railroad diagram of the rule sa-nest"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-open.svg" alt="Railroad diagram of the rule sa-open"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-key.svg" alt="Railroad diagram of the rule sa-key"></p>
 <p><img src="../../docs/diagrams/words/stream/next-word-class.svg" alt="Railroad diagram of the rule next-word-class"></p>
-<p><img src="../../docs/diagrams/words/stream/sa-word.svg" alt="Railroad diagram of the rule sa-word"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-run.svg" alt="Railroad diagram of the rule sa-run"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-run-twice.svg" alt="Railroad diagram of the rule sa-run-twice"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-wiped.svg" alt="Railroad diagram of the rule sa-wiped"></p>

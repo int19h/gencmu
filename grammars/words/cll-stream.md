@@ -24,12 +24,12 @@ A name that `bu` takes needs a pause on both sides of it in the source (CLL[^cll
 
 In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run. Thus `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letteral.
 
-A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves `la` and the letteral of `djim`. The rule keeps the shared compound-gap recipes and trailing-pause tests while adding the CLL name condition. A name inside a compound is not the operand: `ladjan. zei mi bu` makes a letteral of the compound. Inside `lo'u ... le'u`, where `bu` does nothing, `lo'u ladjan.bu le'u` is valid.
+A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves `la` and the letteral of `djim`. The rule keeps the shared compound-gap recipes and trailing-pause tests while adding the CLL name condition. Its `cmavo-token<BU>` reader preserves the shared warnings. A name inside a compound is not the operand: `ladjan. zei mi bu` makes a letteral of the compound. Inside `lo'u ... le'u`, where `bu` does nothing, `lo'u ladjan.bu le'u` is valid.
 
 ```jbogenbau
 %redefine-rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
-  | $u:unit<¬Trailing-Pause> compound-gap bu-word
-  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
+  | $u:unit<¬Trailing-Pause> compound-gap cmavo-token<BU>
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap cmavo-token<BU>
 %conditions
   CMEVLA ⊈ $u.tags ∨ Run-Initial ⊆ $u.tags
 %emits

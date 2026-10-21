@@ -74,6 +74,8 @@ Inherited BAhE, UI, CAI, NAI, DAhO, FUhE, and FUhO classes act in the indicator 
 
 A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
 
+The left gaps apply the punctuation tag filter directly to the shared gap readers. The named `zei-right-gap` keeps the right gap free of erasure.
+
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
 The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base.
@@ -86,8 +88,8 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   zehei-word
 
 %rule zehei-compound :: Word ∪ $r.classes ∪ ($r.tags ∩ (Cmavo ∪ Indicator ∪ Y-Letter)) ∪ (Fault ∩ $l.tags)
-  | $l:unit<¬Trailing-Pause> zei-left-gap zehei-word zei-right-gap $r:nonmagic-zehei-right
-  | su-boundary? $l:unit<Trailing-Pause> zei-suppressed-gap zehei-word zei-right-gap $r:nonmagic-zehei-right
+  | $l:unit<¬Trailing-Pause> compound-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap<¬Punctuation-Material> zehei-word zei-right-gap $r:nonmagic-zehei-right
 %emits
   $ := $r.emitted.value :- $.source-text
 
