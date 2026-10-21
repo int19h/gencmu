@@ -1234,7 +1234,7 @@ The [first recorded use](https://github.com/int19h/jbocirvei/blob/8c1579254e73c7
 
 In [2015](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/irc/lojban/2015/2015-04-25.txt#L356-L358), a user asked why NOhOI did not close with `ku'o`. Nobody in that exchange knew a reason. This layer accepts both closers by maintainer decision.
 
-When a NOhOI clause stands inside a NOI clause, a written `ku'o` after NOhOI closes the NOhOI clause. The NOI clause stays open, so words after that closer remain inside it until that clause closes. The pair `ku'oi ku'o` closes both clauses.
+Late elision gives a written `ku'o` to the innermost open NOI or NOhOI clause. When that clause is a NOhOI clause inside a NOI clause, the NOI clause stays open. Words after the `ku'o` then remain inside the NOI clause until it closes. The pair `ku'oi ku'o` closes both clauses.
 
 camxes-exp closes NOhOI only with `ku'oi`. Its `ku'o` closes the surrounding NOI clause, so words after it stand outside that clause. This layer retains late elision for these clauses. The maintainer accepts the resulting departure from camxes-exp.
 
