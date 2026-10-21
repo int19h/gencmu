@@ -406,7 +406,7 @@ A termset closed by written NUhU is not a sumti, and a link that starts with it 
 
 Each term level has its own link rules and sumti conditions. A BO group takes its start tag from its first term and its end tags from the group after BO. Neither `term-link` nor `term-bo-link` carries a rule flag. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
 
-PEhE takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
+PEhE takes any statement connective. `terms-1` forms a left chain in ordinary terms and forethought branches alike. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 
 A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late-elision` prefers it.
 
@@ -512,7 +512,7 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
-  | gek termset-branch gik gek-terms [+NUhU] #
+  | gek termset-branch gik terms [+NUhU] #
   | termset-with-nuhi
 
 %rule gek-termset-body
@@ -520,22 +520,13 @@ These terms carry no span or connection flag. Their contained predicates use the
   gek terms [+NUhU] # gik terms
 
 %rule termset-branch
-  gek-terms [+NUhU] #
-
-%rule gek-terms
-  {gek-terms-1}
-
-%rule gek-terms-1
-  {... gek-terms-2 / PEhE # connective}
-
-%rule gek-terms-2
-  {term / CEhE #}
+  terms [+NUhU] #
 
 %rule termset-with-nuhi
   NUhI # (gek-termset-body ≻ terms) [+NUhU] #
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></p>
@@ -552,9 +543,6 @@ These terms carry no span or connection flag. Their contained predicates use the
 <p><img src="../../docs/diagrams/syntax/experimental/termset.svg" alt="Railroad diagram of the rule termset"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-termset-body.svg" alt="Railroad diagram of the rule gek-termset-body"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-branch.svg" alt="Railroad diagram of the rule termset-branch"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/gek-terms.svg" alt="Railroad diagram of the rule gek-terms"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/gek-terms-1.svg" alt="Railroad diagram of the rule gek-terms-1"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/gek-terms-2.svg" alt="Railroad diagram of the rule gek-terms-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></p>
 </details>
 
