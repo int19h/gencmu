@@ -6380,3 +6380,15 @@ adhoc.experimental.fr4-w2.55
 adhoc.experimental.fr4-w2.56
 adhoc.experimental.fr4-w2.57
 adhoc.experimental.fr4-w2.58
+adhoc.experimental.fr4-jacu.scope-a
+adhoc.experimental.fr4-jacu.shared-a
+adhoc.experimental.fr4-jacu.bo-a
+adhoc.experimental.fr4-jacu.scope-vuhu
+adhoc.experimental.fr4-jacu.shared-vuhu
+adhoc.experimental.fr4-jacu.bo-vuhu
+adhoc.experimental.fr4-jacu.scope-bihi
+adhoc.experimental.fr4-jacu.shared-bihi
+adhoc.experimental.fr4-jacu.bo-bihi
+adhoc.experimental.fr4-jacu.ke-a
+adhoc.experimental.fr4-jacu.ke-ja
+adhoc.experimental.fr4-jacu.changelog-shared-ja

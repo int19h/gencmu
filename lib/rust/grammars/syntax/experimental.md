@@ -1127,9 +1127,25 @@ Where both complete, the ek fragment takes priority over the initial connective.
 
 An initial connective cannot immediately follow a leading free modifier in this layer. Thus `doi djan klama je do cadzu` gives the vocative only `djan`, then reads one connected sentence. In `doi zed jinvi jena morji`, it likewise reads `doi zed` before the connected sentence. camxes-exp rejects both texts. `ui je mi klama` keeps its initial connective because UI is an indicator. `doi djan .i mi klama` keeps its separate statement marker.
 
-The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Plain connections after `.i` and plain bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Connections after `.i` with `bo` group from the right. Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
+Connections between sentences follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Plain connections after `.i` and plain bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Connections after `.i` with `bo` group from the right. Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
-camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
+### Bridi-tail connections
+
+In camxes-exp, [`gihek_1`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L336-L341) gives JA and JOI the GIhA level for bridi-tail connections. A, VUhU and BIhI use a [looser outer loop](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L80-L91) with no shared tail terms. When their gihek reading fails, JA and JOI also use that loop.
+
+The [2014-03-19 changelog entry](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L89) calls JACU Selpa'i's alternative to GIhA. The [2014-10-17 fix](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp-changelog.txt#L124) shows shared tail terms in `brode ja cu brodo vau mi`.
+
+PEG ordering and the incomplete `gihek_1` list produce the looser binding and missing shared terms. These effects do not follow from JACU's JA/JOI replacement for GIhA. This layer gives A, JA, JOI and VUhU CLL's GIhA grouping, shared terms and final-KE boundary, including BIhI intervals through joik.
+
+Scope differs against GIhA. In `mi klama do .e tavla ti gi'a cadzu ko'a`, this layer groups `(klama do .e tavla ti) gi'a cadzu ko'a`. camxes-exp groups `klama do .e (tavla ti gi'a cadzu ko'a)`. The same difference applies with `su'i` or `bi'i` in place of `.e`.
+
+Shared tail terms also differ. This layer accepts `mi klama do .e tavla vau ti` and shares `ti` across both tails. camxes-exp rejects the final `ti` because its outer loop has no shared tail terms.
+
+A connective-owned KE group stands only at a final bridi-tail connection in this layer. Thus `mi klama do .e ke tavla ti ke'e .e cadzu ko'a` rejects at `cadzu`. The JA form `mi klama do je ke tavla ti ke'e je cadzu ko'a` also rejects there. camxes-exp accepts both, using its outer loop even for JA.
+
+BO scope differs too. In `mi klama do .e bo tavla ti gi'a cadzu ko'a`, this layer joins `klama do` to `tavla ti` before GIhA. In camxes-exp, `.e bo` takes the whole `tavla ti gi'a cadzu ko'a` as its right operand.
+
+A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer includes it. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
 camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri. The final plain connection also excludes a whole KE-wrapped forethought sentence to keep that KE on the connective. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
 
