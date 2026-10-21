@@ -21,7 +21,7 @@ As in [stream.md](stream.md), the word `zei` rejects visible punctuation on eith
 
 A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`. The Zantufa lexicon has no word of ZOhOI or MEhOI. So no Zantufa word quotes the rest of a run.
 
-This layer changes only the class sets. The shared marker readers apply.
+For quote markers, this layer only adds classes to the shared class sets. The shared marker rules read these classes.
 
 ```jbogenbau
 %redefine-const $WORD-QUOTE-MARKERS

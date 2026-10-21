@@ -31,15 +31,13 @@ An opaque foreign body contains no such word reads. Thus ZOI bodies, including `
 
 GOhOI quotes the same targets as ZO and makes a predicate unit. `ta'ai` describes word shape, `go'oi` repeats a bridi, and `ze'oi` describes meaning.
 
-The marker rule shares ZO's word reader and standalone material targets. MUhOI shares ZOI's delimiters and raw body, including an empty body.
+GOhOI uses ZO's marker rule, with its word reader and standalone material targets. MUhOI uses ZOI's marker rule, with its delimiters and raw body, including an empty body.
 
 DOhOI quotes one raw run as a listener's name. Its body follows the same boundaries as ZOhOI and MEhOI.
 
 Each completed quotation is one opaque unit. Later erasers and joiners act on the whole quotation, and indicators mark it as a whole.
 
 `$MAGIC-WORDS` excludes these openers and the global eraser from ordinary words. A missing quote target rejects instead of becoming a plain word.
-
-This layer changes only the class sets. The shared marker readers apply.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS

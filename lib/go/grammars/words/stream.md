@@ -730,7 +730,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each dialect one place to name its constructors.
 
-BU, ZEI and SA read `cmavo-token` with a class filter. So the warnings of `cmavo-token` apply to them.
+BU, ZEI and SA read `cmavo-token` with a tag test. So the warnings of `cmavo-token` apply to them.
 
 BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 
