@@ -4,7 +4,7 @@ You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [
 
 A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
-This example adds a word class and changes syntax. It retains the inherited phoneme, normalization, word, and indicator policies.
+This example adds a word class and changes syntax. It retains the inherited phoneme, word, and indicator policies.
 
 ## Before you start
 
@@ -51,9 +51,9 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A stage is one step of a parse. A pipeline is an ordered sequence of stages. A phoneme is one speech sound.
 
-   The pipeline reads phonemes, normalizes values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
+   The pipeline maps phoneme values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
 
-   The included dialect creates all six stages. `%extend-stage` selects an existing stage and preserves its position.
+   The included dialect creates all five stages. `%extend-stage` selects an existing stage and preserves its position.
 
 2. Add the word class in the forms stage.
 
@@ -97,14 +97,6 @@ Use example filenames that do not clash with your own files. The commands below 
    3  "e"   "e"    "e"    3-4   3-4
    4  "i"   "i"    "i"    4-5   4-5
 
-   normalize: 5 tokens, unique
-   #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1
-   1  "i"   "i"    "i"    1-2   1-2
-   2  "'"   "'"    "'"    2-3   2-3
-   3  "e"   "e"    "e"    3-4   3-4
-   4  "i"   "i"    "i"    4-5   4-5
-
    forms: 1 tokens, unique
    #  text     value    image    span  source  tags
    0  "ki'ei"  "ki'ei"  "ki'ei"  0-5   0-5     Cmavo Continued KIhEI Onset Run-Final Run-Initial Word
@@ -129,13 +121,13 @@ Use example filenames that do not clash with your own files. The commands below 
      utterance-sequence [{frame-group}] | {frame-group}
 
    %rule utterance-sequence
-     (statement | fragment) [{I # [statement | fragment]}]
+     (statement | fragment) [{I 🆓 [statement | fragment]}]
 
    %rule frame-group
-     frame [I # [utterance-sequence]]
+     frame [I 🆓 [utterance-sequence]]
 
    %rule frame
-     KIhEI # [terms]
+     KIhEI 🆓 [terms]
    ```
    EOF
    ````
@@ -144,7 +136,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `%rule` defines each additional rule. `KIhEI` matches the additional word class, and `[terms]` accepts zero or more CLL terms.
 
-   A free modifier adds information at permitted grammar positions. `#` reads optional free modifiers. `I` matches `.i`.
+   A free modifier adds information at permitted grammar positions. `🆓` reads optional free modifiers. `I` matches `.i`.
 
    The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
 
@@ -432,19 +424,26 @@ An `%extend-rule` takes its own header clauses, never those of the base definiti
 
 ```jbogenbau
 %extend-rule stressed-vowel
-  | "A" $_0301 :: Stressed := "A"
+  | "A" $_0301 :: Stressed := "a" :- "A"
 %emits
 ```
 
-The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, normalization forwards `A` unchanged, and forms cannot read it.
+The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, later stages read the vowel as unstressed. Make sure that phoneme fixtures cover both the tag and the image.
 
 A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
 
-## Normalize through grammar
+The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
 
-The inherited pipeline defines `normalize` after phonemes and before forms. Use `%redefine-stage normalize` to replace it, or `%stage normalize` in an independent pipeline.
+A syllable comma uses this covering emission in the phoneme stage:
 
-Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings. [Engine §1](engine.md#1-tokens) defines stage-zero decomposition and token fields.
+```jbogenbau
+%rule syllable-break
+  {","}
+%emits
+  $ :: Syllable-Break := "" :- ","
+```
+
+The token retains the comma run as its text and source. Its empty value does not erase it. The forms stage receives phoneme values directly, without a `normalize` stage.
 
 ## Place recipes for parents
 

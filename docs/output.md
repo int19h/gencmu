@@ -18,7 +18,7 @@ Libraries write object keys in the order that this document gives. They write no
 {"format":14,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 14. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 14. Parameterized rules change rule-name strings, without changing this result schema. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -64,6 +64,10 @@ A node has one of these forms:
 {"kind":"token","terminal":"KOhA","token":0,"span":[0,1],"source":[0,2]}
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
 ```
+
+A rule name is an output string, rather than an ASCII identifier. It can contain an emoji or a canonical call with punctuation, quotes, and spaces. Named instances use their public name without an extra node. Nodes, `insertedBy`, warnings, expected rules, and witness actions all use that same effective name. Engine §2.3 defines instance identity and canonical names.
+
+The bundled Lojban stage list is `phonemes`, `forms`, `words`, `indicators`, and `syntax`. It contains no `normalize` entry. Phoneme tokens already carry plain vowel values. A stressed vowel carries `Stressed`, while its image keeps visible stress. A syllable comma carries empty value and image `,`.
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
@@ -174,17 +178,17 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":34,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":35,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 34 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 35 supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 34 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 35 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-DOM format 34 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+DOM format 35 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 34 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":34,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 35 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":35,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -199,7 +203,46 @@ A rule has this form, in canonical member order:
 
 `flags` is `[]`, `["leftmost-longest"]` or `["fewest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
-`alternatives` is nonempty. A rule name is lowercase or `#`.
+`alternatives` is nonempty on body definitions. A rule name is lowercase or one eligible emoji scalar (engine §9.1).
+
+A template body definition adds `"params":["Left","Right"]` immediately after `name`. The names exclude `@` and obey engine §2.3. A template has at least one distinct formal. Its other fields follow the ordinary rule schema.
+
+An exact instance edit uses `"name":"pair","args":[ARG,ARG...]` instead of `params`. Its `op` is `redefine` or `extend`. A public-name edit uses the ordinary rule shape and resolves to that instance during stitching. Parameters and concrete arguments cannot mix in a head.
+
+A named binding has exactly this shape:
+
+```json
+{"name":"named-pair","op":"define","flags":[],"instance":{"call":"pair","args":[{"string":"a"},{"string":"b"}],"at":[1,20]},"conditions":[],"at":[1,1]}
+```
+
+Its `op` can also be `redefine`, under engine §2.3. It has no `alternatives`, clauses, emission, or `erased`. Its flags and conditions must be empty. The `instance` member follows `flags` in canonical order. This object records a binding, without adding a runtime wrapper node.
+
+A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching formal name.
+
+ARG has one of these forms:
+
+```text
+TERM
+{"rule":"unit"}
+{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
+{"param":"Left","at":[line,column]}
+{"range":[STRINGTERM,STRINGTERM]}
+{"wildcard":true}
+TESTED-SYMBOL
+{"body":EXPR}
+{"targets":[TARGET,TARGET...]}
+{"requirements":[REQUIREMENT...]}
+```
+
+Common atoms retain their term forms. A parenthesized body argument, optional, or repetition uses `body`. A tested-symbol argument retains its ordinary expression schema. Bare `ε` uses `body:{"empty":true}`. The body wrapper preserves the argument category and adds no runtime node. Inner ordinary parentheses add no DOM node.
+
+A target-choice argument has at least two targets. Each TARGET is a `rule`, user `terminal`, `call`, or `param`. Requirement lists retain signed requirement records and can be empty. Neither list is a tag set. Captures and capture methods are invalid anywhere inside ARG.
+
+Calls and parameters can occupy expression, term, pattern, and method-argument positions that engine §2.3 permits. Parameters can also occupy STRINGTERM and a requirement's `value` before expansion. A bare rule argument converts to the constructor required by its use. A call remains an instance reference. A body argument supplies its EXPR. A sole symbol remains legal in a symbol position. A target choice supplies a body choice or splices into query targets.
+
+A requirement-list argument splices only into an unnegated requirement placeholder. Its entries replace that placeholder in written order. A list under a negated placeholder is an error. No other argument category splices. Ordinary validation applies to the substituted result.
+
+These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is present even when empty. A guard is `{"feature":"cbm","kind":"gate","negated":false}` or `{"feature":"y-cmavo","kind":"warning","negated":false}`. A gate can have `negated:true`. A warning cannot.
 
@@ -219,23 +262,25 @@ An expression has exactly one of these forms:
 {"test":"=","value":STRINGTERM,"expr":TESTTARGET}
 {"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET}
 {"empty":true}
+{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
+{"param":"Left","at":[line,column]}
 ```
 
-An expression has no member but those of its one form.
+An expression has no member but those of its one form, including template forms above.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
 `repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A list counts one or more items, and an optional list is an `optional`.
 
-A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
+A `ref` stores a rule or tag name, including `🆓` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member.
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU 🆓]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`. A plain optional has no `elidable` member.
 
-`BASETARGET` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET, its legal tested form, or an untested `ref:"#"`.
+`BASETARGET` is a `ref`, `call`, `literal`, `wildcard`, or `range`. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET or its legal tested form.
 
 Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside repeats or elidable optionals. Each expanded production binds a name at most once.
 
-A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`, where TERM is a tag literal or tag-set constant. A negative requirement has `negated:true`.
+A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`. Its value is a tag literal, tag-set constant, or declared parameter before expansion. A negative requirement has `negated:true`.
 
 The requirement array can be empty. An empty constant also resolves to no requirements. A tag test wraps only a BASETARGET. A value test wraps a BASETARGET or its tag test. Both tests must hold. Repeated test kinds and reversed nesting are malformed.
 
@@ -245,16 +290,16 @@ For example, `_<Stressed>≠"y"` converts to this nested expression:
 {"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true}}}
 ```
 
-The pattern value `@A<B>=""` converts as follows. Its leaf uses `terminal` and records its source position. Both tests observe that same leaf.
+The pattern value `#A<B>=""` converts as follows. Its leaf uses `terminal` and records its source position. Both tests observe that same leaf.
 
 ```json
 {"pattern":{"test":"=","value":{"string":""},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"B"}}],"expr":{"terminal":"A","at":[1,2]}}}}
 ```
 
-A capture of `#` instead converts as follows:
+A capture of `🆓` instead converts as follows:
 
 ```json
-{"capture":"f","expr":{"ref":"#"}}
+{"capture":"f","expr":{"ref":"🆓"}}
 ```
 
 The first symbol of an elidable optional is an ordinary tag `ref`, optionally tested. Its expression is that symbol or a sequence starting with it. Engine tags, strings, ranges, wildcard, captures, and grouped heads are invalid. Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
@@ -282,23 +327,23 @@ For example, `A ∪ (B ∪ C)` gives this term:
 {"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}
 ```
 
-`STRINGTERM` is `string` or string-valued `const`. A written string literal uses `string`, with dollar signs unchanged. Engine constants retain their `_` names and reference positions like user constants.
+`STRINGTERM` is `string`, string-valued `const`, or a declared `param` before expansion. A written string literal uses `string`, with dollar signs unchanged. Engine constants retain their `_` names and reference positions like user constants.
 
 `concat` joins string terms in written order. Outside a recipe root, its array contains at least two operands. The reader flattens nested concatenations, including grouped operands. It preserves empty operands and does not merge literals or resolve constants. Supplied DOMs can retain nested `concat` terms.
 
 Engine constants resolve directly as scalar strings outside the user constant version graph (engine §2).
 
-`const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
+`const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form, including template forms above. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
+Rule arguments use `{"rule":"r"}`, including `{"rule":"🆓"}`, or an unresolved call. `.tags` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal in their method's argument position and as compile-time ARG values. String arguments are terms. A classifier name starts with a lowercase letter, so `🆓` cannot name a classifier.
 
-`.matches`, `.begins`, `.followed-by`, and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice.
+`.matches`, `.begins`, `.ends`, `.followed-by`, and `.preceded-by` take one or more arguments, each `{"rule":"r"}`, `{"terminal":"T"}`, or a call, in written order. Two or more arguments form a choice.
 
-Repeated targets are accepted in source and supplied DOM, and change nothing. `terminal` names only a user tag, never an engine tag. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All four methods share this restriction.
+Repeated targets are accepted in source and supplied DOM, and change nothing. `terminal` names only a user tag, never an engine tag. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All five methods share this restriction.
 
-Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept any span.
+Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept captures or spans, including restored spans. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
@@ -320,13 +365,13 @@ For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
 
 The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
-A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
+A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, declared `param` before expansion, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
 ```json
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
 ```
 
-Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. Its array contains only recipe atoms. General terms also use `concat` for `++` in conditions and constants. DOM format 34 rejects the `interpolate` node.
+Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. Its array contains only recipe atoms. General terms also use `concat` for `++` in conditions and constants. DOM format 35 rejects the `interpolate` node.
 
 Conditions have these forms:
 
@@ -334,6 +379,7 @@ Conditions have these forms:
 {"op":"=","left":TERM,"right":TERM}
 {"method":"matches","receiver":SPAN,"args":[TARGET,TARGET...]}
 {"method":"begins","receiver":SPAN,"args":[TARGET,TARGET...]}
+{"method":"ends","receiver":SPAN,"args":[TARGET,TARGET...]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
 {"method":"ends-input","receiver":SPAN,"args":[]}
 {"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
@@ -392,6 +438,8 @@ PATTERN has exactly one of these forms:
 
 ```text
 {"name":"sumti","at":[line,column]}
+{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
+{"param":"Left","at":[line,column]}
 {"terminal":"KEhE","at":[line,column]}
 {"literal":STRINGTERM,"at":[line,column]}
 {"range":[STRINGTERM,STRINGTERM],"at":[line,column]}
@@ -419,11 +467,11 @@ CHILDREN has exactly one of these forms:
 {"siblings":true}
 ```
 
-A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including `#`, use `name`. A tag test can wrap a terminal atom, and a value test can wrap that tag test. The source order is tag then value.
+A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`. A bare template name tests its family. A call tests one instance. A tag test can wrap a terminal atom, and a value test can wrap that tag test. The source order is tag then value.
 
 User constant atoms use `constant` until binding through the version graph of engine §2. A string constant denotes a string terminal, while a pattern constant denotes its predicate. Binding does not change the cached DOM.
 
-Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both positions name the constant token. `@$_0061` has this complete DOM:
+Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both positions name the constant token. `#$_0061` has this complete DOM:
 
 ```json
 {"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
@@ -431,11 +479,11 @@ Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both po
 
 Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the `at` of its `constant` reference.
 
-At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
+At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `#(A (B C))` has three children, while `#(A #(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 
 Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
 
-Any union operand that is itself a union flattens into its enclosing union. For example, `@(A ∪ (B ∪ C))` gives this complete DOM:
+Any union operand that is itself a union flattens into its enclosing union. For example, `#(A ∪ (B ∪ C))` gives this complete DOM:
 
 ```json
 {"pattern":{"union":[{"terminal":"A","at":[1,3]},{"terminal":"B","at":[1,8]},{"terminal":"C","at":[1,12]}]}}
@@ -462,17 +510,17 @@ Equality-tested elided tree nodes expose that saved `value`, including an explic
 
 A ranked expression is `{"ranked":[EXPR,EXPR...]}`. Its array has at least two ordinary expressions and preserves source order. A nested ranked expression retains its own boundary. Ordinary alternatives within one option use `choice`.
 
-For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
+For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 
 ```json
-{"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
+{"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"🆓"}]},{"seq":[{"ref":"SE"},{"ref":"🆓"},{"ref":"tanru-unit-1"}]}]}
 ```
 
 The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":34,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":35,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 
