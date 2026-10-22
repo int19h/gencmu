@@ -2408,6 +2408,7 @@ mod tests {
                 constants: Vec::new(),
                 classifiers: Vec::new(),
                 implications: Vec::new(),
+                ..Dom::default()
             };
             stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], &unicode).expect("a grammar")
         }
@@ -2479,6 +2480,7 @@ mod tests {
             constants: Vec::new(),
             classifiers: Vec::new(),
             implications: Vec::new(),
+            ..Dom::default()
         };
         let grammar = stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], unicode).expect("a grammar");
         let lowered = lower(&grammar, &BTreeSet::new(), Arc::default()).expect("lowered");

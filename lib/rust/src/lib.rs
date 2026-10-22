@@ -60,6 +60,7 @@ mod markdown;
 mod nat;
 mod notation;
 mod output;
+mod parameters;
 mod patterns;
 mod pipeline;
 mod rank;

@@ -395,7 +395,10 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
-    for (single, at) in singles {
+    for (mut single, at) in singles {
+        if let Some(raw) = dom.unresolved.get(&at) {
+            single.unresolved.insert(at, raw.clone());
+        }
         if let Some(problem) = problem_of(&single) {
             return Err(grammar_error(problem).at(at.0, at.1));
         }
@@ -1114,6 +1117,43 @@ mod classifier_constant_errors {
             };
             assert!(error.message.contains(&format!("{key} is not defined")), "{error}");
             assert_eq!((error.line, error.column), (Some(3), Some(column)));
+        }
+    }
+}
+
+#[cfg(test)]
+mod parameter_cache_tests {
+    use super::*;
+    #[test]
+    fn parameter_cache_validates_source_and_accepts_normalized_arguments() {
+        use crate::parameters::{get, list, obj, position, set, string};
+        let base = Context::bundled().unwrap();
+        let text = "```jbogenbau\n%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text = atom(\"a\")\n```\n";
+        let source = read_document(&base.notation, text).unwrap();
+        let original = dom_to_json(&source);
+        for valid in [true, false] {
+            let mut raw = json::parse(&original).unwrap();
+            let mut rules = list(get(&raw, "rules")).to_vec();
+            if valid {
+                let mut call = get(&rules[1], "instance").clone();
+                set(&mut call, "args", json::parse(r#"[{"body":{"literal":{"string":"a"}}}]"#).unwrap());
+                set(&mut rules[1], "instance", call);
+            } else {
+                let mut alts = list(get(&rules[0], "alternatives")).to_vec();
+                set(&mut alts[0], "expr", obj([("param", string("Other")), ("at", position((3, 16)))]));
+                set(&mut rules[0], "alternatives", Json::Arr(alts));
+            }
+            set(&mut raw, "rules", Json::Arr(rules));
+            let mut compiled = Compiled::default();
+            compiled.by_path.insert("g.md".into(), (fnv1a64(text), Arc::new(raw.clone())));
+            let notation = if valid {
+                Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
+            } else {
+                base.notation.clone()
+            };
+            let context = Context { unicode: base.unicode.clone(), notation, compiled };
+            let d = context.document("g.md", text, false).unwrap();
+            assert_eq!(dom_to_json(&d), if valid { raw.to_json() } else { original.clone() });
         }
     }
 }

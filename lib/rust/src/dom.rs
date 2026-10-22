@@ -2,9 +2,13 @@
 //! produces, what `bootstrap.json` and `compiled.json` hold, and what
 //! stitching and lowering read.
 
-mod schema;
+pub(crate) mod schema;
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
-    schema::problem(dom, unicode)
+    if crate::parameters::unresolved(dom) {
+        crate::parameters::problem(dom, unicode)
+    } else {
+        schema::problem(dom, unicode)
+    }
 }
 
 use crate::fxhash::FxSet;
@@ -22,6 +26,7 @@ pub(crate) struct Dom {
     pub constants: Vec<ConstDef>,
     pub classifiers: Vec<ClassifierDef>,
     pub implications: Vec<ImplicationDef>,
+    pub unresolved: std::collections::BTreeMap<(usize, usize), Json>,
 }
 
 /// A `%classifier NAME` item (engine §2): its name, which begins with `a`
@@ -314,9 +319,15 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
     dom_from_json_mode(value, unicode, false)
 }
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
+    if crate::parameters::unresolved(value) {
+        return crate::parameters::decode(value, unicode, defer);
+    }
     if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
+    decode_checked(value, unicode, defer)
+}
+pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
     let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
@@ -393,7 +404,7 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
             }
         }
     }
-    Ok(Dom { rules, directives, constants, classifiers, implications })
+    Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
 }
 
 pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
@@ -918,12 +929,20 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
+        if let Some(raw) = dom.unresolved.get(&rule.at) {
+            out.push_str(&crate::parameters::clean(raw).to_json());
+            continue;
+        }
         write_rule(&mut out, rule);
     }
     out.push_str("],\"directives\":[");
     for (index, directive) in dom.directives.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&directive.at) {
+            out.push_str(&crate::parameters::clean(raw).to_json());
+            continue;
         }
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
@@ -951,6 +970,10 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     for (index, constant) in dom.constants.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&constant.at) {
+            out.push_str(&crate::parameters::clean(raw).to_json());
+            continue;
         }
         out.push_str("{\"name\":");
         write_str(&mut out, &constant.name);
@@ -995,6 +1018,10 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     for (index, implication) in dom.implications.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&implication.at) {
+            out.push_str(&crate::parameters::clean(raw).to_json());
+            continue;
         }
         out.push_str("{\"if\":");
         write_term(&mut out, &implication.antecedent);

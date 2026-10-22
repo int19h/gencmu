@@ -92,6 +92,8 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    #[allow(dead_code)] // Retained for native audit consumers.
+    pub parameters: crate::parameters::expand::Records,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -217,6 +219,8 @@ pub(crate) fn stitch(
     documents: &[(Arc<str>, Arc<Dom>)],
     unicode: &Unicode,
 ) -> Result<StageGrammar, Error> {
+    let expansion = crate::parameters::expand(documents, unicode)?;
+    let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
     let mut grammar = StageGrammar {
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
@@ -229,6 +233,7 @@ pub(crate) fn stitch(
         classifiers: Vec::new(),
         features: Vec::new(),
         implications: Arc::from(Vec::new()),
+        parameters: expansion.as_ref().map_or_else(Default::default, |x| x.records.clone()),
     };
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
@@ -416,6 +421,12 @@ pub(crate) fn stitch(
                 }
             }
         }
+    }
+    if let Some(expanded) = &expansion {
+        users.extend(expanded.validation.iter().map(|(path, rule)| (path, rule)));
+        let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
+        grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
+        grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
     constants.resolve(&mut grammar, &users, &mut deferred)?;
     constants.evaluate_tests(&mut grammar)?;
@@ -1901,6 +1912,7 @@ mod tests {
                 }],
                 classifiers: Vec::new(),
                 implications: Vec::new(),
+                ..Dom::default()
             };
             vec![(Arc::<str>::from("d.md"), Arc::new(dom))]
         };
@@ -1944,6 +1956,7 @@ mod tests {
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
+                parameters: Default::default(),
             }
         };
         let grammars = [grammar(20_000), grammar(80_000)];

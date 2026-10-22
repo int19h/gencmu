@@ -9,6 +9,7 @@ use crate::error::Error;
 use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
+mod parameters;
 
 pub(crate) struct Reader<'a> {
     pub unicode: &'a crate::unicode::Unicode,
@@ -151,6 +152,28 @@ impl<'a> Reader<'a> {
         let mut dom = Dom::default();
         for node in Self::parts(root) {
             if node.kind != NodeKind::Rule {
+                continue;
+            }
+            if parameters::syntax(node) {
+                let raw = self.parameter_declaration(node)?;
+                let kind = match rule_name(node) {
+                    "rule" => "rules",
+                    "directive" => "directives",
+                    "constant-definition" => "constants",
+                    "implication-declaration" => "implications",
+                    _ => "classifiers",
+                };
+                let scope = crate::parameters::list(crate::parameters::get(&raw, "params"));
+                if let Some(parameter) =
+                    crate::parameters::nodes(&raw).find(|n| n.get("param").is_some_and(|p| !scope.contains(p)))
+                {
+                    let at = crate::parameters::at(parameter).unwrap_or(self.at(node));
+                    return Err(Error::grammar("an undeclared or malformed parameter").at(at.0, at.1));
+                }
+                if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
+                    return Err(self.error(node, problem));
+                }
+                crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
                 continue;
             }
             match rule_name(node) {
@@ -2423,6 +2446,13 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
 const KNOWN: &[&str] = &[
+    "call",
+    "parameter",
+    "call-argument",
+    "requirement-argument",
+    "target-argument",
+    "body-argument",
+    "symbol-argument",
     "headed-body",
     "string-terminal",
     "wildcard",
@@ -2526,6 +2556,8 @@ const KNOWN: &[&str] = &[
 /// What a primary, a condition, a term and a term atom hold: the one rule
 /// among their parts is one of these (engine §9).
 const PRIMARIES: &[&str] = &[
+    "call",
+    "parameter",
     "string-terminal",
     "wildcard",
     "reference",
@@ -2542,6 +2574,8 @@ const PRIMARIES: &[&str] = &[
 const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
+    "call",
+    "parameter",
     "method",
     "tag-run",
     "string-run",

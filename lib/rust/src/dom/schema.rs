@@ -3,7 +3,7 @@
 use super::*;
 
 #[derive(Clone, Copy)]
-enum Part {
+pub(crate) enum Part {
     Expr { whole: bool, sealed: bool },
     Term,
     RecipeAtom,
@@ -29,7 +29,7 @@ fn scalar_name(name: &str) -> bool {
     })
 }
 
-pub(super) fn engine_tag(name: &str) -> bool {
+pub(crate) fn engine_tag(name: &str) -> bool {
     name.strip_prefix('_').is_some_and(|name| name != "Any" && is_property_name(name))
 }
 
@@ -145,7 +145,7 @@ fn pattern_base(value: &Json) -> bool {
         || exact(value, &["wildcard", "at"], &[]) && is_true(value.get("wildcard"))
 }
 
-pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
+pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Some("not a DOM of this format");
     }
@@ -350,6 +350,66 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
+    if let Some(problem) = parts_problem(pending, unicode) {
+        return Some(problem);
+    }
+    for item in dom.get("rules").and_then(Json::as_array).unwrap() {
+        let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
+        if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
+            return Some("a production captures a name twice");
+        }
+        if rule_type_problem(&rule).is_some() {
+            return Some("a term or a condition whose types do not agree");
+        }
+        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
+            if crate::notation::reads_own_tags(term) {
+                return Some("a tag clause reads its own tags");
+            }
+        }
+        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())).chain(
+            rule.emit.iter().flatten().filter_map(|item| match item {
+                EmitItem::Capture(_, tags, _) | EmitItem::Insert(tags, _) => tags.as_ref(),
+            }),
+        ) {
+            if !engine_literals(term).is_empty() {
+                return Some("a tag clause introduces an engine tag");
+            }
+        }
+    }
+    for definition in dom.get("constants").and_then(Json::as_array).unwrap() {
+        let Ok(term) = term_from_json(definition.get("value").unwrap()) else {
+            return Some("a malformed constant value");
+        };
+        if !closed(&term)
+            || any_engine_literal(&term)
+            || constant_value_type(&term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
+                Type::Any
+            })
+            .is_err()
+        {
+            return Some("an invalid closed constant value");
+        }
+    }
+    for implication in dom.get("implications").and_then(Json::as_array).unwrap() {
+        for key in ["if", "then"] {
+            let Ok(term) = term_from_json(implication.get(key).unwrap()) else {
+                return Some("a malformed implication side");
+            };
+            if !closed(&term)
+                || any_engine_literal(&term)
+                || term_type(&term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
+            {
+                return Some("an invalid implication side");
+            }
+        }
+    }
+    let _ = unicode;
+    None
+}
+
+pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode) -> Option<&'static str> {
+    let rule =
+        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
             return Some("nested too deeply");
@@ -751,57 +811,6 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    for item in dom.get("rules").and_then(Json::as_array).unwrap() {
-        let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
-        if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
-            return Some("a production captures a name twice");
-        }
-        if rule_type_problem(&rule).is_some() {
-            return Some("a term or a condition whose types do not agree");
-        }
-        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
-            if crate::notation::reads_own_tags(term) {
-                return Some("a tag clause reads its own tags");
-            }
-        }
-        for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())).chain(
-            rule.emit.iter().flatten().filter_map(|item| match item {
-                EmitItem::Capture(_, tags, _) | EmitItem::Insert(tags, _) => tags.as_ref(),
-            }),
-        ) {
-            if !engine_literals(term).is_empty() {
-                return Some("a tag clause introduces an engine tag");
-            }
-        }
-    }
-    for definition in dom.get("constants").and_then(Json::as_array).unwrap() {
-        let Ok(term) = term_from_json(definition.get("value").unwrap()) else {
-            return Some("a malformed constant value");
-        };
-        if !closed(&term)
-            || any_engine_literal(&term)
-            || constant_value_type(&term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
-                Type::Any
-            })
-            .is_err()
-        {
-            return Some("an invalid closed constant value");
-        }
-    }
-    for implication in dom.get("implications").and_then(Json::as_array).unwrap() {
-        for key in ["if", "then"] {
-            let Ok(term) = term_from_json(implication.get(key).unwrap()) else {
-                return Some("a malformed implication side");
-            };
-            if !closed(&term)
-                || any_engine_literal(&term)
-                || term_type(&term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
-            {
-                return Some("an invalid implication side");
-            }
-        }
-    }
-    let _ = unicode;
     None
 }
 

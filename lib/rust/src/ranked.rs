@@ -616,6 +616,9 @@ pub(crate) fn restore_locations(
     tokens: &[crate::result::Token],
     position: &dyn Fn(usize) -> (usize, usize),
 ) {
+    if crate::parameters::locations::recover(dom, tokens, position) {
+        return;
+    }
     let separators: Vec<_> =
         tokens.iter().filter(|token| token.value == "≻").map(|token| position(token.source.start)).collect();
     let mut index = 0;
