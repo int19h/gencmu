@@ -569,7 +569,7 @@ fn node_step<'a>(
         _ => return Some("an unknown source category"),
     };
     if !forms.iter().any(|k| has(n, k)) {
-        return Some("a malformed source category");
+        return Some(if kind == "term" { "a malformed term" } else { "a malformed source category" });
     }
     if !unresolved(n) {
         let part = match kind {
