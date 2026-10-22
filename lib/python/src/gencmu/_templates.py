@@ -71,7 +71,10 @@ def canonical_argument(n, unicode):
     if "method" in n:
         separator = ' | ' if n["method"] in ("matches", "begins", "ends", "followed-by", "preceded-by") else ', '
         args = '(' + separator.join(map(p, n["args"])) + ')' if n["args"] else ''
-        return p(n["receiver"]) + '.' + n["method"] + args
+        receiver = p(n['receiver'])
+        if any(k in n['receiver'] for k in ('concat', 'union', 'intersection', 'difference')):
+            receiver = '(' + receiver + ')'
+        return receiver + '.' + n["method"] + args
     if "capture" in n:
         return '$' + n["capture"]
     if "if" in n:

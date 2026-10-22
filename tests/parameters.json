@@ -950,5 +950,23 @@
     "expect": {
       "error": "grammar"
     }
+  },
+  {
+    "name": "canonical names group a compound method receiver",
+    "grammar": "%rule ignore(@X) \"a\"\n%rule text ignore((\"a\" ++ \"b\").split(\",\"))",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true,
+        "tree": {
+          "rule": "text",
+          "children": [
+            {
+              "rule": "ignore((\"a\" ++ \"b\").split(\",\"))"
+            }
+          ]
+        }
+      }
+    }
   }
 ]
