@@ -43,7 +43,7 @@ func TestParameters(t *testing.T) {
 	if err = json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 117 {
+	if len(cases) != 274 {
 		t.Fatalf("got %d shared cases", len(cases))
 	}
 	for _, c := range cases {
@@ -446,6 +446,8 @@ func TestParameterSharedStructure(t *testing.T) {
 	}
 	var cases []struct {
 		Name, Grammar string
+		CacheFallback bool
+		Input         string
 		DOM           json.RawMessage
 		Argument      any
 		Order         []string
@@ -460,6 +462,27 @@ func TestParameterSharedStructure(t *testing.T) {
 			raw := c.DOM
 			if len(raw) == 0 {
 				raw = parameterRead(t, c.Grammar).json()
+			}
+			if c.CacheFallback {
+				if _, err := decodeDOM(raw, bundled.uni); err == nil {
+					t.Fatal("malformed DOM accepted")
+				}
+				source := "```jbogenbau\n" + c.Grammar + "\n```"
+				value, e := templateFromJSON(raw)
+				if e != nil {
+					t.Fatal(e)
+				}
+				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "documents": templateObject{"g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
+				sources := map[string]string{"g.md": source, "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "compiled.json": string(templateJSON(cache))}
+				dialect, err := LoadDialectSources(sources, "p.md")
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err := dialect.Parse(c.Input, ParseOptions{})
+				if err != nil || !result.OK {
+					t.Fatalf("cache fallback: %v, %v", err, result)
+				}
+				return
 			}
 			dom, err := decodeDOM(raw, bundled.uni)
 			if err != nil {

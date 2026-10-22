@@ -76,30 +76,34 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         return "unknown method name"
     if not isinstance(receiver, dict) or not isinstance(args, list):
         return "a malformed method"
-    bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str)
+    from ._template_nodes import has_unresolved
+    bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str) or bool({"param", "call"} & receiver.keys())
     receiver_method = receiver.get("method")
     span = bare or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
 
     def named(arg, key):
         return isinstance(arg, dict) and set(arg) == {key} and isinstance(arg[key], str)
 
+    def rule(arg):
+        return named(arg, "rule") or isinstance(arg, dict) and bool({"param", "call"} & arg.keys())
+
     def term(arg):
-        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal"} & arg.keys())
+        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal", "integer"} & arg.keys())
 
     if name == "ngrams":
         valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
     elif name == "split":
-        valid = len(args) == 1 and term(args[0])
+        valid = len(args) == 1 and term(args[0]) and not (has_unresolved([receiver, args]) and args[0].get("string") == "")
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = span and (not args or len(args) == 1 and named(args[0], "rule"))
+        valid = span and (not args or len(args) == 1 and rule(args[0]))
     elif name in ("matches", "begins"):
-        valid = span and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
+        valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
-        valid = bare and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
+        valid = bare and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
-        valid = bare and len(args) == 1 and named(args[0], "rule")
+        valid = bare and len(args) == 1 and rule(args[0])
     elif name == "without-elision":
         valid = bare and not args
     elif name in ("verbatim-text", "emitted"):

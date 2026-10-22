@@ -1137,5 +1137,1170 @@
     "expect": {
       "error": "grammar"
     }
+  },
+  {
+    "name": "uncalled template: first-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.first-token(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: first-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.first-token(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: first-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.first-token(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: tokens-after-first fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tokens-after-first(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: tokens-after-first fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tokens-after-first(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: tokens-after-first fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tokens-after-first(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: last-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.last-token(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: last-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.last-token(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: last-token fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.last-token(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: onward fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.onward(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: onward fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.onward(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: onward fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.onward(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: following-tokens fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.following-tokens(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: following-tokens fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.following-tokens(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: following-tokens fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.following-tokens(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: without-elision fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: without-elision fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: without-elision fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: without-elision-except fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(1, 2) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: without-elision-except fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(1, 2) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: without-elision-except fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(1, 2) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: matches fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: matches fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: matches fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: begins fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: begins fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: begins fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: starts-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.starts-input(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: starts-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.starts-input(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: starts-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.starts-input(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ends-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ends-input(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ends-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ends-input(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ends-input fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ends-input(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: followed-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: followed-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: followed-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: preceded-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.preceded-by\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: preceded-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.preceded-by\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: preceded-by fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.preceded-by\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: value fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.value(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: value fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.value(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: value fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.value(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: image fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.image(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: image fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.image(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: image fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.image(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.source-text(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.source-text(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.source-text(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: decomposed-source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.decomposed-source-text(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: decomposed-source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.decomposed-source-text(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: decomposed-source-text fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.decomposed-source-text(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: tags fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: tags fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: tags fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(a, b) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: classes fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classes(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: classes fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classes(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: classes fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classes(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: split fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1, 2) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: split fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1, 2) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: split fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1, 2) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ngrams fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(1, 2) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ngrams fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(1, 2) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ngrams fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(1, 2) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: classify fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(1, 2) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: classify fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(1, 2) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: classify fixed arity",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(1, 2) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: verbatim-text fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.verbatim-text(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: verbatim-text fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.verbatim-text(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: verbatim-text fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.verbatim-text(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: emitted fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.emitted(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: emitted fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.emitted(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: emitted fixed arity",
+    "grammar": "%rule unused(@X) @X := @X.emitted(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ngrams requires an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(\"1\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ngrams requires an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(\"1\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ngrams requires an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(\"1\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ngrams integer is positive",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(0) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ngrams integer is positive",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(0) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ngrams integer is positive",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(0) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ngrams forbids a leading zero",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(01) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ngrams forbids a leading zero",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(01) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ngrams forbids a leading zero",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(01) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: classify requires a classifier name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: classify requires a classifier name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: classify requires a classifier name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: classify cannot substitute its name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(@X) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: classify cannot substitute its name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(@X) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: classify cannot substitute its name",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(@X) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: ngrams cannot substitute its count",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(@X) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: ngrams cannot substitute its count",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(@X) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: ngrams cannot substitute its count",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(@X) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: split cannot take an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: split cannot take an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: split cannot take an integer",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(1) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: split cannot take a nominal rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(a) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: split cannot take a nominal rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(a) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: split cannot take a nominal rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(a) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: split rejects an empty delimiter",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(\"\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: split rejects an empty delimiter",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(\"\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: split rejects an empty delimiter",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(\"\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: tags requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: tags requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: tags requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: restoration requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(\"a\") = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: restoration requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(\"a\") = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: restoration requires a rule",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(\"a\") = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: matches requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: matches requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: matches requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: begins requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: begins requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: begins requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins(1)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: boundary requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by(\"a\")\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: boundary requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by(\"a\")\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: boundary requires targets",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by(\"a\")\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template defers first-token operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.first-token = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers tokens-after-first operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.tokens-after-first = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers last-token operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.last-token = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers onward operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.onward = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers following-tokens operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.following-tokens = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers without-elision operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers without-elision-except operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.without-elision-except(@X) = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers matches operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.matches(A | @X)\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers begins operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.begins(A | @X)\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers starts-input operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.starts-input\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers ends-input operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.ends-input\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers followed-by operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.followed-by(A | @X)\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers preceded-by operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.preceded-by(A | @X)\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers value operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.value = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers image operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.image = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers source-text operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.source-text = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers decomposed-source-text operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.decomposed-source-text = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers tags operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.tags(@X) = A\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers classes operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.classes = A\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers split operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.split(\"a\") = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers ngrams operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.ngrams(2) = \"a\"\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template defers classify operand types",
+    "grammar": "%rule unused(@X) @X %conditions @X.classify(letters) = A\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled template: value forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.value(@X) = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: value forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.value(@X) = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: value forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.value(@X) = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: restoration forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: restoration forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: restoration forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.without-elision(@X).matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: input boundary forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.starts-input(@X)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: input boundary forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.starts-input(@X)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: input boundary forbids a parameter argument",
+    "grammar": "%rule unused(@X) $a:@X %conditions $a.starts-input(@X)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision.matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: family restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: family restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: family restoration receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.without-elision-except(@X).matches(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: boundary receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.followed-by(A)\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: boundary receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.followed-by(A)\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: boundary receiver stays a bare capture",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.onward.followed-by(A)\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "uncalled template: a string-set receiver cannot supply span values",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.split(\",\").value = \"a\"\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "called template: a string-set receiver cannot supply span values",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.split(\",\").value = \"a\"\n%rule text unused(\"a\")",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "replaced template: a string-set receiver cannot supply span values",
+    "grammar": "%rule unused(@X) $a:@X %conditions @X.split(\",\").value = \"a\"\n%redefine-rule unused(@X) @X\n%rule text \"a\"",
+    "expect": {
+      "error": "grammar"
+    }
   }
 ]

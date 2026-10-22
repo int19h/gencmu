@@ -313,6 +313,91 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
     }
     None
 }
+fn query(name: &str) -> bool {
+    ["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"].contains(&name)
+}
+fn bare_capture(n: &Json) -> bool {
+    only(n, &["capture"]) && get(n, "capture").as_str().is_some_and(|s| s.is_empty() || dom::is_capture_name(s))
+}
+fn recipe_atom(n: &Json) -> bool {
+    if has(n, "string") || has(n, "const") || has(n, "param") {
+        return true;
+    }
+    let name = text(get(n, "method"));
+    if !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].contains(&name)
+        || !array(n, "args", 0)
+        || !list(get(n, "args")).is_empty()
+    {
+        return false;
+    }
+    let receiver = get(n, "receiver");
+    bare_capture(receiver)
+        || ["value", "image"].contains(&name)
+            && text(get(receiver, "method")) == "emitted"
+            && list(get(receiver, "args")).is_empty()
+            && bare_capture(get(receiver, "receiver"))
+}
+fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str> {
+    let name = text(get(n, "method"));
+    let args = list(get(n, "args"));
+    let receiver = get(n, "receiver");
+    if receiver.as_object().is_none() {
+        return Some("a malformed method receiver");
+    }
+    let bare = bare_capture(receiver) || has(receiver, "param") || has(receiver, "call");
+    let span = bare
+        || [
+            "first-token",
+            "tokens-after-first",
+            "last-token",
+            "onward",
+            "following-tokens",
+            "without-elision",
+            "without-elision-except",
+        ]
+        .contains(&text(get(receiver, "method")));
+    let rule = |a: &Json| only(a, &["rule"]) && named(get(a, "rule"), uni) || has(a, "param") || has(a, "call");
+    let target = |a: &Json| rule(a) || only(a, &["terminal"]) && user_tag(get(a, "terminal"));
+    let valid = match name {
+        "ngrams" => {
+            matches!(args,[a] if only(a,&["integer"]) && get(a,"integer").as_str().is_some_and(dom::valid_integer))
+        }
+        "split" => {
+            matches!(args,[a] if a.as_object().is_some() && get(a,"string").as_str()!=Some("") && !["rule","terminal","classifier","integer"].iter().any(|k| has(a,k)))
+        }
+        "classify" => {
+            matches!(args,[a] if only(a,&["classifier"]) && get(a,"classifier").as_str().is_some_and(dom::is_classifier_name))
+        }
+        "tags" => span && (args.is_empty() || matches!(args,[a] if rule(a))),
+        "matches" | "begins" => span && !args.is_empty() && args.iter().all(target),
+        "followed-by" | "preceded-by" => bare && !args.is_empty() && args.iter().all(target),
+        "without-elision-except" => bare && matches!(args,[a] if rule(a)),
+        "without-elision" => bare && args.is_empty(),
+        "verbatim-text" | "emitted" => recipe && bare && args.is_empty(),
+        "value"
+        | "image"
+        | "source-text"
+        | "decomposed-source-text"
+        | "classes"
+        | "first-token"
+        | "last-token"
+        | "tokens-after-first"
+        | "onward"
+        | "following-tokens"
+        | "starts-input"
+        | "ends-input" => {
+            args.is_empty()
+                && (span || recipe && text(get(receiver, "method")) == "emitted" && ["value", "image"].contains(&name))
+        }
+        _ => return Some("unknown method name"),
+    };
+    if valid {
+        None
+    } else {
+        Some("a method has the wrong receiver or arguments")
+    }
+}
+
 type NodeTask<'a> = (&'a Json, &'a str, usize, bool, bool);
 fn schedule<'a>(
     pending: &std::cell::RefCell<Vec<NodeTask<'a>>>,
@@ -382,6 +467,9 @@ fn node_step<'a>(
         };
     }
     if has(n, "call") || kind == "call" {
+        if kind == "string" {
+            return Some("a string operand requires a literal or constant");
+        }
         if !only(n, &["call", "args", "at"]) || !named(get(n, "call"), uni) || at(n).is_none() {
             return Some("a malformed call");
         }
@@ -430,11 +518,65 @@ fn node_step<'a>(
             Some("a malformed query target")
         };
     }
+    if kind == "recipe" {
+        if !only(n, &["concat"]) || !array(n, "concat", 1) {
+            return Some("a malformed recipe");
+        }
+        return items("concat", "recipe-atom", 1);
+    }
+    if kind == "recipe-atom" {
+        if !recipe_atom(n) {
+            return Some("a malformed recipe atom");
+        }
+        kind = "recipe-term";
+    }
+    let forms: &[&str] = match kind {
+        "expr" => &[
+            "seq", "choice", "ranked", "and", "optional", "repeat", "capture", "test", "literal", "range", "ref",
+            "wildcard", "empty",
+        ],
+        "condition" => &["op", "not", "any", "all", "if", "captured", "method"],
+        "string" => &["string", "const"],
+        "term" | "recipe-term" => &[
+            "string",
+            "tag",
+            "const",
+            "emptySet",
+            "capture",
+            "concat",
+            "union",
+            "intersection",
+            "difference",
+            "if",
+            "pattern",
+            "method",
+        ],
+        "pattern" => &[
+            "test",
+            "literal",
+            "range",
+            "terminal",
+            "constant",
+            "name",
+            "wildcard",
+            "children",
+            "union",
+            "intersection",
+            "difference",
+            "path",
+        ],
+        "children" => &["node", "sequence", "optional", "repeat", "siblings"],
+        _ => return Some("an unknown source category"),
+    };
+    if !forms.iter().any(|k| has(n, k)) {
+        return Some("a malformed source category");
+    }
     if !unresolved(n) {
         let part = match kind {
             "expr" => Part::Expr { whole, sealed },
             "condition" => Part::Condition,
             "recipe" => Part::Recipe,
+            "recipe-term" => Part::RecipeAtom,
             "string" => Part::String,
             "pattern" => Part::Pattern,
             "children" => Part::Children { repeated: false },
@@ -532,7 +674,7 @@ fn node_step<'a>(
         if !only(n, &["concat"]) {
             return Some("a malformed recipe");
         }
-        return items("concat", "term", 1);
+        return items("concat", "recipe-atom", 1);
     }
     if kind == "children" {
         if has(n, "node") {
@@ -594,44 +736,39 @@ fn node_step<'a>(
         if !only(n, &["method", "receiver", "args"]) || !array(n, "args", 0) {
             return Some("a malformed method");
         }
-        if ![
-            "value",
-            "image",
-            "source-text",
-            "decomposed-source-text",
-            "verbatim-text",
-            "emitted",
-            "tags",
-            "classes",
-            "onward",
-            "following-tokens",
-            "first-token",
-            "last-token",
-            "tokens-after-first",
-            "starts-input",
-            "ends-input",
-            "matches",
-            "begins",
-            "followed-by",
-            "preceded-by",
-            "without-elision",
-            "without-elision-except",
-            "classify",
-            "split",
-            "ngrams",
-        ]
-        .contains(&name)
-        {
-            return Some("unknown method name");
+        if query(name) != (kind == "condition") {
+            return Some("a method in the wrong category");
+        }
+        if let Some(p) = method_problem(n, kind == "recipe-term", uni) {
+            return Some(p);
         }
         if matches!(name, "classify" | "ngrams") && unresolved(get(n, "args")) {
             return Some("a parameter cannot replace a classifier name or integer argument");
         }
-        if let Some(p) = walk(get(n, "receiver"), "term") {
+        if let Some(p) = walk(get(n, "receiver"), if kind == "recipe-term" { "recipe-term" } else { "term" }) {
             return Some(p);
         }
         for a in list(get(n, "args")) {
-            if ["rule", "terminal", "classifier", "integer"].iter().any(|k| has(a, k)) {
+            if has(a, "rule") {
+                if !only(a, &["rule"])
+                    || !named(get(a, "rule"), uni)
+                    || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"]
+                        .contains(&name)
+                {
+                    return Some("a malformed rule argument");
+                }
+                continue;
+            }
+            if has(a, "terminal") {
+                if !only(a, &["terminal"])
+                    || !user_tag(get(a, "terminal"))
+                    || !["matches", "begins", "followed-by", "preceded-by"].contains(&name)
+                {
+                    return Some("a malformed target argument");
+                }
+                continue;
+            }
+            if has(a, "classifier") || has(a, "integer") {
                 continue;
             }
             if let Some(p) = walk(a, "term") {
@@ -642,7 +779,7 @@ fn node_step<'a>(
     }
     for k in ["concat", "union", "intersection", "difference", "any", "all"] {
         if has(n, k) {
-            if !only(n, &[k]) {
+            if !only(n, &[k]) || k == "difference" && list(get(n, k)).len() != 2 {
                 return Some("a malformed compound node");
             }
             return items(k, if matches!(k, "any" | "all") { "condition" } else { "term" }, 2);
@@ -658,6 +795,9 @@ fn node_step<'a>(
         if !only(n, &["op", "left", "right"]) || !["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"].contains(&text(get(n, "op")))
         {
             return Some("a malformed comparison");
+        }
+        if ["≅", "≇"].contains(&text(get(n, "op"))) && !bare_capture(get(n, "left")) {
+            return Some("a tree comparison requires a bare capture");
         }
         return walk(get(n, "left"), "term").or_else(|| walk(get(n, "right"), "term"));
     }

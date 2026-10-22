@@ -534,7 +534,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 return 'unknown method name'
             if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
                 return 'a parameter cannot replace a classifier name or integer argument'
-            problem = None if dependent else method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
+            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
             if problem:
                 return problem
             if kind != "condition" and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"):

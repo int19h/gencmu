@@ -1802,6 +1802,8 @@ Call arguments follow the ordered alternatives of §2.3, independently of the te
 
 The valid-form productions below also accept parameter placeholders in the positions listed in §2.3. The reader defers only restrictions that need their substituted argument. Ordinary expressions outside templates receive no such exemption.
 
+An unresolved parameter never relaxes a node's category, field shape, method arity, or fixed argument form. These restrictions also apply to uncalled templates and definitions that later edits replace.
+
 `matches`, `begins`, `ends`, `followed-by`, and `preceded-by` separate targets with `|`. Other methods separate arguments with commas. Recognition accepts either separator, and the reader rejects a separator that does not match the method.
 
 Recognition names describe productions. The following mapping specifies the named constructors that the syntax stage builds. Other production names remain wrappers under §9.3. Lexical forms contribute tokens where a constructor requires tokens.

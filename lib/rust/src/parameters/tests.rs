@@ -357,6 +357,25 @@ fn shared_parameter_structure() {
         } else {
             j(&dom::dom_to_json(&read(text(get(case, "grammar")))))
         };
+        if get(case, "cacheFallback") == &Json::Bool(true) {
+            assert!(dom::dom_from_json(&raw, &uni).is_err(), "{name}");
+            let source = format!("```jbogenbau\n{}\n```", text(get(case, "grammar")));
+            let hash = |s: &str| string(crate::json::fnv1a64(s));
+            let cache = obj([
+                ("format", Json::Int(dom::DOM_FORMAT)),
+                ("bootstrap", hash(crate::loader::bundled("notation/bootstrap.json").unwrap())),
+                ("unicode", hash(crate::loader::bundled("unicode.txt").unwrap())),
+                ("documents", obj([("g.md", obj([("hash", hash(&source)), ("dom", raw)]))])),
+            ]);
+            let sources = vec![
+                ("g.md", source),
+                ("p.md", "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```".into()),
+                ("compiled.json", cache.to_json()),
+            ];
+            let dialect = crate::load_dialect_sources(sources, "p.md").unwrap();
+            assert!(dialect.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");
+            continue;
+        }
         let d = dom::dom_from_json(&raw, &uni).unwrap_or_else(|e| panic!("{name}: {e}"));
         if let Some(arg) = case.get("argument") {
             let rules = list(get(&raw, "rules"));

@@ -6343,5 +6343,1090 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "Unresolved template: difference-three",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "difference": [
+          {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          },
+          {
+            "tag": "A"
+          },
+          {
+            "tag": "B"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: recipe-tag-parameter",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "value": {
+        "concat": [
+          {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          },
+          {
+            "tag": "A"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: recipe-set-operation",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "value": {
+        "concat": [
+          {
+            "union": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "string": "a"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: malformed-nominal-argument",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "text",
+                "extra": {
+                  "param": "X",
+                  "at": [
+                    2,
+                    20
+                  ]
+                }
+              }
+            ]
+          },
+          "right": {
+            "tag": "A"
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: condition-tags-method",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "tags",
+          "receiver": {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          },
+          "args": []
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: body-term-union",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "union": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "tag": "A"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: body Boolean connective",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "any": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: body comparison",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "op": "=",
+            "left": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            "right": {
+              "string": "a"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: body term conditional",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "if": {
+              "captured": "a"
+            },
+            "then": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: body pattern term",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "pattern": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: condition set union",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "union": [
+            {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            {
+              "tag": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: condition body sequence",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "seq": [
+            {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            }
+          ]
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: term Boolean connective",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "all": [
+          {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          },
+          {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: term expression literal",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "literal": {
+          "param": "X",
+          "at": [
+            2,
+            20
+          ]
+        }
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: term expression range",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "range": [
+          {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          },
+          {
+            "string": "z"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: term expression test",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "test": "tags",
+        "expr": {
+          "param": "X",
+          "at": [
+            2,
+            20
+          ]
+        },
+        "requirements": []
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: condition literal",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "literal": {
+            "param": "X",
+            "at": [
+              2,
+              20
+            ]
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: recipe nested concatenation",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "value": {
+        "concat": [
+          {
+            "concat": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "string": "a"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: method classifier fields",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "method": "classify",
+        "receiver": {
+          "param": "X",
+          "at": [
+            2,
+            20
+          ]
+        },
+        "args": [
+          {
+            "classifier": "x",
+            "extra": 1
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: method integer fields",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "method": "ngrams",
+        "receiver": {
+          "param": "X",
+          "at": [
+            2,
+            20
+          ]
+        },
+        "args": [
+          {
+            "integer": "1",
+            "extra": 1
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: literal requires a string",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "seq": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "literal": {
+                  "tag": "A"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: value test requires a string",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "test": "=",
+            "expr": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            "value": {
+              "tag": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: range requires strings",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "range": [
+              {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              {
+                "tag": "A"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: method is not a body",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "method": "value",
+            "receiver": {
+              "param": "X",
+              "at": [
+                2,
+                20
+              ]
+            },
+            "args": []
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved template: query is not a value",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ],
+      "tags": {
+        "method": "matches",
+        "receiver": {
+          "param": "X",
+          "at": [
+            2,
+            20
+          ]
+        },
+        "args": [
+          {
+            "rule": "text"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "Unresolved pattern test defers its parameter target",
+    "rule": {
+      "name": "unused",
+      "params": [
+        "X"
+      ],
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "param": "X",
+            "at": [
+              2,
+              18
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "pattern": {
+              "test": "tags",
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  20
+                ]
+              },
+              "requirements": [
+                {
+                  "negated": false,
+                  "value": {
+                    "tag": "A"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

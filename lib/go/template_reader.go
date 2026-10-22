@@ -196,7 +196,7 @@ func (b *domBuilder) templateRecipe(n *Node) templateObject {
 	if len(atoms) != 1 {
 		b.fail(n, "juxtaposed recipe strings require ++, use ++ between string atoms")
 	}
-	return templateObject{"concat": []any{b.templateTerm(b.only(atoms[0], "term"), false)}}
+	return templateJoined("concat", []any{b.templateTerm(b.only(atoms[0], "term"), false)})
 }
 func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 	defer func() {

@@ -1,0 +1,27 @@
+{
+  "description": "Unresolved recipes flatten concatenations before DOM validation.",
+  "document": "```jbogenbau\n%rule use(@X) \"a\" := \"x\" ++ @X\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "value": {
+                "concat": [
+                  {
+                    "string": "x"
+                  },
+                  {
+                    "param": "X"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}

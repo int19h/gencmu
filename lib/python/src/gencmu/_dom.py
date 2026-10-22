@@ -894,7 +894,7 @@ class DomBuilder:
             if name in ('classify', 'ngrams') and has_unresolved(args):
                 raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
             dependent = has_unresolved([receiver, args])
-            if self.feature_context and not dependent:
+            if self.feature_context or dependent:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
                 if problem:
                     raise self.fail(node, problem)

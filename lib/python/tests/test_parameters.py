@@ -190,6 +190,14 @@ class ParameterStructure(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case['name']):
                 dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
+                if case.get('cacheFallback'):
+                    from gencmu import load_dialect_sources
+                    from .test_ranked import cached_sources, sources
+                    self.assertIsNotNone(dom_problem(dom, unicode))
+                    texts = sources('%ambiguity-resolution greedy\n' + case['grammar'])
+                    supplied = cached_sources(texts, dom)
+                    self.assertTrue(load_dialect_sources(supplied, 'p.md').parse(case['input']).ok)
+                    continue
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:
                     self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])

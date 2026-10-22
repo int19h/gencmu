@@ -2636,6 +2636,7 @@
   // ---- methods.js
   // Receiver-first method signatures (engine §10).
 
+
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
@@ -2655,18 +2656,19 @@
     if (!METHODS.has(name)) return `unknown method ${name}`;
     const object = (/** @type {any} */ value) => value !== null && typeof value === "object" && !Array.isArray(value);
     if (!object(receiver) || !Array.isArray(args)) return "a malformed method";
-    const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1;
+    const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1 || "param" in receiver || "call" in receiver;
     const span = bare || SPAN_METHODS.has(receiver.method);
     const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
-    const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal"].some(key => key in arg);
+    const rule = (/** @type {any} */ arg) => named(arg,"rule") || object(arg) && ("param" in arg || "call" in arg);
+    const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
     let valid;
     if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
-    else if (name === "split") valid = args.length === 1 && term(args[0]);
+    else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
-    else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && named(args[0], "rule"));
-    else if (name === "matches" || name === "begins") valid = span && args.length > 0 && args.every(arg => named(arg, "rule") || named(arg, "terminal"));
-    else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => named(arg, "rule") || named(arg, "terminal"));
-    else if (name === "without-elision-except") valid = bare && args.length === 1 && named(args[0], "rule");
+    else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && rule(args[0]));
+    else if (name === "matches" || name === "begins") valid = span && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
+    else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
+    else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
     else if (name === "without-elision") valid = bare && args.length === 0;
     else if (name === "verbatim-text" || name === "emitted") valid = recipe && bare && args.length === 0;
     else valid = args.length === 0 && (span || recipe && receiver.method === "emitted" && (name === "value" || name === "image"));
@@ -3358,7 +3360,7 @@
       }
       if (kind === "method-shape") {
         const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
-        if (problem && (!METHODS.has(value.method) || !hasUnresolved(value))) return problem;
+        if (problem) return problem;
       } else if (kind === "expr") {
         if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
@@ -17042,7 +17044,7 @@
           const rightType = termType(condition.right);
           const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
             : comparisonProblem(op, leftType.type, rightType.type);
-          if (problem && !featureContext) fail(problem, inner);
+          if (problem && !featureContext && !hasUnresolved(condition)) fail(problem, inner);
           return condition;
         }
         case "negation":
@@ -17339,7 +17341,7 @@
           const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
           if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
-        if (featureContext) {
+        if (featureContext || hasUnresolved(receiver) || args.some(hasUnresolved)) {
           const problem = methodShapeProblem(name, receiver, args, recipeContext);
           if (problem) fail(problem, node);
         }

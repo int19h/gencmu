@@ -29,7 +29,7 @@ The corpus records full outcomes. These shared fixtures also express stage cutof
 
 The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags. A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
 
 Each file is one case:
 

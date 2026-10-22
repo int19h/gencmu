@@ -341,6 +341,93 @@ func templateClosedProblem(root any) string {
 	}
 	return ""
 }
+func templateQuery(name string) bool {
+	return strings.Contains("|matches|begins|starts-input|ends-input|followed-by|preceded-by|", "|"+name+"|")
+}
+func templateBareCapture(n templateObject) bool {
+	name, ok := n["capture"].(string)
+	return templateOnly(n, "capture") && ok && (name == "" || captureName.MatchString(name))
+}
+func templateRecipeAtom(n templateObject) bool {
+	if n["string"] != nil || n["const"] != nil || n["param"] != nil {
+		return true
+	}
+	name := templateText(n["method"])
+	if !strings.Contains("|value|image|source-text|decomposed-source-text|verbatim-text|", "|"+name+"|") || !templateArray(n, "args", 0) || len(templateList(n["args"])) != 0 {
+		return false
+	}
+	receiver := templateObj(n["receiver"])
+	return templateBareCapture(receiver) || (name == "value" || name == "image") && receiver["method"] == "emitted" && len(templateList(receiver["args"])) == 0 && templateBareCapture(templateObj(receiver["receiver"]))
+}
+func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) string {
+	name := templateText(n["method"])
+	args := templateList(n["args"])
+	receiver := templateObj(n["receiver"])
+	if receiver == nil {
+		return "a malformed method receiver"
+	}
+	bare := templateBareCapture(receiver) || receiver["param"] != nil || receiver["call"] != nil
+	span := bare || strings.Contains("|first-token|tokens-after-first|last-token|onward|following-tokens|without-elision|without-elision-except|", "|"+templateText(receiver["method"])+"|") && receiver["method"] != nil
+	rule := func(v any) bool {
+		a := templateObj(v)
+		return templateOnly(a, "rule") && templateNamed(a["rule"], uni) || a["param"] != nil || a["call"] != nil
+	}
+	targets := func() bool {
+		if len(args) == 0 {
+			return false
+		}
+		for _, v := range args {
+			a := templateObj(v)
+			if !rule(a) && !(templateOnly(a, "terminal") && className.MatchString(templateText(a["terminal"]))) {
+				return false
+			}
+		}
+		return true
+	}
+	valid := false
+	switch name {
+	case "ngrams":
+		valid = len(args) == 1 && templateOnly(templateObj(args[0]), "integer") && validInteger(templateText(templateObj(args[0])["integer"]))
+	case "split":
+		if len(args) == 1 {
+			a := templateObj(args[0])
+			valid = a != nil && a["string"] != "" && a["rule"] == nil && a["terminal"] == nil && a["classifier"] == nil && a["integer"] == nil
+		}
+	case "classify":
+		valid = len(args) == 1 && templateOnly(templateObj(args[0]), "classifier") && classifierName.MatchString(templateText(templateObj(args[0])["classifier"]))
+	case "tags":
+		valid = span && (len(args) == 0 || len(args) == 1 && rule(args[0]))
+	case "matches", "begins":
+		valid = span && targets()
+	case "followed-by", "preceded-by":
+		valid = bare && targets()
+	case "without-elision-except":
+		valid = bare && len(args) == 1 && rule(args[0])
+	case "without-elision":
+		valid = bare && len(args) == 0
+	case "verbatim-text", "emitted":
+		valid = recipe && bare && len(args) == 0
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "starts-input", "ends-input":
+		valid = len(args) == 0 && (span || recipe && receiver["method"] == "emitted" && (name == "value" || name == "image"))
+	default:
+		return "unknown method name"
+	}
+	if valid {
+		return ""
+	}
+	return "a method has the wrong receiver or arguments"
+}
+
+var templateSourceForms = map[string][]string{
+	"expr":             {"seq", "choice", "ranked", "and", "optional", "repeat", "capture", "test", "literal", "range", "ref", "wildcard", "empty"},
+	"condition":        {"op", "not", "any", "all", "if", "captured", "method"},
+	"string":           {"string", "const"},
+	"term":             {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
+	"recipe-term":      {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
+	"pattern":          {"test", "literal", "range", "terminal", "constant", "name", "wildcard", "children", "union", "intersection", "difference", "path"},
+	"pattern-children": {"node", "sequence", "optional", "repeat", "siblings"},
+}
+
 func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
 	if depth > maxDOMDepth {
 		return errTooDeep.Error()
@@ -368,6 +455,9 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return ""
 	}
 	if n["call"] != nil || kind == "call" {
+		if kind == "string" {
+			return "a string operand requires a literal or constant"
+		}
 		if !templateOnly(n, "call", "args", "at") || !templateNamed(n["call"], uni) || templateAt(n) == [2]int{} {
 			return "a malformed call"
 		}
@@ -423,7 +513,30 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		}
 		return "a malformed query target"
 	}
-	if !templateUnresolved(n) {
+	if kind == "recipe" {
+		if !templateOnly(n, "concat") || !templateArray(n, "concat", 1) {
+			return "a malformed recipe"
+		}
+		return list("concat", "recipe-atom", 1)
+	}
+	if kind == "recipe-atom" {
+		if !templateRecipeAtom(n) {
+			return "a malformed recipe atom"
+		}
+		kind = "recipe-term"
+	}
+	found := false
+	formKind := kind
+	if formKind == "tags" {
+		formKind = "term"
+	}
+	for _, key := range templateSourceForms[formKind] {
+		found = found || n[key] != nil
+	}
+	if !found {
+		return "a malformed source category"
+	}
+	if !templateUnresolved(n) && !(kind == "recipe-term" && n["method"] != nil) {
 		c := &domChecker{uni: uni, deferTypes: true}
 		raw := templateJSON(n)
 		var err error
@@ -546,7 +659,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if !templateOnly(n, "concat") {
 			return "a malformed recipe"
 		}
-		return list("concat", "term", 1)
+		return list("concat", "recipe-atom", 1)
 	}
 	if kind == "pattern-children" {
 		if n["node"] != nil {
@@ -611,18 +724,37 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if !templateOnly(n, "method", "receiver", "args") || !templateArray(n, "args", 0) {
 			return "a malformed method"
 		}
-		if !strings.Contains("|value|image|source-text|decomposed-source-text|verbatim-text|emitted|tags|classes|onward|following-tokens|first-token|last-token|tokens-after-first|starts-input|ends-input|matches|begins|followed-by|preceded-by|without-elision|without-elision-except|classify|split|ngrams|", "|"+name+"|") {
-			return "unknown method name"
+		if templateQuery(name) != (kind == "condition") {
+			return "a method in the wrong category"
+		}
+		if p := templateMethodProblem(n, kind == "recipe-term", uni); p != "" {
+			return p
 		}
 		if (name == "classify" || name == "ngrams") && templateUnresolved(n["args"]) {
 			return "a parameter cannot replace a classifier name or integer argument"
 		}
-		if p := walk(n["receiver"], "term"); p != "" {
+		receiverKind := "term"
+		if kind == "recipe-term" {
+			receiverKind = "recipe-term"
+		}
+		if p := walk(n["receiver"], receiverKind); p != "" {
 			return p
 		}
 		for _, a := range templateList(n["args"]) {
-			x := templateObj(a)
-			if x["rule"] != nil || x["terminal"] != nil || x["classifier"] != nil || x["integer"] != nil {
+			arg := templateObj(a)
+			if arg["rule"] != nil {
+				if !templateOnly(arg, "rule") || !templateNamed(arg["rule"], uni) || !strings.Contains("|tags|matches|begins|without-elision-except|followed-by|preceded-by|", "|"+name+"|") {
+					return "a malformed rule argument"
+				}
+				continue
+			}
+			if arg["terminal"] != nil {
+				if !templateOnly(arg, "terminal") || !className.MatchString(templateText(arg["terminal"])) || !strings.Contains("|matches|begins|followed-by|preceded-by|", "|"+name+"|") {
+					return "a malformed target argument"
+				}
+				continue
+			}
+			if arg["classifier"] != nil || arg["integer"] != nil {
 				continue
 			}
 			if p := walk(a, "term"); p != "" {
@@ -633,7 +765,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	}
 	for _, key := range []string{"concat", "union", "intersection", "difference", "any", "all"} {
 		if n[key] != nil {
-			if !templateOnly(n, key) {
+			if !templateOnly(n, key) || key == "difference" && len(templateList(n[key])) != 2 {
 				return "a malformed compound node"
 			}
 			k := "term"
@@ -652,6 +784,9 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	if n["op"] != nil {
 		if !templateOnly(n, "op", "left", "right") || !strings.Contains("|=|≠|∈|∉|⊆|⊈|≅|≇|", "|"+templateText(n["op"])+"|") {
 			return "a malformed comparison"
+		}
+		if (n["op"] == "≅" || n["op"] == "≇") && !templateBareCapture(templateObj(n["left"])) {
+			return "a tree comparison requires a bare capture"
 		}
 		if p := walk(n["left"], "term"); p != "" {
 			return p
