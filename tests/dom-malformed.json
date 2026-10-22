@@ -5981,5 +5981,55 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A reserved hash cannot name a rule in a supplied DOM under custom emoji properties.",
+    "unicode": "unicode 15.1.0\nemoji-presentation 0023 0023\n",
+    "rule": {
+      "name": "#",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "literal": {
+              "string": "a"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An eligible ASCII scalar can name a rule in a supplied DOM under custom emoji properties.",
+    "unicode": "unicode 15.1.0\nemoji-presentation 0021 0021\n",
+    "rule": {
+      "name": "!",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "literal": {
+              "string": "a"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

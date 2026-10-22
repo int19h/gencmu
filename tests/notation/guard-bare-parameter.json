@@ -1,0 +1,11 @@
+{
+  "description": "A bare @ reports that parameters are reserved and unsupported (engine §9.3).",
+  "document": "```jbogenbau\n%rule a @ cbm? A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9,
+      "message": "@ is reserved for parameters, which are not supported yet"
+    }
+  }
+}

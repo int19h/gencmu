@@ -52,7 +52,7 @@ class NotationCases(unittest.TestCase):
                 read_document(case["document"], path.name)
             error = caught.exception
             self.assertEqual(error.kind, "grammar")
-            for key in ("line", "column"):
+            for key in ("line", "column", "message"):
                 if key in expect["error"]:
                     self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
 

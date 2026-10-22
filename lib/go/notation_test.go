@@ -40,8 +40,9 @@ func TestNotationCases(t *testing.T) {
 			Expect      struct {
 				Dom   *any `json:"dom"`
 				Error *struct {
-					Line   int `json:"line"`
-					Column int `json:"column"`
+					Line    int     `json:"line"`
+					Column  int     `json:"column"`
+					Message *string `json:"message"`
 				} `json:"error"`
 			} `json:"expect"`
 		}
@@ -57,6 +58,9 @@ func TestNotationCases(t *testing.T) {
 				}
 				if (c.Expect.Error.Line != 0 && rerr.Line != c.Expect.Error.Line) || (c.Expect.Error.Column != 0 && rerr.Column != c.Expect.Error.Column) {
 					t.Fatalf("%s\nexpected an error at %d:%d, got %v", c.Description, c.Expect.Error.Line, c.Expect.Error.Column, rerr)
+				}
+				if c.Expect.Error.Message != nil && rerr.Message != *c.Expect.Error.Message {
+					t.Fatalf("%s\nexpected error message %q, got %q", c.Description, *c.Expect.Error.Message, rerr.Message)
 				}
 				return
 			}

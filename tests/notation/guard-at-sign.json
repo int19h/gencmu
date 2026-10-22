@@ -1,5 +1,5 @@
 {
-  "description": "A guard uses no sigil before its feature name. The lexer reports that @ is reserved for parameters (engine §9.3).",
+  "description": "The pattern sigil # cannot precede a guard. The reader reports a syntax error at # (engine §9.3).",
   "document": "```jbogenbau\n%rule a # cbm? A\n```\n",
   "expect": {
     "error": {

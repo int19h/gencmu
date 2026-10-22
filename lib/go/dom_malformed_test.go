@@ -24,6 +24,7 @@ func TestDOMMalformed(t *testing.T) {
 		Directive   json.RawMessage `json:"directive"`
 		Rule        json.RawMessage `json:"rule"`
 		Malformed   bool            `json:"malformed"`
+		Unicode     *string         `json:"unicode"`
 	}
 	// Each directive is kept as written, so that a malformed one reaches
 	// the check as it stands.
@@ -39,7 +40,14 @@ func TestDOMMalformed(t *testing.T) {
 			rules, directives = "["+string(c.Rule)+"]", "[]"
 		}
 		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":` + rules + `,"directives":` + directives + `,"constants":[],"classifiers":[],"implications":[]}`
-		_, err := decodeDOM(json.RawMessage(dom), bundled.uni)
+		table := bundled.uni
+		if c.Unicode != nil {
+			table, err = parseUnicodeTable(*c.Unicode)
+			if err != nil {
+				t.Fatalf("%s: %v", c.Description, err)
+			}
+		}
+		_, err := decodeDOM(json.RawMessage(dom), table)
 		if (err != nil) != c.Malformed {
 			t.Errorf("%s\n%s: refused %v", c.Description, c.Directive, err)
 		}

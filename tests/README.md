@@ -165,6 +165,8 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
+An optional `expect.error.message` requires that exact explanation, without the document and position prefix. A case uses it when all four libraries must give the same explanation.
+
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a compiled entry. A matching compiled entry must give the same DOM.
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
@@ -234,6 +236,8 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
 ```
 
 Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 35. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+
+An optional `unicode` member supplies the contents of `unicode.txt` for that case. Without it, the case uses the bundled table.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 

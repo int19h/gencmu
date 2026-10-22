@@ -628,6 +628,14 @@ pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
     Ok(crate::dom::dom_problem(&value, &context.unicode).map(str::to_string))
 }
 
+/// Why a supplied DOM is malformed with a caller's Unicode table.
+/// This uses the same validation as the compiled cache. For tests and tools.
+pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>, Error> {
+    let unicode = Unicode::parse(table).map_err(grammar_error)?;
+    let value = crate::json::parse(json).map_err(grammar_error)?;
+    Ok(crate::dom::dom_problem(&value, &unicode).map(str::to_string))
+}
+
 /// Splices a bundled pipeline document (engine §13) and returns the result
 /// as JSON, `{"format":8,"stages":[{"name":...,"documents":[{"path":...,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
