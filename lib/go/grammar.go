@@ -14,6 +14,8 @@ type stageFeature struct {
 }
 
 type stageGrammar struct {
+	templates         []*ruleTemplate
+	instances         []*ruleInstance
 	features          []stageFeature
 	families          map[string]map[string]bool
 	ranked            *rankedGroups
@@ -106,7 +108,18 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
-	g := &stageGrammar{name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	expanded, expansionError := expandTemplates(docs, uni)
+	if expansionError != nil {
+		expansionError.Stage = stageName
+		return nil, expansionError
+	}
+	docs = expanded.docs
+	g := &stageGrammar{templates: expanded.templates, instances: expanded.instances, name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
+	for _, user := range expanded.validation {
+		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) {
+			g.constUsers = append(g.constUsers, user)
+		}
+	}
 	g.classifierSet.names = map[string]bool{}
 	var implications []implicationItem
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
@@ -246,6 +259,14 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		}
 		return nil, e
 	}
+	if expanded.order != nil {
+		ordered := make([]*sRule, 0, len(expanded.order))
+		for _, name := range expanded.order {
+			ordered = append(ordered, g.byName[name])
+		}
+		g.rules = ordered
+	}
+
 	checked := &checkedClauses{terms: map[*domTerm]bool{}, conds: map[condListKey]bool{}, emits: map[*domEmit]bool{}}
 	for _, r := range g.rules {
 		for _, a := range r.alts {

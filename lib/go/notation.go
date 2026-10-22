@@ -291,6 +291,7 @@ type domBuilder struct {
 // §9). Every other rule is a wrapper, and the reader reads its parts in its
 // place.
 var domRules = map[string]bool{
+	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
@@ -505,6 +506,13 @@ func (b *domBuilder) operator(n *Node) string { return canonicalOperator(b.token
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
+		if templateSyntax(c) {
+			raw := b.templateDeclaration(c)
+			if err := appendTemplateDeclaration(d, c.Rule, raw); err != nil {
+				b.fail(c, "%s", err)
+			}
+			continue
+		}
 		switch c.Rule {
 		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
 		default:

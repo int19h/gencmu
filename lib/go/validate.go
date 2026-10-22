@@ -51,6 +51,15 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 // checkDOM holds supplied and cached DOMs to engine §9.
 func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
+		if dir != nil && dir.rawTemplate != nil {
+			if dir.Args == nil || !directiveOperandsOK(dir) {
+				return &domProblem{message: "a malformed directive", at: dir.At}
+			}
+			if p := checkTemplateDeclaration(dir.rawTemplate, "directives", uni); p != nil {
+				return p
+			}
+			continue
+		}
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
@@ -128,6 +137,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
+		if r != nil && r.rawTemplate != nil {
+			if p := checkTemplateDeclaration(r.rawTemplate, "rules", uni); p != nil {
+				p.rule = r
+				return p
+			}
+			continue
+		}
 		if r == nil || !(domName.MatchString(r.Name) || uni.isEmojiName(r.Name)) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
@@ -195,6 +211,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// A constant's definition: its name, its op, and a value that is a
 	// closed term of a type that a constant can have (engine §2, §10).
 	for _, k := range d.Constants {
+		if k.rawTemplate != nil {
+			if p := checkTemplateDeclaration(k.rawTemplate, "constants", uni); p != nil {
+				p.constant = k
+				return p
+			}
+			continue
+		}
 		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
 			return &domProblem{message: "a malformed constant", constant: k}
 		}
@@ -215,6 +238,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// An implication: two closed terms whose type is a tag set, checked
 	// once the nesting is bounded (engine §2, §9).
 	for _, m := range d.Implications {
+		if m.rawTemplate != nil {
+			if p := checkTemplateDeclaration(m.rawTemplate, "implications", uni); p != nil {
+				p.implication = m
+				return p
+			}
+			continue
+		}
 		c := &domChecker{implication: m, label: "an implication", uni: uni}
 		for _, side := range []*domTerm{m.If, m.Then} {
 			if side == nil {

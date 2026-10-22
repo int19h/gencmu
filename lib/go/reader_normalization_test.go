@@ -33,6 +33,9 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 						t.Fatal("cacheMisses requires a rule")
 					}
 					poison.Rules[0].Name = "cache-poison"
+					if poison.Rules[0].rawTemplate != nil {
+						poison.Rules[0].rawTemplate["name"] = "cache-poison"
+					}
 					raw = poison.json()
 					if _, err := decodeDOM(raw, l.uni); err != nil {
 						t.Fatalf("invalid cache poison: %v", err)
