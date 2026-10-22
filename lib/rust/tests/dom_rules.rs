@@ -1322,7 +1322,7 @@ fn a_classifier_name_stands_only_in_classify() {
     let classifier = r#"{"classifier":"lex"}"#;
     let refused = [
         with_condition(&format!(
-            r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}]}},"right":{{"tag":"Tag-a"}}}}"#
+            r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}],"at":[3,1]}},"right":{{"tag":"Tag-a"}}}}"#
         )),
         split(classifier, r#"{"string":"."}"#),
         split(r#"{"string":"a.b"}"#, classifier),
