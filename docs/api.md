@@ -81,7 +81,15 @@ A stage exposes its name, input and output tokens, verdict, and any tie witness.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
-Result format 15 admits punctuation, quotes, and emoji in rule-name strings, including canonical call spellings. A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
+Result format 15 defines these result values:
+
+- Rule-name strings admit punctuation, quotes, and emoji, including canonical call spellings.
+- A format scalar has general category Cf. Canonical terminal spellings write it as an engine constant, such as `$_200B` (engine §9.1).
+- Stage-zero tokens carry `_Emoji_Presentation` and `_Emoji_Component` where their table properties apply. Forwarded tokens can retain those tags through ordinary inheritance. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
+
+Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
+
+A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 

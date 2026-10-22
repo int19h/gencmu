@@ -18,7 +18,15 @@ Libraries write object keys in the order that this document gives. They write no
 {"format":15,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 15. Rule names can contain punctuation, quotes, and emoji, including canonical call spellings. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 15. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+
+Result format 15 defines these result values:
+
+- Rule-name strings admit punctuation, quotes, and emoji, including canonical call spellings.
+- A format scalar has general category Cf. Canonical terminal spellings write it as an engine constant, such as `$_200B` (engine §9.1).
+- Stage-zero tokens carry `_Emoji_Presentation` and `_Emoji_Component` where their table properties apply. Forwarded tokens can retain those tags through ordinary inheritance. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
+
+Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
 
 A stage has one of these forms:
 
@@ -144,7 +152,7 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 At the end of a stage's input, a rejection has `token` equal to the number of input tokens. Its `source` is `[S,S]`. `S` is the source end of the last stage-input token, or 0 if there are no input tokens. Its `line` and `column` locate `S` in the original text. The original text can continue after `S` (engine §4, §12).
 
-`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, in expanded rule order (engine §2.3). `message` is the description for people, and the shared tests do not compare its wording.
+`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
 
 Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
 

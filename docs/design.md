@@ -80,9 +80,7 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
 1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects).
 
-   See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering.
-
-   Its errors carry file, line and column.
+   See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering. Its errors carry file, line and column.
 
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and flat `{ }`, and diagnostics hide these rules.
 
@@ -174,7 +172,7 @@ The loader substitutes parsed nodes without changing grouping. `(BIhE 🆓)` and
 
 `%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. Flags apply to actual instance constituents, without an extra ranking tier.
 
-A later binding can move a public name to another instance with `%redefine-rule NAME = CALL`. The old instance keeps its edits and takes its canonical name. Ordinary rules and named instances keep declaration slots, followed by unnamed instances in discovery order. Numbering, reference checks, diagnostics, and audit lists use that expanded order.
+A later binding can move a public name to another instance with `%redefine-rule NAME = CALL`. The old instance keeps its edits and takes its canonical name. Ordinary rules and named instances keep declaration slots, followed by unnamed instances in discovery order. Numbering, reference checks, rule traversal for diagnostics, and audit lists use that expanded order.
 
 Patterns can name a whole template family, while queries must name an exact instance. A static parameter-flow analysis rejects cycles with argument growth. Diagrams show templates and calls, and the audit lists instances and their effective edits. Engine §2.3 defines these rules.
 

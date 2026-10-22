@@ -251,6 +251,8 @@ The loader reads members from final expanded rules, never from lowered productio
 
 The owner of an elidable optional is the rule of the definition that writes it. Helpers never own an optional, whatever expression holds it. An `%extend-rule r` writes optionals that `r` owns. A family permits each elidable optional that one of its members owns. A family can permit none. Its queries then answer as `.without-elision` does.
 
+After expansion, an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
+
 A family argument is a rule reference, so the reference checks of this section cover it. A call can stand in a header or alternative tag clause, a condition, or the tag clause of an emission item. The loader reports an undefined family rule at the definition that contains the call.
 
 The loader visits final expanded rules in the order of §2.3, and each rule's alternatives in their existing order. For each alternative, it reads body references and then the alternative's tag clause. With a definition's first alternative, it then reads header tags, conditions, and emission items' tag clauses, in that order. Within a clause, it follows receivers and arguments in written order. The first undefined name determines the error message. An extension's clauses belong to the extension, so their errors stand at its definition.
@@ -276,7 +278,7 @@ A template and an ordinary rule never share a name in one stage. Redefinition ca
 
 A call has `(` immediately after its name, without whitespace or a comment. The comment opener `(*` takes priority, so `r(* note *)` remains a reference followed by a comment. `r (x)` is a reference followed by a group. A template declaration uses the same adjacency rule.
 
-A call is a rule symbol. Captures, tests, patterns, rule-valued method arguments, and close families can name it. A call in retained syntax creates one instance even when no body references that instance. Normal reachability requirements still apply to neighbor targets.
+A call is a rule symbol. Captures, tests, patterns, rule-valued method arguments, and close families can name it. A call in retained syntax creates one instance even when no body references that instance. Binding calls and exact-instance edit heads also create their instances when later statements replace them. Normal reachability requirements still apply to neighbor targets.
 
 #### Arguments and substitution
 
@@ -328,7 +330,7 @@ A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argumen
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
-A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, grouped heads, sequences, tested arguments, constants, and tag-set expressions are invalid there.
+A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, sequences, tested arguments, constants, and tag-set expressions are invalid there. A parenthesized single tag, such as `(KU)`, reads as that tag.
 
 Only two positions splice an argument's children into the surrounding list:
 
@@ -378,7 +380,7 @@ A public name cannot equal a template name.
 
 `%redefine-rule NAME = CALL` can replace an earlier ordinary rule or rebind a named instance to a different key. The old instance retains its identity and edits, and falls back to its canonical call name. The new instance takes NAME everywhere. A key that already has another public name cannot receive NAME. Repeating the current binding is an error. `%extend-rule NAME = CALL` is an error.
 
-An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Ordinary body references to NAME use its final binding. Exact calls continue to name their own instance keys.
+An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
 
 A binding accepts no flags, clauses, conditions, or output directive. An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
@@ -386,9 +388,9 @@ An unnamed instance uses its canonical call spelling. The printer preserves the 
 
 Names, calls, tags, constants, `_`, `ε`, and `∅` retain their lexical spellings. A range joins its endpoints with `..`, without spaces. Signed requirements use `<A ¬B>`, including `<>`. Target choices use `a | b`.
 
-String arguments use JSON quoting. Quotes and backslashes use their two-character JSON escapes. The five short control escapes cover backspace, tab, newline, form feed, and carriage return. Other controls use lowercase four-digit Unicode escapes. Slashes remain literal.
+String arguments use JSON quoting. Quotes and backslashes use their two-character JSON escapes. The five short control escapes cover backspace, tab, newline, form feed, and carriage return. These short escapes take priority over the Unicode-escape rule below. Other controls use lowercase four-digit Unicode escapes. Slashes remain literal.
 
-The printer also escapes every scalar that §9.1 spells as an engine constant. Those scalars use lowercase JSON Unicode escapes, with a surrogate pair above U+FFFF. Other non-ASCII scalars remain literal. This diagnostic spelling adds no escape syntax to grammar strings. It distinguishes a literal argument from an explicit concatenation argument.
+The printer also escapes each remaining scalar that §9.1 spells as an engine constant. Those scalars use lowercase JSON Unicode escapes, with a surrogate pair above U+FFFF. Other non-ASCII scalars remain literal. This diagnostic spelling adds no escape syntax to grammar strings. It distinguishes a literal argument from an explicit concatenation argument.
 
 Body arguments retain outer parentheses, except bare `ε`, optionals, and repetitions. The printer separates sequence items with one space. It uses ` | `, ` ≻ `, and ` & ` between operands. An optional has no internal padding. Braces have no internal padding except the spaces around `/` and between a chain marker and its item.
 
@@ -412,9 +414,7 @@ Template declarations and edits use parameter heads. `%redefine-rule f(@X)` repl
 
 A closed call contains no parameter references. An instance-specific edit names its public name or its exact closed call. An edit by public name requires an earlier binding in the stage. Before that binding, a defined ordinary name still addresses its ordinary rule. A future binding cannot make an undefined earlier edit valid.
 
-`%redefine-rule f(a)` replaces that instance's body and flag. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance.
-
-A prior body call is unnecessary.
+`%redefine-rule f(a)` replaces that instance's body and flag. `%extend-rule f(a)` appends alternatives to that instance alone. The earlier template declaration is sufficient to create the addressed instance. A prior body call is unnecessary.
 
 The loader applies template-wide and instance-specific events in source order for every instance. It replays earlier events even for an instance first discovered later. A later template redefinition replaces earlier local bodies, extensions, clauses, and flags. A later template extension reaches every instance, including one with an earlier local redefinition. A later local edit changes only its addressed instance.
 
@@ -466,7 +466,7 @@ The second declaration fails even when nothing calls it. The first declaration h
 
 The loader first records declaration order, bindings, template signatures, and edits. It then resolves names, constants, and parameter binders and performs the flow analysis. It records only closed calls during instance discovery.
 
-The source pass visits declarations in source order. A binding visits its instance call, and an exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
+The source pass visits declarations in source order. Every binding visits its instance call, including a binding that a later rebinding replaces. An exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
 
 Within each retained definition, the pass uses the reference traversal of §2.2. It visits a call's arguments from left to right and finishes each argument before recording the enclosing call. Inner closed calls therefore precede outer closed calls.
 
@@ -474,7 +474,7 @@ Calls that still contain parameters wait for substitution.
 
 The source pass finishes before the loader reads the discovery queue. Each new instance adds its effective expanded definitions to this first-in, first-out queue. Each definition includes its body, tag clauses, conditions, and emission clauses. The loader uses the same reference traversal and inner-first argument walk there. A repeated key adds nothing, including a recursive reference.
 
-For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. A retained binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
+For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
 
 Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
@@ -486,9 +486,9 @@ The audit lists templates, instance keys, effective names, first calls, bindings
 
 An ordinary rule receives a declaration slot at its first definition. A binding receives a slot at its name's first declaration. Redefining an ordinary rule as a named instance retains that rule's slot. Rebinding a named instance retains its name's slot and puts the new key there.
 
-The expanded grammar first lists ordinary rules and named instances in declaration-slot order. It then appends all unnamed instances in first-discovery order. An instance that loses its public name joins this unnamed tail at its original discovery position. An already discovered instance that receives a public name uses the name's slot instead. No instance occupies two positions.
+The expanded grammar first lists ordinary rules and named instances in declaration-slot order. It then appends all unnamed instances in first-discovery order. An instance that loses its public name joins this unnamed tail at its original discovery position. If nothing else references that instance, it receives the ordinary unreachable-rule note. An already discovered instance that receives a public name uses the name's slot instead. No instance occupies two positions.
 
-Production numbering, reference checks, diagnostics, and the audit use this expanded order. Template declarations have no runtime rule slot. Within a rule, alternatives and applicable edits retain their existing order.
+Production numbering, reference checks, rule traversal for diagnostics, and the audit use this expanded order. Expected entries still sort their `rules` by code point. Template declarations have no runtime rule slot. Within a rule, alternatives and applicable edits retain their existing order.
 
 ## 3. Lowering
 
@@ -1023,9 +1023,7 @@ A shared key holds what the content key of one parse holds, with each token's ta
 
 Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags.
 
-An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each rule target.
-
-A terminal target reads its token directly and keeps none.
+An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each rule target. A terminal target reads its token directly and keeps none.
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
@@ -1066,9 +1064,7 @@ On the two tokens with values `b` and `a`, `.ends(start-a)` is false. The target
 
 All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs.
 
-The query selects no longest suffix. A grammar error reached by that computation remains an error even when another suffix succeeds. An error first raised at input boundary p fails requests ending at p or later.
-
-It does not fail a request ending before p.
+The query selects no longest suffix. A grammar error reached by that computation remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
 
 `.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
@@ -1078,11 +1074,11 @@ Query answer keys distinguish suffix mode from whole and prefix modes. They incl
 
 Requests with one lowered target and window start share recognition when that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
-A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A nested query target reads its own window end, so that target's methods do not create this outer dependency.
+A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A target also counts as reading the window end if its recognition contains a nested query with a restored receiver. This rule includes restored queries at any nesting depth. An ordinary nested query target uses its own window end. Its end-reading methods alone do not create this outer dependency.
 
 Written-terminator priority uses only blockers that complete within the requested window. Shared recognition therefore decides eligibility separately for each end boundary. A later blocker cannot change an earlier retained answer. Errors retain the boundary scope defined above.
 
-A target that reads the window end requires separate recognition for each distinct end. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
+A target that reads the window end requires separate recognition for each distinct end. Its errors retain the complete window identity and never propagate to a different window. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
 
 ## 5. Values, images and text
 
@@ -1648,9 +1644,7 @@ The lexer reads `¬` separately only when no guard starts immediately after it. 
 
 Whitespace and comments separate tokens but add no grammar node. Call-name adjacency follows the exception above. Comments discard their contents, including backslashes, without escape processing.
 
-Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal.
-
-`$x : A < B >` has the same meaning.
+Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
 Canonical string diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal. This diagnostic spelling need not parse as a terminal. A string constant can hold the displayed join.
 
@@ -2460,9 +2454,7 @@ For a bare name after either tree comparator, report at that name: `tree compari
 
 Token selectors return an empty span if the original projection is empty. `.tokens-after-first` then returns that same empty span. Context methods can extend an empty receiver toward their context boundary.
 
-`.onward` preserves restoration constraints, including through repeated calls. Other span methods discard them after projection. Neither restoration method can follow another span method.
-
-The error directs the author to `$x.without-elision.onward`.
+`.onward` preserves restoration constraints, including through repeated calls. Other span methods discard them after projection. Neither restoration method can follow another span method. The error directs the author to `$x.without-elision.onward`.
 
 A whole capture's `.tags` reads constituent tags. Other spans union their original tokens' tags. Span methods never retain constituent tags. A restored span's `.tags` reads only original token tags. `.classes` filters the same set for names beginning and ending with uppercase ASCII letters and not beginning with `_`.
 

@@ -428,6 +428,8 @@ An `%extend-rule` takes its own header clauses, never those of the base definiti
 %emits
 ```
 
+The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
+
 The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, later stages read the vowel as unstressed. Make sure that phoneme fixtures cover both the tag and the image.
 
 A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
@@ -436,9 +438,7 @@ A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its inp
 
 The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order. They contain no `normalize` stage. Therefore `until: "normalize"` is an unknown-stage usage error.
 
-A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage. A missing stress tag does not cause a separate normalization failure.
-
-The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
+A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
 
 The `syllable-break` rule in [latin-strict.md](../grammars/phonemes/latin-strict.md) reads `commas`. Its covering emission sets the comparison value:
 

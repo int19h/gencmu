@@ -402,7 +402,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, grouped head, sequence, tested argument, constant, or tag-set expression is invalid there.
+Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
 
 ### The two list substitutions
 
@@ -442,7 +442,7 @@ An unnamed instance uses its canonical call spelling, such as `pair("a", "b")`. 
 
 A closed call contains no parameter references. Template edits write parameters, as `%extend-rule pair(@Left, @Right)`. Instance edits name one public name or one closed call, as `%extend-rule pair("a", "b")`. Both kinds apply in source order. A later template redefinition replaces earlier local edits. A later template extension also reaches locally redefined instances.
 
-A later layer can rebind a named instance with `%redefine-rule NAME = CALL`. The old key keeps its edits and takes its canonical call name. Earlier edits by NAME stay on that old key. Later edits by NAME reach the new key, and body references use the final binding.
+A later layer can rebind a named instance with `%redefine-rule NAME = CALL`. The old key keeps its edits and takes its canonical call name. Earlier edits by NAME stay on that old key. Later edits by NAME reach the new key. Every reference to NAME, except the head of an edit, uses its final binding.
 
 ```jbogenbau
 %rule atom(@Tag)
@@ -457,7 +457,7 @@ A later layer can rebind a named instance with `%redefine-rule NAME = CALL`. The
 
 Here `item` reads C. The old `atom(A)` still reads A or B and uses its canonical name.
 
-Ordinary rules and named instances keep their declaration slots. Unnamed instances follow them in discovery order. Rebinding keeps the name's slot and moves the old key into the unnamed tail at its original discovery position. This order controls numbering, reference checks, diagnostics, and the audit.
+Ordinary rules and named instances keep their declaration slots. Unnamed instances follow them in discovery order. Rebinding keeps the name's slot and moves the old key into the unnamed tail at its original discovery position. The replaced binding still creates its instance during the source pass. This order controls numbering, reference checks, rule traversal for diagnostics, and the audit.
 
 The example's expanded order is `text`, `item`, then `atom(A)`. The template `atom` has no runtime rule slot.
 
@@ -741,9 +741,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 `$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. `$x.preceding-tokens` runs from the context start to its start and returns ordinary input.
 
-These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings.
-
-They never supply constituent tags after a span method.
+These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
 The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [dialect guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
 
@@ -878,6 +876,8 @@ Name only the constructs whose closes the query permits. A family that names a b
 
 A rule owns each elidable optional that its alternatives write, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
 
+After expansion, an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
+
 The witness keeps every close and block of the candidate, in order, as for `.without-elision`. It can add a close only where two things hold. The family permits the close's optional. In the witness's restored view, a kept element stands on each side of the added close, inside the shared stretch. A kept element is a token, or a close or block that the candidate also has. Other added closes can stand between the added close and those kept elements.
 
 So at the capture's start, an added close must follow a candidate close or block there. At the end of the shared stretch, it must come before one.
@@ -909,7 +909,7 @@ For example, a target that reads `"a"` and requires `$.starts-input` does not ma
 
 `.ends` on a restored span is a load error, including after `.onward`, which preserves restoration. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
 
-With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Use `.ends` sparingly.
+With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `.ends` sparingly.
 
 ### Neighbours in the parse
 
@@ -1340,7 +1340,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
   | LI 🆓 mex [+LOhO 🆓]
 ```
 
-- The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
+- The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. `[+(@End) 🆓]` is invalid for the same reason. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
 - `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, rule, or `🆓` cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
@@ -1357,7 +1357,7 @@ A template can choose its terminator through a parameter:
 %rule description = terminated(sumti-tail, KU)
 ```
 
-The argument for `@End` must be one bare user tag after argument conversion. A rule name, group head, sequence, tested argument, constant, or tag-set expression fails loading. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
+The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant, or tag-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
