@@ -324,7 +324,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images spell the number word.
 
-The `two-phonemes` template takes a character and two output strings. Named instances retain each digit and decimal-point rule as an insertion owner.
+The `two-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 

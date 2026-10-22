@@ -132,7 +132,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 
 ## Calls and parameters
 
-A call name requires an adjacent opening parenthesis but excludes that parenthesis. A comment opener takes priority over a call.
+A call name requires an adjacent opening parenthesis. The name does not include that parenthesis. A comment opener takes priority over a call.
 
 A parameter starts with `@` and an ASCII letter. Its remaining characters follow the ordinary name rules.
 

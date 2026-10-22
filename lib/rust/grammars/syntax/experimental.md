@@ -257,13 +257,18 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
-The templates take four readers: the final tail, final forethought bridi, nonfinal tail, and nonfinal forethought bridi. A reader is a rule that supplies one part of the family.
+A reader is a rule that supplies one part of the family. The templates take four readers:
+
+- Final tail
+- Final forethought bridi
+- Nonfinal tail
+- Nonfinal forethought bridi
 
 The ordinary named instances use `tail-terms` and `gek-sentence`. The main named instances use `main-tail` and `main-gek`. A connected final branch leaves its resets to the shared tail terms.
 
 A KE group uses the ordinary reader inside its brackets. A reset closes that group before it reaches the shared tail terms.
 
-When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE permits whole-bridi negation of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
+When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE can negate the whole bridi of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
 
 The `main-tail` reader separates open tails from tails with written VAU. The `main-gek` reader also separates open and closed forethought wrappers.
 
@@ -1435,7 +1440,7 @@ Zantufa permits one reset, with no written VAU after its terms. This layer permi
 
 Zantufa accepts terms after a written final VAU, a closed TUhE group, or a KE-wrapped forethought bridi that a written KEhE closes. These terms require no written IAU. This layer rejects those terms because each boundary closes the main bridi. Free modifiers after a reset can still mark the closed bridi.
 
-A bridi-tail connection can follow a reset here. Its terms join the outermost open tail, including the shared tail of a completed connection.
+A bridi-tail connection can follow a reset here. Its terms join the outermost open tail. That tail includes the shared tail of a completed connection.
 
 The head reset uses `reset-head`, which permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it.
 
