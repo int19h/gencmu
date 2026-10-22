@@ -247,7 +247,7 @@ func inUnicodeRanges(ranges [][2]rune, c rune) bool {
 }
 func (t *unicodeTable) isEmojiName(name string) bool {
 	chars := []rune(name)
-	return len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
+	return name != "#" && name != "@" && len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
 }
 
 // unionUnicodeRanges merges overlapping and adjacent property records.

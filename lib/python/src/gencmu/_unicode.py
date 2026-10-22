@@ -87,7 +87,7 @@ class UnicodeTable:
         return index >= 0 and code <= self.emoji[prop][index][1]
 
     def is_emoji_name(self, name: str) -> bool:
-        return len(name) == 1 and self.has_emoji("Emoji_Presentation", ord(name)) and not self.has_emoji("Emoji_Component", ord(name))
+        return name not in ("#", "@") and len(name) == 1 and self.has_emoji("Emoji_Presentation", ord(name)) and not self.has_emoji("Emoji_Component", ord(name))
 
     def is_mark(self, code: int) -> bool:
         """Whether a code point is a nonspacing mark, of General_Category

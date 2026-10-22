@@ -226,6 +226,7 @@ impl Unicode {
         let mut chars = name.chars();
         chars.next().is_some_and(|c| {
             chars.next().is_none()
+                && !matches!(c, '#' | '@')
                 && self.has(Property::EmojiPresentation, c as u32)
                 && !self.has(Property::EmojiComponent, c as u32)
         })

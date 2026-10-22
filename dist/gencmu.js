@@ -547,7 +547,7 @@
 
     /** @param {string} name @returns {boolean} */
     isEmojiName(name) {
-      return [...name].length === 1 && this.hasEmoji("Emoji_Presentation", /** @type {number} */ (name.codePointAt(0))) && !this.hasEmoji("Emoji_Component", /** @type {number} */ (name.codePointAt(0)));
+      return name !== "#" && name !== "@" && [...name].length === 1 && this.hasEmoji("Emoji_Presentation", /** @type {number} */ (name.codePointAt(0))) && !this.hasEmoji("Emoji_Component", /** @type {number} */ (name.codePointAt(0)));
     }
 
     /** @param {number} code @returns {number} */
