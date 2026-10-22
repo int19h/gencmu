@@ -254,3 +254,7 @@ pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
 }
 
 pub(crate) use schema::declaration as declaration_problem;
+
+pub(crate) fn source_depth_problem(n: &Json, kind: &str, unicode: &Unicode) -> bool {
+    schema::node(n, kind, 0, true, false, unicode) == Some("nested too deeply")
+}

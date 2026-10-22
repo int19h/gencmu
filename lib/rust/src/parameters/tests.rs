@@ -263,3 +263,39 @@ fn ranked_argument_location() {
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "choice((\"a\" ≻ \"b\"))").unwrap();
     assert_eq!(r.alternatives[0].ranked_locations[""], (3, 29));
 }
+
+#[test]
+fn deep_source_groups_need_no_recursive_conversion() {
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            let source = format!(
+                "```jbogenbau\n%rule atom(@X) {}@X{}\n%rule text = atom(\"a\")\n```\n",
+                "(".repeat(4000),
+                ")".repeat(4000)
+            );
+            crate::tools::read_grammar_document(&source).unwrap();
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+#[test]
+fn deep_source_constructors_report_the_dom_limit() {
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            let cases = [
+                format!("%rule atom(@X) {}@X{}", "[".repeat(2000), "]".repeat(2000)),
+                format!("%rule atom(@X) @X\n%rule text {}\"a\"{}", "atom(".repeat(2000), ")".repeat(2000)),
+            ];
+            for text in cases {
+                let source = format!("```jbogenbau\n{text}\n```\n");
+                let error = crate::tools::read_grammar_document(&source).unwrap_err();
+                assert_eq!(error.message, "an expression, term or condition is nested more than 256 deep");
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}

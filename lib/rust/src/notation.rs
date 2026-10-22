@@ -12,6 +12,7 @@ use crate::work::{self, Work};
 mod parameters;
 
 pub(crate) struct Reader<'a> {
+    pub parameter_state: std::cell::RefCell<parameters::State<'a>>,
     pub unicode: &'a crate::unicode::Unicode,
     pub defer_emission: bool,
     pub feature_context: std::cell::Cell<bool>,
@@ -155,7 +156,7 @@ impl<'a> Reader<'a> {
                 continue;
             }
             if parameters::syntax(node) {
-                let raw = self.parameter_declaration(node)?;
+                let raw = self.parameter_document(node)?;
                 let kind = match rule_name(node) {
                     "rule" => "rules",
                     "directive" => "directives",

@@ -285,6 +285,7 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     // on the caller's thread (engine §9).
     let position = |index: usize| grammar.position(index);
     let reader = Reader {
+        parameter_state: Default::default(),
         unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),

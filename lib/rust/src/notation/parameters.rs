@@ -3,6 +3,43 @@ use super::*;
 use crate::json::Json;
 use crate::parameters::{self as p, get, has, list, obj, position, set, string, text};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Mode {
+    Declaration,
+    Call,
+    Expr,
+    Term,
+    Condition,
+    Pattern,
+    Emission,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct Context {
+    braces: usize,
+    marked: usize,
+    recipe: bool,
+    feature: bool,
+    closed: Option<&'static str>,
+}
+type Key = (Mode, usize, bool, Context);
+#[derive(Clone, Copy)]
+struct Task<'a> {
+    mode: Mode,
+    node: &'a Node,
+    argument: bool,
+    context: Context,
+}
+impl Task<'_> {
+    fn key(&self) -> Key {
+        (self.mode, self.node as *const Node as usize, self.argument, self.context)
+    }
+}
+#[derive(Default)]
+pub(crate) struct State<'a> {
+    values: crate::fxhash::FxMap<Key, Json>,
+    active: Option<Key>,
+    pending: Option<Task<'a>>,
+}
 pub(super) fn syntax(root: &Node) -> bool {
     let mut stack = vec![root];
     while let Some(n) = stack.pop() {
@@ -22,6 +59,83 @@ fn pattern_node(n: Json) -> Json {
     n.get("node").cloned().unwrap_or_else(|| obj([("children", n)]))
 }
 impl<'a> Reader<'a> {
+    fn parameter_context(&self) -> Context {
+        Context {
+            braces: self.braces.get(),
+            marked: self.marked.get(),
+            recipe: self.in_recipe.get(),
+            feature: self.feature_context.get(),
+            closed: self.closed_for.get(),
+        }
+    }
+    fn parameter_restore(&self, c: Context) {
+        self.braces.set(c.braces);
+        self.marked.set(c.marked);
+        self.in_recipe.set(c.recipe);
+        self.feature_context.set(c.feature);
+        self.closed_for.set(c.closed);
+    }
+    fn parameter_start(&self, mode: Mode, node: &'a Node, argument: bool) -> R<Option<Json>> {
+        let task = Task { mode, node, argument, context: self.parameter_context() };
+        let key = task.key();
+        let mut state = self.parameter_state.borrow_mut();
+        if let Some(value) = state.values.get(&key) {
+            return Ok(Some(value.clone()));
+        }
+        if state.active == Some(key) {
+            return Ok(None);
+        }
+        state.pending = Some(task);
+        Err(Error::grammar("a private reader continuation"))
+    }
+    // A missing child suspends its constructor. The heap stack resumes it
+    // after that child completes, with its recipe and capture context intact.
+    pub(super) fn parameter_document(&self, node: &'a Node) -> R<Json> {
+        let context = self.parameter_context();
+        *self.parameter_state.borrow_mut() = State::default();
+        let result = (|| {
+            let mut tasks = vec![Task { mode: Mode::Declaration, node, argument: false, context }];
+            while let Some(task) = tasks.last().copied() {
+                self.parameter_restore(task.context);
+                self.parameter_state.borrow_mut().active = Some(task.key());
+                let result = match task.mode {
+                    Mode::Declaration => self.parameter_declaration(task.node),
+                    Mode::Call => self.call(task.node),
+                    Mode::Expr => self.parameter_expr(task.node, task.argument),
+                    Mode::Term => self.parameter_term(task.node, task.argument),
+                    Mode::Condition => self.parameter_condition(task.node),
+                    Mode::Pattern => self.parameter_pattern(task.node),
+                    Mode::Emission => self.parameter_emission(task.node),
+                };
+                let pending = self.parameter_state.borrow_mut().pending.take();
+                if let Some(child) = pending {
+                    tasks.push(child);
+                    continue;
+                }
+                let value = result?;
+                let kind = match task.mode {
+                    Mode::Expr => "expr",
+                    Mode::Call => "call",
+                    Mode::Condition => "condition",
+                    Mode::Pattern => "children",
+                    _ => "term",
+                };
+                if crate::parameters::source_depth_problem(&value, kind, self.unicode) {
+                    return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
+                }
+                tasks.pop();
+                if tasks.is_empty() {
+                    return Ok(value);
+                }
+                self.parameter_state.borrow_mut().values.insert(task.key(), value);
+            }
+            unreachable!("a source task returns its node")
+        })();
+        self.parameter_restore(context);
+        *self.parameter_state.borrow_mut() = State::default();
+        result
+    }
+
     fn parameter(&self, n: &Node) -> R<Json> {
         Ok(obj([
             ("param", string(self.value(self.token(n)?).trim_start_matches('@'))),
@@ -29,6 +143,9 @@ impl<'a> Reader<'a> {
         ]))
     }
     fn call(&self, n: &'a Node) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Call, n, false)? {
+            return Ok(value);
+        }
         let mut args = Vec::new();
         for a in self.some(n, "call-argument", 1)? {
             let inner = self
@@ -61,6 +178,9 @@ impl<'a> Reader<'a> {
         ]))
     }
     pub(super) fn parameter_declaration(&self, n: &'a Node) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Declaration, n, false)? {
+            return Ok(value);
+        }
         match rule_name(n) {
             "rule" => {
                 let op = match self.value(self.token(self.one(n, "definer")?)?) {
@@ -233,6 +353,9 @@ impl<'a> Reader<'a> {
         Ok(())
     }
     fn parameter_expr(&self, mut n: &'a Node, mut whole: bool) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Expr, n, whole)? {
+            return Ok(value);
+        }
         loop {
             let (part, key) = match rule_name(n) {
                 "choice" => ("conjunction", "choice"),
@@ -444,6 +567,9 @@ impl<'a> Reader<'a> {
         Ok(expr)
     }
     fn parameter_term(&self, mut n: &'a Node, argument: bool) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Term, n, argument)? {
+            return Ok(value);
+        }
         while syntax(n) {
             match rule_name(n) {
                 "term" => n = self.inner(n, &TERMS)?,
@@ -581,6 +707,9 @@ impl<'a> Reader<'a> {
         Ok(r)
     }
     fn parameter_condition(&self, n: &'a Node) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Condition, n, false)? {
+            return Ok(value);
+        }
         if !syntax(n) && rule_name(n) == "implication" {
             return Ok(written(&self.implication(n)?, crate::dom::write_cond));
         }
@@ -632,6 +761,9 @@ impl<'a> Reader<'a> {
         Ok(r)
     }
     fn parameter_pattern(&self, n: &'a Node) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Pattern, n, false)? {
+            return Ok(value);
+        }
         if !syntax(n) {
             return Ok(written(&self.pattern_children(n, 0)?, |out, c| c.write(out)));
         }
@@ -755,6 +887,9 @@ impl<'a> Reader<'a> {
         }
     }
     fn parameter_emission(&self, n: &'a Node) -> R<Json> {
+        if let Some(value) = self.parameter_start(Mode::Emission, n, false)? {
+            return Ok(value);
+        }
         let parts: Vec<_> = Self::rules(n, "emit-item").collect();
         let mut items = Vec::new();
         if parts.is_empty() {

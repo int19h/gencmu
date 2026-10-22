@@ -313,7 +313,14 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
     }
     None
 }
-fn node(n: &Json, mut kind: &str, depth: usize, whole: bool, sealed: bool, uni: &Unicode) -> Option<&'static str> {
+pub(super) fn node(
+    n: &Json,
+    mut kind: &str,
+    depth: usize,
+    whole: bool,
+    sealed: bool,
+    uni: &Unicode,
+) -> Option<&'static str> {
     if depth > dom::DOM_MAX_DEPTH {
         return Some("nested too deeply");
     }
