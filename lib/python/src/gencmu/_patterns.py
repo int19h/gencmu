@@ -62,6 +62,9 @@ def pattern_problem(root: Any, test_fault: Callable[[Dom], str | None] | None = 
                     push(node["separator"], True, True)
             else:
                 return "a malformed pattern children expression"
+        elif 'param' in node or 'call' in node:
+            if not (keys == {'param', 'at'} or keys == {'call', 'args', 'at'}):
+                return 'a malformed pattern atom'
         elif any(keys == {key, "at"} for key in ("name", "terminal", "constant")):
             key = next(key for key in ("name", "terminal", "constant") if key in node)
             name, at = node[key], node["at"]
@@ -88,7 +91,7 @@ def pattern_problem(root: Any, test_fault: Callable[[Dom], str | None] | None = 
                 base = inner.get("expr", {})
             else:
                 base = inner
-            if not any(k in base for k in ("terminal", "literal", "range", "wildcard", "constant")) or "test" in base:
+            if not any(k in base for k in ("terminal", "literal", "range", "wildcard", "constant", "param")) or "test" in base:
                 return "a pattern test requires one terminal atom"
             if test_fault is not None:
                 problem = test_fault(node)

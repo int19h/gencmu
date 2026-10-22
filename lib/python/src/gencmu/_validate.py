@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from ._template_nodes import has_unresolved, nodes
+from ._types import _METHODS
+
 import re
 from typing import Any, Protocol
 
@@ -63,9 +66,9 @@ def _guard(value: Any, gate: bool = False) -> bool:
 def _base(expr: Any) -> bool:
     return (
         isinstance(expr, dict)
-        and len(expr) == 1
+        and ("param" in expr or "call" in expr or len(expr) == 1)
         and (
-            "ref" in expr
+            "param" in expr or "call" in expr or "ref" in expr
             and _ref(expr["ref"])
             or "literal" in expr
             or "range" in expr
@@ -94,6 +97,8 @@ def elidable_head(expr: Any) -> Any:
     base = head
     while isinstance(base, dict) and "test" in base:
         base = base.get("expr")
+    if isinstance(base, dict) and "param" in base:
+        return head if _target(head) else None
     if isinstance(base, dict) and set(base) == {"ref"} and isinstance(base["ref"], str) and USER_NAME.fullmatch(base["ref"]):
         return head if _target(head) else None
     return None
@@ -163,6 +168,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
             if at in positions:
                 return "two items at one position"
             positions.add(at)
+    for key in ('directives', 'constants', 'classifiers', 'implications'):
+        if any('param' in node for item in dom[key] for node in nodes(item)):
+            return 'an undeclared or malformed parameter'
     pending = []
     for d in dom["directives"]:
         if "conditions" in d:
@@ -231,8 +239,23 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
                 return "an implication requires closed terms without engine-tag literals"
             pending.append(("tags", term, 0, False, False))
     for r in dom["rules"]:
+        params = r.get('params', [])
+        if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
+            return 'malformed template parameters'
+        for node in nodes(r):
+            if 'param' in node and (set(node) != {'param', 'at'} or not _is_position(node['at']) or node['param'] not in params):
+                return 'an undeclared or malformed parameter'
+        if 'instance' in r:
+            if set(r) != {'name', 'op', 'flags', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not (unicode.is_emoji_name(r['name']) or CLASSIFIER_NAME.fullmatch(r['name'])) or r['op'] not in ('define', 'redefine') or r['flags'] != [] or r['conditions'] != []:
+                return 'a malformed instance binding'
+            pending.append(('call', r['instance'], 0, False, False))
+            continue
+        if 'args' in r:
+            if r['op'] not in ('extend', 'redefine'):
+                return 'an instance head requires an edit'
+            pending.append(('call', dict(call=r['name'], args=r['args'], at=r['at']), 0, False, False))
         if (
-            not set(r) <= {"name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+            not set(r) <= {"name", "params", "args", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
             or not isinstance(r.get("name"), str)
             or not (unicode.is_emoji_name(r["name"]) or CLASSIFIER_NAME.fullmatch(r["name"]))
             or r.get("op") not in ("define", "redefine", "extend")
@@ -314,6 +337,8 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     if problem:
         return problem
     for r in dom["rules"]:
+        if has_unresolved(r):
+            continue
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
                 return "a capture name used twice in one production"
@@ -339,6 +364,44 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             return f"a malformed {kind}"
         below = depth + 1
         keys = set(node)
+        if 'param' in node:
+            if keys != {'param', 'at'} or not isinstance(node['param'], str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', node['param']) is None or not _is_position(node['at']):
+                return 'an undeclared or malformed parameter'
+            continue
+        if 'call' in node or kind == 'call':
+            if keys != {'call', 'args', 'at'} or not isinstance(node['call'], str) or not (CLASSIFIER_NAME.fullmatch(node['call']) or unicode.is_emoji_name(node['call'])) or not _is_position(node['at']) or not _items(node['args']):
+                return 'a malformed call'
+            pending.extend(('arg', arg, below, False, False) for arg in node['args'])
+            continue
+        if kind == 'arg':
+            if any('capture' in n or 'captured' in n for n in nodes(node)) or keys & {'classifier', 'integer'}:
+                return 'an argument cannot read or declare captures'
+            if 'body' in node:
+                if keys != {'body'}:
+                    return 'a malformed body argument'
+                pending.append(('expr', node['body'], depth, True, False))
+            elif 'targets' in node:
+                if keys != {'targets'} or not _items(node['targets'], 2):
+                    return 'a malformed target choice'
+                pending.extend(('target', v, below, False, False) for v in node['targets'])
+            elif 'requirements' in node:
+                if keys != {'requirements'} or not isinstance(node['requirements'], list):
+                    return 'a malformed requirement list'
+                for entry in node['requirements']:
+                    if not isinstance(entry, dict) or set(entry) != {'negated', 'value'} or type(entry['negated']) is not bool or not isinstance(entry['value'], dict) or not any(k in entry['value'] for k in ('tag', 'const', 'param')):
+                        return 'a malformed requirement'
+                    pending.append(('term', entry['value'], below, False, False))
+            elif 'rule' in node:
+                if keys != {'rule'} or not isinstance(node['rule'], str) or not (CLASSIFIER_NAME.fullmatch(node['rule']) or unicode.is_emoji_name(node['rule'])):
+                    return 'a malformed nominal rule argument'
+            else:
+                pending.append(('expr' if keys & {'test', 'range', 'wildcard'} else 'term', node, depth, False, False))
+            continue
+        if kind == 'target':
+            if not (keys == {'rule'} and isinstance(node['rule'], str) and (CLASSIFIER_NAME.fullmatch(node['rule']) or unicode.is_emoji_name(node['rule'])) or keys == {'terminal'} and _tag(node['terminal']) and not node['terminal'].startswith('_')):
+                return 'a malformed query target'
+            continue
+        dependent = has_unresolved(node)
         if kind == "expr":
             if any(k in node for k in ("seq", "choice", "ranked", "and")):
                 key = next(k for k in ("seq", "choice", "ranked", "and") if k in node)
@@ -378,14 +441,14 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                         if not isinstance(r, dict) or set(r) != {"negated", "value"} or type(r["negated"]) is not bool:
                             return "a malformed requirement"
                         value = r["value"]
-                        if not isinstance(value, dict) or not (set(value) == {"tag"} or set(value) == {"const", "at"}):
+                        if not isinstance(value, dict) or not (set(value) == {"tag"} or set(value) == {"const", "at"} or set(value) == {"param", "at"}):
                             return "a tag test requires tags or constants"
                         pending.append(("tags", value, below, False, False))
                 else:
                     pending.append(("string", node["value"], below, False, False))
             # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
-                if keys != {"range"} or range_problem(node["range"], unicode):
+                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"], unicode):
                     return "a malformed range"
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
             elif "literal" in node:
@@ -454,20 +517,24 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
-            problem = None if id(node) in deferred else condition_type_problem(node, memo=types)
+            problem = None if id(node) in deferred or dependent else condition_type_problem(node, memo=types)
             if problem:
                 return problem
             if "method" not in node:
                 continue
         elif kind == "tags":
-            problem = None if id(node) in deferred else tag_term_problem(node, memo=types)
+            problem = None if id(node) in deferred or dependent else tag_term_problem(node, memo=types)
             if problem:
                 return problem
         if "method" in node:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
             recipe = kind == "recipe-method"
-            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
+            if node['method'] not in _METHODS:
+                return 'unknown method name'
+            if node['method'] in ('classify', 'ngrams') and has_unresolved(node['args']):
+                return 'a parameter cannot replace a classifier name or integer argument'
+            problem = None if dependent else method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
             if problem:
                 return problem
             if kind != "condition" and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"):
@@ -478,7 +545,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 and node["receiver"].get("method") == "emitted"
             ):
                 return "a recipe-only method outside a recipe"
-            result, problem = ("any", None) if id(node) in deferred else term_type(node, memo=types)
+            result, problem = ("any", None) if id(node) in deferred or dependent else term_type(node, memo=types)
             if problem:
                 return problem
             if kind == "string":
@@ -521,6 +588,9 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if keys != {"pattern"}:
                 return "a malformed pattern term"
             problem = pattern_problem(node["pattern"], initial_depth=below)
+            for part in nodes(node['pattern']):
+                if 'call' in part or 'param' in part:
+                    pending.append(('term', part, below, False, False))
             if problem:
                 return problem
             for atom, offset in walk_pattern(node["pattern"]):

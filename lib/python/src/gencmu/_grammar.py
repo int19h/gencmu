@@ -154,6 +154,8 @@ class Grammar:
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
     query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
+    templates: list[Dom] = field(default_factory=list, repr=False, compare=False)
+    instances: list[Dom] = field(default_factory=list, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -681,9 +683,15 @@ def _calls_in(node: Any) -> list[Dom]:
 def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
     controls canonical terminal spellings in diagnostics."""
+    from ._templates import expand_templates
+    from ._ranked import expression_locations
+    documents, template_order, templates, instances, validation = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
+    for event in validation:
+        if constants_in(event['rule']) or _rule_has_pattern(event['rule']):
+            constants.users.append((event['path'], event['rule']))
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
     classifier_items: list[tuple[str, Dom]] = []
@@ -716,7 +724,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                     rule_image=rule.get("image"),
                     document=path,
                     at=at,
-                    ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
+                    ranked_locations={**getattr(rule,"ranked_locations",{}).get(alternative_index,{}), **expression_locations(alt['expr'])},
                     index=alternative_index,
                 )
                 for alternative_index,alt in enumerate(rule.get("alternatives", []))
@@ -760,6 +768,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             constants.add(path, constant)
         classifier_items.extend((path, classifier) for classifier in dom.get("classifiers", []))
         implication_items.extend((path, implication) for implication in dom.get("implications", []))
+    if template_order is not None:
+        rules = {name: rules[name] for name in template_order}
     constants.bind()
     constants.check()
     constants.resolve(rules)
@@ -884,6 +894,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         implications=implications,
         families=members(rules, family_names),
         query_terminals=frozenset(query_terminals),
+        templates=templates,
+        instances=instances,
     )
 
     grammar.ranked = RankedGroups(stage, rules)

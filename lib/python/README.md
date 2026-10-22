@@ -28,6 +28,10 @@ The loader reads a grammar document through the notation (the grammar of grammar
 
 Each loader takes `use_cache=False` to read every document afresh.
 
+Parameterized rules use declarations such as `%rule pair(@Left,@Right) @Left @Right`. The call `pair("a","b")` supplies two arguments. The loader substitutes parsed nodes before ordinary grammar validation. `%rule text = pair("a","b")` names the concrete instance `text` and adds no wrapper node.
+
+Templates and instances accept source-ordered edits. A template flag becomes the flag of each instance. A pattern that names a template matches every instance. Recognition queries name one instance. The loader rejects parameter flows that can create unbounded instance growth.
+
 An entry holds a document's constants (`%const` and `%redefine-const`), classifiers (`%classifier`) and implications (`%implies`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). A stage resolves each classifier for the features of a parse, and keeps the result for each set of features. So a document that several stages or dialects include takes the values of each, and one entry serves them all.
 
 A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. An error of a constant stands at the definition that is wrong, or else at the reference to the constant. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.

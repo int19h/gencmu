@@ -269,6 +269,8 @@ def _term_typing(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
 def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if not isinstance(term, dict):
         return None, ("a malformed term", term)
+    if "param" in term or "call" in term:
+        return "any", None
     if "pattern" in term:
         tested = set()
         for node, _ in walk_pattern(term["pattern"]):

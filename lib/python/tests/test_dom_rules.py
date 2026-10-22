@@ -1736,7 +1736,6 @@ class Classifiers(unittest.TestCase):
             '%classifier l "a" ∈ ~a',
             '%implies A ⟹ "a"',
             "%implies $x.tags ⟹ A",
-            '%implies classify("a", l) ⟹ A',
         ]:
             with self.subTest(document=refused):
                 if refused in ('%classifier l "A" ∈ A', '%classifier l "a,b" ∈ A'):
@@ -1745,6 +1744,15 @@ class Classifiers(unittest.TestCase):
                 else:
                     with self.assertRaises(gencmu.GencmuError):
                         read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
+
+    def test_an_unresolved_call_is_checked_at_stage_load(self) -> None:
+        from .shared import load_case_dialect
+        document = '%implies classify("a", l) ⟹ A'
+        dom = read_document("```jbogenbau\n" + document + "\n```\n", "t.md")
+        self.assertEqual(dom['implications'][0]['if']['call'], 'classify')
+        dialect, error = load_case_dialect(dict(grammar=document + '\n%rule text "a"'))
+        self.assertIsNone(dialect)
+        self.assertEqual(error.kind, 'grammar')
 
 
 if __name__ == "__main__":

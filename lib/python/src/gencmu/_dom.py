@@ -12,7 +12,9 @@ from ._model import Node, Token
 from ._strings import ENGINE_TAGS, USER_NAME, scalar, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._patterns import pattern_problem
+from ._template_nodes import argument_of_expression, has_unresolved
 from ._types import (
+    _METHODS,
     comparison_problem,
     method_shape_problem,
     method_type,
@@ -42,13 +44,13 @@ choice conjunction sequence primary repetition reference string-terminal string 
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
-implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator""".split())
-_PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"))
+implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
+_PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
-_ATOMS = frozenset(("string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal"))
+_ATOMS = frozenset(("string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal", "call", "parameter"))
 _ITEMS = frozenset(("directive", "rule", "constant-definition", "classifier", "implication-declaration"))
-_SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference"))
+_SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference", "call", "parameter"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
 
 
@@ -95,6 +97,8 @@ class DomBuilder:
         self.feature_context = False
         self.engine_nodes = {}
         self.boundary_nodes = {}
+        self.reading_head = False
+        self.parameter_scope = set()
 
     # -- positions and errors
 
@@ -362,7 +366,7 @@ class DomBuilder:
                     if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
                         or value["method"] in ("value", "image") and emitted):
                         raise self.fail(atom, "invalid recipe method chain")
-                elif "string" not in value and "const" not in value:
+                elif "string" not in value and "const" not in value and "param" not in value:
                     raise self.fail(atom, "a recipe atom requires a string")
                 atoms.append(value)
         from ._recipes import Recipe
@@ -372,8 +376,19 @@ class DomBuilder:
         """A definition: its keyword, its name, its alternatives and its
         clauses, checked as a whole once it is read (engine §9)."""
         op = _DEFINERS.get(self.token_value(self.token(self.only(node, "definer"))), "define")
-        name_node = self.only(node, "rule-name")
-        name = self.token_value(self.token(name_node))
+        self.parameter_scope = set()
+        self.reading_head = True
+        name_node = self.one(node, "rule-name")
+        head = run(self._call(self.only(node, "call"))) if name_node is None else None
+        self.reading_head = False
+        head_fields = {}
+        if head:
+            if all('param' in arg for arg in head['args']):
+                head_fields['params'] = [arg['param'] for arg in head['args']]
+                self.parameter_scope = set(head_fields['params'])
+            else:
+                head_fields['args'] = head['args']
+        name = head['call'] if head else self.token_value(self.token(name_node))
         if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
             raise self.fail(name_node, "a rule name starts with a lowercase letter or uses one eligible emoji")
         flags: list[str] = []
@@ -390,6 +405,10 @@ class DomBuilder:
                 if flags:
                     raise self.fail(flag, "two different rule flags are not allowed")
                 flags.append(value)
+        if any(self._token_value(kid) == '=' for kid in self.kids(node)):
+            if head:
+                raise self.fail(node, 'a binding requires a plain rule name')
+            return dict(name=name, op=op, flags=flags, instance=run(self._call(self.only(node, 'call'))), conditions=[], at=list(self.position(node)))
         header = self.clauses(node, "tags-clause", True)
         body = self.one(node, "body") or self.only(node, "headed-body")
         ranked = self.one(body, "ranked-alternative")
@@ -397,7 +416,7 @@ class DomBuilder:
         conditions_node = self.one(node, "conditions-clause")
         conditions = [run(self._condition(item)) for item in self.some(conditions_node, "implication")] if conditions_node else []
         emits_node = self.one(node, "emits-clause")
-        dom = {"name": name, "op": op, "flags": flags, **header, "alternatives": alternatives}
+        dom = {"name": name, **head_fields, "op": op, "flags": flags, **header, "alternatives": alternatives}
         if emits_node is not None:
             dom["emit"] = self.emission(emits_node)
         dom["conditions"] = conditions
@@ -406,16 +425,47 @@ class DomBuilder:
         dom["at"] = list(self.position(node))
         flatten_groups(dom)
         from ._boundary import problem as boundary_problem
-        boundary = boundary_problem(dom)
+        boundary = None if has_unresolved(dom) else boundary_problem(dom)
         if boundary is not None:
             raise self.fail(self.boundary_nodes.get(id(boundary[1]), node), boundary[0])
-        problem = definition_problem(dom)
+        problem = None if has_unresolved(dom) else definition_problem(dom)
         if problem is not None:
             if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
                 self.deferred_emissions.append((dom,problem))
             else:
                 raise self.fail(node, problem)
         return dom
+
+    def parameter(self, node):
+        param = self.token_value(self.token(node))[1:]
+        if not self.reading_head and param not in self.parameter_scope:
+            raise self.fail(node, 'undeclared parameter @' + param)
+        return dict(param=param, at=list(self.position(node)))
+
+    def _call(self, node):
+        name = self.token_value(self.token(node))
+        args = []
+        for argument in self.some(node, 'call-argument'):
+            part = self.known_of(argument, frozenset(('requirement-argument', 'target-argument', 'body-argument', 'symbol-argument', 'term')))
+            if part.rule == 'requirement-argument':
+                value = dict(requirements=self.wrap_tests({}, [part])['requirements'])
+            elif part.rule == 'target-argument':
+                targets = []
+                for target in (k for k in self.kids(part) if k.kind == 'rule'):
+                    if target.rule == 'reference':
+                        targets.append(dict(rule=self.token_value(self.token(target))))
+                    elif target.rule == 'tag':
+                        targets.append(dict(terminal=self.tag_of(self.token(target))))
+                    else:
+                        targets.append((yield self._call(target)) if target.rule == 'call' else self.parameter(target))
+                value = dict(targets=targets)
+            elif part.rule in ('body-argument', 'symbol-argument'):
+                expr = yield self._expr(self.known_of(part, _PRIMARIES), True)
+                value = argument_of_expression(expr)
+            else:
+                value = yield self._term(part, True)
+            args.append(value)
+        return dict(call=name, args=args, at=list(self.position(node)))
 
     # -- expressions
 
@@ -449,7 +499,7 @@ class DomBuilder:
         tags (engine §10). The error stands at the term."""
         term = self.value(node)
         problem = tag_term_problem(term, memo=self.types)
-        if problem is not None:
+        if problem is not None and not has_unresolved(term):
             raise self.fail(node, problem)
         retained = lit_occurrences(term)
         if retained:
@@ -461,6 +511,10 @@ class DomBuilder:
         """An expression; ``whole`` says it is its alternative's whole
         expression, where a chain may stand (engine §9)."""
         rule = node.rule
+        if rule == 'parameter':
+            return self.parameter(node)
+        if rule == 'call':
+            return (yield self._call(node))
         if rule == "choice":
             ranked = self.one(node, "ranked-choice")
             if ranked is not None:
@@ -566,7 +620,7 @@ class DomBuilder:
         head = self.known_of(primaries[0], _PRIMARIES)
 
         def is_terminal(symbol: Node) -> bool:
-            return symbol.rule in ("tag", "reference") and USER_NAME.fullmatch(self.token_value(self.token(symbol))) is not None
+            return symbol.rule == 'parameter' or symbol.rule in ("tag", "reference") and USER_NAME.fullmatch(self.token_value(self.token(symbol))) is not None
 
         if head.rule == "tested":
             if not is_terminal(self.test_base(head)):
@@ -632,12 +686,12 @@ class DomBuilder:
         return name
 
     def range_of(self, node: Node) -> list[Dom]:
-        parts = [kid for kid in self.kids(node) if kid.rule in ("string", "constant-reference")]
+        parts = [kid for kid in self.kids(node) if kid.rule in ("string", "constant-reference", "parameter")]
         if len(parts) < 2:
             raise self.lacks(node, "two string operands")
         ends = [self.value(end) for end in parts[:2]]
         problem = range_problem(ends, self.unicode)
-        if problem:
+        if problem and not has_unresolved(ends):
             raise self.fail(node, problem)
         return ends
 
@@ -659,16 +713,16 @@ class DomBuilder:
 
     def wrap_tests(self, expr: Dom, tests: list[Node]) -> Dom:
         for test in tests:
-            if test.rule == "tag-test":
+            if test.rule in ("tag-test", "requirement-argument"):
                 requirements = []
                 for requirement in self.rules(test, "tag-requirement"):
                     negated = any(self._token_value(kid) == "¬" for kid in self.kids(requirement))
                     operand = self.only(requirement, "test-operand")
                     base = self.known_of(operand, _ATOMS)
-                    if base.rule not in ("tag", "name", "constant-reference"):
+                    if base.rule not in ("tag", "name", "constant-reference", "parameter"):
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
                     value = self.value(base)
-                    if "tag" not in value and "const" not in value:
+                    if "tag" not in value and "const" not in value and "param" not in value:
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
                     problem = expected_problem(term_type(value, memo=self.types)[0], "tags")
                     if problem:
@@ -679,7 +733,7 @@ class DomBuilder:
                 op = self.operator(self.token(self.only(test, "test")))
                 operand = self.only(test, "test-operand")
                 base = self.known_of(operand, _ATOMS)
-                if base.rule not in ("string", "constant-reference"):
+                if base.rule not in ("string", "constant-reference", "parameter"):
                     raise self.fail(operand, "a value test requires a string or string constant")
                 expr = {"test": op, "value": self.value(base), "expr": expr}
         return expr
@@ -770,7 +824,7 @@ class DomBuilder:
             kind, problem = term_type(right, memo=self.types)
             if problem is None:
                 problem = comparison_problem(op, "capture", kind)
-            if problem is not None and not self.feature_context:
+            if problem is not None and not self.feature_context and not has_unresolved(right):
                 raise self.fail(node, problem)
             return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
@@ -784,7 +838,7 @@ class DomBuilder:
                 right_type, problem = term_type(right, memo=self.types)
                 if problem is None:
                     problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
-            if problem is not None and not self.feature_context:
+            if problem is not None and not self.feature_context and not has_unresolved([left, right]):
                 raise self.fail(node, problem)
             return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
@@ -793,7 +847,7 @@ class DomBuilder:
             return {"captured": self.token_value(self.token(node))[1:]}
         if node.rule == "method":
             method = yield self._method(node)
-            if term_type(method, memo=self.types)[0] != "predicate":
+            if term_type(method, memo=self.types)[0] != "predicate" and not has_unresolved(method):
                 raise self.fail(node, "a condition requires a query or starts-input method")
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
@@ -807,6 +861,8 @@ class DomBuilder:
         receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
         for selector in self.some(node, "method-selector"):
             name = self.token_value(self.token(self.only(selector, "method-name")))
+            if name not in _METHODS:
+                raise self.fail(node, 'unknown method ' + name)
             if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} requires a closed term")
             if not self.recipe_context and name in ("verbatim-text", "emitted"):
@@ -835,7 +891,10 @@ class DomBuilder:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
                 if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
-            if self.feature_context:
+            if name in ('classify', 'ngrams') and has_unresolved(args):
+                raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
+            dependent = has_unresolved([receiver, args])
+            if self.feature_context and not dependent:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
                 if problem:
                     raise self.fail(node, problem)
@@ -845,7 +904,7 @@ class DomBuilder:
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
                 call = name + ("(F)" if name == "without-elision-except" else "")
                 problem = f".{name} requires a bare capture; use $x.{call}.onward"
-            if problem is not None and not self.feature_context:
+            if problem is not None and not self.feature_context and not dependent:
                 raise self.fail(node, problem)
             if not self.feature_context and name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
@@ -857,14 +916,14 @@ class DomBuilder:
                 if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
-            if problem and not self.feature_context:
+            if problem and not self.feature_context and not dependent:
                 raise self.fail(node, problem)
         return receiver
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
         """Sets joined by an operator are of one kind (engine §10); the
         error stands at the construct that joins them."""
-        if self.feature_context:
+        if self.feature_context or has_unresolved(items):
             return
         types = []
         for item in items:
@@ -897,7 +956,10 @@ class DomBuilder:
                 valid = False
             # Target and order errors precede conversion of a group's or
             # nested literal's contents, just as for a tested primary.
-            self.test_order(tests, valid)
+            self.test_order(tests, valid or first.rule == "parameter")
+            if first.rule in ("call", "parameter"):
+                expr = (yield self._call(first)) if first.rule == "call" else self.parameter(first)
+                return {"node": self.wrap_tests(expr, tests)}
             if named:
                 name_token = first if first.kind == "token" else self.token(first)
                 name = self.token_value(name_token)
@@ -941,7 +1003,7 @@ class DomBuilder:
                     following = self._pattern_node(part)
                     pattern = {op:[*pattern.get("union", [pattern]), *following.get("union", [following])]} if op == "union" else {op:[pattern, following]}
                     problem = pattern_problem(pattern)
-                    if problem is not None:
+                    if problem is not None and not has_unresolved(pattern):
                         raise self.fail(node, problem)
                 result = {"node":pattern}
         elif kind == "pattern-sequence":
@@ -987,7 +1049,7 @@ class DomBuilder:
             path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[operator]
             result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
         problem = pattern_problem(self._pattern_node(result))
-        if problem is not None:
+        if problem is not None and not has_unresolved(result):
             raise self.fail(node, problem)
         return result
 
@@ -1004,6 +1066,10 @@ class DomBuilder:
         """A term; ``argument`` says it is a function's argument, where a
         span or a rule may stand."""
         rule = node.rule
+        if rule == 'parameter':
+            return self.parameter(node)
+        if rule == 'call':
+            return (yield self._call(node))
         if rule == "pattern-literal":
             closed = self.closed_for
             self.closed_for = None
@@ -1036,7 +1102,7 @@ class DomBuilder:
                 _, problem = joined_type([kind], "⟹")
                 if kind == "pattern":
                     problem = "a guarded term requires a set"
-            if problem is not None and not self.feature_context:
+            if problem is not None and not self.feature_context and not has_unresolved(guarded):
                 raise self.fail(guards[-1], problem)
             for condition in reversed(conditions):
                 guarded = {"if": condition, "then": guarded}
@@ -1077,7 +1143,7 @@ class DomBuilder:
                 value = yield self._term(part, argument and len(nodes) == 1)
                 if len(nodes) > 1:
                     kind, problem = term_type(value, memo=self.types)
-                    if not self.feature_context and (problem or kind not in ("string", "any")):
+                    if not self.feature_context and not has_unresolved(value) and (problem or kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")
                 items.extend(value.get("concat", [value]))
             if len(nodes) == 1:
