@@ -9,6 +9,6 @@
 <path d="M20 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H92a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="44" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M112 72h10"/>
-<g class="rule"><rect x="122" y="60" width="25" height="24" rx="0"/><text x="134.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="122" y="60" width="25" height="24" rx="0"/><text x="134.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M147 72h6m0 -8v16m4 -16v16"/>
 </svg>

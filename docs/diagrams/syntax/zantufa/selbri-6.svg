@@ -9,7 +9,7 @@
 <path d="M140 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H124"/>
 <g class="terminal"><rect x="91" y="68" width="33" height="24" rx="12"/><text x="107.5" y="85" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M91 80h-10"/>
-<g class="rule"><rect x="56" y="68" width="25" height="24" rx="0"/><text x="68.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="56" y="68" width="25" height="24" rx="0"/><text x="68.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M56 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M160 46h6m0 -8v16m4 -16v16"/>
 </svg>

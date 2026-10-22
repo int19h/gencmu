@@ -227,7 +227,7 @@ impl Pattern {
             if exact(j, &[key, "at"]) {
                 let text = string(j, key)?;
                 let valid = if key == "name" {
-                    text == "#"
+                    text.chars().count() == 1 && !text.is_ascii()
                         || text.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && crate::tags::is_name(&text)
                 } else if key == "terminal" {
                     dom::is_engine_tag(&text) || dom::is_constant_name(&text)

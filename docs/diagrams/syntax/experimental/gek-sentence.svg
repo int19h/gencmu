@@ -23,7 +23,7 @@
 <path d="M122 106h10"/>
 <g class="terminal"><rect x="132" y="94" width="33" height="24" rx="12"/><text x="148.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
 <path d="M165 106h10"/>
-<g class="rule"><rect x="175" y="94" width="25" height="24" rx="0"/><text x="187.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="175" y="94" width="25" height="24" rx="0"/><text x="187.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M200 106h10"/>
 <g class="rule"><rect x="210" y="94" width="117" height="24" rx="0"/><text x="268.5" y="111" textLength="100.8" lengthAdjust="spacingAndGlyphs">gek-sentence</text></g>
 <path d="M327 106h10"/>
@@ -33,12 +33,12 @@
 <path d="M337 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H409a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <text class="label" x="361" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M429 106h10"/>
-<g class="rule"><rect x="439" y="94" width="25" height="24" rx="0"/><text x="451.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="439" y="94" width="25" height="24" rx="0"/><text x="451.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M464 106H482a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="128" width="33" height="24" rx="12"/><text x="56.5" y="145" textLength="16.8" lengthAdjust="spacingAndGlyphs">NA</text></g>
 <path d="M73 140h10"/>
-<g class="rule"><rect x="83" y="128" width="25" height="24" rx="0"/><text x="95.5" y="145" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="128" width="25" height="24" rx="0"/><text x="95.5" y="145" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 140h10"/>
 <g class="rule"><rect x="118" y="128" width="117" height="24" rx="0"/><text x="176.5" y="145" textLength="100.8" lengthAdjust="spacingAndGlyphs">gek-sentence</text></g>
 <path d="M235 140H482a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

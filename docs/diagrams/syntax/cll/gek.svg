@@ -16,14 +16,14 @@
 <path d="M228 56H248"/>
 <path d="M166 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H228a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M248 56h10"/>
-<g class="rule"><rect x="258" y="44" width="25" height="24" rx="0"/><text x="270.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="258" y="44" width="25" height="24" rx="0"/><text x="270.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M283 56H303"/>
 <path d="M20 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="78" width="50" height="24" rx="0"/><text x="65" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
 <path d="M90 90h10"/>
 <g class="terminal"><rect x="100" y="78" width="33" height="24" rx="12"/><text x="116.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
 <path d="M133 90h10"/>
-<g class="rule"><rect x="143" y="78" width="25" height="24" rx="0"/><text x="155.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="143" y="78" width="25" height="24" rx="0"/><text x="155.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M168 90H283a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M20 56a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="112" width="50" height="24" rx="0"/><text x="65" y="129" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>

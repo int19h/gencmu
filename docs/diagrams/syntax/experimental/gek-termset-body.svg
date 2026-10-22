@@ -13,7 +13,7 @@
 <path d="M140 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H212a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="164" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M232 72h10"/>
-<g class="rule"><rect x="242" y="60" width="25" height="24" rx="0"/><text x="254.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="242" y="60" width="25" height="24" rx="0"/><text x="254.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M267 72h10"/>
 <g class="rule"><rect x="277" y="60" width="42" height="24" rx="0"/><text x="298" y="77" textLength="25.2" lengthAdjust="spacingAndGlyphs">gik</text></g>
 <path d="M319 72h10"/>

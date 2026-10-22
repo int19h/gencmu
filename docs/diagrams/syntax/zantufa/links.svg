@@ -5,7 +5,7 @@
 <path d="M10 48v16m4 -16v16M14 56h6"/>
 <g class="terminal"><rect x="20" y="44" width="42" height="24" rx="12"/><text x="41" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">BEI</text></g>
 <path d="M62 56h10"/>
-<g class="rule"><rect x="72" y="44" width="25" height="24" rx="0"/><text x="84.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="72" y="44" width="25" height="24" rx="0"/><text x="84.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M97 56h10"/>
 <g class="rule"><rect x="107" y="44" width="50" height="24" rx="0"/><text x="132" y="61" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
 <path d="M157 56h10"/>

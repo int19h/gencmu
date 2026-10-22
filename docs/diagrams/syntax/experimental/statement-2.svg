@@ -20,7 +20,7 @@
 <path d="M443 66h10"/>
 <g class="terminal"><rect x="453" y="54" width="33" height="24" rx="12"/><text x="469.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M486 66h10"/>
-<g class="rule"><rect x="496" y="54" width="25" height="24" rx="0"/><text x="508.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="496" y="54" width="25" height="24" rx="0"/><text x="508.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M521 66h10"/>
 <path d="M531 66h20"/>
 <g class="rule"><rect x="551" y="54" width="109" height="24" rx="0"/><text x="605.5" y="71" textLength="92.4" lengthAdjust="spacingAndGlyphs">statement-2</text></g>

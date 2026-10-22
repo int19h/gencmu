@@ -31,7 +31,7 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
   ε | text piece
 
 %rule piece
-  | word | string | engine-tag | capture-token | constant-token | guard
+  | emoji-name | word | string | engine-tag | capture-token | constant-token | guard
   | include | keyword | integer | symbol | negation | layout
 ```
 
@@ -44,6 +44,8 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
 
 An ordinary name starts with an ASCII letter. Letters, digits, hyphens, and underscores can follow it.
 
+An emoji name contains one scalar with `Emoji_Presentation` and without `Emoji_Component` in the configured Unicode table. Adjacent emoji names remain separate tokens.
+
 `word` distinguishes lowercase and uppercase names while marking both as `Identifier`. The first letter later distinguishes rule names from user tags.
 
 `whole-name` refuses a following name character. Keywords use it so that a keyword cannot stop inside a longer name.
@@ -53,6 +55,11 @@ An integer token is a run of decimal digits. The reader permits it only as a pos
 An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
 ```jbogenbau
+%rule emoji-name
+  _Emoji_Presentation<¬_Emoji_Component>
+%emits
+  $ :: Emoji-Name
+
 %rule word
   | lower-name :: Identifier Lowercase-Name
   | upper-name :: Identifier Uppercase-Name
@@ -103,7 +110,8 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   letter | digit | "_"
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>word</code> to <code>engine-name-character</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>emoji-name</code> to <code>engine-name-character</code></summary>
+<p><img src="../../docs/diagrams/notation/lexical/emoji-name.svg" alt="Railroad diagram of the rule emoji-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
@@ -346,9 +354,11 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 ## Symbols
 
+`@` is reserved for parameters. The reader rejects it outside strings, comments, and include paths.
+
 A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
-The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
+The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 
 `≻` separates ranked options. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
@@ -356,7 +366,7 @@ The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as com
 %rule symbol
   | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
-  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
+  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
   | ("=" | "∈" | "⊆" | "≅") $_0338
 %emits

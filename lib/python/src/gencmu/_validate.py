@@ -13,10 +13,11 @@ from ._types import constant_value_problem, open_part, rule_type_problem, term_t
 
 class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
+    def is_emoji_name(self, name: str) -> bool: ...
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 34
+FORMAT = 35
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -41,7 +42,7 @@ def _tag(value: Any) -> bool:
 
 
 def _ref(value: Any) -> bool:
-    return isinstance(value, str) and (value == "#" or _NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
+    return isinstance(value, str) and (len(value) == 1 and ord(value) > 127 or _NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
 
 
 def _capture(value: Any, whole: bool = True) -> bool:
@@ -66,7 +67,6 @@ def _base(expr: Any, hash_: bool = False) -> bool:
         and (
             "ref" in expr
             and _ref(expr["ref"])
-            and (hash_ or expr["ref"] != "#")
             or "literal" in expr
             or "range" in expr
             or expr.get("wildcard") is True
@@ -234,7 +234,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
         if (
             not set(r) <= {"name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
             or not isinstance(r.get("name"), str)
-            or not (r["name"] == "#" or CLASSIFIER_NAME.fullmatch(r["name"]))
+            or not (unicode.is_emoji_name(r["name"]) or CLASSIFIER_NAME.fullmatch(r["name"]))
             or r.get("op") not in ("define", "redefine", "extend")
             or r.get("flags") not in ([], ["leftmost-longest"], ["fewest"])
             or r["op"] == "extend"
@@ -394,7 +394,8 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 pending.append(("string", node["literal"], depth, False, False))
             elif not (
                 keys == {"ref"}
-                and _ref(node["ref"])
+                and isinstance(node["ref"], str)
+                and (_NAME.fullmatch(node["ref"]) or node["ref"] in ENGINE_TAGS or unicode.is_emoji_name(node["ref"]))
                 or keys == {"wildcard"}
                 and node["wildcard"] is True
                 or keys == {"empty"}
@@ -492,7 +493,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                         if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
                             return "a malformed integer argument"
                         continue
-                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("matches", "begins", "followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
+                    if not isinstance(arg[key], str) or not (key == "rule" and unicode.is_emoji_name(arg[key]) or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("matches", "begins", "followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))
@@ -523,6 +524,8 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if problem:
                 return problem
             for atom, offset in walk_pattern(node["pattern"]):
+                if "name" in atom and not (CLASSIFIER_NAME.fullmatch(atom["name"]) or unicode.is_emoji_name(atom["name"])):
+                    return "a malformed pattern rule name"
                 atom_depth = below + offset
                 # Pattern literals and ranges use the same transparent transition.
                 if "literal" in atom:

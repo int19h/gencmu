@@ -9,7 +9,7 @@
 <path d="M117 72h20"/>
 <g class="terminal"><rect x="137" y="60" width="42" height="24" rx="12"/><text x="158" y="77" textLength="25.2" lengthAdjust="spacingAndGlyphs">BOI</text></g>
 <path d="M179 72h10"/>
-<g class="rule"><rect x="189" y="60" width="25" height="24" rx="0"/><text x="201.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="189" y="60" width="25" height="24" rx="0"/><text x="201.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M214 72H234"/>
 <path d="M117 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H214a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="141" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -20,7 +20,7 @@
 <path d="M167 132h20"/>
 <g class="terminal"><rect x="187" y="120" width="42" height="24" rx="12"/><text x="208" y="137" textLength="25.2" lengthAdjust="spacingAndGlyphs">BOI</text></g>
 <path d="M229 132h10"/>
-<g class="rule"><rect x="239" y="120" width="25" height="24" rx="0"/><text x="251.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="239" y="120" width="25" height="24" rx="0"/><text x="251.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M264 132H284"/>
 <path d="M167 132a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10H264a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
 <text class="label" x="191" y="105" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -28,14 +28,14 @@
 <path d="M20 72a10 10 0 0 1 10 10V182a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="180" width="42" height="24" rx="12"/><text x="61" y="197" textLength="25.2" lengthAdjust="spacingAndGlyphs">VEI</text></g>
 <path d="M82 192h10"/>
-<g class="rule"><rect x="92" y="180" width="25" height="24" rx="0"/><text x="104.5" y="197" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="92" y="180" width="25" height="24" rx="0"/><text x="104.5" y="197" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M117 192h10"/>
 <g class="rule"><rect x="127" y="180" width="42" height="24" rx="0"/><text x="148" y="197" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
 <path d="M169 192h10"/>
 <path d="M179 192h20"/>
 <g class="terminal"><rect x="199" y="180" width="50" height="24" rx="12"/><text x="224" y="197" textLength="33.6" lengthAdjust="spacingAndGlyphs">VEhO</text></g>
 <path d="M249 192h10"/>
-<g class="rule"><rect x="259" y="180" width="25" height="24" rx="0"/><text x="271.5" y="197" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="259" y="180" width="25" height="24" rx="0"/><text x="271.5" y="197" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M284 192H304"/>
 <path d="M179 192a10 10 0 0 0 10 -10V180a10 10 0 0 1 10 -10H284a10 10 0 0 1 10 10V182a10 10 0 0 0 10 10"/>
 <text class="label" x="203" y="165" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -43,7 +43,7 @@
 <path d="M20 72a10 10 0 0 1 10 10V242a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="240" width="50" height="24" rx="12"/><text x="65" y="257" textLength="33.6" lengthAdjust="spacingAndGlyphs">MOhE</text></g>
 <path d="M90 252h10"/>
-<g class="rule"><rect x="100" y="240" width="25" height="24" rx="0"/><text x="112.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="100" y="240" width="25" height="24" rx="0"/><text x="112.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M125 252h10"/>
 <path d="M135 252h88"/>
 <text class="label" x="139" y="247" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
@@ -68,7 +68,7 @@
 <path d="M396 252h20"/>
 <g class="terminal"><rect x="416" y="240" width="50" height="24" rx="12"/><text x="441" y="257" textLength="33.6" lengthAdjust="spacingAndGlyphs">TEhU</text></g>
 <path d="M466 252h10"/>
-<g class="rule"><rect x="476" y="240" width="25" height="24" rx="0"/><text x="488.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="476" y="240" width="25" height="24" rx="0"/><text x="488.5" y="257" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M501 252H521"/>
 <path d="M396 252a10 10 0 0 0 10 -10V240a10 10 0 0 1 10 -10H501a10 10 0 0 1 10 10V242a10 10 0 0 0 10 10"/>
 <text class="label" x="420" y="225" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -77,16 +77,16 @@
 <path d="M40 360h20"/>
 <g class="terminal"><rect x="60" y="348" width="50" height="24" rx="12"/><text x="85" y="365" textLength="33.6" lengthAdjust="spacingAndGlyphs">LAhE</text></g>
 <path d="M110 360h10"/>
-<g class="rule"><rect x="120" y="348" width="25" height="24" rx="0"/><text x="132.5" y="365" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="120" y="348" width="25" height="24" rx="0"/><text x="132.5" y="365" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M145 360H243"/>
 <path d="M40 360a10 10 0 0 1 10 10V384a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="382" width="50" height="24" rx="12"/><text x="85" y="399" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M110 394h10"/>
-<g class="rule"><rect x="120" y="382" width="25" height="24" rx="0"/><text x="132.5" y="399" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="120" y="382" width="25" height="24" rx="0"/><text x="132.5" y="399" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M145 394h10"/>
 <g class="terminal"><rect x="155" y="382" width="33" height="24" rx="12"/><text x="171.5" y="399" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M188 394h10"/>
-<g class="rule"><rect x="198" y="382" width="25" height="24" rx="0"/><text x="210.5" y="399" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="198" y="382" width="25" height="24" rx="0"/><text x="210.5" y="399" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M223 394H223a10 10 0 0 0 10 -10V370a10 10 0 0 1 10 -10"/>
 <path d="M243 360h10"/>
 <g class="rule"><rect x="253" y="348" width="42" height="24" rx="0"/><text x="274" y="365" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
@@ -94,7 +94,7 @@
 <path d="M305 360h20"/>
 <g class="terminal"><rect x="325" y="348" width="50" height="24" rx="12"/><text x="350" y="365" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
 <path d="M375 360h10"/>
-<g class="rule"><rect x="385" y="348" width="25" height="24" rx="0"/><text x="397.5" y="365" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="385" y="348" width="25" height="24" rx="0"/><text x="397.5" y="365" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M410 360H430"/>
 <path d="M305 360a10 10 0 0 0 10 -10V348a10 10 0 0 1 10 -10H410a10 10 0 0 1 10 10V350a10 10 0 0 0 10 10"/>
 <text class="label" x="329" y="333" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -102,7 +102,7 @@
 <path d="M20 72a10 10 0 0 1 10 10V418a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="416" width="50" height="24" rx="12"/><text x="65" y="433" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M90 428h10"/>
-<g class="rule"><rect x="100" y="416" width="25" height="24" rx="0"/><text x="112.5" y="433" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="100" y="416" width="25" height="24" rx="0"/><text x="112.5" y="433" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M125 428h10"/>
 <g class="rule"><rect x="135" y="416" width="75" height="24" rx="0"/><text x="172.5" y="433" textLength="58.8" lengthAdjust="spacingAndGlyphs">operand</text></g>
 <path d="M210 428H521a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>

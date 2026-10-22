@@ -151,6 +151,9 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
         if found is None:
             category = unicode.category(ord(char))
             assigned = {"_" + category, "_" + category[0]}
+            for prop in ("Emoji_Presentation", "Emoji_Component"):
+                if unicode.has_emoji(prop, ord(char)):
+                    assigned.add("_" + prop)
             if unicode.is_white_space(ord(char)):
                 assigned.add("_White_Space")
             found = tags[char] = frozenset(assigned)
@@ -285,6 +288,8 @@ class NotationReader:
                 if outcome.error.kind == "rejected":
                     shown = tokens[outcome.error.token].text if outcome.error.token is not None and outcome.error.token < len(tokens) else None
                     message = f"the notation cannot continue here{f' at {shown!r}' if shown else ''} (stage {name})"
+                if name == "lexical" and index < len(grammar_text.text) and grammar_text.text[index] == "@":
+                    message = "@ is reserved for parameters, which are not supported yet"
                 from ._ranked import syntax_failure
                 code = 'ranked-choice-syntax' if name == 'syntax' and outcome.error.kind == 'rejected' and outcome.error.token is not None and syntax_failure(tokens, outcome.error.token) else None
                 raise GencmuError(message, document=path, line=line, column=column, code=code)

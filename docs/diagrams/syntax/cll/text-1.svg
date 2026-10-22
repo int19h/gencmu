@@ -27,7 +27,7 @@
 <path d="M388 76H408"/>
 <path d="M235 76a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H388a10 10 0 0 1 10 10V66a10 10 0 0 0 10 10"/>
 <path d="M408 76h10"/>
-<g class="rule"><rect x="418" y="64" width="25" height="24" rx="0"/><text x="430.5" y="81" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="418" y="64" width="25" height="24" rx="0"/><text x="430.5" y="81" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M443 76H463"/>
 <path d="M443 76a10 10 0 0 1 10 10V122a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V86a10 10 0 0 1 10 -10"/>
 <path d="M463 76H483"/>
@@ -39,7 +39,7 @@
 <path d="M583 76H603"/>
 <path d="M583 76a10 10 0 0 1 10 10V88a10 10 0 0 1 -10 10H533a10 10 0 0 1 -10 -10V86a10 10 0 0 1 10 -10"/>
 <path d="M603 76h10"/>
-<g class="rule"><rect x="613" y="64" width="25" height="24" rx="0"/><text x="625.5" y="81" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="613" y="64" width="25" height="24" rx="0"/><text x="625.5" y="81" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M638 76H658"/>
 <path d="M493 76a10 10 0 0 0 10 -10V64a10 10 0 0 1 10 -10H638a10 10 0 0 1 10 10V66a10 10 0 0 0 10 10"/>
 <path d="M658 76h10"/>

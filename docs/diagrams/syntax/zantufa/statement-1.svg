@@ -9,7 +9,7 @@
 <path d="M160 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H160"/>
 <g class="terminal"><rect x="135" y="68" width="25" height="24" rx="12"/><text x="147.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">I</text></g>
 <path d="M135 80h-10"/>
-<g class="rule"><rect x="100" y="68" width="25" height="24" rx="0"/><text x="112.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="100" y="68" width="25" height="24" rx="0"/><text x="112.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M100 80h-10"/>
 <g class="rule"><rect x="40" y="68" width="50" height="24" rx="0"/><text x="65" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
 <path d="M40 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>

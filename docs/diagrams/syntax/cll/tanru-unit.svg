@@ -9,7 +9,7 @@
 <path d="M157 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H137"/>
 <g class="terminal"><rect x="95" y="68" width="42" height="24" rx="12"/><text x="116" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">CEI</text></g>
 <path d="M95 80h-10"/>
-<g class="rule"><rect x="60" y="68" width="25" height="24" rx="0"/><text x="72.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="60" y="68" width="25" height="24" rx="0"/><text x="72.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M60 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M177 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -7,14 +7,14 @@
 <path d="M20 72h20"/>
 <g class="terminal"><rect x="40" y="60" width="42" height="24" rx="12"/><text x="61" y="77" textLength="25.2" lengthAdjust="spacingAndGlyphs">SEI</text></g>
 <path d="M82 72h10"/>
-<g class="rule"><rect x="92" y="60" width="25" height="24" rx="0"/><text x="104.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="92" y="60" width="25" height="24" rx="0"/><text x="104.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M117 72h10"/>
 <g class="rule"><rect x="127" y="60" width="92" height="24" rx="0"/><text x="173" y="77" textLength="75.6" lengthAdjust="spacingAndGlyphs">statement</text></g>
 <path d="M219 72h10"/>
 <path d="M229 72h20"/>
 <g class="terminal"><rect x="249" y="60" width="50" height="24" rx="12"/><text x="274" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">SEhU</text></g>
 <path d="M299 72h10"/>
-<g class="rule"><rect x="309" y="60" width="25" height="24" rx="0"/><text x="321.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="309" y="60" width="25" height="24" rx="0"/><text x="321.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M334 72H354"/>
 <path d="M229 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H334a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="253" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -40,7 +40,7 @@
 <path d="M492 132h20"/>
 <g class="terminal"><rect x="512" y="120" width="50" height="24" rx="12"/><text x="537" y="137" textLength="33.6" lengthAdjust="spacingAndGlyphs">DOhU</text></g>
 <path d="M562 132h10"/>
-<g class="rule"><rect x="572" y="120" width="25" height="24" rx="0"/><text x="584.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="572" y="120" width="25" height="24" rx="0"/><text x="584.5" y="137" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M597 132H617"/>
 <path d="M492 132a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10H597a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
 <text class="label" x="516" y="105" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -50,19 +50,19 @@
 <path d="M98 210h10"/>
 <g class="terminal"><rect x="108" y="198" width="42" height="24" rx="12"/><text x="129" y="215" textLength="25.2" lengthAdjust="spacingAndGlyphs">MAI</text></g>
 <path d="M150 210h10"/>
-<g class="rule"><rect x="160" y="198" width="25" height="24" rx="0"/><text x="172.5" y="215" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="160" y="198" width="25" height="24" rx="0"/><text x="172.5" y="215" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M185 210H617a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V260a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="258" width="33" height="24" rx="12"/><text x="56.5" y="275" textLength="16.8" lengthAdjust="spacingAndGlyphs">TO</text></g>
 <path d="M73 270h10"/>
-<g class="rule"><rect x="83" y="258" width="25" height="24" rx="0"/><text x="95.5" y="275" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="258" width="25" height="24" rx="0"/><text x="95.5" y="275" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 270h10"/>
 <g class="rule"><rect x="118" y="258" width="151" height="24" rx="0"/><text x="193.5" y="275" textLength="134.4" lengthAdjust="spacingAndGlyphs">parenthesis-text</text></g>
 <path d="M269 270h10"/>
 <path d="M279 270h20"/>
 <g class="terminal"><rect x="299" y="258" width="42" height="24" rx="12"/><text x="320" y="275" textLength="25.2" lengthAdjust="spacingAndGlyphs">TOI</text></g>
 <path d="M341 270h10"/>
-<g class="rule"><rect x="351" y="258" width="25" height="24" rx="0"/><text x="363.5" y="275" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="351" y="258" width="25" height="24" rx="0"/><text x="363.5" y="275" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M376 270H396"/>
 <path d="M279 270a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10H376a10 10 0 0 1 10 10V260a10 10 0 0 0 10 10"/>
 <text class="label" x="303" y="243" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -70,7 +70,7 @@
 <path d="M20 72a10 10 0 0 1 10 10V294a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="292" width="33" height="24" rx="12"/><text x="56.5" y="309" textLength="16.8" lengthAdjust="spacingAndGlyphs">XI</text></g>
 <path d="M73 304h10"/>
-<g class="rule"><rect x="83" y="292" width="25" height="24" rx="0"/><text x="95.5" y="309" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="292" width="25" height="24" rx="0"/><text x="95.5" y="309" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 304h10"/>
 <g class="rule"><rect x="118" y="292" width="58" height="24" rx="0"/><text x="147" y="309" textLength="42" lengthAdjust="spacingAndGlyphs">mex-2</text></g>
 <path d="M176 304H617a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
@@ -82,12 +82,12 @@
 <g class="terminal"><rect x="60" y="360" width="58" height="24" rx="12"/><text x="89" y="377" textLength="42" lengthAdjust="spacingAndGlyphs">LEhAI</text></g>
 <path d="M118 372H177a10 10 0 0 0 10 -10V348a10 10 0 0 1 10 -10"/>
 <path d="M197 338h10"/>
-<g class="rule"><rect x="207" y="326" width="25" height="24" rx="0"/><text x="219.5" y="343" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="207" y="326" width="25" height="24" rx="0"/><text x="219.5" y="343" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M232 338H617a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V396a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="394" width="33" height="24" rx="12"/><text x="56.5" y="411" textLength="16.8" lengthAdjust="spacingAndGlyphs">UI</text></g>
 <path d="M73 406h10"/>
-<g class="rule"><rect x="83" y="394" width="25" height="24" rx="0"/><text x="95.5" y="411" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="394" width="25" height="24" rx="0"/><text x="95.5" y="411" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 406H617a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M637 72h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -15,6 +15,6 @@
 <path d="M225 56H245"/>
 <path d="M163 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H225a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M245 56h10"/>
-<g class="rule"><rect x="255" y="44" width="25" height="24" rx="0"/><text x="267.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="255" y="44" width="25" height="24" rx="0"/><text x="267.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M280 56h6m0 -8v16m4 -16v16"/>
 </svg>

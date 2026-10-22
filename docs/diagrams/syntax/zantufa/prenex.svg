@@ -7,6 +7,6 @@
 <path d="M78 46h10"/>
 <g class="terminal"><rect x="88" y="34" width="50" height="24" rx="12"/><text x="113" y="51" textLength="33.6" lengthAdjust="spacingAndGlyphs">ZOhU</text></g>
 <path d="M138 46h10"/>
-<g class="rule"><rect x="148" y="34" width="25" height="24" rx="0"/><text x="160.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="148" y="34" width="25" height="24" rx="0"/><text x="160.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M173 46h6m0 -8v16m4 -16v16"/>
 </svg>

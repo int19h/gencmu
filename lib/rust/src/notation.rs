@@ -11,6 +11,7 @@ use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
+    pub unicode: &'a crate::unicode::Unicode,
     pub defer_emission: bool,
     pub feature_context: std::cell::Cell<bool>,
     pub tokens: &'a [Token],
@@ -338,8 +339,10 @@ impl<'a> Reader<'a> {
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
         let definer = self.token(self.one(node, "definer")?)?;
         let name_token = self.token(self.one(node, "rule-name")?)?;
-        if self.value(name_token) != "#" && !self.value(name_token).starts_with(|c: char| c.is_ascii_lowercase()) {
-            return Err(self.error(name_token, "a rule name starts with a lowercase letter"));
+        if !self.unicode.is_emoji_name(self.value(name_token))
+            && !self.value(name_token).starts_with(|c: char| c.is_ascii_lowercase())
+        {
+            return Err(self.error(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji"));
         }
         let op = match self.value(definer) {
             "%redefine-rule" => Op::Redefine,
@@ -940,7 +943,7 @@ impl<'a> Reader<'a> {
         let valid = matches!(
             rule_name(base),
             "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range"
-        ) && !(rule_name(base) == "reference" && self.value(self.token(base)?) == "#");
+        );
         let mut tags = false;
         let mut value = false;
         for test in &tests {
@@ -1303,7 +1306,7 @@ impl<'a> Reader<'a> {
                         | "pattern-literal"
                         | "pattern-union"
                 ) || part.kind == NodeKind::Token
-                    && (self.value(part) == "#"
+                    && (self.unicode.is_emoji_name(self.value(part))
                         || self.value(part).starts_with('_')
                         || self.value(part).as_bytes().first().is_some_and(u8::is_ascii_alphabetic))
             })
@@ -1838,7 +1841,7 @@ impl<'a> Reader<'a> {
                             let name = self.value(self.token(name)?);
                             return Err(self.error(
                                 at,
-                                format!("tree comparison requires a pattern; write @({name}), not {name}"),
+                                format!("tree comparison requires a pattern; write #({name}), not {name}"),
                             ));
                         }
                     }

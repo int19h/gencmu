@@ -18,14 +18,14 @@
 <path d="M325 106h10"/>
 <g class="terminal"><rect x="335" y="94" width="33" height="24" rx="12"/><text x="351.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
 <path d="M368 106h10"/>
-<g class="rule"><rect x="378" y="94" width="25" height="24" rx="0"/><text x="390.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="378" y="94" width="25" height="24" rx="0"/><text x="390.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M403 106h10"/>
 <g class="rule"><rect x="413" y="94" width="100" height="24" rx="0"/><text x="463" y="111" textLength="84" lengthAdjust="spacingAndGlyphs">bridi-tail</text></g>
 <path d="M513 106h10"/>
 <path d="M523 106h20"/>
 <g class="terminal"><rect x="543" y="94" width="50" height="24" rx="12"/><text x="568" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
 <path d="M593 106h10"/>
-<g class="rule"><rect x="603" y="94" width="25" height="24" rx="0"/><text x="615.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="603" y="94" width="25" height="24" rx="0"/><text x="615.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M628 106H648"/>
 <path d="M523 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H628a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <text class="label" x="547" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

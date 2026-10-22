@@ -14,14 +14,14 @@
 <path d="M122 106h10"/>
 <g class="terminal"><rect x="132" y="94" width="50" height="24" rx="12"/><text x="157" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">TUhE</text></g>
 <path d="M182 106h10"/>
-<g class="rule"><rect x="192" y="94" width="25" height="24" rx="0"/><text x="204.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="192" y="94" width="25" height="24" rx="0"/><text x="204.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M217 106h10"/>
 <g class="rule"><rect x="227" y="94" width="100" height="24" rx="0"/><text x="277" y="111" textLength="84" lengthAdjust="spacingAndGlyphs">paragraphs</text></g>
 <path d="M327 106h10"/>
 <path d="M337 106h20"/>
 <g class="terminal"><rect x="357" y="94" width="50" height="24" rx="12"/><text x="382" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">TUhU</text></g>
 <path d="M407 106h10"/>
-<g class="rule"><rect x="417" y="94" width="25" height="24" rx="0"/><text x="429.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="417" y="94" width="25" height="24" rx="0"/><text x="429.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M442 106H462"/>
 <path d="M337 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H442a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <text class="label" x="361" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

@@ -9,7 +9,7 @@
 <path d="M184 66h20"/>
 <g class="rule"><rect x="204" y="54" width="67" height="24" rx="0"/><text x="237.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">lone-i</text></g>
 <path d="M271 66h10"/>
-<g class="rule"><rect x="281" y="54" width="25" height="24" rx="0"/><text x="293.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="281" y="54" width="25" height="24" rx="0"/><text x="293.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M306 66h10"/>
 <path d="M316 66h20"/>
 <g class="rule"><rect x="336" y="54" width="134" height="24" rx="0"/><text x="403" y="71" textLength="117.6" lengthAdjust="spacingAndGlyphs">paragraph-item</text></g>

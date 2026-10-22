@@ -6,7 +6,7 @@
 <path d="M20 56h20"/>
 <g class="terminal"><rect x="40" y="44" width="33" height="24" rx="12"/><text x="56.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
 <path d="M73 56h10"/>
-<g class="rule"><rect x="83" y="44" width="25" height="24" rx="0"/><text x="95.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="44" width="25" height="24" rx="0"/><text x="95.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 56H128"/>
 <path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H108a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M128 56h10"/>
@@ -16,13 +16,13 @@
 <path d="M226 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H226"/>
 <g class="terminal"><rect x="193" y="78" width="33" height="24" rx="12"/><text x="209.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
 <path d="M193 90h-10"/>
-<g class="rule"><rect x="158" y="78" width="25" height="24" rx="0"/><text x="170.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="158" y="78" width="25" height="24" rx="0"/><text x="170.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M158 90H158a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M246 56h10"/>
 <path d="M256 56h20"/>
 <g class="terminal"><rect x="276" y="44" width="33" height="24" rx="12"/><text x="292.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
 <path d="M309 56h10"/>
-<g class="rule"><rect x="319" y="44" width="25" height="24" rx="0"/><text x="331.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="319" y="44" width="25" height="24" rx="0"/><text x="331.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M344 56H364"/>
 <path d="M256 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H344a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M364 56h6m0 -8v16m4 -16v16"/>

@@ -256,7 +256,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 		b.lacks(n, "test")
 	}
 	base := b.testBase(n)
-	valid := capturedRules[base.Rule] && base.Rule != "tested" && !(base.Rule == "reference" && b.tokenValue(b.token(base)) == "#")
+	valid := capturedRules[base.Rule] && base.Rule != "tested"
 	seenTags, seenValue := false, false
 	for _, test := range tests {
 		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {

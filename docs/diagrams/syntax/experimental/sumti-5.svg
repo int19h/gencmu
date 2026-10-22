@@ -32,7 +32,7 @@
 <path d="M317 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H389a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
 <text class="label" x="341" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M409 116h10"/>
-<g class="rule"><rect x="419" y="104" width="25" height="24" rx="0"/><text x="431.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="419" y="104" width="25" height="24" rx="0"/><text x="431.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M444 116h10"/>
 <path d="M454 116h20"/>
 <g class="rule"><rect x="474" y="104" width="151" height="24" rx="0"/><text x="549.5" y="121" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>

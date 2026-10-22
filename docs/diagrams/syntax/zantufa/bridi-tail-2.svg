@@ -22,12 +22,12 @@
 <path d="M312 110h10"/>
 <g class="terminal"><rect x="322" y="98" width="33" height="24" rx="12"/><text x="338.5" y="115" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M355 110h10"/>
-<g class="rule"><rect x="365" y="98" width="25" height="24" rx="0"/><text x="377.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="365" y="98" width="25" height="24" rx="0"/><text x="377.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M390 110h10"/>
 <path d="M400 110h20"/>
 <g class="terminal"><rect x="420" y="98" width="33" height="24" rx="12"/><text x="436.5" y="115" textLength="16.8" lengthAdjust="spacingAndGlyphs">CU</text></g>
 <path d="M453 110h10"/>
-<g class="rule"><rect x="463" y="98" width="25" height="24" rx="0"/><text x="475.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="463" y="98" width="25" height="24" rx="0"/><text x="475.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M488 110H508"/>
 <path d="M400 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H488a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
 <path d="M508 110h10"/>

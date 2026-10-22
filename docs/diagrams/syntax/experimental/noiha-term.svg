@@ -5,7 +5,7 @@
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <g class="terminal"><rect x="20" y="60" width="58" height="24" rx="12"/><text x="49" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">NOIhA</text></g>
 <path d="M78 72h10"/>
-<g class="rule"><rect x="88" y="60" width="25" height="24" rx="0"/><text x="100.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="88" y="60" width="25" height="24" rx="0"/><text x="100.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M113 72h10"/>
 <g class="rule"><rect x="123" y="60" width="67" height="24" rx="0"/><text x="156.5" y="77" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
 <path d="M190 72h10"/>
@@ -15,6 +15,6 @@
 <path d="M200 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H272a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="224" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M292 72h10"/>
-<g class="rule"><rect x="302" y="60" width="25" height="24" rx="0"/><text x="314.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="302" y="60" width="25" height="24" rx="0"/><text x="314.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M327 72h6m0 -8v16m4 -16v16"/>
 </svg>

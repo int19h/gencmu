@@ -18,6 +18,7 @@ class UnicodeTable:
     """Character properties and canonical decomposition from the shared table."""
 
     def __init__(self, text: str) -> None:
+        self.emoji: dict[str, list[tuple[int, int]]] = {"Emoji_Presentation": [], "Emoji_Component": []}
         categories: list[tuple[int, int, str]] = []
         white_space: list[tuple[int, int]] = []
         combining: list[tuple[int, int, int]] = []
@@ -37,6 +38,9 @@ class UnicodeTable:
                     categories.append((int(fields[2], 16), int(fields[3], 16), fields[1]))
                 elif fields[0] == "white-space":
                     white_space.append((int(fields[1], 16), int(fields[2], 16)))
+                elif fields[0] in ("emoji-presentation", "emoji-component"):
+                    prop = "Emoji_Presentation" if fields[0] == "emoji-presentation" else "Emoji_Component"
+                    self.emoji[prop].append((int(fields[1], 16), int(fields[2], 16)))
                 elif fields[0] == "decompose":
                     self.decompositions[int(fields[1], 16)] = tuple(int(field, 16) for field in fields[2:])
                 elif fields[0] == "combining":
@@ -45,6 +49,9 @@ class UnicodeTable:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
                 raise GencmuError(f"unreadable line: {line!r}", document="unicode.txt", line=number) from error
+        for ranges in self.emoji.values():
+            ranges.sort()
+        self._emoji_starts = {prop: [start for start, _ in ranges] for prop, ranges in self.emoji.items()}
         categories.sort()
         white_space.sort()
         combining.sort()
@@ -68,6 +75,13 @@ class UnicodeTable:
         if index >= 0 and code <= self._ends[index]:
             return self._categories[index]
         return "Cn"
+
+    def has_emoji(self, prop: str, code: int) -> bool:
+        index = bisect_right(self._emoji_starts[prop], code) - 1
+        return index >= 0 and code <= self.emoji[prop][index][1]
+
+    def is_emoji_name(self, name: str) -> bool:
+        return len(name) == 1 and self.has_emoji("Emoji_Presentation", ord(name)) and not self.has_emoji("Emoji_Component", ord(name))
 
     def is_mark(self, code: int) -> bool:
         """Whether a code point is a nonspacing mark, of General_Category

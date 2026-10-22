@@ -24,7 +24,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
-const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "@", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
+const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
@@ -142,6 +142,7 @@ function lex(text, originalPositions) {
       found.push([end, "integer"]);
       reach = Math.max(reach, end);
     }
+    if (unicode.isEmojiName(c)) found.push([i + 1, "emoji"]);
     if (isLetter(c)) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
@@ -221,7 +222,7 @@ function lex(text, originalPositions) {
       furthest = Math.max(furthest, starting[i].reach);
       for (const [end] of starting[i].found) reached[end] = true;
     }
-    syntaxError(furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
+    syntaxError(chars[furthest] === "@" ? "@ is reserved for parameters, which are not supported yet" : furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
   }
   const tokens = [];
   let i = 0;
@@ -246,9 +247,9 @@ const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
 const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
-const TERM_STARTS = new Set(["identifier", "tag", "string", "capture", "constant", "(", "∅", "@", "∪", "∩"]);
+const TERM_STARTS = new Set(["emoji", "identifier", "tag", "string", "capture", "constant", "(", "∅", "#", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
-const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "#", "ε"]);
+const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
 // (grammars/notation/syntax.md). It builds a node for each rule that the
@@ -353,7 +354,7 @@ class Parser {
       const at = this.index;
       if (this.is("identifier") && !this.is(".", 1)) children.push(this.leaf("argument-word"));
       else if (this.is("include-path") || this.is("string") && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("argument-string"));
-      else if (this.is("#") || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
+      else if (this.is("emoji") && !this.is(".", 1) || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
       else children.push(this.node("argument-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
     }
     if (this.is("%conditions")) {
@@ -423,7 +424,7 @@ class Parser {
       flags.push(this.expect(")"));
       children.push(this.node("rule-flags", at, flags));
     }
-    children.push(this.is("identifier") || this.is("#") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
+    children.push(this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     if (["::", ":=", ":-"].includes(this.kindAt())) {
       for (const clause of yield this.clauses("tags-clause")) children.push(clause);
       const at = this.index;
@@ -544,7 +545,7 @@ class Parser {
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) return yield this.range();
     switch (this.kindAt()) {
       case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
-      case "#": return this.leaf("reference");
+      case "emoji": return this.leaf("reference");
       case "tag": return this.leaf("tag");
       case "string": case "constant": return this.node("string-terminal", start, [this.stringOperand()]);
       case "_": return this.leaf("wildcard");
@@ -746,16 +747,14 @@ class Parser {
     let base;
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
-      case "@": base = yield this.patternLiteral(); break;
+      case "#": base = yield this.patternLiteral(); break;
       case "string": {
         const strings = [this.leaf("string")];
         if (runs) while (this.is("string")) strings.push(this.leaf("string"));
         base = strings.length === 1 ? strings[0] : this.node("string-run", start, strings);
         break;
       }
-      case "#":
-        if (!runs) return this.fail("expected a term");
-        base = this.leaf("name"); break;
+      case "emoji": base = this.leaf("name"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().value));
@@ -799,7 +798,7 @@ class Parser {
 
   *patternLiteral() {
     const start = this.index;
-    const children = [this.expect("@")];
+    const children = [this.expect("#")];
     if (this.is("(")) children.push(this.tok(), (yield this.patternUnion()), this.expect(")"));
     else children.push((yield this.patternAtom()));
     return this.node("pattern-literal", start, children);
@@ -820,7 +819,7 @@ class Parser {
   *patternSequence() {
     const start = this.index, children = [];
     do { children.push((yield this.patternItem())); }
-    while (["identifier", "tag", "string", "_", "#", "constant", "@", "(", "[", "{", "⋯", "⋮", "⋱"].includes(this.kindAt()));
+    while (["identifier", "tag", "string", "_", "emoji", "constant", "#", "(", "[", "{", "⋯", "⋮", "⋱"].includes(this.kindAt()));
     return this.node("pattern-sequence", start, children);
   }
 
@@ -846,12 +845,12 @@ class Parser {
     const start = this.index;
     const children = [];
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) children.push((yield this.range()));
-    else if (this.is("identifier") || this.is("#")) children.push(this.tok());
+    else if (this.is("identifier") || this.is("emoji")) children.push(this.tok());
     else if (this.is("tag")) children.push(this.leaf("tag"));
     else if (this.is("string")) children.push(this.leaf("string"));
     else if (this.is("_")) children.push(this.leaf("wildcard"));
     else if (this.is("constant")) children.push(this.leaf("constant-reference"));
-    else if (this.is("@")) return this.node("pattern-atom", start, [(yield this.patternLiteral())]);
+    else if (this.is("#")) return this.node("pattern-atom", start, [(yield this.patternLiteral())]);
     else if (this.is("(")) return this.node("pattern-atom", start, [this.tok(), (yield this.patternUnion()), this.expect(")")]);
     else return this.fail("expected a pattern atom");
     while (TEST_COMPARATORS.has(this.kindAt())) children.push((yield this.test()));

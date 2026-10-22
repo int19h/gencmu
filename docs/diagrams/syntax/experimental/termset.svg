@@ -18,7 +18,7 @@
 <path d="M390 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H462a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="414" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M482 72h10"/>
-<g class="rule"><rect x="492" y="60" width="25" height="24" rx="0"/><text x="504.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="492" y="60" width="25" height="24" rx="0"/><text x="504.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M517 72H537"/>
 <path d="M20 72a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="94" width="159" height="24" rx="0"/><text x="119.5" y="111" textLength="142.8" lengthAdjust="spacingAndGlyphs">termset-with-nuhi</text></g>

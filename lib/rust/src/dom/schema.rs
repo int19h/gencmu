@@ -38,7 +38,7 @@ fn tag(name: &str) -> bool {
 }
 
 fn rule(name: &str) -> bool {
-    name == "#" || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+    name.chars().count() == 1 && !name.is_ascii() || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
 }
 
 fn feature(name: &str) -> bool {
@@ -101,12 +101,8 @@ fn literal_range(left: &Json, right: &Json) -> bool {
         }
 }
 
-fn base(value: &Json, hash: bool) -> bool {
-    exact(value, &["ref"], &[])
-        && value
-            .get("ref")
-            .and_then(Json::as_str)
-            .is_some_and(|name| (hash || name != "#") && (rule(name) || tag(name)))
+fn base(value: &Json, _hash: bool) -> bool {
+    exact(value, &["ref"], &[]) && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule(name) || tag(name))
         || exact(value, &["literal"], &[])
         || exact(value, &["range"], &[])
         || exact(value, &["wildcard"], &[]) && is_true(value.get("wildcard"))
@@ -154,6 +150,8 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Some("not a DOM of this format");
     }
+    let rule =
+        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
@@ -175,7 +173,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let Some(args) = args else { return Some("a malformed directive") };
                     let valid = match item.get("name").and_then(Json::as_str) {
                         Some("stage" | "extend-stage" | "redefine-stage") => {
-                            matches!(&args[..], [name] if *name != "#" && rule(name))
+                            matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
                         }
                         Some("include") => args.len() == 1,
                         Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
@@ -362,6 +360,9 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             Part::Expr { whole, sealed } => {
                 let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
                 if base(value, true) {
+                    if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
+                        return Some("a malformed reference");
+                    }
                     if let Some(term) = value.get("literal") {
                         pending.push((Part::String, term, depth));
                     }

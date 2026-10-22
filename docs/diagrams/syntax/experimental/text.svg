@@ -21,7 +21,7 @@
 <path d="M313 60H333"/>
 <path d="M313 60a10 10 0 0 1 10 10V72a10 10 0 0 1 -10 10H246a10 10 0 0 1 -10 -10V70a10 10 0 0 1 10 -10"/>
 <path d="M333 60h10"/>
-<g class="rule"><rect x="343" y="48" width="25" height="24" rx="0"/><text x="355.5" y="65" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="343" y="48" width="25" height="24" rx="0"/><text x="355.5" y="65" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M368 60h10"/>
 <path d="M378 60h88"/>
 <text class="label" x="382" y="55" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>

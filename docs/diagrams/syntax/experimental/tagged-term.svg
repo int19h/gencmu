@@ -18,7 +18,7 @@
 <path d="M92 106a10 10 0 0 0 10 -10V94a10 10 0 0 1 10 -10H164a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <text class="label" x="116" y="79" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M184 106h10"/>
-<g class="rule"><rect x="194" y="94" width="25" height="24" rx="0"/><text x="206.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="194" y="94" width="25" height="24" rx="0"/><text x="206.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M219 106H219a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M239 46h6m0 -8v16m4 -16v16"/>
 </svg>

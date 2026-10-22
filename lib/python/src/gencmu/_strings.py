@@ -7,7 +7,7 @@ from typing import Any
 
 from ._unicode import CATEGORIES
 
-ENGINE_TAGS = frozenset("_" + name for name in (*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space"))
+ENGINE_TAGS = frozenset("_" + name for name in (*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Emoji_Presentation", "Emoji_Component"))
 USER_NAME = re.compile(r"[A-Z][A-Za-z0-9_-]*")
 SCALAR_NAME = re.compile(r"_[0-9A-F]{4,6}")
 

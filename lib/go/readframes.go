@@ -672,7 +672,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
-				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.tokenValue(b.token(name)), b.tokenValue(b.token(name)))
+				b.fail(name, "tree comparison requires a pattern; write #(%s), not %s", b.tokenValue(b.token(name)), b.tokenValue(b.token(name)))
 			}
 			return ask(&valueFrame{n: right})
 		case "comparison":

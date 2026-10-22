@@ -11,12 +11,12 @@
 <path d="M252.5 80h-20"/>
 <g class="terminal"><rect x="182.5" y="68" width="50" height="24" rx="12"/><text x="207.5" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">ZIhE</text></g>
 <path d="M182.5 80h-10"/>
-<g class="rule"><rect x="147.5" y="68" width="25" height="24" rx="0"/><text x="160" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="147.5" y="68" width="25" height="24" rx="0"/><text x="160" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M147.5 80H68.5"/>
 <path d="M252.5 80a10 10 0 0 0 -10 10V104a10 10 0 0 1 -10 10"/>
 <g class="rule"><rect x="123.5" y="102" width="109" height="24" rx="0"/><text x="178" y="119" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-jek-ek</text></g>
 <path d="M123.5 114h-10"/>
-<g class="rule"><rect x="88.5" y="102" width="25" height="24" rx="0"/><text x="101" y="119" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="88.5" y="102" width="25" height="24" rx="0"/><text x="101" y="119" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M88.5 114H88.5a10 10 0 0 1 -10 -10V90a10 10 0 0 0 -10 -10"/>
 <path d="M68.5 80H60a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M281 46H594"/>

@@ -68,7 +68,7 @@ def pattern_problem(root: Any, test_fault: Callable[[Dom], str | None] | None = 
             if not isinstance(name, str) or not isinstance(at, list) or len(at) != 2 or any(type(n) is not int for n in at):
                 return "a malformed pattern atom"
             if key == "name":
-                if name != "#" and re.fullmatch(r"[a-z][A-Za-z0-9_-]*", name) is None:
+                if not (len(name) == 1 and ord(name) > 127) and re.fullmatch(r"[a-z][A-Za-z0-9_-]*", name) is None:
                     return "a malformed pattern rule name"
             elif not (USER_NAME.fullmatch(name) or key == "terminal" and name in ENGINE_TAGS):
                 return "a malformed pattern terminal or constant"

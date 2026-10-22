@@ -12,7 +12,7 @@
 <path d="M220 56h10"/>
 <g class="terminal"><rect x="230" y="44" width="33" height="24" rx="12"/><text x="246.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M263 56h10"/>
-<g class="rule"><rect x="273" y="44" width="25" height="24" rx="0"/><text x="285.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="273" y="44" width="25" height="24" rx="0"/><text x="285.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M298 56h10"/>
 <g class="rule"><rect x="308" y="44" width="126" height="24" rx="0"/><text x="371" y="61" textLength="109.2" lengthAdjust="spacingAndGlyphs">term-bo-group</text></g>
 <path d="M434 56h6m0 -8v16m4 -16v16"/>

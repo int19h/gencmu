@@ -18,7 +18,7 @@
 <path d="M279 56H299"/>
 <path d="M279 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H212a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M299 56h10"/>
-<g class="rule"><rect x="309" y="44" width="25" height="24" rx="0"/><text x="321.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="309" y="44" width="25" height="24" rx="0"/><text x="321.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M334 56H492"/>
 <path d="M172 56a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
 <path d="M192 110h20"/>

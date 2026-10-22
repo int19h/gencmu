@@ -20,7 +20,7 @@
 <path d="M92 140h20"/>
 <g class="terminal"><rect x="112" y="128" width="33" height="24" rx="12"/><text x="128.5" y="145" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
 <path d="M145 140h10"/>
-<g class="rule"><rect x="155" y="128" width="25" height="24" rx="0"/><text x="167.5" y="145" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="155" y="128" width="25" height="24" rx="0"/><text x="167.5" y="145" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M180 140H200"/>
 <path d="M92 140a10 10 0 0 0 10 -10V128a10 10 0 0 1 10 -10H180a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
 <text class="label" x="116" y="113" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
@@ -31,7 +31,7 @@
 <path d="M117 200h20"/>
 <g class="terminal"><rect x="137" y="188" width="33" height="24" rx="12"/><text x="153.5" y="205" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
 <path d="M170 200h10"/>
-<g class="rule"><rect x="180" y="188" width="25" height="24" rx="0"/><text x="192.5" y="205" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="180" y="188" width="25" height="24" rx="0"/><text x="192.5" y="205" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M205 200H225"/>
 <path d="M117 200a10 10 0 0 0 10 -10V188a10 10 0 0 1 10 -10H205a10 10 0 0 1 10 10V190a10 10 0 0 0 10 10"/>
 <text class="label" x="141" y="173" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

@@ -31,13 +31,13 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
   utterance-sequence [{frame-group}] | {frame-group}
 
 %rule utterance-sequence
-  (statement | fragment) [{I # [statement | fragment]}]
+  (statement | fragment) [{I 🆓 [statement | fragment]}]
 
 %rule frame-group
-  frame [I # [utterance-sequence]]
+  frame [I 🆓 [utterance-sequence]]
 
 %rule frame
-  KIhEI # [terms]
+  KIhEI 🆓 [terms]
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>paragraph</code> to <code>frame</code></summary>

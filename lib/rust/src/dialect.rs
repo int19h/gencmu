@@ -1159,6 +1159,14 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
         let text = chars[origin].to_string();
         let category = unicode.category(c as u32);
         let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
+        for (property, name) in [
+            (crate::unicode::Property::EmojiPresentation, "_Emoji_Presentation"),
+            (crate::unicode::Property::EmojiComponent, "_Emoji_Component"),
+        ] {
+            if unicode.has(property, c as u32) {
+                names.push(name.into());
+            }
+        }
         if unicode.is_white_space(c as u32) {
             names.push("_White_Space".into());
         }

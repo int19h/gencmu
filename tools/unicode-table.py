@@ -4,8 +4,9 @@
 The engine reads Unicode properties from this table
 rather than with the platform's own Unicode data, so that the four libraries
 agree on every character whatever version their platform has. The table is
-generated from the Unicode data of the Python that runs this script, whose
-version it records; regenerate it deliberately, and review the change.
+generated from Python with Unicode 15.1.0 and the matching emoji-data.txt.
+Pass that file with --emoji-data. Its source URL is:
+https://www.unicode.org/Public/15.1.0/ucd/emoji/emoji-data.txt
 
 Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
 
@@ -16,10 +17,12 @@ Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
                             Unicode scalar value once, Cn included, and no
                             surrogate
     white-space 0009 000D   a range of the White_Space property
+    emoji-presentation 1F193 1F19A   an Emoji_Presentation range
+    emoji-component 1F1E6 1F1FF   an Emoji_Component range
     decompose 00E1 0061 0301   a full canonical decomposition
     combining 230 0300 0314   a range of one nonzero combining class
 
-The records follow this order: unicode, category, white-space, decompose, combining.
+The record order is unicode, category, white-space, emoji-presentation, emoji-component, decompose, combining.
 Hangul syllables decompose by arithmetic and have no records.
 The tool compares its generated decomposition with Python before it writes the file.
 """
@@ -27,6 +30,34 @@ import pathlib
 import random
 import sys
 import unicodedata
+import argparse
+
+UNICODE_VERSION = "15.1.0"
+
+
+def emoji_ranges(path):
+    """Read binary emoji properties from the pinned Unicode data."""
+    records = {"Emoji_Presentation": [], "Emoji_Component": []}
+    text = path.read_text(encoding="utf-8")
+    if "Emoji Version 15.1" not in text:
+        raise SystemExit("emoji-data.txt must use Emoji Version 15.1")
+    for line in text.splitlines():
+        fields = line.split("#", 1)[0].strip().split(";")
+        if len(fields) != 2 or fields[1].strip() not in records:
+            continue
+        ends = fields[0].strip().split("..")
+        records[fields[1].strip()].append((int(ends[0], 16), int(ends[-1], 16)))
+    for prop, ranges in records.items():
+        if not ranges:
+            raise SystemExit(f"emoji-data.txt lacks {prop}")
+        merged = []
+        for start, end in sorted(ranges):
+            if merged and start <= merged[-1][1] + 1:
+                merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+            else:
+                merged.append((start, end))
+        for start, end in merged:
+            yield prop.lower().replace("_", "-"), start, end
 
 # The White_Space property, from PropList.txt. Python has no API for it, and
 # it has not changed since Unicode 6.3. Each entry is a range, first and last.
@@ -128,11 +159,19 @@ def check(table, ranges, samples=20000, seed=15):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--emoji-data", type=pathlib.Path, required=True,
+                        help="Unicode 15.1.0 ucd/emoji/emoji-data.txt")
+    args = parser.parse_args()
+    if unicodedata.unidata_version != UNICODE_VERSION:
+        raise SystemExit(f"Python must supply Unicode {UNICODE_VERSION}")
     lines = [f"unicode {unicodedata.unidata_version}"]
     for category, start, end in category_ranges():
         lines.append(f"category {category} {start:04X} {end:04X}")
     for start, end in WHITE_SPACE:
         lines.append(f"white-space {start:04X} {end:04X}")
+    for prop, start, end in emoji_ranges(args.emoji_data):
+        lines.append(f"{prop} {start:04X} {end:04X}")
     table = dict(decompositions())
     ranges = list(combining_ranges())
     check(table, ranges)

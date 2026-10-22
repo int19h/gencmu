@@ -5,6 +5,6 @@
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <g class="terminal"><rect x="20" y="34" width="33" height="24" rx="12"/><text x="36.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
 <path d="M53 46h10"/>
-<g class="rule"><rect x="63" y="34" width="25" height="24" rx="0"/><text x="75.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="63" y="34" width="25" height="24" rx="0"/><text x="75.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M88 46h6m0 -8v16m4 -16v16"/>
 </svg>

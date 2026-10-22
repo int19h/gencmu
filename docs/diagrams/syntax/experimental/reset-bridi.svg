@@ -12,7 +12,7 @@
 <path d="M149 80h10"/>
 <g class="terminal"><rect x="159" y="68" width="50" height="24" rx="12"/><text x="184" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
 <path d="M209 80h10"/>
-<g class="rule"><rect x="219" y="68" width="25" height="24" rx="0"/><text x="231.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="219" y="68" width="25" height="24" rx="0"/><text x="231.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M244 80h10"/>
 <g class="rule"><rect x="254" y="68" width="100" height="24" rx="0"/><text x="304" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
 <path d="M354 80H354a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
@@ -21,7 +21,7 @@
 <path d="M149 114h10"/>
 <g class="terminal"><rect x="159" y="102" width="50" height="24" rx="12"/><text x="184" y="119" textLength="33.6" lengthAdjust="spacingAndGlyphs">IhAU</text></g>
 <path d="M209 114h10"/>
-<g class="rule"><rect x="219" y="102" width="25" height="24" rx="0"/><text x="231.5" y="119" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="219" y="102" width="25" height="24" rx="0"/><text x="231.5" y="119" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M244 114H354a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M374 46h6m0 -8v16m4 -16v16"/>
 </svg>

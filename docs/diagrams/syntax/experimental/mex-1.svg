@@ -15,7 +15,7 @@
 <path d="M292 66h10"/>
 <g class="terminal"><rect x="302" y="54" width="33" height="24" rx="12"/><text x="318.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M335 66h10"/>
-<g class="rule"><rect x="345" y="54" width="25" height="24" rx="0"/><text x="357.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="345" y="54" width="25" height="24" rx="0"/><text x="357.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M370 66h10"/>
 <g class="rule"><rect x="380" y="54" width="58" height="24" rx="0"/><text x="409" y="71" textLength="42" lengthAdjust="spacingAndGlyphs">mex-1</text></g>
 <path d="M438 66H458"/>

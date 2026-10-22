@@ -9,7 +9,7 @@
 <path d="M219 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H219"/>
 <g class="terminal"><rect x="169" y="68" width="50" height="24" rx="12"/><text x="194" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">PEhE</text></g>
 <path d="M169 80h-10"/>
-<g class="rule"><rect x="134" y="68" width="25" height="24" rx="0"/><text x="146.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="134" y="68" width="25" height="24" rx="0"/><text x="146.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M134 80h-10"/>
 <g class="rule"><rect x="40" y="68" width="84" height="24" rx="0"/><text x="82" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">joik-jek</text></g>
 <path d="M40 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>

@@ -15,7 +15,7 @@
 <path d="M227 56h10"/>
 <g class="terminal"><rect x="237" y="44" width="33" height="24" rx="12"/><text x="253.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M270 56h10"/>
-<g class="rule"><rect x="280" y="44" width="25" height="24" rx="0"/><text x="292.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="280" y="44" width="25" height="24" rx="0"/><text x="292.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M305 56h10"/>
 <g class="rule"><rect x="315" y="44" width="75" height="24" rx="0"/><text x="352.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-3</text></g>
 <path d="M390 56h6m0 -8v16m4 -16v16"/>

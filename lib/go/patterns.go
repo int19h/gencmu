@@ -109,7 +109,12 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 		} else {
 			switch p.Kind {
 			case "name":
-				if p.Name != "#" && !classifierName.MatchString(p.Name) {
+				if check != nil {
+					if msg := check(p, e.depth); msg != "" {
+						return msg
+					}
+				}
+				if !(len([]rune(p.Name)) == 1 && []rune(p.Name)[0] > 127) && !classifierName.MatchString(p.Name) {
 					return "a malformed pattern rule name"
 				}
 			case "terminal", "constant":

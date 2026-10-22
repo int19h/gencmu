@@ -11,7 +11,7 @@
 <path d="M145 56H165"/>
 <path d="M83 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H145a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M165 56h10"/>
-<g class="rule"><rect x="175" y="44" width="25" height="24" rx="0"/><text x="187.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="175" y="44" width="25" height="24" rx="0"/><text x="187.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M200 56H220"/>
 <path d="M200 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H162"/>
 <g class="rule"><rect x="78" y="78" width="84" height="24" rx="0"/><text x="120" y="95" textLength="67.2" lengthAdjust="spacingAndGlyphs">joik-jek</text></g>

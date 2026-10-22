@@ -13,11 +13,13 @@ import (
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
-	categories     []categoryRange
-	whiteSpace     [][2]rune
-	decompositions map[rune][]rune
-	combining      []combiningRange
-	hash           string
+	categories        []categoryRange
+	whiteSpace        [][2]rune
+	emojiPresentation [][2]rune
+	emojiComponent    [][2]rune
+	decompositions    map[rune][]rune
+	combining         []combiningRange
+	hash              string
 }
 
 type combiningRange struct {
@@ -41,7 +43,7 @@ var categoryNames = []string{
 // General_Category values in their short form, their one-letter groups,
 // White_Space and Any.
 var propertyNames = func() map[string]bool {
-	m := map[string]bool{"L": true, "M": true, "N": true, "P": true, "S": true, "Z": true, "C": true, "White_Space": true, "Any": true}
+	m := map[string]bool{"L": true, "M": true, "N": true, "P": true, "S": true, "Z": true, "C": true, "White_Space": true, "Any": true, "Emoji_Presentation": true, "Emoji_Component": true}
 	for _, c := range categoryNames {
 		m[c] = true
 	}
@@ -80,7 +82,7 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			continue
 		case "category", "combining":
 			want = 4
-		case "white-space":
+		case "white-space", "emoji-presentation", "emoji-component":
 		default:
 			return nil, fmt.Errorf("unicode.txt line %d: unknown entry %q", n+1, f[0])
 		}
@@ -101,9 +103,16 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
 			}
 			t.combining = append(t.combining, combiningRange{a, b, class})
+		case "emoji-presentation":
+			t.emojiPresentation = append(t.emojiPresentation, [2]rune{a, b})
+		case "emoji-component":
+			t.emojiComponent = append(t.emojiComponent, [2]rune{a, b})
 		case "white-space":
 			t.whiteSpace = append(t.whiteSpace, [2]rune{a, b})
 		}
+	}
+	for _, ranges := range [][][2]rune{t.emojiPresentation, t.emojiComponent} {
+		sort.Slice(ranges, func(i, j int) bool { return ranges[i][0] < ranges[j][0] })
 	}
 	sort.Slice(t.categories, func(i, j int) bool { return t.categories[i].start < t.categories[j].start })
 	sort.Slice(t.whiteSpace, func(i, j int) bool { return t.whiteSpace[i][0] < t.whiteSpace[j][0] })
@@ -143,6 +152,10 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	switch {
 	case name == "Any":
 		return true
+	case name == "Emoji_Presentation":
+		return inUnicodeRanges(t.emojiPresentation, c)
+	case name == "Emoji_Component":
+		return inUnicodeRanges(t.emojiComponent, c)
 	case name == "White_Space":
 		return t.isWhiteSpace(c)
 	case len(name) == 1:
@@ -227,4 +240,13 @@ func (t *unicodeTable) decompose(text string) string {
 func (t *unicodeTable) changesInDocument(c rune) bool {
 	_, mapped := t.decompositions[c]
 	return mapped || c >= 0xac00 && c <= 0xd7a3 || t.combiningClass(c) != 0
+}
+
+func inUnicodeRanges(ranges [][2]rune, c rune) bool {
+	i := sort.Search(len(ranges), func(i int) bool { return ranges[i][1] >= c })
+	return i < len(ranges) && ranges[i][0] <= c
+}
+func (t *unicodeTable) isEmojiName(name string) bool {
+	chars := []rune(name)
+	return len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
 }

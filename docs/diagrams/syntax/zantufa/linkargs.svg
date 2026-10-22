@@ -5,7 +5,7 @@
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <g class="terminal"><rect x="20" y="60" width="33" height="24" rx="12"/><text x="36.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">BE</text></g>
 <path d="M53 72h10"/>
-<g class="rule"><rect x="63" y="60" width="25" height="24" rx="0"/><text x="75.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="63" y="60" width="25" height="24" rx="0"/><text x="75.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M88 72h10"/>
 <g class="rule"><rect x="98" y="60" width="50" height="24" rx="0"/><text x="123" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
 <path d="M148 72h10"/>
@@ -17,7 +17,7 @@
 <path d="M266 72h20"/>
 <g class="terminal"><rect x="286" y="60" width="50" height="24" rx="12"/><text x="311" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">BEhO</text></g>
 <path d="M336 72h10"/>
-<g class="rule"><rect x="346" y="60" width="25" height="24" rx="0"/><text x="358.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="346" y="60" width="25" height="24" rx="0"/><text x="358.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M371 72H391"/>
 <path d="M266 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H371a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="290" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

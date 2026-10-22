@@ -20,14 +20,14 @@
 <path d="M332 82h10"/>
 <g class="terminal"><rect x="342" y="70" width="33" height="24" rx="12"/><text x="358.5" y="87" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
 <path d="M375 82h10"/>
-<g class="rule"><rect x="385" y="70" width="25" height="24" rx="0"/><text x="397.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="385" y="70" width="25" height="24" rx="0"/><text x="397.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M410 82h10"/>
 <g class="rule"><rect x="420" y="70" width="75" height="24" rx="0"/><text x="457.5" y="87" textLength="58.8" lengthAdjust="spacingAndGlyphs">operand</text></g>
 <path d="M495 82h10"/>
 <path d="M505 82h20"/>
 <g class="terminal"><rect x="525" y="70" width="50" height="24" rx="12"/><text x="550" y="87" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
 <path d="M575 82h10"/>
-<g class="rule"><rect x="585" y="70" width="25" height="24" rx="0"/><text x="597.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="585" y="70" width="25" height="24" rx="0"/><text x="597.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M610 82H630"/>
 <path d="M505 82a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10H610a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
 <text class="label" x="529" y="55" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

@@ -9,7 +9,7 @@
 <path d="M150 56h20"/>
 <g class="terminal"><rect x="170" y="44" width="33" height="24" rx="12"/><text x="186.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M203 56h10"/>
-<g class="rule"><rect x="213" y="44" width="25" height="24" rx="0"/><text x="225.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="213" y="44" width="25" height="24" rx="0"/><text x="225.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M238 56h10"/>
 <g class="rule"><rect x="248" y="44" width="84" height="24" rx="0"/><text x="290" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-6</text></g>
 <path d="M332 56H352"/>
@@ -19,7 +19,7 @@
 <path d="M40 100h20"/>
 <g class="terminal"><rect x="60" y="88" width="50" height="24" rx="12"/><text x="85" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M110 100h10"/>
-<g class="rule"><rect x="120" y="88" width="25" height="24" rx="0"/><text x="132.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="120" y="88" width="25" height="24" rx="0"/><text x="132.5" y="105" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M145 100H165"/>
 <path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H145a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
 <path d="M165 100h10"/>

@@ -15,7 +15,7 @@
 <path d="M353 72h20"/>
 <g class="terminal"><rect x="373" y="60" width="50" height="24" rx="12"/><text x="398" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">GIhI</text></g>
 <path d="M423 72h10"/>
-<g class="rule"><rect x="433" y="60" width="25" height="24" rx="0"/><text x="445.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="433" y="60" width="25" height="24" rx="0"/><text x="445.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M458 72H478"/>
 <path d="M353 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H458a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="377" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

@@ -19,7 +19,7 @@
 <path d="M298 116h10"/>
 <g class="terminal"><rect x="308" y="104" width="50" height="24" rx="12"/><text x="333" y="121" textLength="33.6" lengthAdjust="spacingAndGlyphs">TUhE</text></g>
 <path d="M358 116h10"/>
-<g class="rule"><rect x="368" y="104" width="25" height="24" rx="0"/><text x="380.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="368" y="104" width="25" height="24" rx="0"/><text x="380.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M393 116h10"/>
 <g class="rule"><rect x="403" y="104" width="67" height="24" rx="0"/><text x="436.5" y="121" textLength="50.4" lengthAdjust="spacingAndGlyphs">text-1</text></g>
 <path d="M470 116h10"/>
@@ -29,7 +29,7 @@
 <path d="M480 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H552a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
 <text class="label" x="504" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M572 116h10"/>
-<g class="rule"><rect x="582" y="104" width="25" height="24" rx="0"/><text x="594.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="582" y="104" width="25" height="24" rx="0"/><text x="594.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M607 116H607a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M627 56h6m0 -8v16m4 -16v16"/>
 </svg>

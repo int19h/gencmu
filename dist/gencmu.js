@@ -458,7 +458,7 @@
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
     "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
   ];
-  const PROPERTY_NAMES = new Set([...CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space"]);
+  const PROPERTY_NAMES = new Set([...CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Emoji_Presentation", "Emoji_Component"]);
 
   class UnicodeTable {
     /** @param {string} text the contents of unicode.txt */
@@ -474,6 +474,8 @@
       this.categories = [];
       /** @type {[number, number][]} */
       this.whiteSpace = [];
+      /** @type {Map<string, [number, number][]>} */
+      this.emoji = new Map([["Emoji_Presentation", []], ["Emoji_Component", []]]);
       /** @type {[number, number, string][]} */
       const ranges = [];
       /** @type {Map<number, number[]>} */
@@ -486,10 +488,12 @@
         else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
         else if (fields[0] === "decompose") this.decompositions.set(parseInt(fields[1], 16), fields.slice(2).map(field => parseInt(field, 16)));
         else if (fields[0] === "combining") this.combining.push([parseInt(fields[2], 16), parseInt(fields[3], 16), Number(fields[1])]);
+        else if (fields[0] === "emoji-presentation" || fields[0] === "emoji-component") this.emoji.get(fields[0] === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
         else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
       }
       // The records can stand in any order in the file (engine §1).
       ranges.sort((a, b) => a[0] - b[0]);
+      for (const ranges of this.emoji.values()) ranges.sort((a, b) => a[0] - b[0]);
       this.combining.sort((a, b) => a[0] - b[0]);
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
@@ -516,6 +520,24 @@
         else return this.categories[middle];
       }
       return "Cn";
+    }
+
+    /** @param {string} property @param {number} code @returns {boolean} */
+    hasEmoji(property, code) {
+      const ranges = this.emoji.get(property) || [];
+      let low = 0, high = ranges.length - 1;
+      while (low <= high) {
+        const middle = (low + high) >> 1;
+        if (code < ranges[middle][0]) high = middle - 1;
+        else if (code > ranges[middle][1]) low = middle + 1;
+        else return true;
+      }
+      return false;
+    }
+
+    /** @param {string} name @returns {boolean} */
+    isEmojiName(name) {
+      return [...name].length === 1 && this.hasEmoji("Emoji_Presentation", /** @type {number} */ (name.codePointAt(0))) && !this.hasEmoji("Emoji_Component", /** @type {number} */ (name.codePointAt(0)));
     }
 
     /** @param {number} code @returns {number} */
@@ -1261,7 +1283,7 @@
    */
 
 
-  const RESULT_FORMAT = 14;
+  const RESULT_FORMAT = 15;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -2550,7 +2572,7 @@
       } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
         const key = 'name' in n ? 'name' : 'terminal' in n ? 'terminal' : 'constant';
         if (typeof n[key] !== 'string' || !Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern atom';
-        if (key === 'name' && n.name !== '#' && !/^[a-z][A-Za-z0-9_-]*$/.test(n.name)) return 'a malformed pattern rule name';
+        if (key === 'name' && !/^(?:[a-z][A-Za-z0-9_-]*|[^\x00-\x7f])$/u.test(n.name)) return 'a malformed pattern rule name';
         if (key === "constant" && !/^[A-Z][A-Za-z0-9_-]*$/.test(n.constant)) return "a malformed pattern constant";
         if (key === "terminal" && !(/^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith("_") && PROPERTY_NAMES.has(n.terminal.slice(1)))) return "a malformed pattern terminal";
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
@@ -3159,6 +3181,7 @@
       const code = /** @type {number} */ (character.codePointAt(0));
       const category = unicode.category(code);
       const tags = tagSet([`_${category}`, `_${category[0]}`]);
+      for (const property of ["Emoji_Presentation", "Emoji_Component"]) if (unicode.hasEmoji(property, code)) tags.add(`_${property}`);
       if (unicode.isWhiteSpace(code)) tags.add("_White_Space");
       tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
       index++;
@@ -3842,14 +3865,14 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 34;
+  const DOM_FORMAT = 35;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
   // capital (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
   // A rule has the same spelling as a classifier, or the name # (engine §9).
-  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|#)$/;
+  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|[^\x00-\x7f])$/u;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
@@ -3874,7 +3897,7 @@
    * of the value must already be checked, and its nesting bounded.
    * @param {string} op
    * @param {any} value
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} [unicode]
    * @returns {{problem: string, node: any} | null}
    */
   function testValueFault(op, value, unicode) {
@@ -3892,7 +3915,7 @@
    * character tags in their canonical spelling by the table, which says which
    * code points are marks, the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
    * @returns {string | null}
    */
   function rangeProblem(range, unicode) {
@@ -3957,7 +3980,7 @@
    * the loader's table: the lowercase mapping that the strings of value
    * tests are checked against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {string | null}
    */
@@ -3983,6 +4006,7 @@
     const pending = [];
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, ...context });
+    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name));
     const positions = new Set();
     for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
       if (!object(item) || !position(item.at)) return "a malformed declaration position";
@@ -4017,7 +4041,7 @@
       push("term", implication.if); push("term", implication.then);
     }
     for (const rule of dom.rules) {
-      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && RULE_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => !["leftmost-longest", "fewest"].includes(flag)) || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && ruleName(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => !["leftmost-longest", "fewest"].includes(flag)) || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
       if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
       if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true });
       if (rule.value !== undefined) push("recipe", rule.value);
@@ -4032,7 +4056,7 @@
       }
     }
     /** @type {(value: any) => boolean} */
-    const base = value => object(value) && ((typeof value.ref === "string" && value.ref !== "#") || "literal" in value || "range" in value || value.wildcard === true);
+    const base = value => object(value) && ((typeof value.ref === "string") || "literal" in value || "range" in value || value.wildcard === true);
     /** @type {(value: any) => boolean} */
     const target = value => base(value) || object(value) && value.test === "tags" && base(value.expr);
     for (let task = pending.pop(); task; task = pending.pop()) {
@@ -4058,7 +4082,7 @@
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
         } else if ("capture" in value) {
-          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr) || value.expr?.ref === "#")) return "a malformed capture";
+          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
           child("expr", value.expr, { sealed: task.sealed });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
           const key = fields[0];
@@ -4076,7 +4100,7 @@
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
           for (const end of value.range) push("term", end, depth);
           const problem = rangeProblem(value.range, unicode); if (problem) return problem;
-        } else if ("ref" in value) { if (fields.length !== 1 || !(value.ref === "#" || CLASSIFIER_NAME.test(value.ref) || tag(value.ref))) return "a malformed reference"; }
+        } else if ("ref" in value) { if (fields.length !== 1 || !(ruleName(value.ref) || tag(value.ref))) return "a malformed reference"; }
         else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
       } else if (kind === "tags") {
         if (task.constituent && readsOwnTags(value)) return "a constituent reads its own tags";
@@ -4121,9 +4145,11 @@
           for (const condition of values) child("condition", condition);
         }
       } else if (kind === "pattern") {
-        const problem = patternProblem(value, () => null); if (problem) return problem;
+        const problem = patternProblem(value, () => null);
+        if (problem) return problem;
         push("pattern-part",value,depth);
       } else if (kind === "pattern-part") {
+        if (typeof value.name === "string" && !ruleName(value.name)) return "a malformed pattern rule name";
         if (value.test === "tags") for (const requirement of value.requirements) child("term", requirement.value);
         else if (value.test) { if (!stringTerm(value.value)) return "a malformed pattern value test"; child("term", value.value); }
         if (value.literal) { if (!stringTerm(value.literal)) return "a malformed pattern literal"; push("term", value.literal, depth); }
@@ -4141,7 +4167,7 @@
           push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
@@ -4214,7 +4240,7 @@
   /**
    * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {dom is GrammarDom}
    */
@@ -15539,7 +15565,7 @@
    * @param {Token[]} tokens
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
    *   the configured category table for diagnostic strings
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {GrammarDom}
@@ -15795,7 +15821,7 @@
       const keyword = valueOf(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
       const rule = { name: valueOf(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
-      if (rule.name !== "#" && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name begins with a lowercase letter", only(node, "rule-name"));
+      if (!unicode.isEmojiName?.(rule.name || "") && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name starts with a lowercase letter or uses one eligible emoji", only(node, "rule-name"));
       const flags = one(node, "rule-flags");
       rule.flags = [];
       if (flags) {
@@ -16008,7 +16034,7 @@
           if (!tests.length) lacks(node, "test");
           const wrapper = one(node, "primary");
           const symbol = wrapper ? knownOf(wrapper, PRIMARIES) : parts(node).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(node, "base primary");
-          checkTestOrder(tests, ["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)) && !(ruleOf(symbol) === "reference" && valueOf(token(symbol)) === "#"));
+          checkTestOrder(tests, ["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) expr = { ...(yield readTest(test)), expr };
@@ -16259,7 +16285,7 @@
           // A bare name gets this error before capital-initial tag typing.
           if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
             const name = valueOf(token(leaf));
-            fail(`tree comparison requires a pattern; write @(${name}), not ${name}`,leaf);
+            fail(`tree comparison requires a pattern; write #(${name}), not ${name}`,leaf);
           }
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const right = /** @type {Term} */ (yield readTerm(rightNode));
@@ -17243,7 +17269,7 @@
         const source = error.source || [0, 0];
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
         const ranked = error.stage === "syntax" && rankedSyntaxFailure(/** @type {Token[]} */ (run.stages[0].output),error.token ?? 0);
-        const message = ranked ? "Parenthesize the intended ranked choice, with at least two operands and one separator kind." : error.message;
+        const message = error.stage === "lexical" && [...text][source[0]] === "@" ? "@ is reserved for parameters, which are not supported yet" : ranked ? "Parenthesize the intended ranked choice, with at least two operands and one separator kind." : error.message;
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
       const syntax = run.stages[run.stages.length - 1];

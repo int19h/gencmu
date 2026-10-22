@@ -31,7 +31,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 The earlier stages supply cmavo classes from the dialect's selected lexicon. Each finished quote from the words stage arrives as one token of its opening class.
 
-[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. In this base grammar, an elided terminator takes its `#` with it. Thus an elided `[+X #]` leaves no free-modifier slot (see `#` below). The [experimental layer](experimental.md#the-experimental-grammar) instead keeps the free slot after an elided terminator. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
+[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. In this base grammar, an elided terminator takes its `🆓` with it. Thus an elided `[+X 🆓]` leaves no free-modifier slot (see `🆓` below). The [experimental layer](experimental.md#the-experimental-grammar) instead keeps the free slot after an elided terminator. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
 
 CLL writes repetition as `x ...`, and the notation writes it with braces. CLL's notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
@@ -45,17 +45,17 @@ This document writes the grammar literately: each block of rules follows the pro
 
 A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each dialect states the remaining ranking policy after this document. The cll-ebnf and bpfk dialects state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
 
-CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
+CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU 🆓]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
-CLL's notation note 9 defines `#`, a slot for any number of free modifiers, and says that it "appears in many places".[^cll-s21-1] This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
+CLL's notation note 9 defines `#`, a slot for any number of free modifiers, and says that it "appears in many places".[^cll-s21-1] This grammar calls the slot `🆓`. This document defines `free`, a single free modifier, under "Free modifiers, vocatives and indicators".
 
 ```jbogenbau
-%rule #
+%rule 🆓
   [{free}]
 ```
 
-<details><summary>Railroad diagram of <code>#</code></summary>
-<p><img src="../../docs/diagrams/syntax/cll/_hash.svg" alt="Railroad diagram of the rule #"></p>
+<details><summary>Railroad diagram of <code>🆓</code></summary>
+<p><img src="../../docs/diagrams/syntax/cll/_u1f193.svg" alt="Railroad diagram of the rule 🆓"></p>
 </details>
 
 ## The text and its paragraphs
@@ -75,16 +75,16 @@ This grammar writes most unbounded sequences with flat braces or left chains, wh
 
 ```jbogenbau
 %rule text
-  [{NAI}] [{CMEVLA} # | (indicators & {free})] [joik-jek] text-1
+  [{NAI}] [{CMEVLA} 🆓 | (indicators & {free})] [joik-jek] text-1
 
 %rule text-1
-  [{I [jek | joik] [[stag] BO] #}] [{NIhO} #] [paragraphs]
+  [{I [jek | joik] [[stag] BO] 🆓}] [{NIhO} 🆓] [paragraphs]
 
 %rule paragraphs
-  paragraph [{NIhO} # paragraphs]
+  paragraph [{NIhO} 🆓 paragraphs]
 
 %rule paragraph
-  (statement | fragment) [{I # [statement | fragment]}]
+  (statement | fragment) [{I 🆓 [statement | fragment]}]
 ```
 
 <details><summary>Railroad diagrams of <code>text</code>, <code>text-1</code>, <code>paragraphs</code> and <code>paragraph</code></summary>
@@ -116,7 +116,7 @@ A fragment is what a speaker utters when the utterance is not a sentence[^cll-s1
 - A relative clause
 - A `be` or `bei` phrase that supplies arguments after the fact
 
-`terms [+VAU #]` is a fragment. So the parser never has to read the first word of an utterance as the start of a sentence. That is what makes `le sutra tavla` a legitimate fragment as well as a sentence. "Choosing among parses" says how the stage chooses between the two.
+`terms [+VAU 🆓]` is a fragment. So the parser never has to read the first word of an utterance as the start of a sentence. That is what makes `le sutra tavla` a legitimate fragment as well as a sentence. "Choosing among parses" says how the stage chooses between the two.
 
 ```jbogenbau
 %rule statement
@@ -126,16 +126,16 @@ A fragment is what a speaker utters when the utterance is not a sentence[^cll-s1
   statement-2 | statement-1 I joik-jek [statement-2]
 
 %rule statement-2
-  statement-3 [I [jek | joik] [stag] BO # [statement-2]]
+  statement-3 [I [jek | joik] [stag] BO 🆓 [statement-2]]
 
 %rule statement-3
-  sentence | [tag] TUhE # text-1 [+TUhU #]
+  sentence | [tag] TUhE 🆓 text-1 [+TUhU 🆓]
 
 %rule fragment
-  ek # | gihek # | quantifier | NA # | terms [+VAU #] | prenex | relative-clauses | links | linkargs
+  ek 🆓 | gihek 🆓 | quantifier | NA 🆓 | terms [+VAU 🆓] | prenex | relative-clauses | links | linkargs
 
 %rule prenex
-  terms ZOhU #
+  terms ZOhU 🆓
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>statement</code> to <code>prenex</code></summary>
@@ -201,26 +201,26 @@ A `gek-sentence` joins two subsentences in forethought. The gek can contain a te
 The gek-sentence's tail terms follow the whole connection and apply to both sides.
 
 ```jbogenbau
-%const $STAG-TAG @(tag) ∖ @(⋮ (FIhO ∪ free))
-%const $KE-UNIT @(KE ⋯ KEhE [#])
-%const $KE-SELBRI @([$STAG-TAG] $KE-UNIT)
-%const $KE-GEK @([$STAG-TAG] KE [#] gek-sentence KEhE [#])
-%const $KE-TAIL @($KE-SELBRI tail-terms) ∪ $KE-GEK
-%const $WRITTEN-VAU @([terms] VAU≠"" [#])
-%const $KE-TAIL-WITH-VAU @($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
+%const $STAG-TAG #(tag) ∖ #(⋮ (FIhO ∪ free))
+%const $KE-UNIT #(KE ⋯ KEhE [🆓])
+%const $KE-SELBRI #([$STAG-TAG] $KE-UNIT)
+%const $KE-GEK #([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])
+%const $KE-TAIL #($KE-SELBRI tail-terms) ∪ $KE-GEK
+%const $WRITTEN-VAU #([terms] VAU≠"" [🆓])
+%const $KE-TAIL-WITH-VAU #($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
 
 %rule sentence
-  [terms [CU #]] bridi-tail
+  [terms [CU 🆓]] bridi-tail
 
 %rule subsentence
   sentence | prenex subsentence
 
 %rule bridi-tail
   | bridi-tail-1-final
-  | bridi-tail-1 gihek [stag] KE # bridi-tail [+KEhE #] tail-terms
+  | bridi-tail-1 gihek [stag] KE 🆓 bridi-tail [+KEhE 🆓] tail-terms
 
 %rule bridi-tail-1
-  bridi-tail-2 | bridi-tail-1 gihek # bridi-tail-2 tail-terms
+  bridi-tail-2 | bridi-tail-1 gihek 🆓 bridi-tail-2 tail-terms
 
 %rule bridi-tail-1-final
   | bridi-tail-2
@@ -230,7 +230,7 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
   $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
 
 %rule bridi-tail-2
-  bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
+  bridi-tail-3 [gihek [stag] BO 🆓 bridi-tail-2 tail-terms]
 
 %rule bridi-tail-3
   | selbri tail-terms
@@ -238,11 +238,11 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 %rule gek-sentence
   | gek subsentence gik subsentence tail-terms
-  | [tag] KE # gek-sentence [+KEhE #]
-  | NA # gek-sentence
+  | [tag] KE 🆓 gek-sentence [+KEhE 🆓]
+  | NA 🆓 gek-sentence
 
 %rule tail-terms
-  [terms] [+VAU #]
+  [terms] [+VAU 🆓]
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>sentence</code> to <code>tail-terms</code></summary>
@@ -282,16 +282,16 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   {terms-1}
 
 %rule terms-1
-  {... terms-2 / PEhE # joik-jek}
+  {... terms-2 / PEhE 🆓 joik-jek}
 
 %rule terms-2
-  {term / CEhE #}
+  {term / CEhE 🆓}
 
 %rule term
-  sumti | (tag | FA #) (sumti | [+KU #]) | termset | tag termset | NA KU #
+  sumti | (tag | FA 🆓) (sumti | [+KU 🆓]) | termset | tag termset | NA KU 🆓
 
 %rule termset
-  NUhI # gek terms [+NUhU #] gik terms [+NUhU #] | NUhI # terms [+NUhU #]
+  NUhI 🆓 gek terms [+NUhU 🆓] gik terms [+NUhU 🆓] | NUhI 🆓 terms [+NUhU 🆓]
 ```
 
 <details><summary>Railroad diagrams of <code>terms</code>, <code>terms-1</code>, <code>terms-2</code>, <code>term</code> and <code>termset</code></summary>
@@ -327,34 +327,34 @@ The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one 
 
 ```jbogenbau
 %rule sumti
-  sumti-1 [VUhO # relative-clauses]
+  sumti-1 [VUhO 🆓 relative-clauses]
 
 %rule sumti-1
-  sumti-2 [(ek | joik) [stag] KE # sumti [+KEhE #]]
+  sumti-2 [(ek | joik) [stag] KE 🆓 sumti [+KEhE 🆓]]
 
 %rule sumti-2
   {... sumti-3 / joik-ek}
 
 %rule sumti-3
-  {sumti-4 ... / (ek | joik) [stag] BO #}
+  {sumti-4 ... / (ek | joik) [stag] BO 🆓}
 
 %rule sumti-4
   sumti-5 | gek sumti gik sumti-4
 
 %rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [+KU #] [relative-clauses]
+  [quantifier] sumti-6 [relative-clauses] | quantifier selbri [+KU 🆓] [relative-clauses]
 
 %rule sumti-6
-  | (LAhE # | NAhE BO #) [relative-clauses] sumti [+LUhU #]
-  | KOhA #
-  | lerfu-string [+BOI #]
-  | LA # [relative-clauses] {CMEVLA} #
-  | (LA | LE) # sumti-tail [+KU #]
-  | LI # mex [+LOhO #]
-  | ZO #
-  | LU text [+LIhU] #
-  | LOhU #
-  | ZOI #
+  | (LAhE 🆓 | NAhE BO 🆓) [relative-clauses] sumti [+LUhU 🆓]
+  | KOhA 🆓
+  | lerfu-string [+BOI 🆓]
+  | LA 🆓 [relative-clauses] {CMEVLA} 🆓
+  | (LA | LE) 🆓 sumti-tail [+KU 🆓]
+  | LI 🆓 mex [+LOhO 🆓]
+  | ZO 🆓
+  | LU text [+LIhU] 🆓
+  | LOhU 🆓
+  | ZOI 🆓
 
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
@@ -381,10 +381,10 @@ A relative clause attaches to a sumti and restricts or comments on it[^cll-c8]. 
 
 ```jbogenbau
 %rule relative-clauses
-  {relative-clause / ZIhE #}
+  {relative-clause / ZIhE 🆓}
 
 %rule relative-clause
-  GOI # term [+GEhU #] | NOI # subsentence [+KUhO #]
+  GOI 🆓 term [+GEhU 🆓] | NOI 🆓 subsentence [+KUhO 🆓]
 ```
 
 <details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
@@ -430,50 +430,50 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
   [tag] selbri-1
 
 %rule selbri-1
-  selbri-2 | NA # selbri
+  selbri-2 | NA 🆓 selbri
 
 %rule selbri-2
-  selbri-3 [CO # selbri-2]
+  selbri-3 [CO 🆓 selbri-2]
 
 %rule selbri-3
   {... selbri-4}
 
 %rule selbri-4
   | selbri-5
-  | selbri-4 (joik [stag] KE # selbri-3 [+KEhE #] ≻ joik-jek selbri-5)
+  | selbri-4 (joik [stag] KE 🆓 selbri-3 [+KEhE 🆓] ≻ joik-jek selbri-5)
 
 %rule selbri-5
-  {selbri-6 ... / (jek | joik) [stag] BO #}
+  {selbri-6 ... / (jek | joik) [stag] BO 🆓}
 
 %rule selbri-6
-  tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
+  tanru-unit [BO 🆓 selbri-6] | [NAhE 🆓] guhek selbri gik selbri-6
 
 %rule tanru-unit
-  {tanru-unit-1 / CEI #}
+  {tanru-unit-1 / CEI 🆓}
 
 %rule tanru-unit-1
   tanru-unit-2 [linkargs]
 
 %rule tanru-unit-2
-  | BRIVLA #
-  | GOhA [RAhO] #
-  | KE # selbri-3 [+KEhE #]
-  | ME # sumti [+MEhU #] [MOI #]
-  | (number | lerfu-string) MOI #
-  | NUhA # mex-operator
-  | SE # tanru-unit-2
-  | JAI # [tag] tanru-unit-2
-  | NAhE # tanru-unit-2
-  | abstractor-chain subsentence [+KEI #]
+  | BRIVLA 🆓
+  | GOhA [RAhO] 🆓
+  | KE 🆓 selbri-3 [+KEhE 🆓]
+  | ME 🆓 sumti [+MEhU 🆓] [MOI 🆓]
+  | (number | lerfu-string) MOI 🆓
+  | NUhA 🆓 mex-operator
+  | SE 🆓 tanru-unit-2
+  | JAI 🆓 [tag] tanru-unit-2
+  | NAhE 🆓 tanru-unit-2
+  | abstractor-chain subsentence [+KEI 🆓]
 
 %rule abstractor-chain
-  {... NU [NAI] # / joik-jek}
+  {... NU [NAI] 🆓 / joik-jek}
 
 %rule linkargs
-  BE # term [links] [+BEhO #]
+  BE 🆓 term [links] [+BEhO 🆓]
 
 %rule links
-  BEI # term [links]
+  BEI 🆓 term [links]
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>selbri</code> to <code>links</code></summary>
@@ -534,19 +534,19 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 ```jbogenbau
 %rule quantifier
-  number [+BOI #] | VEI # mex [+VEhO #]
+  number [+BOI 🆓] | VEI 🆓 mex [+VEhO 🆓]
 
 %rule mex
-  mex-chain | FUhA # rp-expression
+  mex-chain | FUhA 🆓 rp-expression
 
 %rule mex-chain
   {... mex-1 / operator}
 
 %rule mex-1
-  mex-2 [BIhE # operator mex-1]
+  mex-2 [BIhE 🆓 operator mex-1]
 
 %rule mex-2
-  operand | [PEhO #] operator {mex-2} [+KUhE #]
+  operand | [PEhO 🆓] operator {mex-2} [+KUhE 🆓]
 
 %rule rp-expression
   rp-operand rp-operand operator
@@ -556,35 +556,35 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 %rule operator
   | operator-1
-  | operator (joik [stag] KE # operator [+KEhE #] ≻ joik-jek operator-1)
+  | operator (joik [stag] KE 🆓 operator [+KEhE 🆓] ≻ joik-jek operator-1)
 
 %rule operator-1
-  operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
+  operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO 🆓 operator-1
 
 %rule operator-2
   | mex-operator
-  | KE # operator [+KEhE #]
+  | KE 🆓 operator [+KEhE 🆓]
 
 %rule mex-operator
-  SE # mex-operator | NAhE # mex-operator | MAhO # mex [+TEhU #] | NAhU # selbri [+TEhU #] | VUhU #
+  SE 🆓 mex-operator | NAhE 🆓 mex-operator | MAhO 🆓 mex [+TEhU 🆓] | NAhU 🆓 selbri [+TEhU 🆓] | VUhU 🆓
 
 %rule operand
-  operand-1 [(ek | joik) [stag] KE # operand [+KEhE #]]
+  operand-1 [(ek | joik) [stag] KE 🆓 operand [+KEhE 🆓]]
 
 %rule operand-1
   {... operand-2 / joik-ek}
 
 %rule operand-2
-  {operand-3 ... / (ek | joik) [stag] BO #}
+  {operand-3 ... / (ek | joik) [stag] BO 🆓}
 
 %rule operand-3
   | quantifier
-  | lerfu-string [+BOI #]
-  | NIhE # selbri [+TEhU #]
-  | MOhE # sumti [+TEhU #]
-  | JOhI # {mex-2} [+TEhU #]
+  | lerfu-string [+BOI 🆓]
+  | NIhE 🆓 selbri [+TEhU 🆓]
+  | MOhE 🆓 sumti [+TEhU 🆓]
+  | JOhI 🆓 {mex-2} [+TEhU 🆓]
   | gek operand gik operand-3
-  | (LAhE # | NAhE BO #) operand [+LUhU #]
+  | (LAhE 🆓 | NAhE BO 🆓) operand [+LUhU 🆓]
 
 %rule number
   PA [{PA | lerfu-word}]
@@ -665,19 +665,19 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   [SE] BIhI [NAI]
 
 %rule joik-ek
-  joik # | ek #
+  joik 🆓 | ek 🆓
 
 %rule joik-jek
-  joik # | jek #
+  joik 🆓 | jek 🆓
 
 %rule gek
-  [SE] GA [NAI] # | joik GI # | stag gik
+  [SE] GA [NAI] 🆓 | joik GI 🆓 | stag gik
 
 %rule guhek
-  [SE] GUhA [NAI] #
+  [SE] GUhA [NAI] 🆓
 
 %rule gik
-  GI [NAI] #
+  GI [NAI] 🆓
 ```
 
 <details><summary>Railroad diagrams of the 10 rules from <code>ek</code> to <code>gik</code></summary>
@@ -733,7 +733,7 @@ In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag ove
   {... simple-tense-modal / jek | joik}
 
 %rule tense-modal
-  simple-tense-modal # | FIhO # selbri [+FEhU #]
+  simple-tense-modal 🆓 | FIhO 🆓 selbri [+FEhU 🆓]
 
 %rule(leftmost-longest) simple-tense-modal
   [NAhE] [SE] BAI [NAI] [KI] | [NAhE] ((time [space] | space [time]) & CAhA) [KI] | KI | CUhE
@@ -776,7 +776,7 @@ In this base grammar, `mi viska ba'o pu gi do gi la djan` gives `ba'o` a tag ove
 
 ## Free modifiers, vocatives and indicators
 
-A free modifier can occupy any `#` slot. CLL permits free modifiers after many constructions.[^cll-s6-11] The forms are these:
+A free modifier can occupy any `🆓` slot. CLL permits free modifiers after many constructions.[^cll-s6-11] The forms are these:
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
@@ -785,7 +785,7 @@ A free modifier can occupy any `#` slot. CLL permits free modifiers after many c
 - A parenthetical text, `to ... toi`
 - A subscript `xi` with a number, lerfu string or bracketed mekso
 
-The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but the grammar writes them without `#`. The slot that follows a free modifier is the one that it sits in.
+The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but the grammar writes them without `🆓`. The slot that follows a free modifier is the one that it sits in.
 
 A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are these:
 
@@ -799,13 +799,13 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ```jbogenbau
 %rule free
-  | SEI # [terms [CU #]] selbri [+SEhU]
-  | SOI # sumti [sumti] [+SEhU]
-  | vocative [sumti | [relative-clauses] (selbri | {CMEVLA} #) [relative-clauses]] [+DOhU]
+  | SEI 🆓 [terms [CU 🆓]] selbri [+SEhU]
+  | SOI 🆓 sumti [sumti] [+SEhU]
+  | vocative [sumti | [relative-clauses] (selbri | {CMEVLA} 🆓) [relative-clauses]] [+DOhU]
   | (number | lerfu-string) MAI
   | TO text [+TOI]
-  | XI # (number | lerfu-string) [+BOI]
-  | XI # VEI # mex [+VEhO]
+  | XI 🆓 (number | lerfu-string) [+BOI]
+  | XI 🆓 VEI 🆓 mex [+VEhO]
 
 %rule vocative
   {COI [NAI]} & DOI
@@ -897,7 +897,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
-    A `zei` compound gets the free-modifier slot of `BRIVLA #`, which printed rule 152 omits after its ZEI alternative. YACC [step 4a](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L98-L99) merges the compound into BRIVLA, and [`bridi_valsi_407`](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L909-L913) permits a free modifier after it.
+    A `zei` compound gets the free-modifier slot of `BRIVLA 🆓`, which printed rule 152 omits after its ZEI alternative. YACC [step 4a](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L98-L99) merges the compound into BRIVLA, and [`bridi_valsi_407`](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L909-L913) permits a free modifier after it.
 
 ### Earlier stages
 
@@ -911,7 +911,7 @@ The words stage implements CLL's non-formal erasure rule `null = any-word SI | u
 
 The [experimental layer](experimental.md#the-experimental-grammar) supersedes this policy and keeps free slots after elided terminators.
 
-This base grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X #]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where the CLL example[^cll-e17-38] writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
+This base grammar keeps the free-modifier slot after an elided terminator as printed: an elided `[+X 🆓]` leaves no slot. So a free modifier cannot follow an elided `boi`, and where the CLL example[^cll-e17-38] writes `xy. xi ky.`, this grammar requires `xy. boi xi ky.`.
 
 CLL itself says so in two places. CLL[^cll-s14-17] gives the example[^cll-e14-154], `xy. boi xi vei by. ce'o dy. [ve'o]`. After it, CLL says that "the boi in [that example] is not elidable, because the xi subscript needs something to attach to". CLL[^cll-s6-11] says that free modifiers can stand after any elidable terminator, "which, however, must not then be elided". The one exception is `li'u`, as item 4 above says.
 

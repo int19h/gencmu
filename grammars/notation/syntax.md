@@ -66,7 +66,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   Identifier
 
 %rule rule-name
-  Identifier | "#"
+  Identifier | Emoji-Name
 
 %rule clauses
   tags-clause [value-clause] [image-clause] | value-clause [image-clause] | image-clause
@@ -117,7 +117,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 
 A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and each sequence contains one or more primaries.
 
-A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and `#` reference rules. Uppercase names and engine tags read tagged tokens.
+A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and eligible emoji names reference rules. Uppercase names and engine tags read tagged tokens.
 
 Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
 
@@ -149,7 +149,7 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   reference | tag | string-terminal | range | wildcard | group | optional | repetition | empty
 
 %rule reference
-  Lowercase-Name | "#"
+  Lowercase-Name | Emoji-Name
 
 %rule tag
   Uppercase-Name | Engine-Tag≠"_"
@@ -222,7 +222,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   "=" | "≠"
 
 %rule operand-atom
-  string | constant-reference | name≠"#" | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
   operand-atom | method
@@ -361,7 +361,7 @@ The reader folds selectors from left to right. It retains the receiver's actual 
 
 A name used as an argument can identify a rule or classifier where the method signature requires one. The reader rejects unknown methods, invalid receivers, and wrong arities.
 
-The rule name `#` is also a method argument. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
+An emoji rule name is also a method argument. A classifier name starts with a lowercase letter, so an emoji cannot name a classifier.
 
 ```jbogenbau
 %rule term
@@ -413,7 +413,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   Integer
 
 %rule name
-  Lowercase-Name | "#"
+  Lowercase-Name | Emoji-Name
 
 %rule empty-set
   "∅"
@@ -509,7 +509,7 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 ## Tree patterns
 
-A pattern literal starts with `@(` and ends with `)`. The shorthand `@A` reads one ungrouped atom. Its lookahead excludes a plain group from shorthand recognition.
+A pattern literal starts with `#(` and ends with `)`. The shorthand `#A` reads one ungrouped atom. Its lookahead excludes a plain group from shorthand recognition.
 
 Patterns combine with union, intersection, and difference. Sequences describe siblings, brackets make a sequence optional, and braces repeat it with an optional separator.
 
@@ -519,7 +519,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 
 ```jbogenbau
 %rule pattern-literal
-  "@" "(" pattern-union ")" | "@" $short:pattern-atom
+  "#" "(" pattern-union ")" | "#" $short:pattern-atom
 %conditions
   $short ⟹ $short.first-token.value ≠ "("
 
@@ -539,7 +539,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
   (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}] | pattern-literal | "(" pattern-union ")"
 
 %rule pattern-name
-  Lowercase-Name | "#"
+  Lowercase-Name | Emoji-Name
 
 %rule pattern-brackets
   "[" pattern-union "]"
@@ -595,10 +595,10 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   Engine-Tag≠"_" | range
 
 %rule argument-term
-  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
+  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
 
 %rule directive-method
-  (tag | name≠"#" | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
+  (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 ```
 
 <details><summary>Railroad diagrams of the 8 rules from <code>directive</code> to <code>directive-method</code></summary>

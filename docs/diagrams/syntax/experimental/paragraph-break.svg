@@ -16,12 +16,12 @@
 <path d="M60 100a10 10 0 0 0 -10 10V112a10 10 0 0 0 10 10H110a10 10 0 0 0 10 -10V110a10 10 0 0 0 -10 -10"/>
 <path d="M40 100H40a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M150 56h10"/>
-<g class="rule"><rect x="160" y="44" width="25" height="24" rx="0"/><text x="172.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="160" y="44" width="25" height="24" rx="0"/><text x="172.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M185 56h10"/>
 <path d="M195 56h20"/>
 <g class="terminal"><rect x="215" y="44" width="25" height="24" rx="12"/><text x="227.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">I</text></g>
 <path d="M240 56h10"/>
-<g class="rule"><rect x="250" y="44" width="25" height="24" rx="0"/><text x="262.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="250" y="44" width="25" height="24" rx="0"/><text x="262.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M275 56h10"/>
 <path d="M285 56h20"/>
 <path d="M305 56h20"/>
@@ -36,7 +36,7 @@
 <path d="M325 100a10 10 0 0 0 -10 10V112a10 10 0 0 0 10 10H375a10 10 0 0 0 10 -10V110a10 10 0 0 0 -10 -10"/>
 <path d="M305 100H305a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M415 56h10"/>
-<g class="rule"><rect x="425" y="44" width="25" height="24" rx="0"/><text x="437.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="425" y="44" width="25" height="24" rx="0"/><text x="437.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M450 56H470"/>
 <path d="M195 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H450a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M470 56h10"/>

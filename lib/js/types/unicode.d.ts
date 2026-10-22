@@ -11,6 +11,8 @@ export declare class UnicodeTable {
     categories: string[];
     /** @type {[number, number][]} */
     whiteSpace: [number, number][];
+    /** @type {Map<string, [number, number][]>} */
+    emoji: Map<string, [number, number][]>;
     /** @type {Map<number, number[]>} */
     decompositions: Map<number, number[]>;
     /** @type {[number, number, number][]} */
@@ -25,6 +27,10 @@ export declare class UnicodeTable {
      * @returns {string}
      */
     category(code: number): string;
+    /** @param {string} property @param {number} code @returns {boolean} */
+    hasEmoji(property: string, code: number): boolean;
+    /** @param {string} name @returns {boolean} */
+    isEmojiName(name: string): boolean;
     /** @param {number} code @returns {number} */
     combiningClass(code: number): number;
     /** @param {number} code @returns {boolean} */

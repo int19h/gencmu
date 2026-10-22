@@ -19,6 +19,8 @@ pub(crate) fn is_property_name(name: &str) -> bool {
 pub(crate) enum Property {
     Any,
     WhiteSpace,
+    EmojiPresentation,
+    EmojiComponent,
     /// A one-letter group of General_Category values, by its letter.
     Group(u8),
     /// One General_Category value, in its short form.
@@ -31,6 +33,8 @@ impl Property {
         match name {
             "Any" => Some(Property::Any),
             "White_Space" => Some(Property::WhiteSpace),
+            "Emoji_Presentation" => Some(Property::EmojiPresentation),
+            "Emoji_Component" => Some(Property::EmojiComponent),
             "L" | "M" | "N" | "P" | "S" | "Z" | "C" => Some(Property::Group(name.as_bytes()[0])),
             _ => CATEGORIES.iter().find(|&&category| category == name).map(|&category| Property::Category(category)),
         }
@@ -43,6 +47,8 @@ pub(crate) struct Unicode {
     /// and the category's short form.
     categories: Vec<(u32, u32, &'static str)>,
     white_space: Vec<(u32, u32)>,
+    emoji_presentation: Vec<(u32, u32)>,
+    emoji_component: Vec<(u32, u32)>,
     decompositions: Vec<(u32, Vec<char>)>,
     combining: Vec<(u32, u32, u8)>,
 }
@@ -64,6 +70,8 @@ impl Unicode {
         let mut table = Unicode {
             categories: Vec::new(),
             white_space: Vec::new(),
+            emoji_presentation: Vec::new(),
+            emoji_component: Vec::new(),
             decompositions: Vec::new(),
             combining: Vec::new(),
         };
@@ -83,6 +91,12 @@ impl Unicode {
                 }
                 Some("white-space") => {
                     table.white_space.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
+                }
+                Some("emoji-presentation") => {
+                    table.emoji_presentation.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
+                }
+                Some("emoji-component") => {
+                    table.emoji_component.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
                 }
                 Some("decompose") => {
                     let code = hex(fields.next(), number)?;
@@ -107,6 +121,8 @@ impl Unicode {
         }
         table.categories.sort_unstable();
         table.white_space.sort_unstable();
+        table.emoji_presentation.sort_unstable();
+        table.emoji_component.sort_unstable();
         table.decompositions.sort_unstable_by_key(|entry| entry.0);
         table.combining.sort_unstable();
         Ok(table)
@@ -186,6 +202,20 @@ impl Unicode {
         }
     }
 
+    fn in_ranges(ranges: &[(u32, u32)], code: u32) -> bool {
+        let index = ranges.partition_point(|&(first, _)| first <= code);
+        index > 0 && ranges[index - 1].1 >= code
+    }
+
+    pub(crate) fn is_emoji_name(&self, name: &str) -> bool {
+        let mut chars = name.chars();
+        chars.next().is_some_and(|c| {
+            chars.next().is_none()
+                && self.has(Property::EmojiPresentation, c as u32)
+                && !self.has(Property::EmojiComponent, c as u32)
+        })
+    }
+
     /// Whether a code point is a nonspacing mark, of General_Category `Mn`,
     /// which a character tag writes escaped (engine §1).
     pub(crate) fn is_mark(&self, code: u32) -> bool {
@@ -203,6 +233,8 @@ impl Unicode {
         match property {
             Property::Any => true,
             Property::WhiteSpace => self.is_white_space(code),
+            Property::EmojiPresentation => Self::in_ranges(&self.emoji_presentation, code),
+            Property::EmojiComponent => Self::in_ranges(&self.emoji_component, code),
             Property::Group(letter) => self.category(code).as_bytes()[0] == letter,
             Property::Category(category) => self.category(code) == category,
         }

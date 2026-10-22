@@ -11,7 +11,7 @@
 <path d="M212 56H232"/>
 <path d="M212 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H162a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M232 56h10"/>
-<g class="rule"><rect x="242" y="44" width="25" height="24" rx="0"/><text x="254.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="242" y="44" width="25" height="24" rx="0"/><text x="254.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M267 56h10"/>
 <g class="rule"><rect x="277" y="44" width="100" height="24" rx="0"/><text x="327" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">paragraphs</text></g>
 <path d="M377 56H397"/>

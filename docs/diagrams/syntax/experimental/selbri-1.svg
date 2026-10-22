@@ -10,7 +10,7 @@
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="68" width="33" height="24" rx="12"/><text x="56.5" y="85" textLength="16.8" lengthAdjust="spacingAndGlyphs">NA</text></g>
 <path d="M73 80h10"/>
-<g class="rule"><rect x="83" y="68" width="25" height="24" rx="0"/><text x="95.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="83" y="68" width="25" height="24" rx="0"/><text x="95.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M108 80h10"/>
 <g class="rule"><rect x="118" y="68" width="67" height="24" rx="0"/><text x="151.5" y="85" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
 <path d="M185 80H185a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

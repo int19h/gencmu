@@ -252,12 +252,16 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         }
         let at = error.source.as_ref().map_or(0, |source| source.start);
         let (line, column) = grammar.position(at);
-        let message = match error.kind {
-            ParseErrorKind::Rejected => match error.stage.as_deref() {
-                Some("lexical") => "a character that cannot continue the grammar text".to_string(),
-                _ => "a syntax error: this cannot continue the grammar text".to_string(),
-            },
-            _ => error.message.clone(),
+        let message = if error.stage.as_deref() == Some("lexical") && grammar.chars.get(at) == Some(&'@') {
+            "@ is reserved for parameters, which are not supported yet".to_string()
+        } else {
+            match error.kind {
+                ParseErrorKind::Rejected => match error.stage.as_deref() {
+                    Some("lexical") => "a character that cannot continue the grammar text".to_string(),
+                    _ => "a syntax error: this cannot continue the grammar text".to_string(),
+                },
+                _ => error.message.clone(),
+            }
         };
         let mut failure = Error::grammar(message).at(line, column);
         if error.kind == ParseErrorKind::Rejected && error.stage.as_deref() == Some("syntax") {
@@ -278,6 +282,7 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     // on the caller's thread (engine §9).
     let position = |index: usize| grammar.position(index);
     let reader = Reader {
+        unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),
         tokens: &stage.input,

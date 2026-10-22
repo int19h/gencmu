@@ -769,7 +769,7 @@ export function diagramElement(diagrams) {
 
 /**
  * The file name of each rule's diagram, in the order of the rules. A name
- * is the rule's own, and `#` is `_hash`. A rule that a document states more
+ * is the rule's own. An emoji uses `_u` and lowercase hexadecimal. A rule that a document states more
  * than once, such as one defined and then extended, takes .2, .3 and so on.
  * Names that differ only in case also do, for file systems that ignore
  * case. No rule name has a period or begins with `_`, so no two rules share
@@ -781,7 +781,7 @@ export function diagramNames(rules) {
   /** @type {Map<string, number>} */
   const seen = new Map();
   return rules.map((rule) => {
-    const base = rule.name === "#" ? "_hash" : rule.name;
+    const base = /^[a-z]/.test(rule.name) ? rule.name : `_u${rule.name.codePointAt(0).toString(16)}`;
     const count = (seen.get(base.toLowerCase()) ?? 0) + 1;
     seen.set(base.toLowerCase(), count);
     return count > 1 ? `${base}.${count}` : base;

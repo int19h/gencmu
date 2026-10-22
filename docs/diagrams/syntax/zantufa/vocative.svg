@@ -6,7 +6,7 @@
 <path d="M20 46h20"/>
 <g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">COI</text></g>
 <path d="M82 46h10"/>
-<g class="rule"><rect x="92" y="34" width="25" height="24" rx="0"/><text x="104.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="92" y="34" width="25" height="24" rx="0"/><text x="104.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M117 46H137"/>
 <path d="M117 46a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M137 46h6m0 -8v16m4 -16v16"/>

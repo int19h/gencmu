@@ -180,6 +180,9 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 			if g.name == "syntax" && out.err.Kind == ErrorRejected && out.err.Token != nil && rankedSyntaxFailure(toks, *out.err.Token) {
 				e.Code = "ranked-choice-syntax"
 			}
+			if g.name == "lexical" && out.err.Token != nil && *out.err.Token < len(toks) && toks[*out.err.Token].Value == "@" {
+				e.Message = "@ is reserved for parameters, which are not supported yet"
+			}
 			return nil, e
 		}
 		if i < len(nr.stages)-1 {
@@ -663,8 +666,8 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
 	r := &domRule{Name: b.tokenValue(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
-	if !classifierName.MatchString(r.Name) && r.Name != "#" {
-		b.fail(b.only(n, "rule-name"), "a rule name starts lowercase")
+	if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
+		b.fail(b.only(n, "rule-name"), "a rule name starts with a lowercase letter or uses one eligible emoji")
 	}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":

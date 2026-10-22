@@ -128,7 +128,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
-		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r == nil || !(domName.MatchString(r.Name) || uni.isEmojiName(r.Name)) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
@@ -465,7 +465,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exWildcard:
 	case exRef:
 		// A reference is a name or # (engine §9).
-		if e.Name != "#" && !domName.MatchString(e.Name) && !engineTag(e.Name) {
+		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}
 	case exTerminal:
@@ -864,14 +864,14 @@ func isCapturable(kind string) bool {
 }
 
 // isTestable says whether an expression can carry a test (engine §2): a
-// reference other than #, a terminal, a range or a property.
+// reference, a terminal, a range or a property.
 func isTestable(e *domExpr) bool {
 	if e == nil {
 		return false
 	}
 	switch e.Kind {
 	case exRef:
-		return e.Name != "#"
+		return true
 	case exTerminal, exRange, exLiteral, exWildcard:
 		return true
 	}
@@ -952,8 +952,8 @@ func isSpanShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
-func isRuleName(name string) bool {
-	return name == "#" || classifierName.MatchString(name)
+func isRuleName(name string, uni *unicodeTable) bool {
+	return classifierName.MatchString(name) || uni.isEmojiName(name)
 }
 
 // term checks a term; argument says it is a function's argument, where a
@@ -978,6 +978,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	case tmPattern:
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
+			case "name":
+				if !isRuleName(p.Name, c.uni) {
+					return "a malformed pattern rule name"
+				}
+				return ""
 			case "literal":
 				if !stringTermShape(p.Value) {
 					return "a pattern literal requires a literal or constant string"
@@ -1048,7 +1053,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// head, tail, last, from and after only where a span may stand, and
 		// matches, begins and initial never as terms.
 		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str) }
+		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str, c.uni) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
@@ -1134,7 +1139,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:
 		for _, t := range d.queryTargets() {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed query target")
 				return
 			}
@@ -1153,7 +1158,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed boundary target")
 				return
 			}

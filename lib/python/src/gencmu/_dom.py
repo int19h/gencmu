@@ -374,8 +374,8 @@ class DomBuilder:
         op = _DEFINERS.get(self.token_value(self.token(self.only(node, "definer"))), "define")
         name_node = self.only(node, "rule-name")
         name = self.token_value(self.token(name_node))
-        if name != "#" and CLASSIFIER_NAME.fullmatch(name) is None:
-            raise self.fail(name_node, "a rule name starts lowercase")
+        if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+            raise self.fail(name_node, "a rule name starts with a lowercase letter or uses one eligible emoji")
         flags: list[str] = []
         flag_list = self.one(node, "rule-flags")
         if flag_list is not None:
@@ -497,7 +497,7 @@ class DomBuilder:
             if not tests:
                 raise self.lacks(node, "tag-test or value-test")
             symbol = self.test_base(node)
-            self.test_order(tests, symbol.rule in _SYMBOLS and not (symbol.rule == "reference" and self.token_value(self.token(symbol)) == "#"))
+            self.test_order(tests, symbol.rule in _SYMBOLS)
             expr = yield self._expr(symbol)
             return self.wrap_tests(expr, tests)
         if rule == "capture":
@@ -765,7 +765,7 @@ class DomBuilder:
             name = self._first_of_rule(operand, "name")
             if name is not None and self._first_of_rule(operand, "pattern-literal") is None and len(self.some(operand, "intersection")) == 1:
                 text = self.token_value(self.token(name))
-                raise self.fail(name, f"tree comparison requires a pattern; write @({text}), not {text}")
+                raise self.fail(name, f"tree comparison requires a pattern; write #({text}), not {text}")
             right = yield self._term(operand)
             kind, problem = term_type(right, memo=self.types)
             if problem is None:

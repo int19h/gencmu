@@ -26,7 +26,7 @@
 <path d="M520 90h10"/>
 <g class="terminal"><rect x="530" y="78" width="33" height="24" rx="12"/><text x="546.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M563 90h10"/>
-<g class="rule"><rect x="573" y="78" width="25" height="24" rx="0"/><text x="585.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="573" y="78" width="25" height="24" rx="0"/><text x="585.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M598 90H598a10 10 0 0 1 10 10V136a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V158a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="60" y="156" width="176" height="24" rx="0"/><text x="148" y="173" textLength="159.6" lengthAdjust="spacingAndGlyphs">headed-bridi-tail-2</text></g>
 <path d="M236 168h10"/>

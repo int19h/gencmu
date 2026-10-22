@@ -9,7 +9,7 @@
 <path d="M370 46a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H370"/>
 <g class="terminal"><rect x="345" y="78" width="25" height="24" rx="12"/><text x="357.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">I</text></g>
 <path d="M345 90h-10"/>
-<g class="rule"><rect x="310" y="78" width="25" height="24" rx="0"/><text x="322.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="310" y="78" width="25" height="24" rx="0"/><text x="322.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M310 90h-10"/>
 <path d="M300 90h-20"/>
 <g class="rule"><rect x="230" y="78" width="50" height="24" rx="0"/><text x="255" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
@@ -23,7 +23,7 @@
 <path d="M118 90h-10"/>
 <g class="terminal"><rect x="75" y="78" width="33" height="24" rx="12"/><text x="91.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M75 90h-10"/>
-<g class="rule"><rect x="40" y="78" width="25" height="24" rx="0"/><text x="52.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="40" y="78" width="25" height="24" rx="0"/><text x="52.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M40 90H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M390 46h6m0 -8v16m4 -16v16"/>
 </svg>

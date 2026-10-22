@@ -81,6 +81,11 @@ func (ps *parseState) characterTokens() []Token {
 		c, origin := scalar.character, scalar.origin
 		category := ps.uni.category(c)
 		tags := []string{"_" + category, "_" + category[:1]}
+		for _, property := range []string{"Emoji_Presentation", "Emoji_Component"} {
+			if ps.uni.hasProperty(property, c) {
+				tags = append(tags, "_"+property)
+			}
+		}
 		if ps.uni.isWhiteSpace(c) {
 			tags = append(tags, "_White_Space")
 		}

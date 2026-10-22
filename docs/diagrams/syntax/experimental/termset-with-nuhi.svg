@@ -5,7 +5,7 @@
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <g class="terminal"><rect x="20" y="60" width="50" height="24" rx="12"/><text x="45" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
 <path d="M70 72h10"/>
-<g class="rule"><rect x="80" y="60" width="25" height="24" rx="0"/><text x="92.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="80" y="60" width="25" height="24" rx="0"/><text x="92.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M105 72h10"/>
 <path d="M115 72h88"/>
 <text class="label" x="119" y="67" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
@@ -33,7 +33,7 @@
 <path d="M460 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H532a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
 <text class="label" x="484" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M552 72h10"/>
-<g class="rule"><rect x="562" y="60" width="25" height="24" rx="0"/><text x="574.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="562" y="60" width="25" height="24" rx="0"/><text x="574.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M587 72h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="154" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

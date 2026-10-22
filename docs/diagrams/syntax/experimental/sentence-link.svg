@@ -17,7 +17,7 @@
 <path d="M303 66h10"/>
 <g class="terminal"><rect x="313" y="54" width="25" height="24" rx="12"/><text x="325.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">I</text></g>
 <path d="M338 66h10"/>
-<g class="rule"><rect x="348" y="54" width="25" height="24" rx="0"/><text x="360.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="348" y="54" width="25" height="24" rx="0"/><text x="360.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M373 66h10"/>
 <g class="rule"><rect x="383" y="54" width="109" height="24" rx="0"/><text x="437.5" y="71" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
 <path d="M492 66h6m0 -8v16m4 -16v16"/>

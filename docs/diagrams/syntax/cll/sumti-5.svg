@@ -24,7 +24,7 @@
 <path d="M227 116h20"/>
 <g class="terminal"><rect x="247" y="104" width="33" height="24" rx="12"/><text x="263.5" y="121" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
 <path d="M280 116h10"/>
-<g class="rule"><rect x="290" y="104" width="25" height="24" rx="0"/><text x="302.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="290" y="104" width="25" height="24" rx="0"/><text x="302.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M315 116H335"/>
 <path d="M227 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H315a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
 <text class="label" x="251" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>

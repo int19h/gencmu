@@ -27,7 +27,7 @@
 <path d="M359 124h10"/>
 <g class="terminal"><rect x="369" y="112" width="33" height="24" rx="12"/><text x="385.5" y="129" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M402 124h10"/>
-<g class="rule"><rect x="412" y="112" width="25" height="24" rx="0"/><text x="424.5" y="129" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="412" y="112" width="25" height="24" rx="0"/><text x="424.5" y="129" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M437 124h10"/>
 <g class="rule"><rect x="447" y="112" width="100" height="24" rx="0"/><text x="497" y="129" textLength="84" lengthAdjust="spacingAndGlyphs">operator-1</text></g>
 <path d="M547 124H547a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

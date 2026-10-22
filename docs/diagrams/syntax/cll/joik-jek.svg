@@ -6,12 +6,12 @@
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="50" height="24" rx="0"/><text x="65" y="51" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
 <path d="M90 46h10"/>
-<g class="rule"><rect x="100" y="34" width="25" height="24" rx="0"/><text x="112.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="100" y="34" width="25" height="24" rx="0"/><text x="112.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M125 46H145"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="42" height="24" rx="0"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">jek</text></g>
 <path d="M82 80h10"/>
-<g class="rule"><rect x="92" y="68" width="25" height="24" rx="0"/><text x="104.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<g class="rule"><rect x="92" y="68" width="25" height="24" rx="0"/><text x="104.5" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M117 80H125a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M145 46h6m0 -8v16m4 -16v16"/>
 </svg>
