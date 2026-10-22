@@ -459,7 +459,11 @@ fn node_step<'a>(
     if kind == "arg" && nodes(n).any(|n| has(n, "capture") || has(n, "captured")) {
         return Some("an argument cannot read or declare captures");
     }
+    // Unresolved leaves still obey the category of their position.
     if has(n, "param") {
+        if !matches!(kind, "expr" | "arg" | "term" | "tags" | "string" | "target" | "pattern" | "recipe-atom") {
+            return Some("a parameter in the wrong source category");
+        }
         return if only(n, &["param", "at"]) && parameter(text(get(n, "param"))) && at(n).is_some() {
             None
         } else {
@@ -469,6 +473,9 @@ fn node_step<'a>(
     if has(n, "call") || kind == "call" {
         if kind == "string" {
             return Some("a string operand requires a literal or constant");
+        }
+        if !matches!(kind, "expr" | "arg" | "term" | "tags" | "target" | "pattern" | "call") {
+            return Some("a call in the wrong source category");
         }
         if !only(n, &["call", "args", "at"]) || !named(get(n, "call"), uni) || at(n).is_none() {
             return Some("a malformed call");
@@ -635,7 +642,7 @@ fn node_step<'a>(
         if kind == "expr" && !symbol(n) {
             return Some("a malformed test");
         }
-        if kind == "pattern" && !pattern_symbol(get(n, "expr")) {
+        if kind == "pattern" && !pattern_test_target(n) {
             return Some("a malformed pattern test target or order");
         }
         if text(get(n, "test")) == "tags" {
@@ -656,7 +663,8 @@ fn node_step<'a>(
         return walk(get(n, "expr"), kind);
     }
     if has(n, "range") {
-        if !only(n, &["range"]) || list(get(n, "range")).len() != 2 {
+        let fields: &[&str] = if kind == "pattern" { &["range", "at"] } else { &["range"] };
+        if !only(n, fields) || kind == "pattern" && at(n).is_none() || list(get(n, "range")).len() != 2 {
             return Some("a malformed range");
         }
         for v in list(get(n, "range")) {
@@ -665,7 +673,8 @@ fn node_step<'a>(
         return None;
     }
     if has(n, "literal") {
-        if !only(n, &["literal"]) {
+        let fields: &[&str] = if kind == "pattern" { &["literal", "at"] } else { &["literal"] };
+        if !only(n, fields) || kind == "pattern" && at(n).is_none() {
             return Some("a malformed literal");
         }
         return schedule(pending, get(n, "literal"), "string", depth, false, sealed, uni);
@@ -841,11 +850,14 @@ fn symbol(n: &Json) -> bool {
     }
     ["param", "call", "ref", "literal", "range"].iter().any(|k| has(n, k)) || get(n, "wildcard") == &Json::Bool(true)
 }
-fn pattern_symbol(mut n: &Json) -> bool {
-    while text(get(n, "test")) == "tags" {
-        n = get(n, "expr");
+fn pattern_test_target(n: &Json) -> bool {
+    let mut inner = get(n, "expr");
+    if matches!(text(get(n, "test")), "=" | "≠") && text(get(inner, "test")) == "tags" {
+        inner = get(inner, "expr");
     }
-    has(n, "param") || ["terminal", "literal", "range", "wildcard", "constant"].iter().any(|k| has(n, k))
+    !has(inner, "test")
+        && (has(inner, "param")
+            || ["terminal", "literal", "range", "wildcard", "constant"].iter().any(|k| has(inner, k)))
 }
 fn elidable(n: &Json) -> bool {
     let n = list(get(n, "seq")).first().unwrap_or(n);

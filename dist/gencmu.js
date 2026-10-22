@@ -2821,7 +2821,7 @@
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
         if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern position';
         if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
-        if ('literal' in n && (!n.literal || !['string', 'const'].some(key => key in n.literal))) return 'a malformed pattern literal';
+        if ('literal' in n && (!n.literal || !['string', 'const', 'param'].some(key => key in n.literal))) return 'a malformed pattern literal';
         if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
       } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
         const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant', 'param'].some(key => key in value);
@@ -3324,11 +3324,14 @@
       /** @type {(kind: string, value: any, context?: any) => void} */
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
       const fields = Object.keys(value);
+      // Unresolved leaves still obey the category of their position.
       if ("param" in value) {
+        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return `a malformed ${kind}`;
         if (!exact(value,["param","at"]) || !position(value.at) || typeof value.param !== "string" || !task.params.has(value.param)) return "an undeclared or malformed parameter";
         continue;
       }
       if ("call" in value || kind === "call") {
+        if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part", "call"].includes(kind)) return `a malformed ${kind}`;
         if (!exact(value,["call","args","at"]) || !ruleName(value.call) || !position(value.at) || !Array.isArray(value.args) || !value.args.length) return "a malformed call";
         for (const arg of value.args) child("arg",arg);
         continue;

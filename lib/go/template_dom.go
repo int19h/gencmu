@@ -448,7 +448,13 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		}
 		return ""
 	}
+	// Unresolved leaves still obey the category of their position.
 	if n["param"] != nil {
+		switch kind {
+		case "expr", "arg", "term", "tags", "string", "target", "pattern", "recipe-atom":
+		default:
+			return "a parameter in the wrong source category"
+		}
 		if !templateOnly(n, "param", "at") || !domName.MatchString(templateText(n["param"])) || templateAt(n) == [2]int{} {
 			return "an undeclared or malformed parameter"
 		}
@@ -457,6 +463,11 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	if n["call"] != nil || kind == "call" {
 		if kind == "string" {
 			return "a string operand requires a literal or constant"
+		}
+		switch kind {
+		case "expr", "arg", "term", "tags", "target", "pattern", "call":
+		default:
+			return "a call in the wrong source category"
 		}
 		if !templateOnly(n, "call", "args", "at") || !templateNamed(n["call"], uni) || templateAt(n) == [2]int{} {
 			return "a malformed call"
@@ -621,6 +632,9 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if kind == "expr" && !templateSymbol(n) {
 			return "a malformed test"
 		}
+		if kind == "pattern" && !templatePatternTestTarget(n) {
+			return "a malformed pattern test target or order"
+		}
 		if n["test"] == "tags" {
 			if !templateOnly(n, "test", "expr", "requirements") {
 				return "a malformed tag test"
@@ -639,7 +653,11 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return walk(n["expr"], kind)
 	}
 	if n["range"] != nil {
-		if !templateOnly(n, "range") || len(templateList(n["range"])) != 2 {
+		fields := []string{"range"}
+		if kind == "pattern" {
+			fields = append(fields, "at")
+		}
+		if !templateOnly(n, fields...) || kind == "pattern" && templateAt(n) == [2]int{} || len(templateList(n["range"])) != 2 {
 			return "a malformed range"
 		}
 		for _, v := range templateList(n["range"]) {
@@ -650,7 +668,11 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return ""
 	}
 	if n["literal"] != nil {
-		if !templateOnly(n, "literal") {
+		fields := []string{"literal"}
+		if kind == "pattern" {
+			fields = append(fields, "at")
+		}
+		if !templateOnly(n, fields...) || kind == "pattern" && templateAt(n) == [2]int{} {
 			return "a malformed literal"
 		}
 		return templateNodeProblem(n["literal"], "string", depth, false, false, uni)
@@ -835,6 +857,13 @@ func templateSymbol(n templateObject) bool {
 		return inner["test"] == nil && templateSymbol(inner) || inner["test"] == "tags" && templateSymbol(inner)
 	}
 	return n["param"] != nil || n["call"] != nil || n["ref"] != nil || n["literal"] != nil || n["range"] != nil || n["wildcard"] == true
+}
+func templatePatternTestTarget(n templateObject) bool {
+	inner := templateObj(n["expr"])
+	if (n["test"] == "=" || n["test"] == "≠") && inner["test"] == "tags" {
+		inner = templateObj(inner["expr"])
+	}
+	return inner["test"] == nil && (inner["param"] != nil || inner["terminal"] != nil || inner["literal"] != nil || inner["range"] != nil || inner["wildcard"] != nil || inner["constant"] != nil)
 }
 func templateElidableHead(n templateObject) bool {
 	if xs := templateList(n["seq"]); len(xs) > 0 {

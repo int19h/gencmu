@@ -229,6 +229,8 @@ A `redefine` binding can replace an ordinary rule or rebind a named instance to 
 
 A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching parameter name.
 
+Both forms obey the shape of their position. Parameters can replace operands inside conditions, but cannot replace whole conditions. Neither form replaces an emission or pattern-child expression. Calls retain their rule identity in unresolved term positions. Ordinary type requirements apply when the stage resolves those calls.
+
 ARG has one of these forms:
 
 ```text
@@ -353,6 +355,7 @@ Terms have these forms:
 {"capture":"x"}              {"capture":""}
 {"method":"value","receiver":RECEIVER,"args":[]}
 {"pattern":PATTERN}
+{"call":"pair","args":[ARG,ARG...],"at":[line,column]}
 {"param":"Left","at":[line,column]}
 ```
 
@@ -414,7 +417,7 @@ A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, st
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
 ```
 
-Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. After substitution, its array contains only recipe atoms.
+Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. After substitution, its array contains only recipe atoms. A parameter or call cannot replace the recipe root. Calls cannot be recipe atoms.
 
 Substitution flattens nested concatenations into that array, in operand order. It preserves empty operands and each operand's source attribution. General terms also use `concat` for `++` in conditions and constants.
 
