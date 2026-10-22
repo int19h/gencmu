@@ -1,0 +1,18 @@
+{
+  "description": "Canonical term names preserve grouping and operator precedence.",
+  "grammar": "%rule term(@X) \"a\"\n%rule text term((\"a\" ++ \"b\") ∪ \"c\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "term(\"a\" ++ \"b\" ∪ \"c\")"
+          }
+        ]
+      }
+    }
+  }
+}

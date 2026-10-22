@@ -28,6 +28,27 @@ def quoted(value, unicode):
     return result + '"'
 
 
+def term_group(n, parent, index):
+    if 'if' in n:
+        return True
+    key = next((k for k in ('concat', 'union', 'intersection', 'difference') if k in n), None)
+    if key is None:
+        return False
+    run = key == 'union' and (all('tag' in x for x in n[key]) or all('string' in x for x in n[key]))
+    if run:
+        return parent in ('intersection', 'difference')
+    priority = dict(union=1, difference=1, intersection=2, concat=3, method=4)
+    return priority[key] < priority[parent] or (priority[key] == priority[parent] and (parent == 'intersection' or index > 0 and parent in ('union', 'difference')))
+
+
+def boolean_group(n, parent):
+    key = next((k for k in ('if', 'any', 'all', 'not') if k in n), None)
+    if key is None:
+        return False
+    priority = dict(zip(('if', 'any', 'all', 'not'), (1, 2, 3, 4)))
+    return priority[key] < priority[parent] or priority[key] == priority[parent] and parent != 'not'
+
+
 def canonical_argument(n, unicode):
     def p(x):
         return canonical_argument(x, unicode)
@@ -67,25 +88,25 @@ def canonical_argument(n, unicode):
         values = n[key]
         if key == "union" and (all("tag" in x for x in values) or all("string" in x for x in values)):
             return ' '.join(map(p, values))
-        return op.join('(' + p(x) + ')' if any(k in x for k in ("concat", "union", "intersection", "difference")) else p(x) for x in values)
+        return op.join('(' + p(x) + ')' if term_group(x, key, i) else p(x) for i, x in enumerate(values))
     if "method" in n:
         separator = ' | ' if n["method"] in ("matches", "begins", "ends", "followed-by", "preceded-by") else ', '
         args = '(' + separator.join(map(p, n["args"])) + ')' if n["args"] else ''
         receiver = p(n['receiver'])
-        if any(k in n['receiver'] for k in ('concat', 'union', 'intersection', 'difference')):
+        if term_group(n['receiver'], 'method', 0):
             receiver = '(' + receiver + ')'
         return receiver + '.' + n["method"] + args
     if "capture" in n:
         return '$' + n["capture"]
     if "if" in n:
-        return '(' + p(n["if"]) + ' ⟹ ' + p(n["then"]) + ')'
+        return ('(' + p(n['if']) + ')' if boolean_group(n['if'], 'if') else p(n['if'])) + ' ⟹ ' + p(n['then'])
     if "op" in n:
-        return p(n["left"]) + ' ' + n["op"] + ' ' + p(n["right"])
+        return (' ' + n['op'] + ' ').join('(' + p(x) + ')' if 'if' in x else p(x) for x in (n['left'], n['right']))
     if "not" in n:
-        return '¬' + p(n["not"])
+        return '¬' + ('(' + p(n['not']) + ')' if boolean_group(n['not'], 'not') else p(n['not']))
     if "any" in n or "all" in n:
         key = 'any' if 'any' in n else 'all'
-        return '(' + (' ∨ ' if key == 'any' else ' ∧ ').join(map(p, n[key])) + ')'
+        return (' ∨ ' if key == 'any' else ' ∧ ').join('(' + p(x) + ')' if boolean_group(x, key) else p(x) for x in n[key])
     if "captured" in n:
         return '$' + n["captured"]
     raise ValueError('unprintable argument ' + str(n))

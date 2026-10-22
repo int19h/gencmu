@@ -37,6 +37,47 @@ func templateQuoted(s string, uni *unicodeTable) string {
 	b.WriteByte('"')
 	return b.String()
 }
+func templateTermGroup(n templateObject, parent string, index int) bool {
+	if n["if"] != nil {
+		return true
+	}
+	key := ""
+	for _, k := range []string{"concat", "union", "intersection", "difference"} {
+		if n[k] != nil {
+			key = k
+			break
+		}
+	}
+	if key == "" {
+		return false
+	}
+	if key == "union" {
+		tags, strs := true, true
+		for _, x := range templateList(n[key]) {
+			tags = tags && templateObj(x)["tag"] != nil
+			strs = strs && templateObj(x)["string"] != nil
+		}
+		if tags || strs {
+			return parent == "intersection" || parent == "difference"
+		}
+	}
+	priority := map[string]int{"union": 1, "difference": 1, "intersection": 2, "concat": 3, "method": 4}
+	return priority[key] < priority[parent] || priority[key] == priority[parent] && (parent == "intersection" || index > 0 && (parent == "union" || parent == "difference"))
+}
+func templateBooleanGroup(n templateObject, parent string) bool {
+	key := ""
+	for _, k := range []string{"if", "any", "all", "not"} {
+		if n[k] != nil {
+			key = k
+			break
+		}
+	}
+	if key == "" {
+		return false
+	}
+	priority := map[string]int{"if": 1, "any": 2, "all": 3, "not": 4}
+	return priority[key] < priority[parent] || priority[key] == priority[parent] && parent != "not"
+}
 func templateCanonical(n templateObject, uni *unicodeTable) string {
 	p := func(v any) string { return templateCanonical(templateObj(v), uni) }
 	join := func(v any, sep string) string {
@@ -126,10 +167,9 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 				}
 			}
 			parts := []string{}
-			for _, x := range xs {
+			for i, x := range xs {
 				text := p(x)
-				o := templateObj(x)
-				if o["concat"] != nil || o["union"] != nil || o["intersection"] != nil || o["difference"] != nil {
+				if templateTermGroup(templateObj(x), pair[0], i) {
 					text = "(" + text + ")"
 				}
 				parts = append(parts, text)
@@ -149,7 +189,7 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 		}
 		receiver := templateObj(n["receiver"])
 		text := p(receiver)
-		if receiver["concat"] != nil || receiver["union"] != nil || receiver["intersection"] != nil || receiver["difference"] != nil {
+		if templateTermGroup(receiver, "method", 0) {
 			text = "(" + text + ")"
 		}
 		return text + "." + name + args
@@ -161,19 +201,42 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 		return "$" + templateText(n["captured"])
 	}
 	if n["if"] != nil {
-		return "(" + p(n["if"]) + " ⟹ " + p(n["then"]) + ")"
+		condition := p(n["if"])
+		if templateBooleanGroup(templateObj(n["if"]), "if") {
+			condition = "(" + condition + ")"
+		}
+		return condition + " ⟹ " + p(n["then"])
 	}
 	if n["op"] != nil {
-		return p(n["left"]) + " " + templateText(n["op"]) + " " + p(n["right"])
+		parts := []string{}
+		for _, x := range []any{n["left"], n["right"]} {
+			text := p(x)
+			if templateObj(x)["if"] != nil {
+				text = "(" + text + ")"
+			}
+			parts = append(parts, text)
+		}
+		return strings.Join(parts, " "+templateText(n["op"])+" ")
 	}
 	if n["not"] != nil {
-		return "¬" + p(n["not"])
+		text := p(n["not"])
+		if templateBooleanGroup(templateObj(n["not"]), "not") {
+			text = "(" + text + ")"
+		}
+		return "¬" + text
 	}
-	if n["any"] != nil {
-		return "(" + join(n["any"], " ∨ ") + ")"
-	}
-	if n["all"] != nil {
-		return "(" + join(n["all"], " ∧ ") + ")"
+	for _, pair := range [][2]string{{"any", " ∨ "}, {"all", " ∧ "}} {
+		if n[pair[0]] != nil {
+			parts := []string{}
+			for _, x := range templateList(n[pair[0]]) {
+				text := p(x)
+				if templateBooleanGroup(templateObj(x), pair[0]) {
+					text = "(" + text + ")"
+				}
+				parts = append(parts, text)
+			}
+			return strings.Join(parts, pair[1])
+		}
 	}
 	panic(fmt.Sprintf("unprintable argument %v", n))
 }

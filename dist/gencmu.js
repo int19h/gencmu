@@ -5630,20 +5630,44 @@
       const values=n[key];
       if(key==='union' && (values.every((/** @type {any} */ x)=>x.tag) || values.every((/** @type {any} */ x)=>'string' in x))) return values.map(print).join(' ');
       const op={concat:' ++ ',union:' ∪ ',intersection:' ∩ ',difference:' ∖ '}[key];
-      return values.map((/** @type {any} */ x)=>x.concat||x.union||x.intersection||x.difference?'('+print(x)+')':print(x)).join(op);
+      return values.map((/** @type {any} */ x,/** @type {number} */ i)=>templateTermGroup(x,key,i)?'('+print(x)+')':print(x)).join(op);
     }
     if(n.method) {
       const receiver=print(n.receiver);
-      const grouped=['concat','union','intersection','difference'].some(key=>key in n.receiver);
+      const grouped=templateTermGroup(n.receiver,'method',0);
       return (grouped?'('+receiver+')':receiver)+'.'+n.method+(n.args.length?'('+n.args.map(print).join(['matches','begins','ends','followed-by','preceded-by'].includes(n.method)?' | ':', ')+')':'');
     }
     if(n.capture!==undefined) return '$'+n.capture;
-    if(n.if) return '('+print(n.if)+' ⟹ '+print(n.then)+')';
-    if(n.op) return print(n.left)+' '+n.op+' '+print(n.right);
-    if(n.not) return '¬'+print(n.not);
-    if(n.any || n.all) return '('+(n.any??n.all).map(print).join(n.any?' ∨ ':' ∧ ')+')';
+    if(n.if) return (templateBooleanGroup(n.if,'if')?'('+print(n.if)+')':print(n.if))+' ⟹ '+print(n.then);
+    if(n.op) return [n.left,n.right].map(x=>x.if?'('+print(x)+')':print(x)).join(' '+n.op+' ');
+    if(n.not) return '¬'+(templateBooleanGroup(n.not,'not')?'('+print(n.not)+')':print(n.not));
+    if(n.any || n.all) {
+      const key=n.any?'any':'all';
+      return n[key].map((/** @type {any} */ x)=>templateBooleanGroup(x,key)?'('+print(x)+')':print(x)).join(n.any?' ∨ ':' ∧ ');
+    }
     if(n.captured!==undefined) return '$'+n.captured;
     throw new Error('unprintable argument '+JSON.stringify(n));
+  }
+
+  /** @param {any} n @param {string} parent @param {number} index @returns {boolean} */
+  function templateTermGroup(n,parent,index) {
+    if(n.if) return true;
+    const key=['concat','union','intersection','difference'].find(k=>k in n);
+    if(!key) return false;
+    const run=key==='union' && (n.union.every((/** @type {any} */ x)=>x.tag) || n.union.every((/** @type {any} */ x)=>'string' in x));
+    if(run) return parent==='intersection' || parent==='difference';
+    /** @type {Record<string,number>} */
+    const priority={union:1,difference:1,intersection:2,concat:3,method:4};
+    return priority[key]<priority[parent] || (priority[key]===priority[parent] && (parent==='intersection' || index>0 && (parent==='union' || parent==='difference')));
+  }
+
+  /** @param {any} n @param {string} parent @returns {boolean} */
+  function templateBooleanGroup(n,parent) {
+    const key=['if','any','all','not'].find(k=>k in n);
+    if(!key) return false;
+    /** @type {Record<string,number>} */
+    const priority={if:1,any:2,all:3,not:4};
+    return priority[key]<priority[parent] || priority[key]===priority[parent] && parent!=='not';
   }
 
   /** @param {any} n @param {any} unicode @param {string} [parent] @returns {string} */
