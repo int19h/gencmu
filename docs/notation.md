@@ -465,7 +465,7 @@ A template's flag applies to its instances. Each instance contributes its actual
 
 ### Patterns, queries, and finite expansion
 
-A bare template atom in a pattern matches every instance of that template, including named instances. `#(pair)` matches the family, while `#(pair("a", "b"))` names one instance. Its public name identifies it too.
+A bare template atom in a pattern matches every instance of that template, including named instances. `#pair` matches the family, while `#pair("a", "b")` names one instance. Its public name identifies it too.
 
 A recognition or neighbor query must name one instance or an ordinary rule. A bare template target is a load error. The same restriction applies to `.tags(rule)` and `.without-elision-except(family)`.
 
@@ -534,7 +534,7 @@ Body terminals, value tests, pattern terminals, range endpoints, and classifier 
 
 String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
 
-Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
 
 `"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
@@ -544,7 +544,7 @@ A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`
 
 ## Tree patterns
 
-A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal is `#(BODY)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
+A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal starts with `#`, as in `#sumti`, `#a« b c »`, or `#(a ∩ b)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
 The left operand must be a bare capture. The right operand must have pattern type. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the pattern position.
 
@@ -556,55 +556,358 @@ A terminal leaf records the terminal that read it, rather than every tag on its 
 
 A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
+A node test first tests the candidate, then follows its sole structural child if necessary. This single-child search repeats only while exactly one child exists. A branching node or ranked seal stops it. A node test with a child list tests both parts at the same visited node.
 
-Thus `#(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, a tag followed by a sumti, and a sumti beside an omitted terminator. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
+The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a« b ·c »`, `a` and `c` are exact, while `b` keeps its search.
+
+Thus `#sumti` accepts a sumti or its unary wrappers. `#·sumti` requires the candidate itself to be sumti. Neither test passes through a branch. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
 
 ### Pattern forms and binding
 
 | Form | Meaning |
 | --- | --- |
-| `#(sumti)` | A rule named sumti through single-child wrappers |
-| `#(KEhE)` | A KEhE leaf, written or omitted |
-| `#(KEhE="")` | A KEhE leaf with empty value |
-| `#(KEhE≠"")` | A KEhE leaf with nonempty value |
-| `#([KEhE])` | Zero or one KEhE child |
-| `#(KE ⋯ KEhE)` | A complete child sequence with required endpoints |
-| `#(A B)` | Two children, each with its own unary search |
-| `#(A ⋯ B ⋯ C)` | Ordered children with arbitrary sibling gaps |
+| `#sumti` | A rule named sumti through single-child wrappers |
+| `#·sumti` | Exactly the candidate named sumti |
+| `#KEhE` | A KEhE leaf, written or omitted |
+| `#KEhE=""` | A KEhE leaf with empty value |
+| `#KEhE≠""` | A KEhE leaf with nonempty value |
+| `#« [KEhE] »` | Zero or one KEhE child |
+| `#« KE ⋯ KEhE »` | A complete child sequence with required endpoints |
+| `#« A B »` | Two children, each with its own single-child search |
+| `#a« b c »` | An a node whose complete child list matches b then c |
+| `#a« b »` | An a node with exactly one child matching b |
+| `#« A ⋯ B ⋯ C »` | Ordered children with arbitrary sibling gaps |
+| `#«»` | A node with no structural children, possibly through single-child wrappers |
+| `#·«»` | Exactly a node with no structural children |
 | `#(⋮ P)` | P at an endpoint of any downward path |
 | `#(P ⋰)` | P at an endpoint of the first-child path |
 | `#(⋱ P)` | P at an endpoint of the last-child path |
 | `#(P ∪ Q)` | Either predicate on the candidate |
 | `#(P ∩ Q)` | Both predicates on the candidate |
 | `#(P ∖ Q)` | P holds and Q fails |
-| `#({P})` | A complete sequence of one or more P children |
-| `#({P / S})` | One or more P children separated by S |
-| `#([P Q])` | An optional sequence of those two children |
+| `#« {P} »` | A complete sequence of one or more P children |
+| `#« {P / S} »` | One or more P children separated by S |
+| `#« [P Q] »` | An optional sequence of those two children |
+| `#« a b \| c »` | Either the children a then b, or one child c |
 
 A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
 
-A string constant atom can carry tag and value tests, as in `#$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `#sumti`, `#KEhE`, `#"a"`, and `#$P` abbreviate their single-atom literals. The shorthand takes one atom, so `#"a" ++ "b"` attempts to concatenate a pattern and a string.
+A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, engine scalars, ranges, and `_`. `_` retains the wildcard terminal's identity. It does not match every node. A pattern constant denotes a whole predicate rather than a node test.
 
-Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[🆓]`. They never mean an omitted terminal.
+A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. Rule tests and pattern-valued constants accept no terminal tests. A pattern `literal` reference names only an engine scalar constant. User constants retain the distinct `constant` form in the DOM.
+
+A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
+
+A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
+
+Every node test can carry a child list, including a terminal test. Terminal leaves have no structural children. Their attached list must accept the empty sequence for the combined test to hold. A ranked seal passes no node test, including a bare list.
+
+`«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
+
+Within a child list, juxtaposition sequences items and `|` chooses complete sequences. Brackets make a sequence optional. Braces repeat a sequence one or more times, with an optional `/` separator. `{C / S}` accepts `C (S C)*`. These constructs give one Boolean answer, without ranking or greediness.
+
+`#a« b (x | y« z ») c« d e » »` tests one a node with three children. The middle child matches x, or y with one child matching z. Each child test keeps its own search unless it carries `·`.
 
 `⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal.
 
 An omitted terminator is a child like a written one. When it is the last child, a last-child path reaches it and never passes it to an earlier sibling.
 
-Binding is primary, path, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. Chained paths and optional operands require parentheses or a nested literal.
+Outside child lists, binding is node test with attachments, grouping, path, intersection, then union or difference, from strongest to weakest. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. A path operand is a whole pattern. Chained paths require parentheses.
 
-Any union operand that is itself a union flattens into its enclosing union. Thus `#(A ∪ (B ∪ C))` and `#(#(A ∪ B) ∪ C)` each have one union with three operands in written order. Intersection and difference retain their operands.
+Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#« a b »`.
 
-`#(A ⋰ B)` tests two children, the first through `A ⋰`. `#((A B) ⋰)` searches for a node with children A and B. `#(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `#((NAhE ∪ SE) ⋰)` puts both alternatives under it. `#(A ⋰ ⋱ B)` applies first-path to A and last-path to B.
+A call's arguments retain their own grammar, including pattern literals and grouped body expressions. Thus `#pair(#a, "b")` can name an instance with a pattern argument. Its inner `#a` belongs to the call argument rather than the enclosing pattern's child syntax.
 
-Plain parentheses preserve sibling grouping without a subtree boundary. `#(A (B C))` therefore has three children. `#(A #(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
+Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
+
+A set expression consumes one child when used as a child item. Beside other items, it requires parentheses. `#« a (b ∪ c) »` is valid, while `#« a b ∪ c »` is invalid. A whole choice arm can be a set expression, as in `#« a ∩ b | c »`.
+
+Within a child list, paths bind before sequence, and sequence binds before `|`. In a repetition, `/` separates the whole item and separator choices. `{a / b | c}` repeats a with separator b or c. A path cannot take a child sequence directly. `#(« a b » ⋰)` searches the first-child path for a node whose children match a then b.
+
+`#(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `#((NAhE ∪ SE) ⋰)` puts both alternatives under it. In `#« A ⋰ ⋱ B »`, the first child uses first-path and the second uses last-path.
+
+Each path tests its operand at every endpoint, including the candidate. The operand retains each node test's search or exact prefix. Set operands also retain separate searches. `#(a ∩ « b c »)` can match its parts at different depths, while `#a« b c »` requires the same node.
 
 One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
 
 A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
-Patterns reject `&`, `|`, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions and direct chained path prefixes. Braces keep one-or-more sequence behavior and their separator syntax. A repeat body that only matches empty sequences is an error. A sibling ellipsis cannot be a repeat item or separator. Patterns cannot contain recursive constants.
+Patterns reject captures, emissions, alternative tags, feature guards, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
+
+Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
+
+A parameter alone can substitute one whole pattern. In a child list, that pattern consumes one child and never splices siblings. With tests, an exact prefix, or an attached list, the argument must supply the corresponding node test. A supplied compound pattern cannot acquire a node attachment. Ordinary type rules apply after substitution.
+
+The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. [Engine §2.3](engine.md#23-parameterized-rules) defines canonical reading, including diagnostic string escapes. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
+
+### Pattern migration
+
+The tables give replacement spellings without changing the structural tree. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
+
+The form table covers the constructors, grouping boundaries, paths, sets, tests, and parameters:
+
+| Replaced form | Replacement | Meaning |
+| --- | --- | --- |
+| `#a`, `#(a)`, `#((a))` | `#a` | One node test |
+| `#🆓`, `#(🆓)` | `#🆓` | One emoji rule test |
+| `#pair`, `#(pair)` | `#pair` | One template family |
+| `#(pair("a", "b"))` | `#pair("a", "b")` | One exact call |
+| `#(@X)` | `#@X` | One substituted pattern |
+| `#(_)` | `#_` | Wildcard terminal identity |
+| `#(T<A>="x")` | `#T<A>="x"` | Tests on the same terminal leaf |
+| `#("a")`, `#($_0061)`, `#($S)` | `#"a"`, `#$_0061`, `#$S` | Terminal identity or a constant's predicate |
+| `#("a".."z")` | `#"a".."z"` | Range terminal identity |
+| `#(a b)` | `#« a b »` | Complete child sequence |
+| `#(a (b c))` | `#« a b c »` | Grouped sibling sequence |
+| `#(a #(b c))` | `#« a « b c » »` | One child with its own child list |
+| `#(a #(b))` | `#« a b »` | A nested literal with one node test |
+| `#([a])`, `#([(a)])` | `#« [a] »` | Optional child |
+| `#([a b])` | `#« [a b] »` | Optional sequence |
+| `#(a #([b]))` | `#« a « [b] » »` | One child whose own list is optional |
+| `#({a})`, `#({a b})` | `#« {a} »`, `#« {a b} »` | One or more item sequences |
+| `#({a / s})` | `#« {a / s} »` | Separated repetition |
+| `#({[a]})` | `#« {[a]} »` | A nullable repetition that can consume |
+| `#(⋯)`, `#(a ⋯ b)` | `#« ⋯ »`, `#« a ⋯ b »` | Sibling gaps |
+| `#(⋮ a)`, `#(a ⋰)`, `#(⋱ a)` | Unchanged | Whole-pattern paths |
+| `#((a b) ⋰)` | `#(« a b » ⋰)` | Path to a child-list predicate |
+| `#(⋱ (a b))` | `#(⋱ « a b »)` | Last-child path to a child-list predicate |
+| `#(a ⋰ ⋱ b)` | `#« a ⋰ ⋱ b »` | Separate paths on two children |
+| `#(a ∪ b)`, `#(a ∩ b)`, `#(a ∖ b)` | Unchanged | Whole-pattern set operations |
+| `#(a b ∩ c)` | `#(« a b » ∩ c)` | A sequence as one set operand |
+| `#(a (b ∪ c))` | `#« a (b ∪ c) »` | A set as one child item |
+| `#(a (#b ∪ #c))` | `#« a (b ∪ c) »` | Nested literals inside a child set |
+| `#(#(a ∪ b) ∪ c)` | `#(a ∪ b ∪ c)` | Flat union |
+| `#((a ∩ b) ∩ c)` | `#(a ∩ b ∩ c)` | Flat intersection |
+| `#(a ∖ (b ∖ c))` | Unchanged | Right-nested difference |
+| `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
+| `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
+
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`, while engine scalar references retain `literal`. Such conversions belong to migration tooling, not format-36 shape acceptance.
+
+The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
+
+| Grammar location | Replaced spelling | Replacement |
+| --- | --- | --- |
+| `grammars/syntax/cll.md:204` | `#(tag)` | `#tag` |
+| `grammars/syntax/cll.md:204` | `#(⋮ (FIhO ∪ free))` | `#(⋮ (FIhO ∪ free))` |
+| `grammars/syntax/cll.md:205` | `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
+| `grammars/syntax/cll.md:206` | `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
+| `grammars/syntax/cll.md:207` | `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `grammars/syntax/cll.md:208` | `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
+| `grammars/syntax/cll.md:209` | `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
+| `grammars/syntax/cll.md:210` | `#($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `grammars/syntax/experimental.md:133` | `#(ek ⋰)` | `#(ek ⋰)` |
+| `grammars/syntax/experimental.md:133` | `#(VUhU ⋰)` | `#(VUhU ⋰)` |
+| `grammars/syntax/experimental.md:299` | `#([tag] KE [🆓] gek-sentence KEhE [🆓])` | `#« [tag] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `grammars/syntax/experimental.md:300` | `#([tag] $KE-UNIT)` | `#« [tag] $KE-UNIT »` |
+| `grammars/syntax/experimental.md:301` | `#($CONNECTED-KE-SELBRI tail-terms)` | `#« $CONNECTED-KE-SELBRI tail-terms »` |
+| `grammars/syntax/experimental.md:302` | `#($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `grammars/syntax/experimental.md:363` | `#(⋯ CU [🆓])` | `#« ⋯ CU [🆓] »` |
+| `grammars/syntax/experimental.md:363` | `#(CU ⋰)` | `#(CU ⋰)` |
+| `grammars/syntax/experimental.md:564` | `#(tag KU="" [🆓])` | `#« tag KU="" [🆓] »` |
+| `grammars/syntax/experimental.md:565` | `#(NA [🆓] KU="" [🆓])` | `#« NA [🆓] KU="" [🆓] »` |
+| `grammars/syntax/experimental.md:709` | `#(sumti)` | `#sumti` |
+| `grammars/syntax/experimental.md:710` | `#(sumti)` | `#sumti` |
+| `grammars/syntax/experimental.md:711` | `#(tagged-term)` | `#tagged-term` |
+| `grammars/syntax/experimental.md:719` | `#(quantifier ⋰)` | `#(quantifier ⋰)` |
+| `grammars/syntax/experimental.md:923` | `#(forethought-operator ⋰)` | `#(forethought-operator ⋰)` |
+| `grammars/syntax/experimental.md:952` | `#(joik-jek-ek ⋰)` | `#(joik-jek-ek ⋰)` |
+| `grammars/syntax/experimental.md:1147` | `#(free)` | `#free` |
+| `grammars/syntax/experimental.md:1147` | `#(XI ⋯)` | `#« XI ⋯ »` |
+| `grammars/syntax/experimental.md:1148` | `#(⋱ (🆓 ∩ #(⋯ $NON-XI-FREE ⋯)))` | `#(⋱ (🆓 ∩ « ⋯ $NON-XI-FREE ⋯ »))` |
+| `grammars/syntax/zantufa.md:186` | `#({sentence / gik})` | `#« {sentence / gik} »` |
+| `grammars/syntax/zantufa.md:186` | `#(sentence ⋰)` | `#(sentence ⋰)` |
+| `grammars/syntax/zantufa.md:194` | `#(#(na-clause KU="") VAU="")` | `#« « na-clause KU="" » VAU="" »` |
+| `grammars/syntax/zantufa.md:222` | `#(na-clause KU="")` | `#« na-clause KU="" »` |
+| `grammars/syntax/zantufa.md:270` | `#([terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms)` | `#« [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms »` |
+| `grammars/syntax/zantufa.md:280` | `#(KE ⋰)` | `#(KE ⋰)` |
+| `grammars/syntax/zantufa.md:299` | `#(KE ⋰)` | `#(KE ⋰)` |
+| `grammars/syntax/zantufa.md:300` | `#(#(tag #(KE ⋰)) ⋰)` | `#(« tag KE ⋰ » ⋰)` |
+| `grammars/syntax/zantufa.md:301` | `#(#(tag KE ⋯) ⋰)` | `#(« tag KE ⋯ » ⋰)` |
+| `grammars/syntax/zantufa.md:312` | `#(selbri-2 #(VAU=""))` | `#« selbri-2 VAU="" »` |
+| `grammars/syntax/zantufa.md:320` | `#(ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms)` | `#« ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms »` |
+| `grammars/syntax/zantufa.md:321` | `#(#(KE [🆓] selbri-2 KEhE="" [🆓]) ⋰)` | `#(« KE [🆓] selbri-2 KEhE="" [🆓] » ⋰)` |
+| `grammars/syntax/zantufa.md:388` | `#(joik)` | `#joik` |
+| `grammars/syntax/zantufa.md:407` | `#(gek sumti {gik sumti} GIhI [🆓])` | `#« gek sumti {gik sumti} GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:408` | `#(ke-clause sumti KEhE≠"" [🆓])` | `#« ke-clause sumti KEhE≠"" [🆓] »` |
+| `grammars/syntax/zantufa.md:409` | `#(KE [🆓] sumti KEhE="" [🆓])` | `#« KE [🆓] sumti KEhE="" [🆓] »` |
+| `grammars/syntax/zantufa.md:526` | `#(joik-ek)` | `#joik-ek` |
+| `grammars/syntax/zantufa.md:526` | `#(SE [🆓] #(joik-ek))` | `#« SE [🆓] joik-ek »` |
+| `grammars/syntax/zantufa.md:555` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:556` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:625` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:664` | `#(JOI [🆓] [GAhO [🆓]])` | `#« JOI [🆓] [GAhO [🆓]] »` |
+| `grammars/syntax/zantufa.md:667` | `#(GA [🆓] [BO [🆓]])` | `#« GA [🆓] [BO [🆓]] »` |
+| `grammars/syntax/zantufa.md:668` | `#((tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]])` | `#« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »` |
+| `grammars/syntax/zantufa.md:670` | `#(gek selbri-2 gik-selbris GIhI [🆓])` | `#« gek selbri-2 gik-selbris GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:672` | `#($SE-GEK selbri-2 gik-selbris GIhI [🆓])` | `#« $SE-GEK selbri-2 gik-selbris GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:701` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:702` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:703` | `#(NAhE ⋰)` | `#(NAhE ⋰)` |
+| `grammars/syntax/zantufa.md:780` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:791` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:825` | `#(SE ⋯)` | `#« SE ⋯ »` |
+| `grammars/syntax/zantufa.md:953` | `#(((NAhE ∪ SE) [🆓] (operand ∪ operator)) ⋰)` | `#(« (NAhE ∪ SE) [🆓] (operand ∪ operator) » ⋰)` |
+| `grammars/syntax/zantufa.md:991` | `#(PA ⋰)` | `#(PA ⋰)` |
+| `grammars/syntax/zantufa.md:992` | `#(lerfu-string ⋰)` | `#(lerfu-string ⋰)` |
+| `grammars/syntax/zantufa.md:993` | `#(vocative ⋰)` | `#(vocative ⋰)` |
+| `grammars/syntax/zantufa.md:998` | `#(🆓 ⋰)` | `#(🆓 ⋰)` |
+| `grammars/words/cll.md:238` | `#(ccv-rafsi)` | `#ccv-rafsi` |
+
+The next table covers the distinct spellings in the current shared fixture inventory. It includes rejected operands so that migration preserves their refusal. Quoted JSON payloads that only resemble patterns are outside this table. Normal source decomposition still applies to names such as `K`.
+
+| Replaced fixture spelling | Replacement or refusal |
+| --- | --- |
+| `#" "` | `#" "` |
+| `#"a"` | `#"a"` |
+| `#$A` | `#$A` |
+| `#$P` | `#$P` |
+| `#$Q` | `#$Q` |
+| `#$_0061` | `#$_0061` |
+| `#(` | `ERROR probe.md:2:20: the syntax stage could not continue at token 4; expected "#", "(", "[", "_"` |
+| `#("a" ++ "b")` | `ERROR probe.md:2:24: the syntax stage could not continue at token 5; expected "#", "(", ")", "..` |
+| `#("a" ++ "b".."z")` | `ERROR probe.md:2:24: the syntax stage could not continue at token 5; expected "#", "(", ")", "..` |
+| `#("a")` | `#"a"` |
+| `#("a".."y" ++ "z")` | `ERROR probe.md:2:29: the syntax stage could not continue at token 7; expected "#", "(", ")", "<"` |
+| `#("a".."z")` | `#"a".."z"` |
+| `#(#($_D800)<"bad">)` | `ERROR probe.md:2:29: the syntax stage could not continue at token 8; expected "#", "(", ")", "["` |
+| `#(#(A)<"bad">)` | `ERROR probe.md:2:24: the syntax stage could not continue at token 8; expected "#", "(", ")", "["` |
+| `#($JOIN-1)` | `#$JOIN-1` |
+| `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
+| `#($JOIN-1=$JOIN-1)` | `#$JOIN-1=$JOIN-1` |
+| `#($K)` | `#$K` |
+| `#($KE-SELBRI (#tail-terms ∩ #$WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
+| `#($LETTER)` | `#$LETTER` |
+| `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
+| `#($S)` | `#$S` |
+| `#($_D800<"bad">)` | `ERROR probe.md:2:20: an engine constant requires a scalar in uppercase hexadecimal` |
+| `#($_D800<"bad"><A>)` | `ERROR probe.md:2:33: this target or test order is invalid` |
+| `#($_D800=UI)` | `ERROR probe.md:2:20: an engine constant requires a scalar in uppercase hexadecimal` |
+| `#($_D800=UI<A>)` | `ERROR probe.md:2:29: this target or test order is invalid` |
+| `#($K)` | `#$K` |
+| `#(($P))` | `#$P` |
+| `#(($Q))` | `#$Q` |
+| `#(($_D800)<"bad">)` | `ERROR probe.md:2:28: the syntax stage could not continue at token 7; expected "#", "(", ")", "["` |
+| `#((A B)⋰)` | `#(« A B » ⋰)` |
+| `#((A)<"bad">)` | `ERROR probe.md:2:23: the syntax stage could not continue at token 7; expected "#", "(", ")", "["` |
+| `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
+| `#((B⋰) (⋱A))` | `#« B ⋰ ⋱ A »` |
+| `#(@X ∖ "b")` | `ERROR probe.md:2:20: undeclared parameter @X` |
+| `#(@X ∩ "a")` | `ERROR probe.md:2:20: undeclared parameter @X` |
+| `#(@X ∪ "b")` | `ERROR probe.md:2:20: undeclared parameter @X` |
+| `#(@X)` | `ERROR probe.md:2:20: undeclared parameter @X` |
+| `#(A #(B C))` | `#« A « B C » »` |
+| `#(A (#B ∪ #C))` | `#« A (B ∪ C) »` |
+| `#(A B B C)` | `#« A B B C »` |
+| `#(A B C)` | `#« A B C »` |
+| `#(A B)` | `#« A B »` |
+| `#(A KEhE="" B)` | `#« A KEhE="" B »` |
+| `#(A KEhE≠"" B)` | `#« A KEhE≠"" B »` |
+| `#(A OTHER OTHER [OTHER])` | `#« A OTHER OTHER [OTHER] »` |
+| `#(A OTHER OTHER)` | `#« A OTHER OTHER »` |
+| `#(A T<>)` | `#« A T<> »` |
+| `#(A T<T U>)` | `#« A T<T U> »` |
+| `#(A T<T>)` | `#« A T<T> »` |
+| `#(A T<U>)` | `#« A T<U> »` |
+| `#(A T<¬T ¬U>)` | `#« A T<¬T ¬U> »` |
+| `#(A T<¬T>)` | `#« A T<¬T> »` |
+| `#(A T<¬U>)` | `#« A T<¬U> »` |
+| `#(A T="")` | `#« A T="" »` |
+| `#(A T≠"")` | `#« A T≠"" »` |
+| `#(A [KEhE] B)` | `#« A [KEhE] B »` |
+| `#(A ∪ B ∩ C ∖ D)` | `#(A ∪ B ∩ C ∖ D)` |
+| `#(A ⋯ B)` | `#« A ⋯ B »` |
+| `#(A ⋯ C)` | `#« A ⋯ C »` |
+| `#(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)` | `#(« A ⋰ ⋱ B » ∪ C ⋰ ∩ ⋱ D)` |
+| `#(A)` | `#A` |
+| `#(A<$GOOD ¬$BAD>)` | `#A<$GOOD ¬$BAD>` |
+| `#(A<Extra ¬Blocked>)` | `#A<Extra ¬Blocked>` |
+| `#(A="a" ++ "b")` | `ERROR probe.md:2:26: the syntax stage could not continue at token 7; expected "#", "(", ")", "."` |
+| `#(A⋰)` | `#(A ⋰)` |
+| `#(B A)` | `#« B A »` |
+| `#(B)` | `#B` |
+| `#(B⋰)` | `#(B ⋰)` |
+| `#(K<K>)` | `#K<K>` |
+| `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
+| `#(Q X ⋯)` | `#« Q X ⋯ »` |
+| `#(Q a)` | `#« Q a »` |
+| `#(Q ⋯)` | `#« Q ⋯ »` |
+| `#(X T="")` | `#« X T="" »` |
+| `#(X Y)` | `#« X Y »` |
+| `#(X⋰)` | `#(X ⋰)` |
+| `#(Z)` | `#Z` |
+| `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
+| `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `#([A] [🆓])` | `#« [A] [🆓] »` |
+| `#([X] [Y])` | `#« [X] [Y] »` |
+| `#([X])` | `#« [X] »` |
+| `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
+| `#(_)` | `#_` |
+| `#(_=$JOIN-1)` | `#_=$JOIN-1` |
+| `#(_Bogus<"bad"><A>)` | `ERROR probe.md:2:33: this target or test order is invalid` |
+| `#(atom)` | `#atom` |
+| `#(atom("a"))` | `#atom("a")` |
+| `#(atom("b"))` | `#atom("b")` |
+| `#(atom(("a" "b")))` | `#atom(("a" "b"))` |
+| `#(child ∪ #bad-name)` | `#(child ∪ bad-name)` |
+| `#(child ∪ bad-name)` | `#(child ∪ bad-name)` |
+| `#(left right)` | `#« left right »` |
+| `#(other)` | `#other` |
+| `#(rK)` | `#rK` |
+| `#(rK)` | `#rK` |
+| `#(text)` | `#text` |
+| `#(text⋰)` | `#(text ⋰)` |
+| `#(unit)` | `#unit` |
+| `#(use ∪ "b")` | `#(use ∪ "b")` |
+| `#(use("a") ∩ use)` | `#(use("a") ∩ use)` |
+| `#(use("a"))` | `#use("a")` |
+| `#(use)` | `#use` |
+| `#({A / B})` | `#« {A / B} »` |
+| `#({A})` | `#« {A} »` |
+| `#({[A]})` | `#« {[A]} »` |
+| `#(K<K>)` | `#K<K>` |
+| `#(⋮(#FIhO ∪ #free))` | `#(⋮ (FIhO ∪ free))` |
+| `#(⋮A)` | `#(⋮ A)` |
+| `#(⋮B)` | `#(⋮ B)` |
+| `#(⋮X)` | `#(⋮ X)` |
+| `#(⋮q)` | `#(⋮ q)` |
+| `#(⋮r)` | `#(⋮ r)` |
+| `#(⋯)` | `#« ⋯ »` |
+| `#(⋱(A B))` | `#(⋱ « A B »)` |
+| `#(⋱A)` | `#(⋱ A)` |
+| `#(⋱KU)` | `#(⋱ KU)` |
+| `#(⋱X)` | `#(⋱ X)` |
+| `#(⋱text)` | `#(⋱ text)` |
+| `#A` | `#A` |
+| `#A<$S.tag>` | `ERROR probe.md:2:21: a tag requirement is a tag or tag-set constant` |
+| `#A<B>` | `#A<B>` |
+| `#A="a"` | `#A="a"` |
+| `#A≠"a"` | `#A≠"a"` |
+| `#B` | `#B` |
+| `#C` | `#C` |
+| `#GIhI` | `#GIhI` |
+| `#GIhI≠""` | `#GIhI≠""` |
+| `#KEhE` | `#KEhE` |
+| `#KEhE=""` | `#KEhE=""` |
+| `#NUhI` | `#NUhI` |
+| `#NUhI<NUhI>` | `#NUhI<NUhI>` |
+| `#T<T U>` | `#T<T U>` |
+| `#X` | `#X` |
+| `#a` | `#a` |
+| `#b` | `#b` |
+| `#bad-name` | `#bad-name` |
+| `#c7e15d3` | `#c7e15d3` |
+| `#empty` | `#empty` |
+| `#inner` | `#inner` |
+| `#outer` | `#outer` |
+| `#pair` | `#pair` |
+| `#rK` | `#rK` |
+| `#short` | `#short` |
+| `#sumti` | `#sumti` |
+| `#tag` | `#tag` |
+| `#text` | `#text` |
+| `#🆓` | `#🆓` |
 
 ## Classifiers
 
@@ -962,7 +1265,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Position or kind | Meaning | Example |
 | --- | --- | --- |
 | A body | Sequence | `"b" c` |
-| Inside `#(…)` | Child sequence | `#(A B ∪ C)` |
+| Inside `« »` | Child sequence | `#« A (B ∪ C) »` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
 | A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
@@ -979,7 +1282,7 @@ A run of bare tag names or string literals can stand alone or beside `∪`. It r
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
-Inside a pattern literal, sequence binds more tightly than set operators. `#(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
+Within a child list, sequence combines items, and a grouped set expression consumes one child. `#(A B ∩ C)` requires the explicit list spelling `#(« A B » ∩ C)`. Outside child lists, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
 
 String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
 

@@ -186,17 +186,17 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":35,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":36,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 35 supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 36 supports node tests with exact prefixes, attached child lists, child choices, and flat pattern intersections. It also supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 35 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 36 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-DOM format 35 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+DOM format 36 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 35 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":35,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 36 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":36,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -421,7 +421,7 @@ Recipe syntax joins atoms with `++` and accepts no other method chains or expres
 
 Substitution flattens nested concatenations into that array, in operand order. It preserves empty operands and each operand's source attribution. General terms also use `concat` for `++` in conditions and constants.
 
-DOM format 35 rejects the `interpolate` node.
+DOM format 36 rejects the `interpolate` node.
 
 Conditions have these forms:
 
@@ -480,72 +480,117 @@ DOMs store unresolved references and source positions, never stage-resolved cons
 
 ### Pattern values
 
-PATTERN tests one structural tree. CHILDREN consumes an ordered sequence of sibling trees. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern types can also use `const`, `union`, `intersection`, `difference` and contextual `emptySet` terms. Mixed pattern and tag-set operations are malformed.
+PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 
-`TERMINALATOM` is a `terminal`, `literal`, `range`, `wildcard`, or unresolved user `constant` pattern atom. A user constant under a test must resolve to a string. Before expansion, TERMINALATOM can also be a declared `param` whose argument must become a terminal atom.
-
-PATTERN has exactly one of these forms:
+An undecorated node test has one of these forms:
 
 ```text
 {"name":"sumti","at":[line,column]}
 {"call":"pair","args":[ARG,ARG...],"at":[line,column]}
 {"param":"Left","at":[line,column]}
 {"terminal":"KEhE","at":[line,column]}
-{"literal":STRINGTERM,"at":[line,column]}
+{"literal":PATTERNSTRING,"at":[line,column]}
 {"range":[STRINGTERM,STRINGTERM],"at":[line,column]}
 {"wildcard":true,"at":[line,column]}
+{"constant":"LETTER","at":[line,column]}
 {"test":"tags","requirements":[REQUIREMENT...],"expr":TERMINALATOM}
-{"test":"≠","value":{"string":""},"expr":{"terminal":"KEhE","at":[line,column]}}
-{"constant":"KE-UNIT","at":[line,column]}
-{"children":CHILDREN}
-{"union":[PATTERN...]}
-{"intersection":[PATTERN...]}
+{"test":"=","value":STRINGTERM,"expr":TESTTARGET}
+{"test":"≠","value":STRINGTERM,"expr":TESTTARGET}
+```
+
+TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
+
+A node test can add `"exact":true`, then `"children":[ITEM...]`, before its final `at` member when present. Both members are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+
+Every node-test form accepts these decorations, subject to constant and parameter resolution. This includes tested terminals and `_`. A terminal leaf passes an attached list only when that list accepts no children. The decorations belong to the outermost test object, never its inner `expr`.
+
+A bare child list has exactly this form, with optional `exact` before `children`:
+
+```text
+{"any":true,"children":[ITEM...]}
+{"any":true,"exact":true,"children":[ITEM...]}
+```
+
+`any` requires `children`. It denotes an observable node, without a name or terminal test. It never matches a ranked seal. `_` instead uses `wildcard`, which tests only the wildcard terminal identity.
+
+PATTERN is a node test, a bare child list, or one of these compound forms:
+
+```text
+{"union":[PATTERN,PATTERN...]}
+{"intersection":[PATTERN,PATTERN...]}
 {"difference":[PATTERN,PATTERN]}
 {"path":"descendant","pattern":PATTERN}
 {"path":"first","pattern":PATTERN}
 {"path":"last","pattern":PATTERN}
 ```
 
-CHILDREN has exactly one of these forms:
+An undecorated `constant` can instead denote a whole pattern. An undecorated `param` can substitute one whole pattern. A compound form cannot carry `exact`, `children`, tests, or `at`. A pattern-valued constant cannot carry node decorations or terminal tests.
+
+ITEM has exactly one of these shapes:
 
 ```text
-{"node":PATTERN}
-{"sequence":[CHILDREN...]}
-{"optional":CHILDREN}
-{"repeat":CHILDREN}
-{"repeat":CHILDREN,"separator":CHILDREN}
+{"child":PATTERN}
 {"siblings":true}
+{"optional":[ITEM,ITEM...]}
+{"repeat":[ITEM,ITEM...]}
+{"repeat":[ITEM,ITEM...],"separator":[ITEM,ITEM...]}
+{"choice":[[ITEM,ITEM...],[ITEM,ITEM...]...]}
 ```
 
-A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`.
+Here `[ITEM,ITEM...]` means one or more items. A choice requires at least two nonempty alternative arrays. No alternative consists only of another `choice` item. The reader flattens such alternatives in written order. Other choices retain their sequence position and nesting. Plain groups concatenate item arrays and make no wrapper.
 
-A bare template name tests its family. A call tests one instance. A tag test can wrap a terminal atom, and a value test can wrap that tag test.
+Only a node's `children` array can be empty. Item objects cannot be arrays. There is no `sequence` or `node` wrapper.
 
-The source order is tag then value.
+An `optional` object has only `optional`. Only `repeat` accepts `separator`, and it must also contain `repeat`. Sibling items contain exactly `siblings:true`. No item has `at` or pattern fields beside its designated member.
 
-User constant atoms use `constant` until binding through the version graph of engine §2. A string constant denotes a string terminal, while a pattern constant denotes its predicate. Binding does not change the cached DOM.
+A repeat body must have a way to consume a child. Its separator can accept an empty sequence but must contain written items. Neither array permits a sibling gap at its own level, including inside optional, choice, or nested repeat items. A gap inside a `child` pattern's own child list remains valid. That list describes another sibling level.
 
-Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both positions name the constant token. `#$_0061` has this complete DOM:
+These restrictions apply before substitution. An unresolved parameter does not excuse a malformed wrapper, forbidden field, invalid arity, or gap. After substitution, the same restrictions apply to the expanded pattern. Stage resolution also enforces terminal types, consuming repeats, and name binding.
+
+Each `child` pattern can mix resolved fragments with unresolved parameters. Readers keep the item context throughout the traversal. `#« A @X »`, `#« @X A »`, and `#« ⋯ @X »` are valid unresolved forms. `#« [A] @X »` is valid too. Their closed fragments never become independent root patterns during shape inspection.
+
+These item shapes are malformed even inside an unresolved pattern:
+
+```text
+{"optional":[{"child":{"param":"X","at":[1,1]}}],"separator":[{"child":{"terminal":"A","at":[1,1]}}]}
+{"repeat":[{"optional":[{"siblings":true}]},{"child":{"param":"X","at":[1,1]}}]}
+{"repeat":[{"child":{"param":"X","at":[1,1]}}],"separator":[{"siblings":true}]}
+```
+
+The first object gives an optional a forbidden separator. The second hides a gap in a repeat's optional item. The third puts a gap in the separator. A parameter cannot make any of these shapes valid.
+
+By contrast, `#« {« ⋯ » @X} »` has a valid shape. Each repeated pair has a child matching the bare list, then one child matching X. The inner gap belongs to the bare list. It never consumes siblings at the repeat's level.
+
+A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`. A name must read back as a rule name under the loaded Unicode table. A name that instead reads as a terminal is malformed.
+
+A bare template name tests its family. A call tests one instance. String-valued user constants use `constant` until binding through engine §2. Pattern-valued constants denote their whole predicate. Binding does not change the cached DOM.
+
+PATTERNSTRING is exactly a `string` term or an engine scalar `const` with its source position. A user constant never occupies this position. It uses `constant` instead. A parameter node uses `param`, without a `literal` wrapper. Range endpoints and test operands retain their ordinary STRINGTERM rules, including user constants and declared parameters.
+
+Engine scalar atoms preserve both source positions. `#$_0061` has this complete DOM:
 
 ```json
 {"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
 ```
 
-Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the `at` of its `constant` reference.
-
-At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `#(A (B C))` has three children, while `#(A #(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
-
-Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
-
-Any union operand that is itself a union flattens into its enclosing union. For example, `#(A ∪ (B ∪ C))` gives this complete DOM:
+The node test `#·a« b »` has this complete DOM:
 
 ```json
-{"pattern":{"union":[{"terminal":"A","at":[1,3]},{"terminal":"B","at":[1,8]},{"terminal":"C","at":[1,12]}]}}
+{"pattern":{"name":"a","exact":true,"children":[{"child":{"name":"b","at":[1,6]}}],"at":[1,3]}}
 ```
 
-Intersection and difference retain their operands. Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true.
+The following examples omit source positions to show the boundaries:
 
-Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
+```text
+#a              {"pattern":{"name":"a"}}
+#« a »          {"pattern":{"any":true,"children":[{"child":{"name":"a"}}]}}
+#·«»            {"pattern":{"any":true,"exact":true,"children":[]}}
+#« A « B C » »  {"pattern":{"any":true,"children":[{"child":{"terminal":"A"}},{"child":{"any":true,"children":[{"child":{"terminal":"B"}},{"child":{"terminal":"C"}}]}}]}}
+```
+
+Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.
+
+The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Canonical pattern reading follows engine §2.3 and preserves the key of every valid shape.
 
 A tree comparison uses the `op`, `left` and `right` members:
 
@@ -574,7 +619,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":35,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":36,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 

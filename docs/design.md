@@ -415,7 +415,15 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 ## Structural pattern implementation
 
-A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#(…)` values and `≅` or `≇` conditions. Single-child transparency reaches an identity through unary wrappers. Branching nodes and omitted terminator leaves preserve constructor boundaries. Ordinary optional brackets retain their usual meaning.
+A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains children without naming the parent. `_` retains its terminal identity.
+
+Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
+
+Child lists contain sequences, choices, optionals, repetitions with `/` separators, and sibling gaps. Parentheses only group and never create a subtree boundary. Paths and sets combine whole patterns. Branches, omitted terminator leaves, and ranked seals preserve structural boundaries.
+
+The pattern DOM stores child sequences as arrays. Empty and singleton child lists retain their guillemets in canonical spelling. The schema accepts exactly the reader's shapes, apart from source positions. Unresolved parameters preserve the distinction between whole patterns and child items. They never relax the surrounding field or sibling-gap rules.
+
+Pattern unions and intersections flatten operands of their own kind. Keys preserve order, duplicates, node decorations, and child boundaries. Canonical reading decodes diagnostic string escapes and gives the same key for every valid printed pattern. A rule-test name that reads back as a terminal under the loaded Unicode table is invalid. Pattern literals name only engine scalar constants through the DOM's `literal` form. User constants use `constant` instead.
 
 All user constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 
@@ -429,7 +437,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 35 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 36 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
