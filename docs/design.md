@@ -80,17 +80,22 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
 1. The loader, the part of a library that reads documents, uses the notation's own grammar. It reads the fenced `jbogenbau` blocks of a Markdown document into a grammar DOM (document object model: the document as a tree of objects).
 
-See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering.
+   See "The notation" below. The loader splices pipeline documents as "Pipelines" says, and stitches each stage. Template expansion produces ordinary rules before validation and lowering.
 
-Its errors carry file, line and column.
+   Its errors carry file, line and column.
+
 2. Lowering turns the grammar into a context-free grammar. Lowering makes named helper rules for the notation's shorthand, such as `[ ]` and flat `{ }`, and diagnostics hide these rules.
+
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `.onward` and `.following-tokens`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `span.matches(rule)`, `span.begins(rule)`, `span.ends(rule)`, and `span.tags(rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. Ordinary answers of short spans can also outlive the parse, in the shared memo of engine §4.3. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
+
 4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts `leftmost-longest` occurrences over each nonempty input span, and it counts `fewest` occurrences.
 
    Rule flags compare rule profiles first. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares elided terminators (see "Ambiguity" below).
+
 5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. Attachments are tokens owned by another token and unread by later stages.
+
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases cover every specification rule, with one or more cases per rule. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
@@ -168,6 +173,8 @@ A parameterized rule is a template with load-time arguments. `%rule pair(@Left, 
 The loader substitutes parsed nodes without changing grouping. `(BIhE 🆓)` and `ε` each pass one sequence argument. Only query-target choices and explicit requirement lists splice into their corresponding lists. Arguments cannot read captures.
 
 `%rule named-pair = pair("a", "b")` names one instance without adding a wrapper node. Other instances use canonical call spellings everywhere that a rule name appears. Templates and instance edits apply in source order. A later template redefinition replaces earlier local edits. Flags apply to actual instance constituents, without an extra ranking tier.
+
+A later binding can move a public name to another instance with `%redefine-rule NAME = CALL`. The old instance keeps its edits and takes its canonical name. Ordinary rules and named instances keep declaration slots, followed by unnamed instances in discovery order. Numbering, reference checks, diagnostics, and audit lists use that expanded order.
 
 Patterns can name a whole template family, while queries must name an exact instance. A static parameter-flow analysis rejects cycles with argument growth. Diagrams show templates and calls, and the audit lists instances and their effective edits. Engine §2.3 defines these rules.
 
@@ -380,7 +387,7 @@ The engine defines these rules in §3:
 
 An elidable optional permits an omitted closing word. A grammar marks each elidable optional locally, as in `[+KU 🆓]`. A plain optional, `[KU 🆓]`, is never elidable. The marker states the meaning without a directive in another document.
 
-A marked optional has one form, with the terminator directly after the marker. A group there, even `[+(KU) 🆓]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
+A marked optional has one form, with a user tag or parameter directly after the marker. A parameter must become exactly one bare user tag after argument conversion. A group there, even `[+(KU) 🆓]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
 An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the exact value saved by an equality test. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
@@ -404,9 +411,9 @@ The notation sets no fixed limit on captures. A captured span before the dot for
 
 `.preceding-tokens` returns original tokens from the current context start to the receiver's start. `.last-token` then names the preceding token. Nested queries cannot see before their own context start.
 
-`.ends(R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The method preserves ordinary query eligibility and errors. Restored suffixes keep complete close groups and cannot split ranked blocks.
+`.ends(R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The method preserves ordinary query eligibility and errors. A restored `.ends` receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
 
-For targets that read no context end, queries for one target and context start must cost O(n+q). Here n counts input tokens and q counts requests. Shared recognition and retained endpoint answers satisfy the required organization. A growth test enforces the bound. Engine §4.4 defines its scope and dependency analysis.
+Shareable suffix queries cost one recognition starting the target at every position, plus constant work per request. Sharing uses the target and window start. Complex targets can cost more than linear time. Targets that read a window end require separate recognition for each distinct end. Use `.ends` sparingly. Engine §4.4 defines sharing and window-end dependencies.
 
 ## Structural pattern implementation
 
@@ -424,7 +431,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 35 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 14 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 35 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -830,11 +837,11 @@ The product provides these diagnostics and debugging tools:
 
   The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is a grammar error, not an audit finding.
 
-Each stage's audit also exposes `templates` and `instances` lists. Templates follow declaration order, and instances follow first discovery order (engine §2.3). A template entry contains `template`, `parameters`, `document`, `line`, `column`, and `notes`. Its notes identify `unused-parameter` with `parameter`, or `uncalled-template`.
+Each stage's audit also exposes `templates` and `instances` lists. Templates follow declaration order. The instance list follows expanded rule order (engine §2.3), after omitting ordinary rules. A template entry contains `template`, `parameters`, `document`, `line`, `column`, and `notes`. Its notes identify `unused-parameter` with `parameter`, or `uncalled-template`.
 
 An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCall`, `flags`, `events`, and `notes`. Arguments use the unresolved ARG schema without source positions. The template and ordered arguments encode its key within the stage. `binding` is null for an unnamed instance. Otherwise it names the binding's document, line, and column. `firstCall` records that call's document, line, and column.
 
-An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in first-discovery order.
+An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in expanded rule order.
 
 Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. The comparison follows the finite written argument trees and never expands a nominal reference's body. It accepts either direction of that replacement. It also applies inside nested argument forms.
 

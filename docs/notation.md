@@ -116,7 +116,11 @@ An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar 
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` complete the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
+The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` complete the inventory.
+
+Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
+
+Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
 A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_L`. A grammar can forward or filter engine tags but never introduce them.
 
@@ -398,7 +402,7 @@ Each argument is one term. A parenthesized body expression or `ε` passes a sequ
 
 Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
 
-Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. A terminator after `[+` remains a directly written user tag.
+Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, grouped head, sequence, tested argument, constant, or tag-set expression is invalid there.
 
 ### The two list substitutions
 
@@ -437,6 +441,25 @@ An instance key uniquely identifies an instance. The name adds no wrapper node. 
 An unnamed instance uses its canonical call spelling, such as `pair("a", "b")`. Instance identity uses argument syntax trees, not evaluated values or expanded rule bodies. A nominal reference names a rule without expanding it. Constants and nominal references retain their names. Engine §2.3 defines the complete spelling and identity rules.
 
 A closed call contains no parameter references. Template edits write parameters, as `%extend-rule pair(@Left, @Right)`. Instance edits name one public name or one closed call, as `%extend-rule pair("a", "b")`. Both kinds apply in source order. A later template redefinition replaces earlier local edits. A later template extension also reaches locally redefined instances.
+
+A later layer can rebind a named instance with `%redefine-rule NAME = CALL`. The old key keeps its edits and takes its canonical call name. Earlier edits by NAME stay on that old key. Later edits by NAME reach the new key, and body references use the final binding.
+
+```jbogenbau
+%rule atom(@Tag)
+  @Tag
+%rule text
+  item
+%rule item = atom(A)
+%extend-rule item
+  B
+%redefine-rule item = atom(C)
+```
+
+Here `item` reads C. The old `atom(A)` still reads A or B and uses its canonical name.
+
+Ordinary rules and named instances keep their declaration slots. Unnamed instances follow them in discovery order. Rebinding keeps the name's slot and moves the old key into the unnamed tail at its original discovery position. This order controls numbering, reference checks, diagnostics, and the audit.
+
+The example's expanded order is `text`, `item`, then `atom(A)`. The template `atom` has no runtime rule slot.
 
 A template's flag applies to its instances. Each instance contributes its actual constituents to the existing shared ranking profiles. A binding adds no flag or ranking occurrence.
 
@@ -773,7 +796,7 @@ The five methods `.matches(S)`, `.begins(S)`, `.ends(S)`, `.followed-by(S)`, and
 
 Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
-Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored queries retain their alignment rules for every alternative.
+Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
 
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
@@ -884,9 +907,9 @@ For example, a target that reads `"a"` and requires `$.starts-input` does not ma
 
 `$x.preceding-tokens.last-token` reads the token immediately before `$x`. Inside a nested query, it cannot reach before that query's input start. On a restored receiver, `.preceding-tokens` projects to ordinary input and drops close alignment.
 
-An aligned `.ends` witness retains complete close groups within its suffix, including both boundary groups. It cannot start inside a ranked block. [Engine §4.4](engine.md#44-backward-token-queries) defines these boundaries and the shared recursive-query rule.
+`.ends` on a restored span is a load error, including after `.onward`, which preserves restoration. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
 
-For targets whose recognition reads no context end, suffix queries for one target and context start must cost linear time in total. For fixed grammar, n input tokens and q requests require O(n+q) work. The libraries share recognition and retain answers by end boundary. A growth test enforces the requirement. Targets that read a context end can cost more.
+With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Use `.ends` sparingly.
 
 ### Neighbours in the parse
 
@@ -1317,13 +1340,24 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
   | LI 🆓 mex [+LOhO 🆓]
 ```
 
-- The terminator `T` stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
-- `T` is a non-engine tag name written directly after `+`. `[+KU]` marks KU. A string, range, engine tag, wildcard, rule, or `🆓` cannot mark an omission.
+- The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
+- `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, rule, or `🆓` cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 
 An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU 🆓]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
+
+A template can choose its terminator through a parameter:
+
+```jbogenbau
+%rule terminated(@Body, @End)
+  @Body [+@End 🆓]
+
+%rule description = terminated(sumti-tail, KU)
+```
+
+The argument for `@End` must be one bare user tag after argument conversion. A rule name, group head, sequence, tested argument, constant, or tag-set expression fails loading. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 

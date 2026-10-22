@@ -15,10 +15,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":14,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":15,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 14. Parameterized rules change rule-name strings, without changing this result schema. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 15. Rule names can contain punctuation, quotes, and emoji, including canonical call spellings. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -144,7 +144,7 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 At the end of a stage's input, a rejection has `token` equal to the number of input tokens. Its `source` is `[S,S]`. `S` is the source end of the last stage-input token, or 0 if there are no input tokens. Its `line` and `column` locate `S` in the original text. The original text can continue after `S` (engine §4, §12).
 
-`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
+`expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, in expanded rule order (engine §2.3). `message` is the description for people, and the shared tests do not compare its wording.
 
 Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
 
@@ -216,6 +216,8 @@ A binding has exactly this shape:
 ```
 
 Its `op` can also be `redefine`, under engine §2.3. It has no `alternatives`, clauses, emission, or `erased`. Its flags and conditions must be empty. The `instance` member follows `flags` in canonical order. This object records a binding, without adding a runtime wrapper node.
+
+A `redefine` binding can replace an ordinary rule or rebind a named instance to another call. After rebinding, the old instance keeps its edits and takes its canonical name.
 
 A call is `{"call":"pair","args":[ARG,ARG...],"at":[line,column]}`. A parameter is `{"param":"Left","at":[line,column]}`. Both require positive source coordinates. Call names use the rule-name repertoire. A call requires at least one argument. A parameter requires a declaring template and a matching parameter name.
 
@@ -326,7 +328,11 @@ A capture of `🆓` instead converts as follows:
 {"capture":"f","expr":{"ref":"🆓"}}
 ```
 
-The first symbol of an elidable optional is an ordinary tag `ref`, optionally tested. Its expression is that symbol or a sequence starting with it. Engine tags, strings, ranges, wildcard, captures, and grouped heads are invalid. Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
+The first symbol of an elidable optional is a user-tag `ref`, optionally tested. Before expansion, it can instead be a declared `param`, with the written head tests. Its expression is that symbol or a sequence starting with it.
+
+The parameter must become exactly one bare user-tag atom after argument conversion. Rule names, sequences, tested arguments, constants, and tag-set expressions are invalid arguments for that head. Engine tags, strings, ranges, wildcard, captures, and grouped heads are invalid.
+
+Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
 
 Terms have these forms:
 
@@ -372,7 +378,7 @@ String arguments are terms. A classifier name starts with a lowercase letter, so
 
 Repeated targets are accepted in source and supplied DOM, and change nothing. `terminal` names only a user tag, never an engine tag. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All five methods share this restriction.
 
-Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept captures or spans, including restored spans. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
+Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. `matches` and `begins` accept captures or spans, including restored spans. `ends` accepts only captures or ordinary spans. A restored receiver causes a load error. `.preceding-tokens` uses the ordinary zero-argument method shape and returns an ordinary projected span.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 

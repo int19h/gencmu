@@ -53,6 +53,8 @@ The sort is stable, and every scalar keeps its origin. Stage zero supplies one t
 
 Its stored tags are the general category and major category of dₖ, plus `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where their table properties apply. Stage zero is implicit and adds no executed grammar-stage result.
 
+Stage zero assigns both emoji property tags in every dialect. In the bundled Unicode table, ASCII digits, `#`, and `*` have Emoji_Component. Their stage-zero tokens therefore carry `_Emoji_Component`. U+200D, U+20E3, and U+FE0F also carry it. Ordinary inheritance can forward these stored tags.
+
 Decomposition is canonical only. It applies no compatibility decomposition and no case mapping, and it never composes. Sources, texts, line and column numbers, `.source-text` and `.verbatim-text` read the original text. One precomposed scalar can give several tokens with one source. Canonical reordering can put sources out of order.
 
 A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
@@ -205,7 +207,7 @@ Tests use a terminal token's own tags and value, or a reference's constituent ta
 
 Identify each ranked expression after final stitching and constant binding. Its identity is the final rule, zero-based alternative index, and expression path. Its options retain source order. Every group requires at least two expressions.
 
-Visit groups in stitched rule, alternative, and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists.
+Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists.
 
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
 
@@ -251,7 +253,7 @@ The owner of an elidable optional is the rule of the definition that writes it. 
 
 A family argument is a rule reference, so the reference checks of this section cover it. A call can stand in a header or alternative tag clause, a condition, or the tag clause of an emission item. The loader reports an undefined family rule at the definition that contains the call.
 
-The loader visits final rules and their alternatives in stitching order. For each alternative, it reads body references and then the alternative's tag clause. With a definition's first alternative, it then reads header tags, conditions, and emission items' tag clauses, in that order. Within a clause, it follows receivers and arguments in written order. The first undefined name determines the error message. An extension's clauses belong to the extension, so their errors stand at its definition.
+The loader visits final expanded rules in the order of §2.3, and each rule's alternatives in their existing order. For each alternative, it reads body references and then the alternative's tag clause. With a definition's first alternative, it then reads header tags, conditions, and emission items' tag clauses, in that order. Within a clause, it follows receivers and arguments in written order. The first undefined name determines the error message. An extension's clauses belong to the extension, so their errors stand at its definition.
 
 ### 2.3 Templates and instances
 
@@ -326,7 +328,7 @@ A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argumen
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
-A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The terminator directly after `[+` must remain a written user tag. Parameters cannot replace that head.
+A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head directly after `[+` can be a user tag or parameter. That parameter's argument must become exactly one bare user-tag atom after argument conversion. Rules, grouped heads, sequences, tested arguments, constants, and tag-set expressions are invalid there.
 
 Only two positions splice an argument's children into the surrounding list:
 
@@ -370,11 +372,13 @@ A nominal reference names a rule without expanding it. A nested call contributes
 
 A binding assigns a public name to an instance. `%rule NAME = CALL` writes that assignment. It creates no alternative, wrapper constituent, or extra ranking occurrence.
 
-All calls with that key use NAME throughout the stage, including calls before the binding. One key has at most one public name. One public name binds at most one key.
+Each key uses its final public name, or its canonical name when unnamed. Calls before a binding use that same final name. One key has at most one public name. One public name binds at most one key at a time.
 
 A public name cannot equal a template name.
 
-`%redefine-rule NAME = CALL` can replace an earlier ordinary rule with a named instance. It cannot rebind an already named instance to a different key. Repeating the same binding through `%redefine-rule` is an error too. `%extend-rule NAME = CALL` is an error.
+`%redefine-rule NAME = CALL` can replace an earlier ordinary rule or rebind a named instance to a different key. The old instance retains its identity and edits, and falls back to its canonical call name. The new instance takes NAME everywhere. A key that already has another public name cannot receive NAME. Repeating the current binding is an error. `%extend-rule NAME = CALL` is an error.
+
+An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Ordinary body references to NAME use its final binding. Exact calls continue to name their own instance keys.
 
 A binding accepts no flags, clauses, conditions, or output directive. An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
@@ -476,7 +480,15 @@ Ordinary document rules apply to every expanded definition. Structural analysis,
 
 An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
 
-The audit lists templates, instance keys, effective names, first calls, bindings, flags, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Instance order follows first discovery. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
+The audit lists templates, instance keys, effective names, first calls, bindings, flags, unused parameters, and uncalled templates. It records all applicable template and local events in source order, including events later replaced. Rule and instance lists use the expanded order defined below. Template order follows declaration order. The audit also notes argument-alias twins, as `docs/design.md` defines them.
+
+#### Expanded rule order
+
+An ordinary rule receives a declaration slot at its first definition. A binding receives a slot at its name's first declaration. Redefining an ordinary rule as a named instance retains that rule's slot. Rebinding a named instance retains its name's slot and puts the new key there.
+
+The expanded grammar first lists ordinary rules and named instances in declaration-slot order. It then appends all unnamed instances in first-discovery order. An instance that loses its public name joins this unnamed tail at its original discovery position. An already discovered instance that receives a public name uses the name's slot instead. No instance occupies two positions.
+
+Production numbering, reference checks, diagnostics, and the audit use this expanded order. Template declarations have no runtime rule slot. Within a rule, alternatives and applicable edits retain their existing order.
 
 ## 3. Lowering
 
@@ -593,7 +605,7 @@ A restoration has the empty helper production's empty tags. A terminal that read
 
 ### 3.8 Elidable optionals
 
-An optional is elidable exactly when it is written `[+T x]`. Its terminal is `T`, a non-engine tag, which can carry any existing symbol test. `T` stands directly after the marker, with no group around it or around the content.
+An optional is elidable exactly when it is written `[+T x]`. After template substitution, T is one user tag and can carry the head's existing symbol tests. The written head is that tag or a parameter, directly after the marker. No group can surround the head or the complete content.
 
 `x` is a sequence of any primaries, possibly empty, and holds no capture at any depth. The reader makes sure of this form (§9).
 
@@ -613,7 +625,7 @@ A false predicate creates no omitted node, elision count or restoration record. 
 
 Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
-A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
+A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the expanded rules in the order of §2.3. Ordinary rules and named instances retain declaration slots, followed by unnamed instances in discovery order. Alternatives added with `%extend-rule` follow the rule's own alternatives.
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (§3.2). For a chain, the base productions come first, one for each expansion of `x`. The recursive ones follow, one for each expansion of the sequence that the recursion adds, in the order of §3.2. That sequence is `s x` in a left chain and `x s` in a right chain.
 
@@ -815,7 +827,9 @@ An ordinary query reads the tokens of its span alone. A `matches` over a span do
 
 `begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
-For ordinary spans, an implementation can remember answers for the whole parse of a stage in a memo. A memo stores answers from earlier nested parses. This memo is optional, apart from the required sharing for suffix queries (§4.4). Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
+For ordinary spans, an implementation can remember answers for the whole parse of a stage in a memo. A memo stores answers from earlier nested parses. This general memo is optional. Section 4.4 defines separate suffix sharing and its cost.
+
+Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
 
 The same span is the same start and end in the stage's input. Within one parse, the span fixes the tokens and the lowered grammar. A query that the check of §7 starts has its projected span here, never its span in the reconstructed input. Its grammar is the main parse's.
 
@@ -983,7 +997,7 @@ Offers resemble the first-path and last-path observations of §4.1. They differ 
 
 An obligation that drops an item makes a dropped item. A rejected input reports the furthest position of a live item, as above. If a dropped item reached that position or a later one, the error also names its failed obligation in the member `boundary` (`docs/output.md`).
 
-Among several, the first is the one with the least boundary. Then comes the earliest rule in the source order of final stitched rules (§9.3). Last comes the least condition index. That index counts the rule's condition items from 0, through its definitions (§2) in source order, so an extension's items follow the base rule's.
+Among several, the first is the one with the least boundary. Then comes the earliest rule in expanded order (§2.3). Last comes the least condition index. That index counts the rule's condition items from 0, through its definitions (§2) in source order, so an extension's items follow the base rule's.
 
 The audit (`docs/design.md`, "Diagnostics and debugging") adds one note kind for atoms. A query reaches a rule when its rule argument is that rule, or when a body reference of a reached rule names it. Each stage's audit lists every reached rule that holds a boundary atom in a `%conditions` list. Each entry names the rule and the definition that holds the query.
 
@@ -991,7 +1005,7 @@ A second note names each target that no derivation of `text` can build, only a q
 
 ### 4.3 The shared memo
 
-A shared memo keeps ordinary query answers across parses. This cache is optional. Required suffix sharing within one parse follows §4.4.
+A shared memo keeps ordinary query answers across parses. This cache is optional. Section 4.4 describes suffix sharing within one parse.
 
 One shared memo serves one stage of one loaded dialect, lowered for one set of features that are on. It also has that lowering's resolved classifiers (§2) and the dialect's Unicode table. Together these fix every input of a nested query except its content (§4). Two feature sets can share one memo where they turn on the same gates. These are the gates of alternatives (§3.1) and the gates of classifier entries. A feature that gates nothing changes neither.
 
@@ -1056,19 +1070,19 @@ The query selects no longest suffix. A grammar error reached by that computation
 
 It does not fail a request ending before p.
 
-An aligned `.ends(R)` uses the restored receiver's fixed context and match window from §4. Its witness can start inside that window and must end at its end. Within the overlap with the captured observation, it retains every ordered close and opaque block. It cannot split a group of closes at either boundary or start inside a ranked block.
+`.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
-A suffix starts before the complete close group at its original start boundary. It cannot skip closes at that boundary. It includes the complete group at its end. Closes before that suffix are outside its constraint. The extra-close permissions of `.without-elision-except(F)` apply only within this retained overlap, with the existing kept-element rule.
+A span method that drops restoration can supply an ordinary receiver. For example, `$x.without-elision.preceding-tokens.ends(R)` queries the raw prefix. It applies no suffix alignment constraint.
 
-Projection and ordinary nested queries inside that witness follow §4. Restoration does not turn a synthetic terminator into a required written terminal. A target whose proof reads no tokens still needs the close alignment that its restored receiver requires.
+Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance and fixed window. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, and `tags`. Changing direction cannot evade the recursive-query error.
 
-Query answer keys distinguish suffix mode from whole and prefix modes. They include the target instance, fixed window, context bounds, and restoration observations where present. The active-query identity remains the target and projected context interval, across `matches`, `begins`, `ends`, and `tags`. Changing direction or a restoration view cannot evade the recursive-query error.
+Requests with one lowered target and window start share recognition when that target reads no window end. The shared recognition starts the target at every position from that window start. It retains one answer for each requested end boundary. The total cost is that recognition, including its nested queries, plus constant work per request. Complex targets can cost more than linear time even with sharing.
 
-For targets whose recognition reads no context end, suffix queries for one target and context start must cost linear time in total. For fixed grammar and input length n, processing q such requests must cost O(n+q). This includes recognition, eligibility, key construction, and repeated requests. Each lowered target and context start has its own bound.
+A target reads the window end when its recognition evaluates `.onward`, `.following-tokens`, `.ends-input`, or `.followed-by`. This includes conditions and tag terms of rules reached through body references. A nested query target reads its own window end, so that target's methods do not create this outer dependency.
 
-The library shares recognition across those requests instead of reparsing every prefix. It retains completed suffix answers by end boundary and reuses them when requests arrive out of order. It does not copy or hash the whole prefix for each request. A growth test must enforce this bound in every library.
+Written-terminator priority uses only blockers that complete within the requested window. Shared recognition therefore decides eligibility separately for each end boundary. A later blocker cannot change an earlier retained answer. Errors retain the boundary scope defined above.
 
-A target reads a context end when its reachable recognition uses `.onward`, `.following-tokens`, or `.ends-input`. Reachability includes body references, nested query targets, and evaluated conditions or tag terms. A library can use a conservative dependency analysis. It must include every actual dependency. Targets that read a context end can cost more and need context-sensitive answer keys.
+A target that reads the window end requires separate recognition for each distinct end. Repeated requests for the same window can reuse its answer. Use `.ends` sparingly because complex targets can require more than linear work.
 
 ## 5. Values, images and text
 
@@ -1444,7 +1458,7 @@ A query is about a rule and a span of O. For the recursive-query rule of §4, `m
 
 The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
 
-A query over an explicit restored span follows the aligned rules of §4. It fixes the current reconstruction candidate's projected closes, rather than inheriting the outer reconstruction script. Active-query errors still use the shared stack and projected original context. The mapped original witness preserves its candidate closes and query answers.
+A whole, prefix, or tag query over an explicit restored span follows the aligned rules of §4. It fixes the current reconstruction candidate's projected closes, rather than inheriting the outer reconstruction script. Active-query errors still use the shared stack and projected original context. The mapped original witness preserves its candidate closes and query answers.
 
 `s.tags(R)` is the union of the tags of the query's eligible readings (§4). `$x.tags`, with no rule, is the capture's own constituent tags. The two do not stand in for each other.
 
@@ -1863,7 +1877,7 @@ Every rule reference, including an emoji reference, accepts tests and captures. 
 
 `item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. An empty tag test is legal and holds vacuously. An empty tag constant also supplies no requirements. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
 
-A ranked body has at least two conjunction options joined by `≻`. Its guards and clauses apply to the complete ranked expression. A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires an ordinary tag terminal directly after `+`, optionally carrying both tests.
+A ranked body has at least two conjunction options joined by `≻`. Its guards and clauses apply to the complete ranked expression. A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires a user tag or parameter directly after `+`, optionally carrying both tests. A parameter head must become exactly one bare user tag after argument conversion.
 
 Its remainder is a sequence of primaries. It cannot contain captures.
 
@@ -2127,11 +2141,11 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
 - An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
 
-  The first `primary` of that sequence must be the terminal itself. That is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is one of these with any existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
+  The first `primary` of that sequence must be the terminal itself or a declared parameter. A written terminal is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is that tag or parameter with an existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
 
   `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors. So are a choice, an `and`, a rule, `🆓`, a string terminal or wildcard in first place. The same holds for a range, an engine tag, `ε`, braces and an optional.
 
-  A DOM cannot show a group, so its own requirement is on the normalized form. The `expr` of an elidable `optional` must be its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` with a capitalized non-engine tag name. It can also be any existing `test` around one of these terminals.
+  A DOM cannot show a group, so its own requirement is on the normalized form. The `expr` of an elidable `optional` must be its terminal, or a `seq` whose first expression is its terminal. After expansion, the terminal is a `ref` with a capitalized non-engine tag name. Before expansion, it can instead be a declared `param` node. Tests can wrap that tag or parameter. Substitution must give the parameter exactly one bare user tag before applying the written head tests.
 
   Every DOM that a reader makes meets this requirement. A supplied DOM `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}` is well formed, whatever text it came from. `[+(KU 🆓) A]`, whose first expression is a `seq`, has no well-formed DOM.
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
@@ -2229,7 +2243,7 @@ A receiver cannot be a list capture or a method of one. Each violation is a docu
 
 An undefined family rule is an error at the definition that contains the call. The call can stand in a header or alternative tag clause, a condition, or an emission item's tag clause. The loader checks names in the order of its reference check. It reads each alternative's body and tag clause, and with a definition's first alternative, the header tags, the conditions and the emission items.
 
-An active constituent recipe cycle is a document error (§11.3). The loader checks productions in text order, with value before image. It follows effective recipe dependencies depth first in the atoms' written order.
+An active constituent recipe cycle is a document error (§11.3). The loader visits rules in expanded order (§2.3), then alternatives and their expansions in ordinary order (§3.2). Within each production, it examines value before image. It follows effective recipe dependencies depth first in the atoms' written order.
 
 The error stands at the first atom of the recipe whose dependency reaches a channel still active on the current path. The dependency path runs from the first active channel to that recipe. An implied image counts as the value recipe that it reuses.
 
@@ -2247,7 +2261,7 @@ Each expanded production is analyzed separately. Its whole `$` carrier uses that
 
 For each production, two whole carriers conflict if its expression is consuming. A whole carrier conflicts with every consuming named carrier or attachment capture in that production. Distinct named carriers and attachment captures remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
 
-The loader reports a document error at the definition that supplies the emission. It visits final stitched rules, alternatives, and expanded productions in their established source order. Within a production, it compares surviving item pairs in written order. Each pair compares its carriers and attachment captures in before, carrier, after order. The first conflict determines the error. All preceding document and stitching errors retain their priority.
+The loader reports a document error at the definition that supplies the emission. It visits final rules in expanded order (§2.3), then alternatives and expanded productions in their established order. Within a production, it compares surviving item pairs in written order. Each pair compares its carriers and attachment captures in before, carrier, after order. The first conflict determines the error. All preceding document and stitching errors retain their priority.
 
 For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The failed test does not legalize `%emits $, $x` over `$x:e`. A gated consuming branch has the same effect. An erased consuming child also remains consuming for this overlap test.
 
@@ -2394,7 +2408,7 @@ Targets use `|` separators, without constants or strings. Commas inside an exact
 
 `s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does, and `s.ends(S)` when a suffix does (§4.4). Nullable rule targets include the empty prefix or suffix for the corresponding method. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 
-Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. All three read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
+Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. All three read only eligible proof trees (§4). For `matches` and `begins`, a restored span adds alignment and preserves its separate context bound. A restored `.ends` receiver is a load error.
 
 `s.starts-input` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 
@@ -2430,7 +2444,8 @@ For a bare name after either tree comparator, report at that name: `tree compari
 | `.starts-input` | Capture or span | Predicate on original start |
 | `.ends-input` | Capture or span | Predicate on original end |
 | `.followed-by(S)`, `.preceded-by(S)` | `$` or a bare capture | Boundary atom on the parse itself (§4.2) |
-| `.matches(S)`, `.begins(S)`, `.ends(S)` | Capture or span | Query predicate over a target choice (§4) |
+| `.matches(S)`, `.begins(S)` | Capture or span | Query predicate over a target choice (§4) |
+| `.ends(S)` | Capture or ordinary span | Suffix query predicate, with restored receivers rejected during loading (§4.4) |
 | `.tags`, `.classes` | Capture or span | Tag set |
 | `.tags(R)` | Capture or span | Union over eligible whole-query readings |
 | `.classify(classifier)` | String, or converted capture or span | Tag set from `classifier` |
@@ -2592,7 +2607,7 @@ The loader analyzes each production's effective constituent recipes after altern
 
 Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports a cycle as a document error.
 
-The loader checks productions in text order. Within each production, it checks the value channel before the image channel. From each channel, it follows effective recipe dependencies depth first, in the written order of the recipe's atoms.
+The loader visits rules in expanded order (§2.3), then alternatives and their expansions in ordinary order (§3.2). Within each production, it examines the value channel before the image channel. From each channel, it follows effective recipe dependencies depth first, in the written order of the recipe's atoms.
 
 A cycle closes when a recipe reads a channel still active on the current path. The error stands at the first atom of that recipe. Its dependency reaches the active channel. The dependency path runs from the first active channel to the recipe that closes the cycle. An implied image counts as the value recipe that it reuses.
 
