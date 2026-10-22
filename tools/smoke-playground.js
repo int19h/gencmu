@@ -214,6 +214,19 @@ async function main() {
       throw new Error(`the heading does not link gencmu to the repository: ${JSON.stringify(heading)}`);
     }
 
+    const parameterProof = await run(() => {
+      const g=self.gencmu;
+      const source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
+      const sources={...self.gencmuGrammars,"smoke-parameters.md":source};
+      const dialect=g.loadDialectSources(sources,"smoke-parameters.md");
+      const result=dialect.parse("ab");
+      const audit=g.audit(dialect)[0];
+      return {ok:result.ok,rule:result.tree.rule,children:result.tree.children.map(child=>child.kind),
+        templates:audit.templates.map(item=>item.template),instances:audit.instances.map(item=>item.name)};
+    });
+    assert.deepEqual(parameterProof,{ok:true,rule:"text",children:["token","token"],templates:["pair"],instances:["text"]});
+    console.log(`parameterized rules work in ${browser}`);
+
     // From here on, every answer the page shows as ready must be for the text
     // and dialect its controls hold at that moment: an answer that arrives
     // after they changed is out of date and must not be shown.

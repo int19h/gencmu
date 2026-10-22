@@ -250,10 +250,13 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
                 "the grammar text is ambiguous: the {stage} stage of the notation reads it in two ways"
             )));
         }
-        let at = error.source.as_ref().map_or(0, |source| source.start);
+        let mut at = error.source.as_ref().map_or(0, |source| source.start);
+        if error.stage.as_deref() == Some("lexical") && at > 0 && grammar.chars.get(at - 1) == Some(&'@') {
+            at -= 1;
+        }
         let (line, column) = grammar.position(at);
         let message = if error.stage.as_deref() == Some("lexical") && grammar.chars.get(at) == Some(&'@') {
-            "@ is reserved for parameters, which are not supported yet".to_string()
+            "a parameter requires @ followed directly by an ASCII letter".to_string()
         } else {
             match error.kind {
                 ParseErrorKind::Rejected => match error.stage.as_deref() {

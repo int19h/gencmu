@@ -142,13 +142,18 @@ function lex(text, originalPositions) {
       found.push([end, "integer"]);
       reach = Math.max(reach, end);
     }
-    if (unicode.isEmojiName(c)) found.push([i + 1, "emoji"]);
+    if (c === "@") prefixed(i + 1, () => "parameter");
+    if (unicode.isEmojiName(c)) {
+      if (!(chars[i+1] === "(" && chars[i+2] !== "*")) found.push([i + 1, "emoji"]);
+      if (chars[i+1] === "(" && chars[i+2] !== "*") found.push([i+1, "call-name"]);
+    }
     if (isLetter(c)) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
       const featureEnd = featureEnds[i];
       if (chars[featureEnd] === "?" || chars[featureEnd] === "!") found.push([featureEnd + 1, "guard"]);
-      found.push([end, "identifier"]);
+      if (!( /^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*")) found.push([end, "identifier"]);
+      if (/^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*") found.push([end, "call-name"]);
       reach = Math.max(reach, end);
     }
     if (c === "¬") {
@@ -247,9 +252,9 @@ const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
 const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
-const TERM_STARTS = new Set(["emoji", "identifier", "tag", "string", "capture", "constant", "(", "∅", "#", "∪", "∩"]);
+const TERM_STARTS = new Set(["call-name", "parameter", "emoji", "identifier", "tag", "string", "capture", "constant", "(", "∅", "#", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
-const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
+const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
 // (grammars/notation/syntax.md). It builds a node for each rule that the
@@ -377,6 +382,7 @@ class Parser {
   }
 
   stringOperand() {
+    if (this.is("parameter")) return this.leaf("parameter");
     if (!this.is("string") && !this.is("constant")) return this.fail("expected a string operand");
     return this.leaf(this.is("string") ? "string" : "constant-reference");
   }
@@ -424,7 +430,11 @@ class Parser {
       flags.push(this.expect(")"));
       children.push(this.node("rule-flags", at, flags));
     }
-    children.push(this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
+    children.push(this.is("call-name") ? (yield this.call()) : this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
+    if (this.is("=")) {
+      children.push(this.tok(), (yield this.call()));
+      return this.node("rule", start, children);
+    }
     if (["::", ":=", ":-"].includes(this.kindAt())) {
       for (const clause of yield this.clauses("tags-clause")) children.push(clause);
       const at = this.index;
@@ -540,10 +550,56 @@ class Parser {
     return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
   }
 
+  *call() {
+    const start = this.index;
+    const children = [this.expect("call-name"), this.expect("("), (yield this.callArgument())];
+    while (this.is(",")) children.push(this.tok(), (yield this.callArgument()));
+    children.push(this.expect(")"));
+    return this.node("call", start, children);
+  }
+
+  *callArgument() {
+    const start = this.index;
+    if (this.is("<")) {
+      const test = yield this.test();
+      return this.node("call-argument", start, [this.node("requirement-argument",start,test.children)]);
+    }
+    const target = function*(parser) {
+      if (parser.is("call-name")) return yield parser.call();
+      if (parser.is("parameter")) return parser.leaf("parameter");
+      if (parser.is("identifier") || parser.is("emoji") || parser.is("tag")) return parser.leaf(isCapital(parser.peek().value) || parser.is("tag") ? "tag" : "reference");
+      return parser.fail("expected a target");
+    };
+    try {
+      const items = [yield target(this), this.expect("|"), yield target(this)];
+      while (this.is("|")) items.push(this.tok(),yield target(this));
+      if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
+      return this.node("call-argument",start,[this.node("target-argument",start,items)]);
+    } catch (error) { if (!(error instanceof SyntaxFailure)) throw error; this.index=start; }
+    for (const category of ["body-argument","symbol-argument","term"]) {
+      try {
+        let value;
+        if (category === "body-argument") {
+          if (!["(","[","{","ε"].includes(this.kindAt())) this.fail("expected a body argument");
+          value=this.node(category,start,[yield this.symbol()]);
+        } else if (category === "symbol-argument") {
+          const valueNode=yield this.primary();
+          if (!["tested","range","wildcard"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
+          value=this.node(category,start,valueNode.children);
+        } else value=yield this.term();
+        if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
+        return this.node("call-argument",start,[value]);
+      } catch (error) { if (!(error instanceof SyntaxFailure)) throw error; this.index=start; }
+    }
+    return this.fail("expected one argument term");
+  }
+
   *symbol() {
     const start = this.index;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) return yield this.range();
+    if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) return yield this.range();
     switch (this.kindAt()) {
+      case "call-name": return yield this.call();
+      case "parameter": return this.leaf("parameter");
       case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
       case "emoji": return this.leaf("reference");
       case "tag": return this.leaf("tag");
@@ -745,8 +801,10 @@ class Parser {
   *atom(runs) {
     const start = this.index;
     let base;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
+    if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
+      case "call-name": base = yield this.call(); break;
+      case "parameter": base = this.leaf("parameter"); break;
       case "#": base = yield this.patternLiteral(); break;
       case "string": {
         const strings = [this.leaf("string")];
@@ -782,7 +840,7 @@ class Parser {
     while (this.is(".")) {
       const at = this.index;
       const selector = [this.tok()];
-      if (!this.is("identifier")) this.fail("expected a method name");
+      if (!this.is("identifier") && !this.is("call-name")) this.fail("expected a method name");
       selector.push(this.leaf("method-name"));
       if (this.is("(")) {
         selector.push(this.tok());
@@ -844,7 +902,9 @@ class Parser {
   *patternAtom() {
     const start = this.index;
     const children = [];
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) children.push((yield this.range()));
+    if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) children.push((yield this.range()));
+    else if (this.is("call-name")) children.push(yield this.call());
+    else if (this.is("parameter")) children.push(this.leaf("parameter"));
     else if (this.is("identifier") || this.is("emoji")) children.push(this.tok());
     else if (this.is("tag")) children.push(this.leaf("tag"));
     else if (this.is("string")) children.push(this.leaf("string"));

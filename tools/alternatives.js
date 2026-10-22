@@ -29,7 +29,7 @@ export const LINE_LIMIT = 100;
  * @returns {boolean}
  */
 export function isSingleSymbol(expr) {
-  return typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
+  return !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
 }
 
 /**
@@ -59,7 +59,7 @@ export function eligibleRules(markdown, dom, path) {
   /** @type {EligibleRule[]} */
   const result = [];
   for (const rule of dom.rules) {
-    const alternatives = rule.alternatives;
+    const alternatives = rule.alternatives??[];
     if (alternatives.length < 2) continue;
     if (!alternatives.every((/** @type {any} */ alternative) => alternative.guards.length === 0 && alternative.tags === undefined && isSingleSymbol(alternative.expr))) continue;
     const start = indexOf.get(`${rule.at[0]}:${rule.at[1]}`);
@@ -108,6 +108,14 @@ function scanBody(chars, start) {
   i = skipLayout(i);
   if (chars[i] !== undefined && unicode.isEmojiName(chars[i])) i++;
   else while (isNameChar(chars[i])) i++;
+  if (chars[i] === "(" && chars[i+1] !== "*") {
+    let depth=1;
+    for (i++;i<chars.length && depth;i++) {
+      if(chars[i] === '"') {for(i++;i<chars.length && chars[i] !== '"';i++);}
+      else if(chars[i] === "(") depth++;
+      else if(chars[i] === ")") depth--;
+    }
+  }
   i = skipLayout(i);
   // A header clause precedes the bar that starts the ordinary body.
   if (chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])) {

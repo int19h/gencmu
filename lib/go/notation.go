@@ -165,8 +165,13 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		if out.err != nil {
 			e := &Error{Kind: ErrorGrammar, Document: docPath, Message: "the document does not parse as the notation"}
+			sourceOffset := 0
 			if out.err.Source != nil {
-				at := gt.at(out.err.Source[0])
+				sourceOffset = out.err.Source[0]
+				if g.name == "lexical" && sourceOffset > 0 && gt.text[sourceOffset-1] == '@' {
+					sourceOffset--
+				}
+				at := gt.at(sourceOffset)
 				e.Line, e.Column = at[0], at[1]
 			}
 			if out.err.Kind == ErrorRejected {
@@ -180,8 +185,8 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 			if g.name == "syntax" && out.err.Kind == ErrorRejected && out.err.Token != nil && rankedSyntaxFailure(toks, *out.err.Token) {
 				e.Code = "ranked-choice-syntax"
 			}
-			if g.name == "lexical" && out.err.Token != nil && *out.err.Token < len(toks) && toks[*out.err.Token].Value == "@" {
-				e.Message = "@ is reserved for parameters, which are not supported yet"
+			if g.name == "lexical" && sourceOffset < len(gt.text) && gt.text[sourceOffset] == '@' {
+				e.Message = "a parameter requires @ followed directly by an ASCII letter"
 			}
 			return nil, e
 		}

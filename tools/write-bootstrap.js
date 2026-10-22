@@ -30,5 +30,10 @@ const loader = new Loader(relative => {
 const reread = loader.pipeline("dialects/notation.md");
 const engine = JSON.stringify({ format: DOM_FORMAT, stages: reread.stages.map(stage => ({ name: stage.name, documents: stage.documents })) }) + "\n";
 if (engine !== bootstrap) throw new Error("the bootstrap reader and engine reader disagree");
+// Exercise constructors that the notation documents do not need themselves.
+const templateProbe = "```jbogenbau\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
+const handProbe = readDocument(templateProbe, "bootstrap-template-probe.md");
+const engineProbe = loader.readDocument(templateProbe, "bootstrap-template-probe.md");
+if (JSON.stringify(handProbe) !== JSON.stringify(engineProbe)) throw new Error("the bootstrap readers disagree on parameterized rules");
 fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), bootstrap);
 console.log("wrote grammars/notation/bootstrap.json");

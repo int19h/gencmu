@@ -283,13 +283,15 @@ class NotationReader:
             if outcome.error is not None:
                 source = outcome.error.source
                 index = source[0] if source is not None else len(grammar_text.text)
+                if name == "lexical" and index > 0 and grammar_text.text[index - 1] == "@":
+                    index -= 1
                 line, column = grammar_text.position(index)
                 message = outcome.error.message
                 if outcome.error.kind == "rejected":
                     shown = tokens[outcome.error.token].text if outcome.error.token is not None and outcome.error.token < len(tokens) else None
                     message = f"the notation cannot continue here{f' at {shown!r}' if shown else ''} (stage {name})"
                 if name == "lexical" and index < len(grammar_text.text) and grammar_text.text[index] == "@":
-                    message = "@ is reserved for parameters, which are not supported yet"
+                    message = "a parameter requires @ followed directly by an ASCII letter"
                 from ._ranked import syntax_failure
                 code = 'ranked-choice-syntax' if name == 'syntax' and outcome.error.kind == 'rejected' and outcome.error.token is not None and syntax_failure(tokens, outcome.error.token) else None
                 raise GencmuError(message, document=path, line=line, column=column, code=code)

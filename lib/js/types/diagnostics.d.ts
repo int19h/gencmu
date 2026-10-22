@@ -87,6 +87,8 @@ export type Notation = {
  */
 export declare function formatItem(production: Production, dot: number): string;
 export type StageAudit = {
+    templates: any[];
+    instances: any[];
     name: string;
     resolution: string;
     boundaryNotes: any[];

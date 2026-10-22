@@ -31,7 +31,8 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
   ε | text piece
 
 %rule piece
-  | emoji-name | word | string | engine-tag | capture-token | constant-token | guard
+  | call-name | parameter-token | emoji-name | word | string | engine-tag
+  | capture-token | constant-token | guard
   | include | keyword | integer | symbol | negation | layout
 ```
 
@@ -57,14 +58,17 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 ```jbogenbau
 %rule emoji-name
   _Emoji_Presentation<¬_Emoji_Component>
+%conditions
+  ¬$.following-tokens.begins(call-open)
 %emits
   $ :: Emoji-Name
 
 %rule word
-  | lower-name :: Identifier Lowercase-Name
+  | $lower:lower-name :: Identifier Lowercase-Name
   | upper-name :: Identifier Uppercase-Name
 %conditions
-  ¬$.following-tokens.begins(name-character)
+  ¬$.following-tokens.begins(name-character),
+  $lower ⟹ ¬$.following-tokens.begins(call-open)
 %emits
   $
 
@@ -124,6 +128,42 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name.svg" alt="Railroad diagram of the rule engine-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name-character.svg" alt="Railroad diagram of the rule engine-name-character"></p>
+</details>
+
+## Calls and parameters
+
+A call name requires an adjacent opening parenthesis but excludes that parenthesis. A comment opener takes priority over a call.
+
+A parameter starts with `@` and an ASCII letter. Its remaining characters follow the ordinary name rules.
+
+```jbogenbau
+%rule call-name
+  lower-name | _Emoji_Presentation<¬_Emoji_Component>
+%conditions
+  $.following-tokens.begins(call-open),
+  ¬$.following-tokens.begins(name-character)
+%emits
+  $ :: Call-Name
+
+%rule call-open
+  "("
+%conditions
+  ¬$.following-tokens.begins(star-character)
+
+%rule star-character
+  "*"
+
+%rule parameter-token
+  "@" whole-name
+%emits
+  $ :: Parameter
+```
+
+<details><summary>Railroad diagrams of the 4 rules from <code>call-name</code> to <code>parameter-token</code></summary>
+<p><img src="../../docs/diagrams/notation/lexical/call-name.svg" alt="Railroad diagram of the rule call-name"></p>
+<p><img src="../../docs/diagrams/notation/lexical/call-open.svg" alt="Railroad diagram of the rule call-open"></p>
+<p><img src="../../docs/diagrams/notation/lexical/star-character.svg" alt="Railroad diagram of the rule star-character"></p>
+<p><img src="../../docs/diagrams/notation/lexical/parameter-token.svg" alt="Railroad diagram of the rule parameter-token"></p>
 </details>
 
 ## Captures and constants
@@ -354,7 +394,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 ## Symbols
 
-`@` is reserved for parameters. The reader rejects it outside strings, comments, and include paths.
+`@` starts a parameter token. A bare `@` is invalid.
 
 A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 

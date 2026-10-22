@@ -107,6 +107,8 @@ export declare class Grammar {
         path: string;
         directive: import("./types.js").DomDirective;
     }[];
+    templates: any;
+    instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */
     classifierKeys: WeakMap<DomEntry, string[]>;
     /** @type {StageImplication[]} */

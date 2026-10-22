@@ -53,8 +53,8 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 
 ```jbogenbau
 %rule rule
-  definer [rule-flags] rule-name (body | clauses headed-body)
-    [conditions-clause] [output]
+  definer [rule-flags] (rule-name | call) ("=" call | (body | clauses headed-body)
+    [conditions-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
@@ -113,6 +113,49 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 <p><img src="../../docs/diagrams/notation/syntax/alternative-tags.svg" alt="Railroad diagram of the rule alternative-tags"></p>
 </details>
 
+## Calls and arguments
+
+A call names a template and supplies one or more arguments. Ranked recognition selects the first argument category that reads the complete argument.
+
+A requirement list and a target choice retain their distinct categories. Parenthesized bodies preserve their grouping during substitution.
+
+```jbogenbau
+%rule call
+  Call-Name "(" {call-argument / ","} ")"
+
+%rule parameter
+  Parameter
+
+%rule call-argument
+  requirement-argument ≻ target-argument ≻ body-argument ≻ symbol-argument ≻ term :: ∅
+
+%rule requirement-argument
+  "<" [{tag-requirement}] ">"
+
+%rule target-argument
+  call-target "|" {call-target / "|"}
+
+%rule call-target
+  reference | tag | call | parameter
+
+%rule body-argument
+  group | optional | repetition | empty
+
+%rule symbol-argument
+  tested | range | wildcard
+```
+
+<details><summary>Railroad diagrams of the 8 rules from <code>call</code> to <code>symbol-argument</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/call.svg" alt="Railroad diagram of the rule call"></p>
+<p><img src="../../docs/diagrams/notation/syntax/parameter.svg" alt="Railroad diagram of the rule parameter"></p>
+<p><img src="../../docs/diagrams/notation/syntax/call-argument.svg" alt="Railroad diagram of the rule call-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/requirement-argument.svg" alt="Railroad diagram of the rule requirement-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/target-argument.svg" alt="Railroad diagram of the rule target-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/call-target.svg" alt="Railroad diagram of the rule call-target"></p>
+<p><img src="../../docs/diagrams/notation/syntax/body-argument.svg" alt="Railroad diagram of the rule body-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/symbol-argument.svg" alt="Railroad diagram of the rule symbol-argument"></p>
+</details>
+
 ## Expressions and captures
 
 A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and each sequence contains one or more primaries.
@@ -146,7 +189,8 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   (Capture | Constant) ":" primary
 
 %rule untested-primary
-  reference | tag | string-terminal | range | wildcard | group | optional | repetition | empty
+  reference | call | parameter | tag | string-terminal | range | wildcard
+  | group | optional | repetition | empty
 
 %rule reference
   Lowercase-Name | Emoji-Name
@@ -222,7 +266,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   "=" | "≠"
 
 %rule operand-atom
-  string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  call | parameter | string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
   operand-atom | method
@@ -231,7 +275,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string-operand ".." string-operand
 
 %rule string-operand
-  string | constant-reference
+  string | constant-reference | parameter
 ```
 
 <details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
@@ -389,7 +433,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   plain-term-atom | method
 
 %rule plain-term-atom
-  tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  call | parameter | tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule method
   method-receiver {method-selector}
@@ -401,7 +445,7 @@ An emoji rule name is also a method argument. A classifier name starts with a lo
   "." method-name ["(" arguments ")"]
 
 %rule method-name
-  Identifier
+  Identifier | Call-Name
 
 %rule arguments
   {argument / ("," | "|")}
@@ -539,7 +583,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
   (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}] | pattern-literal | "(" pattern-union ")"
 
 %rule pattern-name
-  Lowercase-Name | Emoji-Name
+  Lowercase-Name | Emoji-Name | call | parameter
 
 %rule pattern-brackets
   "[" pattern-union "]"
