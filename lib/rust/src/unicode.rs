@@ -60,9 +60,22 @@ pub(crate) struct Decomposed {
     klass: u8,
 }
 
-fn hex(field: Option<&str>, line: usize) -> Result<u32, String> {
-    let field = field.ok_or_else(|| format!("unicode.txt line {line}: a missing field"))?;
-    u32::from_str_radix(field, 16).map_err(|_| format!("unicode.txt line {line}: a bad code point {field:?}"))
+fn hex(field: &str, line: usize) -> Result<u32, String> {
+    if field.is_empty() || !field.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err(format!("unicode.txt line {line}: a bad code point {field:?}"));
+    }
+    u32::from_str_radix(field, 16)
+        .ok()
+        .filter(|&code| code <= 0x10ffff)
+        .ok_or_else(|| format!("unicode.txt line {line}: a bad code point {field:?}"))
+}
+
+fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), String> {
+    let (first, last) = (hex(first, line)?, hex(last, line)?);
+    if first > last {
+        return Err(format!("unicode.txt line {line}: a reversed range"));
+    }
+    Ok((first, last))
 }
 
 impl Unicode {
@@ -77,46 +90,48 @@ impl Unicode {
         };
         for (index, line) in text.lines().enumerate() {
             let number = index + 1;
-            let mut fields = line.split_whitespace();
-            match fields.next() {
-                None | Some("unicode") => {}
-                Some("category") => {
-                    let name = fields.next().unwrap_or("");
-                    let Some(&category) = CATEGORIES.iter().find(|&&known| known == name) else {
+            let fields = line.split_whitespace().collect::<Vec<_>>();
+            match fields.as_slice() {
+                [] | ["unicode", _] => {}
+                ["category", name, first, last] => {
+                    let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
                         return Err(format!("unicode.txt line {number}: an unknown category {name:?}"));
                     };
-                    let first = hex(fields.next(), number)?;
-                    let last = hex(fields.next(), number)?;
+                    let (first, last) = range(first, last, number)?;
                     table.categories.push((first, last, category));
                 }
-                Some("white-space") => {
-                    table.white_space.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
+                [entry @ ("white-space" | "emoji-presentation" | "emoji-component"), first, last] => {
+                    let record = range(first, last, number)?;
+                    match *entry {
+                        "white-space" => table.white_space.push(record),
+                        "emoji-presentation" => table.emoji_presentation.push(record),
+                        _ => table.emoji_component.push(record),
+                    }
                 }
-                Some("emoji-presentation") => {
-                    table.emoji_presentation.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
-                }
-                Some("emoji-component") => {
-                    table.emoji_component.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
-                }
-                Some("decompose") => {
-                    let code = hex(fields.next(), number)?;
-                    let scalars = fields
+                ["decompose", code, scalars @ ..] if !scalars.is_empty() => {
+                    let code = hex(code, number)?;
+                    if char::from_u32(code).is_none() {
+                        return Err(format!("unicode.txt line {number}: an invalid scalar"));
+                    }
+                    let scalars = scalars
+                        .iter()
                         .map(|field| {
-                            let code = hex(Some(field), number)?;
-                            char::from_u32(code).ok_or_else(|| format!("unicode.txt line {number}: an invalid scalar"))
+                            char::from_u32(hex(field, number)?)
+                                .ok_or_else(|| format!("unicode.txt line {number}: an invalid scalar"))
                         })
                         .collect::<Result<Vec<_>, String>>()?;
                     table.decompositions.push((code, scalars));
                 }
-                Some("combining") => {
-                    let klass = fields
-                        .next()
-                        .unwrap_or("")
+                ["combining", klass, first, last] => {
+                    let klass = klass
                         .parse::<u8>()
-                        .map_err(|_| format!("unicode.txt line {number}: a bad combining class"))?;
-                    table.combining.push((hex(fields.next(), number)?, hex(fields.next(), number)?, klass));
+                        .ok()
+                        .filter(|&n| n > 0 && n < 255 && klass.bytes().all(|c| c.is_ascii_digit()))
+                        .ok_or_else(|| format!("unicode.txt line {number}: a bad combining class"))?;
+                    let (first, last) = range(first, last, number)?;
+                    table.combining.push((first, last, klass));
                 }
-                Some(other) => return Err(format!("unicode.txt line {number}: an unknown entry {other:?}")),
+                _ => return Err(format!("unicode.txt line {number}: an unreadable record")),
             }
         }
         table.categories.sort_unstable();

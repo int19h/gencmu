@@ -5,35 +5,35 @@
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <g class="terminal"><rect x="20" y="60" width="50" height="24" rx="12"/><text x="45" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhI</text></g>
 <path d="M70 72h10"/>
-<g class="rule"><rect x="80" y="60" width="25" height="24" rx="0"/><text x="92.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M105 72h10"/>
-<path d="M115 72h88"/>
-<text class="label" x="119" y="67" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
-<path d="M203 72h10"/>
-<g class="ranked-choice"><rect class="rank-frame" x="218" y="51" width="227" height="76" rx="4"/>
-<path d="M213 72h10"/>
-<path d="M223 72h20"/>
-<path d="M243 72h16"/>
-<text class="label" x="247" y="67" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
-<path d="M259 72h10"/>
-<g class="rule"><rect x="269" y="60" width="151" height="24" rx="0"/><text x="344.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">gek-termset-body</text></g>
-<path d="M420 72H440"/>
-<path d="M223 72a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
-<path d="M243 110h16"/>
-<text class="label" x="247" y="105" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
-<path d="M259 110h10"/>
-<g class="rule"><rect x="269" y="98" width="58" height="24" rx="0"/><text x="298" y="115" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
-<path d="M327 110H420a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
-<path d="M440 72h10"/>
+<g class="rule"><rect x="80" y="60" width="33" height="24" rx="0"/><text x="96.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M113 72h10"/>
+<path d="M123 72h88"/>
+<text class="label" x="127" y="67" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M211 72h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="226" y="51" width="227" height="76" rx="4"/>
+<path d="M221 72h10"/>
+<path d="M231 72h20"/>
+<path d="M251 72h16"/>
+<text class="label" x="255" y="67" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M267 72h10"/>
+<g class="rule"><rect x="277" y="60" width="151" height="24" rx="0"/><text x="352.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">gek-termset-body</text></g>
+<path d="M428 72H448"/>
+<path d="M231 72a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M251 110h16"/>
+<text class="label" x="255" y="105" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M267 110h10"/>
+<g class="rule"><rect x="277" y="98" width="58" height="24" rx="0"/><text x="306" y="115" textLength="42" lengthAdjust="spacingAndGlyphs">terms</text></g>
+<path d="M335 110H428a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M448 72h10"/>
 </g>
-<path d="M450 72h10"/>
-<path d="M460 72h20"/>
-<g class="terminal"><rect x="480" y="60" width="50" height="24" rx="12"/><text x="505" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
-<path d="M530 72H552"/>
-<path d="M460 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H532a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<text class="label" x="484" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M552 72h10"/>
-<g class="rule"><rect x="562" y="60" width="25" height="24" rx="0"/><text x="574.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M587 72h6m0 -8v16m4 -16v16"/>
+<path d="M458 72h10"/>
+<path d="M468 72h20"/>
+<g class="terminal"><rect x="488" y="60" width="50" height="24" rx="12"/><text x="513" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">NUhU</text></g>
+<path d="M538 72H560"/>
+<path d="M468 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H540a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="492" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M560 72h10"/>
+<g class="rule"><rect x="570" y="60" width="33" height="24" rx="0"/><text x="586.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M603 72h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="154" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

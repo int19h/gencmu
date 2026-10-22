@@ -447,13 +447,53 @@
     return names;
   }
 
+  // ---- errors.js
+  // The one error type the library throws: a grammar that cannot be loaded or
+  // run. A text that does not parse is not an error but a result.
+
+  class GencmuError extends Error {
+    /**
+     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
+     *   run, or a caller's mistake such as an unknown stage name
+     * @param {string} message
+     * @param {import("./types.js").ErrorLocation} [where]
+     * @param {{cause?: unknown}} [options] the error that caused this one
+     */
+    constructor(kind, message, where, options) {
+      super(message, options);
+      this.name = "GencmuError";
+      this.kind = kind;
+      this.where = where || {};
+      this.code = this.where.code;
+      this.group = this.where.group;
+      this.option = this.where.option;
+      this.expression = this.where.expression;
+      this.inheritance = this.where.inheritance;
+    }
+
+    // Loading diagnostics have their own canonical schema.
+    toJSON() {
+      return {
+        kind: this.kind,
+        ...(this.code === undefined ? {} : {code:this.code}),
+        message: this.message,
+        ...(this.group === undefined ? {} : {group:this.group}),
+        ...(this.option === undefined ? {} : {option:this.option}),
+        ...(this.expression === undefined ? {} : {expression:this.expression}),
+        ...(this.inheritance === undefined ? {} : {inheritance:this.inheritance}),
+      };
+    }
+  }
+
   // ---- unicode.js
+
+
   // The character data of grammars/unicode.txt: the General_Category of a
-  // character, the White_Space property, the
-  // same in every gencmu library (engine §1).
+  // character, whitespace, emoji properties and canonical decomposition.
+  // Every library reads the same data (engine §1).
 
   // The names a property can have (engine §1): the General_Category values in
-  // their short form, their one-letter groups, White_Space.
+  // their short form, their one-letter groups and the three binary properties.
   const CATEGORIES = [
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
     "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
@@ -482,14 +522,41 @@
       this.decompositions = new Map();
       /** @type {[number, number, number][]} */
       this.combining = [];
-      for (const line of text.split("\n")) {
+      for (const [index, line] of text.split("\n").entries()) {
         const fields = line.trim().split(/\s+/);
-        if (fields[0] === "unicode") this.version = fields[1];
-        else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
-        else if (fields[0] === "decompose") this.decompositions.set(parseInt(fields[1], 16), fields.slice(2).map(field => parseInt(field, 16)));
-        else if (fields[0] === "combining") this.combining.push([parseInt(fields[2], 16), parseInt(fields[3], 16), Number(fields[1])]);
-        else if (fields[0] === "emoji-presentation" || fields[0] === "emoji-component") this.emoji.get(fields[0] === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
-        else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
+        if (!fields[0]) continue;
+        const fail = () => {
+          throw new GencmuError("grammar", `unicode.txt:${index + 1}: an unreadable record`, {document: "unicode.txt", line: index + 1});
+        };
+        const entry = fields[0];
+        const count = entry === "unicode" ? 2 : entry === "category" || entry === "combining" ? 4
+          : ["white-space", "emoji-presentation", "emoji-component"].includes(entry) ? 3 : null;
+        if (entry === "decompose" ? fields.length < 3 : count === null || fields.length !== count) fail();
+        /** @param {string} field */
+        const hex = field => {
+          if (!/^[0-9A-Fa-f]+$/.test(field)) fail();
+          const value = Number.parseInt(field, 16);
+          if (value > 0x10ffff) fail();
+          return value;
+        };
+        if (entry === "unicode") this.version = fields[1];
+        else if (entry === "decompose") {
+          const scalars = fields.slice(1).map(hex);
+          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff)) fail();
+          this.decompositions.set(scalars[0], scalars.slice(1));
+        } else {
+          const start = hex(fields[fields.length - 2]), end = hex(fields[fields.length - 1]);
+          if (start > end) fail();
+          if (entry === "category") {
+            if (!CATEGORIES.includes(fields[1])) fail();
+            ranges.push([start, end, fields[1]]);
+          } else if (entry === "combining") {
+            const klass = Number(fields[1]);
+            if (!/^[0-9]+$/.test(fields[1]) || klass < 1 || klass > 254) fail();
+            this.combining.push([start, end, klass]);
+          } else if (entry === "white-space") this.whiteSpace.push([start, end]);
+          else this.emoji.get(entry === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([start, end]);
+        }
       }
       // The records can stand in any order in the file (engine §1).
       ranges.sort((a, b) => a[0] - b[0]);
@@ -2779,51 +2846,13 @@
     /** @type {(n:any) => string} */
     const node = (n) => n.name ?? n.terminal ?? (n.constant ? `$${n.constant}` :
       n.test ? `${node(n.expr)}${n.test}(${value(n.value)})` :
-      n.children ? `@(${children(n.children)})` :
+      n.children ? `#(${children(n.children)})` :
       n.path ? n.path === "first" ? `(${node(n.pattern)}) ⋰` : `${n.path === "descendant" ? "⋮" : "⋱"} (${node(n.pattern)})` :
       `(${(n.union ?? n.intersection ?? n.difference).map(node).join(n.union ? " ∪ " : n.intersection ? " ∩ " : " ∖ ")})`);
     /** @type {(n:any) => string} */
     const children = (n) => n.node ? node(n.node) : n.siblings ? "⋯" : n.sequence ? n.sequence.map(children).join(" ")
-      : n.optional ? `[${children(n.optional)}]` : `{${children(n.repeat)}${n.separator ? ` \\ ${children(n.separator)}` : ""}}`;
-    return pattern.children ? `@(${children(pattern.children)})` : `@(${node(pattern)})`;
-  }
-
-  // ---- errors.js
-  // The one error type the library throws: a grammar that cannot be loaded or
-  // run. A text that does not parse is not an error but a result.
-
-  class GencmuError extends Error {
-    /**
-     * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
-     *   run, or a caller's mistake such as an unknown stage name
-     * @param {string} message
-     * @param {import("./types.js").ErrorLocation} [where]
-     * @param {{cause?: unknown}} [options] the error that caused this one
-     */
-    constructor(kind, message, where, options) {
-      super(message, options);
-      this.name = "GencmuError";
-      this.kind = kind;
-      this.where = where || {};
-      this.code = this.where.code;
-      this.group = this.where.group;
-      this.option = this.where.option;
-      this.expression = this.where.expression;
-      this.inheritance = this.where.inheritance;
-    }
-
-    // Loading diagnostics have their own canonical schema.
-    toJSON() {
-      return {
-        kind: this.kind,
-        ...(this.code === undefined ? {} : {code:this.code}),
-        message: this.message,
-        ...(this.group === undefined ? {} : {group:this.group}),
-        ...(this.option === undefined ? {} : {option:this.option}),
-        ...(this.expression === undefined ? {} : {expression:this.expression}),
-        ...(this.inheritance === undefined ? {} : {inheritance:this.inheritance}),
-      };
-    }
+      : n.optional ? `[${children(n.optional)}]` : `{${children(n.repeat)}${n.separator ? ` / ${children(n.separator)}` : ""}}`;
+    return pattern.children ? `#(${children(pattern.children)})` : `#(${node(pattern)})`;
   }
 
   // ---- family-summaries.js
@@ -3881,9 +3910,6 @@
   // A classifier's name begins with a lower-case letter, and a class with a
   // capital (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
-  // A rule name has identifier or single-scalar shape. Its Unicode table
-  // decides whether that scalar is an eligible emoji (engine §9).
-  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|[\s\S])$/u;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
@@ -16469,7 +16495,7 @@
           const name = valueOf(token(node));
           if (isCapital(name)) return { tag: name };
           if (argument) return /** @type {Term} */ (/** @type {unknown} */ ({ rule: name }));
-          return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
+          return fail(`${name} names a rule, which is not a value`, node);
         }
         case "empty-set": return { emptySet: true };
         case "method": return yield readMethod(node);

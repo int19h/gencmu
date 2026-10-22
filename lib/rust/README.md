@@ -20,8 +20,6 @@ println!("{}", gencmu::to_json(&result));
 
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
-Stage-zero tokens also carry `_Emoji_Presentation` and `_Emoji_Component` when the configured Unicode table grants those properties.
-
 ## Loading a dialect
 
 `load_dialect(name)` loads a bundled dialect, the pipeline document `grammars/dialects/NAME.md`. `load_dialect_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_dialect_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.
@@ -50,7 +48,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
-  Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
+  Tags are a `BTreeSet<String>`. Stage zero stores the configured category and major category. It also stores `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where their table properties apply. Later stages test this stored membership. Grammar recipes supply normalization.
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 

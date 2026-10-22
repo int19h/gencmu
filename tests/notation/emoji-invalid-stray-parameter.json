@@ -1,5 +1,5 @@
 {
-  "description": "The notation rejects stray parameter as a rule name or symbol.",
+  "description": "A stray `@` is an error at the `@`.",
   "document": "```jbogenbau\n%rule text @A\n```\n",
   "expect": {
     "error": {

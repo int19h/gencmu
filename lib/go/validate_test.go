@@ -130,7 +130,7 @@ func TestDOMRules(t *testing.T) {
 		{"an elidable optional begins with its terminal (choice)", alt(`{"optional":{"choice":[{"ref":"KU"},{"ref":"VAU"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (&)", alt(`{"optional":{"and":[{"ref":"KU"},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (rule)", alt(`{"optional":{"ref":"ku"},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (#)", alt(`{"optional":{"seq":[{"ref":"🆓"},{"ref":"KU"}]},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (🆓)", alt(`{"optional":{"seq":[{"ref":"🆓"},{"ref":"KU"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (phoneme)", alt(`{"optional":{"literal":{"string":"/a/"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (character)", alt(`{"optional":{"literal":{"string":"a"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (range)", alt(`{"optional":{"range":[{"string":"a"},{"string":"z"}]},"elidable":true}`)},

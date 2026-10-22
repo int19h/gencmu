@@ -73,9 +73,17 @@ A library reads a grammar document from disk as strict UTF-8. Bytes that are not
 
 The Hangul syllables U+AC00 to U+D7A3 decompose by the arithmetic of the Unicode Standard, section 3.12, and the table lists none of them. The table has no compatibility decompositions, no composition data and no case data.
 
-In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too.
 
-A caller can supply `unicode.txt` through the API. It replaces all bundled data, including White_Space and both emoji properties, with no fallback. The table must list the whitespace used by its grammar documents. It need not cover every scalar. An unlisted scalar gets Cn and lacks White_Space and both emoji properties. No table supplies comparison normalization.
+Blank lines are ignored. An unknown entry name or a malformed record is a grammar error. Each record requires the fields shown above, with one or more decomposition scalars for `decompose`.
+
+Code point fields contain hexadecimal digits and range from U+0000 to U+10FFFF. A range must not be reversed. Decomposition records contain only scalar values. A combining class contains decimal digits and lies between 1 and 254.
+
+The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+
+A caller can supply `unicode.txt` through the API. It replaces all bundled data, including White_Space and both emoji properties, with no fallback. The table must list the whitespace used by its grammar documents. It must give `Emoji_Presentation` to every emoji name that those documents use. Those names must also lack `Emoji_Component`.
+
+The table need not cover every scalar. An unlisted scalar gets Cn and lacks White_Space and both emoji properties. No table supplies comparison normalization.
 
 A table without `decompose` records decomposes only Hangul syllables, and one without `combining` records reorders nothing. The bundled notation needs the `decompose` records of U+2260, U+2209, U+2288 and U+2247.
 
@@ -1711,7 +1719,7 @@ tag-test = "<" {requirement} ">"
 requirement = ["¬"] test-operand
 value-test = test test-operand
 test = "=" | "≠"
-test-operand = parameter | call | string-literal | constant-reference | lowercase-name | tag | range
+test-operand = parameter | call | string-literal | constant-reference | reference | tag | range
              | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
 range = string-operand ".." string-operand
 string-operand = string-literal | constant-reference | parameter
@@ -1771,7 +1779,7 @@ argument-tag = engine-tag-token | range
 argument-term = directive-method | capture-reference | constant-reference | "∅"
               | pattern-literal | "(" term ")" | emoji-name | "_"
 directive-method = directive-receiver method-selector {method-selector}
-directive-receiver = tag | lowercase-name | string-literal | constant-reference | range
+directive-receiver = tag | reference | string-literal | constant-reference | range
                    | capture-reference | "∅" | pattern-literal | "(" term ")"
 constant-definition = ("%const" | "%redefine-const") constant-reference term
 classifier = "%classifier" name {classifier-entry}
@@ -1933,7 +1941,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `conjunction` | One or more `sequence` parts | `and`, or sole sequence |
 | `sequence` | One or more `primary` parts | `seq`, or sole primary |
 | `primary` | One symbol, call, parameter, capture, tested, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
-| `reference` | One rule or tag name token | `ref`, including untested `🆓` |
+| `reference` | One rule or tag name token | `ref`, including `🆓` |
 | `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
 | `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
 | `wildcard` | One `_` token | `wildcard:true` |

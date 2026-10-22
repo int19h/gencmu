@@ -101,21 +101,20 @@ fn literal_range(left: &Json, right: &Json) -> bool {
         }
 }
 
-fn base(value: &Json, _hash: bool) -> bool {
+fn base(value: &Json) -> bool {
     exact(value, &["ref"], &[]) && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule(name) || tag(name))
         || exact(value, &["literal"], &[])
         || exact(value, &["range"], &[])
         || exact(value, &["wildcard"], &[]) && is_true(value.get("wildcard"))
 }
 
-fn tested_base(value: &Json, hash: bool) -> bool {
-    base(value, hash)
+fn tested_base(value: &Json) -> bool {
+    base(value)
         || value.get("test").and_then(Json::as_str).is_some_and(|op| match (op, value.get("expr")) {
-            ("tags", Some(inner)) => base(inner, false),
+            ("tags", Some(inner)) => base(inner),
             ("=" | "≠", Some(inner)) => {
-                base(inner, false)
-                    || inner.get("test").and_then(Json::as_str) == Some("tags")
-                        && inner.get("expr").is_some_and(|inner| base(inner, false))
+                base(inner)
+                    || inner.get("test").and_then(Json::as_str) == Some("tags") && inner.get("expr").is_some_and(base)
             }
             _ => false,
         })
@@ -359,7 +358,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
         match kind {
             Part::Expr { whole, sealed } => {
                 let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
-                if base(value, true) {
+                if base(value) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference");
                     }
@@ -379,7 +378,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     if sealed
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
-                        || !value.get("expr").is_some_and(|inner| tested_base(inner, true))
+                        || !value.get("expr").is_some_and(tested_base)
                     {
                         return Some("a malformed capture");
                     }
@@ -407,7 +406,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         pending.push(expression(separator, true));
                     }
                 } else if value.get("test").is_some() {
-                    if !tested_base(value, false) {
+                    if !tested_base(value) {
                         return Some("a malformed test target or order");
                     }
                     pending.push(expression(value.get("expr").unwrap(), sealed));

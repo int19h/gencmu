@@ -60,7 +60,7 @@ def _guard(value: Any, gate: bool = False) -> bool:
     )
 
 
-def _base(expr: Any, hash_: bool = False) -> bool:
+def _base(expr: Any) -> bool:
     return (
         isinstance(expr, dict)
         and len(expr) == 1
@@ -74,8 +74,8 @@ def _base(expr: Any, hash_: bool = False) -> bool:
     )
 
 
-def _target(expr: Any, hash_: bool = False) -> bool:
-    if _base(expr, hash_):
+def _target(expr: Any) -> bool:
+    if _base(expr):
         return True
     if not isinstance(expr, dict):
         return False
@@ -364,7 +364,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 if "separator" in node:
                     pending.append(("expr", node["separator"], below, False, True))
             elif "capture" in node:
-                if keys != {"capture", "expr"} or sealed or not _capture(node["capture"], False) or not _target(node["expr"], True):
+                if keys != {"capture", "expr"} or sealed or not _capture(node["capture"], False) or not _target(node["expr"]):
                     return "a malformed capture"
                 pending.append(("expr", node["expr"], below, False, sealed))
             elif "test" in node:

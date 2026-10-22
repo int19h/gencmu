@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,22 +54,33 @@ var propertyNames = func() map[string]bool {
 func parseUnicodeTable(text string) (*unicodeTable, error) {
 	t := &unicodeTable{decompositions: map[rune][]rune{}, hash: fnv1a64(text)}
 	hex := func(s string) (rune, error) {
+		for _, c := range s {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+				return 0, fmt.Errorf("bad hexadecimal field %q", s)
+			}
+		}
 		v, err := strconv.ParseUint(s, 16, 32)
+		if v > 0x10ffff {
+			return 0, fmt.Errorf("bad code point %q", s)
+		}
 		return rune(v), err
 	}
 	for n, line := range strings.Split(text, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if line == "" {
 			continue
 		}
 		f := strings.Fields(line)
 		want := 3
 		switch f[0] {
 		case "unicode":
+			if len(f) != 2 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected 2 fields", n+1)
+			}
 			continue
 		case "decompose":
-			if len(f) < 3 || len(f) > 6 {
-				return nil, fmt.Errorf("unicode.txt line %d: expected 3 to 6 fields", n+1)
+			if len(f) < 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected at least 3 fields", n+1)
 			}
 			scalars := make([]rune, len(f)-1)
 			for i, field := range f[1:] {
@@ -91,13 +103,21 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		}
 		a, err1 := hex(f[want-2])
 		b, err2 := hex(f[want-1])
-		if err1 != nil || err2 != nil {
+		if err1 != nil || err2 != nil || a > b {
 			return nil, fmt.Errorf("unicode.txt line %d: bad code point", n+1)
 		}
 		switch f[0] {
 		case "category":
+			if !slices.Contains(categoryNames, f[1]) {
+				return nil, fmt.Errorf("unicode.txt line %d: bad category", n+1)
+			}
 			t.categories = append(t.categories, categoryRange{a, b, f[1]})
 		case "combining":
+			for _, c := range f[1] {
+				if c < '0' || c > '9' {
+					return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+				}
+			}
 			class, err := strconv.Atoi(f[1])
 			if err != nil || class < 1 || class > 254 {
 				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)

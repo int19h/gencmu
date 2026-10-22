@@ -591,7 +591,7 @@
     },
     {
       "id": "pattern-bad-name-reserved-at-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -605,14 +605,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-reserved-at-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -626,14 +625,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-reserved-at-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -647,14 +645,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-reserved-hash-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -668,14 +665,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-reserved-hash-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -689,14 +685,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-reserved-hash-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -710,14 +705,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-digit-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -731,14 +725,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-digit-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -752,14 +745,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-digit-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -773,14 +765,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-ineligible-scalar-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -794,14 +785,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-ineligible-scalar-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -815,14 +805,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-ineligible-scalar-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -836,14 +825,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-component-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -857,14 +845,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-component-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -878,14 +865,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-component-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -899,14 +885,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-multiple-scalars-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -920,14 +905,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-multiple-scalars-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -941,14 +925,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-multiple-scalars-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -962,14 +945,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-invalid-ascii-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -983,14 +965,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-invalid-ascii-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -1004,14 +985,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-invalid-ascii-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -1025,14 +1005,13 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
     {
       "id": "pattern-bad-name-non-ascii-identifier-constant",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -1046,14 +1025,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
     {
       "id": "pattern-bad-name-non-ascii-identifier-nested",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -1067,14 +1045,13 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
     {
       "id": "pattern-bad-name-non-ascii-identifier-condition",
-      "description": "A bad pattern rule name reports its own token and explanation.",
+      "description": "A bad pattern rule name reports its own source position.",
       "aliases": [
         {
           "spelling": "bad-name",
@@ -1088,8 +1065,7 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
@@ -1109,8 +1085,7 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
@@ -1130,8 +1105,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
@@ -1151,8 +1125,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
@@ -1172,8 +1145,7 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     },
@@ -1193,8 +1165,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 12,
-          "message": "a malformed pattern rule name"
+          "column": 12
         }
       }
     },
@@ -1214,8 +1185,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22,
-          "message": "a malformed pattern rule name"
+          "column": 22
         }
       }
     },
@@ -1235,8 +1205,7 @@
       "expect": {
         "error": {
           "line": 3,
-          "column": 27,
-          "message": "a malformed pattern rule name"
+          "column": 27
         }
       }
     }

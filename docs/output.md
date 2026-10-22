@@ -330,7 +330,7 @@ The pattern value `#A<B>=""` converts as follows. Its leaf uses `terminal` and r
 {"pattern":{"test":"=","value":{"string":""},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"B"}}],"expr":{"terminal":"A","at":[1,2]}}}}
 ```
 
-A capture of `🆓` instead converts as follows:
+A capture of `🆓` converts like any rule capture:
 
 ```json
 {"capture":"f","expr":{"ref":"🆓"}}

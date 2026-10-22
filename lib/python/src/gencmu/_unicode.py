@@ -30,6 +30,25 @@ class UnicodeTable:
             if not fields:
                 continue
             try:
+                entry = fields[0]
+                count = {"unicode": 2, "category": 4, "combining": 4, "white-space": 3,
+                         "emoji-presentation": 3, "emoji-component": 3}.get(entry)
+                if entry == "decompose":
+                    if len(fields) < 3:
+                        raise ValueError(entry)
+                elif count is None or len(fields) != count:
+                    raise ValueError(entry)
+                code_fields = fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
+                if any(any(c not in "0123456789abcdefABCDEF" for c in field) for field in code_fields):
+                    raise ValueError(entry)
+                codes = [int(field, 16) for field in code_fields]
+                if any(code > 0x10FFFF for code in codes):
+                    raise ValueError(entry)
+                if entry == "decompose":
+                    if any(0xD800 <= code <= 0xDFFF for code in codes):
+                        raise ValueError(entry)
+                elif len(codes) == 2 and codes[0] > codes[1]:
+                    raise ValueError(entry)
                 if fields[0] == "unicode":
                     self.version = fields[1]
                 elif fields[0] == "category":
@@ -44,6 +63,8 @@ class UnicodeTable:
                 elif fields[0] == "decompose":
                     self.decompositions[int(fields[1], 16)] = tuple(int(field, 16) for field in fields[2:])
                 elif fields[0] == "combining":
+                    if any(c not in "0123456789" for c in fields[1]) or not 1 <= int(fields[1]) <= 254:
+                        raise ValueError(fields[1])
                     combining.append((int(fields[2], 16), int(fields[3], 16), int(fields[1])))
                 else:
                     raise ValueError(fields[0])

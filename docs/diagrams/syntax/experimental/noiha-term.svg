@@ -1,20 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="347" height="94" viewBox="0 0 347 94" role="img" aria-label="Railroad diagram of the rule noiha-term">
+<svg xmlns="http://www.w3.org/2000/svg" width="363" height="94" viewBox="0 0 363 94" role="img" aria-label="Railroad diagram of the rule noiha-term">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">noiha-term</text>
 <path d="M10 64v16m4 -16v16M14 72h6"/>
 <g class="terminal"><rect x="20" y="60" width="58" height="24" rx="12"/><text x="49" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">NOIhA</text></g>
 <path d="M78 72h10"/>
-<g class="rule"><rect x="88" y="60" width="25" height="24" rx="0"/><text x="100.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M113 72h10"/>
-<g class="rule"><rect x="123" y="60" width="67" height="24" rx="0"/><text x="156.5" y="77" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
-<path d="M190 72h10"/>
-<path d="M200 72h20"/>
-<g class="terminal"><rect x="220" y="60" width="50" height="24" rx="12"/><text x="245" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">FEhU</text></g>
-<path d="M270 72H292"/>
-<path d="M200 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H272a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<text class="label" x="224" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M292 72h10"/>
-<g class="rule"><rect x="302" y="60" width="25" height="24" rx="0"/><text x="314.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M327 72h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="88" y="60" width="33" height="24" rx="0"/><text x="104.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M121 72h10"/>
+<g class="rule"><rect x="131" y="60" width="67" height="24" rx="0"/><text x="164.5" y="77" textLength="50.4" lengthAdjust="spacingAndGlyphs">selbri</text></g>
+<path d="M198 72h10"/>
+<path d="M208 72h20"/>
+<g class="terminal"><rect x="228" y="60" width="50" height="24" rx="12"/><text x="253" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">FEhU</text></g>
+<path d="M278 72H300"/>
+<path d="M208 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H280a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="232" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M300 72h10"/>
+<g class="rule"><rect x="310" y="60" width="33" height="24" rx="0"/><text x="326.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M343 72h6m0 -8v16m4 -16v16"/>
 </svg>

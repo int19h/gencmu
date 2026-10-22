@@ -6,10 +6,10 @@
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="142" height="24" rx="0"/><text x="111" y="51" textLength="126" lengthAdjust="spacingAndGlyphs">relative-clause</text></g>
 <path d="M182 46H202"/>
-<path d="M182 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H153.5"/>
-<g class="terminal"><rect x="103.5" y="68" width="50" height="24" rx="12"/><text x="128.5" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">ZIhE</text></g>
-<path d="M103.5 80h-10"/>
-<g class="rule"><rect x="68.5" y="68" width="25" height="24" rx="0"/><text x="81" y="85" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M68.5 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M182 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H157.5"/>
+<g class="terminal"><rect x="107.5" y="68" width="50" height="24" rx="12"/><text x="132.5" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">ZIhE</text></g>
+<path d="M107.5 80h-10"/>
+<g class="rule"><rect x="64.5" y="68" width="33" height="24" rx="0"/><text x="81" y="85" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M64.5 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M202 46h6m0 -8v16m4 -16v16"/>
 </svg>

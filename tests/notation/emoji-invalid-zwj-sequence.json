@@ -1,5 +1,5 @@
 {
-  "description": "The notation rejects zwj sequence as a rule name or symbol.",
+  "description": "A sequence with a zero-width joiner cannot name one rule.",
   "document": "```jbogenbau\n%rule 👩‍💻 A\n```\n",
   "expect": {
     "error": {

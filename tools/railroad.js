@@ -12,6 +12,8 @@
 // it has one. A sequence too wide for MAX_WIDTH continues on the next row.
 // The SVG is plain text with fixed sizes and no fonts to measure, so the
 // same DOM always gives the same file.
+import fs from "node:fs";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { formatTerm } from "../lib/js/src/diagnostics.js";
 import { leafTest } from "../lib/js/src/patterns.js";
 import { Grammar } from "../lib/js/src/grammar.js";
@@ -45,7 +47,9 @@ const TITLE_HEIGHT = 24;
 /** @param {string} text */
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** @param {string} text */
-const length = (text) => [...text].length;
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
+const length = (text) => [...text].reduce((width, scalar) =>
+  width + (unicode.hasEmoji("Emoji_Presentation", scalar.codePointAt(0)) ? 2 : 1), 0);
 /** @param {number} n */
 const n = (n) => String(Math.round(n * 10) / 10);
 // A text drawn at the width its characters are given, whatever the font

@@ -838,7 +838,7 @@ fn is_position(value: Option<&Json>) -> bool {
     matches!(value.and_then(Json::as_array), Some([Json::Int(line), Json::Int(column)]) if *line > 0 && *column > 0)
 }
 
-/// A rule's name: a name, or `#`, the free-modifier slot (engine §2).
+/// A capture name starts with a lowercase ASCII letter and contains no capitals.
 pub(crate) fn is_capture_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())

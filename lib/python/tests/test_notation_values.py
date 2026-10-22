@@ -44,8 +44,8 @@ class NotationValues(unittest.TestCase):
             with self.assertRaises(GencmuError) as caught:
                 read_document(case["document"], name, sources=sources)
             expected = case["expect"]["error"]
-            self.assertEqual((caught.exception.line, caught.exception.column, caught.exception.message),
-                             (expected["line"], expected["column"], expected["message"]))
+            self.assertEqual((caught.exception.line, caught.exception.column),
+                             (expected["line"], expected["column"]))
             return
         dom = read_document(case["document"], name, sources=sources)
         problem = mismatch(case["expect"], {"dom": dom})

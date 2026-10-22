@@ -165,7 +165,7 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
-An optional `expect.error.message` requires that exact explanation, without the document and position prefix. A case uses it when all four libraries must give the same explanation.
+Message wording is not part of conformance. Error cases pin only their line and column.
 
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a compiled entry. A matching compiled entry must give the same DOM.
 
@@ -183,9 +183,9 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
-An error expectation pins its line, column and explanation through `expect.error`. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
+An error expectation pins its line and column through `expect.error`. Message wording is not part of conformance. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
-The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
+The canonical-name cases use canonically equivalent ASCII and Kelvin spellings. These aliases test captures and fixed names through a supplied notation. The invalid-name cases supply semantic values that the bundled notation cannot produce. These cases add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
 ## Recipe diagnostics: `recipe-diagnostics.json`
 

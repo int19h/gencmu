@@ -1252,9 +1252,7 @@ impl<'a> Reader<'a> {
             "name" => {
                 let name = self.value(token()?);
                 if !is_capital(name) {
-                    return Err(
-                        self.error(inner, format!("{name} names a rule, which is not a value; ~{name} is the tag"))
-                    );
+                    return Err(self.error(inner, format!("{name} names a rule, which is not a value")));
                 }
                 typed(Term::Tag(name.to_string()), Type::Tags)
             }

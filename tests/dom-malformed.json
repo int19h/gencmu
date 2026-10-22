@@ -5829,7 +5829,7 @@
     "malformed": true
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`🆓` can name a supplied rule.",
     "rule": {
       "name": "🆓",
       "op": "define",
@@ -5851,7 +5851,7 @@
     "malformed": false
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`😀` can name a supplied rule.",
     "rule": {
       "name": "😀",
       "op": "define",
@@ -5873,7 +5873,7 @@
     "malformed": false
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`#` cannot name a supplied rule.",
     "rule": {
       "name": "#",
       "op": "define",
@@ -5895,7 +5895,7 @@
     "malformed": true
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`1` cannot name a supplied rule.",
     "rule": {
       "name": "1",
       "op": "define",
@@ -5917,7 +5917,7 @@
     "malformed": true
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`🏽` cannot name a supplied rule.",
     "rule": {
       "name": "🏽",
       "op": "define",
@@ -5939,7 +5939,7 @@
     "malformed": true
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`👩‍💻` cannot name a supplied rule.",
     "rule": {
       "name": "👩‍💻",
       "op": "define",
@@ -5961,7 +5961,7 @@
     "malformed": true
   },
   {
-    "description": "A supplied rule name follows the configured emoji properties.",
+    "description": "`🇦` cannot name a supplied rule.",
     "rule": {
       "name": "🇦",
       "op": "define",
@@ -6027,6 +6027,318 @@
       "conditions": [],
       "at": [
         1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "`©` cannot serve as a body reference in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "©"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`🏽` cannot serve as a body reference in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "🏽"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`😀` can serve as a body reference in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "😀"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "`©` cannot serve as a method rule argument in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "literal": {
+                "string": "a"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "not": {
+            "method": "matches",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": [
+              {
+                "rule": "©"
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`🏽` cannot serve as a method rule argument in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "literal": {
+                "string": "a"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "not": {
+            "method": "matches",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": [
+              {
+                "rule": "🏽"
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`😀` can serve as a method rule argument in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "literal": {
+                "string": "a"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "not": {
+            "method": "matches",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": [
+              {
+                "rule": "😀"
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "`©` cannot serve as a pattern rule name in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "zz"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "name": "©",
+              "at": [
+                4,
+                19
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`🏽` cannot serve as a pattern rule name in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "zz"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "name": "🏽",
+              "at": [
+                4,
+                19
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "`😀` can serve as a pattern rule name in a supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "zz"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "name": "😀",
+              "at": [
+                4,
+                19
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        3,
         1
       ]
     },

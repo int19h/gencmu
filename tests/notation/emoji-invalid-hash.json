@@ -1,5 +1,5 @@
 {
-  "description": "The notation rejects hash as a rule name or symbol.",
+  "description": "The pattern sigil `#` cannot name a rule.",
   "document": "```jbogenbau\n%rule # A\n```\n",
   "expect": {
     "error": {

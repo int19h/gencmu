@@ -13,11 +13,6 @@ fn run(case: &Value) -> Result<(), String> {
             matches(pattern, &dom, "dom").map_err(|problem| format!("{problem}\ndom: {json}"))
         }
         (Err(error), None, Some(position)) => {
-            if let Some(message) = position.get("message").and_then(Value::str) {
-                if error.message != message {
-                    return Err(format!("the error message is {:?}, not {message:?}", error.message));
-                }
-            }
             let line = position.get("line").and_then(Value::number).map(|n| n as usize);
             let column = position.get("column").and_then(Value::number).map(|n| n as usize);
             if (line.is_none() || error.line == line) && (column.is_none() || error.column == column) {

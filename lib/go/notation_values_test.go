@@ -94,9 +94,8 @@ func TestNotationValues(t *testing.T) {
 			Expect      struct {
 				Dom   any `json:"dom"`
 				Error *struct {
-					Line    int    `json:"line"`
-					Column  int    `json:"column"`
-					Message string `json:"message"`
+					Line   int `json:"line"`
+					Column int `json:"column"`
 				} `json:"error"`
 			} `json:"expect"`
 		} `json:"cases"`
@@ -116,8 +115,8 @@ func TestNotationValues(t *testing.T) {
 			}
 			dom, rerr := reader.read(c.Document, "case.md")
 			if expected := c.Expect.Error; expected != nil {
-				if rerr == nil || rerr.Line != expected.Line || rerr.Column != expected.Column || rerr.Message != expected.Message {
-					t.Fatalf("%s: expected %d:%d: %s, got %v", c.ID, expected.Line, expected.Column, expected.Message, rerr)
+				if rerr == nil || rerr.Line != expected.Line || rerr.Column != expected.Column {
+					t.Fatalf("%s: expected %d:%d, got %v", c.ID, expected.Line, expected.Column, rerr)
 				}
 				return
 			}

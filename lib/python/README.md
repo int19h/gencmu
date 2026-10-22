@@ -16,8 +16,6 @@ gencmu.to_brackets(result, show_elided=True)
 
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
-Stage-zero tokens also carry `_Emoji_Presentation` and `_Emoji_Component` when the configured Unicode table grants those properties.
-
 ## Loading a dialect
 
 A pipeline document and the grammar documents that it includes define a dialect. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
@@ -81,7 +79,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 Stage zero canonically decomposes the input with the shared Unicode table. Each token stores one decomposed scalar as its value and image. Its source and text refer to its original scalar. Its span counts decomposed scalars. Caller-supplied tokens skip decomposition.
 
-A stage-zero token's tags include the configured general category, its major category, and `_White_Space` where applicable. For example, `A` carries `_Lu` and `_L`. Later stages read stored tags and exact values.
+A stage-zero token's tags include the configured general category, its major category, and `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where applicable. For example, `A` carries `_Lu` and `_L`. Later stages read stored tags and exact values.
 
 A `Token` has `text`, `value`, `image`, `tags`, `span`, and `source`. Only an inserted `ε` item sets `inserted_by`. Recipes supply strings, and tags never assign strings. A constituent without a channel recipe concatenates its children on that channel. `%erased` excludes its contribution. A verbatim recipe preserves original text and follows the gap-claim rules of engine §11.
 

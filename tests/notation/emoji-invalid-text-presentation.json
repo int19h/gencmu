@@ -1,5 +1,5 @@
 {
-  "description": "The notation rejects text presentation as a rule name or symbol.",
+  "description": "The text-presentation character `©` cannot name a rule.",
   "document": "```jbogenbau\n%rule © A\n```\n",
   "expect": {
     "error": {

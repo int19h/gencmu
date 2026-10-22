@@ -1105,7 +1105,7 @@ class DomBuilder:
                 return value
             if rule == "name" and argument:
                 return {"rule": name}
-            raise self.fail(node, "a lowercase name is legal only as a rule or classifier argument")
+            raise self.fail(node, "a rule name is legal only as a rule or classifier argument")
         if rule == "range":
             raise self.fail(node, "a range is a terminal, not a term")
         if rule in ("tag-run", "string-run"):

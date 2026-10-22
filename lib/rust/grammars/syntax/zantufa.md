@@ -1085,7 +1085,7 @@ The phoneme stage accepts commas and the other conventions of `phonemes/latin.md
 
 #### Text, statements and terms
 
-The reference writes `CU_elidible`, while CLL writes `[CU 🆓]`.[^cll-s21-1] This translation uses an ordinary separator, as the [introduction](#the-zantufa-grammar) explains. Zantufa holds `na cafne` inside the parenthesis in `to na cafne`, and this grammar agrees.
+The reference writes `CU_elidible`, while CLL writes `[CU #]`.[^cll-s21-1] This translation uses an ordinary separator, as the [introduction](#the-zantufa-grammar) explains. Zantufa holds `na cafne` inside the parenthesis in `to na cafne`, and this grammar agrees.
 
 The reference writes `IAU_elidible` between a statement and its following terms. Here `statement-terms` uses the ordinary optional `[IAU 🆓]`, as the [introduction](#the-zantufa-grammar) explains.
 

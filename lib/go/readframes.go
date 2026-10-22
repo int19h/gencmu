@@ -541,7 +541,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		case f.argument:
 			return give(&domTerm{Kind: tmRule, Str: name})
 		}
-		b.fail(n, "%s names a rule, which is not a value; ~%s is the tag", name, name)
+		b.fail(n, "%s names a rule, which is not a value", name)
 	case "empty-set":
 		return give(&domTerm{Kind: tmEmptySet})
 	case "constant-reference":

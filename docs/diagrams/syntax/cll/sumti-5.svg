@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="576" height="138" viewBox="0 0 576 138" role="img" aria-label="Railroad diagram of the rule sumti-5">
+<svg xmlns="http://www.w3.org/2000/svg" width="584" height="138" viewBox="0 0 584 138" role="img" aria-label="Railroad diagram of the rule sumti-5">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-5</text>
@@ -15,7 +15,7 @@
 <g class="rule"><rect x="295" y="44" width="151" height="24" rx="0"/><text x="370.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
 <path d="M446 56H466"/>
 <path d="M275 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H446a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M466 56H556"/>
+<path d="M466 56H564"/>
 <path d="M20 56a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="104" width="100" height="24" rx="0"/><text x="90" y="121" textLength="84" lengthAdjust="spacingAndGlyphs">quantifier</text></g>
 <path d="M140 116h10"/>
@@ -24,15 +24,15 @@
 <path d="M227 116h20"/>
 <g class="terminal"><rect x="247" y="104" width="33" height="24" rx="12"/><text x="263.5" y="121" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
 <path d="M280 116h10"/>
-<g class="rule"><rect x="290" y="104" width="25" height="24" rx="0"/><text x="302.5" y="121" textLength="8.4" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M315 116H335"/>
-<path d="M227 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H315a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="290" y="104" width="33" height="24" rx="0"/><text x="306.5" y="121" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M323 116H343"/>
+<path d="M227 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H323a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
 <text class="label" x="251" y="89" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M335 116h10"/>
-<path d="M345 116h20"/>
-<g class="rule"><rect x="365" y="104" width="151" height="24" rx="0"/><text x="440.5" y="121" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
-<path d="M516 116H536"/>
-<path d="M345 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H516a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
-<path d="M536 116H536a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M556 56h6m0 -8v16m4 -16v16"/>
+<path d="M343 116h10"/>
+<path d="M353 116h20"/>
+<g class="rule"><rect x="373" y="104" width="151" height="24" rx="0"/><text x="448.5" y="121" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
+<path d="M524 116H544"/>
+<path d="M353 116a10 10 0 0 0 10 -10V104a10 10 0 0 1 10 -10H524a10 10 0 0 1 10 10V106a10 10 0 0 0 10 10"/>
+<path d="M544 116H544a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M564 56h6m0 -8v16m4 -16v16"/>
 </svg>

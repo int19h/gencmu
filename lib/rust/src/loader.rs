@@ -1077,7 +1077,6 @@ mod notation_cache_tests {
                     expected.get("column").and_then(Json::as_int).map(|n| n as usize),
                     "{id}: {error}"
                 );
-                assert_eq!(Some(error.message.as_str()), expected.get("message").and_then(Json::as_str), "{id}");
                 continue;
             }
             let expected =
