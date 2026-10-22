@@ -349,3 +349,33 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestParameterPatternTestOperands(t *testing.T) {
+	for _, grammar := range []string{
+		`%rule use(@V) $x:_ %conditions $x ≅ #(_=@V)
+%rule text = use("a")`,
+		`%rule use(@T) $x:_ %conditions $x ≅ #(_<@T>)
+%rule text = use(_L)`,
+		`%rule use(@X) @X<_L>
+%rule text = use(_)`,
+	} {
+		t.Run(grammar, func(t *testing.T) {
+			input := "a"
+			c := engineCase{Grammar: &grammar, Input: &input}
+			d, e := caseDialect(&c, false)
+			if e != nil {
+				t.Fatal(e)
+			}
+			result, e := runCase(d, &c, &caseOptions{})
+			if e != nil || !result.OK {
+				t.Fatalf("parse: %v %+v", e, result)
+			}
+		})
+	}
+	text := `%rule atom(@X) @X
+%rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
+%rule text "a"`
+	if _, e := caseDialect(&engineCase{Grammar: &text}, false); e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+		t.Fatalf("tested exact call: %v", e)
+	}
+}

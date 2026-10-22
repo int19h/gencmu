@@ -671,7 +671,7 @@ func templateRequirementProblem(value any, depth int, uni *unicodeTable) string 
 		if !templateOnly(r, "negated", "value") || !ok || operand["tag"] == nil && operand["const"] == nil && operand["param"] == nil {
 			return "a malformed requirement"
 		}
-		if p := templateNodeProblem(operand, "tags", depth+1, false, false, uni); p != "" {
+		if p := templateNodeProblem(operand, "term", depth+1, false, false, uni); p != "" {
 			return p
 		}
 	}

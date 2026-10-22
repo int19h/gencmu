@@ -618,33 +618,44 @@ func (b *domBuilder) templatePattern(n *Node) templateObject {
 		return templateObject{"node": templateObject{"path": map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[b.tokenValue(b.token(n))], "pattern": templatePatternNode(b.templatePattern(b.only(n, "pattern-atom")))}}
 	case "pattern-atom":
 		first := parts(n)[0]
-		if first.Kind == KindToken && b.tokenValue(first) == "(" {
-			return b.templatePattern(b.only(n, "pattern-union"))
-		}
-		if first.Rule == "pattern-literal" {
-			p := one(first, "pattern-union")
-			if p == nil {
-				p = b.only(first, "pattern-atom")
-			}
-			return templateObject{"node": templateObject{"children": b.templatePattern(p)}}
-		}
-		var r templateObject
-		if first.Rule == "parameter" {
-			r = b.templateParameter(first)
-		} else if first.Rule == "call" {
-			r = b.templateCall(first)
-		} else {
-			r = templateWrittenPattern(b.patternAtom(n, first))
-			return templateObject{"node": r}
-		}
 		tests := []*Node{}
 		for _, p := range ruleParts(n) {
 			if p.Rule == "tag-test" || p.Rule == "value-test" {
 				tests = append(tests, p)
 			}
 		}
-		r = b.templateTests(r, tests)
-		return templateObject{"node": r}
+		if first.Kind == KindToken && b.tokenValue(first) == "(" {
+			if len(tests) > 0 {
+				b.fail(tests[0], "invalid pattern test target or order")
+			}
+			return b.templatePattern(b.only(n, "pattern-union"))
+		}
+		if first.Rule == "pattern-literal" {
+			if len(tests) > 0 {
+				b.fail(tests[0], "invalid pattern test target or order")
+			}
+			p := one(first, "pattern-union")
+			if p == nil {
+				p = b.only(first, "pattern-atom")
+			}
+			return templateObject{"node": templatePatternNode(b.templatePattern(p))}
+		}
+		var r templateObject
+		switch first.Rule {
+		case "parameter":
+			r = b.templateParameter(first)
+		case "call":
+			r = b.templateCall(first)
+		default:
+			bare := *n
+			bare.Children = []*Node{first}
+			r = templateWrittenPattern(b.patternAtom(&bare, first))
+		}
+		valid := first.Rule == "parameter" || r["terminal"] != nil || r["literal"] != nil || r["range"] != nil || r["wildcard"] != nil || r["constant"] != nil
+		if len(tests) > 0 && !valid {
+			b.fail(tests[0], "invalid pattern test target or order")
+		}
+		return templateObject{"node": b.templateTests(r, tests)}
 	}
 	b.fail(n, "unexpected %s in a pattern", n.Rule)
 	return nil
