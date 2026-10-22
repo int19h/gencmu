@@ -729,15 +729,18 @@ A description can take a forethought sentence in place of a selbri, and so can a
 Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as by `zi'e`. Two groups of them can be connected in forethought (`ge poi broda gi poi brode`).
 
 ```jbogenbau
-%redefine-rule relative-clauses
-  | {relative-clause / ZIhE 🆓 | joik-jek-ek 🆓}
-  | gek relative-clauses gik relative-clauses
+%rule relative-clause-list(@C)
+  | {@C / ZIhE 🆓 | joik-jek-ek 🆓}
+  | gek relative-clause-list(@C) gik relative-clause-list(@C)
+
+%redefine-rule relative-clauses = relative-clause-list(relative-clause)
 
 %redefine-rule relative-clause
   GOI 🆓 term [+GEhU] 🆓 | NOI 🆓 subsentence [+KUhO] 🆓
 ```
 
-<details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>relative-clause-list</code> to <code>relative-clause</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/relative-clause-list.svg" alt="Railroad diagram of the rule relative-clause-list"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></p>
 </details>
@@ -816,9 +819,7 @@ The `ke-after` template supplies `selbri-4` and `operator`. Each named instance 
 %redefine-rule abstractor-chain
   {... NU 🆓 / connective}
 
-%rule selbri-relative-clauses
-  | {selbri-relative-clause / ZIhE 🆓 | joik-jek-ek 🆓}
-  | gek selbri-relative-clauses gik selbri-relative-clauses
+%rule selbri-relative-clauses = relative-clause-list(selbri-relative-clause)
 
 %rule selbri-relative-clause
   NOhOI 🆓 subsentence [+KUhOI] 🆓
