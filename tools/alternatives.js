@@ -111,6 +111,8 @@ function scanBody(chars, start) {
   if (chars[i] === "(" && chars[i+1] !== "*") {
     let depth=1;
     for (i++;i<chars.length && depth;i++) {
+      i=skipLayout(i);
+      if(i>=chars.length) break;
       if(chars[i] === '"') {for(i++;i<chars.length && chars[i] !== '"';i++);}
       else if(chars[i] === "(") depth++;
       else if(chars[i] === ")") depth--;
