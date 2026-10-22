@@ -35,7 +35,7 @@ def canonical_argument(n, unicode):
         return n["call"] + '(' + ', '.join(map(p, n["args"])) + ')'
     if "param" in n:
         return '@' + n["param"]
-    for key in ("rule", "tag", "terminal", "ref", "name"):
+    for key in ("rule", "tag", "terminal", "ref", "name", "integer", "classifier"):
         if key in n:
             return n[key]
     for key in ("const", "constant"):

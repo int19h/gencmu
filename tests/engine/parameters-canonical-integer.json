@@ -1,0 +1,18 @@
+{
+  "description": "Canonical instance names preserve literal integer arguments of a method.",
+  "grammar": "%rule use(@X) \"a\" %conditions \"ab\" ∈ @X\n%rule text use(\"abc\".ngrams(2))",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "use(\"abc\".ngrams(2))"
+          }
+        ]
+      }
+    }
+  }
+}

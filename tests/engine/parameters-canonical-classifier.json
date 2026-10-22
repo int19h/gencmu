@@ -1,0 +1,18 @@
+{
+  "description": "Canonical instance names preserve literal classifier arguments of a method.",
+  "grammar": "%classifier lex \"a\" ∈ A\n%rule use(@X) \"a\" :: @X\n%rule text use(\"a\".classify(lex))",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "use(\"a\".classify(lex))"
+          }
+        ]
+      }
+    }
+  }
+}

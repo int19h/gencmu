@@ -5608,6 +5608,7 @@
     const print=(/** @type {any} */ x)=>canonicalArgument(x,unicode);
     if(n.call) return `${n.call}(${n.args.map(print).join(", ")})`;
     if(n.param) return '@'+n.param;
+    if(n.integer || n.classifier) return n.integer??n.classifier;
     if(n.rule || n.tag || n.terminal || n.ref || n.name) return n.rule??n.tag??n.terminal??n.ref??n.name;
     if(n.const || n.constant) return '$'+(n.const??n.constant);
     if('string' in n) return templateQuoted(n.string,unicode);

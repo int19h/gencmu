@@ -36,7 +36,7 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
     if has(n, "param") {
         return format!("@{}", text(get(n, "param")));
     }
-    for k in ["rule", "tag", "terminal", "ref", "name"] {
+    for k in ["rule", "tag", "terminal", "ref", "name", "integer", "classifier"] {
         if has(n, k) {
             return text(get(n, k)).into();
         }

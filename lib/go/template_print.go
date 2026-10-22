@@ -52,7 +52,7 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 	if n["param"] != nil {
 		return "@" + templateText(n["param"])
 	}
-	for _, k := range []string{"rule", "tag", "terminal", "ref", "name"} {
+	for _, k := range []string{"rule", "tag", "terminal", "ref", "name", "integer", "classifier"} {
 		if n[k] != nil {
 			return templateText(n[k])
 		}
