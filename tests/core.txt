@@ -6427,3 +6427,15 @@ adhoc.experimental.fr4-w3.31
 adhoc.experimental.fr4-w3.32
 adhoc.experimental.fr4-w3.33
 adhoc.experimental.fr4-w3.34
+followups.nohoi.kuhoi
+followups.nohoi.kuho
+followups.nohoi.elided
+followups.nohoi.nested-kuho
+followups.nohoi.nested-control
+followups.lexicon.laai-name
+followups.lexicon.laai-name-and-predicate
+followups.lexicon.biai-tagged-sumti
+followups.lexicon.lohai-repeated-marker
+followups.nohoi.nested-kuho-term
+followups.nohoi.nested-control-term
+followups.nohoi.outer-noi-resolved

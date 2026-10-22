@@ -194,7 +194,7 @@ The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it re
 
 A nucleus is the vowel center of a syllable. A glide is an `i` or `u` before a nucleus. camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
-The dialect also accepts three constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
+The dialect also accepts four constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
@@ -202,11 +202,15 @@ The grammar also allows the two branches of a bare forethought termset to hold d
 
 A bare forethought termset can close with `nu'u`, as in `ge mi gi do nu'u klama`. That closer also permits a nested first termset in `nu'i ge mi gi do nu'u ti nu'u`. camxes-exp gives a bare forethought termset no closer and rejects both texts.
 
+A NOhOI clause can also close with `ku'o`, as in `mi klama no'oi bajra ku'o`. camxes-exp closes it only with `ku'oi` and rejects that text.
+
 After `vu'o`, a connected sumti can follow without relative clauses here. So `mi viska ko'a vu'o .e ko'e` joins two sumti after `vu'o`. camxes-exp takes a connected sumti there only after relative clauses, so it joins two terms.
 
 ### Preferred readings
 
 The examples below compare this layer's explicit preferences with camxes-exp. Some agree with its ordered choice, and others differ. The syntax document names each rule and its reason.
+
+In `lo broda noi brode no'oi brodi ku'o do cu klama`, `do` belongs to the open NOI clause after `ku'o` closes NOhOI. camxes-exp closes NOI there and puts `do` in the main bridi. The pair `ku'oi ku'o` closes both clauses and gives `do` to the main bridi here too. The [NOhOI closers](../syntax/experimental.md#nohoi-closers) section gives both readings and their reason.
 
 `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
