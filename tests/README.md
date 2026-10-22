@@ -27,7 +27,7 @@ The bundled grammars use the current notation. A case that loads a bundled pipel
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
-The cases in `parameters.json` use the same case shape. The JavaScript and Python parameter suites run these cases. Rust and Go need matching runners for this file.
+The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
 
 Each file is one case:
 

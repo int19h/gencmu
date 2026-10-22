@@ -299,3 +299,22 @@ fn deep_source_constructors_report_the_dom_limit() {
         .join()
         .unwrap();
 }
+#[test]
+fn ordinary_ranked_locations_survive_template_expansion() {
+    let mut d = read("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
+    let token = crate::result::Token {
+        text: String::new(),
+        value: "≻".into(),
+        image: String::new(),
+        tags: Default::default(),
+        span: 0..1,
+        source: 0..1,
+        inserted_by: None,
+        before: Vec::new(),
+        after: Vec::new(),
+    };
+    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 21));
+    let x = expand(&[(Arc::from("locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+    let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
+    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 21));
+}

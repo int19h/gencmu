@@ -173,6 +173,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
                 .collect();
             set(&mut raw, kind, Json::Arr(rs));
         }
+        super::locations::annotate_document(&mut raw, d);
         let mut items: Vec<_> =
             KINDS.into_iter().flat_map(|k| list(get(&raw, k)).iter().map(move |r| (k, r))).collect();
         items.sort_by_key(|(_, r)| at(r));
@@ -742,11 +743,13 @@ impl Expander<'_> {
                 .get(&key(&normalize(root)))
                 .map(|i| self.instances[*i].effective().to_string())
                 .unwrap_or_else(|| canonical(root, self.uni));
-            return Ok(if position == "pattern" {
+            let mut value = if position == "pattern" {
                 obj([("name", string(name)), ("at", get(root, "at").clone())])
             } else {
                 obj([(if position == "expr" { "ref" } else { "rule" }, string(name))])
-            });
+            };
+            set(&mut value, SOURCE, root.get(SOURCE).cloned().unwrap_or_else(|| get(root, "at").clone()));
+            return Ok(value);
         }
         if position == "pattern" && self.template_names.contains_key(text(get(root, "name"))) {
             let members: Vec<_> = self
@@ -812,9 +815,7 @@ impl Expander<'_> {
             return Err(event.fail(&event.rule, problem.into()));
         }
         let mut d = dom::decode_checked(&clean(root), self.uni, true).map_err(|s| event.fail(&event.rule, s))?;
-        for (r, raw) in d.rules.iter_mut().zip(list(get(root, "rules"))) {
-            super::locations::restore_rule(r, raw);
-        }
+        super::locations::restore_document(&mut d, root);
         Ok(d)
     }
 }

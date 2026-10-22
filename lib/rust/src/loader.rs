@@ -1158,3 +1158,22 @@ mod parameter_cache_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod parameter_query_locations {
+    use super::*;
+    #[test]
+    fn exact_call_targets_keep_their_written_positions() {
+        let base = Context::bundled().unwrap();
+        let line = "%rule text $x:atom(\"a\") %conditions $x.followed-by(atom(\"b\"))";
+        let source = format!("```jbogenbau\n%rule atom(@X) @X\n{line}\n```\n");
+        let dom = read_document(&base.notation, &source).unwrap();
+        let x = crate::parameters::expand(&[(Arc::from("query.md"), Arc::new(dom))], &base.unicode).unwrap().unwrap();
+        let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
+        let crate::dom::Cond::Boundary(_, _, _, location) = &r.conditions[0] else { panic!("a boundary condition") };
+        let method = line.find("$x.followed-by").unwrap() + 1;
+        let target = line.find("atom(\"b\")").unwrap() + 1;
+        assert_eq!(location.at, Some((3, method)));
+        assert_eq!(location.targets, [(3, target)]);
+    }
+}

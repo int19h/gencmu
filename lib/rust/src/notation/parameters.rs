@@ -711,7 +711,10 @@ impl<'a> Reader<'a> {
             return Ok(value);
         }
         if !syntax(n) && rule_name(n) == "implication" {
-            return Ok(written(&self.implication(n)?, crate::dom::write_cond));
+            let condition = self.implication(n)?;
+            let mut value = written(&condition, crate::dom::write_cond);
+            crate::parameters::locations::annotate_condition(&condition, &mut value);
+            return Ok(value);
         }
         let r = match rule_name(n) {
             "condition" => self.parameter_condition(self.inner(n, CONDITIONS)?)?,

@@ -210,4 +210,222 @@ pub(crate) fn restore_rule(rule: &mut dom::RuleDef, n: &Json) {
     for (c, n) in rule.conditions.iter_mut().zip(list(get(n, "conditions"))) {
         cond(c, n)
     }
+    if let Some(items) = &mut rule.emit {
+        for (item, n) in items.iter_mut().zip(list(get(get(n, "emit"), "items"))) {
+            let (tags, strings) = match item {
+                dom::EmitItem::Capture(_, tags, a) => (tags, &mut a.strings),
+                dom::EmitItem::Insert(tags, s) => (tags, s),
+            };
+            channels(strings, n);
+            if let Some(t) = tags {
+                term(t, get(n, "tags"))
+            }
+        }
+    }
+}
+
+fn locate(n: &mut Json, a: Option<(usize, usize)>) {
+    if let Some(a) = a {
+        if !has(n, SOURCE) {
+            set(n, SOURCE, position(a))
+        }
+    }
+}
+fn slot<'a>(n: &'a mut Json, key: &str) -> Option<&'a mut Json> {
+    match n {
+        Json::Obj(fs) => fs.iter_mut().find(|(k, _)| k == key).map(|(_, v)| v),
+        Json::Arr(xs) => key.parse::<usize>().ok().and_then(|i| xs.get_mut(i)),
+        _ => None,
+    }
+}
+fn annotate_term(t: &dom::Term, n: &mut Json) {
+    use dom::{Arg, Term};
+    match t {
+        Term::If(c, t) => {
+            if let Some(v) = slot(n, "if") {
+                annotate_condition(c, v)
+            }
+            if let Some(v) = slot(n, "then") {
+                annotate_term(t, v)
+            }
+        }
+        Term::Union(xs) | Term::Intersection(xs) => {
+            let k = if has(n, "union") { "union" } else { "intersection" };
+            if let Some(Json::Arr(values)) = slot(n, k) {
+                for (t, n) in xs.iter().zip(values) {
+                    annotate_term(t, n)
+                }
+            }
+        }
+        Term::Difference(a, b) => {
+            if let Some(Json::Arr(xs)) = slot(n, "difference") {
+                if xs.len() == 2 {
+                    annotate_term(a, &mut xs[0]);
+                    annotate_term(b, &mut xs[1])
+                }
+            }
+        }
+        Term::Call(name, args) => {
+            if name == "concat" {
+                if let Some(Json::Arr(xs)) = slot(n, "concat") {
+                    for (a, n) in args.iter().zip(xs) {
+                        if let Arg::Term(t) = a {
+                            annotate_term(t, n)
+                        }
+                    }
+                }
+            } else {
+                if let Some(Arg::Term(r)) = args.first() {
+                    if let Some(n) = slot(n, "receiver") {
+                        annotate_term(r, n)
+                    }
+                }
+                if let Some(Json::Arr(xs)) = slot(n, "args") {
+                    for (a, n) in args.iter().skip(1).zip(xs) {
+                        if let Arg::Term(t) = a {
+                            annotate_term(t, n)
+                        }
+                    }
+                }
+            }
+        }
+        _ => (),
+    }
+}
+pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
+    use dom::Cond;
+    match c {
+        Cond::Boundary(_, receiver, _, location) => {
+            locate(n, location.at);
+            if let Some(v) = slot(n, "receiver") {
+                annotate_term(receiver, v)
+            }
+            if let Some(Json::Arr(xs)) = slot(n, "args") {
+                for (n, a) in xs.iter_mut().zip(&location.targets) {
+                    locate(n, Some(*a))
+                }
+            }
+        }
+        Cond::Compare(_, a, b) => {
+            if let Some(n) = slot(n, "left") {
+                annotate_term(a, n)
+            }
+            if let Some(n) = slot(n, "right") {
+                annotate_term(b, n)
+            }
+        }
+        Cond::Matches(r, _) | Cond::Begins(r, _) | Cond::Initial(r) | Cond::Final(r) => {
+            if let Some(n) = slot(n, "receiver") {
+                annotate_term(r, n)
+            }
+        }
+        Cond::If(a, b) => {
+            if let Some(n) = slot(n, "if") {
+                annotate_condition(a, n)
+            }
+            if let Some(n) = slot(n, "then") {
+                annotate_condition(b, n)
+            }
+        }
+        Cond::Not(c) => {
+            if let Some(n) = slot(n, "not") {
+                annotate_condition(c, n)
+            }
+        }
+        Cond::Any(cs) | Cond::All(cs) => {
+            let k = if has(n, "any") { "any" } else { "all" };
+            if let Some(Json::Arr(xs)) = slot(n, k) {
+                for (c, n) in cs.iter().zip(xs) {
+                    annotate_condition(c, n)
+                }
+            }
+        }
+        _ => (),
+    }
+}
+fn annotate_channels(c: &dom::Channels, n: &mut Json) {
+    if let Some(v) = slot(n, "value") {
+        locate(v, c.value_at)
+    }
+    if let Some(v) = slot(n, "image") {
+        locate(v, c.image_at)
+    }
+}
+fn annotate_rule(rule: &dom::RuleDef, n: &mut Json) {
+    annotate_channels(&rule.strings, n);
+    if let Some(t) = &rule.tags {
+        if let Some(n) = slot(n, "tags") {
+            annotate_term(t, n)
+        }
+    }
+    if let Some(Json::Arr(alts)) = slot(n, "alternatives") {
+        for (alt, n) in rule.alternatives.iter().zip(alts) {
+            annotate_channels(&alt.strings, n);
+            if let Some(t) = &alt.tags {
+                if let Some(n) = slot(n, "tags") {
+                    annotate_term(t, n)
+                }
+            }
+            for (path, a) in &alt.ranked_locations {
+                if let Some(n) = slot(n, "expr").and_then(|n| path_slot(n, path)) {
+                    record_rank(n, *a)
+                }
+            }
+        }
+    }
+    if let Some(Json::Arr(cs)) = slot(n, "conditions") {
+        for (c, n) in rule.conditions.iter().zip(cs) {
+            annotate_condition(c, n)
+        }
+    }
+    if let (Some(items), Some(Json::Arr(xs))) = (&rule.emit, slot(n, "emit").and_then(|n| slot(n, "items"))) {
+        for (item, n) in items.iter().zip(xs) {
+            let (tags, strings) = match item {
+                dom::EmitItem::Capture(_, tags, a) => (tags, &a.strings),
+                dom::EmitItem::Insert(tags, s) => (tags, s),
+            };
+            annotate_channels(strings, n);
+            if let (Some(t), Some(n)) = (tags, slot(n, "tags")) {
+                annotate_term(t, n)
+            }
+        }
+    }
+}
+pub(crate) fn annotate_document(raw: &mut Json, dom: &Dom) {
+    if let Some(Json::Arr(rules)) = slot(raw, "rules") {
+        for (rule, n) in dom.rules.iter().zip(rules) {
+            if !dom.unresolved.contains_key(&rule.at) {
+                annotate_rule(rule, n)
+            }
+        }
+    }
+    if let Some(Json::Arr(ds)) = slot(raw, "directives") {
+        for (d, n) in dom.directives.iter().zip(ds) {
+            if let (Some(cs), Some(Json::Arr(xs))) = (&d.conditions, slot(n, "conditions")) {
+                for (c, n) in cs.iter().zip(xs) {
+                    annotate_condition(c, n)
+                }
+            }
+        }
+    }
+}
+
+fn path_slot<'a>(mut n: &'a mut Json, path: &str) -> Option<&'a mut Json> {
+    for key in path.split('/').filter(|s| !s.is_empty()) {
+        n = slot(n, key)?
+    }
+    Some(n)
+}
+
+pub(crate) fn restore_document(dom: &mut Dom, raw: &Json) {
+    for (r, n) in dom.rules.iter_mut().zip(list(get(raw, "rules"))) {
+        restore_rule(r, n)
+    }
+    for (d, n) in dom.directives.iter_mut().zip(list(get(raw, "directives"))) {
+        if let Some(cs) = &mut d.conditions {
+            for (c, n) in cs.iter_mut().zip(list(get(n, "conditions"))) {
+                cond(c, n)
+            }
+        }
+    }
 }
