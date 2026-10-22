@@ -32,24 +32,39 @@ def argument_of_expression(expr):
     return {"body": expr}
 
 
-def normalize_argument(value):
-    if isinstance(value, list):
-        return [normalize_argument(v) for v in value]
-    if not isinstance(value, dict):
+def map_nodes(root, transform):
+    result = [None]
+    pending = [(root, result, 0, False)]
+    while pending:
+        node, parent, key, complete = pending.pop()
+        if complete:
+            parent[key] = transform(parent[key])
+        elif isinstance(node, (dict, list)):
+            value = copy(node)
+            parent[key] = value
+            pending.append((None, parent, key, True))
+            children = list(node.items()) if isinstance(node, dict) else list(enumerate(node))
+            pending.extend((child, value, slot, False) for slot, child in reversed(children))
+        else:
+            parent[key] = node
+    return result[0]
+
+
+def clone_nodes(root):
+    return map_nodes(root, lambda node: node)
+
+
+def normalize_argument(root):
+    def normalized(value):
+        if isinstance(value, dict):
+            if 'body' in value:
+                return argument_of_expression(value['body'])
+            for key in ('union', 'concat', 'any', 'all'):
+                if isinstance(value.get(key), list):
+                    value[key] = [v for n in value[key] for v in n.get(key, [n])]
         return value
-    if "body" in value:
-        return argument_of_expression(normalize_argument(value["body"]))
-    result = copy(value)
-    for key, item in value.items():
-        result[key] = normalize_argument(item)
-        if key in ("union", "concat", "any", "all") and isinstance(result[key], list):
-            result[key] = [v for n in result[key] for v in n.get(key, [n])]
-    return result
+    return map_nodes(root, normalized)
 
 
 def identity(value):
-    if isinstance(value, list):
-        return [identity(v) for v in value]
-    if isinstance(value, dict):
-        return {k: identity(v) for k, v in sorted(value.items()) if k != "at"}
-    return value
+    return map_nodes(value, lambda node: {k: v for k, v in sorted(node.items()) if k != 'at'} if isinstance(node, dict) else node)

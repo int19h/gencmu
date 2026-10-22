@@ -724,11 +724,14 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                     rule_image=rule.get("image"),
                     document=path,
                     at=at,
-                    ranked_locations={**getattr(rule,"ranked_locations",{}).get(alternative_index,{}), **expression_locations(alt['expr'])},
+                    ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
                     index=alternative_index,
                 )
                 for alternative_index,alt in enumerate(rule.get("alternatives", []))
             ]
+            if template_order is not None:
+                for alternative in alternatives:
+                    alternative.ranked_locations = {**alternative.ranked_locations, **expression_locations(alternative.expr)}
             written_alternatives.extend(alternatives)
             previous = rules.get(name)
             op = rule.get("op")

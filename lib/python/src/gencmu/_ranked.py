@@ -313,19 +313,8 @@ def expression_locations(expr):
 
 
 def restore_template_locations(dom, tokens, position):
-    from copy import copy
-
-    def clone(root):
-        if isinstance(root, list):
-            return [clone(item) for item in root]
-        if isinstance(root, dict):
-            result = LocatedExpression(root) if 'ranked' in root else copy(root)
-            for key, value in root.items():
-                result[key] = clone(value)
-            return result
-        return root
-
-    result = clone(dom)
+    from ._template_nodes import map_nodes
+    result = map_nodes(dom, lambda node: LocatedExpression(node) if isinstance(node, dict) and 'ranked' in node else node)
     separators = [position(token.source[0]) for token in tokens if token.value == '≻']
     roots = []
     for rule in result['rules']:

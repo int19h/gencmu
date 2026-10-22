@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from copy import copy, deepcopy
+from copy import copy
 import json
 
 from ._errors import GencmuError
 from ._strings import spelling
-from ._template_nodes import argument_of_expression, has_unresolved, identity, nodes, normalize_argument
+from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument
 
 
 def key_of(value):
@@ -426,7 +426,7 @@ def expand_templates(documents, unicode):
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
     from ._validate import dom_problem
     for event in validation:
-        aliases, shadow = {}, deepcopy(event['rule'])
+        aliases, shadow = {}, clone_nodes(event['rule'])
         for node in nodes(shadow):
             for key in ('name', 'rule', 'ref'):
                 if isinstance(node.get(key), str) and '(' in node[key]:

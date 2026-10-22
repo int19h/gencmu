@@ -98,6 +98,21 @@ class Parameters(unittest.TestCase):
         self.assertEqual([(c.kind, c.rule) for c in grammar.changes], [('extend', 'text'), ('replace', 'text')])
         self.assertEqual(grammar.rules['text'].alternatives[0].expr['literal']['string'], 'c')
 
+    def test_deep_template_bodies_and_arguments(self):
+        unicode = grammar_of('%rule text "a"').unicode
+        for supplied in (False, True):
+            dom = read_document('```jbogenbau\n%rule atom(@X) @X\n%rule text atom("a")\n```')
+            expr = dict(literal=dict(string='a')) if supplied else dict(param='X', at=[2, 16])
+            for _ in range(250):
+                expr = dict(seq=[expr, dict(empty=True)])
+            if supplied:
+                dom['rules'][1]['alternatives'][0]['expr']['args'] = [dict(body=expr)]
+            else:
+                dom['rules'][0]['alternatives'][0]['expr'] = expr
+            self.assertIsNone(dom_problem(dom, unicode))
+            expanded = expand_templates([('deep.md', dom)], unicode)
+            self.assertEqual(len(expanded[3]), 1)
+
     def test_substituted_optionals_belong_to_the_instance(self):
         from gencmu._grammar import lower
         grammar = grammar_of('%rule tail(@T) "a" [+@T]\n%rule text tail(KU)')
