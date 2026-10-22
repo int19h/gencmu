@@ -93,7 +93,8 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	name := b.tokenValue(first)
-	terminal := first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
+	named := first.Rule == "name" || first.Rule == "reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
+	terminal := !named && (first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
 		if !terminal || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
@@ -106,6 +107,13 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	p := &domPattern{At: b.at(first)}
+	if named {
+		if !b.uni.isEmojiName(name) && !classifierName.MatchString(name) {
+			b.fail(first, "a malformed pattern rule name")
+		}
+		p.Kind, p.Name = "name", name
+		return p
+	}
 	switch first.Rule {
 	case "tag":
 		p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
@@ -130,6 +138,9 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		if terminal {
 			p.Kind = "terminal"
 		}
+	}
+	if p.Kind == "name" && !b.uni.isEmojiName(p.Name) && !classifierName.MatchString(p.Name) {
+		b.fail(first, "a malformed pattern rule name")
 	}
 	for _, test := range tests {
 		next := &domPattern{Kind: "test", Items: []*domPattern{p}}

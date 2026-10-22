@@ -887,14 +887,23 @@ class DomBuilder:
             if not kids:
                 raise self.lacks(node, "pattern atom")
             first = kids[0]
+            named = first.rule in ("name", "reference") or first.kind == "token" and first.terminal in ("Lowercase-Name", "Emoji-Name")
             tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
             valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
             if first.kind == "token":
                 name = self.token_value(first)
                 valid = USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS
+            if named:
+                valid = False
             # Target and order errors precede conversion of a group's or
             # nested literal's contents, just as for a tested primary.
             self.test_order(tests, valid)
+            if named:
+                name_token = first if first.kind == "token" else self.token(first)
+                name = self.token_value(name_token)
+                if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+                    raise self.fail(name_token, "a malformed pattern rule name")
+                return {"node": {"name": name, "at": list(self.position(name_token))}}
         children: list[Node] = []
         if kind == "pattern-union":
             children = self.some(node, "pattern-intersection")
@@ -962,6 +971,8 @@ class DomBuilder:
                 elif first.rule == "tag" or USER_NAME.fullmatch(name) or name.startswith("_"):
                     pattern = {"terminal": self.tag_of(token), "at": at}
                 else:
+                    if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+                        raise self.fail(first, "a malformed pattern rule name")
                     pattern = {"name": name, "at": at}
                 result = {"node": self.wrap_tests(pattern, tests)}
         elif kind == "pattern-brackets":

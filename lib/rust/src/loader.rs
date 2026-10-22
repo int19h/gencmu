@@ -1065,6 +1065,21 @@ mod notation_cache_tests {
             let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
             let context = Context::new(super::bundled("unicode.txt").unwrap(), &bootstrap, "null").unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
+            if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
+                let error = read_document(&context.notation, text).expect_err("a bad name must fail");
+                assert_eq!(
+                    error.line,
+                    expected.get("line").and_then(Json::as_int).map(|n| n as usize),
+                    "{id}: {error}"
+                );
+                assert_eq!(
+                    error.column,
+                    expected.get("column").and_then(Json::as_int).map(|n| n as usize),
+                    "{id}: {error}"
+                );
+                assert_eq!(Some(error.message.as_str()), expected.get("message").and_then(Json::as_str), "{id}");
+                continue;
+            }
             let expected =
                 dom_to_json(&read_document(&context.notation, text).unwrap_or_else(|error| panic!("{id}: {error}")));
             assert_pattern(case, &expected, id);

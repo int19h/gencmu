@@ -92,7 +92,12 @@ func TestNotationValues(t *testing.T) {
 			Aliases     []notationAlias `json:"aliases"`
 			Document    string          `json:"document"`
 			Expect      struct {
-				Dom any `json:"dom"`
+				Dom   any `json:"dom"`
+				Error *struct {
+					Line    int    `json:"line"`
+					Column  int    `json:"column"`
+					Message string `json:"message"`
+				} `json:"error"`
 			} `json:"expect"`
 		} `json:"cases"`
 	}
@@ -110,6 +115,12 @@ func TestNotationValues(t *testing.T) {
 				t.Fatal(err)
 			}
 			dom, rerr := reader.read(c.Document, "case.md")
+			if expected := c.Expect.Error; expected != nil {
+				if rerr == nil || rerr.Line != expected.Line || rerr.Column != expected.Column || rerr.Message != expected.Message {
+					t.Fatalf("%s: expected %d:%d: %s, got %v", c.ID, expected.Line, expected.Column, expected.Message, rerr)
+				}
+				return
+			}
 			if rerr != nil {
 				t.Fatalf("%s\n%v", c.Description, rerr)
 			}

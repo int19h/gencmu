@@ -16525,18 +16525,30 @@
         const inner = parts(node);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
+        const named = ["name", "reference"].includes(ruleOf(first)) ||
+          first.kind === "token" && ["Lowercase-Name", "Emoji-Name"].includes(first.terminal);
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
-        const testable = first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
-          : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first));
+        const testable = !named && (first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
+          : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first)));
         const grouped = first.kind === "token" && valueOf(first) === "(";
         const nested = ruleOf(first) === "pattern-literal";
         checkTestOrder(tests, testable);
+        if (named) {
+          const nameToken = first.kind === "token" ? first : token(first);
+          const name = valueOf(nameToken);
+          if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", nameToken);
+          return { node: { name, at: at(nameToken) } };
+        }
         if (grouped) return yield readPattern(only(node, "pattern-union"));
         if (nested) return { node: asPattern(yield readPattern(one(first, "pattern-union") || only(first, "pattern-atom"))) };
         let expr;
         if (first.kind === "token") {
           const name = valueOf(first);
-          expr = isCapital(name) || name.startsWith("_") ? { terminal: tagOf(first), at: at(first) } : { name, at: at(first) };
+          if (isCapital(name) || name.startsWith("_")) expr = { terminal: tagOf(first), at: at(first) };
+          else {
+            if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", first);
+            expr = { name, at: at(first) };
+          }
         } else if (ruleOf(first) === "tag") expr = { terminal: tagOf(token(first)), at: at(first) };
         else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
         else if (ruleOf(first) === "string-terminal") expr = { literal: yield readTerm(knownOf(first, new Set(["string", "constant-reference"]))), at: at(first) };

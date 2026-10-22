@@ -181,7 +181,9 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 
 ## Supplied notation values: `notation-values.json`
 
-Each case gives a document, lexical aliases, and a DOM pattern. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and matches its DOM. It also runs the cold, matching, and mismatched cache paths described above.
+Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
+
+An error expectation pins its line, column and explanation through `expect.error`. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
 The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 

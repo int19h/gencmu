@@ -1288,6 +1288,11 @@ impl<'a> Reader<'a> {
             .ok_or_else(|| self.shape_error(node, "pattern-union or pattern-atom"))
     }
 
+    fn pattern_rule_name(node: &Node) -> bool {
+        matches!(rule_name(node), "name" | "reference")
+            || node.kind == NodeKind::Token && matches!(node.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
+    }
+
     /// Constructor parts determine the base, independently of delimiters.
     fn pattern_atom_base(&self, node: &'a Node) -> R<&'a Node> {
         Self::parts(node)
@@ -1306,7 +1311,8 @@ impl<'a> Reader<'a> {
                         | "pattern-literal"
                         | "pattern-union"
                 ) || part.kind == NodeKind::Token
-                    && (self.unicode.is_emoji_name(self.value(part))
+                    && (matches!(part.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
+                        || self.unicode.is_emoji_name(self.value(part))
                         || self.value(part).starts_with('_')
                         || self.value(part).as_bytes().first().is_some_and(u8::is_ascii_alphabetic))
             })
@@ -1334,11 +1340,12 @@ impl<'a> Reader<'a> {
                 } else {
                     None
                 };
-                let testable = matches!(
-                    rule_name(base),
-                    "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
-                ) || name
-                    .is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_'));
+                let testable = !Self::pattern_rule_name(base)
+                    && (matches!(
+                        rule_name(base),
+                        "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
+                    ) || name
+                        .is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_')));
                 self.pattern_test_nodes(node, testable)?;
             }
             let children: Vec<&Node> = match kind {
@@ -1478,9 +1485,17 @@ impl<'a> Reader<'a> {
                             _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
                                 let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
                                 let name = self.value(token);
-                                if is_capital(name) || crate::dom::is_engine_tag(name) {
+                                if !Self::pattern_rule_name(first)
+                                    && (is_capital(name) || crate::dom::is_engine_tag(name))
+                                {
                                     (P::Terminal(name.into(), self.at(token)), true)
                                 } else {
+                                    if !self.unicode.is_emoji_name(name)
+                                        && !(name.starts_with(|c: char| c.is_ascii_lowercase())
+                                            && crate::tags::is_name(name))
+                                    {
+                                        return Err(self.error(token, "a malformed pattern rule name"));
+                                    }
                                     (P::Name(name.into(), self.at(token)), false)
                                 }
                             }
