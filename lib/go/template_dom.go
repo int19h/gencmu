@@ -209,6 +209,9 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 				if x[key] != nil {
 					k := "recipe"
 					if key == "tags" {
+						if msg := templateTagClauseProblem(x[key], x["capture"] == nil && x["insert"] == nil); msg != "" {
+							return problem(msg)
+						}
 						k = "tags"
 					}
 					if p := walk(x[key], k, false); p != nil {
@@ -241,6 +244,12 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(alt["expr"], "expr", true); p != nil {
 				return p
 			}
+			if len(duplicateCaptures(templateCaptureShape(templateObj(alt["expr"])))) > 0 {
+				return problem("a capture name used twice in one production")
+			}
+			if r["erased"] == true && (alt["value"] != nil || alt["image"] != nil) {
+				return problem("an erased rule has a recipe")
+			}
 			if p := clauses(alt); p != nil {
 				return p
 			}
@@ -250,6 +259,7 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if !templateOnly(emit, "items") || !templateArray(emit, "items", 1) {
 				return problem("a malformed emission")
 			}
+			listed := map[string]bool{}
 			for _, it := range templateList(emit["items"]) {
 				item := templateObj(it)
 				if !templateAllowed(item, "capture", "insert", "tags", "value", "image", "before", "after") {
@@ -261,6 +271,28 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 					}
 				} else if s, ok := item["capture"].(string); !ok || s != "" && !captureName.MatchString(s) {
 					return problem("a malformed carrier")
+				}
+				for _, side := range []string{"before", "after"} {
+					if item[side] != nil {
+						if templateText(item["capture"]) == "" || !templateArray(item, side, 1) {
+							return problem("a malformed attachment")
+						}
+						for _, name := range templateList(item[side]) {
+							if !captureName.MatchString(templateText(name)) {
+								return problem("a malformed attachment")
+							}
+							if listed[templateText(name)] {
+								return problem("an emission lists a capture twice")
+							}
+							listed[templateText(name)] = true
+						}
+					}
+				}
+				if name := templateText(item["capture"]); name != "" {
+					if listed[name] {
+						return problem("an emission lists a capture twice")
+					}
+					listed[name] = true
 				}
 				if p := clauses(item); p != nil {
 					return p
@@ -438,7 +470,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		if n["optional"] != nil {
-			if !templateAllowed(n, "optional", "elidable") || n["elidable"] != nil && n["elidable"] != true {
+			if !templateAllowed(n, "optional", "elidable") || n["elidable"] != nil && (n["elidable"] != true || !templateElidableHead(templateObj(n["optional"]))) {
 				return "a malformed optional"
 			}
 			return templateNodeProblem(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
@@ -456,13 +488,16 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			return ""
 		}
 		if n["capture"] != nil {
-			if !templateOnly(n, "capture", "expr") || sealed || !captureName.MatchString(templateText(n["capture"])) {
+			if !templateOnly(n, "capture", "expr") || sealed || (!captureName.MatchString(templateText(n["capture"])) || !templateSymbol(templateObj(n["expr"]))) {
 				return "a malformed capture"
 			}
 			return walk(n["expr"], "expr")
 		}
 	}
 	if n["test"] != nil {
+		if kind == "expr" && !templateSymbol(n) {
+			return "a malformed test"
+		}
 		if n["test"] == "tags" {
 			if !templateOnly(n, "test", "expr", "requirements") {
 				return "a malformed tag test"
@@ -638,6 +673,89 @@ func templateRequirementProblem(value any, depth int, uni *unicodeTable) string 
 		}
 		if p := templateNodeProblem(operand, "tags", depth+1, false, false, uni); p != "" {
 			return p
+		}
+	}
+	return ""
+}
+
+func templateSymbol(n templateObject) bool {
+	if n["test"] != nil {
+		inner := templateObj(n["expr"])
+		if n["test"] == "tags" {
+			return inner["test"] == nil && templateSymbol(inner)
+		}
+		if n["test"] != "=" && n["test"] != "≠" {
+			return false
+		}
+		return inner["test"] == nil && templateSymbol(inner) || inner["test"] == "tags" && templateSymbol(inner)
+	}
+	return n["param"] != nil || n["call"] != nil || n["ref"] != nil || n["literal"] != nil || n["range"] != nil || n["wildcard"] == true
+}
+func templateElidableHead(n templateObject) bool {
+	if xs := templateList(n["seq"]); len(xs) > 0 {
+		n = templateObj(xs[0])
+	}
+	if !templateSymbol(n) {
+		return false
+	}
+	for n["test"] != nil {
+		n = templateObj(n["expr"])
+	}
+	return n["param"] != nil || templateOnly(n, "ref") && className.MatchString(templateText(n["ref"]))
+}
+func templateCaptureShape(n templateObject) *domExpr {
+	for _, kind := range []string{exSeq, exChoice, exRanked, exAnd} {
+		if n[kind] != nil {
+			items := []*domExpr{}
+			for _, v := range templateList(n[kind]) {
+				items = append(items, templateCaptureShape(templateObj(v)))
+			}
+			return &domExpr{Kind: kind, Items: items}
+		}
+	}
+	for _, kind := range []string{exOptional, exRepeat} {
+		if n[kind] != nil {
+			e := &domExpr{Kind: kind, Inner: templateCaptureShape(templateObj(n[kind]))}
+			if n["separator"] != nil {
+				e.Sep = templateCaptureShape(templateObj(n["separator"]))
+			}
+			return e
+		}
+	}
+	if n["capture"] != nil {
+		return &domExpr{Kind: exCapture, Name: templateText(n["capture"]), Inner: templateCaptureShape(templateObj(n["expr"]))}
+	}
+	if n["test"] != nil {
+		return templateCaptureShape(templateObj(n["expr"]))
+	}
+	return &domExpr{Kind: exWildcard}
+}
+func templateTagClauseProblem(root any, own bool) string {
+	pending := []any{root}
+	for len(pending) > 0 {
+		v := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch n := v.(type) {
+		case []any:
+			pending = append(pending, n...)
+		case map[string]any:
+			if n["pattern"] != nil {
+				continue
+			}
+			if engineTag(templateText(n["tag"])) {
+				return "a tag clause introduces an engine tag"
+			}
+			if own && (n["method"] == "tags" || n["method"] == "classes") {
+				receiver := templateObj(n["receiver"])
+				if value, ok := receiver["capture"]; ok && value == "" {
+					return "a constituent's tags cannot read its own tags"
+				}
+			}
+			for _, key := range templateKeys(n) {
+				if key != "at" {
+					pending = append(pending, n[key])
+				}
+			}
 		}
 	}
 	return ""

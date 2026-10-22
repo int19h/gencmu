@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -309,4 +310,42 @@ func TestParameterRankedArgumentLocation(t *testing.T) {
 		}
 	}
 	parameterEqual(t, at, [2]int{3, 29})
+}
+
+func TestParameterUncalledTemplateValidation(t *testing.T) {
+	for _, c := range []struct{ source, message string }{
+		{`%rule unused(@X) $x:A $x:@X`, "capture name used twice"},
+		{`%rule unused(@X) $x:(A @X)`, "malformed capture"},
+		{`%rule unused(@X) @X %emits $x :: @X, $x`, "lists a capture twice"},
+		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "lists a capture twice"},
+		{`%rule unused(@X) @X :: _L ∪ @X`, "engine tag"},
+		{`%rule unused(@X) @X :: $.tags ∪ @X`, "own tags"},
+		{`%rule unused(@X) @X := @X %erased`, "erased"},
+		{`%rule unused(@X) [+| @X]`, "leading separator"},
+	} {
+		t.Run(c.source, func(t *testing.T) {
+			text := c.source + "\n%rule text \"a\""
+			_, e := caseDialect(&engineCase{Grammar: &text}, false)
+			if e == nil {
+				t.Fatal("accepted an invalid uncalled template")
+			}
+			if !strings.Contains(e.Error(), c.message) {
+				t.Fatalf("expected %q, got %v", c.message, e)
+			}
+		})
+	}
+	for _, good := range []string{`%rule unused(@X) $x:A | $x:@X`, `%rule unused(@X) $x:@X %emits $x :: @X`, `%rule unused(@X) [+@X]`} {
+		text := good + "\n%rule text \"a\""
+		if _, e := caseDialect(&engineCase{Grammar: &text}, false); e != nil {
+			t.Fatal(e)
+		}
+	}
+	d := parameterRead(t, "%rule unused(@X) @X\n%rule text \"a\"")
+	for _, expr := range []templateObject{{"capture": "x", "expr": templateObject{"seq": []any{templateObject{"ref": "A"}, templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}}}}, {"optional": templateObject{"call": "unused", "args": []any{templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}}, "at": templatePosition([2]int{1, 1})}, "elidable": true}} {
+		raw, _ := templateFromJSON(d.json())
+		templateObj(templateList(templateObj(templateList(raw["rules"])[0])["alternatives"])[0])["expr"] = expr
+		if _, e := decodeDOM(templateJSON(raw), bundled.uni); e == nil {
+			t.Fatalf("accepted an invalid supplied expression: %v", expr)
+		}
+	}
 }

@@ -262,6 +262,11 @@ func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 			if len(cs) != 1 {
 				b.fail(n, "an elidable optional requires one sequence")
 			}
+			for _, part := range append(parts(c), parts(cs[0])...) {
+				if part.Kind == KindToken && (b.tokenValue(part) == "|" || b.tokenValue(part) == "&") {
+					b.fail(n, "an elidable optional requires one sequence without a leading separator")
+				}
+			}
 			ss := ofRule(cs[0], "sequence")
 			if len(ss) != 1 {
 				b.fail(n, "an elidable optional requires one sequence")
