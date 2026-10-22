@@ -930,7 +930,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             out.push(',');
         }
         if let Some(raw) = dom.unresolved.get(&rule.at) {
-            out.push_str(&crate::parameters::clean(raw).to_json());
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
             continue;
         }
         write_rule(&mut out, rule);
@@ -941,7 +941,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             out.push(',');
         }
         if let Some(raw) = dom.unresolved.get(&directive.at) {
-            out.push_str(&crate::parameters::clean(raw).to_json());
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
             continue;
         }
         out.push_str("{\"name\":");
@@ -972,7 +972,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             out.push(',');
         }
         if let Some(raw) = dom.unresolved.get(&constant.at) {
-            out.push_str(&crate::parameters::clean(raw).to_json());
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
             continue;
         }
         out.push_str("{\"name\":");
@@ -1020,7 +1020,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             out.push(',');
         }
         if let Some(raw) = dom.unresolved.get(&implication.at) {
-            out.push_str(&crate::parameters::clean(raw).to_json());
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
             continue;
         }
         out.push_str("{\"if\":");

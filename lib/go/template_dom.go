@@ -212,7 +212,9 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 						if msg := templateTagClauseProblem(x[key], x["capture"] == nil && x["insert"] == nil); msg != "" {
 							return problem(msg)
 						}
-						k = "tags"
+						// The clause check above distinguishes constituent tags from
+						// emission tags. An emission can read its constituent's tags.
+						k = "term"
 					}
 					if p := walk(x[key], k, false); p != nil {
 						return p

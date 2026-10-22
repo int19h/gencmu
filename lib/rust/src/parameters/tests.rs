@@ -330,3 +330,18 @@ fn nested_alias_twins_follow_expanded_order() {
   }
  }
 }
+
+#[test]
+fn unresolved_writer_ignores_object_member_order() {
+    let mut d = read("%rule tag(@R) A<@R> %emits $ :: $.tags\n%rule text tag(<B ¬C>)");
+    let expected = dom::dom_to_json(&d);
+    for raw in d.unresolved.values_mut() {
+        *raw = map_nodes(raw, |mut n| {
+            if let Json::Obj(fields) = &mut n {
+                fields.reverse();
+            }
+            n
+        });
+    }
+    assert_eq!(dom::dom_to_json(&d), expected);
+}

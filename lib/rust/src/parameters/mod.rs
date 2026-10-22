@@ -177,6 +177,71 @@ pub(crate) fn clean(root: &Json) -> Json {
         n
     })
 }
+pub(crate) fn canonical_source(root: &Json) -> Json {
+    map_nodes(root, |mut n| {
+        remove(&mut n, SOURCE);
+        let order: &[&str] = if has(&n, "name") && has(&n, "flags") {
+            &[
+                "name",
+                "params",
+                "args",
+                "op",
+                "flags",
+                "instance",
+                "tags",
+                "value",
+                "image",
+                "alternatives",
+                "emit",
+                "conditions",
+                "erased",
+            ]
+        } else if has(&n, "name") && has(&n, "op") {
+            &["name", "op", "term"]
+        } else if has(&n, "directive") {
+            &["directive", "args", "conditions"]
+        } else if has(&n, "call") {
+            &["call", "args"]
+        } else if has(&n, "method") {
+            &["method", "receiver", "args"]
+        } else if has(&n, "guards") {
+            &["guards", "expr", "tags", "value", "image"]
+        } else if has(&n, "test") {
+            &["test", "expr", "value", "requirements"]
+        } else if has(&n, "capture") && has(&n, "expr") {
+            &["capture", "expr"]
+        } else if has(&n, "capture") || has(&n, "insert") {
+            &["capture", "insert", "before", "after", "tags", "value", "image"]
+        } else if has(&n, "repeat") {
+            &["repeat", "separator", "chain"]
+        } else if has(&n, "optional") {
+            &["optional", "elidable"]
+        } else if has(&n, "if") {
+            &["if", "then"]
+        } else if has(&n, "op") {
+            &["op", "left", "right"]
+        } else if has(&n, "negated") {
+            &["negated", "value"]
+        } else if has(&n, "path") {
+            &["path", "pattern"]
+        } else {
+            &[]
+        };
+        if let Json::Obj(fields) = &mut n {
+            fields.sort_by(|(a, _), (b, _)| {
+                let rank = |k: &str| {
+                    if k == "at" {
+                        order.len() + 1
+                    } else {
+                        order.iter().position(|x| *x == k).unwrap_or(order.len())
+                    }
+                };
+                rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
+            });
+        }
+        n
+    })
+}
 pub(crate) fn append(dom: &mut Dom, kind: &str, r: Json) -> Result<(), String> {
     let at = at(&r).ok_or("a declaration requires a position")?;
     match kind {
