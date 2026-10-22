@@ -1,5 +1,5 @@
 {
-  "description": "An inserted emission tag clause resolves @(\"a\") before ≇ and assigns X. The string-identity pattern does not match _ under engine §§2 and 10 and §11.",
+  "description": "An inserted emission tag clause resolves #(\"a\") before ≇ and assigns X. The string-identity pattern does not match _ under engine §§2 and 10 and §11.",
   "grammar": "%rule text _\n%emits ε :: ($ ≇ #(\"a\") ⟹ X) := \"v\" :- \"i\"",
   "tokens": [
     {

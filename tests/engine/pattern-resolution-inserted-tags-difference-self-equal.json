@@ -1,5 +1,5 @@
 {
-  "description": "An inserted emission tag clause resolves (@(A) ∖ @(A)) before ≅ and assigns no tags. The difference-self pattern does not match A under engine §§2 and 10 and §11.",
+  "description": "An inserted emission tag clause resolves (#(A) ∖ #(A)) before ≅ and assigns no tags. The difference-self pattern does not match A under engine §§2 and 10 and §11.",
   "grammar": "%rule text A\n%emits ε :: ($ ≅ (#(A) ∖ #(A)) ⟹ X) := \"v\" :- \"i\"",
   "tokens": [
     {

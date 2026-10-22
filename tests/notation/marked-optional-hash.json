@@ -1,5 +1,5 @@
 {
-  "description": "# cannot be the terminator of a marked optional: an error at the [ (engine §9).",
+  "description": "🆓 cannot be the terminator of a marked optional: an error at the [ (engine §9).",
   "document": "```jbogenbau\n%rule a [ + 🆓 ]\n```\n",
   "expect": {
     "error": {

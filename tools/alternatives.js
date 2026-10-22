@@ -14,8 +14,12 @@
 // The rules and their lines come from the Markdown extraction of the engine
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
+import fs from "node:fs";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
+
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
 export const LINE_LIMIT = 100;
 
@@ -100,9 +104,9 @@ function scanBody(chars, start) {
       at += 2;
     }
   };
-  // The rule's name, a name or #.
+  // The rule's name is an identifier or one eligible emoji.
   i = skipLayout(i);
-  if (chars[i] === "#") i++;
+  if (chars[i] !== undefined && unicode.isEmojiName(chars[i])) i++;
   else while (isNameChar(chars[i])) i++;
   i = skipLayout(i);
   // A header clause precedes the bar that starts the ordinary body.

@@ -1,5 +1,5 @@
 {
-  "description": "An alternative tag clause resolves @($LETTER) before ≇ and assigns no tags. The string-constant pattern matches \"a\" under engine §§2 and 10.",
+  "description": "An alternative tag clause resolves #($LETTER) before ≇ and assigns no tags. The string-constant pattern matches \"a\" under engine §§2 and 10.",
   "grammar": "%const $LETTER \"old\"\n%rule text \"a\" :: ($ ≇ #($LETTER) ⟹ X)\n%redefine-const $LETTER \"a\"",
   "tokens": [
     {

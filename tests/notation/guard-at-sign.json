@@ -1,5 +1,5 @@
 {
-  "description": "A guard has no @. The lexer reads @ as a pattern opener prefix, then reports the missing opening parenthesis (engine §9.3).",
+  "description": "A guard uses no sigil before its feature name. The lexer reports that @ is reserved for parameters (engine §9.3).",
   "document": "```jbogenbau\n%rule a # cbm? A\n```\n",
   "expect": {
     "error": {

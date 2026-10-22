@@ -1,5 +1,5 @@
 {
-  "description": "# is an ordinary rule, the free-modifier slot, which the grammar defines like any other; here zero or more free modifiers, which its one node groups (engine §2).",
+  "description": "The ordinary rule 🆓 defines the free-modifier slot. Its node groups zero or more free modifiers (engine §2).",
   "grammar": "%rule 🆓 [{free}]\n%rule text (A 🆓 B)\n%rule free F",
   "tokens": [
     {

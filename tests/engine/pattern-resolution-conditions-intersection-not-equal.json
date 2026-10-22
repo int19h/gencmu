@@ -1,5 +1,5 @@
 {
-  "description": "A condition resolves (@(A) ∩ (@(A) ∪ @(B))) before ≇ and rejects the reading. The intersection pattern matches A under engine §§2 and 10.",
+  "description": "A condition resolves (#(A) ∩ (#(A) ∪ #(B))) before ≇ and rejects the reading. The intersection pattern matches A under engine §§2 and 10.",
   "grammar": "%rule text A\n%conditions $ ≇ (#(A) ∩ (#(A) ∪ #(B)))",
   "tokens": [
     {

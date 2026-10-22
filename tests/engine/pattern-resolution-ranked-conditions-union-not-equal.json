@@ -1,5 +1,5 @@
 {
-  "description": "A private ranked condition resolves (@(A) ∪ @(B)) before ≇ and rejects the reading. The union pattern matches A under engine §§2 and 10 and §2.1.",
+  "description": "A private ranked condition resolves (#(A) ∪ #(B)) before ≇ and rejects the reading. The union pattern matches A under engine §§2 and 10 and §2.1.",
   "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≇ (#(A) ∪ #(B)))\n%rule never Z",
   "tokens": [
     {

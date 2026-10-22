@@ -1,5 +1,5 @@
 {
-  "description": "A private ranked condition resolves (@(A) ∖ @(A)) before ≅ and rejects the reading. The difference-self pattern does not match A under engine §§2 and 10 and §2.1.",
+  "description": "A private ranked condition resolves (#(A) ∖ #(A)) before ≅ and rejects the reading. The difference-self pattern does not match A under engine §§2 and 10 and §2.1.",
   "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ (#(A) ∖ #(A)))\n%rule never Z",
   "tokens": [
     {

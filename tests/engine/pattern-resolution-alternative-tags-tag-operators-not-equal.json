@@ -1,5 +1,5 @@
 {
-  "description": "An alternative tag clause resolves patterns within tag union, intersection, and difference. Engine §10 leaves only Y for ≇ on A and @(A).",
+  "description": "An alternative tag clause resolves patterns within tag union, intersection, and difference. Engine §10 leaves only Y for ≇ on A and #(A).",
   "grammar": "%rule text A :: ((($ ≇ #(A) ⟹ X) ∪ Y ∪ Z) ∩ (X ∪ Y) ∖ Z)",
   "tokens": [
     {
