@@ -874,5 +874,81 @@
     "expect": {
       "error": "grammar"
     }
+  },
+  {
+    "name": "a parameter remains a pattern operand under union",
+    "grammar": "%rule use(@X) $x:\"a\" %conditions $x ≅ #(@X ∪ \"b\")\n%rule text = use(\"a\")",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "a parameter remains a pattern operand under intersection",
+    "grammar": "%rule use(@X) $x:\"a\" %conditions $x ≅ #(@X ∩ \"a\")\n%rule text = use(\"a\")",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "a parameter remains a pattern operand under difference",
+    "grammar": "%rule use(@X) $x:\"a\" %conditions $x ≅ #(@X ∖ \"b\")\n%rule text = use(\"a\")",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "a family remains a pattern operand under union",
+    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #(use ∪ \"b\")",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "an exact call remains a pattern operand under intersection",
+    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #(use(\"a\") ∩ use)",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "a ranked body argument retains its seal",
+    "grammar": "%rule choose(@X) @X :: ∅\n%rule text choose((\"a\" ≻ \"a\"))",
+    "input": "a",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "an uncalled template rejects an unknown dependent method",
+    "grammar": "%rule unused(@X) \"a\" :: @X.unknown\n%rule text \"a\"",
+    "input": "a",
+    "expect": {
+      "error": "grammar"
+    }
+  },
+  {
+    "name": "an ordinary definition replaced by a binding still validates constants",
+    "grammar": "%rule atom(@X) @X\n%rule text $Missing\n%redefine-rule text = atom(\"a\")",
+    "input": "a",
+    "expect": {
+      "error": "grammar"
+    }
   }
 ]

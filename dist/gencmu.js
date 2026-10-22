@@ -2603,20 +2603,21 @@
     return {body:expr};
   }
 
-  /** @param {any} value @returns {any} */
-  function normalizeArgument(value) {
+  /** @param {any} value @param {((source:any,target:any)=>void)|null} [copyLocation] @returns {any} */
+  function normalizeArgument(value, copyLocation = null) {
     if(!value || typeof value!=="object") return value;
-    if(Array.isArray(value)) return value.map(normalizeArgument);
+    if(Array.isArray(value)) return value.map(item => normalizeArgument(item,copyLocation));
     if(value.body) {
-      const converted=argumentOfExpression(normalizeArgument(value.body));
+      const converted=argumentOfExpression(normalizeArgument(value.body,copyLocation));
       return converted;
     }
     /** @type {Record<string,any>} */
     const result={};
     for(const [key,item] of Object.entries(value)) {
-      result[key]=normalizeArgument(item);
+      result[key]=normalizeArgument(item,copyLocation);
       if(["union","concat","any","all"].includes(key) && Array.isArray(result[key])) result[key]=result[key].flatMap((/** @type {any} */ n)=>n[key]??[n]);
     }
+    if(copyLocation) copyLocation(value,result);
     return result;
   }
 
@@ -3357,7 +3358,7 @@
       }
       if (kind === "method-shape") {
         const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
-        if (problem && !hasUnresolved(value)) return problem;
+        if (problem && (!METHODS.has(value.method) || !hasUnresolved(value))) return problem;
       } else if (kind === "expr") {
         if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
@@ -5561,6 +5562,15 @@
 
 
   /** @param {any} value @returns {any} */
+  function normalizeTemplateArgument(value) {
+    return normalizeArgument(value,(source,target)=>{
+      copyRankedLocation(source,target);
+      copyRecipeLocation(source,target);
+      copyBoundaryLocation(source,target);
+    });
+  }
+
+  /** @param {any} value @returns {any} */
   function templateIdentity(value) {
     if(Array.isArray(value)) return value.map(templateIdentity);
     if(!value || typeof value!=="object") return value;
@@ -5740,7 +5750,7 @@
     const intern=(call,event,discover=false)=>{
       const signature=templates.get(call.call);
       if(!signature || !Array.isArray(call.args) || signature.arity!==call.args.length) fail(event,call,'an instance call requires the declared arity');
-      const args=call.args.map(normalizeArgument);
+      const args=call.args.map(normalizeTemplateArgument);
       const normalized={call:call.call,args,at:call.at};
       const key=JSON.stringify(templateIdentity(normalized));
       if(!instances.has(key)) {
@@ -5822,7 +5832,7 @@
     }
     /** @type {(arg:any,position:string,event:any,use:any)=>any} */
     const convert=(arg,position,event,use)=>{
-      arg=normalizeArgument(arg);
+      arg=normalizeTemplateArgument(arg);
       if(position==='arg') return arg;
       if(position==='expr') {
         if(arg.body) return arg.body;
@@ -5886,7 +5896,7 @@
           }
         }
         let next=position;
-        if(['alternatives','conditions','emit','tags','value','image','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key)) next='term';
+        if(['alternatives','conditions','emit','tags','value','image','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator'].includes(key) && position!=='pattern') next='expr';
         if(key==='expr') next=position==='pattern'?'pattern':'expr';
         if(key==='pattern' || key==='children' || key==='node') next='pattern';
@@ -17268,6 +17278,7 @@
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
+        if(!METHODS.has(name)) fail(`unknown method ${name}`,node);
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
