@@ -18,6 +18,8 @@ The code points are those of the private-use block of the font. This document wr
 
 The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
 
+The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark and tags the first output.
+
 ```jbogenbau
 %extend-rule consonant :: ∅
   | $_ED80 := "p"
@@ -111,49 +113,30 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
-%rule zbalermorna-ai
-  $_EDA6
-%emits
-  $ :: ∅ := "a", ε :: ∅ := "i"
+%rule zbalermorna-ai = two-phonemes($_EDA6, "a", "i")
 
-%rule zbalermorna-ei
-  $_EDA7
-%emits
-  $ :: ∅ := "e", ε :: ∅ := "i"
+%rule zbalermorna-ei = two-phonemes($_EDA7, "e", "i")
 
-%rule zbalermorna-oi
-  $_EDA8
-%emits
-  $ :: ∅ := "o", ε :: ∅ := "i"
+%rule zbalermorna-oi = two-phonemes($_EDA8, "o", "i")
 
-%rule zbalermorna-au
-  $_EDA9
-%emits
-  $ :: ∅ := "a", ε :: ∅ := "u"
+%rule zbalermorna-au = two-phonemes($_EDA9, "a", "u")
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
   | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
-%rule zbalermorna-stressed-ai
-  $_EDA6 zbalermorna-stress
+%rule stressed-two-phonemes(@C, @A, @B)
+  @C zbalermorna-stress
 %emits
-  $ :: Stressed := "A", ε :: ∅ := "i"
+  $ :: Stressed := @A, ε :: ∅ := @B
 
-%rule zbalermorna-stressed-ei
-  $_EDA7 zbalermorna-stress
-%emits
-  $ :: Stressed := "E", ε :: ∅ := "i"
+%rule zbalermorna-stressed-ai = stressed-two-phonemes($_EDA6, "A", "i")
 
-%rule zbalermorna-stressed-oi
-  $_EDA8 zbalermorna-stress
-%emits
-  $ :: Stressed := "O", ε :: ∅ := "i"
+%rule zbalermorna-stressed-ei = stressed-two-phonemes($_EDA7, "E", "i")
 
-%rule zbalermorna-stressed-au
-  $_EDA9 zbalermorna-stress
-%emits
-  $ :: Stressed := "A", ε :: ∅ := "u"
+%rule zbalermorna-stressed-oi = stressed-two-phonemes($_EDA8, "O", "i")
+
+%rule zbalermorna-stressed-au = stressed-two-phonemes($_EDA9, "A", "u")
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
@@ -171,7 +154,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   $_ED8B
 ```
 
-<details><summary>Railroad diagrams of the 22 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
+<details><summary>Railroad diagrams of the 23 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stress.svg" alt="Railroad diagram of the rule zbalermorna-stress"></p>
@@ -186,6 +169,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-oi.svg" alt="Railroad diagram of the rule zbalermorna-oi"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-au.svg" alt="Railroad diagram of the rule zbalermorna-au"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-diphthong.svg" alt="Railroad diagram of the rule zbalermorna-stressed-diphthong"></p>
+<p><img src="../../docs/diagrams/phonemes/zbalermorna/stressed-two-phonemes.svg" alt="Railroad diagram of the rule stressed-two-phonemes"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-ai.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ai"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-ei.svg" alt="Railroad diagram of the rule zbalermorna-stressed-ei"></p>
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/zbalermorna-stressed-oi.svg" alt="Railroad diagram of the rule zbalermorna-stressed-oi"></p>

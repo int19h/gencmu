@@ -324,6 +324,8 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images spell the number word.
 
+The `two-phonemes` template takes a character and two output strings. Named instances retain each digit and decimal-point rule as an insertion owner.
+
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
 The `items` condition tests the pause span with `decimal-point`. Commas prevent that match, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
@@ -363,63 +365,35 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
 
-%rule digit-0
-  "0"
+%rule two-phonemes(@C, @A, @B)
+  @C
 %emits
-  $ :: ∅ := "n", ε :: ∅ := "o"
+  $ :: ∅ := @A, ε :: ∅ := @B
 
-%rule digit-1
-  "1"
-%emits
-  $ :: ∅ := "p", ε :: ∅ := "a"
+%rule digit-0 = two-phonemes("0", "n", "o")
 
-%rule digit-2
-  "2"
-%emits
-  $ :: ∅ := "r", ε :: ∅ := "e"
+%rule digit-1 = two-phonemes("1", "p", "a")
 
-%rule digit-3
-  "3"
-%emits
-  $ :: ∅ := "c", ε :: ∅ := "i"
+%rule digit-2 = two-phonemes("2", "r", "e")
 
-%rule digit-4
-  "4"
-%emits
-  $ :: ∅ := "v", ε :: ∅ := "o"
+%rule digit-3 = two-phonemes("3", "c", "i")
 
-%rule digit-5
-  "5"
-%emits
-  $ :: ∅ := "m", ε :: ∅ := "u"
+%rule digit-4 = two-phonemes("4", "v", "o")
 
-%rule digit-6
-  "6"
-%emits
-  $ :: ∅ := "x", ε :: ∅ := "a"
+%rule digit-5 = two-phonemes("5", "m", "u")
 
-%rule digit-7
-  "7"
-%emits
-  $ :: ∅ := "z", ε :: ∅ := "e"
+%rule digit-6 = two-phonemes("6", "x", "a")
 
-%rule digit-8
-  "8"
-%emits
-  $ :: ∅ := "b", ε :: ∅ := "i"
+%rule digit-7 = two-phonemes("7", "z", "e")
 
-%rule digit-9
-  "9"
-%emits
-  $ :: ∅ := "s", ε :: ∅ := "o"
+%rule digit-8 = two-phonemes("8", "b", "i")
 
-%rule decimal-point
-  "."
-%emits
-  $ :: ∅ := "p", ε :: ∅ := "i"
+%rule digit-9 = two-phonemes("9", "s", "o")
+
+%rule decimal-point = two-phonemes(".", "p", "i")
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
@@ -427,6 +401,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../docs/diagrams/phonemes/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/two-phonemes.svg" alt="Railroad diagram of the rule two-phonemes"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>
