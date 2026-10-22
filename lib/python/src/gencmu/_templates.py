@@ -477,10 +477,12 @@ def template_audit(grammar):
 
     def aliases(a, b):
         if isinstance(a, dict) and isinstance(b, dict):
-            if a.get('rule') in by_name and 'call' in b:
-                return by_name[a['rule']]['key'] == key_of(normalize_argument(b))
-            if b.get('rule') in by_name and 'call' in a:
-                return by_name[b['rule']]['key'] == key_of(normalize_argument(a))
+            an = a.get('rule', a.get('ref', a.get('name')))
+            bn = b.get('rule', b.get('ref', b.get('name')))
+            if an in by_name and 'call' in b:
+                return by_name[an]['key'] == key_of(normalize_argument(b))
+            if bn in by_name and 'call' in a:
+                return by_name[bn]['key'] == key_of(normalize_argument(a))
             ka, kb = set(a) - {'at'}, set(b) - {'at'}
             return ka == kb and all(aliases(a[k], b[k]) for k in ka)
         if isinstance(a, list) and isinstance(b, list):

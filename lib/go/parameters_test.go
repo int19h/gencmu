@@ -379,3 +379,36 @@ func TestParameterPatternTestOperands(t *testing.T) {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }
+
+func TestParameterNestedAliasTwins(t *testing.T) {
+	for _, source := range []string{`%rule atom(@X) @X
+%rule outer(@X) @X
+%rule public "a"
+%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))
+%rule named = atom("a")
+%redefine-rule public = outer((atom("a") named))`, `%rule atom(@X) @X
+%rule outer(@P) $x:named %conditions $x ≅ @P
+%rule text outer(#named) outer(#(atom("a")))
+%rule named = atom("a")`} {
+		instances := []templateObject{}
+		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
+			if i := templateObj(v); i["template"] == "outer" {
+				instances = append(instances, i)
+			}
+		}
+		want := 2
+		if strings.Contains(source, "public") {
+			want = 4
+		}
+		parameterEqual(t, len(instances), want)
+		for index, instance := range instances {
+			names := []any{}
+			for other, item := range instances {
+				if other != index {
+					names = append(names, item["name"])
+				}
+			}
+			parameterEqual(t, instance["notes"], []any{templateObject{"kind": "argument-alias-twin", "instances": names}})
+		}
+	}
+}

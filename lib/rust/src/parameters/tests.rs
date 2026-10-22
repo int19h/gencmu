@@ -318,3 +318,15 @@ fn ordinary_ranked_locations_survive_template_expansion() {
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
     assert_eq!(r.alternatives[0].ranked_locations[""], (3, 21));
 }
+
+#[test]
+fn nested_alias_twins_follow_expanded_order() {
+    for source in ["%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public \"a\"\n%rule text outer((named named)) outer((atom(\"a\") atom(\"a\"))) outer((named atom(\"a\"))) outer((atom(\"a\") named))\n%rule named = atom(\"a\")\n%redefine-rule public = outer((atom(\"a\") named))","%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#(atom(\"a\")))\n%rule named = atom(\"a\")"] {
+  let a=audit(&grammar(source));let instances:Vec<_>=list(get(&a,"instances")).iter().filter(|i|text(get(i,"template"))=="outer").collect();
+  assert_eq!(instances.len(),if source.contains("public"){4}else{2});
+  for (index,instance) in instances.iter().enumerate() {
+   let names:Vec<_>=instances.iter().enumerate().filter(|(other,_)|*other!=index).map(|(_,i)|get(i,"name").clone()).collect();
+   assert_eq!(get(instance,"notes"),&Json::Arr(vec![obj([("kind",string("argument-alias-twin")),("instances",Json::Arr(names))])]));
+  }
+ }
+}

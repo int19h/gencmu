@@ -15,6 +15,14 @@ func templateAudit(g *stageGrammar) templateObject {
 			byName[i.name] = i
 		}
 	}
+	reference := func(n templateObject) string {
+		for _, key := range []string{"rule", "ref", "name"} {
+			if value := templateText(n[key]); value != "" {
+				return value
+			}
+		}
+		return ""
+	}
 	var aliases func(any, any) bool
 	aliases = func(a, b any) bool {
 		switch a := a.(type) {
@@ -23,10 +31,10 @@ func templateAudit(g *stageGrammar) templateObject {
 			if !ok {
 				return false
 			}
-			if i := byName[templateText(a["rule"])]; i != nil && o["call"] != nil {
+			if i := byName[reference(a)]; i != nil && o["call"] != nil {
 				return i.key == templateKey(templateNormalize(o))
 			}
-			if i := byName[templateText(o["rule"])]; i != nil && a["call"] != nil {
+			if i := byName[reference(o)]; i != nil && a["call"] != nil {
 				return i.key == templateKey(templateNormalize(a))
 			}
 			ak, bk := 0, 0

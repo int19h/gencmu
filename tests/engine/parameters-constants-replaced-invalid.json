@@ -1,0 +1,8 @@
+{
+  "description": "A replaced constant version still requires valid concrete instances.",
+  "grammar": "%rule atom(@X) $x:@X\n%const $P #(atom((\"a\" \"b\")))\n%redefine-const $P #(atom(\"a\"))\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

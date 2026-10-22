@@ -5994,8 +5994,9 @@
     const aliases=(/** @type {any} */ a,/** @type {any} */ b)=>{
       /** @type {(a:any,b:any)=>boolean} */
       const same=(a,b)=>{
-        if(a?.rule && byName.has(a.rule) && b?.call) return byName.get(a.rule).key===JSON.stringify(templateIdentity(normalizeArgument(b)));
-        if(b?.rule && byName.has(b.rule) && a?.call) return byName.get(b.rule).key===JSON.stringify(templateIdentity(normalizeArgument(a)));
+        const an=a?.rule??a?.ref??a?.name,bn=b?.rule??b?.ref??b?.name;
+        if(an && byName.has(an) && b?.call) return byName.get(an).key===JSON.stringify(templateIdentity(normalizeArgument(b)));
+        if(bn && byName.has(bn) && a?.call) return byName.get(bn).key===JSON.stringify(templateIdentity(normalizeArgument(a)));
         if(Array.isArray(a)||Array.isArray(b)) return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>same(x,b[i]));
         if(!a||!b||typeof a!=='object'||typeof b!=='object') return a===b;
         const ka=Object.keys(a).filter(k=>k!=='at'),kb=Object.keys(b).filter(k=>k!=='at');

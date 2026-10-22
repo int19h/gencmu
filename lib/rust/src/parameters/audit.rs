@@ -5,11 +5,19 @@ use std::collections::{BTreeMap, BTreeSet};
 fn site(path: &str, a: (usize, usize)) -> Json {
     obj([("document", string(path)), ("line", Json::Int(a.0 as i64)), ("column", Json::Int(a.1 as i64))])
 }
+fn reference(n: &Json) -> &str {
+    for key in ["rule", "ref", "name"] {
+        if let Some(value) = n.get(key).and_then(Json::as_str) {
+            return value;
+        }
+    }
+    ""
+}
 fn aliases(a: &Json, b: &Json, names: &BTreeMap<&str, &Instance>) -> bool {
-    if let Some(i) = names.get(text(get(a, "rule"))).filter(|_| has(b, "call")) {
+    if let Some(i) = names.get(reference(a)).filter(|_| has(b, "call")) {
         return i.key == identity(&normalize(b)).to_json();
     }
-    if let Some(i) = names.get(text(get(b, "rule"))).filter(|_| has(a, "call")) {
+    if let Some(i) = names.get(reference(b)).filter(|_| has(a, "call")) {
         return i.key == identity(&normalize(a)).to_json();
     }
     match (a, b) {
@@ -25,10 +33,9 @@ fn aliases(a: &Json, b: &Json, names: &BTreeMap<&str, &Instance>) -> bool {
 impl Records {
     #[allow(dead_code)] // Native audit consumers use the same records as the JavaScript audit.
     pub(crate) fn audit(&self, order: &[String]) -> Json {
-        let mut instances: Vec<_> = self.instances.iter().collect();
-        instances.sort_by_key(|i| order.iter().position(|n| n == i.effective()));
-        let names: BTreeMap<_, _> =
-            instances.iter().filter_map(|i| i.name.as_ref().map(|n| (n.as_str(), *i))).collect();
+        let mut ordered: Vec<_> = self.instances.iter().collect();
+        ordered.sort_by_key(|i| order.iter().position(|n| n == i.effective()));
+        let names: BTreeMap<_, _> = ordered.iter().filter_map(|i| i.name.as_ref().map(|n| (n.as_str(), *i))).collect();
         let templates = self
             .templates
             .iter()
@@ -50,7 +57,7 @@ impl Records {
                     .filter(|(i, _)| !used.contains(i))
                     .map(|(_, p)| obj([("kind", string("unused-parameter")), ("parameter", p.clone())]))
                     .collect();
-                if !instances.iter().any(|i| text(get(&i.call, "call")) == t.name) {
+                if !ordered.iter().any(|i| text(get(&i.call, "call")) == t.name) {
                     notes.push(obj([("kind", string("uncalled-template"))]))
                 }
                 let mut r = site(&t.path, t.at);
@@ -60,7 +67,7 @@ impl Records {
                 r
             })
             .collect();
-        let instances = instances
+        let instances = ordered
             .iter()
             .map(|i| {
                 let t = self.templates.iter().find(|t| t.name == text(get(&i.call, "call"))).unwrap();
@@ -82,8 +89,7 @@ impl Records {
                         r
                     })
                     .collect();
-                let twins: Vec<_> = self
-                    .instances
+                let twins: Vec<_> = ordered
                     .iter()
                     .filter(|other| {
                         other.key != i.key
