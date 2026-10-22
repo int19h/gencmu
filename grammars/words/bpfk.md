@@ -544,41 +544,31 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   ¬$n.following-tokens.begins(cmevla),
   $n.following-tokens.begins(post-word)
 
-%rule stressed-syllable  (* A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:syllable
+%rule stressed-unit(@U)
+  $s:@U
 %conditions
   $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
 
-%rule stressed-diphthong  (* A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:diphthong
-%conditions
-  $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
-
-%rule stressed-vowel  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:vowel
-%conditions
-  $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
-
-%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
-  unstressed-plain-syllable | consonantal-syllable
-
-%rule unstressed-plain-syllable  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
-  $s:syllable
+%rule unstressed-unit(@U)
+  $s:@U
 %conditions
   ¬$s.onward.begins(stressed),
   ¬$s.following-tokens.begins(stress)
 
-%rule unstressed-diphthong  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
-  $d:diphthong
-%conditions
-  ¬$d.onward.begins(stressed),
-  ¬$d.following-tokens.begins(stress)
+%rule stressed-syllable = stressed-unit(syllable)  (* A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
 
-%rule unstressed-vowel  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
-  $v:vowel
-%conditions
-  ¬$v.onward.begins(stressed),
-  ¬$v.following-tokens.begins(stress)
+%rule stressed-diphthong = stressed-unit(diphthong)  (* A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+
+%rule stressed-vowel = stressed-unit(vowel)  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+
+%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
+  unstressed-plain-syllable | consonantal-syllable
+
+%rule unstressed-plain-syllable = unstressed-unit(syllable)  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
+
+%rule unstressed-diphthong = unstressed-unit(diphthong)  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
+
+%rule unstressed-vowel = unstressed-unit(vowel)  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
 
 %rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does. *)
   [{consonant | glide}] [h] [y] $s:syllable
@@ -592,8 +582,10 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
+<p><img src="../../docs/diagrams/words/bpfk/stressed-unit.svg" alt="Railroad diagram of the rule stressed-unit"></p>
+<p><img src="../../docs/diagrams/words/bpfk/unstressed-unit.svg" alt="Railroad diagram of the rule unstressed-unit"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-syllable.svg" alt="Railroad diagram of the rule stressed-syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-diphthong.svg" alt="Railroad diagram of the rule stressed-diphthong"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
