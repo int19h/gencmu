@@ -5803,6 +5803,7 @@
       /** @type {(n:any)=>void} */
     const visit=(/** @type {any} */ n)=>{
         if(!n || typeof n!=='object') return;
+        if(Array.isArray(n)) { n.forEach(visit); return; }
         if(n.alternatives) {
           n.alternatives.forEach((/** @type {any} */ alternative,/** @type {number} */ index)=>{
             visit(alternative.expr);visit(alternative.tags);visit(alternative.value);visit(alternative.image);
