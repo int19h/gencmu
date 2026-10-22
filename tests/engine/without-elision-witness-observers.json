@@ -1,6 +1,6 @@
 {
   "description": "Witness conditions see original words and their own constructed omissions (engine §4 and §10).",
-  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival ($y:X [+T]) %conditions $.source-text = \"x\", $.value = \"x\", $y.tags = X, $y.starts-input, $ ≅ @(X T=\"\")\n",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival ($y:X [+T]) %conditions $.source-text = \"x\", $.value = \"x\", $y.tags = X, $y.starts-input, $ ≅ #(X T=\"\")\n",
   "tokens": [
     {
       "text": "x",

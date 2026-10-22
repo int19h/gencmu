@@ -17,7 +17,7 @@ func TestFamilyMethodDOM(t *testing.T) {
 		valid          bool
 	}{
 		{`{"capture":"x"}`, `[{"rule":"family"}]`, true},
-		{`{"capture":""}`, `[{"rule":"#"}]`, true},
+		{`{"capture":""}`, `[{"rule":"🆓"}]`, true},
 		{`{"capture":"x"}`, `[]`, false},
 		{`{"capture":"x"}`, `[{"rule":"f"},{"rule":"r"}]`, false},
 		{`{"capture":"x"}`, `[{"tag":"A"}]`, false},

@@ -1,6 +1,6 @@
 {
   "description": "The # family permits its interior close under tags (engine §2.2, §4.1, and §10).",
-  "grammar": "%rule text $c:c %conditions Rival ⊆ $c.without-elision-except(#).tags(rival)\n%rule c X B\n%rule rival # B :: Rival\n%rule # X [+U]",
+  "grammar": "%rule text $c:c %conditions Rival ⊆ $c.without-elision-except(🆓).tags(rival)\n%rule c X B\n%rule rival 🆓 B :: Rival\n%rule 🆓 X [+U]",
   "tokens": [
     {
       "text": "x",

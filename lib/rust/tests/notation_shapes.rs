@@ -212,7 +212,7 @@ fn a_pattern_atom_reads_a_grouped_union_without_delimiters() {
     let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
     let changed = pattern_bootstrap_expr(&bundled, "pattern-literal", 0, r#"["seq",2]"#, r#"{"ref":"pattern-atom"}"#);
     let changed = pattern_bootstrap_expr(&changed, "pattern-atom", 2, "[]", r#"{"ref":"pattern-union"}"#);
-    let rules = "%const $P @(A B)\n%rule text A B\n%conditions $ ≅ $P";
+    let rules = "%const $P #(A B)\n%rule text A B\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &changed, &["A", "B"]), pattern_probe(rules, &bundled, &["A", "B"]));
 }
 
@@ -224,9 +224,9 @@ fn pattern_string_terminal_constructors_and_tests() {
     let changed =
         pattern_bootstrap_expr(&bundled, "pattern-atom", 0, r#"["seq",0,"choice",2]"#, r#"{"ref":"string-terminal"}"#);
     for rules in [
-        "%const $P @(\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
-        "%const $P @(\"a\"=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
-        "%const $P @(\"a\"<A>=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+        "%const $P #(\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+        "%const $P #(\"a\"=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+        "%const $P #(\"a\"<A>=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
     ] {
         assert_eq!(pattern_probe(rules, &changed, &["a"]), pattern_probe(rules, &bundled, &["a"]));
     }
@@ -239,10 +239,10 @@ fn pattern_string_terminal_constructors_and_tests() {
         r#"["seq",0]"#,
         r#"{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
     );
-    let rules = "%const $S \"a\"\n%const $P @($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
+    let rules = "%const $S \"a\"\n%const $P #($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
     for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "$_D800=\"a\"<A>"] {
-        let rules = format!("%const $P @({pattern})\n%rule text A");
+        let rules = format!("%const $P #({pattern})\n%rule text A");
         let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
         let bootstrap = if pattern.starts_with('$') { &constants } else { &changed };
         let alternate = load_pattern_probe(&rules, bootstrap).unwrap_err();
@@ -262,8 +262,8 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"ref":"empty-set"},{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string"},{"ref":"range"},{"ref":"wildcard"},{"ref":"constant-reference"}]},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
-            "@(∅ A)",
-            "@A",
+            "#(∅ A)",
+            "#A",
             "%rule text A",
             vec!["A"],
         ),
@@ -272,8 +272,8 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"ref":"empty-set"},{"ref":"pattern-atom"}]}"#,
-            "@(∅ A)",
-            "@A",
+            "#(∅ A)",
+            "#A",
             "%rule text A",
             vec!["A"],
         ),
@@ -282,8 +282,8 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"literal":{"string":"("}},{"repeat":{"ref":"pattern-intersection"},"separator":{"choice":[{"literal":{"string":"∪"}},{"literal":{"string":"∖"}}]}},{"literal":{"string":")"}}]}"#,
-            "@((A ∖ B))",
-            "@(A ∖ B)",
+            "#((A ∖ B))",
+            "#(A ∖ B)",
             "%rule text B",
             vec!["B"],
         ),
@@ -292,8 +292,8 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"literal":{"string":"("}},{"literal":{"string":"⋮"}},{"ref":"pattern-atom"},{"literal":{"string":")"}}]}"#,
-            "@((⋮A))",
-            "@(⋮A)",
+            "#((⋮A))",
+            "#(⋮A)",
             "%rule text child B\n%rule child A",
             vec!["A", "B"],
         ),
@@ -302,8 +302,8 @@ fn pattern_constructors_read_their_declared_parts() {
             1,
             "[]",
             r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-atom"},{"literal":{"string":"⋰"}},{"literal":{"string":")"}}]}"#,
-            "@((child⋰))",
-            "@(child⋰)",
+            "#((child⋰))",
+            "#(child⋰)",
             "%rule text child B\n%rule child A",
             vec!["A", "B"],
         ),
@@ -312,8 +312,8 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"literal":{"string":"{"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"}"}}]}"#,
-            "@({A / S / $_D800})",
-            "@({A / S})",
+            "#({A / S / $_D800})",
+            "#({A / S})",
             "%rule text A S A",
             vec!["A", "S", "A"],
         ),
@@ -334,7 +334,7 @@ fn pattern_constructors_read_their_declared_parts() {
     let text = wrapped.to_text();
     assert_eq!(text.matches(r#""name":"pattern-name""#).count(), 1);
     let wrapped = parse_json(&text.replace(r#""name":"pattern-name""#, r#""name":"pattern-separator""#)).unwrap();
-    let rules = "%const $P @(A ∖ B)\n%rule text B\n%conditions $ ≇ $P";
+    let rules = "%const $P #(A ∖ B)\n%rule text B\n%conditions $ ≇ $P";
     assert_eq!(pattern_probe(rules, &wrapped, &["B"]), pattern_probe(rules, &bundled, &["B"]));
 }
 
@@ -345,9 +345,9 @@ fn pattern_names_use_named_parts_or_tokens() {
     let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
     for name in ["name", "reference"] {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
-        let rules = "%const $P @child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
+        let rules = "%const $P #child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
         assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
-        let rules = "%const $P @(child=$_D800)\n%rule text A";
+        let rules = "%const $P #(child=$_D800)\n%rule text A";
         assert_eq!(load_pattern_probe(rules, &changed).unwrap_err(), load_pattern_probe(rules, &bundled).unwrap_err());
     }
 }
@@ -361,28 +361,28 @@ fn missing_pattern_parts_are_grammar_errors() {
             "pattern-union",
             0,
             r#"{"seq":[{"ref":"pattern-intersection"},{"literal":{"string":"/"}},{"ref":"pattern-intersection"}]}"#,
-            "@(A / B)",
+            "#(A / B)",
             "union operators",
         ),
-        ("pattern-union", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-intersection"),
-        ("pattern-intersection", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-sequence"),
-        ("pattern-sequence", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-item"),
-        ("pattern-item", 4, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern item or sibling ellipsis"),
+        ("pattern-union", 0, r#"{"ref":"empty-set"}"#, "#(∅)", "pattern-intersection"),
+        ("pattern-intersection", 0, r#"{"ref":"empty-set"}"#, "#(∅)", "pattern-sequence"),
+        ("pattern-sequence", 0, r#"{"ref":"empty-set"}"#, "#(∅)", "pattern-item"),
+        ("pattern-item", 4, r#"{"ref":"empty-set"}"#, "#(∅)", "pattern item or sibling ellipsis"),
         (
             "pattern-brackets",
             0,
             r#"{"seq":[{"literal":{"string":"["}},{"literal":{"string":"]"}}]}"#,
-            "@([])",
+            "#([])",
             "pattern-union",
         ),
         (
             "pattern-repeat",
             0,
             r#"{"seq":[{"literal":{"string":"{"}},{"literal":{"string":"}"}}]}"#,
-            "@({})",
+            "#({})",
             "pattern-union",
         ),
-        ("pattern-path", 0, r#"{"seq":[{"literal":{"string":"."}},{"ref":"pattern-atom"}]}"#, "@(.A)", "path token"),
+        ("pattern-path", 0, r#"{"seq":[{"literal":{"string":"."}},{"ref":"pattern-atom"}]}"#, "#(.A)", "path token"),
     ] {
         let changed = pattern_bootstrap_expr(&bundled, name, alternative, "[]", expression);
         let error = load_pattern_probe(&format!("%const $P {pattern}\n%rule text A"), &changed).unwrap_err();
@@ -404,10 +404,10 @@ fn grouped_pattern_tests_fail_before_base_conversion() {
             r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-union"},{"literal":{"string":")"}},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
             "(($_D800 A)<A>)",
         ),
-        (1, r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#, "(@($_D800)<A>)"),
+        (1, r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#, "(#($_D800)<A>)"),
     ] {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-atom", alternative, "[]", expression);
-        let rules = format!("%const $P @{pattern}\n%rule text A");
+        let rules = format!("%const $P #{pattern}\n%rule text A");
         let error = load_pattern_probe(&rules, &changed).unwrap_err();
         let source = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let (line, column) = common::position_of(&source, "<A>");

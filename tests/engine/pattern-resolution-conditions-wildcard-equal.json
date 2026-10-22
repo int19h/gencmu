@@ -1,6 +1,6 @@
 {
   "description": "A condition resolves @(_) before ≅ and accepts the reading. The wildcard pattern matches _ under engine §§2 and 10.",
-  "grammar": "%rule text _\n%conditions $ ≅ @(_)",
+  "grammar": "%rule text _\n%conditions $ ≅ #(_)",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

@@ -1,0 +1,10 @@
+{
+  "description": "The notation rejects digit as a rule name or symbol.",
+  "document": "```jbogenbau\n%rule 1 A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

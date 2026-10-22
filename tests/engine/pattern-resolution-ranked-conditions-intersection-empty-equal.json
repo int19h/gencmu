@@ -1,6 +1,6 @@
 {
   "description": "A private ranked condition resolves (@(A) ∩ ∅) before ≅ and rejects the reading. The intersection-empty pattern does not match A under engine §§2 and 10 and §2.1.",
-  "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ (@(A) ∩ ∅))\n%rule never Z",
+  "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ (#(A) ∩ ∅))\n%rule never Z",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,33 @@
+{
+  "description": "Adjacent emoji names form separate references.",
+  "document": "```jbogenbau\n%rule text 🆓😀\n%rule 🆓 A\n%rule 😀 B\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "🆓"
+                  },
+                  {
+                    "ref": "😀"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "🆓"
+        },
+        {
+          "name": "😀"
+        }
+      ]
+    }
+  }
+}

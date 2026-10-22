@@ -1,10 +1,33 @@
 {
-  "description": "The free-modifier slot # takes no test: the reader refuses it at the test (engine §9).",
-  "document": "```jbogenbau\n%rule text A # = \"a\"\n%rule # B\n```\n",
+  "description": "An emoji rule reference accepts an exact value test.",
+  "document": "```jbogenbau\n%rule text A 🆓 = \"a\"\n%rule 🆓 B\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 16
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "test": "=",
+                    "expr": {
+                      "ref": "🆓"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "🆓"
+        }
+      ]
     }
   }
 }

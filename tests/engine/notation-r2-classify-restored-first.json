@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 accepts `($x.without-elision.first-token)` as a string receiver for `.classify`.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($x.without-elision.first-token).classify(chars) = X\n%rule unit A\n%rule family unit\n%rule want A\n%classifier chars \"a\" \"ab\" \"b\" \"\" ∈ X",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($x.without-elision.first-token).classify(chars) = X\n%rule unit A\n%rule family unit\n%rule want A\n%classifier chars \"a\" \"ab\" \"b\" \"\" ∈ X",
   "tokens": [
     {
       "text": "a",

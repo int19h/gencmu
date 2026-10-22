@@ -1,6 +1,6 @@
 {
   "description": "First-path follows one primary and last-path precedes one primary, before sequence and set binding (engine §9.3).",
-  "document": "```jbogenbau\n%const $P @(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)\n```\n",
+  "document": "```jbogenbau\n%const $P #(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)\n```\n",
   "expect": {
     "dom": {
       "constants": [
@@ -68,7 +68,7 @@
           }
         }
       ],
-      "format": 34
+      "format": 35
     }
   }
 }

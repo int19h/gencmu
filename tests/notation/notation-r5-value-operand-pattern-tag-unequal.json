@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 reports a forbidden value-test operand at its start in bodies and patterns.",
-  "document": "```jbogenbau\n%rule text A %conditions $ ≅ @A≠B\n```",
+  "document": "```jbogenbau\n%rule text A %conditions $ ≅ #A≠B\n```",
   "expect": {
     "error": {
       "line": 2,

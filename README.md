@@ -6,6 +6,8 @@ A stage is one step of a parse, with its own grammar. A pipeline runs stages in 
 
 A phoneme is a unit of sound. A Lojban dialect has six stages: phonemes, normalize, forms, words, indicators and syntax. Normalization sets comparison values while keeping the spelling that images show. The other stages read characters into phonemes and phonemes into classified words. They apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
 
+Rule names can use one eligible emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table. `🆓` names the free-modifier rule. `#` starts a pattern. `@` is reserved for parameters.
+
 ## Try it
 
 You need Node 24 or later, and nothing else installed. Run these commands in a clone:

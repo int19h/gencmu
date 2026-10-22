@@ -110,7 +110,7 @@ fn a_well_formed_dom_is_used() {
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
-        r##"{"name":"#","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
+        r##"{"name":"🆓","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
     );
     assert!(!document_was_read(&hash));
     // The pipeline directives with their operands (§9).
@@ -371,7 +371,6 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("an operand that is a capture", test("=", r#"{"capture":"x"}"#, b)),
         ("a guarded operand", test("⊇", r#"{"if":{"captured":"x"},"then":{"tag":"B"}}"#, b)),
         ("a malformed operand", test("⊇", r#"{"tag":"B","string":"b"}"#, b)),
-        ("a test of #", test("=", sound, r##"{"ref":"#"}"##)),
         ("a test of an optional", test("=", sound, r#"{"optional":{"literal":{"string":"b"}}}"#)),
         ("a test of a tested symbol", test("=", sound, &format!(r#"{{"test":"=","value":{sound},"expr":{b}}}"#))),
         ("a test of a capture", test("=", sound, r#"{"capture":"x","expr":{"literal":{"string":"b"}}}"#)),
@@ -397,7 +396,9 @@ fn every_malformed_dom_is_a_cache_miss() {
         ),
         (
             "a tested symbol that is also an optional",
-            tested(r##"{"optional":{"literal":{"string":"b"}},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}"##),
+            tested(
+                r##"{"optional":{"literal":{"string":"b"}},"test":"=","value":{"string":"b"},"expr":{"ref":"🆓"}}"##,
+            ),
         ),
         ("a tested symbol nested too deeply", tested(&tested_nested)),
         (
@@ -1522,7 +1523,7 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     let well_formed = [
         marked(ku, ""),
         marked(r#"{"ref":"KU"}"#, ""),
-        marked(&format!(r##"{{"seq":[{ku},{{"ref":"#"}}]}}"##), ""),
+        marked(&format!(r##"{{"seq":[{ku},{{"ref":"🆓"}}]}}"##), ""),
         marked(&format!(r#"{{"test":"=","value":{{"string":"ku"}},"expr":{ku}}}"#), ""),
         marked(&format!(r#"{{"seq":[{ku},{{"choice":[{{"ref":"A"}},{{"ref":"B"}}]}}]}}"#), ""),
         r#"{"optional":{"capture":"x","expr":{"ref":"A"}}}"#.to_string(),
@@ -1551,11 +1552,11 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         format!(r#"{{"choice":[{ku},{{"ref":"VAU"}}]}}"#),
         format!(r#"{{"and":[{ku},{{"ref":"A"}}]}}"#),
         r#"{"ref":"ku"}"#.to_string(),
-        r##"{"ref":"#"}"##.to_string(),
+        r##"{"ref":"🆓"}"##.to_string(),
         r#"{"ref":"/a/"}"#.to_string(),
         r#"{"literal":{"string":"a"}}"#.to_string(),
         r#"{"range":[{"string":"a"},{"string":"z"}]}"#.to_string(),
-        format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"#"}}]}},{{"ref":"A"}}]}}"##),
+        format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"🆓"}}]}},{{"ref":"A"}}]}}"##),
         format!(r#"{{"optional":{ku}}}"#),
         r#"{"empty":true}"#.to_string(),
     ];

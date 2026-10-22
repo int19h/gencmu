@@ -1,6 +1,6 @@
 {
   "description": "The begins method reads the rule named # (engine §10).",
-  "grammar": "%rule text $c:c %conditions $c.begins(#)\n%rule c X B\n%rule # X B :: X",
+  "grammar": "%rule text $c:c %conditions $c.begins(🆓)\n%rule c X B\n%rule 🆓 X B :: X",
   "tokens": [
     {
       "text": "x",

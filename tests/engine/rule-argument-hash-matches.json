@@ -1,6 +1,6 @@
 {
   "description": "The matches method reads the rule named # (engine §10).",
-  "grammar": "%rule text $c:c %conditions $c.matches(#)\n%rule c X B\n%rule # X B :: X",
+  "grammar": "%rule text $c:c %conditions $c.matches(🆓)\n%rule c X B\n%rule 🆓 X B :: X",
   "tokens": [
     {
       "text": "x",

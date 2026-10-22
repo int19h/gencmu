@@ -1,6 +1,6 @@
 {
   "description": "A definition tag clause resolves (@(A) ∪ ∅) before ≇ and assigns no tags. The union-empty pattern matches A under engine §§2 and 10.",
-  "grammar": "%rule text :: ($ ≇ (@(A) ∪ ∅) ⟹ X)\n  | A",
+  "grammar": "%rule text :: ($ ≇ (#(A) ∪ ∅) ⟹ X)\n  | A",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

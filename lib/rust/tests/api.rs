@@ -404,7 +404,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":14,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":15,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -1011,7 +1011,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":14,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":15,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"value":"vau"}]}}"#

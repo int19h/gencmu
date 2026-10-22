@@ -28,7 +28,7 @@
   },
   {
     "description": "Pattern path",
-    "head": "%const $C @(",
+    "head": "%const $C #(",
     "prefix": "⋮ (",
     "leaf": "A",
     "suffix": ")",
@@ -37,7 +37,7 @@
   },
   {
     "description": "Pattern literal path",
-    "head": "%const $C @(",
+    "head": "%const $C #(",
     "prefix": "⋮ (",
     "leaf": "\"a\"",
     "suffix": ")",
@@ -46,7 +46,7 @@
   },
   {
     "description": "Pattern range path",
-    "head": "%const $C @(",
+    "head": "%const $C #(",
     "prefix": "⋮ (",
     "leaf": "\"a\"..\"z\"",
     "suffix": ")",
@@ -55,7 +55,7 @@
   },
   {
     "description": "Pattern scalar constant path",
-    "head": "%const $C @(",
+    "head": "%const $C #(",
     "prefix": "⋮ (",
     "leaf": "$_0061",
     "suffix": ")",
@@ -64,7 +64,7 @@
   },
   {
     "description": "Pattern tag test path",
-    "head": "%const $C @(",
+    "head": "%const $C #(",
     "prefix": "⋮ (",
     "leaf": "A<¬B>",
     "suffix": ")",

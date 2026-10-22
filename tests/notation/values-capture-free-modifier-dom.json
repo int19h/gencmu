@@ -1,6 +1,6 @@
 {
   "description": "An untested # is a valid capture target (engine §9.3).",
-  "document": "```jbogenbau\n%rule r $x:#\n```\n",
+  "document": "```jbogenbau\n%rule r $x:🆓\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -11,7 +11,7 @@
               "expr": {
                 "capture": "x",
                 "expr": {
-                  "ref": "#"
+                  "ref": "🆓"
                 }
               }
             }

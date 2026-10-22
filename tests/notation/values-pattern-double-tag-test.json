@@ -1,5 +1,5 @@
 {
-  "document": "```jbogenbau\n%rule r A %conditions $ ≅ @A<B><C>\n```\n",
+  "document": "```jbogenbau\n%rule r A %conditions $ ≅ #A<B><C>\n```\n",
   "expect": {
     "error": {
       "line": 2,

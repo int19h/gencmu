@@ -670,7 +670,7 @@ fn inserted_tags_simplify_constants_before_capture_validation() {
 #[test]
 fn inserted_patterns_test_names_without_parsing_them() {
     for (comparison, tags) in [("≅", "[]"), ("≇", r#"["X"]"#)] {
-        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} @missing ⟹ X)");
+        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} #missing ⟹ X)");
         let case = format!(
             r#"{{"grammar":{},"tokens":[{{"text":"a","tags":["A"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":{tags},"insertedBy":"text"}}]}}]}}}}}}"#,
             common::Value::String(grammar).to_text()

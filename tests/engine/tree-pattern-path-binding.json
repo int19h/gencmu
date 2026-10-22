@@ -1,6 +1,6 @@
 {
   "description": "Postfix first-path and prefix last-path bind to separate atoms before sequence and set operations (engine §4.1 and §10).",
-  "grammar": "%rule text (left right) %conditions ($ ≅ @((A⋰) (⋱B)) ∧ $ ≅ (@((A⋰) (⋱B)) ∩ @(left right)) ∧ $ ≇ @((B⋰) (⋱A)))\n\n%rule left (A C)\n%rule right (D B)",
+  "grammar": "%rule text (left right) %conditions ($ ≅ #((A⋰) (⋱B)) ∧ $ ≅ (#((A⋰) (⋱B)) ∩ #(left right)) ∧ $ ≇ #((B⋰) (⋱A)))\n\n%rule left (A C)\n%rule right (D B)",
   "tokens": [
     {
       "text": "a",

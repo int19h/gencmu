@@ -1,0 +1,10 @@
+{
+  "description": "Stage zero assigns the Emoji_Component tag to this scalar.",
+  "grammar": "%rule text _Emoji_Component",
+  "input": "0",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

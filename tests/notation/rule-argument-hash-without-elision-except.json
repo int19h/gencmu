@@ -1,9 +1,9 @@
 {
-  "description": "The source name # becomes a without-elision-except rule argument (engine §9.3 and §10).",
-  "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(#).matches(rival)\n```\n",
+  "description": "The source name 🆓 becomes a without-elision-except rule argument (engine §9.3 and §10).",
+  "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(🆓).matches(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 35,
       "rules": [
         {
           "conditions": [
@@ -16,7 +16,7 @@
                 },
                 "args": [
                   {
-                    "rule": "#"
+                    "rule": "🆓"
                   }
                 ]
               },

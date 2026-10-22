@@ -13,7 +13,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ #\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
       "expect": {
         "dom": {
           "rules": [
@@ -307,7 +307,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ #\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
       "expect": {
         "dom": {
           "rules": [

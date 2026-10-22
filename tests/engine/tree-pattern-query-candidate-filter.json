@@ -1,6 +1,6 @@
 {
   "description": "A structural condition removes the rejected candidate from a query. The query union contains only the surviving candidate tags (engine §4.1 and §10).",
-  "grammar": "%rule text $x:A %conditions $x.tags(q) = Tag-a\n\n%rule q $x:a | $x:b %conditions $x ≅ @a\n\n%rule a :: Tag-a | A\n\n%rule b :: Tag-b | A\n",
+  "grammar": "%rule text $x:A %conditions $x.tags(q) = Tag-a\n\n%rule q $x:a | $x:b %conditions $x ≅ #a\n\n%rule a :: Tag-a | A\n\n%rule b :: Tag-b | A\n",
   "tokens": [
     {
       "text": "a",

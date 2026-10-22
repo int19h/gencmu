@@ -1,6 +1,6 @@
 {
   "description": "A definition tag clause resolves @(A<Extra ¬Blocked>) before ≇ and assigns X. The signed-blocked pattern does not match A under engine §§2 and 10.",
-  "grammar": "%rule text :: ($ ≇ @(A<Extra ¬Blocked>) ⟹ X)\n  | A",
+  "grammar": "%rule text :: ($ ≇ #(A<Extra ¬Blocked>) ⟹ X)\n  | A",
   "tokens": [
     {
       "text": "a",
@@ -13,7 +13,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

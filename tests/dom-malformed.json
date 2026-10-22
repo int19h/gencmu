@@ -665,7 +665,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name # is a supplied without-elision-except argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied without-elision-except argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -688,7 +688,7 @@
             },
             "args": [
               {
-                "rule": "#"
+                "rule": "🆓"
               }
             ]
           },
@@ -707,7 +707,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name # is a supplied matches argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied matches argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -728,7 +728,7 @@
           },
           "args": [
             {
-              "rule": "#"
+              "rule": "🆓"
             }
           ]
         }
@@ -741,7 +741,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name # is a supplied begins argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied begins argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -762,7 +762,7 @@
           },
           "args": [
             {
-              "rule": "#"
+              "rule": "🆓"
             }
           ]
         }
@@ -775,7 +775,7 @@
     "malformed": false
   },
   {
-    "description": "The rule name # is a supplied tags argument (engine §9.3 and §10).",
+    "description": "The rule name 🆓 is a supplied tags argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -801,7 +801,7 @@
             },
             "args": [
               {
-                "rule": "#"
+                "rule": "🆓"
               }
             ]
           }
@@ -815,7 +815,7 @@
     "malformed": false
   },
   {
-    "description": "The name # cannot be a supplied classifier through a classifier argument (engine §9.3 and §10).",
+    "description": "The name 🆓 cannot be a supplied classifier through a classifier argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -840,7 +840,7 @@
         },
         "args": [
           {
-            "classifier": "#"
+            "classifier": "🆓"
           }
         ]
       }
@@ -848,7 +848,7 @@
     "malformed": true
   },
   {
-    "description": "The name # cannot be a supplied classifier through a rule argument (engine §9.3 and §10).",
+    "description": "The name 🆓 cannot be a supplied classifier through a rule argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -873,7 +873,7 @@
         },
         "args": [
           {
-            "rule": "#"
+            "rule": "🆓"
           }
         ]
       }
@@ -881,7 +881,7 @@
     "malformed": true
   },
   {
-    "description": "A definition tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "description": "A definition tag clause accepts 🆓 as its supplied rule argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -906,7 +906,7 @@
         },
         "args": [
           {
-            "rule": "#"
+            "rule": "🆓"
           }
         ]
       }
@@ -914,7 +914,7 @@
     "malformed": false
   },
   {
-    "description": "An alternative tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "description": "An alternative tag clause accepts 🆓 as its supplied rule argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -932,7 +932,7 @@
             },
             "args": [
               {
-                "rule": "#"
+                "rule": "🆓"
               }
             ]
           }
@@ -947,7 +947,7 @@
     "malformed": false
   },
   {
-    "description": "An emission tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "description": "An emission tag clause accepts 🆓 as its supplied rule argument (engine §9.3 and §10).",
     "rule": {
       "name": "text",
       "op": "define",
@@ -979,7 +979,7 @@
               },
               "args": [
                 {
-                  "rule": "#"
+                  "rule": "🆓"
                 }
               ]
             }
@@ -3965,7 +3965,7 @@
             },
             "args": [
               {
-                "classifier": "#"
+                "classifier": "🆓"
               }
             ]
           },
@@ -4113,7 +4113,7 @@
             },
             "args": [
               {
-                "rule": "#"
+                "rule": "🆓"
               }
             ]
           },
@@ -5823,6 +5823,160 @@
       ],
       "at": [
         1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "🆓",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "😀",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "#",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "1",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "🏽",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "👩‍💻",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied rule name follows the configured emoji properties.",
+    "rule": {
+      "name": "🇦",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        2,
         1
       ]
     },

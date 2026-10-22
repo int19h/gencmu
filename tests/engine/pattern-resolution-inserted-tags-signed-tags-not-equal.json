@@ -1,6 +1,6 @@
 {
   "description": "An inserted emission tag clause resolves @(A<Extra ¬Blocked>) before ≇ and assigns no tags. The signed-tags pattern matches A under engine §§2 and 10 and §11.",
-  "grammar": "%rule text A\n%emits ε :: ($ ≇ @(A<Extra ¬Blocked>) ⟹ X) := \"v\" :- \"i\"",
+  "grammar": "%rule text A\n%emits ε :: ($ ≇ #(A<Extra ¬Blocked>) ⟹ X) := \"v\" :- \"i\"",
   "tokens": [
     {
       "text": "a",
@@ -12,7 +12,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

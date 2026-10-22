@@ -1,0 +1,10 @@
+{
+  "description": "The notation rejects hash as a rule name or symbol.",
+  "document": "```jbogenbau\n%rule # A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 excludes string sets from scalar value tests.",
-  "grammar": "%rule text A %conditions $ ≅ @A=(\"a\" \"b\")",
+  "grammar": "%rule text A %conditions $ ≅ #A=(\"a\" \"b\")",
   "tokens": [
     {
       "text": "a",

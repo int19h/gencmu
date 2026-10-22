@@ -1,6 +1,6 @@
 {
   "description": "The free-modifier name is an ordinary rule for member closure (engine §2.2, §4, and §10).",
-  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X B\n%rule w # B\n%rule fam #\n%rule # X [+U]",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X B\n%rule w 🆓 B\n%rule fam 🆓\n%rule 🆓 X [+U]",
   "tokens": [
     {
       "text": "x",

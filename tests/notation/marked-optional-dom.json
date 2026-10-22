@@ -1,6 +1,6 @@
 {
   "description": "A plus marks an elidable optional. Its terminal stands first and can carry a value test or a tag test (engine §9.3).",
-  "document": "```jbogenbau\n%rule a [+KU #]\n%rule b [+TOI #]\n%rule c [+KU]\n%rule d [+KU=\"ku\" #]\n%rule e [+KU (A | B)]\n%rule f [+KU]\n```\n",
+  "document": "```jbogenbau\n%rule a [+KU 🆓]\n%rule b [+TOI 🆓]\n%rule c [+KU]\n%rule d [+KU=\"ku\" 🆓]\n%rule e [+KU (A | B)]\n%rule f [+KU]\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -15,7 +15,7 @@
                       "ref": "KU"
                     },
                     {
-                      "ref": "#"
+                      "ref": "🆓"
                     }
                   ]
                 },
@@ -36,7 +36,7 @@
                       "ref": "TOI"
                     },
                     {
-                      "ref": "#"
+                      "ref": "🆓"
                     }
                   ]
                 },
@@ -77,7 +77,7 @@
                       }
                     },
                     {
-                      "ref": "#"
+                      "ref": "🆓"
                     }
                   ]
                 },

@@ -1,11 +1,11 @@
 {
   "description": "# is a rule's name like any other, the free-modifier slot (engine §9).",
-  "document": "```jbogenbau\n%rule # [{free}]\n%rule text (A #)\n```\n",
+  "document": "```jbogenbau\n%rule 🆓 [{free}]\n%rule text (A 🆓)\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
-          "name": "#",
+          "name": "🆓",
           "alternatives": [
             {
               "expr": {
@@ -28,7 +28,7 @@
                     "ref": "A"
                   },
                   {
-                    "ref": "#"
+                    "ref": "🆓"
                   }
                 ]
               }

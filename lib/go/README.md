@@ -24,6 +24,8 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
+Stage-zero tokens also carry `_Emoji_Presentation` and `_Emoji_Component` when the configured Unicode table grants those properties.
+
 ## Loading a dialect
 
 - `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
@@ -40,11 +42,11 @@ A `feature-conflict` result names a disabled feature whose conditional declarati
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 34 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
+Grammar document object model (DOM) format 35 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
-`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 14. Go exposes no audit API.
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 15. Go exposes no audit API.
 
 Tree conditions `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors in the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
@@ -78,7 +80,7 @@ A `Token` has `Value`, the string that recognition reads, and `Image`, the strin
 
 Stage zero applies Unicode Normalization Form D (NFD). NFD splits precomposed characters and orders their combining marks. The shared Unicode table supplies all mappings and combining classes. The engine keeps the original text and source positions. `ParseTokens` bypasses decomposition.
 
-Grammar documents use the same decomposition. Written strings decompose, but engine constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 34. The fingerprint is the FNV-1a hash of the table text.
+Grammar documents use the same decomposition. Written strings decompose, but engine constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 35. The fingerprint is the FNV-1a hash of the table text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

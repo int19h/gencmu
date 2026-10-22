@@ -1,6 +1,6 @@
 {
   "description": "Engine §4 accepts the free-modifier rule as a target alternative for `.matches`.",
-  "grammar": "%rule text $x:A %conditions $x.matches(no | #)\n%rule no B\n%rule # A",
+  "grammar": "%rule text $x:A %conditions $x.matches(no | 🆓)\n%rule no B\n%rule 🆓 A",
   "tokens": [
     {
       "text": "a",

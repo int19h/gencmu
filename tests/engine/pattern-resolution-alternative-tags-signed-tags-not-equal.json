@@ -1,6 +1,6 @@
 {
   "description": "An alternative tag clause resolves @(A<Extra ¬Blocked>) before ≇ and assigns no tags. The signed-tags pattern matches A under engine §§2 and 10.",
-  "grammar": "%rule text A :: ($ ≇ @(A<Extra ¬Blocked>) ⟹ X)",
+  "grammar": "%rule text A :: ($ ≇ #(A<Extra ¬Blocked>) ⟹ X)",
   "tokens": [
     {
       "text": "a",
@@ -12,7 +12,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

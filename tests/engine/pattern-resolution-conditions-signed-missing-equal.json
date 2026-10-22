@@ -1,6 +1,6 @@
 {
   "description": "A condition resolves @(A<Extra ¬Blocked>) before ≅ and rejects the reading. The signed-missing pattern does not match A under engine §§2 and 10.",
-  "grammar": "%rule text A\n%conditions $ ≅ @(A<Extra ¬Blocked>)",
+  "grammar": "%rule text A\n%conditions $ ≅ #(A<Extra ¬Blocked>)",
   "tokens": [
     {
       "text": "a",

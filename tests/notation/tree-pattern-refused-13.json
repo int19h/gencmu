@@ -1,9 +1,9 @@
 {
   "description": "Engine §§4, 9, and 10 accept exact value strings without normalization.",
-  "document": "```jbogenbau\n%const $P @ ( KEhE = \"A\" )\n```\n",
+  "document": "```jbogenbau\n%const $P # ( KEhE = \"A\" )\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 35,
       "rules": [],
       "directives": [],
       "constants": [

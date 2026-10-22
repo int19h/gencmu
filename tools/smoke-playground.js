@@ -246,10 +246,10 @@ async function main() {
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
         document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
-        edit: ["(mex MOI #\n     ≻ SE # $w:tanru-unit-1\n     ≻ NAhE # $v:tanru-unit-1)", "(mex MOI #\n     | SE # $w:tanru-unit-1\n     | NAhE # $v:tanru-unit-1)"], tie: true },
+        edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
         document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
-        edit: ["(NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)", "(NAhE # tanru-unit-2 | mex MOI # | SE # tanru-unit-2)"], tie: true },
+        edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
         document: "syntax/experimental.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
@@ -350,7 +350,7 @@ async function main() {
       console.log(`example works in ${browser}: ${check.label}`);
     }
 
-    // Format 14 separates original text, normalized values and images.
+    // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
     await choose("dialects/cll-ebnf.md");
     const tokenText = "ba'e m,I ui nai klAma";
@@ -371,7 +371,7 @@ async function main() {
     assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
       ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
       ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 14 fields and recursive attachments");
+    ]}, "the token table must show format 15 fields and recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -391,13 +391,13 @@ async function main() {
       "display JSON must render images and nested attachments");
     await page.locator("#tab-canonical").click();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
-    assert.equal(canonical.format, 14);
+    assert.equal(canonical.format, 15);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
-    console.log(`format 14 token and tree views work in ${browser}`);
+    console.log(`format 15 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
     const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
     const navigationText = "mi se su'i pa re moi";

@@ -47,7 +47,7 @@ The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` 
 
 The input is `input` or `tokens`. `input` supplies scalar characters as engine §1 states. `tokens` replaces the first stage input. With both members, `input` supplies the original source text. Without `input`, the runner joins token texts with single spaces. Each token gets these values:
 
-- Its tags are its listed identifier tags, including stored engine tags (`docs/output.md`).
+- Its tags are its listed tags, including stored engine tags (`docs/output.md`).
 - Its text is as given.
 - Its value is the `value` member when present, otherwise its text.
 - Its image is the `image` member when present, otherwise its text.
@@ -66,7 +66,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 14 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -233,7 +233,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 34. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 35. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 

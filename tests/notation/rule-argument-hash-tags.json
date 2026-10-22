@@ -1,9 +1,9 @@
 {
-  "description": "The source name # becomes a tags rule argument (engine §9.3 and §10).",
-  "document": "```jbogenbau\n%rule text $x:A %conditions X ⊆ $x.tags(#)\n```\n",
+  "description": "The source name 🆓 becomes a tags rule argument (engine §9.3 and §10).",
+  "document": "```jbogenbau\n%rule text $x:A %conditions X ⊆ $x.tags(🆓)\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 35,
       "rules": [
         {
           "conditions": [
@@ -19,7 +19,7 @@
                 },
                 "args": [
                   {
-                    "rule": "#"
+                    "rule": "🆓"
                   }
                 ]
               }

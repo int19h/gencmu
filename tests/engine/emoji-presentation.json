@@ -1,0 +1,10 @@
+{
+  "description": "Stage zero assigns Emoji_Presentation without Emoji_Component to the free symbol.",
+  "grammar": "%rule text _Emoji_Presentation<¬_Emoji_Component>",
+  "input": "🆓",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

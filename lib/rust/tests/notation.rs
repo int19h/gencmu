@@ -67,13 +67,20 @@ fn tests_in_a_body_are_read_and_refused() {
     assert_eq!(tests, ["=", "=", "=", "=", "≠", "tags", "tags", "tags", "tags", "tags"], "{json}");
     assert!(dom.get("rules").is_some());
     // The new value tests accept capitalization and tested capture targets.
-    for accepted in ["%rule text A=\"A\"", "%rule text A=\"b,c\"", "%rule text $x:A=\"a\""] {
+    for accepted in [
+        "%rule text A=\"A\"",
+        "%rule text A=\"b,c\"",
+        "%rule text $x:A=\"a\"",
+        "%rule text 🆓=\"a\"",
+        "%rule text $x:🆓<B>=\"a\"",
+    ] {
         assert!(gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{accepted}\n```\n")).is_ok());
     }
     for refused in [
         "%rule text (A)=\"a\"",
         "%rule text A=\"a\"=\"b\"",
-        "%rule text #=\"a\"",
+        "%rule text 🆓=\"a\"<B>",
+        "%rule text (🆓)=\"a\"",
         "%rule text A=\"a\"<B>",
         "%rule text A⊇\"a\"",
         "%rule text A=B",
@@ -139,8 +146,8 @@ fn an_optional_is_marked_elidable_in_place() {
     };
     let expect = |json: &str| parse_json(json).unwrap();
     assert_eq!(
-        expr("%rule text A [+KU #]"),
-        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}]}"##)
+        expr("%rule text A [+KU 🆓]"),
+        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}]}"##)
     );
     assert_eq!(expr("%rule text [+TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true}"#));
     assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
@@ -179,7 +186,7 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text ({... A})",
         "%rule text (({A ...}))",
         "%rule text [+KU $c:A]",
-        "%rule text [+(KU) #]",
+        "%rule text [+(KU) 🆓]",
         "%rule text [+KU | VAU]",
         "%rule text [$x:A] $x:B",
     ] {
@@ -190,9 +197,9 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
 #[test]
 fn pattern_test_order_precedes_invalid_bases() {
     for body in [
-        r#"%rule text $c:A %conditions $c ≅ @(_Bogus<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @($_D800<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #(_Bogus<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #($_D800<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #($_D800=UI<A>)"#,
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
         let column = body[..body.find("<A>").unwrap()].chars().count() + 1;

@@ -64,7 +64,7 @@
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
     { label: "A rule with tree tests (notation)", dialect: "notation", tab: "tree",
-      text: "%rule text $x:pair\n%conditions\n  $x ≅ @(A ⋯ B),\n  $x ≇ @(⋮ C),\n  $x ≅ @(A ⋰),\n  $x ≅ @(⋱ B)",
+      text: "%rule text $x:pair\n%conditions\n  $x ≅ #(A ⋯ B),\n  $x ≇ #(⋮ C),\n  $x ≅ #(A ⋰),\n  $x ≅ #(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
 

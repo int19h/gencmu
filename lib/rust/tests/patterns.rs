@@ -55,7 +55,7 @@ fn pattern_dom_cases() {
 
 #[test]
 fn pattern_paths_use_the_dom_depth_limit() {
-    let document = |n| format!("```jbogenbau\n%const $P @({}A{})\n```\n", "⋮ (".repeat(n), ")".repeat(n));
+    let document = |n| format!("```jbogenbau\n%const $P #({}A{})\n```\n", "⋮ (".repeat(n), ")".repeat(n));
     assert!(gencmu::tools::read_grammar_document(&document(250)).is_ok());
     assert!(gencmu::tools::read_grammar_document(&document(3000)).is_err());
 }

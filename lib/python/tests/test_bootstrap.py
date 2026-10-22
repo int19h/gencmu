@@ -104,7 +104,7 @@ class Compiled(unittest.TestCase):
         fresh = gencmu.load_dialect("notation", use_cache=False)
         for text in (
             "%rule text A B",
-            '%rule a $x:A [{B #}]\n%conditions $x.source-text = "y"\n%emits $',
+            '%rule a $x:A [{B 🆓}]\n%conditions $x.source-text = "y"\n%emits $',
             "%rule a {... A / [+KU]} :: B\n",
         ):
             with self.subTest(text=text):

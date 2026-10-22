@@ -1,6 +1,6 @@
 {
   "description": "Pattern constant references use decomposed names.",
-  "document": "```jbogenbau\n%const $K @rK\n%rule text $x:rK\n%conditions $x ≅ @($K)\n%rule rK \"a\"\n```",
+  "document": "```jbogenbau\n%const $K #rK\n%rule text $x:rK\n%conditions $x ≅ #($K)\n%rule rK \"a\"\n```",
   "expect": {
     "dom": {
       "constants": [

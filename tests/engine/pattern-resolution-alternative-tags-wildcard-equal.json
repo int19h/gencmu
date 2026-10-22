@@ -1,6 +1,6 @@
 {
   "description": "An alternative tag clause resolves @(_) before ≅ and assigns X. The wildcard pattern matches _ under engine §§2 and 10.",
-  "grammar": "%rule text _ :: ($ ≅ @(_) ⟹ X)",
+  "grammar": "%rule text _ :: ($ ≅ #(_) ⟹ X)",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

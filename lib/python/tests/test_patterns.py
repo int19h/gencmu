@@ -26,7 +26,7 @@ class Patterns(unittest.TestCase):
 
     def test_depth(self) -> None:
         for depth in (250, 3000):
-            document = "```jbogenbau\n%const $P @(" + "⋮(" * depth + "A" + ")" * depth + ")\n```"
+            document = "```jbogenbau\n%const $P #(" + "⋮(" * depth + "A" + ")" * depth + ")\n```"
             if depth > 256:
                 with self.assertRaises(Exception) as caught:
                     read_document(document, "case.md")
