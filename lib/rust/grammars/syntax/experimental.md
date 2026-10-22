@@ -107,7 +107,9 @@ So a reset belongs to one sentence. In `mi klama .i je do cadzu iau ti`, it clos
 
 While the main bridi is open, IhAU permits more terms, a written VAU and free modifiers. A plain `.i`, a statement connection or a sentence link can then follow, as after written terminators.
 
-The terms after IhAU stand after the whole bridi-tail of the sentence. Connected bridi-tails share them, as they share terms after the last connected tail. A bridi-tail connection cannot follow the reset. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. Thus `mi klama lo nu do cadzu iau do gi'e tavla` rejects. The written form `mi klama lo nu do cadzu vau kei ku do gi'e tavla` parses.
+Terms after IhAU join the outermost tail that remains open. In a nonfinal connected tail, they join that tail. In the final tail, they join the shared tail terms.
+
+A bridi-tail connection can follow a reset. Thus `mi klama lo nu do cadzu iau do gi'e tavla` parses. The reset closes the abstraction and description before the connected tail.
 
 IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama i'au ko danfu`. There it closes the constructions in those terms. That head reset needs a term before IhAU. A final CU directly before IhAU cannot combine with an initial CU directly after it. Other CU positions in the heads remain available.
 
@@ -255,30 +257,23 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
-The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each connected-tail rule takes this tag from the shared tail terms after its last connection. A simple tail takes it from its own tail terms. KE and NA wrappers retain the tag.
+The templates take four readers: the final tail, final forethought bridi, nonfinal tail, and nonfinal forethought bridi. A reader is a rule that supplies one part of the family.
+
+The ordinary named instances use `tail-terms` and `gek-sentence`. The main named instances use `main-tail` and `main-gek`. A connected final branch leaves its resets to the shared tail terms.
+
+A KE group uses the ordinary reader inside its brackets. A reset closes that group before it reaches the shared tail terms.
 
 When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE permits whole-bridi negation of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
 
-An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
+The `main-tail` reader separates open tails from tails with written VAU. The `main-gek` reader also separates open and closed forethought wrappers.
 
-The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
+The open forethought reader requires omitted KEhE in each wrapper. The closed reader records a written final VAU or a written KEhE around the bridi.
 
-`reset-bridi` reads the main bridi and each later reset from left to right. A closed bridi takes only free modifiers after IhAU. So the parser rejects the first term or VAU after that reset at that word.
+The final reader supplies the shared tail after a KE or BO group. Nonfinal branches use the nonfinal reader, so connections can follow resets.
+
+An open tail can take terms after a reset. A closed tail can take only resets and free modifiers. An empty reset after a closed tail can precede a connection.
 
 ```jbogenbau
-%rule top-sentence
-  [$h:reset-head IhAU 🆓] $b:reset-bridi [top-sentence-link]
-%conditions
-  $h ≇ #(⋯ CU [🆓]) ∨ $b ≇ #(CU ⋰)
-
-%rule reset-bridi
-  | headed-bridi-tail
-  | $o:reset-bridi IhAU 🆓 $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | $c:reset-bridi IhAU 🆓 :: Closed-Bridi
-%conditions
-  Closed-Bridi ⊈ $o.tags,
-  Closed-Bridi ⊆ $c.tags
-
 %rule top-sentence-link
   connective [[stag] BO] I 🆓 top-subsentence
 
@@ -296,65 +291,145 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
   | {terms / CU 🆓} [CU 🆓]
   | CU 🆓 [{terms / CU 🆓} [CU 🆓]]
 
-%rule headed-bridi-tail :: $b.tags ∩ Closed-Bridi
-  | [bridi-tail-head] $b:bridi-tail
-
-%rule headed-bridi-tail-2
-  [bridi-tail-head] bridi-tail-2
-
-%redefine-rule bridi-tail
-  | $b:bridi-tail-1-final :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-1-final (bridi-tail-connective [stag] | GI stag) KE 🆓 headed-bridi-tail [+KEhE] 🆓 $t:tail-terms :: $t.tags ∩ Closed-Bridi
-
-%redefine-rule bridi-tail-1
-  | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
-
 %const $KE-FORETHOUGHT #([tag] KE [🆓] gek-sentence KEhE [🆓])
 %const $CONNECTED-KE-SELBRI #([tag] $KE-UNIT)
 %const $CONNECTED-KE-TAIL #($CONNECTED-KE-SELBRI tail-terms) ∪ $KE-FORETHOUGHT
 %const $CONNECTED-KE-WITH-VAU #($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
 
-%redefine-rule bridi-tail-1-final
-  | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule headed-bridi-tail-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-with(@T, @G, @P, @H)
+
+%rule headed-bridi-tail-2-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
+
+%rule bridi-tail-with(@T, @G, @P, @H)
+  | bridi-tail-1-final-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H)
+    (bridi-tail-connective [stag] | GI stag) KE 🆓
+    headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+    [+KEhE] 🆓 @T
+
+%rule bridi-tail-1-with(@T, @G, @P, @H)
+  | bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
+    connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) @T
+
+%rule bridi-tail-1-final-with(@T, @G, @P, @H)
+  | bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
+    $b:connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) $t:@T
 %conditions
   $b ≇ $CONNECTED-KE-TAIL ∨ ($b ≅ $CONNECTED-KE-WITH-VAU ∧ $t.source-text ≠ "")
 
-%rule connected-bridi-tail
-  | bridi-tail-head bridi-tail-2
-  | bridi-tail-2
+%rule connected-bridi-tail-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
 
-%redefine-rule bridi-tail-2
-  | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-3 (bridi-tail-connective [stag] | GI stag) BO 🆓 headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-3-with(@T, @G)
+  | bridi-tail-3-with(@P, @H) (bridi-tail-connective [stag] | GI stag) BO 🆓
+    headed-bridi-tail-2-with(tail-terms, gek-sentence, @P, @H) @T
 
-%redefine-rule bridi-tail-3
-  | selbri $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | gek-sentence
+%rule bridi-tail-3-with(@T, @G)
+  selbri @T | @G
+
+%rule headed-bridi-tail = headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-3 = bridi-tail-3-with(tail-terms, gek-sentence)
+
+%rule main-headed-bridi-tail = headed-bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail = bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-1 = bridi-tail-1-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-1-final = bridi-tail-1-final-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
+%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule connected-main-bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+
+%rule top-sentence
+  [$h:reset-head IhAU 🆓]
+  $b:main-headed-bridi-tail [top-sentence-link]
+%conditions
+  $h ≇ #(⋯ CU [🆓]) ∨ $b ≇ #(CU ⋰)
+
+%redefine-rule tail-terms
+  [terms] [+VAU] 🆓
 
 %redefine-rule gek-sentence
-  | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | [tag] KE 🆓 $g:gek-sentence [+KEhE] 🆓 :: ($g.tags ∩ Closed-Bridi) ∪ ($ ≅ #(⋯ KEhE≠"" [🆓]) ⟹ Closed-Bridi)
-  | $n:NA 🆓 $g:gek-sentence :: $g.tags ∩ Closed-Bridi
+  | gek subsentence gik subsentence tail-terms
+  | [tag] KE 🆓 gek-sentence [+KEhE] 🆓
+  | $n:NA 🆓 gek-sentence
 %conditions
   ¬$n.onward.begins(gek)
+
+%rule main-tail
+  | tail-terms
+  | $o:tail-terms IhAU 🆓 main-tail
+  | $c:tail-terms {IhAU 🆓}
+%conditions
+  $o ≇ $WRITTEN-VAU,
+  $c ≅ $WRITTEN-VAU
+
+%rule main-gek
+  | gek-sentence
+  | open-gek IhAU 🆓 main-tail
+  | closed-gek {IhAU 🆓}
+
+%rule open-gek
+  | gek subsentence gik subsentence open-tail
+  | [tag] KE 🆓 open-gek omitted-kehe 🆓
+  | $n:NA 🆓 open-gek
+%conditions
+  ¬$n.onward.begins(gek)
+
+%rule closed-gek
+  | gek subsentence gik subsentence written-tail
+  | [tag] KE 🆓 gek-sentence KEhE 🆓
+  | [tag] KE 🆓 closed-gek omitted-kehe 🆓
+  | $n:NA 🆓 closed-gek
+%conditions
+  ¬$n.onward.begins(gek)
+
+%rule open-tail
+  [terms] omitted-vau 🆓
+
+%rule omitted-vau
+  [+VAU]
+%conditions
+  $.value = ""
+
+%rule omitted-kehe
+  [+KEhE]
+%conditions
+  $.value = ""
+
+%rule written-tail
+  [terms] VAU 🆓
 
 %rule(fewest) bridi-tail-connective
   gihek 🆓 | connective
 
-%redefine-rule tail-terms :: ($ ≅ $WRITTEN-VAU ⟹ Closed-Bridi)
-  | [terms] [+VAU] 🆓
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
-<p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/reset-bridi.svg" alt="Railroad diagram of the rule reset-bridi"></p>
+<details><summary>Railroad diagrams of the 42 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-2-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-with.svg" alt="Railroad diagram of the rule bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-with.svg" alt="Railroad diagram of the rule bridi-tail-1-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-final-with.svg" alt="Railroad diagram of the rule bridi-tail-1-final-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail-with.svg" alt="Railroad diagram of the rule connected-bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2-with.svg" alt="Railroad diagram of the rule bridi-tail-2-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-with.svg" alt="Railroad diagram of the rule bridi-tail-3-with"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail.svg" alt="Railroad diagram of the rule headed-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
@@ -363,9 +438,27 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 <p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-headed-bridi-tail.svg" alt="Railroad diagram of the rule main-headed-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail.svg" alt="Railroad diagram of the rule main-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-1.svg" alt="Railroad diagram of the rule main-bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-1-final.svg" alt="Railroad diagram of the rule main-bridi-tail-1-final"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-2.svg" alt="Railroad diagram of the rule main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-3.svg" alt="Railroad diagram of the rule main-bridi-tail-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-main-bridi-tail.svg" alt="Railroad diagram of the rule connected-main-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule connected-main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-connected-main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-tail.svg" alt="Railroad diagram of the rule main-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-gek.svg" alt="Railroad diagram of the rule main-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/open-gek.svg" alt="Railroad diagram of the rule open-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/closed-gek.svg" alt="Railroad diagram of the rule closed-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/open-tail.svg" alt="Railroad diagram of the rule open-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/omitted-vau.svg" alt="Railroad diagram of the rule omitted-vau"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/omitted-kehe.svg" alt="Railroad diagram of the rule omitted-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/written-tail.svg" alt="Railroad diagram of the rule written-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
 </details>
 
 ## Terms
@@ -1344,7 +1437,7 @@ Zantufa permits one reset, with no written VAU after its terms. This layer permi
 
 Zantufa accepts terms after a written final VAU, a closed TUhE group, or a KE-wrapped forethought bridi that a written KEhE closes. These terms require no written IAU. This layer rejects those terms because each boundary closes the main bridi. Free modifiers after a reset can still mark the closed bridi.
 
-A bridi-tail connection cannot follow a reset here. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. A speaker who needs that connection writes the terminators instead.
+A bridi-tail connection can follow a reset here. Its terms join the outermost open tail, including the shared tail of a completed connection.
 
 The head reset uses `reset-head`, which permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it.
 
