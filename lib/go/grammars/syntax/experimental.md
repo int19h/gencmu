@@ -770,6 +770,8 @@ In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the who
 
 A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, contains a subsentence, and ends with `ku'oi`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. They are joined as relative clauses are: by `zi'e`, a joik, a jek or an ek, or two groups of them in forethought.
 
+The `ke-after` template supplies `selbri-4` and `operator`. Each named instance keeps its reference rule name. This layer changes their shared connective choices.
+
 ```jbogenbau
 %redefine-rule selbri-1
   | selbri-2
@@ -777,9 +779,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 %conditions
   ¬$n.onward.begins(gek)
 
-%redefine-rule selbri-4
-  | selbri-5
-  | selbri-4 (joik-jek-ek [stag] KE 🆓 selbri-3 [+KEhE] 🆓 ≻ connective selbri-5)
+%redefine-rule ke-after(@B, @U)
+  | @U
+  | ke-after(@B, @U) (joik-jek-ek [stag] KE 🆓 @B [+KEhE] 🆓 ≻ connective @U)
 
 %redefine-rule selbri-5
   {selbri-6 ... / joik-jek-ek [stag] BO 🆓}
@@ -830,7 +832,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 
 <details><summary>Railroad diagrams of the 12 rules from <code>selbri-1</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/ke-after.svg" alt="Railroad diagram of the rule ke-after"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
@@ -946,10 +948,6 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 %redefine-rule rp-expression
   mex-1 [{rp-expression operator}]
 
-%redefine-rule operator
-  | operator-1
-  | operator (joik-jek-ek [stag] KE 🆓 operator [+KEhE] 🆓 ≻ connective operator-1)
-
 %redefine-rule operator-1
   | operator-2
   | guhek operator-1 gik operator-2
@@ -982,7 +980,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   ¬$.followed-by(PA | lerfu-word)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mekso-fragment.svg" alt="Railroad diagram of the rule mekso-fragment"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
@@ -991,7 +989,6 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 <p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/forethought-operator.svg" alt="Railroad diagram of the rule forethought-operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>

@@ -438,9 +438,11 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 %rule selbri-3
   {... selbri-4}
 
-%rule selbri-4
-  | selbri-5
-  | selbri-4 (joik [stag] KE 🆓 selbri-3 [+KEhE 🆓] ≻ joik-jek selbri-5)
+%rule ke-after(@B, @U)
+  | @U
+  | ke-after(@B, @U) (joik [stag] KE 🆓 @B [+KEhE 🆓] ≻ joik-jek @U)
+
+%rule selbri-4 = ke-after(selbri-3, selbri-5)
 
 %rule selbri-5
   {selbri-6 ... / (jek | joik) [stag] BO 🆓}
@@ -476,11 +478,12 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
   BEI 🆓 term [links]
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>selbri</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>selbri</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/cll/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></p>
+<p><img src="../../docs/diagrams/syntax/cll/ke-after.svg" alt="Railroad diagram of the rule ke-after"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../docs/diagrams/syntax/cll/selbri-6.svg" alt="Railroad diagram of the rule selbri-6"></p>
@@ -554,9 +557,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule rp-operand
   operand | rp-expression
 
-%rule operator
-  | operator-1
-  | operator (joik [stag] KE 🆓 operator [+KEhE 🆓] ≻ joik-jek operator-1)
+%rule operator = ke-after(operator, operator-1)
 
 %rule operator-1
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO 🆓 operator-1

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="755" height="256" viewBox="0 0 755 256" role="img" aria-label="Railroad diagram of the rule ke-after">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
+<path d="M73 46H706"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<path d="M40 80h20"/>
+<g class="terminal"><rect x="60" y="68" width="151" height="24" rx="12"/><text x="135.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text></g>
+<path d="M211 80H666a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
+<path d="M60 160h88"/>
+<text class="label" x="64" y="155" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M148 160h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="498" height="98" rx="4"/>
+<path d="M158 160h10"/>
+<path d="M168 160h20"/>
+<path d="M188 160h16"/>
+<text class="label" x="192" y="155" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M204 160h10"/>
+<g class="rule"><rect x="214" y="148" width="50" height="24" rx="0"/><text x="239" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">joik</text></g>
+<path d="M264 160h10"/>
+<path d="M274 160h20"/>
+<g class="rule"><rect x="294" y="148" width="50" height="24" rx="0"/><text x="319" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M344 160H364"/>
+<path d="M274 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H344a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<path d="M364 160h10"/>
+<g class="terminal"><rect x="374" y="148" width="33" height="24" rx="12"/><text x="390.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M407 160h10"/>
+<g class="rule"><rect x="417" y="148" width="33" height="24" rx="0"/><text x="433.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M450 160h10"/>
+<g class="terminal"><rect x="460" y="148" width="33" height="24" rx="12"/><text x="476.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">@B</text></g>
+<path d="M493 160h10"/>
+<path d="M503 160h20"/>
+<g class="terminal"><rect x="523" y="148" width="50" height="24" rx="12"/><text x="548" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M573 160h10"/>
+<g class="rule"><rect x="583" y="148" width="33" height="24" rx="0"/><text x="599.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M616 160H636"/>
+<path d="M503 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H616a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<text class="label" x="527" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M636 160H656"/>
+<path d="M168 160a10 10 0 0 1 10 10V188a10 10 0 0 0 10 10"/>
+<path d="M188 198h16"/>
+<text class="label" x="192" y="193" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M204 198h10"/>
+<g class="rule"><rect x="214" y="186" width="84" height="24" rx="0"/><text x="256" y="203" textLength="67.2" lengthAdjust="spacingAndGlyphs">joik-jek</text></g>
+<path d="M298 198h10"/>
+<g class="terminal"><rect x="308" y="186" width="33" height="24" rx="12"/><text x="324.5" y="203" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
+<path d="M341 198H636a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
+<path d="M656 160h10"/>
+</g>
+<path d="M666 160H686"/>
+<path d="M686 160H686a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M706 46h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="242" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
+</svg>

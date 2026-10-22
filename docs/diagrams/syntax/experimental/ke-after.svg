@@ -1,19 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="838" height="256" viewBox="0 0 838 256" role="img" aria-label="Railroad diagram of the rule selbri-4">
+<svg xmlns="http://www.w3.org/2000/svg" width="787" height="256" viewBox="0 0 787 256" role="img" aria-label="Railroad diagram of the rule ke-after">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
-<text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-4</text>
+<text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="84" height="24" rx="0"/><text x="82" y="51" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
-<path d="M124 46H818"/>
+<g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
+<path d="M73 46H767"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <path d="M40 80h20"/>
-<g class="rule"><rect x="60" y="68" width="84" height="24" rx="0"/><text x="102" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-4</text></g>
-<path d="M144 80H778a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="68" width="151" height="24" rx="12"/><text x="135.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">ke-after(@B, @U)</text></g>
+<path d="M211 80H727a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
 <path d="M60 160h88"/>
 <text class="label" x="64" y="155" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
 <path d="M148 160h10"/>
-<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="610" height="98" rx="4"/>
+<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="559" height="98" rx="4"/>
 <path d="M158 160h10"/>
 <path d="M168 160h20"/>
 <path d="M188 160h16"/>
@@ -30,28 +30,28 @@
 <path d="M466 160h10"/>
 <g class="rule"><rect x="476" y="148" width="33" height="24" rx="0"/><text x="492.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
 <path d="M509 160h10"/>
-<g class="rule"><rect x="519" y="148" width="84" height="24" rx="0"/><text x="561" y="165" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-3</text></g>
-<path d="M603 160h10"/>
-<path d="M613 160h20"/>
-<g class="terminal"><rect x="633" y="148" width="50" height="24" rx="12"/><text x="658" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
-<path d="M683 160H705"/>
-<path d="M613 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H685a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
-<text class="label" x="637" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M705 160h10"/>
-<g class="rule"><rect x="715" y="148" width="33" height="24" rx="0"/><text x="731.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
-<path d="M748 160H768"/>
+<g class="terminal"><rect x="519" y="148" width="33" height="24" rx="12"/><text x="535.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">@B</text></g>
+<path d="M552 160h10"/>
+<path d="M562 160h20"/>
+<g class="terminal"><rect x="582" y="148" width="50" height="24" rx="12"/><text x="607" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M632 160H654"/>
+<path d="M562 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H634a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<text class="label" x="586" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M654 160h10"/>
+<g class="rule"><rect x="664" y="148" width="33" height="24" rx="0"/><text x="680.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M697 160H717"/>
 <path d="M168 160a10 10 0 0 1 10 10V188a10 10 0 0 0 10 10"/>
 <path d="M188 198h16"/>
 <text class="label" x="192" y="193" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
 <path d="M204 198h10"/>
 <g class="rule"><rect x="214" y="186" width="100" height="24" rx="0"/><text x="264" y="203" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
 <path d="M314 198h10"/>
-<g class="rule"><rect x="324" y="186" width="84" height="24" rx="0"/><text x="366" y="203" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
-<path d="M408 198H748a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
-<path d="M768 160h10"/>
+<g class="terminal"><rect x="324" y="186" width="33" height="24" rx="12"/><text x="340.5" y="203" textLength="16.8" lengthAdjust="spacingAndGlyphs">@U</text></g>
+<path d="M357 198H697a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
+<path d="M717 160h10"/>
 </g>
-<path d="M778 160H798"/>
-<path d="M798 160H798a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M818 46h6m0 -8v16m4 -16v16"/>
+<path d="M727 160H747"/>
+<path d="M747 160H747a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M767 46h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="242" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>
