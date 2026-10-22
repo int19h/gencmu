@@ -249,9 +249,9 @@ So `{"choice":[{"ref":"a"},{"ref":"b"}]}` gives two edges, and `{"optional":{"re
 
 The loader reads members from final expanded rules, never from lowered productions. Instance calls become ordinary rule edges after expansion. Every alternative counts, whatever its guards. Tests, tag clauses and conditions do not gate membership either. So an `%extend-rule` can add a member, and a `%redefine-rule` can remove one. Members never depend on the enabled features.
 
-The owner of an elidable optional is the rule of the definition that writes it. Helpers never own an optional, whatever expression holds it. An `%extend-rule r` writes optionals that `r` owns. A family permits each elidable optional that one of its members owns. A family can permit none. Its queries then answer as `.without-elision` does.
+A rule owns the elidable optionals that its definition writes outside call arguments. Helpers never own an optional, whatever expression holds it. An `%extend-rule r` writes optionals that `r` owns outside call arguments. A family permits each elidable optional that one of its members owns. A family can permit none. Its queries then answer as `.without-elision` does.
 
-After expansion, an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
+After expansion, only an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
 
 A family argument is a rule reference, so the reference checks of this section cover it. A call can stand in a header or alternative tag clause, a condition, or the tag clause of an emission item. The loader reports an undefined family rule at the definition that contains the call.
 

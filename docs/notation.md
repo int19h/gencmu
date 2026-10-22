@@ -874,9 +874,9 @@ The members come from the rules as written. Guards do not matter, so every alter
 
 Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
 
-A rule owns each elidable optional that its alternatives write, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
+A rule owns each elidable optional that its alternatives write outside call arguments, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
 
-After expansion, an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
+After expansion, only an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
 
 The witness keeps every close and block of the candidate, in order, as for `.without-elision`. It can add a close only where two things hold. The family permits the close's optional. In the witness's restored view, a kept element stands on each side of the added close, inside the shared stretch. A kept element is a token, or a close or block that the candidate also has. Other added closes can stand between the added close and those kept elements.
 
