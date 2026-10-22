@@ -64,7 +64,11 @@ fn hex(field: &str, line: usize) -> Result<u32, String> {
     if field.is_empty() || !field.bytes().all(|c| c.is_ascii_hexdigit()) {
         return Err(format!("unicode.txt line {line}: a bad code point {field:?}"));
     }
-    u32::from_str_radix(field, 16)
+    let digits = field.trim_start_matches('0');
+    if digits.len() > 6 {
+        return Err(format!("unicode.txt line {line}: a bad code point {field:?}"));
+    }
+    u32::from_str_radix(if digits.is_empty() { "0" } else { digits }, 16)
         .ok()
         .filter(|&code| code <= 0x10ffff)
         .ok_or_else(|| format!("unicode.txt line {line}: a bad code point {field:?}"))
@@ -88,9 +92,10 @@ impl Unicode {
             decompositions: Vec::new(),
             combining: Vec::new(),
         };
-        for (index, line) in text.lines().enumerate() {
+        for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
-            let fields = line.split_whitespace().collect::<Vec<_>>();
+            let line = raw.strip_suffix('\n').map_or(raw, |line| line.strip_suffix('\r').unwrap_or(line));
+            let fields = line.split([' ', '\t']).filter(|field| !field.is_empty()).collect::<Vec<_>>();
             match fields.as_slice() {
                 [] | ["unicode", _] => {}
                 ["category", name, first, last] => {
@@ -123,10 +128,14 @@ impl Unicode {
                     table.decompositions.push((code, scalars));
                 }
                 ["combining", klass, first, last] => {
-                    let klass = klass
+                    let digits = klass.trim_start_matches('0');
+                    if digits.len() > 3 || !klass.bytes().all(|c| c.is_ascii_digit()) {
+                        return Err(format!("unicode.txt line {number}: a bad combining class"));
+                    }
+                    let klass = digits
                         .parse::<u8>()
                         .ok()
-                        .filter(|&n| n > 0 && n < 255 && klass.bytes().all(|c| c.is_ascii_digit()))
+                        .filter(|&n| n > 0 && n < 255)
                         .ok_or_else(|| format!("unicode.txt line {number}: a bad combining class"))?;
                     let (first, last) = range(first, last, number)?;
                     table.combining.push((first, last, klass));

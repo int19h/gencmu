@@ -4,6 +4,7 @@ the General_Category of a character and the White_Space property."""
 from __future__ import annotations
 
 from bisect import bisect_right
+import re
 
 from ._errors import GencmuError
 from ._hash import fnv1a64
@@ -13,6 +14,17 @@ CATEGORIES = (
     "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
 )  # fmt: skip
 """The General_Category values in their short form (engine §1)."""
+
+
+def _number(field: str, base: int, limit: int) -> int:
+    alphabet = "0123456789abcdefABCDEF" if base == 16 else "0123456789"
+    if not field or any(c not in alphabet for c in field):
+        raise ValueError(field)
+    digits = field.lstrip("0")
+    if len(digits) > limit:
+        raise ValueError(field)
+    return int(digits or "0", base)
+
 
 class UnicodeTable:
     """Character properties and canonical decomposition from the shared table."""
@@ -25,8 +37,10 @@ class UnicodeTable:
         self.decompositions: dict[int, tuple[int, ...]] = {}
         self.fingerprint = fnv1a64(text)
         self.version = ""
-        for number, line in enumerate(text.splitlines(), 1):
-            fields = line.split()
+        lines = text.split("\n")
+        for number, raw in enumerate(lines, 1):
+            line = raw.removesuffix("\r") if number < len(lines) else raw
+            fields = [field for field in re.split(r"[ \t]+", line) if field]
             if not fields:
                 continue
             try:
@@ -39,9 +53,7 @@ class UnicodeTable:
                 elif count is None or len(fields) != count:
                     raise ValueError(entry)
                 code_fields = fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
-                if any(any(c not in "0123456789abcdefABCDEF" for c in field) for field in code_fields):
-                    raise ValueError(entry)
-                codes = [int(field, 16) for field in code_fields]
+                codes = [_number(field, 16, 6) for field in code_fields]
                 if any(code > 0x10FFFF for code in codes):
                     raise ValueError(entry)
                 if entry == "decompose":
@@ -54,18 +66,19 @@ class UnicodeTable:
                 elif fields[0] == "category":
                     if fields[1] not in CATEGORIES:
                         raise ValueError(fields[1])
-                    categories.append((int(fields[2], 16), int(fields[3], 16), fields[1]))
+                    categories.append((codes[0], codes[1], fields[1]))
                 elif fields[0] == "white-space":
-                    white_space.append((int(fields[1], 16), int(fields[2], 16)))
+                    white_space.append((codes[0], codes[1]))
                 elif fields[0] in ("emoji-presentation", "emoji-component"):
                     prop = "Emoji_Presentation" if fields[0] == "emoji-presentation" else "Emoji_Component"
-                    self.emoji[prop].append((int(fields[1], 16), int(fields[2], 16)))
+                    self.emoji[prop].append((codes[0], codes[1]))
                 elif fields[0] == "decompose":
-                    self.decompositions[int(fields[1], 16)] = tuple(int(field, 16) for field in fields[2:])
+                    self.decompositions[codes[0]] = tuple(codes[1:])
                 elif fields[0] == "combining":
-                    if any(c not in "0123456789" for c in fields[1]) or not 1 <= int(fields[1]) <= 254:
+                    klass = _number(fields[1], 10, 3)
+                    if not 1 <= klass <= 254:
                         raise ValueError(fields[1])
-                    combining.append((int(fields[2], 16), int(fields[3], 16), int(fields[1])))
+                    combining.append((codes[0], codes[1], klass))
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:

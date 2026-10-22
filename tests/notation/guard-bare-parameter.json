@@ -1,5 +1,5 @@
 {
-  "description": "A bare @ reports that parameters are reserved and unsupported (engine §9.3).",
+  "description": "A bare `@` is an error at the `@`.",
   "document": "```jbogenbau\n%rule a @ cbm? A\n```\n",
   "expect": {
     "error": {

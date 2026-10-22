@@ -59,18 +59,28 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 				return 0, fmt.Errorf("bad hexadecimal field %q", s)
 			}
 		}
-		v, err := strconv.ParseUint(s, 16, 32)
+		digits := strings.TrimLeft(s, "0")
+		if len(digits) > 6 {
+			return 0, fmt.Errorf("bad code point %q", s)
+		}
+		if digits == "" {
+			digits = "0"
+		}
+		v, err := strconv.ParseUint(digits, 16, 32)
 		if v > 0x10ffff {
 			return 0, fmt.Errorf("bad code point %q", s)
 		}
 		return rune(v), err
 	}
-	for n, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
+	lines := strings.Split(text, "\n")
+	for n, line := range lines {
+		if n < len(lines)-1 {
+			line = strings.TrimSuffix(line, "\r")
+		}
+		f := strings.FieldsFunc(line, func(c rune) bool { return c == ' ' || c == '\t' })
+		if len(f) == 0 {
 			continue
 		}
-		f := strings.Fields(line)
 		want := 3
 		switch f[0] {
 		case "unicode":
@@ -118,7 +128,11 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 					return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
 				}
 			}
-			class, err := strconv.Atoi(f[1])
+			digits := strings.TrimLeft(f[1], "0")
+			if len(digits) > 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+			}
+			class, err := strconv.Atoi(digits)
 			if err != nil || class < 1 || class > 254 {
 				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
 			}

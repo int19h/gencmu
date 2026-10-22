@@ -75,9 +75,15 @@ The Hangul syllables U+AC00 to U+D7A3 decompose by the arithmetic of the Unicode
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too.
 
+LF (U+000A) ends a line. The final line can end at the end of the file. The reader removes one CR (U+000D) immediately before LF. A final CR without LF stays in its field.
+
+Fields are separated only by runs of spaces (U+0020) or tabs (U+0009). Leading and trailing spaces or tabs do not make fields. Every other character, including a byte order mark (U+FEFF), stays inside its field.
+
 Blank lines are ignored. An unknown entry name or a malformed record is a grammar error. Each record requires the fields shown above, with one or more decomposition scalars for `decompose`.
 
 Code point fields contain hexadecimal digits and range from U+0000 to U+10FFFF. A range must not be reversed. Decomposition records contain only scalar values. A combining class contains decimal digits and lies between 1 and 254.
+
+Any number of leading zeros is allowed in a number field. After these zeros, a code point has at most six hexadecimal digits. A combining class has at most three decimal digits. The value bounds above still apply.
 
 The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
