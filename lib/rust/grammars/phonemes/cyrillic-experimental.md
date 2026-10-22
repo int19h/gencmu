@@ -93,27 +93,21 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 %redefine-rule cyrillic-folded-vowel
   cyrillic-vowel<Capital ¬Stressed> | cyrillic-vowel<Accented>
 
-%redefine-rule joined-vowel
-  $v:vowel :: $v.tags
-%emits
-  ε :: ∅ := "'", $v :: $v.tags ∩ (Stressed ∪ Syllabic)
-
-%redefine-rule joined-folded-vowel
-  $v:folded-vowel :: $v.tags
+%redefine-rule joined-vowel-with(@V)
+  $v:@V :: $v.tags
 %emits
   ε :: ∅ := "'", $v :: $v.tags ∩ (Stressed ∪ Syllabic)
 
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-consonant</code> to <code>joined-folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-vowel.svg" alt="Railroad diagram of the rule cyrillic-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-vowel.svg" alt="Railroad diagram of the rule joined-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-vowel-with.svg" alt="Railroad diagram of the rule joined-vowel-with"></p>
 </details>
 
 The Cyrillic of CLL, in [cyrillic-cll.md](cyrillic-cll.md), ignores unknown marks too. It writes a diphthong as two plain vowels, as the Latin orthography does, so it has no glide letters. An accent on a vowel marks stress, as on a Latin vowel. Every other mark is ignored, the breve and the dieresis included. So `май` is `mai`, `мёи` is `mei` and `ма́и` is `mAi`. A capital vowel still marks stress, because this orthography has no all-capital runs.

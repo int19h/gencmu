@@ -173,18 +173,18 @@ A comma between vowels is ignored, as it is between other letters. It creates no
   | vowel-group
   | letters-after-consonant [commas] vowel-group
 
-%extend-rule vowel-group-plain
-  | vowel-group<¬Syllabic> commas $v:vowel :: $v.tags
-  | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> :: $w.tags
+%extend-rule vowel-group-plain-with(@V)
+  | vowel-group-with(@V)<¬Syllabic> commas $v:@V :: $v.tags
+  | vowel-group-with(@V)<Syllabic> commas $w:@V<¬Syllabic> :: $w.tags
 
-%extend-rule vowel-group-joined
-  vowel-group<Syllabic> commas $v:joined-vowel<Syllabic> :: $v.tags
+%extend-rule vowel-group-joined-with(@V)
+  vowel-group-with(@V)<Syllabic> commas $v:joined-vowel-with(@V)<Syllabic> :: $v.tags
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined-with</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
 </details>
 
 ## The apostrophe
@@ -245,20 +245,10 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 %rule capital-non-vowel
   consonant | digit | apostrophe
 
-%rule folded-vowel-group
-  folded-vowel | folded-vowel-group-plain | folded-vowel-group-joined
-
-%rule folded-vowel-group-plain
-  | folded-vowel-group<¬Syllabic> [commas] $v:folded-vowel :: $v.tags
-  | folded-vowel-group<Syllabic> [commas] $w:folded-vowel<¬Syllabic> :: $w.tags
-
-%rule folded-vowel-group-joined
-  folded-vowel-group<Syllabic> [commas] $v:joined-folded-vowel<Syllabic> :: $v.tags
-
-%rule joined-folded-vowel
-  $v:folded-vowel :: $v.tags
-%emits
-  ε :: ∅ := "'", $v
+%rule folded-vowel-group = vowel-group-with(folded-vowel)
+%rule folded-vowel-group-plain = vowel-group-plain-with(folded-vowel)
+%rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
+%rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
 %rule folded-vowel :: ∅
   | "A" := "a"

@@ -143,26 +143,31 @@ In cll-ebnf, a comma stands only between two letters of a run. Between two vowel
 %rule vowel
   plain-vowel | stressed-vowel
 
-%rule vowel-group
-  vowel | vowel-group-plain | vowel-group-joined
+%rule vowel-group-with(@V)
+  @V | vowel-group-plain-with(@V) | vowel-group-joined-with(@V)
 
-%rule vowel-group-plain
-  | vowel-group<¬Syllabic> $v:vowel :: $v.tags
-  | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
+%rule vowel-group-plain-with(@V)
+  | vowel-group-with(@V)<¬Syllabic> $v:@V :: $v.tags
+  | vowel-group-with(@V)<Syllabic> $w:@V<¬Syllabic> :: $w.tags
 
-%rule vowel-group-joined
-  vowel-group<Syllabic> $v:joined-vowel<Syllabic> :: $v.tags
+%rule vowel-group-joined-with(@V)
+  vowel-group-with(@V)<Syllabic> $v:joined-vowel-with(@V)<Syllabic> :: $v.tags
 
-%rule joined-vowel
-  $v:vowel :: $v.tags
+%rule joined-vowel-with(@V)
+  $v:@V :: $v.tags
 %emits
   ε :: ∅ := "'", $v
+
+%rule vowel-group = vowel-group-with(vowel)
+%rule vowel-group-plain = vowel-group-plain-with(vowel)
+%rule vowel-group-joined = vowel-group-joined-with(vowel)
+%rule joined-vowel = joined-vowel-with(vowel)
 
 %rule any-lojban-char
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>ordinary-run</code> to <code>any-lojban-char</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>ordinary-run</code> to <code>any-lojban-char</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/letters.svg" alt="Railroad diagram of the rule letters"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
@@ -171,6 +176,10 @@ In cll-ebnf, a comma stands only between two letters of a run. Between two vowel
 <p><img src="../../docs/diagrams/phonemes/latin-strict/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/syllable-break.svg" alt="Railroad diagram of the rule syllable-break"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-with.svg" alt="Railroad diagram of the rule vowel-group-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/joined-vowel-with.svg" alt="Railroad diagram of the rule joined-vowel-with"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
