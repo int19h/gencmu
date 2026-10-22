@@ -920,7 +920,7 @@ impl<'a> Reader<'a> {
         Ok(Step::Call(Frame::Choice(Choice::new(item))))
     }
 
-    /// A reference other than `#` or a terminal, and one test on its own
+    /// A reference, terminal, range or property, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
     fn resume_tested(&self, frame: &mut Tested<'a>, _: Option<Val>) -> R<Step<'a>> {

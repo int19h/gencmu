@@ -68,7 +68,7 @@ func TestDOMRules(t *testing.T) {
 	cases := []struct{ rule, dom string }{
 		{"format 3", strings.Replace(alt(good), format, `"format":3`, 1)},
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
-		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
+		{"a rule name is an identifier or one eligible emoji", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
 		// A compared term has exactly the members of one form, in either
 		// order: read as the string, either would reject "ab".
@@ -764,7 +764,7 @@ func TestGuardFeatureName(t *testing.T) {
 }
 
 // An expression or a condition has exactly the members of one form, and a
-// reference is a name or # (docs/output.md, engine §9). A compiled.json
+// reference is an identifier or one eligible emoji (engine §9). A compiled.json
 // entry that breaks this is a miss, and the document is read instead. A
 // bootstrap that breaks it is an error of the grammar. The order of the
 // members varies, as the other libraries read JSON in order.

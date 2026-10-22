@@ -1142,7 +1142,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {"tags" | "=" | "≠"} TestOp
  */
 /**
- * What a test follows: a reference other than `#`, or a terminal.
+ * What a test follows: a reference, a terminal, a range or a property.
  * @typedef {{ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
  */
 /**

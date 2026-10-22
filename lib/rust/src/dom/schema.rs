@@ -38,7 +38,7 @@ fn tag(name: &str) -> bool {
 }
 
 fn rule(name: &str) -> bool {
-    name.chars().count() == 1 && !name.is_ascii() || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+    name.chars().count() == 1 || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
 }
 
 fn feature(name: &str) -> bool {

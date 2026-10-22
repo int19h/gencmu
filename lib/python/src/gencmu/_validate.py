@@ -42,7 +42,7 @@ def _tag(value: Any) -> bool:
 
 
 def _ref(value: Any) -> bool:
-    return isinstance(value, str) and (len(value) == 1 and ord(value) > 127 or _NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
+    return isinstance(value, str) and (len(value) == 1 or _NAME.fullmatch(value) is not None or value in ENGINE_TAGS)
 
 
 def _capture(value: Any, whole: bool = True) -> bool:

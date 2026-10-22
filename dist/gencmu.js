@@ -493,7 +493,17 @@
       }
       // The records can stand in any order in the file (engine §1).
       ranges.sort((a, b) => a[0] - b[0]);
-      for (const ranges of this.emoji.values()) ranges.sort((a, b) => a[0] - b[0]);
+      for (const [property, ranges] of this.emoji) {
+        ranges.sort((a, b) => a[0] - b[0]);
+        /** @type {[number, number][]} */
+        const union = [];
+        for (const [start, end] of ranges) {
+          const previous = union.at(-1);
+          if (previous && start <= previous[1] + 1) previous[1] = Math.max(previous[1], end);
+          else union.push([start, end]);
+        }
+        this.emoji.set(property, union);
+      }
       this.combining.sort((a, b) => a[0] - b[0]);
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
@@ -2572,7 +2582,7 @@
       } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
         const key = 'name' in n ? 'name' : 'terminal' in n ? 'terminal' : 'constant';
         if (typeof n[key] !== 'string' || !Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern atom';
-        if (key === 'name' && !/^(?:[a-z][A-Za-z0-9_-]*|[^\x00-\x7f])$/u.test(n.name)) return 'a malformed pattern rule name';
+        if (key === 'name' && !(/^[a-z][A-Za-z0-9_-]*$/.test(n.name) || [...n.name].length === 1)) return 'a malformed pattern rule name';
         if (key === "constant" && !/^[A-Z][A-Za-z0-9_-]*$/.test(n.constant)) return "a malformed pattern constant";
         if (key === "terminal" && !(/^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith("_") && PROPERTY_NAMES.has(n.terminal.slice(1)))) return "a malformed pattern terminal";
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
@@ -3871,8 +3881,9 @@
   // A classifier's name begins with a lower-case letter, and a class with a
   // capital (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
-  // A rule has the same spelling as a classifier, or the name # (engine §9).
-  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|[^\x00-\x7f])$/u;
+  // A rule name has identifier or single-scalar shape. Its Unicode table
+  // decides whether that scalar is an eligible emoji (engine §9).
+  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|[\s\S])$/u;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
@@ -18179,7 +18190,7 @@
    */
 
   /**
-   * What a test follows: a reference other than `#`, or a terminal.
+   * What a test follows: a reference, a terminal, a range or a property.
    * @typedef {{ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
    */
 

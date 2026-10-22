@@ -157,7 +157,7 @@ pub(crate) enum Expr {
     Capture(String, Box<Expr>),
     /// A tested symbol, such as `X="s"`: its comparator, `=`, `≠`, `⊇`,
     /// `⊉`, `∩=∅` or `∩≠∅`, its value, a closed term, and its symbol, a
-    /// `Ref` other than `#`, a `Terminal`, a `Range` or a `Property`
+    /// `Ref`, a `Terminal`, a `Range` or a `Property`
     /// (engine §2, §4).
     Tested(String, Term, Box<Expr>),
     Empty,

@@ -443,7 +443,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			return
 		}
 		if !isTestable(e.Inner) && !(isValueTest(e.Op) && e.Inner != nil && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
-			c.fail("a test follows only a reference other than # or a terminal")
+			c.fail("a test follows only a reference, a terminal, a range or a property")
 			return
 		}
 		c.expr(e.Inner, depth+1, false, sealed)
@@ -464,7 +464,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		}
 	case exWildcard:
 	case exRef:
-		// A reference is a name or # (engine §9).
+		// A reference is an identifier or one eligible emoji (engine §9).
 		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}

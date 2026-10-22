@@ -49,8 +49,14 @@ class UnicodeTable:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
                 raise GencmuError(f"unreadable line: {line!r}", document="unicode.txt", line=number) from error
-        for ranges in self.emoji.values():
-            ranges.sort()
+        for prop, ranges in self.emoji.items():
+            union: list[tuple[int, int]] = []
+            for start, end in sorted(ranges):
+                if union and start <= union[-1][1] + 1:
+                    union[-1] = (union[-1][0], max(union[-1][1], end))
+                else:
+                    union.append((start, end))
+            self.emoji[prop] = union
         self._emoji_starts = {prop: [start for start, _ in ranges] for prop, ranges in self.emoji.items()}
         categories.sort()
         white_space.sort()

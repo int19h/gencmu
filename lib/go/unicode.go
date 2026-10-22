@@ -111,9 +111,8 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			t.whiteSpace = append(t.whiteSpace, [2]rune{a, b})
 		}
 	}
-	for _, ranges := range [][][2]rune{t.emojiPresentation, t.emojiComponent} {
-		sort.Slice(ranges, func(i, j int) bool { return ranges[i][0] < ranges[j][0] })
-	}
+	t.emojiPresentation = unionUnicodeRanges(t.emojiPresentation)
+	t.emojiComponent = unionUnicodeRanges(t.emojiComponent)
 	sort.Slice(t.categories, func(i, j int) bool { return t.categories[i].start < t.categories[j].start })
 	sort.Slice(t.whiteSpace, func(i, j int) bool { return t.whiteSpace[i][0] < t.whiteSpace[j][0] })
 	sort.Slice(t.combining, func(i, j int) bool { return t.combining[i].start < t.combining[j].start })
@@ -249,4 +248,19 @@ func inUnicodeRanges(ranges [][2]rune, c rune) bool {
 func (t *unicodeTable) isEmojiName(name string) bool {
 	chars := []rune(name)
 	return len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
+}
+
+// unionUnicodeRanges merges overlapping and adjacent property records.
+func unionUnicodeRanges(ranges [][2]rune) [][2]rune {
+	sort.Slice(ranges, func(i, j int) bool { return ranges[i][0] < ranges[j][0] })
+	union := ranges[:0]
+	for _, interval := range ranges {
+		last := len(union) - 1
+		if last >= 0 && interval[0] <= union[last][1]+1 {
+			union[last][1] = max(union[last][1], interval[1])
+		} else {
+			union = append(union, interval)
+		}
+	}
+	return union
 }

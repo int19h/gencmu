@@ -121,8 +121,8 @@ impl Unicode {
         }
         table.categories.sort_unstable();
         table.white_space.sort_unstable();
-        table.emoji_presentation.sort_unstable();
-        table.emoji_component.sort_unstable();
+        Self::union_ranges(&mut table.emoji_presentation);
+        Self::union_ranges(&mut table.emoji_component);
         table.decompositions.sort_unstable_by_key(|entry| entry.0);
         table.combining.sort_unstable();
         Ok(table)
@@ -200,6 +200,21 @@ impl Unicode {
         } else {
             "Cn"
         }
+    }
+
+    fn union_ranges(ranges: &mut Vec<(u32, u32)>) {
+        ranges.sort_unstable();
+        let mut length = 0;
+        for index in 0..ranges.len() {
+            let (start, end) = ranges[index];
+            if length > 0 && start <= ranges[length - 1].1 + 1 {
+                ranges[length - 1].1 = ranges[length - 1].1.max(end);
+            } else {
+                ranges[length] = (start, end);
+                length += 1;
+            }
+        }
+        ranges.truncate(length);
     }
 
     fn in_ranges(ranges: &[(u32, u32)], code: u32) -> bool {

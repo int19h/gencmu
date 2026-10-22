@@ -52,8 +52,8 @@ fn run_shared_case(name: &str) {
 }
 
 /// The reader reads every form of a test in a body, with spaces inside it
-/// or not, and refuses a test after anything but a reference other than
-/// `#` or a terminal, a second test, and an operand of the wrong type
+/// or not, and accepts tests on references, terminals, ranges and properties.
+/// It refuses other targets, a second test, and an operand of the wrong type
 /// (engine §9). Exact strings preserve case and punctuation.
 #[test]
 fn tests_in_a_body_are_read_and_refused() {
