@@ -258,6 +258,8 @@ A target-choice argument has at least two targets. Each TARGET is a `rule`, user
 
 Calls and parameters can occupy expression, term, pattern, and method-argument positions that engine §2.3 permits. Parameters can also occupy STRINGTERM and a requirement's `value` before expansion. A bare rule argument converts to the constructor required by its use.
 
+Before the loader computes keys, it inspects every rule-valued argument and target inside a pattern call for read-back validity. It also visits nested calls and body arguments. Each nominal reference must read back as a rule in its actual syntactic position under the loaded Unicode table. A supplied rule argument cannot become a tag argument through canonical spelling. Unused arguments receive the same inspection.
+
 A call remains an instance reference. A body argument supplies its EXPR. The single-symbol conversion runs before position validation.
 
 A target choice supplies a body choice or splices into query targets.
@@ -482,6 +484,8 @@ DOMs store unresolved references and source positions, never stage-resolved cons
 
 PATTERN tests one structural tree. An item consumes part of an ordered list of siblings. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern terms also support `const`, `union`, `intersection`, `difference`, and contextual `emptySet`. Mixed pattern and tag-set operations are malformed.
 
+Node decorations are exact prefixes, tests, or child lists. Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
+
 An undecorated node test has one of these forms:
 
 ```text
@@ -500,9 +504,9 @@ An undecorated node test has one of these forms:
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A node test can add `"exact":true`, then `"children":[ITEM...]`, before its final `at` member when present. Both members are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+A node test can add `"exact":true`, then `"children":[ITEM...]`. If the object has an `at` member, that member follows both additions. Both additions are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
 
-Every node-test form accepts these decorations, subject to constant and parameter resolution. This includes tested terminals and `_`. A terminal leaf passes an attached list only when that list accepts no children. The decorations belong to the outermost test object, never its inner `expr`.
+Every node-test form accepts these decorations, subject to constant and parameter resolution. This includes tested terminals and `_`. If a terminal leaf has an attached list, the list tests that leaf's empty child sequence. The decorations belong to the outermost test object, never its inner `expr`.
 
 A bare child list has exactly this form, with optional `exact` before `children`:
 
@@ -539,7 +543,7 @@ ITEM has exactly one of these shapes:
 
 Here `[ITEM,ITEM...]` means one or more items. A choice requires at least two nonempty alternative arrays. No alternative consists only of another `choice` item. The reader flattens such alternatives in written order. Other choices retain their sequence position and nesting. Plain groups concatenate item arrays and make no wrapper.
 
-Only a node's `children` array can be empty. Item objects cannot be arrays. There is no `sequence` or `node` wrapper.
+Only a `children` array, on a node test or bare list, can be empty among the child arrays. Item objects cannot be arrays. There is no `sequence` or `node` wrapper.
 
 An `optional` object has only `optional`. Only `repeat` accepts `separator`, and it must also contain `repeat`. Sibling items contain exactly `siblings:true`. No item has `at` or pattern fields beside its designated member.
 
@@ -589,6 +593,8 @@ The following examples omit source positions to show the boundaries:
 ```
 
 Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.
+
+After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested pattern intersections in supplied and cached DOMs.
 
 The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Canonical pattern reading follows engine §2.3 and preserves the key of every valid shape.
 

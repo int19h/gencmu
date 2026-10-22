@@ -415,7 +415,7 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 ## Structural pattern implementation
 
-A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains children without naming the parent. `_` retains its terminal identity.
+A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` retains its terminal identity.
 
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
 
@@ -423,7 +423,9 @@ Child lists contain sequences, choices, optionals, repetitions with `/` separato
 
 The pattern DOM stores child sequences as arrays. Empty and singleton child lists retain their guillemets in canonical spelling. The schema accepts exactly the reader's shapes, apart from source positions. Unresolved parameters preserve the distinction between whole patterns and child items. They never relax the surrounding field or sibling-gap rules.
 
-Pattern unions and intersections flatten operands of their own kind. Keys preserve order, duplicates, node decorations, and child boundaries. Canonical reading decodes diagnostic string escapes and gives the same key for every valid printed pattern. A rule-test name that reads back as a terminal under the loaded Unicode table is invalid. Pattern literals name only engine scalar constants through the DOM's `literal` form. User constants use `constant` instead.
+Pattern unions and intersections flatten operands of their own kind, including after substitution. Node decorations are exact prefixes, tests, or child lists. Keys preserve order, duplicates, node decorations, and child boundaries.
+
+Canonical reading decodes diagnostic string escapes and gives the same key for every valid printed pattern. A rule-test name that reads back as a terminal under the loaded Unicode table is invalid. The same requirement covers nominal rule arguments inside pattern calls. Pattern literals name only engine scalar constants through the DOM's `literal` form. User constants use `constant` instead.
 
 All user constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 

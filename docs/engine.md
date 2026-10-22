@@ -325,6 +325,8 @@ An argument cannot declare or read a capture, including `$` and captured string 
 
 Substitution copies one parsed node into each use. It never reparses text or changes the grouping around the use. A parameter can occupy a body operand, pattern operand, query target, filter requirement, or term position. Term positions include conditions, tag clauses, tests, and value or image recipes.
 
+Node decorations are exact prefixes, tests, or child lists.
+
 The use determines the conversion, before ordinary validation:
 
 | Position | Accepted argument and conversion |
@@ -343,7 +345,9 @@ The use determines the conversion, before ordinary validation:
 
 A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string or engine scalar becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
 
-A pattern argument in a child item consumes one child. It never splices its children into the enclosing list. Node decorations require a node test after conversion, without an existing child list or exact prefix. Written tests retain their ordinary target and order restrictions. A compound predicate cannot receive node decorations.
+A pattern argument in a child item consumes one child. It never splices its children into the enclosing list. A node decoration requires a compatible node test after conversion. Each decoration conflicts only with the same decoration already on that argument. Written tests retain their ordinary target and order restrictions. A compound predicate cannot receive node decorations.
+
+An exact prefix requires an argument without an exact prefix. An attached list requires an argument without an attached list. Thus `·@X` accepts `#a« b »`, and `@X« b »` accepts `#·a`. Both uses produce `#·a« b »`. Neither use discards an existing decoration.
 
 An expanded use must satisfy the original position's syntax and type rules. For example, `$x:@P` requires one capturable symbol. A sequence or choice cannot acquire a hidden wrapper rule. A value-test operand still requires a string literal or string constant.
 
@@ -374,6 +378,16 @@ A requirement list is distinct from a tag set. An empty `<>` splices no requirem
 A target choice can also supply one grouped body choice where a body operand accepts it. It cannot become a tag set or a pattern. Parenthesized body choices never splice into query targets. A target list must remain nonempty after substitution.
 
 Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution.
+
+Substitution also flattens pattern intersections before expanded-pattern validation, including in conditions and call arguments. Each resulting array retains operand order, duplicates, and source attribution. This normalization applies only to nesting that substitution creates. Initial shape inspection still rejects nested intersections in supplied or cached pattern DOMs.
+
+For example, a template condition can contain `#(@P ∩ A)`. With argument `#(A ∩ B)`, substitution produces `#(A ∩ B ∩ A)`. The expanded pattern has one intersection array with three operands. These are pattern constructors, distinct from term-level intersections of pattern values.
+
+```jbogenbau
+%rule t(@P) A
+%conditions $ ≅ #(@P ∩ A)
+%rule text = t(#(A ∩ B))
+```
 
 Substitution also flattens concatenations inside recipes before ordinary validation. Their operands enter in order, including empty operands. Each operand retains its source attribution.
 
@@ -421,11 +435,13 @@ Pattern literals print `#` directly before a node test, constant, parameter, or 
 
 A nonempty list prints `« `, its items, and ` »`. An empty list prints `«»`. Child items have one separating space. Optional brackets and braces have no internal padding. A separator prints as ` / `, and a sibling gap prints `⋯`.
 
-Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. A path operand takes parentheses unless it is a node test, constant, parameter, or bare child list. Thus nested paths retain parentheses. A path over children prints `« A B » ⋰`, with the list boundary intact.
+Paths print as `⋮ P`, `⋱ P`, and `P ⋰`. If the operand is a compound pattern, the printer adds parentheses around it. A node test, constant, parameter, or bare child list takes no parentheses. Thus nested paths retain parentheses. A path over children prints `« A B » ⋰`, with the list boundary intact.
 
-Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's right operand takes parentheses when it is a union or difference. A union operand that is a difference takes parentheses unless it is the first operand. Other parentheses follow binding strength.
+Pattern union, intersection, and difference use spaces around their operators. Intersection operands that are unions or differences take parentheses. Union and intersection flatten their own kind. A difference's left operand takes no parentheses. If its right operand is a union or difference, that operand takes parentheses. Other parentheses follow binding strength.
 
-A child set item takes parentheses unless it is its alternative's only item. A choice uses ` | ` between alternative arrays. A choice item takes parentheses unless it is its list's only item. Plain child groups flatten their sequences. No printer substitutes parentheses for a child list.
+If a union operand is a difference after the first operand, the printer adds parentheses around it. The first operand takes no extra parentheses. Thus `a ∪ b ∖ c` is the canonical spelling of `(a ∪ b) ∖ c`.
+
+A choice uses ` | ` between alternative arrays. If a choice or set item shares its array with other items, the printer adds parentheses around it. A sole choice or set item takes no extra parentheses. These arrays include child lists, optionals, repeats, separators, and choice alternatives. Plain child groups flatten their sequences. No printer substitutes parentheses for a child list.
 
 Tests follow their symbol without spaces. Method selectors follow their receiver without spaces. Methods use ` | ` for target choices and `, ` for other argument lists. A zero-argument selector has no parentheses. Call parentheses follow the same no-space adjacency rule.
 
@@ -436,6 +452,8 @@ Canonical reading is a separate reading mode for these printed arguments. It use
 For every valid pattern P, `key(readCanonical(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
 
 A pattern name that reads back as a terminal under the loaded Unicode table is invalid. This restriction covers ordinary rule names, template-family names, and call names. It also applies to supplied and cached DOMs. A pattern `literal` can name only an engine scalar constant, never a user constant.
+
+Read-back inspection also descends through every argument and target inside a pattern call, including nested calls and body arguments. Each nominal rule reference must read back as a rule in its actual syntactic position. For example, a Unicode table can make `A` both an eligible emoji name and a tag spelling. If `f(A)` reads that argument as a tag, its supplied `rule:A` argument is invalid. The argument categories remain distinct, even if the template ignores that argument.
 
 The effective name appears in trees, display JSON, canonical JSON, `insertedBy`, warnings, expected lists, witnesses, diagrams, and audit records. Such names are strings and can contain emoji, punctuation, spaces, and quotes. Runtime nodes need no extra template field.
 
@@ -920,7 +938,9 @@ The state retains more than final Boolean answers. It includes sequence prefixes
 
 An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run an additional recognizer or inspect ranking.
 
-At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, value, tags or children. Primitive names fail, paths stop, and sibling ellipses consume it as one child. An empty completed option also contributes exactly one leaf. Empty normalization never removes it or a named node that contains it.
+At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, value, tags or children. Every node test fails on a seal, including bare lists and exact empty lists. Paths stop there, while sibling ellipses consume it as one child.
+
+An empty completed option also contributes exactly one sealed leaf. Empty normalization never removes it or a named node that contains it. A seal is not an observable node as defined in [Tree patterns](notation.md#the-structural-tree).
 
 Private option captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at ranked group boundaries.
 
@@ -1677,7 +1697,7 @@ The lexer reads `¬` separately only when no guard starts immediately after it. 
 
 Whitespace and comments separate tokens but add no grammar node. Call-name adjacency follows the exception above. Comments discard their contents, including backslashes, without escape processing.
 
-Pattern child lists use `«` U+00AB and `»` U+00BB. A list attaches to the preceding node test only when no whitespace or comment intervenes. Otherwise, it begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
+Pattern child lists use `«` U+00AB and `»` U+00BB. If no whitespace or comment separates a node test from its following list, that list must attach to the test. Otherwise, the list begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
 
 Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
@@ -1787,7 +1807,8 @@ pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
 pattern-intersection = pattern-path {"∩" pattern-path}
 pattern-path = ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
 pattern-primary = pattern-node | pattern-bare | "(" pattern-union ")"
-pattern-node = ["·" ADJACENT] pattern-atom [ADJACENT pattern-children]
+pattern-node = ["·" ADJACENT] pattern-atom
+               (ADJACENT pattern-children | NO-ATTACHMENT)
 pattern-bare = ["·" ADJACENT] pattern-children
 pattern-atom = (pattern-name | terminal) {symbol-test}
 pattern-name = reference | call | parameter
@@ -1796,9 +1817,13 @@ pattern-children = "«" [child-choice] "»"
 child-choice = child-alternative {"|" child-alternative}
 child-alternative = child-sequence | child-set
 child-sequence = child-item {child-item}
-child-set = pattern-path {"∩" pattern-path} {("∪" | "∖") pattern-intersection}
-            (* Requires at least one set operator. *)
-child-item = pattern-path | "(" child-choice ")" | pattern-brackets | pattern-repeat | "⋯"
+child-set = child-intersection ("∪" | "∖") child-intersection
+            {("∪" | "∖") child-intersection}
+          | child-path "∩" child-path {"∩" child-path}
+child-intersection = child-path {"∩" child-path}
+child-item = child-path | pattern-brackets | pattern-repeat | "⋯"
+child-path = ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+child-primary = pattern-node | pattern-bare | "(" child-choice ")"
 pattern-brackets = "[" child-choice "]"
 pattern-repeat = "{" child-choice ["/" child-choice] "}"
 directive = directive-name {directive-argument} [conditions]
@@ -1929,9 +1954,15 @@ Pattern productions use the grouping and binding rules of `docs/notation.md`. `#
 
 Rule atoms and pattern-valued constant atoms accept no tests.
 
-ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. A bare list starts a new child item when separation prevents attachment. Parentheses group whole patterns or child expressions, according to their contents. Grouping produces no DOM node. Sets require whole patterns and cannot take a child sequence, optional, repeat, gap, or child choice as an operand.
+ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. NO-ATTACHMENT consumes no token. It succeeds exactly when no adjacent `«` follows the completed atom. The two attachment routes are disjoint during recognition, before DOM conversion.
 
-A set beside other child items requires grouping parentheses. `« a (b ∪ c) »` is valid, while `« a b ∪ c »` fails syntax recognition. A set can occupy a complete choice arm without extra parentheses. An argument reader treats guillemets as balanced delimiters, so inner `|`, `/`, and commas do not split call arguments.
+A child set requires a set operator outside its groups. A child sequence cannot consume that operator. These alternatives therefore cannot recognize the same complete text.
+
+Inside a child list, every parenthesized group follows `child-primary`, never the whole-pattern `pattern-primary` route. A group without a path or set operator contributes its item array. If a path or set uses that group, it must contain exactly one `child` item holding a whole pattern. The reader rejects a sequence, optional, repeat, gap, or choice in that operand position. Grouping produces no DOM node.
+
+A set beside other child items requires grouping parentheses. `« a (b ∪ c) »` is valid, while `« a b ∪ c »` fails syntax recognition. A set can occupy a complete choice arm without extra parentheses.
+
+A pattern argument is one term that the pattern grammar consumes. The argument reader balances guillemet tokens, not characters in raw text. A guillemet inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#« "»" a »)` retains the complete child list as its argument.
 
 ### 9.3 Conversion and validation
 
@@ -2045,8 +2076,11 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `child-choice` | One or more alternative arrays | Sole array, or one choice item. Flatten singleton choice alternatives. |
 | `child-alternative` | One sequence or whole-pattern set | Item array, with a set wrapped as one `child` |
 | `child-set` | Whole patterns and at least one set operator | Ordinary pattern set inside one child item |
+| `child-intersection` | One or more `child-path` parts | Require whole-pattern operands, then flatten intersection operands or retain the sole pattern |
 | `child-sequence` | One or more child items | Concatenate plain groups into one item array |
-| `child-item` | Whole pattern, grouped child choice, optional, repeat, or gap | `child:PATTERN`, flattened group array, corresponding wrapper, or `siblings:true` |
+| `child-item` | Child path, optional, repeat, or gap | Converted path items, corresponding wrapper, or `siblings:true` |
+| `child-primary` | Node, bare list, or grouped child choice | Node or bare list becomes one `child`. A group contributes its item array. |
+| `child-path` | One child primary and optional path token | Without a path, retain its item array. With a path, require one whole pattern and wrap that path in `child`. |
 | `pattern-brackets` | One nonempty `child-choice` | `optional` item with an item array |
 | `pattern-repeat` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
 | `pattern-path` | One primary, optionally with one path token | Primary alone, or descendant, first, or last path |
@@ -2228,7 +2262,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An `&` of more than 16 items is an error.
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
-  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
+  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, emission items, arrays, positions, guards, and signed requirement records add no depth. A recipe root always uses `concat`, including for one atom. Other `concat` nodes require at least two string operands.
 
   | Form | Depth of its children |
   | --- | --- |
@@ -2238,16 +2272,20 @@ The grammar does not state the restrictions below. Each of these is an error of 
   | Condition `any`, `all`, `not`, `if`, `method`, or comparison | Parent depth plus one |
   | Pattern `union`, `intersection`, `difference`, path, or `test` | Parent depth plus one |
   | Pattern `literal` or `range` | Parent depth for the string term or each endpoint |
-  | Pattern node with `children` | Parent depth plus one for each child item |
+  | Node test or bare list with `children` | Each child item is at the node's depth plus one |
   | Pattern child `choice`, `optional`, `repeat`, or `child` | Parent depth plus one |
 
   A repeat's item and separator have the same depth. A test's target and operands count from the test's depth. A guarded term's condition and result count from the term's depth. A method's receiver and term arguments count from the method's depth. Rule, terminal, classifier, and integer arguments add no depth. A `pattern` term adds one before its pattern's root, and each subsequent pattern constructor continues that count.
 
   A call adds one depth level before each argument. Argument category wrappers add no depth. Parameters are leaves.
 
+  Sibling items share their depth, regardless of array length. The `children` array adds no depth. A `child`, `choice`, `optional`, or `repeat` wrapper adds one level before its contained patterns or items. A repeat's item and separator arrays share that level. An exact prefix adds no depth.
+
+  In the term `#« a b »`, the term wrapper starts at depth zero. The bare-list pattern is at depth one. Both `child` items are at depth two, and both names are at depth three. More siblings do not increase those depths.
+
   Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. An integer argument is a leaf. Condition `captured` is a leaf.
 
-  Pattern atoms without children and child `siblings` are leaves. An exact prefix adds no depth. A `concat` term adds depth under the term rule.
+  Pattern names, terminals, constants, wildcards, and parameters without children are leaves. Child `siblings` is a leaf. A `concat` term adds depth under the term rule.
 
   Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
@@ -2356,7 +2394,7 @@ A scalar range endpoint decodes as a string term and must resolve to exactly one
 
 Pattern constructors use the authoritative table above. Readers retain every child-list boundary specified in `docs/output.md`, including empty and singleton lists. Parentheses add no boundary.
 
-For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #(NAME), not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
+For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #NAME, not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
 
 Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
 
@@ -2364,7 +2402,7 @@ Readers reject missing parts, unknown members and invalid arities. Tests require
 
 Child arrays retain their context throughout unresolved inspection. An optional accepts no `separator`, and only a repeat accepts that member. A sibling ellipsis cannot occur at a repeat's sibling level, including through optional, choice, or repeat wrappers. A `child` pattern starts another node and therefore another sibling level for its own child list. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions and uncalled templates.
 
-`#« A @X »` and `#« ⋯ @X »` remain valid when X is declared. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
+If X is declared, `#« A @X »` and `#« ⋯ @X »` remain valid. Their closed items remain child items beside the parameter. A parameter postpones only the type or binding that its value determines. It never postpones the surrounding field, arity, context, or forbidden-gap rules. Source, supplied, and cached patterns all obey the exact schema in `docs/output.md`.
 
 ## 10. Terms and conditions
 
@@ -2390,7 +2428,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `Word`, `KOhA` | tag set | The singleton tag set |
 | `s.image` | string | The input images concatenated in order (§5) |
 | `∅` | a set or pattern of the kind its context gives | the empty set or always-false pattern |
-| `#(BODY)` | pattern | the structural predicate in `docs/notation.md` |
+| `#PATTERN` | pattern | the structural predicate in [Tree patterns](notation.md#tree-patterns) |
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind or two patterns | union, intersection, difference |
 | `A ⟹ t` | the set type of `t` | `t` where the condition `A` holds, else `∅` |
 | `s.value`, `s.source-text`, `s.decomposed-source-text` | string | §5 |
@@ -2482,7 +2520,7 @@ A tree comparison has operator `≅` or `≇`, a bare capture on the left and a 
 
 Pattern union, intersection and difference combine predicates. Contextual `∅` supplies the always-false predicate. Pattern values do not support ordinary equality or implicit string conversion.
 
-For a bare name after either tree comparator, report at that name: `tree comparison requires a pattern; write #(NAME), not NAME`. Substitute the actual name, including KEhE, before generic parse or type errors. Other wrong operand types receive the ordinary expected-pattern error.
+For a bare name after either tree comparator, report at that name. Use `tree comparison requires a pattern; write #NAME, not NAME`. Substitute the actual name, including KEhE, before generic parse or type errors. Other wrong operand types receive the ordinary expected-pattern error.
 
 ### Method signatures
 

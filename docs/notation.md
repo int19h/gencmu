@@ -552,11 +552,13 @@ The left operand must be a bare capture. The right operand must have pattern typ
 
 Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers flatten their children in order. Named chain levels retain their nodes. An absent plain optional contributes no child. Recipes do not change this structural observation.
 
+Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
+
 A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, engine constant, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
 A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-A node test first tests the candidate, then follows its sole structural child if necessary. This single-child search repeats only while exactly one child exists. A branching node or ranked seal stops it. A node test with a child list tests both parts at the same visited node.
+A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or ranked seal stops it. A node test with a child list tests both parts at the same visited node.
 
 The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a« b ·c »`, `a` and `c` are exact, while `b` keeps its search.
 
@@ -594,6 +596,8 @@ A capitalized or engine tag denotes its tag terminal. A string literal, string c
 
 A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, engine scalars, ranges, and `_`. `_` retains the wildcard terminal's identity. It does not match every node. A pattern constant denotes a whole predicate rather than a node test.
 
+Node decorations are exact prefixes, tests, or child lists. Each decoration applies to its own node test. A compound pattern cannot acquire a node decoration.
+
 A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. Rule tests and pattern-valued constants accept no terminal tests. A pattern `literal` reference names only an engine scalar constant. User constants retain the distinct `constant` form in the DOM.
 
 A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
@@ -606,7 +610,7 @@ Every node test can carry a child list, including a terminal test. Terminal leav
 
 Within a child list, juxtaposition sequences items and `|` chooses complete sequences. Brackets make a sequence optional. Braces repeat a sequence one or more times, with an optional `/` separator. `{C / S}` accepts `C (S C)*`. These constructs give one Boolean answer, without ranking or greediness.
 
-`#a« b (x | y« z ») c« d e » »` tests one a node with three children. The middle child matches x, or y with one child matching z. Each child test keeps its own search unless it carries `·`.
+`#a« b (x | y« z ») c« d e » »` tests one a node with three children. The middle child matches x. The other alternative matches y, and that y has one child that matches z. Each child test keeps its own search. A child's `·` suppresses only that child's search.
 
 `⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal.
 
@@ -620,7 +624,7 @@ A call's arguments retain their own grammar, including pattern literals and grou
 
 Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
 
-A set expression consumes one child when used as a child item. Beside other items, it requires parentheses. `#« a (b ∪ c) »` is valid, while `#« a b ∪ c »` is invalid. A whole choice arm can be a set expression, as in `#« a ∩ b | c »`.
+As a child item, a set expression consumes one child. Beside other items, it requires parentheses. `#« a (b ∪ c) »` is valid, while `#« a b ∪ c »` is invalid. A whole choice arm can be a set expression, as in `#« a ∩ b | c »`.
 
 Within a child list, paths bind before sequence, and sequence binds before `|`. In a repetition, `/` separates the whole item and separator choices. `{a / b | c}` repeats a with separator b or c. A path cannot take a child sequence directly. `#(« a b » ⋰)` searches the first-child path for a node whose children match a then b.
 
@@ -637,6 +641,8 @@ Patterns reject captures, emissions, alternative tags, feature guards, elision m
 Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
 
 A parameter alone can substitute one whole pattern. In a child list, that pattern consumes one child and never splices siblings. With tests, an exact prefix, or an attached list, the argument must supply the corresponding node test. A supplied compound pattern cannot acquire a node attachment. Ordinary type rules apply after substitution.
+
+Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires an argument without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
 
 The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. [Engine §2.3](engine.md#23-parameterized-rules) defines canonical reading, including diagnostic string escapes. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
 
@@ -683,6 +689,32 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
 
 Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`, while engine scalar references retain `literal`. Such conversions belong to migration tooling, not format-36 shape acceptance.
+
+The following mapping converts valid format-35 pattern DOMs to format 36. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
+
+| Format-35 form | Format-36 form |
+| --- | --- |
+| Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
+| Child `{"node":P}` | `[{"child":M(P)}]` |
+| Child `{"sequence":[C1,...,Cn]}` | Concatenate `I(C1)` through `I(Cn)` into one array |
+| Child `{"optional":C}` | `[{"optional":I(C)}]` |
+| Child `{"repeat":C}` | `[{"repeat":I(C)}]` |
+| Child `{"repeat":C,"separator":S}` | `[{"repeat":I(C),"separator":I(S)}]` |
+| Child `{"siblings":true}` | `[{"siblings":true}]` |
+| Pattern `{"union":[P1,...,Pn]}` | Convert each operand with M, then flatten direct union operands |
+| Pattern `{"intersection":[P1,...,Pn]}` | Convert each operand with M, then flatten direct intersection operands |
+| Pattern `{"difference":[P,Q]}` | `{"difference":[M(P),M(Q)]}` |
+| Pattern `{"path":K,"pattern":P}` | `{"path":K,"pattern":M(P)}` |
+| Pattern `{"literal":{"const":USER,"at":Q},"at":P}` | `{"constant":USER,"at":P}` |
+| Pattern `literal` with engine scalar `const` | Retain `literal` and both source positions |
+| Pattern test | Retain the test and operands, then convert its `expr` with M |
+| Other pattern atom | Retain its constructor, fields, and source position |
+
+The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-36 DOM receives ordinary shape and type inspection.
+
+Malformed-DOM fixtures require corresponding format-36 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-36 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
 
 The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
 
@@ -754,24 +786,45 @@ The following table covers every outer pattern literal in the bundled grammars. 
 | `grammars/syntax/zantufa.md:998` | `#(🆓 ⋰)` | `#(🆓 ⋰)` |
 | `grammars/words/cll.md:238` | `#(ccv-rafsi)` | `#ccv-rafsi` |
 
-The next table covers the distinct spellings in the current shared fixture inventory. It includes rejected operands so that migration preserves their refusal. Quoted JSON payloads that only resemble patterns are outside this table. Normal source decomposition still applies to names such as `K`.
+The next table covers complete pattern spellings in fixture source fields. The inventory excludes strings, comments, descriptions, expected output, and generated source fragments. Each row retains its fixture's declarations and Unicode table. Normal source decomposition still applies to names such as U+212A, the Kelvin sign.
 
-| Replaced fixture spelling | Replacement or refusal |
+A replacement spelling does not determine whether the complete fixture loads or accepts its input. Binding, substitution, operand types, and surrounding conditions still apply. Refusal rows name both the replacement and the rule that it tests.
+
+| Replaced fixture spelling | Replacement and restrictions |
 | --- | --- |
-| `#" "` | `#" "` |
+| `# ( $x:A)` | `#« $x:A »` Invalid: captures cannot occur in child lists. |
+| `# ( )` | `#()` Invalid: an empty pattern literal has no predicate. |
+| `# ( A  :: T )` | `#« A :: T »` Invalid: child items cannot carry alternative tags. |
+| `# ( A & B )` | `#« A & B »` Invalid: conjunction has no pattern operator role. |
+| `# ( A )` | `#A` The surrounding fixture context determines acceptance. See the context table below. |
+| `# ( A <"a"> )` | `#A<"a">` Invalid: a tag requirement cannot be a string. |
+| `# ( A \| B )` | `#(A \| B)` Invalid: choice requires a child list. The distinct predicate `#« A \| B »` is valid. |
+| `# ( KEhE = "A" )` | `#KEhE="A"` Valid: the scalar value remains exact. |
+| `# ( [ + A ] )` | `#« [+A] »` Invalid: a child optional cannot mark elision. |
+| `# ( [ A ] ⋰ )` | `#« [A] ⋰ »` Invalid: a path requires one whole pattern, not an optional child expression. |
+| `# ( a ≻ b )` | `#(a ≻ b)` Invalid: ranked choice has no pattern operator role. |
+| `# ( sumti = "" )` | `#sumti=""` Invalid: a rule-name test cannot carry a terminal value test. |
+| `# ( { ... A } )` | `#« {... A} »` Invalid: a child repetition cannot be a chain. |
+| `# ( { A ... } )` | `#« {A ...} »` Invalid: a child repetition cannot be a chain. |
+| `# ( { A / ⋯ } )` | `#« {A / ⋯} »` Invalid: a sibling gap cannot be a repeat separator. |
+| `# ( { ⋯ } )` | `#« {⋯} »` Invalid: a sibling gap cannot be a repeat item. |
+| `# ( ε )` | `#« ε »` Invalid: an empty-input marker cannot be a child item. |
+| `# ( ⋰ A )` | `#(⋰ A)` Invalid: first-path is postfix. |
+| `# ( ⋱ ⋮ A )` | `#(⋱ ⋮ A)` Invalid: chained paths require a group around the inner path. |
+| `# cbm?` | `# cbm?` Invalid: a guard cannot be a pattern atom. |
+| `#!` | `#!` Valid: this fixture makes U+0021 an eligible emoji rule name through its Unicode table. |
 | `#"a"` | `#"a"` |
 | `#$A` | `#$A` |
 | `#$P` | `#$P` |
 | `#$Q` | `#$Q` |
 | `#$_0061` | `#$_0061` |
-| `#(` | `ERROR probe.md:2:20: the syntax stage could not continue at token 4; expected "#", "(", "[", "_"` |
-| `#("a" ++ "b")` | `ERROR probe.md:2:24: the syntax stage could not continue at token 5; expected "#", "(", ")", "..` |
-| `#("a" ++ "b".."z")` | `ERROR probe.md:2:24: the syntax stage could not continue at token 5; expected "#", "(", ")", "..` |
+| `#("a" ++ "b")` | `#("a" ++ "b")` Invalid: inline concatenation cannot form a terminal. |
+| `#("a" ++ "b".."z")` | `#("a" ++ "b".."z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a")` | `#"a"` |
-| `#("a".."y" ++ "z")` | `ERROR probe.md:2:29: the syntax stage could not continue at token 7; expected "#", "(", ")", "<"` |
+| `#("a".."y" ++ "z")` | `#("a".."y" ++ "z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a".."z")` | `#"a".."z"` |
-| `#(#($_D800)<"bad">)` | `ERROR probe.md:2:29: the syntax stage could not continue at token 8; expected "#", "(", ")", "["` |
-| `#(#(A)<"bad">)` | `ERROR probe.md:2:24: the syntax stage could not continue at token 8; expected "#", "(", ")", "["` |
+| `#(#($_D800)<"bad">)` | `#(($_D800)<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
+| `#(#(A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#($JOIN-1)` | `#$JOIN-1` |
 | `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
 | `#($JOIN-1=$JOIN-1)` | `#$JOIN-1=$JOIN-1` |
@@ -781,22 +834,22 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#($LETTER)` | `#$LETTER` |
 | `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
 | `#($S)` | `#$S` |
-| `#($_D800<"bad">)` | `ERROR probe.md:2:20: an engine constant requires a scalar in uppercase hexadecimal` |
-| `#($_D800<"bad"><A>)` | `ERROR probe.md:2:33: this target or test order is invalid` |
-| `#($_D800=UI)` | `ERROR probe.md:2:20: an engine constant requires a scalar in uppercase hexadecimal` |
-| `#($_D800=UI<A>)` | `ERROR probe.md:2:29: this target or test order is invalid` |
-| `#($K)` | `#$K` |
+| `#($_D800<"bad">)` | `#$_D800<"bad">` Invalid: U+D800 is not a scalar, and the requirement is not a tag. |
+| `#($_D800<"bad"><A>)` | `#$_D800<"bad"><A>` Invalid: scalar and tag-test restrictions still apply. |
+| `#($_D800=UI)` | `#$_D800=UI` Invalid: U+D800 is not a scalar, and a value operand requires a string. |
+| `#($_D800=UI<A>)` | `#$_D800=UI<A>` Invalid: scalar and test-operand restrictions still apply. |
+| `#($K)` (U+212A) | `#$K` |
 | `#(($P))` | `#$P` |
 | `#(($Q))` | `#$Q` |
-| `#(($_D800)<"bad">)` | `ERROR probe.md:2:28: the syntax stage could not continue at token 7; expected "#", "(", ")", "["` |
+| `#(($_D800)<"bad">)` | `#(($_D800)<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
 | `#((A B)⋰)` | `#(« A B » ⋰)` |
-| `#((A)<"bad">)` | `ERROR probe.md:2:23: the syntax stage could not continue at token 7; expected "#", "(", ")", "["` |
+| `#((A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
 | `#((B⋰) (⋱A))` | `#« B ⋰ ⋱ A »` |
-| `#(@X ∖ "b")` | `ERROR probe.md:2:20: undeclared parameter @X` |
-| `#(@X ∩ "a")` | `ERROR probe.md:2:20: undeclared parameter @X` |
-| `#(@X ∪ "b")` | `ERROR probe.md:2:20: undeclared parameter @X` |
-| `#(@X)` | `ERROR probe.md:2:20: undeclared parameter @X` |
+| `#(@X ∖ "b")` | `#(@X ∖ "b")` X is declared in the template. |
+| `#(@X ∩ "a")` | `#(@X ∩ "a")` X is declared in the template. |
+| `#(@X ∪ "b")` | `#(@X ∪ "b")` X is declared in the template. |
+| `#(@X)` | `#@X` X is declared in the template. |
 | `#(A #(B C))` | `#« A « B C » »` |
 | `#(A (#B ∪ #C))` | `#« A (B ∪ C) »` |
 | `#(A B B C)` | `#« A B B C »` |
@@ -823,7 +876,7 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#(A)` | `#A` |
 | `#(A<$GOOD ¬$BAD>)` | `#A<$GOOD ¬$BAD>` |
 | `#(A<Extra ¬Blocked>)` | `#A<Extra ¬Blocked>` |
-| `#(A="a" ++ "b")` | `ERROR probe.md:2:26: the syntax stage could not continue at token 7; expected "#", "(", ")", "."` |
+| `#(A="a" ++ "b")` | `#A="a" ++ "b"` Invalid: inline concatenation cannot form a value-test operand. |
 | `#(A⋰)` | `#(A ⋰)` |
 | `#(B A)` | `#« B A »` |
 | `#(B)` | `#B` |
@@ -845,17 +898,17 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
 | `#(_)` | `#_` |
 | `#(_=$JOIN-1)` | `#_=$JOIN-1` |
-| `#(_Bogus<"bad"><A>)` | `ERROR probe.md:2:33: this target or test order is invalid` |
-| `#(atom)` | `#atom` |
+| `#(_Bogus<"bad"><A>)` | `#_Bogus<"bad"><A>` Invalid: engine-tag and tag-test restrictions still apply. |
 | `#(atom("a"))` | `#atom("a")` |
 | `#(atom("b"))` | `#atom("b")` |
 | `#(atom(("a" "b")))` | `#atom(("a" "b"))` |
+| `#(atom)` | `#atom` |
 | `#(child ∪ #bad-name)` | `#(child ∪ bad-name)` |
 | `#(child ∪ bad-name)` | `#(child ∪ bad-name)` |
 | `#(left right)` | `#« left right »` |
 | `#(other)` | `#other` |
 | `#(rK)` | `#rK` |
-| `#(rK)` | `#rK` |
+| `#(rK)` (U+212A) | `#rK` |
 | `#(text)` | `#text` |
 | `#(text⋰)` | `#(text ⋰)` |
 | `#(unit)` | `#unit` |
@@ -866,7 +919,7 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#({A / B})` | `#« {A / B} »` |
 | `#({A})` | `#« {A} »` |
 | `#({[A]})` | `#« {[A]} »` |
-| `#(K<K>)` | `#K<K>` |
+| `#(K<K>)` (U+212A) | `#K<K>` |
 | `#(⋮(#FIhO ∪ #free))` | `#(⋮ (FIhO ∪ free))` |
 | `#(⋮A)` | `#(⋮ A)` |
 | `#(⋮B)` | `#(⋮ B)` |
@@ -879,11 +932,28 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#(⋱KU)` | `#(⋱ KU)` |
 | `#(⋱X)` | `#(⋱ X)` |
 | `#(⋱text)` | `#(⋱ text)` |
+| `#@` | `#@` Invalid: the parameter sigil remains reserved under the supplied Unicode table. |
 | `#A` | `#A` |
-| `#A<$S.tag>` | `ERROR probe.md:2:21: a tag requirement is a tag or tag-set constant` |
-| `#A<B>` | `#A<B>` |
-| `#A="a"` | `#A="a"` |
-| `#A≠"a"` | `#A≠"a"` |
+| `#A<$S.tag>` | `#A<$S.tag>` Invalid: a tag requirement cannot read a method. |
+| `#A<B><C>` | `#A<B><C>` Invalid: a terminal accepts at most one tag test. |
+| `#A="a".."b"` | `#A="a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=#A` | `#A=#A` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$` | `#A=$` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$.value` | `#A=$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$S` | `#A=$S` S must resolve to a string. See the context table below. |
+| `#A=("a" "b")` | `#A=("a" "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=("a" ∪ "b")` | `#A=("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=("a")` | `#A=("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=B` | `#A=B` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=∅` | `#A=∅` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠"a".."b"` | `#A≠"a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠#A` | `#A≠#A` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠$` | `#A≠$` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠$.value` | `#A≠$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠("a" ∪ "b")` | `#A≠("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠("a")` | `#A≠("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠B` | `#A≠B` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠∅` | `#A≠∅` Invalid: a value test requires an ungrouped string literal or string constant. |
 | `#B` | `#B` |
 | `#C` | `#C` |
 | `#GIhI` | `#GIhI` |
@@ -897,7 +967,6 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#a` | `#a` |
 | `#b` | `#b` |
 | `#bad-name` | `#bad-name` |
-| `#c7e15d3` | `#c7e15d3` |
 | `#empty` | `#empty` |
 | `#inner` | `#inner` |
 | `#outer` | `#outer` |
@@ -908,6 +977,25 @@ The next table covers the distinct spellings in the current shared fixture inven
 | `#tag` | `#tag` |
 | `#text` | `#text` |
 | `#🆓` | `#🆓` |
+
+The following contexts distinguish fixtures that share a pattern spelling. Record indexes start at zero. A fixture's name does not determine its expected outcome.
+
+| Fixture context | Migrated pattern and result |
+| --- | --- |
+| `tests/parameters.json`, records 31 and 87 | `#@X` is valid with the declared terminal arguments, including a tested terminal. |
+| `tests/parameters.json`, record 94 | `#@X` remains invalid with a body-sequence argument. |
+| `tests/parameters.json`, records 96, 97, and 98 | The declared X gives valid union, intersection, and difference operands. |
+| `tests/engine/parameters-constants-replaced-invalid.json` | `#atom(("a" "b"))` remains invalid because its argument cannot replace a captured symbol, even in a replaced constant. |
+| `tests/notation/tree-pattern-refused-13.json` | `#KEhE="A"` is valid, despite the fixture name. |
+| `tests/engine/tree-pattern-mixed-pattern-tags.json` | `%const $P #A ∪ T` remains invalid because a pattern and tag set have different types. |
+| `tests/engine/tree-pattern-pattern-equality.json` | `%conditions #A = #A` remains invalid because patterns support no ordinary equality. |
+| `tests/engine/tree-pattern-span-function-left.json` | `$.first-token ≅ #A` remains invalid because the left operand must be a bare capture. |
+| `tests/engine/review-tags-own-rule-tags.json`, `review-tags-own-rule-classes.json`, `review-tags-own-alternative-tags.json`, and `review-tags-own-alternative-classes.json` | `#A` remains a valid pattern. The enclosing tag clause still rejects its own tags or classes. |
+| `tests/engine/tree-pattern-pattern-test-constant-sound.json` | `#A=$S` is valid because S holds the string `"A"`. |
+| `tests/engine/tree-pattern-pattern-test-constant-type.json` | `#A=$S` remains invalid because S holds a tag set. |
+| `tests/engine/notation-r5-string-set-pattern-value-constant.json` | `#A=$S` remains invalid because S holds a string set. |
+| `tests/engine/tree-pattern-rule-test-constant-sound.json` | `#A=$S` loads but rejects the supplied input because its value differs from `"A"`. |
+
 
 ## Classifiers
 
