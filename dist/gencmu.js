@@ -5152,7 +5152,7 @@
           }
           pending.push({expr,action:1},{expr:expr.ranked[0],action:0});
         } else {
-          const children=Array.isArray(expr)?expr:Object.entries(expr).filter(([key])=>key!=="at").map(([,value])=>value);
+          const children=Array.isArray(expr)?expr.slice():Object.entries(expr).filter(([key])=>key!=="at").map(([,value])=>value);
           for (const child of children.reverse()) if(child && typeof child==="object") pending.push({expr:child,action:0});
         }
       }
