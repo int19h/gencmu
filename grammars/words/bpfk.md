@@ -830,94 +830,51 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 
 Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
+The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
+
 ```jbogenbau
-%rule l  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
-  $c:"l"
+%rule consonant-letter(@S, @B)
+  $c:@S
 %conditions
-  ¬$c.following-tokens.begins(h | glide | l)
+  ¬$c.following-tokens.begins(h | glide | @B)
 
-%rule m  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids z. *)
-  $c:"m"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | m | z)
+%rule l = consonant-letter("l", l)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
 
-%rule n  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids an affricate. *)
-  $c:"n"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | n | affricate)
+%rule m = consonant-letter("m", m | z)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids z. *)
 
-%rule r  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
-  $c:"r"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | r)
+%rule n = consonant-letter("n", n | affricate)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids an affricate. *)
 
-%rule b  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"b"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | b | unvoiced)
+%rule r = consonant-letter("r", r)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
 
-%rule d  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"d"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | d | unvoiced)
+%rule b = consonant-letter("b", b | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule g  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"g"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | g | unvoiced)
+%rule d = consonant-letter("d", d | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule v  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"v"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | v | unvoiced)
+%rule g = consonant-letter("g", g | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule j  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
-  $c:"j"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | j | z | unvoiced)
+%rule v = consonant-letter("v", v | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule z  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
-  $c:"z"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | z | j | unvoiced)
+%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
 
-%rule s  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
-  $c:"s"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | s | c | voiced)
+%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
 
-%rule c  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
-  $c:"c"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | c | s | x | voiced)
+%rule s = consonant-letter("s", s | c | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
 
-%rule x  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
-  $c:"x"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | x | c | k | voiced)
+%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
 
-%rule k  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
-  $c:"k"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | k | x | voiced)
+%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
 
-%rule f  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"f"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | f | voiced)
+%rule k = consonant-letter("k", k | x | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
 
-%rule p  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"p"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | p | voiced)
+%rule f = consonant-letter("f", f | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
 
-%rule t  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
-  $c:"t"
-%conditions
-  ¬$c.following-tokens.begins(h | glide | t | voiced)
+%rule p = consonant-letter("p", p | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
+
+%rule t = consonant-letter("t", t | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>l</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>consonant-letter</code> to <code>t</code></summary>
+<p><img src="../../docs/diagrams/words/bpfk/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
 <p><img src="../../docs/diagrams/words/bpfk/l.svg" alt="Railroad diagram of the rule l"></p>
 <p><img src="../../docs/diagrams/words/bpfk/m.svg" alt="Railroad diagram of the rule m"></p>
 <p><img src="../../docs/diagrams/words/bpfk/n.svg" alt="Railroad diagram of the rule n"></p>
