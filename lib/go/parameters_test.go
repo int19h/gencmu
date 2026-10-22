@@ -8,6 +8,29 @@ import (
 	"testing"
 )
 
+func TestParameterCacheComparisonKeepsSerializedFields(t *testing.T) {
+	cached := templateObject{"call": "f", "args": []any{templateObject{"tag": "A"}}, "at": templatePosition([2]int{2, 3})}
+	source := templateObj(templateClone(cached))
+	templateObj(templateList(source["args"])[0])[templateSourceKey] = &templateSource{at: [2]int{2, 5}}
+	for _, pair := range [][2]templateObject{{cached, source}, {source, cached}} {
+		if !sameValue(reflect.ValueOf(pair[0]), reflect.ValueOf(pair[1])) {
+			t.Fatal("private locations changed cache equality")
+		}
+	}
+	for _, change := range []func(templateObject){
+		func(n templateObject) { n["call"] = "g" },
+		func(n templateObject) { n["at"] = templatePosition([2]int{3, 4}) },
+		func(n templateObject) { templateObj(templateList(n["args"])[0])["tag"] = "B" },
+		func(n templateObject) { delete(n, "args") },
+	} {
+		mutant := templateObj(templateClone(source))
+		change(mutant)
+		if sameValue(reflect.ValueOf(cached), reflect.ValueOf(mutant)) {
+			t.Fatal("a serialized field change escaped the cache comparison")
+		}
+	}
+}
+
 func TestParameters(t *testing.T) {
 	raw, err := os.ReadFile("../../tests/parameters.json")
 	if err != nil {

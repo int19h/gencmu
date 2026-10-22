@@ -314,6 +314,31 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return true
 	case reflect.Map:
+		if a.Type() == reflect.TypeOf(templateObject{}) {
+			// Template audit records retain private source locations. The DOM
+			// cache omits them, as it omits the native term locations above.
+			key := reflect.ValueOf(templateSourceKey)
+			al, bl := a.Len(), b.Len()
+			if a.MapIndex(key).IsValid() {
+				al--
+			}
+			if b.MapIndex(key).IsValid() {
+				bl--
+			}
+			if al != bl {
+				return false
+			}
+			for _, k := range a.MapKeys() {
+				if k.String() == templateSourceKey {
+					continue
+				}
+				v := b.MapIndex(k)
+				if !v.IsValid() || !sameValue(a.MapIndex(k), v) {
+					return false
+				}
+			}
+			return true
+		}
 		if a.Len() != b.Len() {
 			return false
 		}
