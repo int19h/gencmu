@@ -572,10 +572,43 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
 }
 
 fn first_key(value: &Json) -> R<&str> {
-    match value.as_object() {
-        Some([(key, _), ..]) => Ok(key),
-        _ => Err("an empty or non-object DOM node".to_string()),
-    }
+    const FORMS: &[&str] = &[
+        "seq",
+        "choice",
+        "ranked",
+        "and",
+        "optional",
+        "repeat",
+        "ref",
+        "literal",
+        "wildcard",
+        "range",
+        "capture",
+        "empty",
+        "string",
+        "tag",
+        "const",
+        "emptySet",
+        "method",
+        "union",
+        "intersection",
+        "difference",
+        "if",
+        "concat",
+        "pattern",
+        "op",
+        "not",
+        "any",
+        "all",
+        "captured",
+    ];
+    let members = value.as_object().ok_or("not a JSON object")?;
+    members
+        .iter()
+        .find(|(k, _)| FORMS.contains(&k.as_str()))
+        .or_else(|| members.first())
+        .map(|(k, _)| k.as_str())
+        .ok_or_else(|| "an empty JSON object".into())
 }
 
 fn expr_from_json(value: &Json) -> R<Expr> {

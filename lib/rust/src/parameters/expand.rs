@@ -325,6 +325,11 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             set(&mut body, "name", string(i.effective()));
             let context = Event { origin: Some(i.origin.clone()), instance: i.canonical.clone(), ..e };
             let expanded = x.substitute(&body, &env, &context, "term")?;
+            let mut checked = expanded.clone();
+            set(&mut checked, "name", string("expanded"));
+            if let Some(p) = schema::declaration(&checked, "rules", uni) {
+                return Err(context.fail(&expanded, p.into()));
+            }
             x.instances[id].definitions.push(Event { rule: expanded, ..context });
         }
         for e in retained(&x.instances[id].definitions.clone()) {
@@ -550,10 +555,45 @@ impl Expander<'_> {
                 } else if has(root, "call") {
                     self.discover(get(root, "args"), event)?
                 } else {
-                    for (k, v) in fs {
-                        if k != "at" && k != SOURCE {
-                            self.discover(v, event)?
-                        }
+                    const ORDER: &[&str] = &[
+                        "if",
+                        "then",
+                        "op",
+                        "left",
+                        "right",
+                        "not",
+                        "any",
+                        "all",
+                        "body",
+                        "targets",
+                        "requirements",
+                        "negated",
+                        "value",
+                        "pattern",
+                        "node",
+                        "children",
+                        "expr",
+                        "repeat",
+                        "separator",
+                        "optional",
+                        "seq",
+                        "choice",
+                        "ranked",
+                        "and",
+                        "union",
+                        "intersection",
+                        "difference",
+                        "concat",
+                        "items",
+                        "tags",
+                        "image",
+                        "before",
+                        "after",
+                    ];
+                    let mut fields: Vec<_> = fs.iter().filter(|(k, _)| k != "at" && k != SOURCE).collect();
+                    fields.sort_by_key(|(k, _)| (ORDER.iter().position(|v| *v == k).unwrap_or(ORDER.len()), k));
+                    for (_, v) in fields {
+                        self.discover(v, event)?;
                     }
                 }
                 if has(root, "call") && !nodes(root).any(|n| has(n, "param")) {
@@ -667,13 +707,13 @@ impl Expander<'_> {
                 continue;
             }
             if k == "args" && has(root, "method") {
-                let target =
-                    ["matches", "begins", "ends", "followed-by", "preceded-by", "tags", "without-elision-except"]
-                        .contains(&text(get(root, "method")));
+                let method = text(get(root, "method"));
+                let query = ["matches", "begins", "ends", "followed-by", "preceded-by"].contains(&method);
+                let target = query || ["tags", "without-elision-except"].contains(&method);
                 let mut args = Vec::new();
                 for arg in list(v) {
                     let replacement = env.get(text(get(arg, "param")));
-                    if let Some(r) = replacement.filter(|r| target && has(r, "targets")) {
+                    if let Some(r) = replacement.filter(|r| query && has(r, "targets")) {
                         for t in list(get(r, "targets")) {
                             args.push(self.convert(t, "target", event, arg)?)
                         }
@@ -688,7 +728,10 @@ impl Expander<'_> {
                 let mut rs = Vec::new();
                 for r in list(v) {
                     let replacement = env.get(text(get(get(r, "value"), "param")));
-                    if let Some(rp) = replacement.filter(|r| has(r, "requirements")) {
+                    if let Some(rp) = replacement.filter(|r| {
+                        r.as_object().is_some_and(|fs| fs.iter().all(|(k, _)| k == "requirements" || k == SOURCE))
+                            && has(r, "requirements")
+                    }) {
                         if get(r, "negated") == &Json::Bool(true) {
                             return Err(event.fail(
                                 get(r, "value"),

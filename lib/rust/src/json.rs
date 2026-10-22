@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 
 /// A parsed JSON value. Objects keep their members in document order.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Json {
     /// A null value.
     Null,
@@ -20,6 +20,45 @@ pub enum Json {
     Arr(Vec<Json>),
     /// An object with ordered members.
     Obj(Vec<(String, Json)>),
+}
+
+impl Clone for Json {
+    fn clone(&self) -> Self {
+        enum Task<'a> {
+            Node(&'a Json),
+            Array(usize),
+            Object(Vec<String>),
+        }
+        let mut pending = vec![Task::Node(self)];
+        let mut values = Vec::new();
+        while let Some(task) = pending.pop() {
+            match task {
+                Task::Node(n) => match n {
+                    Json::Arr(xs) => {
+                        pending.push(Task::Array(xs.len()));
+                        pending.extend(xs.iter().rev().map(Task::Node));
+                    }
+                    Json::Obj(fs) => {
+                        pending.push(Task::Object(fs.iter().map(|(k, _)| k.clone()).collect()));
+                        pending.extend(fs.iter().rev().map(|(_, v)| Task::Node(v)));
+                    }
+                    Json::Null => values.push(Json::Null),
+                    Json::Bool(v) => values.push(Json::Bool(*v)),
+                    Json::Int(v) => values.push(Json::Int(*v)),
+                    Json::Str(v) => values.push(Json::Str(v.clone())),
+                },
+                Task::Array(count) => {
+                    let xs = values.split_off(values.len() - count);
+                    values.push(Json::Arr(xs));
+                }
+                Task::Object(keys) => {
+                    let xs = values.split_off(values.len() - keys.len());
+                    values.push(Json::Obj(keys.into_iter().zip(xs).collect()));
+                }
+            }
+        }
+        values.pop().unwrap()
+    }
 }
 
 impl Json {
@@ -131,11 +170,10 @@ impl Drop for Json {
     }
 }
 
-/// How deeply arrays and objects may nest: room for a DOM nested as deep
-/// as engine §9 allows (two levels a node at most, and a few around it); a
-/// deeper text, corrupt or malicious, is an error rather than a structure
-/// whose conversion would exhaust the stack.
-pub(crate) const MAX_DEPTH: usize = 1024;
+/// How deeply JSON arrays and objects can nest. A legal DOM needs room
+/// for four JSON levels per call and its category wrapper, plus declarations.
+/// The grammar validator enforces the separate DOM depth limit.
+pub(crate) const MAX_DEPTH: usize = 2048;
 
 /// Parses a JSON text. Numbers must be integers, which is all the shipped
 /// files hold. The error is a message with the byte offset.

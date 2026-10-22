@@ -1200,11 +1200,11 @@ class DomBuilder:
 
 
 def flatten_groups(root: Any) -> None:
-    """Folds each ``any`` that stands directly in an ``any``, and each
-    ``all`` in an ``all``, into the one around it, in place: a group in
-    parentheses of the same connective is part of the one around it (engine
-    §9). One walk, with a list for a stack, that gathers each folded list
-    once."""
+    """Fold nested ``any``, ``all``, and ``union`` operands into their enclosing lists.
+
+    Parentheses preserve the reader's grouping rules (engine §9).
+    An explicit stack gathers each folded list once.
+    """
     stack: list[Any] = [root]
     while stack:
         current = stack.pop()
@@ -1213,7 +1213,7 @@ def flatten_groups(root: Any) -> None:
             continue
         if not isinstance(current, dict):
             continue
-        for key in ("any", "all"):
+        for key in ("any", "all", "union"):
             items = current.get(key)
             if not isinstance(items, list):
                 continue

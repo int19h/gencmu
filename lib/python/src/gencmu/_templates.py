@@ -6,6 +6,7 @@ from copy import copy
 import json
 
 from ._errors import GencmuError
+from ._trampoline import run
 from ._strings import spelling
 from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument
 
@@ -50,105 +51,153 @@ def boolean_group(n, parent):
 
 
 def canonical_argument(n, unicode):
-    def p(x):
-        return canonical_argument(x, unicode)
-    if "call" in n:
-        return n["call"] + '(' + ', '.join(map(p, n["args"])) + ')'
-    if "param" in n:
-        return '@' + n["param"]
-    for key in ("rule", "tag", "terminal", "ref", "name", "integer", "classifier"):
-        if key in n:
-            return n[key]
-    for key in ("const", "constant"):
-        if key in n:
-            return '$' + n[key]
-    if "string" in n:
-        return quoted(n["string"], unicode)
-    if "literal" in n:
-        return p(n["literal"])
-    if "range" in n:
-        return '..'.join(map(p, n["range"]))
-    for key, text in (("wildcard", "_"), ("empty", "ε"), ("emptySet", "∅")):
-        if key in n:
-            return text
-    if "requirements" in n and "test" not in n:
-        return '<' + ' '.join(('¬' if x["negated"] else '') + p(x["value"]) for x in n["requirements"]) + '>'
-    if "targets" in n:
-        return ' | '.join(map(p, n["targets"]))
-    if "body" in n:
-        body = body_text(n["body"], unicode)
-        return body if any(k in n["body"] for k in ("empty", "optional", "repeat")) else '(' + body + ')'
-    if "test" in n:
-        return p(n["expr"]) + (p({"requirements": n["requirements"]}) if n["test"] == "tags" else n["test"] + p(n["value"]))
-    if "pattern" in n:
-        return '#(' + pattern_text(n["pattern"], unicode) + ')'
-    for key, op in (("concat", " ++ "), ("union", " ∪ "), ("intersection", " ∩ "), ("difference", " ∖ ")):
-        if key not in n:
-            continue
-        values = n[key]
-        if key == "union" and (all("tag" in x for x in values) or all("string" in x for x in values)):
-            return ' '.join(map(p, values))
-        return op.join('(' + p(x) + ')' if term_group(x, key, i) else p(x) for i, x in enumerate(values))
-    if "method" in n:
-        separator = ' | ' if n["method"] in ("matches", "begins", "ends", "followed-by", "preceded-by") else ', '
-        args = '(' + separator.join(map(p, n["args"])) + ')' if n["args"] else ''
-        receiver = p(n['receiver'])
-        if term_group(n['receiver'], 'method', 0):
-            receiver = '(' + receiver + ')'
-        return receiver + '.' + n["method"] + args
-    if "capture" in n:
-        return '$' + n["capture"]
-    if "if" in n:
-        return ('(' + p(n['if']) + ')' if boolean_group(n['if'], 'if') else p(n['if'])) + ' ⟹ ' + p(n['then'])
-    if "op" in n:
-        return (' ' + n['op'] + ' ').join('(' + p(x) + ')' if 'if' in x else p(x) for x in (n['left'], n['right']))
-    if "not" in n:
-        return '¬' + ('(' + p(n['not']) + ')' if boolean_group(n['not'], 'not') else p(n['not']))
-    if "any" in n or "all" in n:
-        key = 'any' if 'any' in n else 'all'
-        return (' ∨ ' if key == 'any' else ' ∧ ').join('(' + p(x) + ')' if boolean_group(x, key) else p(x) for x in n[key])
-    if "captured" in n:
-        return '$' + n["captured"]
-    raise ValueError('unprintable argument ' + str(n))
+    return run(_print_argument(n, unicode))
 
 
 def body_text(n, unicode, parent=''):
-    priority = {"seq": 3, "and": 2, "choice": 1, "ranked": 1}
-    for key, op in (("seq", " "), ("and", " & "), ("choice", " | "), ("ranked", " ≻ ")):
-        if key in n:
-            text = op.join(body_text(x, unicode, key) for x in n[key])
-            return '(' + text + ')' if parent and priority[key] <= priority[parent] else text
-    if "optional" in n:
-        return '[' + ('+' if n.get('elidable') else '') + body_text(n['optional'], unicode) + ']'
-    if "repeat" in n:
-        return ('{' + ('... ' if n.get('chain') == 'left' else '') + body_text(n['repeat'], unicode)
-                + (' ...' if n.get('chain') == 'right' else '')
-                + (' / ' + body_text(n['separator'], unicode) if 'separator' in n else '') + '}')
-    return canonical_argument(n, unicode)
+    return run(_print_body(n, unicode, parent))
 
 
 def pattern_text(n, unicode):
-    def p(x):
-        return pattern_text(x, unicode)
-    if "node" in n or "children" in n:
-        return p(n.get('node', n.get('children')))
-    if "sequence" in n:
-        return ' '.join(map(p, n['sequence']))
-    if "siblings" in n:
-        return '⋯'
-    if "path" in n:
-        return '(' + p(n['pattern']) + ') ⋰' if n['path'] == 'first' else ('⋱ ' if n['path'] == 'last' else '⋮ ') + '(' + p(n['pattern']) + ')'
-    if "optional" in n:
-        return '[' + p(n['optional']) + ']'
-    if "repeat" in n:
-        return '{' + p(n['repeat']) + (' / ' + p(n['separator']) if 'separator' in n else '') + '}'
-    for key, op in (("union", " ∪ "), ("intersection", " ∩ "), ("difference", " ∖ ")):
+    return run(_print_pattern(n, unicode))
+
+
+def _print_join(items, unicode, printer, separator, parent=None):
+    parts = []
+    for item in items:
+        request = printer(item, unicode) if parent is None else printer(item, unicode, parent)
+        parts.append((yield request))
+    return separator.join(parts)
+
+
+def _print_argument(n, unicode):
+    if 'call' in n:
+        args = yield _print_join(n['args'], unicode, _print_argument, ', ')
+        return n['call'] + '(' + args + ')'
+    if 'param' in n:
+        return '@' + n['param']
+    for key in ('rule', 'tag', 'terminal', 'ref', 'name', 'integer', 'classifier'):
         if key in n:
-            return op.join('(' + p(x) + ')' for x in n[key])
-    return canonical_argument(n, unicode)
+            return n[key]
+    for key in ('const', 'constant'):
+        if key in n:
+            return '$' + n[key]
+    if 'string' in n:
+        return quoted(n['string'], unicode)
+    if 'literal' in n:
+        return (yield _print_argument(n['literal'], unicode))
+    if 'range' in n:
+        return (yield _print_join(n['range'], unicode, _print_argument, '..'))
+    for key, text in (('wildcard', '_'), ('empty', 'ε'), ('emptySet', '∅')):
+        if key in n:
+            return text
+    if 'requirements' in n and 'test' not in n:
+        parts = []
+        for entry in n['requirements']:
+            value = yield _print_argument(entry['value'], unicode)
+            parts.append(('¬' if entry['negated'] else '') + value)
+        return '<' + ' '.join(parts) + '>'
+    if 'targets' in n:
+        return (yield _print_join(n['targets'], unicode, _print_argument, ' | '))
+    if 'body' in n:
+        body = yield _print_body(n['body'], unicode)
+        return body if any(k in n['body'] for k in ('empty', 'optional', 'repeat')) else '(' + body + ')'
+    if 'test' in n:
+        expr = yield _print_argument(n['expr'], unicode)
+        if n['test'] == 'tags':
+            suffix = yield _print_argument({'requirements': n['requirements']}, unicode)
+        else:
+            suffix = n['test'] + (yield _print_argument(n['value'], unicode))
+        return expr + suffix
+    if 'pattern' in n:
+        return '#(' + (yield _print_pattern(n['pattern'], unicode)) + ')'
+    for key, op in (('concat', ' ++ '), ('union', ' ∪ '), ('intersection', ' ∩ '), ('difference', ' ∖ ')):
+        if key in n:
+            values = n[key]
+            if key == 'union' and (all('tag' in x for x in values) or all('string' in x for x in values)):
+                return (yield _print_join(values, unicode, _print_argument, ' '))
+            parts = []
+            for i, value in enumerate(values):
+                text = yield _print_argument(value, unicode)
+                parts.append('(' + text + ')' if term_group(value, key, i) else text)
+            return op.join(parts)
+    if 'method' in n:
+        separator = ' | ' if n['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by') else ', '
+        args = yield _print_join(n['args'], unicode, _print_argument, separator)
+        receiver = yield _print_argument(n['receiver'], unicode)
+        if term_group(n['receiver'], 'method', 0):
+            receiver = '(' + receiver + ')'
+        return receiver + '.' + n['method'] + ('(' + args + ')' if n['args'] else '')
+    if 'capture' in n:
+        return '$' + n['capture']
+    if 'if' in n:
+        condition = yield _print_argument(n['if'], unicode)
+        then = yield _print_argument(n['then'], unicode)
+        return ('(' + condition + ')' if boolean_group(n['if'], 'if') else condition) + ' ⟹ ' + then
+    if 'op' in n:
+        parts = []
+        for value in (n['left'], n['right']):
+            text = yield _print_argument(value, unicode)
+            parts.append('(' + text + ')' if 'if' in value else text)
+        return (' ' + n['op'] + ' ').join(parts)
+    if 'not' in n:
+        text = yield _print_argument(n['not'], unicode)
+        return '¬' + ('(' + text + ')' if boolean_group(n['not'], 'not') else text)
+    if 'any' in n or 'all' in n:
+        key = 'any' if 'any' in n else 'all'
+        parts = []
+        for value in n[key]:
+            text = yield _print_argument(value, unicode)
+            parts.append('(' + text + ')' if boolean_group(value, key) else text)
+        return (' ∨ ' if key == 'any' else ' ∧ ').join(parts)
+    if 'captured' in n:
+        return '$' + n['captured']
+    raise ValueError('unprintable argument ' + str(n))
+
+
+def _print_body(n, unicode, parent=''):
+    priority = {'seq': 3, 'and': 2, 'choice': 1, 'ranked': 1}
+    for key, op in (('seq', ' '), ('and', ' & '), ('choice', ' | '), ('ranked', ' ≻ ')):
+        if key in n:
+            text = yield _print_join(n[key], unicode, _print_body, op, key)
+            return '(' + text + ')' if parent and priority[key] <= priority[parent] else text
+    if 'optional' in n:
+        return '[' + ('+' if n.get('elidable') else '') + (yield _print_body(n['optional'], unicode)) + ']'
+    if 'repeat' in n:
+        text = yield _print_body(n['repeat'], unicode)
+        separator = ' / ' + (yield _print_body(n['separator'], unicode)) if 'separator' in n else ''
+        return ('{' + ('... ' if n.get('chain') == 'left' else '') + text
+                + (' ...' if n.get('chain') == 'right' else '') + separator + '}')
+    return (yield _print_argument(n, unicode))
+
+
+def _print_pattern(n, unicode):
+    if 'node' in n or 'children' in n:
+        return (yield _print_pattern(n.get('node', n.get('children')), unicode))
+    if 'sequence' in n:
+        return (yield _print_join(n['sequence'], unicode, _print_pattern, ' '))
+    if 'siblings' in n:
+        return '⋯'
+    if 'path' in n:
+        text = yield _print_pattern(n['pattern'], unicode)
+        return '(' + text + ') ⋰' if n['path'] == 'first' else ('⋱ ' if n['path'] == 'last' else '⋮ ') + '(' + text + ')'
+    if 'optional' in n:
+        return '[' + (yield _print_pattern(n['optional'], unicode)) + ']'
+    if 'repeat' in n:
+        text = yield _print_pattern(n['repeat'], unicode)
+        separator = ' / ' + (yield _print_pattern(n['separator'], unicode)) if 'separator' in n else ''
+        return '{' + text + separator + '}'
+    for key, op in (('union', ' ∪ '), ('intersection', ' ∩ '), ('difference', ' ∖ ')):
+        if key in n:
+            parts = []
+            for value in n[key]:
+                parts.append('(' + (yield _print_pattern(value, unicode)) + ')')
+            return op.join(parts)
+    return (yield _print_argument(n, unicode))
 
 
 def expand_templates(documents, unicode):
+    from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
         return documents, None, [], [], []
     templates, names, instances = {}, {}, {}
@@ -247,23 +296,26 @@ def expand_templates(documents, unicode):
         return instance
 
     def discover(root, event):
-        if isinstance(root, list):
-            for v in root:
-                discover(v, event)
-        elif isinstance(root, dict):
-            if 'alternatives' in root:
-                for i, alternative in enumerate(root['alternatives']):
-                    for k in ('expr', 'tags', 'value', 'image'):
-                        discover(alternative.get(k), event)
-                    if i == 0:
-                        for k in ('tags', 'value', 'image', 'conditions', 'emit'):
-                            discover(root.get(k), event)
-                return
-            children = [root.get('receiver'), root['args']] if 'method' in root else [root['args']] if 'call' in root else [v for k, v in root.items() if k != 'at']
-            for v in children:
-                discover(v, event)
-            if 'call' in root and not any('param' in n for n in nodes(root)):
-                intern(root, event, True)
+        pending = [(root, False)]
+        while pending:
+            node, ready = pending.pop()
+            if isinstance(node, list):
+                pending.extend((v, False) for v in reversed(node))
+            elif isinstance(node, dict):
+                if ready:
+                    if 'call' in node and not any('param' in n for n in nodes(node)):
+                        intern(node, event, True)
+                    continue
+                if 'alternatives' in node:
+                    children = []
+                    for i, alternative in enumerate(node['alternatives']):
+                        children.extend(alternative.get(k) for k in ('expr', 'tags', 'value', 'image'))
+                        if i == 0:
+                            children.extend(node.get(k) for k in ('tags', 'value', 'image', 'conditions', 'emit'))
+                else:
+                    children = [node.get('receiver'), node['args']] if 'method' in node else [node['args']] if 'call' in node else [node[k] for k in ordered_keys(node)]
+                pending.append((node, True))
+                pending.extend((v, False) for v in reversed(children))
 
     current, ordinary = {}, {}
     for event in events:
@@ -360,8 +412,14 @@ def expand_templates(documents, unicode):
         fail(event, use, f"argument {canonical_argument(arg, unicode)} is invalid at @{use['param']} in {position} position")
 
     def substitute(root, env, event, position='term'):
+        return run(substitute_walk(root, env, event, position))
+
+    def substitute_walk(root, env, event, position='term'):
         if isinstance(root, list):
-            return [substitute(v, env, event, position) for v in root]
+            items = []
+            for v in root:
+                items.append((yield substitute_walk(v, env, event, position)))
+            return items
         if not isinstance(root, dict):
             return root
         if 'param' in root:
@@ -371,28 +429,31 @@ def expand_templates(documents, unicode):
             if key == 'at':
                 continue
             if key == 'args' and 'call' in root:
-                result[key] = [substitute(x, env, event, 'arg') for x in value]
+                result[key] = []
+                for x in value:
+                    result[key].append((yield substitute_walk(x, env, event, 'arg')))
                 continue
             if key == 'args' and 'method' in root:
                 result[key] = []
-                target = root['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by', 'tags', 'without-elision-except')
+                query = root['method'] in ('matches', 'begins', 'ends', 'followed-by', 'preceded-by')
+                target = query or root['method'] in ('tags', 'without-elision-except')
                 for arg in value:
                     replacement = env.get(arg.get('param'), {})
-                    if target and 'targets' in replacement:
+                    if query and 'targets' in replacement:
                         result[key].extend(convert(x, 'target', event, arg) for x in replacement['targets'])
                     else:
-                        result[key].append(substitute(arg, env, event, 'target' if target else 'term'))
+                        result[key].append((yield substitute_walk(arg, env, event, 'target' if target else 'term')))
                 continue
             if key == 'requirements':
                 result[key] = []
                 for requirement in value:
                     replacement = env.get(requirement['value'].get('param'), {})
-                    if 'requirements' in replacement:
+                    if set(replacement) == {'requirements'}:
                         if requirement['negated']:
                             fail(event, requirement['value'], 'a requirement list cannot replace a negated requirement')
                         result[key].extend(replacement['requirements'])
                     else:
-                        result[key].append({**requirement, 'value': substitute(requirement['value'], env, event, 'term')})
+                        result[key].append({**requirement, 'value': (yield substitute_walk(requirement['value'], env, event, 'term'))})
                 continue
             if key == 'optional' and root.get('elidable'):
                 head = value['seq'][0] if 'seq' in value else value
@@ -403,7 +464,7 @@ def expand_templates(documents, unicode):
                     if set(arg) != {'tag'} or not arg['tag'][:1].isupper():
                         fail(event, head, 'an elidable parameter head requires one bare user tag')
             next_position = child_position(key, position)
-            result[key] = substitute(value, env, event, next_position)
+            result[key] = yield substitute_walk(value, env, event, next_position)
         for key in ('concat', 'union'):
             if key in result:
                 result[key] = [v for x in result[key] for v in x.get(key, [x])]
@@ -423,13 +484,22 @@ def expand_templates(documents, unicode):
             body['name'] = effective(instance)
             context = {**event, 'origin': instance['origin'], 'instance': instance['canonical']}
             expanded = substitute(body, env, context)
+            problem = dom_problem(empty_dom(documents[0][1]['format'], [{**expanded, 'name': 'expanded'}]), unicode, True)
+            if problem:
+                fail(context, expanded, problem)
             instance['definitions'].append({**context, 'rule': expanded})
         for event in retained(instance['definitions']):
             discover(event['rule'], event)
 
     def rewrite(root, event, position='term'):
+        return run(rewrite_walk(root, event, position))
+
+    def rewrite_walk(root, event, position='term'):
         if isinstance(root, list):
-            return [rewrite(v, event, position) for v in root]
+            items = []
+            for v in root:
+                items.append((yield rewrite_walk(v, event, position)))
+            return items
         if not isinstance(root, dict):
             return root
         if 'call' in root:
@@ -443,12 +513,11 @@ def expand_templates(documents, unicode):
             fail(event, root, 'a bare template reference must name one instance')
         result = copy(root)
         for key, value in root.items():
-            result[key] = value if key == 'at' else rewrite(value, event, child_position(key, position))
+            result[key] = value if key == 'at' else (yield rewrite_walk(value, event, child_position(key, position)))
         return result
 
     validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
-    from ._validate import dom_problem
     for event in validation:
         aliases, shadow = {}, clone_nodes(event['rule'])
         for node in nodes(shadow):
@@ -497,18 +566,31 @@ def template_audit(grammar):
     by_name = {i['name']: i for i in ordered if i['name']}
 
     def aliases(a, b):
-        if isinstance(a, dict) and isinstance(b, dict):
-            an = a.get('rule', a.get('ref', a.get('name')))
-            bn = b.get('rule', b.get('ref', b.get('name')))
-            if an in by_name and 'call' in b:
-                return by_name[an]['key'] == key_of(normalize_argument(b))
-            if bn in by_name and 'call' in a:
-                return by_name[bn]['key'] == key_of(normalize_argument(a))
-            ka, kb = set(a) - {'at'}, set(b) - {'at'}
-            return ka == kb and all(aliases(a[k], b[k]) for k in ka)
-        if isinstance(a, list) and isinstance(b, list):
-            return len(a) == len(b) and all(aliases(x, y) for x, y in zip(a, b))
-        return a == b
+        pending = [(a, b)]
+        while pending:
+            a, b = pending.pop()
+            if isinstance(a, dict) and isinstance(b, dict):
+                an = a.get('rule', a.get('ref', a.get('name')))
+                bn = b.get('rule', b.get('ref', b.get('name')))
+                if an in by_name and 'call' in b:
+                    if by_name[an]['key'] != key_of(normalize_argument(b)):
+                        return False
+                    continue
+                if bn in by_name and 'call' in a:
+                    if by_name[bn]['key'] != key_of(normalize_argument(a)):
+                        return False
+                    continue
+                ka, kb = set(a) - {'at'}, set(b) - {'at'}
+                if ka != kb:
+                    return False
+                pending.extend((a[k], b[k]) for k in ka)
+            elif isinstance(a, list) and isinstance(b, list):
+                if len(a) != len(b):
+                    return False
+                pending.extend(zip(a, b))
+            elif isinstance(a, (dict, list)) or isinstance(b, (dict, list)) or a != b:
+                return False
+        return True
 
     templates = []
     for template in grammar.templates:
@@ -544,3 +626,8 @@ def template_audit(grammar):
                               firstCall=dict(document=origin['document'], line=origin['at'][0], column=origin['at'][1]),
                               flags=flags, events=events, notes=[dict(kind='argument-alias-twin', instances=twins)] if twins else []))
     return dict(templates=templates, instances=instances)
+
+
+def ordered_keys(node):
+    order = ('if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'node', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after')
+    return [k for k in order if k in node] + sorted(k for k in node if k != 'at' and k not in order)

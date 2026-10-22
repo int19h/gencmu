@@ -273,6 +273,11 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			body["name"] = i.effective()
 			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: i.origin, instance: i.canonical}
 			expanded := x.substitute(body, env, context, "term")
+			checked := templateCopy(templateObj(expanded))
+			checked["name"] = "expanded"
+			if p := checkTemplateDeclaration(checked, "rules", uni); p != nil {
+				x.fail(context, templateObj(expanded), p.message)
+			}
 			copy := *context
 			copy.rule = templateObj(expanded)
 			i.definitions = append(i.definitions, &copy)
@@ -684,11 +689,12 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			if k == "args" && n["method"] != nil {
 				items := []any{}
 				name := templateText(n["method"])
-				target := strings.Contains("|matches|begins|ends|followed-by|preceded-by|tags|without-elision-except|", "|"+name+"|")
+				query := strings.Contains("|matches|begins|ends|followed-by|preceded-by|", "|"+name+"|")
+				target := query || name == "tags" || name == "without-elision-except"
 				for _, a := range templateList(v) {
 					arg := templateObj(a)
 					replacement := env[templateText(arg["param"])]
-					if target && replacement["targets"] != nil {
+					if query && replacement["targets"] != nil {
 						for _, t := range templateList(replacement["targets"]) {
 							items = append(items, x.convert(templateObj(t), "target", e, arg))
 						}
@@ -709,7 +715,7 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 					req := templateObj(a)
 					use := templateObj(req["value"])
 					replacement := env[templateText(use["param"])]
-					if replacement["requirements"] != nil {
+					if templateOnly(replacement, "requirements") {
 						if req["negated"] == true {
 							x.fail(e, use, "a requirement list cannot replace a negated requirement")
 						}

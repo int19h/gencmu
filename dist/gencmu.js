@@ -2615,7 +2615,7 @@
     const result={};
     for(const [key,item] of Object.entries(value)) {
       result[key]=normalizeArgument(item,copyLocation);
-      if(["union","concat","any","all"].includes(key) && Array.isArray(result[key])) result[key]=result[key].flatMap((/** @type {any} */ n)=>n[key]??[n]);
+      if(["union","concat"].includes(key) && Array.isArray(result[key])) result[key]=result[key].flatMap((/** @type {any} */ n)=>n[key]??[n]);
     }
     if(copyLocation) copyLocation(value,result);
     return result;
@@ -3339,12 +3339,12 @@
           push("expr",value.body,depth,{params:task.params,whole:true});
         } else if ("targets" in value) {
           if (!exact(value,["targets"]) || !Array.isArray(value.targets) || value.targets.length<2) return "a malformed target choice";
-          for (const target of value.targets) child("target",target);
-        } else if ("requirements" in value) {
+          for (const target of value.targets) push("target",target,depth,{params:task.params});
+        } else if ("requirements" in value && !value.test) {
           if (!exact(value,["requirements"]) || !Array.isArray(value.requirements)) return "a malformed requirement list";
           for (const entry of value.requirements) {
             if (!exact(entry,["negated","value"]) || typeof entry.negated !== "boolean" || !(entry.value?.tag || entry.value?.const || entry.value?.param)) return "a malformed requirement";
-            child("term",entry.value);
+            push("term",entry.value,depth,{params:task.params});
           }
         } else if (value.rule) {
           if (!exact(value,["rule"]) || !ruleName(value.rule)) return "a malformed nominal rule argument";
@@ -5561,6 +5561,12 @@
 
 
 
+  /** @param {any} node @returns {string[]} */
+  function orderedKeys(node) {
+    const order = ['if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'node', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after'];
+    return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
+  }
+
   /** @param {any} value @returns {any} */
   function normalizeTemplateArgument(value) {
     return normalizeArgument(value,(source,target)=>{
@@ -5806,7 +5812,7 @@
           });
           return;
         }
-        const children=n.method?[n.receiver,n.args]:n.call?[n.args]:Object.entries(n).filter(([key])=>key!=='at').map(([,value])=>value);
+        const children=n.method?[n.receiver,n.args]:n.call?[n.args]:orderedKeys(n).map(key=>n[key]);
         for(const value of children) {
           if(Array.isArray(value)) value.forEach(visit);else if(value && typeof value==='object') visit(value);
         }
@@ -5897,8 +5903,9 @@
           result.args=[];
           for(const arg of value) {
             const replacement=arg.param?env.get(arg.param):null;
-            const target=['matches','begins','ends','followed-by','preceded-by','tags','without-elision-except'].includes(root.method);
-            if(target && replacement?.targets) {
+            const query=['matches','begins','ends','followed-by','preceded-by'].includes(root.method);
+            const target=query || ['tags','without-elision-except'].includes(root.method);
+            if(query && replacement?.targets) {
               for(const target of replacement.targets) result.args.push(convert(target,'target',event,arg));
             }
             else result.args.push(substitute(arg,env,event,target?'target':'term'));
@@ -5909,7 +5916,7 @@
           result.requirements=[];
           for(const requirement of value) {
             const replacement=requirement.value.param?env.get(requirement.value.param):null;
-            if(replacement?.requirements) {
+            if(replacement && Object.keys(replacement).length===1 && 'requirements' in replacement) {
               if(requirement.negated) fail(event,requirement.value,'a requirement list cannot replace a negated requirement');
               for(const entry of replacement.requirements) result.requirements.push(entry);
             } else result.requirements.push({...requirement,value:substitute(requirement.value,env,event,'term')});
@@ -5948,6 +5955,8 @@
         const body={...event.rule};delete body.params;delete body.args;delete body.instance;
         body.name=instance.name??instance.canonical;
         const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
+        const problem=domProblem({format:documents[0].dom.format,rules:[{...expanded,name:'expanded'}],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,problem);
         instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded});
       }
       for(const event of retained(instance.definitions)) discover(event.rule,event);

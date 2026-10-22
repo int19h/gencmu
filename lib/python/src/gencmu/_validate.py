@@ -383,14 +383,14 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             elif 'targets' in node:
                 if keys != {'targets'} or not _items(node['targets'], 2):
                     return 'a malformed target choice'
-                pending.extend(('target', v, below, False, False) for v in node['targets'])
-            elif 'requirements' in node:
+                pending.extend(('target', v, depth, False, False) for v in node['targets'])
+            elif 'requirements' in node and 'test' not in node:
                 if keys != {'requirements'} or not isinstance(node['requirements'], list):
                     return 'a malformed requirement list'
                 for entry in node['requirements']:
                     if not isinstance(entry, dict) or set(entry) != {'negated', 'value'} or type(entry['negated']) is not bool or not isinstance(entry['value'], dict) or not any(k in entry['value'] for k in ('tag', 'const', 'param')):
                         return 'a malformed requirement'
-                    pending.append(('term', entry['value'], below, False, False))
+                    pending.append(('term', entry['value'], depth, False, False))
             elif 'rule' in node:
                 if keys != {'rule'} or not isinstance(node['rule'], str) or not (CLASSIFIER_NAME.fullmatch(node['rule']) or unicode.is_emoji_name(node['rule'])):
                     return 'a malformed nominal rule argument'

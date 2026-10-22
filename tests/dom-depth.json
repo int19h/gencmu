@@ -3316,5 +3316,493 @@
       "receiver": "$inner"
     },
     "atLimit": 254
+  },
+  {
+    "description": "Template expression parameter",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "param": "X",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent body argument",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "call": "use",
+      "args": [
+        {
+          "body": "$inner"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent target choice",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "rule": "a"
+    },
+    "wrapper": {
+      "call": "use",
+      "args": [
+        {
+          "targets": [
+            "$inner",
+            {
+              "rule": "b"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent requirements argument",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "call": "use",
+      "args": [
+        {
+          "requirements": [
+            {
+              "negated": false,
+              "value": {
+                "tag": "A"
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Call with tested symbol argument",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "call": "use",
+      "args": [
+        {
+          "test": "tags",
+          "expr": {
+            "ref": "A"
+          },
+          "requirements": [
+            {
+              "negated": false,
+              "value": {
+                "tag": "B"
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Template literal keeps the string depth",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "param": "X",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Template range keeps the string depth",
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "param": "X",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "string": "z"
+        }
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
   }
 ]

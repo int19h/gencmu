@@ -22,7 +22,7 @@ fn parameter_source_round_trips() {
 #[test]
 fn shared_parameter_sources_are_read() {
     let cases = parse_json(include_str!("../../../tests/parameters.json")).unwrap();
-    assert_eq!(cases.array().len(), 105);
+    assert_eq!(cases.array().len(), 117);
     let mut failures = Vec::new();
     for case in cases.array() {
         if case.get("expect").and_then(|x| x.get("error")).is_some() {

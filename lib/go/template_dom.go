@@ -389,9 +389,17 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateOnly(n, "targets") {
 				return "a malformed target choice"
 			}
-			return list("targets", "target", 2)
+			if !templateArray(n, "targets", 2) {
+				return "a malformed target choice"
+			}
+			for _, v := range templateList(n["targets"]) {
+				if p := templateNodeProblem(v, "target", depth, false, sealed, uni); p != "" {
+					return p
+				}
+			}
+			return ""
 		}
-		if n["requirements"] != nil {
+		if n["requirements"] != nil && n["test"] == nil {
 			if !templateOnly(n, "requirements") {
 				return "a malformed requirement list"
 			}
@@ -504,7 +512,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateOnly(n, "test", "expr", "requirements") {
 				return "a malformed tag test"
 			}
-			if p := templateRequirementProblem(n["requirements"], depth, uni); p != "" {
+			if p := templateRequirementProblem(n["requirements"], depth+1, uni); p != "" {
 				return p
 			}
 		} else {
@@ -673,7 +681,7 @@ func templateRequirementProblem(value any, depth int, uni *unicodeTable) string 
 		if !templateOnly(r, "negated", "value") || !ok || operand["tag"] == nil && operand["const"] == nil && operand["param"] == nil {
 			return "a malformed requirement"
 		}
-		if p := templateNodeProblem(operand, "term", depth+1, false, false, uni); p != "" {
+		if p := templateNodeProblem(operand, "term", depth, false, false, uni); p != "" {
 			return p
 		}
 	}

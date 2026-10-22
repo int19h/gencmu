@@ -162,7 +162,7 @@ pub(crate) fn normalize(root: &Json) -> Json {
         if let Some(body) = value.get("body") {
             return argument(body.clone());
         }
-        for k in ["union", "concat", "any", "all"] {
+        for k in ["union", "concat"] {
             if let Some(xs) = value.get(k).and_then(Json::as_array) {
                 let j = joined(k, xs.to_vec());
                 set(&mut value, k, get(&j, k).clone());

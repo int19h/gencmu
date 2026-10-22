@@ -313,9 +313,40 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
     }
     None
 }
+type NodeTask<'a> = (&'a Json, &'a str, usize, bool, bool);
+fn schedule<'a>(
+    pending: &std::cell::RefCell<Vec<NodeTask<'a>>>,
+    n: &'a Json,
+    kind: &'a str,
+    depth: usize,
+    whole: bool,
+    sealed: bool,
+    _uni: &Unicode,
+) -> Option<&'static str> {
+    pending.borrow_mut().push((n, kind, depth, whole, sealed));
+    None
+}
 pub(super) fn node(
     n: &Json,
-    mut kind: &str,
+    kind: &str,
+    depth: usize,
+    whole: bool,
+    sealed: bool,
+    uni: &Unicode,
+) -> Option<&'static str> {
+    let pending = std::cell::RefCell::new(vec![(n, kind, depth, whole, sealed)]);
+    loop {
+        let task = pending.borrow_mut().pop();
+        let (n, kind, depth, whole, sealed) = task?;
+        if let Some(p) = node_step(&pending, n, kind, depth, whole, sealed, uni) {
+            return Some(p);
+        }
+    }
+}
+fn node_step<'a>(
+    pending: &std::cell::RefCell<Vec<NodeTask<'a>>>,
+    n: &'a Json,
+    mut kind: &'a str,
     depth: usize,
     whole: bool,
     sealed: bool,
@@ -327,7 +358,7 @@ pub(super) fn node(
     if n.as_object().is_none() {
         return Some("a malformed source node");
     }
-    let walk = |v, k| node(v, k, depth + 1, false, sealed, uni);
+    let walk = |v, k| schedule(pending, v, k, depth + 1, false, sealed, uni);
     let items = |key, k, min| -> Option<&'static str> {
         let Some(xs) = get(n, key).as_array().filter(|xs| xs.len() >= min) else {
             return Some("a malformed source list");
@@ -361,19 +392,25 @@ pub(super) fn node(
             if !only(n, &["body"]) {
                 return Some("a malformed body argument");
             }
-            return node(get(n, "body"), "expr", depth, true, false, uni);
+            return schedule(pending, get(n, "body"), "expr", depth, true, false, uni);
         }
         if has(n, "targets") {
             if !only(n, &["targets"]) {
                 return Some("a malformed target choice");
             }
-            return items("targets", "target", 2);
+            if !array(n, "targets", 2) {
+                return Some("a malformed target choice");
+            }
+            for v in list(get(n, "targets")) {
+                schedule(pending, v, "target", depth, false, sealed, uni);
+            }
+            return None;
         }
-        if has(n, "requirements") {
+        if has(n, "requirements") && !has(n, "test") {
             if !only(n, &["requirements"]) {
                 return Some("a malformed requirement list");
             }
-            return requirements(get(n, "requirements"), depth, uni);
+            return requirements(pending, get(n, "requirements"), depth, uni);
         }
         if has(n, "rule") {
             return if only(n, &["rule"]) && named(get(n, "rule"), uni) {
@@ -420,7 +457,8 @@ pub(super) fn node(
             {
                 return Some("a malformed optional");
             }
-            return node(
+            return schedule(
+                pending,
                 get(n, "optional"),
                 "expr",
                 depth + 1,
@@ -435,10 +473,10 @@ pub(super) fn node(
             {
                 return Some("a malformed repetition");
             }
-            if let Some(p) = node(get(n, "repeat"), "expr", depth + 1, false, true, uni) {
+            if let Some(p) = schedule(pending, get(n, "repeat"), "expr", depth + 1, false, true, uni) {
                 return Some(p);
             }
-            return n.get("separator").and_then(|s| node(s, "expr", depth + 1, false, true, uni));
+            return n.get("separator").and_then(|s| schedule(pending, s, "expr", depth + 1, false, true, uni));
         }
         if has(n, "capture") {
             if sealed
@@ -462,7 +500,7 @@ pub(super) fn node(
             if !only(n, &["test", "expr", "requirements"]) {
                 return Some("a malformed tag test");
             }
-            if let Some(p) = requirements(get(n, "requirements"), depth, uni) {
+            if let Some(p) = requirements(pending, get(n, "requirements"), depth + 1, uni) {
                 return Some(p);
             }
         } else {
@@ -479,13 +517,16 @@ pub(super) fn node(
         if !only(n, &["range"]) || list(get(n, "range")).len() != 2 {
             return Some("a malformed range");
         }
-        return items("range", "string", 2);
+        for v in list(get(n, "range")) {
+            schedule(pending, v, "string", depth, false, sealed, uni);
+        }
+        return None;
     }
     if has(n, "literal") {
         if !only(n, &["literal"]) {
             return Some("a malformed literal");
         }
-        return walk(get(n, "literal"), "string");
+        return schedule(pending, get(n, "literal"), "string", depth, false, sealed, uni);
     }
     if kind == "recipe" {
         if !only(n, &["concat"]) {
@@ -628,7 +669,12 @@ pub(super) fn node(
     }
     Some("a malformed source node")
 }
-fn requirements(n: &Json, depth: usize, uni: &Unicode) -> Option<&'static str> {
+fn requirements<'a>(
+    pending: &std::cell::RefCell<Vec<NodeTask<'a>>>,
+    n: &'a Json,
+    depth: usize,
+    uni: &Unicode,
+) -> Option<&'static str> {
     let Some(items) = n.as_array() else { return Some("a malformed requirement list") };
     for r in items {
         let operand = get(r, "value");
@@ -638,7 +684,7 @@ fn requirements(n: &Json, depth: usize, uni: &Unicode) -> Option<&'static str> {
         {
             return Some("a malformed requirement");
         }
-        if let Some(p) = node(operand, "term", depth + 1, false, false, uni) {
+        if let Some(p) = schedule(pending, operand, "term", depth, false, false, uni) {
             return Some(p);
         }
     }
@@ -655,10 +701,11 @@ fn symbol(n: &Json) -> bool {
     }
     ["param", "call", "ref", "literal", "range"].iter().any(|k| has(n, k)) || get(n, "wildcard") == &Json::Bool(true)
 }
-fn pattern_symbol(n: &Json) -> bool {
-    has(n, "param")
-        || ["terminal", "literal", "range", "wildcard", "constant"].iter().any(|k| has(n, k))
-        || text(get(n, "test")) == "tags" && pattern_symbol(get(n, "expr"))
+fn pattern_symbol(mut n: &Json) -> bool {
+    while text(get(n, "test")) == "tags" {
+        n = get(n, "expr");
+    }
+    has(n, "param") || ["terminal", "literal", "range", "wildcard", "constant"].iter().any(|k| has(n, k))
 }
 fn elidable(n: &Json) -> bool {
     let n = list(get(n, "seq")).first().unwrap_or(n);

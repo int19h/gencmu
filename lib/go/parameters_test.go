@@ -43,7 +43,7 @@ func TestParameters(t *testing.T) {
 	if err = json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 105 {
+	if len(cases) != 117 {
 		t.Fatalf("got %d shared cases", len(cases))
 	}
 	for _, c := range cases {
@@ -433,5 +433,77 @@ func TestParameterNestedAliasTwins(t *testing.T) {
 			}
 			parameterEqual(t, instance["notes"], []any{templateObject{"kind": "argument-alias-twin", "instances": names}})
 		}
+	}
+}
+
+func TestParameterSharedStructure(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("../../tests/parameter-structure.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Name, Grammar string
+		DOM           json.RawMessage
+		Argument      any
+		Order         []string
+		Instances     int
+		Flags         map[string][]string
+	}
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			raw := c.DOM
+			if len(raw) == 0 {
+				raw = parameterRead(t, c.Grammar).json()
+			}
+			dom, err := decodeDOM(raw, bundled.uni)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.Argument != nil {
+				value, err := templateFromJSON(raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				rules := templateList(value["rules"])
+				expr := templateObj(templateObj(templateList(templateObj(rules[len(rules)-1])["alternatives"])[0])["expr"])
+				parameterEqual(t, templateList(expr["args"])[0], c.Argument)
+			}
+			x, expansionErr := expandTemplates([]docDOM{{"review.md", dom}}, bundled.uni)
+			if expansionErr != nil {
+				t.Fatal(expansionErr)
+			}
+			if c.Order != nil {
+				parameterEqual(t, x.order, c.Order)
+			}
+			if c.Instances != 0 && len(x.instances) != c.Instances {
+				t.Fatalf("got %d instances, want %d", len(x.instances), c.Instances)
+			}
+			if c.Flags != nil {
+				g := parameterGrammar(t, c.Grammar)
+				for name, flags := range c.Flags {
+					parameterEqual(t, g.byName[name].flags, flags)
+				}
+			}
+		})
+	}
+}
+
+func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
+	d := parameterRead(t, "%rule use(@X) @X")
+	rule := templateObj(templateClone(d.Rules[0].rawTemplate))
+	expr := templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}
+	for i := 0; i < 20000; i++ {
+		expr = templateObject{"optional": expr}
+	}
+	templateObj(templateList(rule["alternatives"])[0])["expr"] = expr
+	p := checkTemplateDeclaration(rule, "rules", bundled.uni)
+	if p == nil || p.message != errTooDeep.Error() {
+		t.Fatalf("got %v", p)
 	}
 }

@@ -128,7 +128,7 @@ func templateNormalize(root any) any {
 		out := templateObject{}
 		for k, v := range n {
 			out[k] = templateNormalize(v)
-			if k == "union" || k == "concat" || k == "any" || k == "all" {
+			if k == "union" || k == "concat" {
 				if items, ok := out[k].([]any); ok {
 					flat := []any{}
 					for _, item := range items {

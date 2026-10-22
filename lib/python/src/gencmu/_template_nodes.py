@@ -59,7 +59,7 @@ def normalize_argument(root):
         if isinstance(value, dict):
             if 'body' in value:
                 return argument_of_expression(value['body'])
-            for key in ('union', 'concat', 'any', 'all'):
+            for key in ('union', 'concat'):
                 if isinstance(value.get(key), list):
                     value[key] = [v for n in value[key] for v in n.get(key, [n])]
         return value

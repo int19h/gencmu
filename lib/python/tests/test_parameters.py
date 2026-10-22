@@ -182,3 +182,32 @@ class NestedArgumentAliases(unittest.TestCase):
             assert len(instances) == (4 if 'public' in source else 2)
             for instance in instances:
                 assert instance['notes'] == [dict(kind='argument-alias-twin', instances=[other['name'] for other in instances if other is not instance])]
+
+class ParameterStructure(unittest.TestCase):
+    def test_shared_structure(self):
+        cases = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameter-structure.json').read_text())
+        unicode = grammar_of('%rule text "a"').unicode
+        for case in cases:
+            with self.subTest(case=case['name']):
+                dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
+                self.assertIsNone(dom_problem(dom, unicode))
+                if 'argument' in case:
+                    self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])
+                _, order, _, instances, _ = expand_templates([('review.md', dom)], unicode)
+                if 'order' in case:
+                    self.assertEqual(order, case['order'])
+                if 'instances' in case:
+                    self.assertEqual(len(instances), case['instances'])
+                if 'flags' in case:
+                    grammar = grammar_of(case['grammar'])
+                    for name, flags in case['flags'].items():
+                        self.assertEqual(grammar.rules[name].flags, flags)
+
+    def test_over_deep_supplied_template(self):
+        unicode = grammar_of('%rule text "a"').unicode
+        dom = read_document('```jbogenbau\n%rule use(@X) @X\n```')
+        expr = dict(param='X', at=[1, 1])
+        for _ in range(20000):
+            expr = dict(optional=expr)
+        dom['rules'][0]['alternatives'][0]['expr'] = expr
+        self.assertEqual(dom_problem(dom, unicode), 'nested too deeply')

@@ -968,5 +968,174 @@
         }
       }
     }
+  },
+  {
+    "name": "recursive parenthesized parameter keeps a finite key",
+    "grammar": "%rule loop(@X) \"a\" loop((@X)) | @X\n%rule text loop(\"b\")",
+    "input": "aab",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "family matches named and locally redefined instances",
+    "grammar": "%rule atom(@X) @X\n%rule text $a:named $b:atom(\"b\")\n%conditions $a ≅ #(atom), $b ≅ #(atom)\n%rule named = atom(\"a\")\n%redefine-rule atom(\"b\") \"c\"",
+    "input": "ac",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "uncalled family matches nothing and discovers nothing",
+    "grammar": "%rule atom(@X) @X\n%rule text $a:A\n%conditions $a ≇ #(atom)",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    },
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tested symbol cannot splice its filter requirements",
+    "grammar": "%rule filtered(@X) a<@X>\n%rule text filtered(KU<Accent>)\n%rule a A",
+    "input": "",
+    "expect": {
+      "error": "grammar",
+      "where": {
+        "document": "main.md",
+        "line": 3,
+        "column": 22
+      }
+    }
+  },
+  {
+    "name": "tested symbol remains a body argument",
+    "grammar": "%rule use(@X) @X\n%rule text use(A<Accent>)",
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    },
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A",
+          "Accent"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tags rejects a target choice argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(a | b)\n%rule a A\n%rule b B",
+    "input": "",
+    "expect": {
+      "error": "grammar",
+      "where": {
+        "document": "main.md",
+        "line": 4,
+        "column": 31
+      }
+    }
+  },
+  {
+    "name": "without-elision-except rejects a target choice argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(a | b)\n%rule a A\n%rule b B",
+    "input": "",
+    "expect": {
+      "error": "grammar",
+      "where": {
+        "document": "main.md",
+        "line": 4,
+        "column": 58
+      }
+    }
+  },
+  {
+    "name": "tags accepts one nominal rule argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(a)\n%rule a A\n%rule b B",
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A"
+        ]
+      }
+    ],
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "tags accepts one exact instance argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A :: $a.tags(@X)\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A"
+        ]
+      }
+    ],
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "without-elision-except accepts one nominal rule argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(a)\n%rule a A\n%rule b B",
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A"
+        ]
+      }
+    ],
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "without-elision-except accepts one exact instance argument",
+    "grammar": "%rule atom(@X) @X\n%rule use(@X) $a:A %conditions $a.without-elision-except(@X).matches(A)\n%rule text use(atom(\"a\"))\n%rule a A\n%rule b B",
+    "tokens": [
+      {
+        "text": "a",
+        "tags": [
+          "A"
+        ]
+      }
+    ],
+    "expect": {
+      "result": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "name": "expansion refuses combined body depth beyond the limit",
+    "grammar": "%rule use(@X) [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[@X]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n%rule text use([[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[\"a\"]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]])",
+    "expect": {
+      "error": "grammar"
+    }
   }
 ]

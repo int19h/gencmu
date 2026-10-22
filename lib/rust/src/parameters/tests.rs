@@ -345,3 +345,66 @@ fn unresolved_writer_ignores_object_member_order() {
     }
     assert_eq!(dom::dom_to_json(&d), expected);
 }
+
+#[test]
+fn shared_parameter_structure() {
+    let cases = j(include_str!("../../../../tests/parameter-structure.json"));
+    let uni = unicode();
+    for case in list(&cases) {
+        let name = text(get(case, "name"));
+        let raw = if let Some(dom) = case.get("dom") {
+            dom.clone()
+        } else {
+            j(&dom::dom_to_json(&read(text(get(case, "grammar")))))
+        };
+        let d = dom::dom_from_json(&raw, &uni).unwrap_or_else(|e| panic!("{name}: {e}"));
+        if let Some(arg) = case.get("argument") {
+            let rules = list(get(&raw, "rules"));
+            assert_eq!(&list(get(expression(rules.last().unwrap()), "args"))[0], arg, "{name}");
+        }
+        let x =
+            expand(&[(Arc::from("review.md"), Arc::new(d))], &uni).unwrap_or_else(|e| panic!("{name}: {e:?}")).unwrap();
+        if let Some(order) = case.get("order") {
+            assert_eq!(x.order, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
+        }
+        if let Some(count) = case.get("instances") {
+            assert_eq!(x.records.instances.len(), count.as_int().unwrap() as usize, "{name}");
+        }
+        if let Some(flags) = case.get("flags").and_then(Json::as_object) {
+            let g = grammar(text(get(case, "grammar")));
+            for (name, flags) in flags {
+                assert_eq!(
+                    g.rules[g.index[name]].flags,
+                    list(flags).iter().map(|n| text(n).to_string()).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn supplied_dom_depth_does_not_use_the_call_stack() {
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            let uni = unicode();
+            let mut raw = j(&dom::dom_to_json(&read("%rule use(@X) @X")));
+            let mut expr = obj([("param", string("X")), ("at", position((1, 1)))]);
+            for _ in 0..20_000 {
+                expr = obj([("optional", expr)]);
+            }
+            let Json::Obj(ref mut fields) = raw else { unreachable!() };
+            let Json::Arr(rules) = &mut fields.iter_mut().find(|(k, _)| k == "rules").unwrap().1 else {
+                unreachable!()
+            };
+            let Json::Obj(ref mut fields) = rules[0] else { unreachable!() };
+            let Json::Arr(alts) = &mut fields.iter_mut().find(|(k, _)| k == "alternatives").unwrap().1 else {
+                unreachable!()
+            };
+            set(&mut alts[0], "expr", expr);
+            assert_eq!(dom::dom_problem(&raw, &uni), Some("nested too deeply"));
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
