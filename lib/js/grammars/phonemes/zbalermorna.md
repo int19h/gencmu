@@ -14,7 +14,7 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 - An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
 - Glide radicals for `i` and `u`, which read as plain vowels without a following vowel
 
-The phoneme explanations use Humbert code points. The closing mapping gives their UCSUR counterparts. This document writes each code point as an escape, so that a reader can read the rule without the font.
+The phoneme explanations use Humbert code points. The mapping in [Two encodings](#two-encodings) gives their UCSUR counterparts. This document writes each code point as an escape, so that a reader can read the rule without the font.
 
 The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
 
