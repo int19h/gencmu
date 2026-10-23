@@ -54,8 +54,10 @@ export type Chart = {
 export declare class TagInterner {
     /** @type {TagSet[]} */
     sets: TagSet[];
-    /** @type {Map<string, number>} */
-    ids: Map<string, number>;
+    /** @type {Map<bigint|string, number>} */
+    ids: Map<bigint | string, number>;
+    /** @type {Map<string,bigint>} */
+    bits: Map<string, bigint>;
     /** @type {WeakMap<TagSet,number>} */
     identities: WeakMap<TagSet, number>;
     constructor();

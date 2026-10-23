@@ -2107,6 +2107,7 @@
    * @returns {TagSet}
    */
   function tagUnion(left, right) {
+    if (left === right) return left;
     if (right.size === 0) return left;
     if (left.size === 0) return right;
     // Each tag counts as it is copied, so a budget stops the union at the
@@ -2138,6 +2139,7 @@
     }
     /** @param {TagSet} tags */
     add(tags) {
+      if (tags === this.tags) return;
       if (tags.size === 0) return;
       if (this.tags.size === 0) {
         this.tags = tags;
@@ -2210,6 +2212,7 @@
    * @returns {boolean}
    */
   function isSubset(small, large) {
+    if (small === large) return true;
     for (const tag of small) {
       if (hooks.work) countWork(hooks.work, "tags");
       if (!large.has(tag)) return false;
@@ -2232,6 +2235,7 @@
    * @returns {boolean}
    */
   function sameTags(left, right) {
+    if (left === right) return true;
     if (left.size !== right.size) return false;
     for (const tag of left) {
       if (hooks.work) countWork(hooks.work, "tags");
@@ -10011,8 +10015,10 @@
     constructor() {
       /** @type {TagSet[]} */
       this.sets = [];
-      /** @type {Map<string, number>} */
+      /** @type {Map<bigint|string, number>} */
       this.ids = new Map();
+      /** @type {Map<string,bigint>} */
+      this.bits = new Map();
       /** @type {WeakMap<TagSet,number>} */
       this.identities = new WeakMap();
     }
@@ -10024,7 +10030,21 @@
       // Interned sets remain unchanged throughout their recognition context.
       const known = this.identities.get(tags);
       if (known !== undefined) return known;
-      const key = tagKey(tags);
+      // A bounded, exact bit mask avoids sorting and spelling every member
+      // of common profiles. Sets with further names use the string key.
+      let key = /** @type {bigint|string} */ (0n);
+      for (const tag of tags) {
+        let bit = this.bits.get(tag);
+        if (bit === undefined) {
+          if (this.bits.size === 256) {
+            key = tagKey(tags);
+            break;
+          }
+          bit = 1n << BigInt(this.bits.size);
+          this.bits.set(tag, bit);
+        }
+        key = /** @type {bigint} */ (key) | bit;
+      }
       let id = this.ids.get(key);
       if (id === undefined) {
         id = this.sets.length;
