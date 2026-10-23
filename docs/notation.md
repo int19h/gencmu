@@ -116,13 +116,17 @@ Escape decoding follows source decomposition, so `"‹U+00E9›"` stays one scal
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories retain compact names such as `_Lu`, `_Nd`, and `_L`. Other binary tags use long names, such as `_Alphabetic`. Enumerated values use qualified long names, such as `_Script_Latin` and `_Line_Break_Alphabetic`.
+The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories retain compact names such as `_Lu`, `_Nd`, and `_L`.
+
+Other binary tags accept long or short names, such as `_Alphabetic` or `_Alpha`. Enumerated values accept all-long or all-short forms, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors. `_gc_Lu` and `_General_Category_Uppercase_Letter` also denote `_Lu`.
 
 Script_Extensions is multi-valued: each script in its set supplies a tag such as `_Script_Extensions_Hiragana`. An explicit extension set replaces the UCD default singleton Script value. For text associated with a script, extension membership can be more useful than Script alone.
 
 Even without explicit grammar references, every stage-zero token carries its decomposed scalar's complete available profile. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
 
-[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. Short aliases such as `_Alpha` and `_Script_Latn` are errors. A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
+[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. The reader normalizes aliases before constructing the DOM. Canonical names use long forms, except compact general categories. Mixed forms such as `_Script_Latn` are errors.
+
+A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
 
 The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
@@ -517,19 +521,21 @@ A constant starts with `$` and a capitalized user name. A capture starts with `$
 
 An escape is a delimited spelling of one scalar. It uses single guillemets `‹ ›` (U+2039, U+203A). `‹U+0301›` names a code point in hexadecimal. `‹COMBINING ACUTE ACCENT›` uses its formal Unicode name, and `‹ZWJ›` uses a name alias.
 
-Every string literal accepts these escapes, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include paths. An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
+Every string literal accepts escape syntax, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
 
 A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open escape, `›` is an ordinary character. Escape decoding never scans its result again. Thus `"‹U+2039›ZWJ›"` contains the literal text `‹ZWJ›`.
 
 A numeric escape uses uppercase `U+` and four to six ASCII hexadecimal digits. Input digits can use either case. Its value must be a scalar at most U+10FFFF. A surrogate or malformed numeric escape is a document error at `‹`.
 
-Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the lazy names file. Every alias kind in that file is valid.
+Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the selected lazy names resources. Declared extras add names for unnamed scalars without renaming standard characters. Every alias kind in the base file is valid.
 
 An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. It uses the same escape decoder as other strings. Its unescaped text retains the original spelling without decomposition. Paths use separate tokens because includes select documents before constant binding. Path resolution uses the decoded string.
+An include or names-resource path is the first and only operand of `%include` or `%names`, in straight double quotes. It uses the same escape decoder as other strings. Its unescaped text retains the original spelling without decomposition. Paths use separate tokens because loading selects resources before constant binding. Path resolution uses the decoded string.
 
-Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. If the core table supplies an abbreviation, the printer uses it. Otherwise, it writes `U+` with uppercase hexadecimal digits. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
+Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. If the core table supplies an abbreviation, the printer uses it. Otherwise, it writes `U+` with uppercase hexadecimal digits.
+
+Every White_Space scalar except U+0020 requires an escape. A backslash remains literal. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
 
 ```jbogenbau
 %const $ACCENTED "a‹U+0301›"
@@ -697,7 +703,7 @@ A string constant can carry tag and value tests, as in `#$S="x"`. A tested const
 
 A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
 
-A separate `«` or `·` requires whitespace or a comment after a node test, `»`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
+A separate `«` or `·` requires whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
 
 A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
 
@@ -785,11 +791,11 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
 | `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
 
-Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-38 shape acceptance.
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-39 shape acceptance.
 
-The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
+The following mapping converts valid format-35 pattern DOMs to format 39. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
 
-| Format-35 form | Format-38 form |
+| Format-35 form | Format-39 form |
 | --- | --- |
 | Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
 | Child `{"node":P}` | `[{"child":M(P)}]` |
@@ -807,11 +813,11 @@ The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)`
 | Pattern test | Retain the test and operands, then convert its `expr` with M |
 | Other pattern atom | Retain its constructor, fields, and source position |
 
-The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The resulting format-38 DOM receives ordinary shape and type inspection.
+The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The resulting format-39 DOM receives ordinary shape and type inspection.
 
-Malformed-DOM fixtures require corresponding format-38 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+Malformed-DOM fixtures require corresponding format-39 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
 
-Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-38 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-39 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
 
 The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
 
@@ -1662,11 +1668,14 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 - `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the ranking rule: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. "Elided terminators" explains the elision test. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` (see "Elided terminators").
+- `%names "PATH"` adds a names resource for the current document and its nested includes. These directives precede every other statement.
 - `%stage NAME`, `%extend-stage NAME`, `%redefine-stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
 ## Pipelines
 
 For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
+
+A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
 A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
@@ -1742,7 +1751,7 @@ The engine evaluates the declarations in order. It stops at the first declaratio
 
 An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
 
@@ -1752,7 +1761,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 

@@ -18,13 +18,19 @@ A `unicode.txt` in the map replaces the bundled table entirely, with no fallback
 
 A supplied `unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors.
 
-A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map and matching names-dependent cache entries require names data. Canonical printing uses the core abbreviation records.
+A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map and matching names-dependent cache entries require names data. Canonical printing uses the core abbreviation records. A custom names file can omit standard entries and add names only for unnamed scalars (engine §1).
 
 Unknown names are document errors at `‹`. A missing required file, version mismatch, or malformed file is a grammar loading error (engine §1).
 
-The decoded include path resolves against its containing document, with `.` and `..` normalized (engine §13). A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. If no matching cache entry exists, the library reads the document through the notation grammar.
+The decoded include path resolves against its containing document, with `.` and `..` normalized (engine §13).
 
-An entry always requires matching text hash, bootstrap hash, core-table hash, properties fingerprint, and DOM format. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that uses the names file requires a matching names-file fingerprint. Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
+`%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
+
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply `phonemes/zbalermorna-names.txt`. The portable caller supplies it when a document selects and needs it. Extras augment the selected standard names, without fallback for omitted standard entries.
+
+A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. If no matching cache entry exists, the library reads the document through the notation grammar.
+
+An entry always requires matching text hash, bootstrap hash, core-table hash, properties fingerprint, and DOM format. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras. Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
 
 A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
 
@@ -32,9 +38,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 38 supports templates, parameters, calls, named instances, argument lists, and backward queries. It also supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Literal text runs decompose, while decoded string escapes keep their exact scalars. Parse-result format 15 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 39 supports templates, parameters, calls, named instances, argument lists, and backward queries. It also supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Literal text runs decompose, while decoded string escapes keep their exact scalars. Parse-result format 15 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-38 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-39 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -131,9 +137,11 @@ The `InputToken` of Rust has no source and no span. The library gives each token
 
 A caller cannot supply attachments (engine §11). JavaScript and Python accept token-shaped input objects. Go accepts `InputToken` records. These inputs expose `before` and `after`, or `Before` and `After` in Go. Nonempty attachment lists cause a usage error. Libraries accept empty lists and drop them.
 
-The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no tags and applies no normalization. The caller can supply stored engine tags to represent earlier grammar stages. The engine does not decompose them, so a caller supplies decomposed values where its grammar expects them.
+The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no memberships and leaves both strings unchanged. Property tag spellings normalize as engine §1 defines.
 
-All supplied string fields must contain scalar values. Invalid strings, tag names, source ranges, spans, or attachments cause a usage error before parsing. Tags follow engine §1, including its reserved engine inventory and available property values. Short aliases cause usage errors, without adding or renaming memberships. The input object is not an output recipe and stores both strings directly.
+The caller can supply stored engine tags to represent earlier grammar stages. The engine does not decompose them, so a caller supplies decomposed values where its grammar expects them.
+
+All supplied string fields must contain scalar values. Invalid strings, tag names, source ranges, spans, or attachments cause a usage error before parsing. Tags follow engine §1, including its reserved engine inventory and available property values. The API normalizes accepted property aliases before set construction. Invalid aliases cause usage errors. The input object is not an output recipe and stores both strings directly.
 
 Rust `InputToken` stores `value: Option<String>` and `image: Option<String>` alongside its text and tags. `None` uses the text default. JavaScript uses omitted `value` and `image` properties for defaults. Python uses `None` defaults for those fields. Explicit empty strings remain empty.
 

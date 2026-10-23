@@ -690,3 +690,7 @@ Read [Feature guards](notation.md#feature-guards) for gates, warnings, and featu
 Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
 
 Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for expected results and shared tests.
+
+## Zbalermorna names
+
+The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every dialect that includes the document. Its escapes name the existing 43 private-use scalars, without changing the characters that the grammar reads. [Engine §1](engine.md#bundled-zbalermorna-names) pins the UCSUR source and the compatibility mapping. Private-use images still print with numeric escapes.

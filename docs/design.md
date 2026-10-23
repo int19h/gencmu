@@ -55,7 +55,9 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. The core table, with printer abbreviations, comes from `dist/grammars.js`. For source names outside the core abbreviation map or a names-dependent cache entry, the playground fetches `grammars/unicode-names.txt`. A failed fetch prevents loading and reports the resource error.
+The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. The core table, with printer abbreviations, comes from `dist/grammars.js`. For source names outside the core abbreviation map or a names-dependent cache entry, the playground fetches `grammars/unicode-names.txt`.
+
+Declared extras use the same lazy path under `grammars/`, including `grammars/phonemes/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
 
 `dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. A contributor edits `grammars/` and runs one command.
 
@@ -125,7 +127,9 @@ The engine only concatenates strings. It assigns no meaning to pauses, stress, c
 
 Stage zero, named `input`, supplies one token per decomposed scalar. A scalar value is a Unicode code point outside surrogates. Both token strings start as that decomposed scalar. The configured Unicode tables supply complete stored scalar profiles. These include all supported properties, independently of grammar references. Later stages only forward or filter those engine tags.
 
-The pinned inventory includes 56 binary properties, 25 enumerated or catalog properties, and multi-valued Script_Extensions. General categories retain compact names. Other tags use one long spelling, such as `_Alphabetic` or `_Script_Latin`. The generator rejects any spelling collision. Names, string mappings, numeric values, deprecated properties, and contributory exception lists stay outside the inventory.
+The pinned inventory includes 56 binary properties, 25 enumerated or catalog properties, and multi-valued Script_Extensions. General categories accept compact and qualified forms. Other tags accept all-long or all-short spellings, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors.
+
+The reader normalizes to long names, except compact general categories. The generator rejects collisions between different tag identities, including case-folded collisions. Names, string mappings, numeric values, deprecated properties, and contributory exception lists stay outside the inventory.
 
 The core file owns categories, combining classes, whitespace, and two emoji properties. A separate properties file owns additional classifications. The generator resolves UCD defaults, including unassigned regions and Script_Extensions fallback. A missing property is unavailable, rather than false. Grammar references to it fail during loading.
 
@@ -278,7 +282,7 @@ The key of a DOM always has five parts:
 - A fingerprint of the core Unicode table
 - A fingerprint of the properties file, or `null` for a custom core without a companion
 
-A document that uses the names file also requires its fingerprint. Core abbreviation escapes need only the core-table fingerprint. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
+A document that loads names data also requires the paths and fingerprints of its selected standard and extra files. Core abbreviation escapes need only the core-table fingerprint. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
 
 A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
@@ -428,7 +432,7 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` retains its terminal identity.
 
-A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `«` or `·` after a node test, `»`, or group `)`. A call's adjacent first list remains attached.
+A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `«` or `·` after a node test, `»`, `]`, `}`, or group `)`. A call's adjacent first list remains attached.
 
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
 
@@ -452,7 +456,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 38 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 39 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -893,7 +897,11 @@ The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` load
 
 The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only dialect.
 
-For source names outside the core abbreviation map or names-dependent caches, the page fetches `grammars/unicode-names.txt` before it resumes loading. It supplies that text to the worker's source map. Names loading remains separate from canonical rendering, which uses core abbreviations.
+For source names outside the core abbreviation map or names-dependent caches, the page fetches `grammars/unicode-names.txt` before it resumes loading. Declared extras use their normalized grammar-relative paths under `grammars/`. Thus the zbalermorna declaration requests `grammars/phonemes/zbalermorna-names.txt`. Names files stay outside `dist/grammars.js`.
+
+The page supplies each resource under its matching source-map key, and fetch errors prevent loading. It supplies that text to the worker's source map. Names loading remains separate from canonical rendering, which uses core abbreviations.
+
+A pipeline names preamble passes extra resources to included documents. A grammar preamble can add its own resource. Returning from that grammar restores the parent's resources. Names never alter scalar properties or the accepted character inventory.
 
 `tools/smoke-playground.js` makes sure that the playground works in headless Chromium and Firefox. Playwright drives the browsers. CI runs the smoke test, and a contributor can run it locally. To run it locally, do these steps:
 

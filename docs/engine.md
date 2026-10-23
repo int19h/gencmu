@@ -35,7 +35,7 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 
 A string terminal's identity is its resolved string. A literal, escaped literal, and equal user constant therefore identify one terminal.
 
-Canonical string diagnostics write one quoted string with `‹…›` escapes. Escapes represent quotes, controls, format scalars, nonspacing marks, private-use scalars, and the escape opener. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+Canonical string diagnostics write one quoted string with `‹…›` escapes. Escapes represent quotes, controls, format scalars, nonspacing marks, private-use scalars, and the escape opener. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. Every configured White_Space scalar except U+0020 also requires an escape. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A format scalar has general category Cf in the configured table.
 
@@ -43,7 +43,7 @@ A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F
 
 A private-use scalar lies in three fixed ranges. These are U+E000 to U+F8FF, U+F0000 to U+FFFFD, and U+100000 to U+10FFFD. Neither predicate depends on the configured Unicode table.
 
-A nonspacing mark has general category Mn in the configured Unicode table. Scalars with a `decompose` record, Hangul syllables and scalars of nonzero combining class also require escaping. Stage zero changes each of them in a grammar document. Other marks need no escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
+A nonspacing mark has general category Mn in the configured Unicode table. Scalars with a `decompose` record, Hangul syllables and scalars of nonzero combining class also require escaping. Stage zero changes each of them in a grammar document. Other marks require escaping only if another predicate applies. An unlisted scalar has category Cn and is not a nonspacing mark.
 
 U+0301 can appear as `"‹U+0301›"`, and U+ED80 as `"‹U+ED80›"`. A quotation mark uses `"‹U+0022›"`. Escapes contribute exact scalars after source decomposition.
 
@@ -176,21 +176,35 @@ The names file supplies string escapes, without supplying tags. Core decompositi
 
 ### Property tag spelling
 
-A binary tag is `_` followed by its long property name, such as `_Alphabetic`. Only Yes supplies membership. There is no No tag. A test such as `_<¬_Alphabetic>` tests absence from stored tags.
+An alias is another spelling of one name.
 
-Other properties use `_PROPERTY_VALUE`, with the long property and value names. Examples are `_Script_Latin`, `_Bidi_Class_Right_To_Left`, `_East_Asian_Width_Wide`, and `_Script_Extensions_Hiragana`. The general-category tags above are the only compact exception. `_General_Category_Uppercase_Letter`, `_Uppercase_Letter`, and `_LC` are not additional spellings.
+A binary tag uses either the long property name or its short alias, such as `_Alphabetic` or `_Alpha`. Both identify the same stored tag. Only Yes supplies membership. There is no No tag. A test such as `_<¬_Alpha>` tests absence from stored tags.
 
-The long names come from pinned [PropertyAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyAliases.txt) and [PropertyValueAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyValueAliases.txt). Some long values contain short letters, such as `_Grapheme_Cluster_Break_L`. Age uses its long names, such as `_Age_V15_1` and `_Age_Unassigned`. Block uses aliases such as `_Block_Latin_1_Supplement`, rather than the spaced spelling in Blocks.txt.
+Other properties use `_PROPERTY_VALUE`, with either both long names or both short aliases. `_Script_Latin` and `_sc_Latn` identify the same tag. `_Canonical_Combining_Class_Above` and `_ccc_A` identify the same tag. Mixed forms, such as `_Script_Latn`, `_sc_Latin`, and `_ccc_Above`, are errors. If a short and long name are identical, that name works in either complete form.
 
-If a class has a value alias, Canonical_Combining_Class uses its long value, such as `_Canonical_Combining_Class_Above` or `_Canonical_Combining_Class_Not_Reordered`. Other classes use their decimal number without leading zeros. Classes range from 0 through 254. Thus class 2 uses `_Canonical_Combining_Class_2`, class 10 uses `_Canonical_Combining_Class_CCC10`, and class 230 uses `_Canonical_Combining_Class_Above`. Decimal alternatives for aliased classes are invalid.
+General categories also accept qualified long and short forms. `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` identify the same tag. This rule also covers the seven major groups, such as `_L`, `_gc_L`, and `_General_Category_Letter`. `_Uppercase_Letter`, `_LC`, `_gc_LC`, and `_General_Category_Cased_Letter` remain invalid.
 
-Each spelling identifies exactly one tag. The generator constructs the complete registry and rejects collisions between properties, values, and compact category tags. A library resolves a complete token through that registry. It never guesses a property boundary from an underscore. If a Unicode update introduces a collision, generation fails. The specification must assign a distinct spelling before that update is supported.
+The reader immediately normalizes accepted property spellings to one canonical spelling. General categories use their compact names, such as `_Lu`. Every other property uses its long form. DOMs, stored tags, terminal identities, instance keys, diagnostics, and output contain only canonical spellings. Aliases never add another tag or another parse.
 
-Each library embeds the generated Unicode 15.1 property catalog, including property kinds and long value names. The portable JavaScript library embeds this catalog too. Custom files use it for name and type inspection, without receiving bundled membership assignments. Runtime host data never supplies catalog entries.
+The long names and short aliases come from pinned [PropertyAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyAliases.txt) and [PropertyValueAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyValueAliases.txt). Some long values contain short letters, such as `_Grapheme_Cluster_Break_L`. Age accepts `_Age_V15_1` and `_age_15.1`, or `_Age_Unassigned` and `_age_NA`. Block uses aliases such as `_Block_Latin_1_Supplement`, rather than the spaced spelling in Blocks.txt.
 
-Names compare exactly. Short aliases, different case, double separators, and punctuation substitutions are document errors at the tag. For example, `_Alpha`, `_Script_Latn`, `_sc_Latn`, `_Script__Latin`, `_Bidi_Class_L`, `_lu`, and `_Letter` are invalid. `_Sc` remains the currency-symbol category.
+If a class has a value alias, Canonical_Combining_Class uses its long value, such as `_Canonical_Combining_Class_Above` or `_Canonical_Combining_Class_Not_Reordered`. Other classes use their decimal number without leading zeros. Classes range from 0 through 254. Thus class 2 uses `_Canonical_Combining_Class_2`, class 10 uses `_Canonical_Combining_Class_CCC10`, and class 230 uses `_Canonical_Combining_Class_Above`.
 
-If the configured table lacks a known property or value, its tag is a document error at that reference. This rule covers negative tests, pattern constants, supplied DOMs, disabled alternatives, and replaced definitions. For a declared value without scalar assignments, no scalar receives its tag from that table. The terminal remains valid and can match a trusted caller token. It cannot become a constant-failure predicate. If a supplied token tag has invalid spelling or unavailable support, the API reports a usage error.
+The short forms use the short value alias, such as `_ccc_CCC10`, `_ccc_NR`, and `_ccc_A`. A class without a value alias also uses its decimal number in the short form, such as `_ccc_2`. Decimal alternatives for aliased classes are invalid in both forms.
+
+Each accepted spelling maps to exactly one canonical tag. The generator constructs the complete registry from the two designated alias columns. It rejects collisions between different identities, including collisions after ASCII case folding. Matching remains case-sensitive. Additional compatibility aliases in later columns do not supply tag spellings.
+
+Canonical_Combining_Class uses its short and long alias columns after the numeric column. Script_Extensions uses Script's value aliases.
+
+A library resolves a complete token through that registry. It never guesses a property boundary from an underscore. If a Unicode update introduces a collision, generation fails. The specification must assign a distinct spelling before that update is supported.
+
+Each library embeds the generated Unicode 15.1 property catalog, including property kinds, canonical value names, and accepted short spellings. The portable JavaScript library embeds this catalog too. Custom files use it for name and type inspection, without receiving bundled membership assignments. Runtime host data never supplies catalog entries.
+
+Names compare exactly. Mixed aliases, different case, double separators, and punctuation substitutions are document errors at the tag. For example, `_Script_Latn`, `_sc_Latin`, `_Script__Latin`, `_Bidi_Class_L`, `_lu`, and `_Letter` are invalid. `_Sc` remains the currency-symbol category, while `_sc_Latn` denotes Script Latin.
+
+If the configured table lacks a known property or value, its tag is a document error at that reference. This rule covers negative tests, pattern constants, supplied DOMs, disabled alternatives, and replaced definitions. For a declared value without scalar assignments, no scalar receives its tag from that table. The terminal remains valid and can match a trusted caller token. It cannot become a constant-failure predicate.
+
+The API normalizes accepted aliases in caller token tags before set construction. Duplicate spellings of one identity become one tag. An invalid spelling or unavailable support causes a usage error. Supplied DOMs require canonical spellings because DOMs store the reader's normalized result.
 
 ### Stored scalar profiles
 
@@ -228,6 +242,8 @@ range Script_Extensions 30FC 30FC Hiragana Katakana
 ```
 
 `binary PROPERTY` declares a binary property, with No outside its ranges. `enumerated PROPERTY DEFAULT` declares an enumerated property and its default value. `multiple PROPERTY DEFAULT...` declares Script_Extensions and its nonempty default set. Each property has exactly one declaration.
+
+Property resources use only long property and value names, independently of accepted tag aliases.
 
 `value PROPERTY VALUE` declares an available long value name. Every default and range value requires that declaration. Binary properties accept no value declarations. Enumerated and multiple properties can declare values with no assigned scalars. Script_Extensions uses Script's value names but does not require Script itself to be available.
 
@@ -267,7 +283,10 @@ Shared cases in `tests/engine/` and `tests/notation/` cover the following observ
 
 | Case | Required observation |
 | --- | --- |
-| Exact names | `_Alphabetic`, `_Script_Latin`, `_Script_Extensions_Greek`, `_Age_V15_1`, and `_Sc` are valid names. Short aliases, wrong case, unknown values, and excluded properties are errors. |
+| Exact names | Long and short pairs normalize identically: `_Alphabetic` and `_Alpha`, `_Script_Latin` and `_sc_Latn`, `_Canonical_Combining_Class_Above` and `_ccc_A`. Mixed aliases, wrong case, unknown values, and excluded properties are errors. |
+| General categories | `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` normalize to `_Lu`. Major groups follow the same rule. Cased_Letter forms remain invalid. |
+| Alias boundaries | `_age_15.1` normalizes to `_Age_V15_1`. `_scx_Grek` normalizes to `_Script_Extensions_Greek`. `_Sc` stays distinct from Script. Compatibility aliases outside the designated columns are errors. |
+| Canonical identity | Alias spellings give equal DOMs apart from positions. Pattern keys, call names, and terminal identities are equal. Short source spellings produce long diagnostics, except compact general categories. |
 | Empty selectors | No bundled scalar receives Script Katakana_Or_Hiragana or Word_Break E_Base. Their terminals still match trusted caller tokens carrying those tags. |
 | Accents and reordering | `é` and decomposed equivalents produce profiles for `e` and U+0301. Lowercase belongs to `e`, and Diacritic belongs to U+0301. Reordered marks retain their profiles and source origins. |
 | Exact escaped scalars | An escaped precomposed grammar literal remains exact. Input decomposition still classifies its resulting scalars, independently of that literal. |
@@ -281,7 +300,7 @@ Shared cases in `tests/engine/` and `tests/notation/` cover the following observ
 | Generic observations | A grammar naming no additional property still forwards and serializes complete profiles. Adding an unrelated later-stage property reference changes no initial tag set. Whole-set comparisons include unnamed properties. |
 | Inheritance and mutation | Forwarding, filtering, unions, changed values, and shared repeated characters preserve stored membership. A removed tag never reappears. One token's filter cannot change another token. |
 | Provenance | Bare property introduction, tag-set constants, implications, classifier assignment, omission markers, and boundary targets remain forbidden. Filtering forwarded tags is valid. Pattern terminals and pattern tests can read properties. |
-| Caller tokens | Empty caller tags stay empty. A supplied canonical property tag matches despite a different token value. Aliases and unavailable property tags cause usage errors. |
+| Caller tokens | Empty caller tags stay empty. A supplied accepted property spelling matches despite a different token value. Aliases normalize and deduplicate. Invalid or unavailable tags cause usage errors. |
 | Conditional features | A condition over `_Script_Cyrillic ⊆ $.tags` reads retained memberships. Feature gates and replaced definitions do not change initial profiles or excuse invalid references. |
 | Custom resources | Missing support differs from declared-empty support. Shuffled records, equal overlaps, conflicting assignments, invalid headers, unknown records, undeclared values, and version mismatches follow the file rules. |
 | Independent tables | Alternating custom tables over one scalar, concurrent reads, cache hits, and profile eviction preserve each table's answers. |
@@ -308,7 +327,7 @@ algorithm hex 3400 4DBF CJK UNIFIED IDEOGRAPH-
 algorithm hangul AC00 D7A3
 ```
 
-A `name` record contains a scalar and its formal Unicode name. An `alias` record contains its kind, scalar, and alias. The kinds are `correction`, `control`, `alternate`, `figment`, and `abbreviation`. All five kinds are accepted in escapes. A scalar can have multiple aliases of each kind.
+A `name` record contains a scalar and its formal Unicode name or a permitted added name. An `alias` record contains its kind, scalar, and alias. The kinds are `correction`, `control`, `alternate`, `figment`, and `abbreviation`. All five kinds are accepted in escapes. A scalar can have multiple aliases of each kind.
 
 An `algorithm hex` record contains inclusive scalar endpoints and a name prefix. The name is that prefix followed by the scalar's canonical hexadecimal suffix. Below U+10000, that suffix has exactly four uppercase digits. Otherwise, it has five or six uppercase digits without leading zeros. Lookup compares the complete generated name and rejects lowercase or padded alternatives.
 
@@ -326,13 +345,72 @@ Duplicate or overlapping algorithm ranges for the same naming rule are errors. E
 
 Record order does not affect name lookup. Exact spellings, including case and spaces, determine name lookup. The records contain individual scalar names and aliases. A sequence of several scalars cannot supply one escape. Numeric escapes do not consult this file.
 
-If the core abbreviation map does not resolve a source name escape, the library loads the names file. A matching names-dependent cache entry also requires that file. Printing never loads it because abbreviations belong to the core table. It can share the loaded data within one dialect. Without an unresolved source name escape or names-dependent cache entry, names data remains unread and cannot cause an error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
+If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A matching names-dependent cache entry also requires those files. Printing never loads them because abbreviations belong to the core table. A dialect can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
 
-A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can contain a subset of the names and algorithms. An omitted name is unknown. The two files must declare the same version.
+A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. An omitted name is unknown unless a declared extra file supplies a permitted addition. The two files must declare the same version.
+
+A custom `name` record can name a scalar that has no formal Unicode name in the pinned version. Private-use scalars are one example. It cannot change a standard formal name, including an algorithmic name. Standard alias records must retain their pinned kind, spelling, and scalar. Custom algorithms can only retain or omit the pinned rules and ranges.
+
+An added name starts with an uppercase ASCII letter. Its remaining characters are uppercase ASCII letters, digits, spaces, or hyphens. Single spaces separate words, without leading or trailing spaces. It cannot duplicate any pinned formal name or alias, even one omitted from the selected file. It cannot match an algorithmic name or the numeric escape form.
+
+It cannot conflict with an active core abbreviation or another selected file's name. Exact duplicate additions across different files are harmless, but conflicting names or two formal names for one scalar are loading errors.
+
+Each library embeds the pinned standard naming catalog for these restrictions, including computed naming rules. It consults that catalog only when it loads names data. The catalog never supplies omitted lookup entries. The portable library includes the same catalog. A names file without an available catalog for its declared Unicode version causes a loading error. Custom core tables do not change which names count as standard.
 
 If bundled resources exist and versions match, an omitted names file selects the bundled file. If those resources are unavailable and names data is needed, the caller must supply the names file. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `unicode-names.txt`. If the line is known, the error includes it. These resource errors arise during source escape inspection or names-dependent cache loading, never from printing.
 
 If names data is needed, the core table must declare exactly one Unicode version. A missing or repeated version prevents names-file selection and causes a grammar loading error. Numeric escape parsing does not add that version requirement by itself.
+
+### Extra names files
+
+An extra names file adds names to the base file.
+
+A preamble is the initial run of resource declarations.
+
+A grammar or pipeline document declares an extra names resource with `%names "PATH"`. These directives form a preamble before every other statement in that document. They can span several grammar blocks. Each directive takes exactly one quoted path. The path uses literal include-path decoding and resolves against the declaring document's directory. Its escapes can use numeric values or active core abbreviations, but cannot require a names file.
+
+After successful lexing, a preamble pass collects these declarations before ordinary escape inspection. A wrong count, wrong operand, or forbidden path escape fails at the `%names` directive. The first such failure in source order wins. A misplaced `%names` fails during reader conversion at that directive. The syntax grammar still recognizes ordinary directive operands. The hand-written bootstrap reader follows the same preamble pass.
+
+A document inherits the extra resources of its includers and adds its own declarations. The resulting set applies to all strings in that document and to its nested includes. Returning from an include restores the includer's set. A declaration in one sibling never affects another sibling. Resource selection is independent of stage selection, feature gates, and stage replacement.
+
+Normalized resolved paths identify resources. Repeated declarations of one path select it once. Lookup combines the selected standard file with all selected extras, without priority between files. Every extra uses the `unicode-names VERSION` header and the record syntax above. Its version must match the active core.
+
+Extras contain only `name` records for unnamed scalars, without aliases or algorithms. Duplicate equal records across files are harmless. All other duplicate and conflict rules still apply.
+
+The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
+
+The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all five declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
+
+Pipeline splicing consumes these directives before stage stitching. They never enter a stitched grammar or bootstrap stage. Supplied DOMs follow the same preamble placement and path rules. Canonical stitching omits these directives because it prints decoded strings with core abbreviations or numeric escapes.
+
+### Bundled zbalermorna names
+
+`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the pinned mapping below. It uses `unicode-names 15.1.0` and contains 43 added names. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` in its preamble and uses those names in its scalar escapes. Bundled dialect loading therefore selects the resource through that grammar's declaration.
+
+The naming source is the [UCSUR zbalermorna entry](https://www.kreativekorp.com/ucsur/), proposal dated 2024-08-20. Its allocation is U+F28A0–U+F28DF. Its link selects Jack Humbert's [Unicode Space proposal](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). That commit pins the name spellings.
+
+The grammar reads the older private-use mapping, rather than UCSUR's relocated allocation. The bundled names bind the proposal's spellings to those existing grammar scalars. They do not bind those same names to U+F28A0–U+F28DF or introduce new phoneme terminals. This resource defines a compatibility mapping, not a claim that UCSUR assigns the older range.
+
+Each row lists consecutive code points and their ordered suffixes. The name is the prefix, one space, and its suffix.
+
+| Code points | Name prefix | Ordered suffixes |
+| --- | --- | --- |
+| ED80–ED88 | ZBALERMORNA LETTER | PY, TY, KY, FY, LY, SY, CY, MY, XY |
+| ED89–ED8B | ZBALERMORNA SYMBOL FOR | DENPA BU, YHY, CNIMAHO BU |
+| ED8C | ZBALERMORNA COMBINING | PA TONGA |
+| ED90–ED97 | ZBALERMORNA LETTER | BY, DY, GY, VY, RY, ZY, JY, NY |
+| ED98 | ZBALERMORNA COMBINING | BAHEBU |
+| ED99–ED9A | ZBALERMORNA SYMBOL FOR | SMAJI BU, SLAKA BU |
+| ED9B | ZBALERMORNA COMBINING | TCENA BU |
+| EDA0–EDA9 | ZBALERMORNA VOWEL SIGN | ABU, EBU, IBU, OBU, UBU, YBU, AIBU, EIBU, OIBU, AUBU |
+| EDAA–EDAB | ZBALERMORNA LETTER SEMIVOWEL | IY, UY |
+| EDB0–EDB5 | ZBALERMORNA LETTER FULL | ABU, EBU, IBU, OBU, UBU, YBU |
+
+These rows cover every scalar reference in the zbalermorna phoneme document. Unused proposal characters receive no names in this resource. In particular, its inconsistent RE TONGA numeric row supplies no binding. Names change neither decomposition nor Unicode property tags. Canonical printing of private-use scalars still uses numeric escapes.
+
+Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
+
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode every zbalermorna name and retain the grammar's exact scalar inventory.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 
@@ -376,7 +454,7 @@ A tag-set constant cannot hold an engine-tag literal, even inside a filter. Clas
 
 Caller tokens bypass stage-zero character construction. Caller tokens also skip canonical decomposition, and the text beside them is not decomposed. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization.
 
-The caller can supply engine tags to represent earlier stages. Each supplied property tag requires its canonical spelling and support in the configured table. Its membership need not agree with the supplied value. Nonempty supplied attachments remain a usage error.
+The caller can supply engine tags to represent earlier stages. Each supplied property tag requires an accepted spelling and support in the configured table. The API normalizes aliases before using the token. Its membership need not agree with the supplied value. Nonempty supplied attachments remain a usage error.
 
 ## 2. Grammars
 
@@ -672,7 +750,7 @@ A choice uses ` | ` between alternative arrays. If a choice or set item shares i
 
 Tests follow their symbol without spaces. Method selectors follow their receiver without spaces. Methods use ` | ` for target choices and `, ` for other argument lists. A zero-argument selector has no parentheses. Call parentheses follow the same no-space adjacency rule.
 
-Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. The ordinary reader accepts those spellings under the same Unicode table, names data, and bindings.
+Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. The ordinary reader accepts those spellings under the same Unicode tables and bindings. Canonical spellings require no names resource.
 
 For every valid pattern P, `key(read(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
 
@@ -1862,7 +1940,7 @@ A tie in either stage of the notation dialect, `lexical` or `syntax`, is an erro
 
 Every bootstrap failure names `notation/bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
-A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, or `features` directives because pipeline splicing consumes them.
+A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, `names`, or `features` directives because pipeline splicing consumes them.
 
 Before the loader stitches any stage, it makes sure that every bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
 
@@ -1878,11 +1956,11 @@ An implementation can keep the DOMs that it built before. Its key includes docum
 
 Even without explicit property references, every document cache requires the properties fingerprint. With no companion for a custom core, it is `null`. An absent member or a different fingerprint gives a cache miss. Prepared stages and scalar-profile caches also distinguish the complete core and properties resources. A custom properties file therefore invalidates bundled cache entries with a different fingerprint, including entries for documents naming no additional property. This unavoidable cache cost preserves table-dependent notation semantics.
 
-When source conversion uses the names file for an escape, the cache writer records a `names` fingerprint for that document. This fingerprint hashes the full `unicode-names.txt` text by the same algorithm. Numeric escapes and core abbreviation escapes alone require no names fingerprint.
+When source conversion loads names data, the cache writer records a `names` map for that document. It maps `unicode-names.txt` and every selected extra's normalized resolved path to that resource's text hash. Paths use the same namespace as cached documents. Map keys use code-point order. Hashes use the same algorithm as document hashes. Numeric escapes and core abbreviation escapes alone require no names map.
 
-After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it loads that resource and compares its fingerprint before accepting the entry. If `names` is absent, the entry requires no names data. A cache hit needs no source token scan or escape inspection.
+After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it loads the selected resources and compares their paths and fingerprints before accepting the entry. If `names` is absent, the entry requires no names data. A cache hit needs no source token scan or escape inspection.
 
-If the recorded names fingerprint differs, the entry gives a cache miss. Missing or malformed required names data remains a loading error despite an existing cache entry. Documents without name escapes omit that fingerprint and remain reusable across names-file changes. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
+The loader obtains local declarations from the shape-valid cached DOM and combines them with the current inherited set. If that selected set differs from the recorded map's resource paths, the entry gives a cache miss. If a required resource hash differs, it also gives a cache miss. Missing or malformed required names data remains a loading error despite an existing entry. Documents without a names dependency omit the map and remain reusable across names-file changes. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
 
 `compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
 
@@ -1896,7 +1974,9 @@ The reader selects the longest punctuation token. `...`, `..`, and `.` are disti
 
 `++` denotes string concatenation, and `+` marks an elidable optional. No whitespace or comment can stand inside a compound punctuation token. Thus `+++` starts with `++` followed by `+`.
 
-The lexer reads maximal names before the reader checks them. A lowercase name matches `[a-z][A-Za-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`. An underscore token matches `_[A-Za-z0-9_]*`. `_` alone is the wildcard, and a name in §1 is an engine tag. Any other underscore token is a document error at that token.
+The lexer reads maximal names before the reader checks them. A lowercase name matches `[a-z][A-Za-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`.
+
+An underscore token starts with `_` and consumes the maximal run of ASCII letters, digits, and underscores. It also consumes a dot directly between two ASCII digits. Thus `_age_15.1` is one token, while `_Alpha.first-token` ends the tag before the method selector. `_` alone is the wildcard, and a name in §1 is an engine tag. Any other underscore token is a document error at that token.
 
 Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a wildcard or engine tag followed by a name. An emoji rule name contains exactly one scalar with `Emoji_Presentation=Yes` and `Emoji_Component=No` in the configured Unicode table.
 
@@ -1920,13 +2000,13 @@ String delimiters are straight double quotes. Dollar signs and backslashes are o
 
 Lexical string tokens retain their quotes and escape spellings. The lexical grammar accepts their raw interiors without interpreting escapes. A separate inspection step resolves escapes after successful lexical recognition, before syntax recognition. During DOM conversion, the reader removes the quotes and decodes the original escapes exactly once. Include-path tokens follow the same rule, with original literal runs. Token source positions and texts retain the written spelling.
 
-An escape starts at `‹` and ends at the next `›`. It contains `U+` and four to six hexadecimal digits, a formal Unicode name, or a name alias. Non-numeric lookup first tries the core abbreviation map. Other names require the lazy names file.
+An escape starts at `‹` and ends at the next `›`. It contains `U+` and four to six hexadecimal digits, a formal Unicode name, or a name alias. Non-numeric lookup first tries the core abbreviation map. Other names require the selected lazy names resources.
 
 Names match exactly, including case and spaces. A numeric escape accepts either case for its hexadecimal digits, but requires uppercase `U+`. Every escape must resolve to one scalar. Escape errors arise during the separate inspection step, before syntax recognition or reader inspection.
 
 A literal `‹` requires an escape. Without an open escape, `›` is literal. An escaped quote remains inside the string and cannot close it. Decoded delimiters never start another escape, comment, call, or pattern. An empty escape, unknown name, missing closer, quote, or line break within an escape is an escape-inspection document error at `‹`.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. Its literal runs preserve the original text without decomposition. Its escapes use the ordinary string decoder. Path resolution uses the decoded result. Paths use separate tokens because includes select documents before constant binding.
+An include or names-resource path is the first and only operand of `%include` or `%names`, in straight double quotes. Its literal runs preserve the original text without decomposition. Its escapes use the ordinary string decoder. Path resolution uses the decoded result. Paths use separate tokens because loading selects resources before constant binding.
 
 A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
 
@@ -1936,17 +2016,19 @@ Whitespace and comments separate tokens but add no grammar node. Call-name adjac
 
 Pattern child lists use `«` U+00AB and `»` U+00BB. If no whitespace or comment separates a node test from its following list, that list must attach to the test. Otherwise, the list begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
 
-Between child items, `«` or `·` requires separation after a node test, closing `»`, or a group's closing `)`. Whitespace or a comment supplies that separation. A call's first adjacent child list belongs to that node test and remains attached. Thus `a« b »` is one node, while `a« b »« c »` and `(a)« b »` are errors. `a·« b »` is also an error.
+Between child items, `«` or `·` requires separation after a node test, `»`, `]`, `}`, or a group's closing `)`. Whitespace or a comment supplies that separation. A call's first adjacent child list belongs to that node test and remains attached. Thus `a« b »` is one node, while `a« b »« c »` and `(a)« b »` are errors. `a·« b »`, `#« [a]« b » »`, and `#« {a}·b »` are also errors. `#« [a] « b » »` and `#« {a} ·b »` are valid.
 
 Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
 Canonical string diagnostics expand user constants and concatenations, then write the result as one quoted string. An empty string uses `""`. The printer does not insert concatenation operators. Dollar signs and unmatched `›` have no escape role by themselves.
 
-The printer escapes a quote, control, format scalar, nonspacing mark, private-use scalar, decomposable scalar, or scalar of nonzero combining class. It also escapes Hangul syllables and `‹`. Section 1 defines the predicates and their data sources. All other scalar values appear literally, including backslashes.
+The printer escapes a quote, control, format scalar, nonspacing mark, private-use scalar, decomposable scalar, or scalar of nonzero combining class. It also escapes Hangul syllables, `‹`, and every configured White_Space scalar except U+0020. The exception removes only this whitespace predicate. Another predicate can still require an escape under a custom table. Section 1 defines the predicates and their data sources. All other scalar values appear literally, including backslashes.
 
 If the core table supplies abbreviation aliases for a scalar, the printer chooses the shortest, then ASCII order on equal length. Other alias kinds remain valid input but never supply canonical output. Without a core abbreviation, the escape uses `U+` and uppercase hexadecimal digits. The number has at least four digits, without unnecessary leading zeros. For example, canonical newline is `"‹LF›"`, and canonical U+0301 is `"‹U+0301›"`.
 
-A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins the canonical spellings of its endpoints with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
+With bundled data, a space remains literal, a tab uses `‹HT›`, and U+00A0 uses `‹NBSP›`. U+2003 uses `‹U+2003›`. A backslash prints as itself.
+
+A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins the canonical spellings of its endpoints with `..`. A tag terminal's identity and spelling are its canonical name. Tests never alter terminal identity.
 
 ### 9.2 Syntax forms
 
@@ -2069,7 +2151,7 @@ pattern-brackets = "[" child-choice "]"
 pattern-repeat = "{" child-choice ["/" child-choice] "}"
 directive = directive-name {directive-argument} [conditions]
 directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
-               | "%include" | "%features" | "%ambiguity-resolution"
+               | "%include" | "%names" | "%features" | "%ambiguity-resolution"
 directive-argument = argument-word | argument-string | argument-tag | argument-term
 argument-word = name
 argument-string = string-literal | include-path
@@ -2129,7 +2211,7 @@ A supplied tree can retain a `primary` wrapper around that base. A source test n
 
 Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions.
 
-`%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
+`%include` and `%names` each take exactly one quoted path. Only their first operand receives literal include-path decoding. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
 Thus `%include "a.md" "b$c.md"` reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
@@ -2199,7 +2281,7 @@ An attached list requires a rule-name test, template family, exact call, or para
 
 ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. NO-ATTACHMENT consumes no token. If no adjacent `«` follows the completed atom, NO-ATTACHMENT succeeds. Otherwise, it fails. The two attachment routes are disjoint during recognition, before DOM conversion.
 
-ITEM-BOUNDARY also consumes no token. It enforces the separation rule of §9.1 between consecutive child items. It fails on an adjacent `«` or `·` after a node test, `»`, or group `)`. An attached list never crosses ITEM-BOUNDARY, including after a call's `)`. These assertions use original source positions, before the lexer discards whitespace and comments.
+ITEM-BOUNDARY also consumes no token. It enforces the separation rule of §9.1 between consecutive child items. It fails on an adjacent `«` or `·` after a node test, `»`, `]`, `}`, or group `)`. An attached list never crosses ITEM-BOUNDARY, including after a call's `)`. These assertions use original source positions, before the lexer discards whitespace and comments.
 
 A child set requires a set operator outside its groups. A child sequence cannot consume that operator. These alternatives therefore cannot recognize the same complete text.
 
@@ -2222,7 +2304,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
 | `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
 | `argument-word` | One name token | Name string |
-| `argument-string` | One quoted operand | Only the first `%include` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
+| `argument-string` | One quoted operand | Only the first `%include` or `%names` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
 | `argument-term` | One directive method, reference, empty set, pattern, grouped term, emoji name, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
@@ -2330,7 +2412,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-repeat` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
 | `pattern-path` | One primary, optionally with one path token | Primary alone, or descendant, first, or last path |
 
-The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include path decodes escapes within the token's original literal runs.
+The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include or names-resource path decodes escapes within the token's original literal runs.
 
 For a string token, the reader removes its quotes and decodes every escape. Literal runs retain their decomposed token values. Escape results remain exact, and the result is always `string`. Include paths use the original literal runs with the same escape decoding. Neither form receives further normalization.
 
@@ -2379,8 +2461,8 @@ The lexical stage reads the longest punctuation token. `...` is one chain marker
 
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 
-1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No escape or syntax inspection occurs after that failure.
-2. After successful lexing, escape inspection visits string and include-path tokens in source order. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error.
+1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No preamble, escape, or syntax inspection occurs after that failure.
+2. After successful lexing, the names preamble pass of §1 selects extra resources. Escape inspection then visits string and path tokens in source order. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error.
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
 4. Within a rule, the reader reads the definer, name, flags, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.
@@ -2478,7 +2560,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
   Every DOM that a reader makes meets this requirement. A supplied DOM `{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}` is well formed, whatever text it came from. `[+(KU 🆓) A]`, whose first expression is a `seq`, has no well-formed DOM.
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.
-- An engine tag name outside §1's inventory is a document error at its token. Long aliases and wrong-case names are invalid.
+- An engine tag name outside §1's inventory is a document error at its token. Mixed aliases, unsupported compatibility aliases, and wrong-case names are invalid.
 - The reader applies `lit` to rule-header, alternative, and emission-item tag clauses (§1). Nonempty `lit` is an error at the first retained engine-tag literal.
 - A range in a term or condition is a document error. Property conditions instead read stored tag membership.
 - A value-test operand must resolve to a string. Any scalar string is legal, including capitals and commas. No engine normalization or canonical-value restriction applies.
@@ -2545,7 +2627,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term cannot read the tags that it defines. A read of `$.tags` or `$.classes` in that term is an error. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one include path, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
 
 A template first undergoes binder and syntax analysis (§2.3). Argument-dependent requirements apply after substitution to every expanded definition.
 
@@ -2619,13 +2701,13 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a recipe or emission.
 - It has an alternative guard whose feature is not a feature name as §9.1 defines it. Or the guard has members beyond its feature, kind, and negation state.
-- It has a directive whose name is not `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features`.
-- It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features` directive whose operands the reader refuses.
+- It has a directive whose name is not `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features`.
+- It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include`, `names` or `features` directive whose operands the reader refuses.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
 - It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag clause with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
 - Its wildcard is not `wildcard:true`.
-- It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.
+- It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference accepts only a user constant name. String escapes represent scalar values. An underscore constant name is an error at the reference.
 - Its constant value is not closed, or it holds an engine-tag literal outside a pattern literal.
 - Its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
@@ -3033,7 +3115,9 @@ To splice a pipeline, the loader reads the pipeline document's items (§9) in or
 
 Stage selection continues across grammar blocks and include boundaries. The includer's next item goes into the stage selected at the end of the include.
 
-Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2). This includes every feature check in this section. Discarded feature declarations and replaced rule alternatives undergo none of these checks. Source syntax, DOM shape and depth, and include errors still fail the load.
+Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. Names preambles select document-scoped resources before include expansion (§1). Splicing consumes those declarations without changing the selected stage.
+
+The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2). This includes every feature check in this section. Discarded feature declarations and replaced rule alternatives undergo none of these checks. Source syntax, DOM shape and depth, and include errors still fail the load.
 
 A `%features` before the first stage selector declares global defaults. Every later `%features` belongs to the selected stage, including across include boundaries. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
 
