@@ -4,7 +4,9 @@ use super::*;
 impl Pattern {
     pub(crate) fn from_layered_json(root: &Json) -> Result<Self, String> {
         let name = |name: &str| {
-            name.contains('(') && name.ends_with(')') || dom::is_classifier_name(name) || name.chars().count() == 1
+            name.contains('(') && name.ends_with(')')
+                || dom::is_classifier_name(name)
+                || name.chars().count() == 1 && name.chars().next().is_some_and(|c| !c.is_ascii())
         };
         let inspect = shapes::Inspection { name: Some(&name), ..Default::default() };
         if let Some(problem) = shapes::problem(root, &inspect) {
