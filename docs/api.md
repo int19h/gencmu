@@ -20,7 +20,7 @@ A supplied `unicode-properties.txt` replaces bundled properties without fallback
 
 A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map and matching names-dependent cache entries require names data. Canonical printing uses the core abbreviation records. A custom names file can omit standard entries and add names only for unnamed scalars (engine §1).
 
-Unknown names are document errors at `‹`. A missing required file, version mismatch, or malformed file is a grammar loading error (engine §1).
+A name is unknown only if neither the core abbreviation map nor the combined selected names files resolves it. Unknown names are document errors at `‹`. A missing required file, version mismatch, or malformed file is a grammar loading error (engine §1).
 
 The decoded include path resolves against its containing document, with `.` and `..` normalized (engine §13).
 

@@ -697,4 +697,4 @@ The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` befor
 
 Token text and source metadata retain the input scalar that was written. The seven rows marked Not read remain unread in both encodings until an explicit rule accepts them. Loading and parsing produce no warning about the older encoding.
 
-[Engine §1](engine.md#bundled-zbalermorna-names) pins both sources and gives the mapping for each character. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.
+[The grammar's closing section](../grammars/phonemes/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.

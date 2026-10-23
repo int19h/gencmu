@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The [CLL](../dialects/cll-ebnf.md) dialect omits this script. CLL is *The Complete Lojban Language*. The stage reads the script as the code points of the private-use block that its fonts assign it.
+This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The [CLL](../dialects/cll-ebnf.md) dialect omits this script. CLL is *The Complete Lojban Language*. The stage reads both private-use encodings defined in [Two encodings](#two-encodings).
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -14,7 +14,7 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 - An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
 - Glide radicals for `i` and `u`, which read as plain vowels without a following vowel
 
-The code points are those of the private-use block of the font. This document writes each code point as an escape, so that a reader can read the rule without the font.
+The phoneme explanations use Humbert code points. The closing mapping gives their UCSUR counterparts. This document writes each code point as an escape, so that a reader can read the rule without the font.
 
 The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
 
@@ -191,3 +191,85 @@ After the shorthand U+ED8B, jbotci accepts the diphthong diacritics U+EDA6 to U+
 This document reads U+EDAC, U+ED8D, U+ED9C and U+EDB6 as pauses, while jbotci rejects them as invalid characters. A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
+
+## Two encodings
+
+`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. It names 50 characters in each encoding. A name supplies an exact scalar, rather than declaring a grammar terminal.
+
+The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Read contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
+
+The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
+
+The other source is the [UCSUR zbalermorna entry](https://www.kreativekorp.com/ucsur/), proposal dated 2024-08-20, credited to la kmir. That proposal date identifies the encoding version. The entry gives no separate numbered version. It assigns U+F28A0–U+F28DF and links Humbert's proposal. This source version is independent of the names file's Unicode 15.1.0 header.
+
+The registry publisher's [Fairfax character table](https://github.com/kreativekorp/open-relay/blob/e4b81241e8c7269a91c0bd865cf5c9e7208fbada/Fairfax/pua.html) records the UCSUR scalars and names individually. This supporting snapshot is Fairfax 2026.09.21, dated 2026-09-21, at commit `e4b81241e8c7269a91c0bd865cf5c9e7208fbada`. The table below pins those assignments rather than using a later live resource.
+
+Each row gives one character and its exact scalar in each layout. The character's source name is `ZBALERMORNA ` followed by the character suffix. The names file inserts an encoding qualifier after `ZBALERMORNA`. Thus its older name is `ZBALERMORNA HUMBERT ` followed by the suffix. Its UCSUR name is `ZBALERMORNA UCSUR ` followed by the suffix.
+
+These qualified names keep the two scalar bindings distinct in one lookup namespace. The file supplies no unqualified spelling. For example, `‹ZBALERMORNA HUMBERT LETTER PY›` decodes to U+ED80. `‹ZBALERMORNA UCSUR LETTER PY›` decodes to U+F28A0. Neither spelling silently changes encoding.
+
+The final column defines which character pairs have explicit alternatives in the zbalermorna phoneme grammar. Each row marked Read requires a UCSUR counterpart in exactly the same alternatives. Both spellings produce the same token values, images, and tags. Token text and source metadata preserve the scalar that the input contains. The names file also includes characters marked Not read.
+
+| Character suffix | Humbert | UCSUR | Phoneme grammar |
+| --- | --- | --- | --- |
+| LETTER PY | U+ED80 | U+F28A0 | Read |
+| LETTER TY | U+ED81 | U+F28A1 | Read |
+| LETTER KY | U+ED82 | U+F28A2 | Read |
+| LETTER FY | U+ED83 | U+F28A3 | Read |
+| LETTER LY | U+ED84 | U+F28A4 | Read |
+| LETTER SY | U+ED85 | U+F28A5 | Read |
+| LETTER CY | U+ED86 | U+F28A6 | Read |
+| LETTER MY | U+ED87 | U+F28A7 | Read |
+| LETTER XY | U+ED88 | U+F28A8 | Read |
+| SYMBOL FOR DENPA BU | U+ED89 | U+F28A9 | Read |
+| SYMBOL FOR YHY | U+ED8A | U+F28AA | Read |
+| SYMBOL FOR CNIMAHO BU | U+ED8B | U+F28AB | Read |
+| COMBINING PA TONGA | U+ED8C | U+F28AC | Read |
+| COMBINING RE TONGA | U+ED8D | U+F28AD | Not read |
+| COMBINING CI TONGA | U+ED8E | U+F28AE | Not read |
+| COMBINING VO TONGA | U+ED8F | U+F28AF | Not read |
+| LETTER BY | U+ED90 | U+F28B0 | Read |
+| LETTER DY | U+ED91 | U+F28B1 | Read |
+| LETTER GY | U+ED92 | U+F28B2 | Read |
+| LETTER VY | U+ED93 | U+F28B3 | Read |
+| LETTER RY | U+ED94 | U+F28B4 | Read |
+| LETTER ZY | U+ED95 | U+F28B5 | Read |
+| LETTER JY | U+ED96 | U+F28B6 | Read |
+| LETTER NY | U+ED97 | U+F28B7 | Read |
+| COMBINING BAHEBU | U+ED98 | U+F28B8 | Read |
+| SYMBOL FOR SMAJI BU | U+ED99 | U+F28B9 | Read |
+| SYMBOL FOR SLAKA BU | U+ED9A | U+F28BA | Read |
+| COMBINING TCENA BU | U+ED9B | U+F28BB | Read |
+| VOWEL SIGN ABU | U+EDA0 | U+F28C0 | Read |
+| VOWEL SIGN EBU | U+EDA1 | U+F28C1 | Read |
+| VOWEL SIGN IBU | U+EDA2 | U+F28C2 | Read |
+| VOWEL SIGN OBU | U+EDA3 | U+F28C3 | Read |
+| VOWEL SIGN UBU | U+EDA4 | U+F28C4 | Read |
+| VOWEL SIGN YBU | U+EDA5 | U+F28C5 | Read |
+| VOWEL SIGN AIBU | U+EDA6 | U+F28C6 | Read |
+| VOWEL SIGN EIBU | U+EDA7 | U+F28C7 | Read |
+| VOWEL SIGN OIBU | U+EDA8 | U+F28C8 | Read |
+| VOWEL SIGN AUBU | U+EDA9 | U+F28C9 | Read |
+| LETTER SEMIVOWEL IY | U+EDAA | U+F28CA | Read |
+| LETTER SEMIVOWEL UY | U+EDAB | U+F28CB | Read |
+| LETTER FULL ABU | U+EDB0 | U+F28D0 | Read |
+| LETTER FULL EBU | U+EDB1 | U+F28D1 | Read |
+| LETTER FULL IBU | U+EDB2 | U+F28D2 | Read |
+| LETTER FULL OBU | U+EDB3 | U+F28D3 | Read |
+| LETTER FULL UBU | U+EDB4 | U+F28D4 | Read |
+| LETTER FULL YBU | U+EDB5 | U+F28D5 | Read |
+| LETTER FULL AIBU | U+EDB6 | U+F28D6 | Not read |
+| LETTER FULL EIBU | U+EDB7 | U+F28D7 | Not read |
+| LETTER FULL OIBU | U+EDB8 | U+F28D8 | Not read |
+| LETTER FULL AUBU | U+EDB9 | U+F28D9 | Not read |
+
+For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB9 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
+
+The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Their UCSUR counterparts are U+F28D6–U+F28D9. Both sets receive encoding-qualified names in this resource. Every character occurs in both layouts, so no character belongs to only one encoding.
+
+These alternatives cover 43 character pairs. The seven rows marked Not read stay unread in both encodings until an explicit grammar rule accepts them. They are three tone marks and four full diphthong letters. A names declaration alone adds no phoneme rule. Escape decoding never converts between the layouts.
+
+The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
+
+
+Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. For every Read pair, cases require matching values, images, and tags, with text and source metadata retaining the written scalar. The seven Not read pairs remain unread in both encodings. No case warns about the older encoding.

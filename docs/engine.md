@@ -90,6 +90,10 @@ The records can stand in any order in a file. Each library sorts them when it lo
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
+The core loader inspects every abbreviation against the embedded pinned standard naming catalog. A record cannot bind a pinned formal name or alias to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `unicode.txt` and the record's line when known.
+
+This inspection uses the same standard bindings that protect names files. It reads neither `unicode-names.txt` nor an extra names file. A custom core cannot redefine those standard bindings.
+
 The generator copies all 354 abbreviation aliases from pinned NameAliases.txt into the core table. Printing uses only this always-loaded map, with no names-file lookup. A custom core replaces this map without fallback. Without an abbreviation for a scalar, the printer uses its numeric escape.
 
 Core abbreviation escapes also decode through this map, without names data. Other source name escapes use the separate names file. This priority keeps canonical spelling readable through the ordinary reader.
@@ -351,7 +355,9 @@ Record order does not affect name lookup. Exact spellings, including case and sp
 
 If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A matching names-dependent cache entry also requires those files. Printing never loads them because abbreviations belong to the core table. A dialect can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
 
-A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. An omitted name is unknown unless a declared extra file supplies a permitted addition. The two files must declare the same version.
+A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. The two files must declare the same version.
+
+A name is unknown only when neither the core abbreviation map nor the combined selected names files resolves it. Omission from the base file alone therefore does not make a name unknown. If lookup reaches names files, only the selected base file and declared extras can resolve it. No bundled fallback supplies omitted entries.
 
 A custom `name` record can name a scalar that has no formal Unicode name in the pinned version. Private-use scalars are one example. It cannot change a standard formal name, including an algorithmic name. Standard alias records must retain their pinned kind, spelling, and scalar. Custom algorithms can only retain or omit the pinned rules and ranges.
 
@@ -359,7 +365,7 @@ An added name starts with an uppercase ASCII letter. Its remaining characters ar
 
 It cannot conflict with an active core abbreviation or another selected file's name. Exact duplicate additions across different files are harmless, but conflicting names or two formal names for one scalar are loading errors.
 
-Each library embeds the pinned standard naming catalog for these restrictions, including computed naming rules. It consults that catalog only when it loads names data. The catalog never supplies omitted lookup entries. The portable library includes the same catalog. A names file without an available catalog for its declared Unicode version causes a loading error. Custom core tables do not change which names count as standard.
+Each library embeds the pinned standard naming catalog for these restrictions, including computed naming rules. It consults that catalog during core abbreviation inspection and names-file loading. The catalog never supplies omitted lookup entries. The portable library includes the same catalog. A names file without an available catalog for its declared Unicode version causes a loading error. Custom core tables do not change which names count as standard.
 
 If bundled resources exist and versions match, an omitted names file selects the bundled file. If those resources are unavailable and names data is needed, the caller must supply the names file. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `unicode-names.txt`. If the line is known, the error includes it. These resource errors arise during source escape inspection or names-dependent cache loading, never from printing.
 
@@ -387,90 +393,15 @@ The DOM retains each `%names` directive and its decoded path. Its declaration or
 
 Pipeline splicing consumes these directives before stage stitching. They never enter a stitched grammar or bootstrap stage. Supplied DOMs follow the same preamble placement and path rules. Canonical stitching omits these directives because it prints decoded strings with core abbreviations or numeric escapes.
 
-### Bundled zbalermorna names
-
-`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. It names 50 characters in each encoding. A name supplies an exact scalar, rather than declaring a grammar terminal.
-
-The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Read contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
-
-The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
-
-The other source is the [UCSUR zbalermorna entry](https://www.kreativekorp.com/ucsur/), proposal dated 2024-08-20, credited to la kmir. That proposal date identifies the encoding version. The entry gives no separate numbered version. It assigns U+F28A0–U+F28DF and links Humbert's proposal. This source version is independent of the names file's Unicode 15.1.0 header.
-
-The registry publisher's [Fairfax character table](https://github.com/kreativekorp/open-relay/blob/e4b81241e8c7269a91c0bd865cf5c9e7208fbada/Fairfax/pua.html) records the UCSUR scalars and names individually. This supporting snapshot is Fairfax 2026.09.21, dated 2026-09-21, at commit `e4b81241e8c7269a91c0bd865cf5c9e7208fbada`. The table below pins those assignments rather than using a later live resource.
-
-Each row gives one character and its exact scalar in each layout. The character's source name is `ZBALERMORNA ` followed by the character suffix. The names file inserts an encoding qualifier after `ZBALERMORNA`. Thus its older name is `ZBALERMORNA HUMBERT ` followed by the suffix. Its UCSUR name is `ZBALERMORNA UCSUR ` followed by the suffix.
-
-These qualified names keep the two scalar bindings distinct in one lookup namespace. The file supplies no unqualified spelling. For example, `‹ZBALERMORNA HUMBERT LETTER PY›` decodes to U+ED80. `‹ZBALERMORNA UCSUR LETTER PY›` decodes to U+F28A0. Neither spelling silently changes encoding.
-
-The final column records which older characters the current phoneme document reads. Each row marked Read requires a UCSUR counterpart in exactly the same alternatives. Both spellings produce the same token values, images, and tags. Token text and source metadata preserve the scalar that the input contains. The names file also includes characters marked Not read.
-
-| Character suffix | Humbert | UCSUR | Current older grammar |
-| --- | --- | --- | --- |
-| LETTER PY | U+ED80 | U+F28A0 | Read |
-| LETTER TY | U+ED81 | U+F28A1 | Read |
-| LETTER KY | U+ED82 | U+F28A2 | Read |
-| LETTER FY | U+ED83 | U+F28A3 | Read |
-| LETTER LY | U+ED84 | U+F28A4 | Read |
-| LETTER SY | U+ED85 | U+F28A5 | Read |
-| LETTER CY | U+ED86 | U+F28A6 | Read |
-| LETTER MY | U+ED87 | U+F28A7 | Read |
-| LETTER XY | U+ED88 | U+F28A8 | Read |
-| SYMBOL FOR DENPA BU | U+ED89 | U+F28A9 | Read |
-| SYMBOL FOR YHY | U+ED8A | U+F28AA | Read |
-| SYMBOL FOR CNIMAHO BU | U+ED8B | U+F28AB | Read |
-| COMBINING PA TONGA | U+ED8C | U+F28AC | Read |
-| COMBINING RE TONGA | U+ED8D | U+F28AD | Not read |
-| COMBINING CI TONGA | U+ED8E | U+F28AE | Not read |
-| COMBINING VO TONGA | U+ED8F | U+F28AF | Not read |
-| LETTER BY | U+ED90 | U+F28B0 | Read |
-| LETTER DY | U+ED91 | U+F28B1 | Read |
-| LETTER GY | U+ED92 | U+F28B2 | Read |
-| LETTER VY | U+ED93 | U+F28B3 | Read |
-| LETTER RY | U+ED94 | U+F28B4 | Read |
-| LETTER ZY | U+ED95 | U+F28B5 | Read |
-| LETTER JY | U+ED96 | U+F28B6 | Read |
-| LETTER NY | U+ED97 | U+F28B7 | Read |
-| COMBINING BAHEBU | U+ED98 | U+F28B8 | Read |
-| SYMBOL FOR SMAJI BU | U+ED99 | U+F28B9 | Read |
-| SYMBOL FOR SLAKA BU | U+ED9A | U+F28BA | Read |
-| COMBINING TCENA BU | U+ED9B | U+F28BB | Read |
-| VOWEL SIGN ABU | U+EDA0 | U+F28C0 | Read |
-| VOWEL SIGN EBU | U+EDA1 | U+F28C1 | Read |
-| VOWEL SIGN IBU | U+EDA2 | U+F28C2 | Read |
-| VOWEL SIGN OBU | U+EDA3 | U+F28C3 | Read |
-| VOWEL SIGN UBU | U+EDA4 | U+F28C4 | Read |
-| VOWEL SIGN YBU | U+EDA5 | U+F28C5 | Read |
-| VOWEL SIGN AIBU | U+EDA6 | U+F28C6 | Read |
-| VOWEL SIGN EIBU | U+EDA7 | U+F28C7 | Read |
-| VOWEL SIGN OIBU | U+EDA8 | U+F28C8 | Read |
-| VOWEL SIGN AUBU | U+EDA9 | U+F28C9 | Read |
-| LETTER SEMIVOWEL IY | U+EDAA | U+F28CA | Read |
-| LETTER SEMIVOWEL UY | U+EDAB | U+F28CB | Read |
-| LETTER FULL ABU | U+EDB0 | U+F28D0 | Read |
-| LETTER FULL EBU | U+EDB1 | U+F28D1 | Read |
-| LETTER FULL IBU | U+EDB2 | U+F28D2 | Read |
-| LETTER FULL OBU | U+EDB3 | U+F28D3 | Read |
-| LETTER FULL UBU | U+EDB4 | U+F28D4 | Read |
-| LETTER FULL YBU | U+EDB5 | U+F28D5 | Read |
-| LETTER FULL AIBU | U+EDB6 | U+F28D6 | Not read |
-| LETTER FULL EIBU | U+EDB7 | U+F28D7 | Not read |
-| LETTER FULL OIBU | U+EDB8 | U+F28D8 | Not read |
-| LETTER FULL AUBU | U+EDB9 | U+F28D9 | Not read |
-
-For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB9 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
-
-The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Their UCSUR counterparts are U+F28D6–U+F28D9. Both sets receive encoding-qualified names in this resource. Every character occurs in both layouts, so no character belongs to only one encoding.
-
-The current phoneme document reads 43 older scalars and no UCSUR scalar. The specified support for both encodings requires the alternative changes stated above. The seven rows marked Not read stay unread in both encodings until an explicit grammar rule accepts them. They are three tone marks and four full diphthong letters. A names declaration alone adds no phoneme rule. Escape decoding never converts between the layouts.
-
-The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
+The [zbalermorna grammar's closing section](../grammars/phonemes/zbalermorna.md#two-encodings) gives a bundled example of an extra names resource. The grammar document owns that resource's inventory, source pins, and dialect behavior.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
-Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets.
+Shared core cases reject `abbreviation 0041 LF` and `abbreviation 0041 SPACE` during core loading. Correct bindings `abbreviation 000A LF` and `abbreviation 0020 SPACE` remain valid. These cases do not require a grammar name escape or a names file.
 
-Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. For every Read pair, cases require matching values, images, and tags, with text and source metadata retaining the written scalar. The seven Not read pairs remain unread in both encodings. No case warns about the older encoding.
+A header-only custom names file does not prevent core lookup of `‹LF›`. A name omitted from both lookup routes remains unknown, without bundled fallback. These cases distinguish core priority from file replacement.
+
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 
