@@ -1,0 +1,29 @@
+{
+  "description": "A classifier key decodes source escapes.",
+  "grammar": "%classifier c \"‹U+0022›\" ∈ QUOTED\n%rule text _ :: $.value.classify(c) %emits",
+  "tokens": [
+    {
+      "text": "\"",
+      "value": "\"",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "QUOTED"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

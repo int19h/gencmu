@@ -13,11 +13,12 @@ const domFormat = 40
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
 type domDoc struct {
-	Rules        []*domRule
-	Directives   []*domDirective
-	Constants    []*domConst
-	Classifiers  []*domClassifier
-	Implications []*domImplication
+	namesDependencies map[string]string
+	Rules             []*domRule
+	Directives        []*domDirective
+	Constants         []*domConst
+	Classifiers       []*domClassifier
+	Implications      []*domImplication
 }
 
 // domClassifier is a %classifier item (engine §2): its name, which begins

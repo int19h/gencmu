@@ -208,6 +208,17 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 }
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
+	if b.strings != nil {
+		token := n
+		if token.Kind != KindToken {
+			token = b.token(n)
+		}
+		value, err := b.strings.decode(b.toks[token.Token], false)
+		if err != nil {
+			panic(err)
+		}
+		return &domTerm{Kind: tmString, Str: value}
+	}
 	rs := []rune(b.tokenValue(n))
 	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
 		b.fail(n, "a string uses double quotes")

@@ -21,6 +21,7 @@ pub const DOM_FORMAT: i64 = 40;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
+    pub names_dependencies: Option<std::collections::BTreeMap<String, String>>,
     pub rules: Vec<RuleDef>,
     pub directives: Vec<Directive>,
     pub constants: Vec<ConstDef>,

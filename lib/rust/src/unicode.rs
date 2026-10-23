@@ -53,7 +53,9 @@ pub(crate) struct Unicode {
     emoji_component: Vec<(u32, u32)>,
     decompositions: Vec<(u32, Vec<char>)>,
     combining: Vec<(u32, u32, u8)>,
-    abbreviations: std::collections::BTreeMap<String, u32>,
+    pub(crate) abbreviations: std::collections::BTreeMap<String, u32>,
+    pub(crate) version: Option<String>,
+    pub(crate) version_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,13 +97,19 @@ impl Unicode {
             decompositions: Vec::new(),
             combining: Vec::new(),
             abbreviations: std::collections::BTreeMap::new(),
+            version: None,
+            version_count: 0,
         };
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
             let line = raw.strip_suffix('\n').map_or(raw, |line| line.strip_suffix('\r').unwrap_or(line));
             let fields = line.split([' ', '\t']).filter(|field| !field.is_empty()).collect::<Vec<_>>();
             match fields.as_slice() {
-                [] | ["unicode", _] => {}
+                [] => {}
+                ["unicode", version] => {
+                    table.version = Some((*version).into());
+                    table.version_count += 1;
+                }
                 ["abbreviation", scalar, alias] => {
                     let code = hex(scalar, number)?;
                     let pinned = PINNED_CORE_NAMES

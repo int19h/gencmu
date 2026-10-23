@@ -361,8 +361,17 @@ impl Dialect {
     }
 
     pub(crate) fn parse_chars(&self, chars: Vec<char>, options: &ParseOptions) -> Result<ParseResult, Error> {
+        self.parse_chars_inspected(chars, options, |_| Ok(()))
+    }
+
+    pub(crate) fn parse_chars_inspected(
+        &self,
+        chars: Vec<char>,
+        options: &ParseOptions,
+        inspect: impl FnMut(&[Token]) -> Result<(), Error>,
+    ) -> Result<ParseResult, Error> {
         let unicode = self.unicode.clone();
-        self.run(chars, options, move |tags, chars| character_tokens(&unicode, tags, chars))
+        self.run(chars, options, move |tags, chars| character_tokens(&unicode, tags, chars), inspect)
     }
 
     /// Parses a sequence of tokens given directly to the first stage, for
@@ -378,41 +387,46 @@ impl Dialect {
         let joined: Vec<&str> = tokens.iter().map(|token| token.text.as_str()).collect();
         let chars: Vec<char> = joined.join(" ").chars().collect();
         let tokens = tokens.to_vec();
-        self.run(chars, options, move |tags, _| {
-            let mut input = Vec::with_capacity(tokens.len());
-            let mut public = Vec::with_capacity(tokens.len());
-            let mut at = 0;
-            for (index, token) in tokens.iter().enumerate() {
-                let length = token.text.chars().count();
-                let set = tags.set_of(token.tags.iter().map(String::as_str));
-                // A caller token defaults its image to its text only when
-                // `image` is `None` (§5).
-                public.push(Token {
-                    text: token.text.clone(),
-                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
-                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
-                    tags: tags.to_set(set),
-                    span: index..index + 1,
-                    source: at..at + length,
-                    inserted_by: None,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-                input.push(Tok {
-                    text: token.text.clone(),
-                    tags: set,
-                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
-                    source: (at, at + length),
-                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
-                    sound: Default::default(),
-                    quiet: 0,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-                at += length + 1;
-            }
-            (input, public)
-        })
+        self.run(
+            chars,
+            options,
+            move |tags, _| {
+                let mut input = Vec::with_capacity(tokens.len());
+                let mut public = Vec::with_capacity(tokens.len());
+                let mut at = 0;
+                for (index, token) in tokens.iter().enumerate() {
+                    let length = token.text.chars().count();
+                    let set = tags.set_of(token.tags.iter().map(String::as_str));
+                    // A caller token defaults its image to its text only when
+                    // `image` is `None` (§5).
+                    public.push(Token {
+                        text: token.text.clone(),
+                        value: token.value.clone().unwrap_or_else(|| token.text.clone()),
+                        image: token.image.clone().unwrap_or_else(|| token.text.clone()),
+                        tags: tags.to_set(set),
+                        span: index..index + 1,
+                        source: at..at + length,
+                        inserted_by: None,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                    });
+                    input.push(Tok {
+                        text: token.text.clone(),
+                        tags: set,
+                        value: token.value.clone().unwrap_or_else(|| token.text.clone()),
+                        source: (at, at + length),
+                        image: token.image.clone().unwrap_or_else(|| token.text.clone()),
+                        sound: Default::default(),
+                        quiet: 0,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                    });
+                    at += length + 1;
+                }
+                (input, public)
+            },
+            |_| Ok(()),
+        )
     }
 
     fn run(
@@ -420,6 +434,7 @@ impl Dialect {
         chars: Vec<char>,
         options: &ParseOptions,
         first: impl FnOnce(&mut crate::tags::Tags, &[char]) -> (Vec<Tok>, Vec<Token>),
+        mut inspect: impl FnMut(&[Token]) -> Result<(), Error>,
     ) -> Result<ParseResult, Error> {
         // The features on are the pipeline's, with the caller's added and
         // those the caller turns off removed (engine §13).
@@ -442,7 +457,7 @@ impl Dialect {
         crate::earley::mark_quiet(&mut input, &self.unicode);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let mut run = fresh;
-        self.stages_between(&mut shared, &mut run, &mut features, off, last, options.elision_only);
+        self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
         let ok = run.error.is_none();
         Ok(ParseResult {
             ok,
@@ -459,10 +474,10 @@ impl Dialect {
         shared: &mut Shared,
         run: &mut Run,
         features: &mut BTreeSet<String>,
-        off: &[String],
-        to: usize,
-        elision: Option<bool>,
-    ) {
+        selection: (&[String], usize, Option<bool>),
+        inspect: &mut dyn FnMut(&[Token]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let (off, to, elision) = selection;
         for index in 0..=to {
             shared.next_stage();
             let mut failure = None;
@@ -516,13 +531,17 @@ impl Dialect {
                     witness: None,
                 });
                 run.error = Some(error);
-                return;
+                return Ok(());
             }
             if let Err(error) = self.stage(index, shared, run, features, elision) {
                 run.error = Some(*error);
-                return;
+                return Ok(());
+            }
+            if index == 0 {
+                inspect(&run.public_input)?;
             }
         }
+        Ok(())
     }
 
     /// A defect of a grammar found while parsing: its stage and a message,

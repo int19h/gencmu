@@ -408,7 +408,8 @@ class _Resources:
 
 
 class _Loader:
-    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True) -> None:
+    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True, *, from_disk: bool = False) -> None:
+        self.from_disk = from_disk
         self.lookup = lookup
         self.resources = found
         self.use_cache = use_cache
@@ -423,6 +424,8 @@ class _Loader:
         return text
 
     def names_text(self, path: str) -> str | None:
+        if self.from_disk and path == "unicode-names-reference.txt":
+            return bundled_text(path)
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
 
@@ -543,7 +546,7 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
             return None
         return _decode(data, key)
 
-    return _Loader(lookup, _resources(), use_cache).load(pipeline)
+    return _Loader(lookup, _resources(), use_cache, from_disk=True).load(pipeline)
 
 
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:

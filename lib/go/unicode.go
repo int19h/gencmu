@@ -22,6 +22,8 @@ type unicodeTable struct {
 	combining         []combiningRange
 	abbreviations     map[string]rune
 	hash              string
+	version           string
+	versionCount      int
 }
 
 type combiningRange struct {
@@ -88,6 +90,8 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			if len(f) != 2 {
 				return nil, fmt.Errorf("unicode.txt line %d: expected 2 fields", n+1)
 			}
+			t.version = f[1]
+			t.versionCount++
 			continue
 		case "abbreviation":
 			if len(f) != 3 {

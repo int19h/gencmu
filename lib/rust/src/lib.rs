@@ -69,10 +69,12 @@ mod recent;
 mod restoration;
 mod result;
 mod slot_stats;
+mod string_escapes;
 mod strings;
 mod tags;
 mod tree;
 mod unicode;
+mod unicode_names;
 mod witness;
 mod work;
 

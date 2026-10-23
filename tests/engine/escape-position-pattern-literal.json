@@ -1,0 +1,18 @@
+{
+  "description": "A literal in a tree pattern decodes source escapes.",
+  "grammar": "%rule text $x:\"‹U+00E9›\" %conditions $x ≅ #\"‹U+00E9›\"",
+  "tokens": [
+    {
+      "text": "é",
+      "value": "é",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

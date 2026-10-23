@@ -1,0 +1,18 @@
+{
+  "description": "A condition decodes its quoted operand.",
+  "grammar": "%rule text _ %conditions $.value = \"‹U+00E9›\"",
+  "tokens": [
+    {
+      "text": "é",
+      "value": "é",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

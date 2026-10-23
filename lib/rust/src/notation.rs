@@ -17,6 +17,7 @@ pub(crate) struct Reader<'a> {
     pub defer_emission: bool,
     pub feature_context: std::cell::Cell<bool>,
     pub tokens: &'a [Token],
+    pub strings: &'a crate::string_escapes::DocumentStrings<'a>,
     /// The captures of the alternative being read, in the order written,
     /// where an error about one is reported.
     pub captures: std::cell::RefCell<Vec<&'a Node>>,
@@ -39,10 +40,6 @@ fn rule_name(node: &Node) -> &str {
 }
 
 impl<'a> Reader<'a> {
-    fn source_text(&self, node: &Node) -> &str {
-        node.token.and_then(|token| self.tokens.get(token)).map_or("", |token| token.text.as_str())
-    }
-
     fn value(&self, node: &Node) -> &str {
         node.token.and_then(|token| self.tokens.get(token)).map_or("", |token| token.value.as_str())
     }
@@ -307,13 +304,12 @@ impl<'a> Reader<'a> {
                 if rule_name(part) != "argument-string" {
                     return Err(self.error(node, "%include takes one quoted path"));
                 }
-                let text = self.source_text(self.token(part)?);
-                args.push(
-                    text.strip_prefix('"')
-                        .and_then(|s| s.strip_suffix('"'))
-                        .ok_or_else(|| self.error(node, "include path requires double quotes"))?
-                        .to_string(),
-                );
+                let token = self.token(part)?;
+                let token = token
+                    .token
+                    .and_then(|index| self.tokens.get(index))
+                    .ok_or_else(|| self.shape_error(node, "path token"))?;
+                args.push(self.strings.decode(token, true)?);
             } else {
                 if rule_name(part) != "argument-word" {
                     return Err(self.error(node, "directive requires name operands"));
@@ -2019,10 +2015,14 @@ impl<'a> Reader<'a> {
 
     fn string_term(&self, token: &'a Node) -> R<Term> {
         let text = self.value(token);
-        let Some(body) = text.strip_prefix('"').and_then(|s| s.strip_suffix('"')) else {
+        if text.strip_prefix('"').and_then(|s| s.strip_suffix('"')).is_none() {
             return Err(self.error(token, "a string requires double quotes"));
-        };
-        Ok(Term::Str(body.into()))
+        }
+        let token = token
+            .token
+            .and_then(|index| self.tokens.get(index))
+            .ok_or_else(|| self.shape_error(token, "string token"))?;
+        Ok(Term::Str(self.strings.decode(token, false)?))
     }
 
     fn channels(&self, node: &'a Node) -> R<Channels> {

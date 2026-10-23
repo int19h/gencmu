@@ -85,6 +85,9 @@ func TestRankedShortestTagWitness(t *testing.T) {
 }
 func TestRankedSyntaxAndRetirement(t *testing.T) {
 	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
 	for _, body := range []string{"a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"} {
 		_, e := bundled.reader.read("```jbogenbau\n%rule text "+body+"\n```\n", "g.md")
 		if e == nil || e.Code != "ranked-choice-syntax" {

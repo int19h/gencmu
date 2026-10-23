@@ -129,11 +129,16 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 	return nr.readMode(text, docPath, false)
 }
-func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (dom *domDoc, err *Error) {
+func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}
+	names := newNamesScope(bundledNamesText, nr.uni, nil)
+	if len(selected) > 0 {
+		names = selected[0]
+	}
+	strings := &documentStrings{path: docPath, uni: nr.uni, names: names, position: gt.at}
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
 	var out stageOutcome
@@ -192,9 +197,14 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		if i < len(nr.stages)-1 {
 			toks = out.stage.Output
+			if i == 0 {
+				if err := strings.inspect(toks); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
-	b := &domBuilder{deferEmission: deferEmission, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
+	b := &domBuilder{deferEmission: deferEmission, strings: strings, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -224,6 +234,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		return nil, e
 	}
+	dom.namesDependencies = names.dependencies
 	return dom, nil
 }
 
@@ -265,6 +276,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	strings        *documentStrings
 	hasBoundary    bool
 	deferEmission  bool
 	featureContext bool
@@ -566,8 +578,16 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
 					if dir.Name == "include" && len(dir.Args) == 0 {
-						operand = b.sourceText(b.token(p))
-						dir.Args = append(dir.Args, operand[1:len(operand)-1])
+						if b.strings != nil {
+							decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
+							if err != nil {
+								panic(err)
+							}
+							dir.Args = append(dir.Args, decoded)
+						} else {
+							operand = b.sourceText(b.token(p))
+							dir.Args = append(dir.Args, operand[1:len(operand)-1])
+						}
 					} else {
 						dir.Args = append(dir.Args, operand)
 					}

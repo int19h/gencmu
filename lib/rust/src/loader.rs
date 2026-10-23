@@ -15,7 +15,9 @@ use crate::markdown::{grammar_text, resolve};
 use crate::notation::Reader;
 use crate::pipeline::{splice, Documents, Spliced};
 use crate::result::ParseErrorKind;
+use crate::string_escapes::DocumentStrings;
 use crate::unicode::Unicode;
+use crate::unicode_names::NamesScope;
 
 mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
@@ -31,8 +33,14 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 /// its depth.
 #[derive(Default)]
 struct Compiled {
-    by_path: HashMap<String, (String, Arc<Json>)>,
-    by_hash: HashMap<String, Arc<Json>>,
+    by_path: HashMap<String, (String, CompiledEntry)>,
+    by_hash: HashMap<String, CompiledEntry>,
+}
+
+#[derive(Clone)]
+struct CompiledEntry {
+    dom: Arc<Json>,
+    names: Option<Arc<Json>>,
 }
 
 /// The members of an object, taken out of it, or none for another value.
@@ -63,11 +71,19 @@ impl Compiled {
             return Ok(compiled);
         }
         for (path, entry) in take(value, "documents").map(members).unwrap_or_default() {
-            let hash = entry.get("hash").and_then(Json::as_str).map(str::to_string);
-            if let (Some(hash), Some(dom)) = (hash, take(entry, "dom")) {
-                let dom = Arc::new(dom);
-                compiled.by_path.insert(path, (hash.clone(), dom.clone()));
-                compiled.by_hash.insert(hash, dom);
+            let (mut hash, mut dom, mut names) = (None, None, None);
+            for (key, value) in members(entry) {
+                match key.as_str() {
+                    "hash" => hash = value.as_str().map(str::to_string),
+                    "dom" => dom = Some(Arc::new(value)),
+                    "names" => names = Some(Arc::new(value)),
+                    _ => {}
+                }
+            }
+            if let (Some(hash), Some(dom)) = (hash, dom) {
+                let entry = CompiledEntry { dom, names };
+                compiled.by_path.insert(path, (hash.clone(), entry.clone()));
+                compiled.by_hash.insert(hash, entry);
             }
         }
         Ok(compiled)
@@ -75,12 +91,22 @@ impl Compiled {
 
     // This cache belongs to one immutable context. Its format, bootstrap
     // and Unicode identity gate all entries before document-hash lookup.
-    fn lookup(&self, path: &str, hash: &str, unicode: &Unicode) -> Option<Dom> {
-        let dom = match self.by_path.get(path) {
-            Some((known, dom)) if known == hash => Some(dom),
+    fn lookup(&self, path: &str, hash: &str, unicode: &Unicode, names: &NamesScope<'_>) -> Result<Option<Dom>, Error> {
+        let entry = match self.by_path.get(path) {
+            Some((known, entry)) if known == hash => Some(entry),
             _ => self.by_hash.get(hash),
-        }?;
-        dom_from_json(dom, unicode).ok()
+        };
+        let Some(entry) = entry else {
+            return Ok(None);
+        };
+        let Ok(mut dom) = dom_from_json(&entry.dom, unicode) else {
+            return Ok(None);
+        };
+        if !names.matches(entry.names.as_deref())? {
+            return Ok(None);
+        }
+        dom.names_dependencies = names.dependencies.borrow().clone();
+        Ok(Some(dom))
     }
 }
 
@@ -211,14 +237,20 @@ impl Context {
             .clone()
     }
 
+    #[cfg(test)]
     fn document(&self, path: &str, text: &str, diagnostic: bool) -> Result<Dom, Error> {
-        let mut dom = if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
+        let names = NamesScope::new(&bundled_names, &self.unicode, []);
+        self.document_named(path, text, diagnostic, &names)
+    }
+
+    fn document_named(&self, path: &str, text: &str, diagnostic: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
+        let mut dom = if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
-            read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))?
+            read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
         };
         if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            return read_document_mode(&self.notation, text, true).map_err(|e| e.in_document(path));
+            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
         }
         if diagnostic {
             #[cfg(test)]
@@ -240,9 +272,21 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
     read_document_mode(notation, text, false)
 }
 fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
+    let names = NamesScope::new(&bundled_names, &notation.unicode, []);
+    read_document_named(notation, text, defer, &names)
+}
+
+fn bundled_names(path: &str) -> Result<Option<String>, Error> {
+    let path = if path == "unicode-names-reference.txt" { "unicode-names.txt" } else { path };
+    Ok(bundled(path).map(str::to_string))
+}
+
+fn read_document_named(notation: &Dialect, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
+    let position = |index: usize| grammar.position(index);
+    let strings = DocumentStrings { unicode: &notation.unicode, names, position: &position };
     let options = ParseOptions::default();
-    let result = notation.parse_chars(grammar.chars.clone(), &options)?;
+    let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
     if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
         let (line, column) = grammar.position(token.source.start);
@@ -290,13 +334,13 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     // The reader, its checks and the drop of what it reads walk the tree
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
-    let position = |index: usize| grammar.position(index);
     let reader = Reader {
         parameter_state: Default::default(),
         unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),
         tokens: &stage.input,
+        strings: &strings,
         captures: Default::default(),
         braces: Default::default(),
         marked: Default::default(),
@@ -304,8 +348,9 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         closed_for: Default::default(),
         in_recipe: Default::default(),
     };
-    let dom = reader.document(tree)?;
+    let mut dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
+    dom.names_dependencies = names.dependencies.borrow().clone();
     Ok(dom)
 }
 
@@ -419,6 +464,12 @@ trait Sources {
     /// The text of the document at `path`, or `None` when there is none.
     fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
+    fn names(&self, path: &str) -> Result<Option<String>, Error> {
+        match self.read(path)? {
+            Some(text) => Ok(Some(text)),
+            None => bundled_names(path),
+        }
+    }
 }
 
 struct MapSources {
@@ -463,6 +514,15 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    fn names(&self, path: &str) -> Result<Option<String>, Error> {
+        if path == "unicode-names-reference.txt" {
+            return bundled_names(path);
+        }
+        match self.read(path)? {
+            Some(text) => Ok(Some(text)),
+            None => bundled_names(path),
+        }
+    }
     /// A document's bytes as strict UTF-8, which keeps a byte order mark as
     /// the character U+FEFF. Bytes that do not decode are a grammar error of
     /// the document, found before anything hashes it or looks it up in
@@ -510,7 +570,9 @@ impl Documents for Reading<'_> {
         let Some(text) = self.sources.read(path)? else {
             return Ok(None);
         };
-        let dom = Arc::new(self.context.document(path, &text, self.diagnostic_document == Some(path))?);
+        let read_names = |name: &str| self.sources.names(name);
+        let names = NamesScope::new(&read_names, &self.context.unicode, []);
+        let dom = Arc::new(self.context.document_named(path, &text, self.diagnostic_document == Some(path), &names)?);
         self.read.insert(path.to_string(), dom.clone());
         Ok(Some(dom))
     }
@@ -904,7 +966,10 @@ mod ranked_location_tests {
         for (path, text) in &sources.map {
             let dom = read_document(&bundled.notation, text).unwrap();
             assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
-            compiled.by_path.insert(path.clone(), (fnv1a64(text), Arc::new(json::parse(&dom_to_json(&dom)).unwrap())));
+            compiled.by_path.insert(
+                path.clone(),
+                (fnv1a64(text), CompiledEntry { dom: Arc::new(json::parse(&dom_to_json(&dom)).unwrap()), names: None }),
+            );
         }
         // No notation stages can parse a document if the compiled cache is bypassed.
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
@@ -1153,7 +1218,9 @@ mod parameter_cache_tests {
             }
             set(&mut raw, "rules", Json::Arr(rules));
             let mut compiled = Compiled::default();
-            compiled.by_path.insert("g.md".into(), (fnv1a64(text), Arc::new(raw.clone())));
+            compiled
+                .by_path
+                .insert("g.md".into(), (fnv1a64(text), CompiledEntry { dom: Arc::new(raw.clone()), names: None }));
             let notation = if valid {
                 Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
             } else {

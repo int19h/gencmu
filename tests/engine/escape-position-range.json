@@ -1,0 +1,18 @@
+{
+  "description": "Scalar range endpoints decode source escapes.",
+  "grammar": "%rule text \"‹U+0061›\"..\"‹U+007A›\"",
+  "tokens": [
+    {
+      "text": "m",
+      "value": "m",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
