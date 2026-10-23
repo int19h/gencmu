@@ -297,6 +297,8 @@ The [engine guarantee](../docs/engine.md#property-conformance-and-performance) r
 
 `python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
+The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
+
 The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 
 The repeated-character workloads use this forwarding grammar:

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, str(Path(sys.argv[1]) / "lib/python/src"))
 import gencmu
@@ -42,6 +43,15 @@ for line in sys.stdin:
             if output != "-":
                 Path(output).write_text("\n".join(serialized) + "\n", encoding="utf-8")
             answer = dict(seconds=seconds, serialization=serialization)
+        elif command == "concurrent":
+            tables = [(name, gencmu.load_dialect_sources({decode(k): decode(v) for k, v in rows(file)}, "p.md"))
+                      for name, file in rows(args[0])]
+            def check_table(item):
+                name, dialect = item
+                a, b = dialect.parse("a"), dialect.parse("b")
+                return dict(name=name, a=a.ok, b=b.ok, tags=sorted(b.tree.tags))
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                answer = list(executor.map(check_table, tables * 4))
         else:
             raise ValueError("Unknown command: " + command)
         print(json.dumps(answer), flush=True)

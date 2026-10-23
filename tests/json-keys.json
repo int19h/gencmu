@@ -1798,7 +1798,8 @@
         "_General_Category_Letter",
         "_General_Category_Lowercase_Letter",
         "_Script_Latin"
-      ]
+      ],
+      "concurrent": true
     },
     {
       "description": "Properties: second table retains its own profile on a matching cache hit.",
@@ -1813,7 +1814,8 @@
         "_General_Category_Letter",
         "_General_Category_Lowercase_Letter",
         "_Script_Greek"
-      ]
+      ],
+      "concurrent": true
     },
     {
       "description": "Properties: first table again retains its own profile on a matching cache hit.",
@@ -1828,7 +1830,8 @@
         "_General_Category_Letter",
         "_General_Category_Lowercase_Letter",
         "_Script_Latin"
-      ]
+      ],
+      "concurrent": true
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

@@ -38,6 +38,34 @@ def manifest(path, cases):
         "\n".join(case.get("withoutFeatures", [])))) + "\n" for case in cases), encoding="ascii")
 
 
+def concurrent_tables(directory):
+    fixtures = json.loads((ROOT / "tests/json-keys.json").read_text())
+    hashes = {}
+    for name, text in [("bootstrap", (ROOT / "grammars/notation/bootstrap.json").read_text()),
+                       ("unicode", (ROOT / "grammars/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
+        value = 0xcbf29ce484222325
+        for byte in text.encode():
+            value = ((value ^ byte) * 0x100000001b3) & 0xffffffffffffffff
+        hashes[name] = f"{value:016x}"
+    selected = [case for case in fixtures["compiled"] if case.get("concurrent")]
+    if len(selected) != 3:
+        raise ValueError("Concurrent table conformance requires its three shared cache controls")
+    rows, expected = [], {}
+    for index, case in enumerate(selected):
+        cache = fixtures["cache"].replace(case["find"], case["replace"], 1)
+        for name, fingerprint in hashes.items():
+            cache = cache.replace("@" + name + "@", fingerprint)
+        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": fixtures["grammar"],
+                   "unicode.txt": (ROOT / "grammars/unicode.txt").read_text(), "compiled.json": cache, **case["sources"]}
+        path = directory / f"table-{index}.tsv"
+        path.write_text("".join(hex_text(key) + "\t" + hex_text(value) + "\n" for key, value in sources.items()), encoding="ascii")
+        rows.append(str(index) + "\t" + str(path) + "\n")
+        expected[str(index)] = {"name": str(index), "a": not case["cached"], "b": case["cached"], "tags": case["tags"]}
+    path = directory / "tables.tsv"
+    path.write_text("".join(rows), encoding="ascii")
+    return path, expected
+
+
 def baseline_tree(revision):
     for section in command("git", "worktree", "list", "--porcelain").split("\n\n"):
         fields = dict(line.split(" ", 1) for line in section.splitlines() if " " in line)
@@ -159,6 +187,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="directory for measurements and build files")
     parser.add_argument("--python", default=str(ROOT / "lib/python/.venv/bin/python"))
     parser.add_argument("--prepare-only", action="store_true", help="build workers and write the fixed manifests without timing")
+    parser.add_argument("--conformance-only", action="store_true", help="run shared concurrent table controls without timing")
     args = parser.parse_args()
     directory = args.output.resolve()
     directory.mkdir(parents=True, exist_ok=True)
@@ -204,6 +233,7 @@ def main():
     report_path = directory / "report.json"
     save(report_path, report)
     comparison = Comparison(directory)
+    tables, table_expected = concurrent_tables(directory)
     all_passed = True
     for library in LIBRARIES:
         print("Building " + library, flush=True)
@@ -213,6 +243,19 @@ def main():
             continue
         record = {"workloads": {}, "cold": [], "fullCorpus": {"chunks": [], "differences": []}}
         report["libraries"][library] = record
+        table_worker = Worker(argv[1], directory / library / "concurrent.log")
+        try:
+            observed = table_worker.request("concurrent", "-", tables)
+            if len(observed) != len(table_expected) * 4 or any(item != table_expected.get(item["name"]) for item in observed):
+                raise ValueError(library + ": concurrent reads change a selected table or its compiled cache hit")
+            if any(sum(item["name"] == name for item in observed) != 4 for name in table_expected):
+                raise ValueError(library + ": concurrent reads omit a shared control")
+            record["concurrentTables"] = observed
+            save(report_path, report)
+        finally:
+            table_worker.close()
+        if args.conformance_only:
+            continue
         workers = [Worker(command, directory / library / (label + ".log")) for command, label in zip(argv, ["baseline", "candidate"])]
         outputs = [directory / "baseline.jsonl", directory / "candidate.jsonl"]
         try:
@@ -288,10 +331,10 @@ def main():
         record["coldPassed"] = medians[1] <= medians[0] + max(medians[0] * .05, .025)
         all_passed &= record["coldPassed"]
         save(report_path, report)
-    report["complete"] = not args.prepare_only
+    report["complete"] = not (args.prepare_only or args.conformance_only)
     report["passed"] = report["complete"] and all_passed
     save(report_path, report)
-    return 0 if report["passed"] or args.prepare_only else 1
+    return 0 if report["passed"] or args.prepare_only or args.conformance_only else 1
 
 
 if __name__ == "__main__":

@@ -104,6 +104,52 @@ fn main() {
                 }
                 println!("{{\"seconds\":{seconds},\"serialization\":{serialization}}}");
             }
+            "concurrent" => {
+                let tables: Vec<_> = rows(fields[2])
+                    .iter()
+                    .map(|row| {
+                        let sources: BTreeMap<_, _> = rows(&row[1])
+                            .iter()
+                            .map(|entry| (decode(&entry[0]), decode(&entry[1])))
+                            .collect();
+                        (
+                            row[0].clone(),
+                            gencmu::load_dialect_sources(sources, "p.md").unwrap(),
+                        )
+                    })
+                    .collect();
+                let results = std::thread::scope(|scope| {
+                    let handles: Vec<_> = (0..tables.len() * 4)
+                        .map(|i| {
+                            let (name, dialect) = &tables[i % tables.len()];
+                            scope.spawn(move || {
+                                let a = dialect.parse("a", &Default::default()).unwrap();
+                                let b = dialect.parse("b", &Default::default()).unwrap();
+                                Json::Obj(vec![
+                                    ("name".into(), Json::Str(name.clone())),
+                                    ("a".into(), Json::Bool(a.ok)),
+                                    ("b".into(), Json::Bool(b.ok)),
+                                    (
+                                        "tags".into(),
+                                        Json::Arr(
+                                            b.tree
+                                                .as_ref()
+                                                .unwrap()
+                                                .tags
+                                                .iter()
+                                                .cloned()
+                                                .map(Json::Str)
+                                                .collect(),
+                                        ),
+                                    ),
+                                ])
+                            })
+                        })
+                        .collect();
+                    handles.into_iter().map(|h| h.join().unwrap()).collect()
+                });
+                println!("{}", Json::Arr(results).to_json());
+            }
             _ => panic!("Unknown command"),
         }
         io::stdout().flush().unwrap();

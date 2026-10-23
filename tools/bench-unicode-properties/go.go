@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gencmu "github.com/int19h/gencmu/lib/go"
@@ -95,6 +96,33 @@ func main() {
 				}
 			}
 			answer = map[string]any{"seconds": seconds, "serialization": serialization}
+		case "concurrent":
+			type table struct {
+				name    string
+				dialect *gencmu.Dialect
+			}
+			tables := []table{}
+			for _, row := range rows(fields[2]) {
+				sources := map[string]string{}
+				for _, entry := range rows(row[1]) {
+					sources[decode(entry[0])] = decode(entry[1])
+				}
+				tables = append(tables, table{row[0], must(gencmu.LoadDialectSources(sources, "p.md"))})
+			}
+			results := make([]any, len(tables)*4)
+			var group sync.WaitGroup
+			for i := range results {
+				group.Add(1)
+				go func(i int) {
+					defer group.Done()
+					t := tables[i%len(tables)]
+					a := must(t.dialect.Parse("a", gencmu.ParseOptions{}))
+					b := must(t.dialect.Parse("b", gencmu.ParseOptions{}))
+					results[i] = map[string]any{"name": t.name, "a": a.OK, "b": b.OK, "tags": b.Tree.Tags}
+				}(i)
+			}
+			group.Wait()
+			answer = results
 		default:
 			panic("Unknown command")
 		}
