@@ -388,32 +388,86 @@ Pipeline splicing consumes these directives before stage stitching. They never e
 
 ### Bundled zbalermorna names
 
-`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the pinned mapping below. It uses `unicode-names 15.1.0` and contains 43 added names. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` in its preamble and uses those names in its scalar escapes. Bundled dialect loading therefore selects the resource through that grammar's declaration.
+`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 96 added names. It names 46 characters in the supported older interval and 50 characters in the UCSUR allocation. A name supplies an exact scalar, rather than declaring a grammar terminal.
 
-The naming source is the [UCSUR zbalermorna entry](https://www.kreativekorp.com/ucsur/), proposal dated 2024-08-20. Its allocation is U+F28A0–U+F28DF. Its link selects Jack Humbert's [Unicode Space proposal](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). That commit pins the name spellings.
+The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB5, and the UCSUR allocation is U+F28A0–U+F28DF. Paired characters inside the supported intervals receive the same grammar treatment. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
 
-The grammar reads the older private-use mapping, rather than UCSUR's relocated allocation. The bundled names bind the proposal's spellings to those existing grammar scalars. They do not bind those same names to U+F28A0–U+F28DF or introduce new phoneme terminals. This resource defines a compatibility mapping, not a claim that UCSUR assigns the older range.
+The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
 
-Each row lists consecutive code points and their ordered suffixes. The name is the prefix, one space, and its suffix.
+The other source is the [UCSUR zbalermorna entry](https://www.kreativekorp.com/ucsur/), proposal dated 2024-08-20, credited to la kmir. That proposal date identifies the encoding version. The entry gives no separate numbered version. It assigns U+F28A0–U+F28DF and links Humbert's proposal. This source version is independent of the names file's Unicode 15.1.0 header.
 
-| Code points | Name prefix | Ordered suffixes |
-| --- | --- | --- |
-| ED80–ED88 | ZBALERMORNA LETTER | PY, TY, KY, FY, LY, SY, CY, MY, XY |
-| ED89–ED8B | ZBALERMORNA SYMBOL FOR | DENPA BU, YHY, CNIMAHO BU |
-| ED8C | ZBALERMORNA COMBINING | PA TONGA |
-| ED90–ED97 | ZBALERMORNA LETTER | BY, DY, GY, VY, RY, ZY, JY, NY |
-| ED98 | ZBALERMORNA COMBINING | BAHEBU |
-| ED99–ED9A | ZBALERMORNA SYMBOL FOR | SMAJI BU, SLAKA BU |
-| ED9B | ZBALERMORNA COMBINING | TCENA BU |
-| EDA0–EDA9 | ZBALERMORNA VOWEL SIGN | ABU, EBU, IBU, OBU, UBU, YBU, AIBU, EIBU, OIBU, AUBU |
-| EDAA–EDAB | ZBALERMORNA LETTER SEMIVOWEL | IY, UY |
-| EDB0–EDB5 | ZBALERMORNA LETTER FULL | ABU, EBU, IBU, OBU, UBU, YBU |
+The registry publisher's [Fairfax character table](https://github.com/kreativekorp/open-relay/blob/e4b81241e8c7269a91c0bd865cf5c9e7208fbada/Fairfax/pua.html) records the UCSUR scalars and names individually. This supporting snapshot is Fairfax 2026.09.21, dated 2026-09-21, at commit `e4b81241e8c7269a91c0bd865cf5c9e7208fbada`. The table below pins those assignments rather than using a later live resource.
 
-These rows cover every scalar reference in the zbalermorna phoneme document. Unused proposal characters receive no names in this resource. In particular, its inconsistent RE TONGA numeric row supplies no binding. Names change neither decomposition nor Unicode property tags. Canonical printing of private-use scalars still uses numeric escapes.
+Each row gives one character and its exact scalar in each layout. The character's source name is `ZBALERMORNA ` followed by the character suffix. The names file inserts an encoding qualifier after `ZBALERMORNA`. Thus its older name is `ZBALERMORNA HUMBERT ` followed by the suffix. Its UCSUR name is `ZBALERMORNA UCSUR ` followed by the suffix.
+
+These qualified names keep the two scalar bindings distinct in one lookup namespace. The file supplies no unqualified spelling. For example, `‹ZBALERMORNA HUMBERT LETTER PY›` decodes to U+ED80. `‹ZBALERMORNA UCSUR LETTER PY›` decodes to U+F28A0. Neither spelling silently changes encoding.
+
+The final column records which older characters the current phoneme document reads. It distinguishes source inventory from existing grammar rules. The names file includes unread characters inside the specified intervals too.
+
+| Character suffix | Humbert | UCSUR | Current older grammar |
+| --- | --- | --- | --- |
+| LETTER PY | U+ED80 | U+F28A0 | Read |
+| LETTER TY | U+ED81 | U+F28A1 | Read |
+| LETTER KY | U+ED82 | U+F28A2 | Read |
+| LETTER FY | U+ED83 | U+F28A3 | Read |
+| LETTER LY | U+ED84 | U+F28A4 | Read |
+| LETTER SY | U+ED85 | U+F28A5 | Read |
+| LETTER CY | U+ED86 | U+F28A6 | Read |
+| LETTER MY | U+ED87 | U+F28A7 | Read |
+| LETTER XY | U+ED88 | U+F28A8 | Read |
+| SYMBOL FOR DENPA BU | U+ED89 | U+F28A9 | Read |
+| SYMBOL FOR YHY | U+ED8A | U+F28AA | Read |
+| SYMBOL FOR CNIMAHO BU | U+ED8B | U+F28AB | Read |
+| COMBINING PA TONGA | U+ED8C | U+F28AC | Read |
+| COMBINING RE TONGA | U+ED8D | U+F28AD | Not read |
+| COMBINING CI TONGA | U+ED8E | U+F28AE | Not read |
+| COMBINING VO TONGA | U+ED8F | U+F28AF | Not read |
+| LETTER BY | U+ED90 | U+F28B0 | Read |
+| LETTER DY | U+ED91 | U+F28B1 | Read |
+| LETTER GY | U+ED92 | U+F28B2 | Read |
+| LETTER VY | U+ED93 | U+F28B3 | Read |
+| LETTER RY | U+ED94 | U+F28B4 | Read |
+| LETTER ZY | U+ED95 | U+F28B5 | Read |
+| LETTER JY | U+ED96 | U+F28B6 | Read |
+| LETTER NY | U+ED97 | U+F28B7 | Read |
+| COMBINING BAHEBU | U+ED98 | U+F28B8 | Read |
+| SYMBOL FOR SMAJI BU | U+ED99 | U+F28B9 | Read |
+| SYMBOL FOR SLAKA BU | U+ED9A | U+F28BA | Read |
+| COMBINING TCENA BU | U+ED9B | U+F28BB | Read |
+| VOWEL SIGN ABU | U+EDA0 | U+F28C0 | Read |
+| VOWEL SIGN EBU | U+EDA1 | U+F28C1 | Read |
+| VOWEL SIGN IBU | U+EDA2 | U+F28C2 | Read |
+| VOWEL SIGN OBU | U+EDA3 | U+F28C3 | Read |
+| VOWEL SIGN UBU | U+EDA4 | U+F28C4 | Read |
+| VOWEL SIGN YBU | U+EDA5 | U+F28C5 | Read |
+| VOWEL SIGN AIBU | U+EDA6 | U+F28C6 | Read |
+| VOWEL SIGN EIBU | U+EDA7 | U+F28C7 | Read |
+| VOWEL SIGN OIBU | U+EDA8 | U+F28C8 | Read |
+| VOWEL SIGN AUBU | U+EDA9 | U+F28C9 | Read |
+| LETTER SEMIVOWEL IY | U+EDAA | U+F28CA | Read |
+| LETTER SEMIVOWEL UY | U+EDAB | U+F28CB | Read |
+| LETTER FULL ABU | U+EDB0 | U+F28D0 | Read |
+| LETTER FULL EBU | U+EDB1 | U+F28D1 | Read |
+| LETTER FULL IBU | U+EDB2 | U+F28D2 | Read |
+| LETTER FULL OBU | U+EDB3 | U+F28D3 | Read |
+| LETTER FULL UBU | U+EDB4 | U+F28D4 | Read |
+| LETTER FULL YBU | U+EDB5 | U+F28D5 | Read |
+| LETTER FULL AIBU | Outside range (U+EDB6) | U+F28D6 | Not read |
+| LETTER FULL EIBU | Outside range (U+EDB7) | U+F28D7 | Not read |
+| LETTER FULL OIBU | Outside range (U+EDB8) | U+F28D8 | Not read |
+| LETTER FULL AUBU | Outside range (U+EDB9) | U+F28D9 | Not read |
+
+For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB5 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
+
+Four full diphthong letters occur only in the UCSUR side of the specified input intervals. They are U+F28D6 FULL AIBU, U+F28D7 FULL EIBU, U+F28D8 FULL OIBU, and U+F28D9 FULL AUBU. Humbert's full proposal also defines them at U+EDB6–U+EDB9, beyond the older interval selected here. Those older scalars receive no names in this resource. Thus neither full proposal has a character absent from the other, but the supported older interval omits these four.
+
+The current grammar reads 43 older scalars. RE TONGA, CI TONGA, and VO TONGA exist in both layouts but have no current older rule. A names declaration alone adds no phoneme rule. Grammar alternatives implement the encoding correspondence. Escape decoding never converts between the layouts.
+
+The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
-Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode every zbalermorna name and retain the grammar's exact scalar inventory.
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode all 96 zbalermorna names and distinguish both encodings. They cover every pair, all four interval-only characters, reserved gaps, and the corrected tone rows. They require equal treatment for counterparts and no warning about the older encoding.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 

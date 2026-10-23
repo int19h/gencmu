@@ -693,4 +693,6 @@ Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for
 
 ## Zbalermorna names
 
-The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every dialect that includes the document. Its escapes name the existing 43 private-use scalars, without changing the characters that the grammar reads. [Engine §1](engine.md#bundled-zbalermorna-names) pins the UCSUR source and the compatibility mapping. Private-use images still print with numeric escapes.
+The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every dialect that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. The grammar reads both, without a warning about the older encoding.
+
+[Engine §1](engine.md#bundled-zbalermorna-names) pins both sources and gives the mapping for each character. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.
