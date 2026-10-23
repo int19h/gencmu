@@ -918,6 +918,185 @@
       "find": "{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
       "replace": "{\"format\":40,\"rules\":[{\"name\":\"unused\",\"params\":[\"X\"],\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"param\":\"X\",\"at\":[1,20]}}],\"conditions\":[],\"at\":[1,1]},{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"missing.txt\"],\"at\":[2,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[5,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}",
       "cached": false
+    },
+    {
+      "description": "Names registry: a portable base hit needs no names text.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": true,
+      "portable": true
+    },
+    {
+      "description": "Names registry: a complete portable extra hit needs no names text.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}",
+      "cached": true,
+      "portable": true
+    },
+    {
+      "description": "Names registry: a registered hash difference gives a miss without file reads.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}},\"bundledNames\":{\"unicode-names.txt\":\"0000000000000000\"}}",
+      "cached": false,
+      "portable": true
+    },
+    {
+      "description": "Names registry: a missing registry permits an inspected base hit.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}}}",
+      "cached": true
+    },
+    {
+      "description": "Names registry: a malformed registry permits an inspected base hit.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}},\"bundledNames\":[]}",
+      "cached": true
+    },
+    {
+      "description": "Names registry: an incomplete registry inspects the complete selected set.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": true,
+      "sources": {
+        "extra-names.txt": "unicode-names 15.1.0\nname E000 EXTRA\n"
+      }
+    },
+    {
+      "description": "Names registry: a supplied base overrides its registered fingerprint.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"036bddc0fbb22414\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": true,
+      "sources": {
+        "unicode-names.txt": "unicode-names 15.1.0\n"
+      }
+    },
+    {
+      "description": "Names registry: a supplied extra overrides its registered fingerprint.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"0000000000000000\"}}",
+      "cached": true,
+      "sources": {
+        "extra-names.txt": "unicode-names 15.1.0\nname E000 EXTRA\n"
+      }
+    },
+    {
+      "description": "Names registry: a changed extra fingerprint gives a miss.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"0000000000000000\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}",
+      "cached": false,
+      "sources": {
+        "extra-names.txt": "unicode-names 15.1.0\nname E000 EXTRA\n"
+      }
+    },
+    {
+      "description": "Names registry: equal supplied bytes still require complete inspection.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}",
+      "cached": true,
+      "sources": {
+        "unicode-names.txt": "@bundled-names@"
+      },
+      "error": {
+        "document": "extra-names.txt"
+      }
+    },
+    {
+      "description": "Names registry: a supplied extra forces base inspection.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}",
+      "cached": true,
+      "sources": {
+        "extra-names.txt": "unicode-names 15.1.0\nname E000 EXTRA\n",
+        "unicode-names.txt": "bad\n"
+      },
+      "error": {
+        "document": "unicode-names.txt",
+        "line": 1
+      }
+    },
+    {
+      "description": "Names registry: a supplied malformed base is a loading error.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": true,
+      "sources": {
+        "unicode-names.txt": "bad\n"
+      },
+      "error": {
+        "document": "unicode-names.txt",
+        "line": 1
+      }
+    },
+    {
+      "description": "Names registry: a supplied malformed extra is a loading error.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}",
+      "cached": true,
+      "sources": {
+        "extra-names.txt": "bad\n"
+      },
+      "error": {
+        "document": "extra-names.txt",
+        "line": 1
+      }
+    },
+    {
+      "description": "Names registry: a missing registry requires missing selected text.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}}}",
+      "cached": true,
+      "error": {
+        "document": "extra-names.txt"
+      }
+    },
+    {
+      "description": "Names registry: a malformed hash disables the whole shortcut.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"INVALID\"}}",
+      "cached": true,
+      "error": {
+        "document": "extra-names.txt"
+      }
+    },
+    {
+      "description": "Names registry: an unnormalized path disables the whole shortcut.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\",\"x/../unused.txt\":\"365331052562f95c\"}}",
+      "cached": true,
+      "error": {
+        "document": "extra-names.txt"
+      }
+    },
+    {
+      "description": "Names registry: absent metadata ignores overrides and the registry.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"extra-names.txt\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}},\"bundledNames\":[]}",
+      "cached": true,
+      "sources": {
+        "unicode-names.txt": "bad\n",
+        "extra-names.txt": "bad\n"
+      }
+    },
+    {
+      "description": "Names registry: a path-set mismatch precedes resource loading.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"extra-names.txt\":\"365331052562f95c\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": false,
+      "sources": {
+        "unicode-names.txt": "bad\n"
+      }
+    },
+    {
+      "description": "Names registry: the shortcut requires the bundled core version.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"8e04201ad832d6c3\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}},\"bundledNames\":{\"unicode-names.txt\":\"5118b9917425bcae\"}}",
+      "cached": true,
+      "sources": {
+        "unicode.txt": "@unicode-16@"
+      },
+      "error": {
+        "document": "unicode.txt"
+      }
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

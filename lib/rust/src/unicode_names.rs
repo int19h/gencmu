@@ -266,9 +266,27 @@ pub(crate) fn selected_names(
     Ok(paths.into_iter().collect())
 }
 
+pub(crate) fn names_registry(value: &Json) -> Option<BTreeMap<String, String>> {
+    let Json::Obj(fields) = value else { return None };
+    fields
+        .iter()
+        .map(|(path, value)| {
+            let hash = value.as_str()?;
+            if path.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+                || hash.len() != 16
+                || !hash.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+            {
+                return None;
+            }
+            Some((path.clone(), hash.to_string()))
+        })
+        .collect()
+}
+
 pub(crate) struct NamesScope<'a> {
     read: ReadNames<'a>,
     unicode: &'a Unicode,
+    overridden: &'a dyn Fn(&str) -> bool,
     extras: RefCell<BTreeSet<String>>,
     document: &'a str,
     resolve: ResolveNames<'a>,
@@ -281,12 +299,18 @@ impl<'a> NamesScope<'a> {
         Self {
             read,
             unicode,
+            overridden: &|_| true,
             extras: RefCell::new(extras.into_iter().collect()),
             document: "",
             resolve: &crate::markdown::resolve,
             tables: RefCell::new(None),
             dependencies: RefCell::new(None),
         }
+    }
+
+    pub fn with_overrides(mut self, overridden: &'a dyn Fn(&str) -> bool) -> Self {
+        self.overridden = overridden;
+        self
     }
 
     pub fn in_document(mut self, document: &'a str, resolve: ResolveNames<'a>) -> Self {
@@ -298,7 +322,9 @@ impl<'a> NamesScope<'a> {
     pub fn for_dom(&self, dom: &crate::dom::Dom) -> Result<Self, Error> {
         let inherited: Vec<String> = self.extras.borrow().iter().cloned().collect();
         let paths = selected_names(self.document, dom, &inherited, self.resolve)?;
-        Ok(Self::new(self.read, self.unicode, paths).in_document(self.document, self.resolve))
+        Ok(Self::new(self.read, self.unicode, paths)
+            .in_document(self.document, self.resolve)
+            .with_overrides(self.overridden))
     }
 
     pub fn add_path(&self, path: &str) -> Result<(), Error> {
@@ -387,7 +413,11 @@ impl<'a> NamesScope<'a> {
             .and_then(char::from_u32))
     }
 
-    pub fn matches(&self, dependencies: Option<&Json>) -> Result<bool, Error> {
+    pub fn matches(
+        &self,
+        dependencies: Option<&Json>,
+        registry: Option<&BTreeMap<String, String>>,
+    ) -> Result<bool, Error> {
         let Some(dependencies) = dependencies else {
             return Ok(true);
         };
@@ -409,6 +439,19 @@ impl<'a> NamesScope<'a> {
             {
                 return Ok(false);
             }
+        }
+        if let Some(registry) =
+            registry.filter(|registry| paths.iter().all(|p| registry.contains_key(p) && !(self.overridden)(p)))
+        {
+            if self.unicode.version_count != 1 || self.unicode.version.as_deref() != Some("15.1.0") {
+                return Err(failure("unicode.txt", None, "bundled names require Unicode version 15.1.0"));
+            }
+            let matching = fields.iter().all(|(path, value)| registry.get(path).map(String::as_str) == value.as_str());
+            if matching {
+                *self.dependencies.borrow_mut() =
+                    Some(paths.iter().map(|p| (p.clone(), registry[p].clone())).collect());
+            }
+            return Ok(matching);
         }
         self.load()?;
         Ok(fields.iter().all(|(path, value)| {

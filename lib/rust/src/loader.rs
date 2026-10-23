@@ -2,7 +2,7 @@
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -17,7 +17,7 @@ use crate::pipeline::{splice, Documents, Spliced};
 use crate::result::ParseErrorKind;
 use crate::string_escapes::DocumentStrings;
 use crate::unicode::Unicode;
-use crate::unicode_names::NamesScope;
+use crate::unicode_names::{names_registry, NamesScope};
 
 mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
@@ -35,6 +35,7 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 struct Compiled {
     by_path: HashMap<String, (String, CompiledEntry)>,
     by_hash: HashMap<String, CompiledEntry>,
+    bundled_names: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Clone)]
@@ -70,6 +71,7 @@ impl Compiled {
         if !usable {
             return Ok(compiled);
         }
+        compiled.bundled_names = value.get("bundledNames").and_then(names_registry);
         for (path, entry) in take(value, "documents").map(members).unwrap_or_default() {
             let (mut hash, mut dom, mut names) = (None, None, None);
             for (key, value) in members(entry) {
@@ -103,7 +105,7 @@ impl Compiled {
             return Ok(None);
         };
         let candidate = names.for_dom(&dom)?;
-        if !candidate.matches(entry.names.as_deref())? {
+        if !candidate.matches(entry.names.as_deref(), self.bundled_names.as_ref())? {
             return Ok(None);
         }
         dom.names_dependencies = candidate.dependencies.borrow().clone();
@@ -466,6 +468,9 @@ trait Sources {
     /// The text of the document at `path`, or `None` when there is none.
     fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
+    fn names_override(&self, _path: &str) -> bool {
+        true
+    }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
         match self.read(path)? {
             Some(text) => Ok(Some(text)),
@@ -479,12 +484,28 @@ struct MapSources {
 }
 
 impl Sources for MapSources {
+    fn names_override(&self, path: &str) -> bool {
+        self.map.contains_key(path)
+    }
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         Ok(self.map.get(path).cloned())
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
         resolve(base, target)
+    }
+}
+
+struct BundledSources;
+impl Sources for BundledSources {
+    fn read(&self, path: &str) -> Result<Option<String>, Error> {
+        Ok(bundled(path).map(str::to_string))
+    }
+    fn resolve(&self, base: &str, target: &str) -> Option<String> {
+        resolve(base, target)
+    }
+    fn names_override(&self, _path: &str) -> bool {
+        false
     }
 }
 
@@ -516,6 +537,9 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    fn names_override(&self, path: &str) -> bool {
+        path != "unicode-names.txt"
+    }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
         if path == "unicode-names-reference.txt" {
             return bundled_names(path);
@@ -578,9 +602,11 @@ impl Documents for Reading<'_> {
             return Ok(None);
         };
         let read_names = |name: &str| self.sources.names(name);
+        let names_override = |name: &str| self.sources.names_override(name);
         let resolve = |base: &str, target: &str| self.sources.resolve(base, target);
-        let names =
-            NamesScope::new(&read_names, &self.context.unicode, inherited.iter().cloned()).in_document(path, &resolve);
+        let names = NamesScope::new(&read_names, &self.context.unicode, inherited.iter().cloned())
+            .in_document(path, &resolve)
+            .with_overrides(&names_override);
         let dom = Arc::new(self.context.document_named(path, &text, self.diagnostic_document == Some(path), &names)?);
         self.read.insert(key, dom.clone());
         Ok(Some(dom))
@@ -644,8 +670,7 @@ pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
     if bundled(&pipeline).is_none() {
         return Err(Error::usage(format!("there is no bundled dialect named {name}")));
     }
-    let map = bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect();
-    load(&context, &MapSources { map }, &pipeline)
+    load(&context, &BundledSources, &pipeline)
 }
 
 /// Loads a dialect from a pipeline document on disk. Each document it
@@ -740,8 +765,7 @@ pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error
         };
         &uncached
     };
-    let map = bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect();
-    let spliced = splice_pipeline(context, &MapSources { map }, path)?;
+    let spliced = splice_pipeline(context, &BundledSources, path)?;
     let mut out = format!("{{\"format\":{DOM_FORMAT},\"stages\":[");
     for (index, stage) in spliced.stages.iter().enumerate() {
         if index > 0 {

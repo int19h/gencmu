@@ -30,12 +30,17 @@ func TestSharedJSONKeys(t *testing.T) {
 			Loads       bool   `json:"loads"`
 		} `json:"bootstrap"`
 		Compiled []struct {
-			Description string   `json:"description"`
-			Find        string   `json:"find"`
-			Replace     string   `json:"replace"`
-			Cached      bool     `json:"cached"`
-			Document    string   `json:"document"`
-			Tags        []string `json:"tags"`
+			Description string            `json:"description"`
+			Find        string            `json:"find"`
+			Replace     string            `json:"replace"`
+			Cached      bool              `json:"cached"`
+			Document    string            `json:"document"`
+			Tags        []string          `json:"tags"`
+			Sources     map[string]string `json:"sources"`
+			Error       *struct {
+				Document string `json:"document"`
+				Line     int    `json:"line"`
+			} `json:"error"`
 		} `json:"compiled"`
 		Grammar string `json:"grammar"`
 		Cache   string `json:"cache"`
@@ -107,7 +112,27 @@ func TestSharedJSONKeys(t *testing.T) {
 				s["p.md"] = fmt.Sprintf("```jbogenbau\n%%stage main\n%%include %q\n```\n", item.Document)
 			}
 			s["compiled.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
+			for path, value := range item.Sources {
+				if value == "@bundled-names@" {
+					raw, err := os.ReadFile("../../grammars/unicode-names.txt")
+					if err != nil {
+						t.Fatal(err)
+					}
+					value = string(raw)
+				}
+				if value == "@unicode-16@" {
+					value = strings.Replace(string(unicode), "unicode 15.1.0", "unicode 16.0.0", 1)
+				}
+				s[path] = value
+			}
 			d, err := LoadDialectSources(s, "p.md")
+			if item.Error != nil {
+				e, ok := err.(*Error)
+				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line {
+					t.Fatalf("expected grammar error at %s:%d, got %v", item.Error.Document, item.Error.Line, err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -24,7 +24,7 @@ from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
-from ._names import NO_NAMES, NamesDom, NamesScope, selected_names
+from ._names import NO_NAMES, NamesDom, NamesScope, selected_names, names_registry
 from ._string_escapes import DocumentStrings
 
 DOM_FORMAT = FORMAT
@@ -408,7 +408,9 @@ class _Resources:
 
 
 class _Loader:
-    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True, *, from_disk: bool = False) -> None:
+    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True, *, from_disk: bool = False, names_override=None) -> None:
+        self.names_override = names_override if names_override is not None else lambda path: True
+        self.bundled_names = None
         self.from_disk = from_disk
         self.inherited_names = {}
         self.lookup = lookup
@@ -417,6 +419,14 @@ class _Loader:
         self.unicode = _unicode_table(found.unicode)
         self.reader = _reader(found.bootstrap, found.unicode)
         self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode) if use_cache else {}
+        if use_cache and found.compiled:
+            try:
+                envelope = json.loads(found.compiled)
+                if (envelope.get("format") == DOM_FORMAT and envelope.get("bootstrap") == self.reader.hash
+                        and envelope.get("unicode") == self.unicode.fingerprint):
+                    self.bundled_names = names_registry(envelope.get("bundledNames"))
+            except (ValueError, AttributeError, TypeError, RecursionError):
+                pass
 
     def text(self, path: str) -> str:
         text = self.lookup(path)
@@ -445,11 +455,11 @@ class _Loader:
         names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
             found = self.compiled.get(text_hash)
-            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES)):
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
             with _lock:
                 found = self.reader.doms.get(key)
-            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES)):
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
         dom = self.reader.read(text, path, True, names)
         with _lock:
@@ -529,7 +539,7 @@ def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
     path = f"dialects/{name}.md"
     if "/" in name or bundled_text(path) is None:
         raise GencmuError(f"there is no bundled dialect {name}", kind="grammar", document=path)
-    return _Loader(bundled_text, _resources(), use_cache).load(path)
+    return _Loader(bundled_text, _resources(), use_cache, names_override=lambda path: False).load(path)
 
 
 def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Dialect:
@@ -548,7 +558,7 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
             return None
         return _decode(data, key)
 
-    return _Loader(lookup, _resources(), use_cache, from_disk=True).load(pipeline)
+    return _Loader(lookup, _resources(), use_cache, from_disk=True, names_override=lambda path: path != "unicode-names.txt").load(pipeline)
 
 
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:
@@ -557,7 +567,7 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
     may hold its own ``unicode.txt``, ``notation/bootstrap.json`` and
     ``compiled.json``; any it lacks come from the bundled grammars."""
     documents = dict(sources)
-    return _Loader(documents.get, _resources(documents), use_cache).load(pipeline)
+    return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 
 def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:

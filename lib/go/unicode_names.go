@@ -373,7 +373,20 @@ func (n *namesScope) lookup(name string, coreOnly bool) (rune, bool, *Error) {
 
 var namesFingerprintPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
-func (n *namesScope) matches(raw json.RawMessage) (bool, *Error) {
+func readNamesRegistry(raw json.RawMessage) map[string]string {
+	var registry map[string]string
+	if unmarshalJSON(raw, &registry) != nil || registry == nil {
+		return nil
+	}
+	for path, hash := range registry {
+		if slices.ContainsFunc(strings.Split(path, "/"), func(part string) bool { return part == "" || part == "." || part == ".." }) || !namesFingerprintPattern.MatchString(hash) {
+			return nil
+		}
+	}
+	return registry
+}
+
+func (n *namesScope) matches(raw json.RawMessage, registry map[string]string, overridden func(string) bool) (bool, *Error) {
 	if len(raw) == 0 {
 		return true, nil
 	}
@@ -388,6 +401,25 @@ func (n *namesScope) matches(raw json.RawMessage) (bool, *Error) {
 		if !namesFingerprintPattern.MatchString(dependencies[path]) {
 			return false, nil
 		}
+	}
+	shortcut := registry != nil && overridden != nil
+	for _, path := range paths {
+		if _, ok := registry[path]; !ok || overridden == nil || overridden(path) {
+			shortcut = false
+			break
+		}
+	}
+	if shortcut {
+		if n.uni.versionCount != 1 || n.uni.version != "15.1.0" {
+			return false, namesError("unicode.txt", 0, "bundled names require Unicode version 15.1.0")
+		}
+		for _, path := range paths {
+			if dependencies[path] != registry[path] {
+				return false, nil
+			}
+		}
+		n.dependencies = dependencies
+		return true, nil
 	}
 	if err := n.load(); err != nil {
 		return false, err

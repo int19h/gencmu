@@ -247,6 +247,8 @@ An extra part holds text that the reader refuses if it reads it. An outcome othe
 
 The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name. The cache template uses `@unicode@` for the fingerprint of the Unicode table.
 
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the bundled core version. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+
 The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
 ## Places in fixtures

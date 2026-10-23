@@ -18899,6 +18899,14 @@
   /** @import { UnicodeTable } from "./unicode.js" */
   /** @import { GrammarDom } from "./types.js" */
 
+  /** @param {any} value @returns {Record<string,string> | undefined} */
+  function namesRegistry(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    if (Object.entries(value).some(([path, hash]) => path.split("/").some(part => !part || part === "." || part === "..")
+      || typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return undefined;
+    return value;
+  }
+
   /** @param {string} path @param {GrammarDom} dom @param {string[]} [inherited] @returns {string[]} */
   function selectedNames(path, dom, inherited = []) {
     return [...new Set([...inherited, ...dom.directives.filter(d => d.name === "names").map(d => resolvePath(path,d.args[0]))])].sort(compareCodePoints);
@@ -19519,9 +19527,12 @@
   // text, or undefined. The bundled grammars, a directory on disk and a map
   // held in memory are all resources.
   class Loader {
-    /** @param {Resources} read */
-    constructor(read) {
+    /** @param {Resources} read @param {(path:string)=>boolean} [namesOverride] */
+    constructor(read, namesOverride = () => true) {
       this.read = read;
+      this.namesOverride = namesOverride;
+      /** @type {Record<string,string> | undefined} */
+      this.bundledNames = undefined;
       const unicodeText = this.need("unicode.txt");
       this.unicodeHash = fnv1a64(unicodeText);
       this.unicode = new UnicodeTable(unicodeText);
@@ -19582,6 +19593,7 @@
      */
     useCompiled(data) {
       if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash || !data.documents || typeof data.documents !== "object") return;
+      this.bundledNames = namesRegistry(data.bundledNames);
       for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
         if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
       }
@@ -19677,6 +19689,13 @@
         || Object.values(dependencies).some(hash => typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return false;
       const paths = [...new Set(["unicode-names.txt",...extras])].sort(compareCodePoints);
       if (Object.keys(dependencies).length !== paths.length || paths.some(path => !(path in dependencies))) return false;
+      const registry = this.bundledNames;
+      if (registry && paths.every(path => Object.hasOwn(registry,path) && !this.namesOverride(path))) {
+        if (this.unicode.versionCount !== 1 || this.unicode.version !== "15.1.0") {
+          throw new GencmuError("grammar", "bundled names require Unicode version 15.1.0", {document:"unicode.txt"});
+        }
+        return paths.every(path => registry[path] === dependencies[path]);
+      }
       const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64, extras);
       names.load();
       return paths.every(path => names.dependencies?.[path] === dependencies[path]);
@@ -20183,7 +20202,7 @@
    */
   function loaderFromSources(sources) {
     const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
-    return new Loader((path) => map.get(path));
+    return new Loader((path) => map.get(path), path => map.has(path));
   }
 
   // ---- types.js

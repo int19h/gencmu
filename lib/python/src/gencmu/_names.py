@@ -13,6 +13,14 @@ from ._markdown import resolve
 NO_NAMES = object()
 
 
+def names_registry(value):
+    if (not isinstance(value, dict)
+            or any(any(part in ("", ".", "..") for part in path.split("/")) or not isinstance(hash, str)
+                   or re.fullmatch(r"[0-9a-f]{16}", hash) is None for path, hash in value.items())):
+        return None
+    return value
+
+
 def selected_names(path, dom, inherited=()):
     return sorted(set(inherited) | {resolve(path, d["args"][0]) for d in dom["directives"] if d["name"] == "names"})
 
@@ -235,12 +243,16 @@ class NamesScope:
                 return code
         return None
 
-    def matches(self, dependencies):
+    def matches(self, dependencies, registry=None, overridden=lambda path: True):
         if dependencies is NO_NAMES:
             return True
         if (not isinstance(dependencies, dict) or set(dependencies) != {"unicode-names.txt", *self.extras}
                 or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{16}", value) is None for value in dependencies.values())):
             return False
+        if registry is not None and all(path in registry and not overridden(path) for path in dependencies):
+            if self.unicode.version_count != 1 or self.unicode.version != "15.1.0":
+                _fail("unicode.txt", "bundled names require Unicode version 15.1.0")
+            return all(registry[path] == hash for path, hash in dependencies.items())
         self.load()
         return self.dependencies == dependencies
 

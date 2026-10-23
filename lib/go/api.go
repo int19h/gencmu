@@ -25,6 +25,7 @@ var bundled struct {
 	reader        *notationReader
 	compiled      map[domCacheKey]json.RawMessage
 	compiledNames map[domCacheKey]json.RawMessage
+	bundledNames  map[string]string
 	err           error
 }
 
@@ -57,7 +58,7 @@ func loadBundled() error {
 			bundled.err = err
 			return
 		}
-		bundled.compiled, bundled.compiledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.reader.hash, bundled.uni.hash)
+		bundled.compiled, bundled.compiledNames, bundled.bundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.reader.hash, bundled.uni.hash)
 	})
 	return bundled.err
 }
@@ -70,16 +71,17 @@ type domCacheKey struct {
 
 // readCompiled admits an envelope only under the complete loader identity.
 func readCompiled(text, bootstrapHash, unicodeHash string) map[domCacheKey]json.RawMessage {
-	doms, _ := readCompiledCache(text, bootstrapHash, unicodeHash)
+	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash)
 	return doms
 }
 
-func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage) {
+func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
-		Format    int    `json:"format"`
-		Bootstrap string `json:"bootstrap"`
-		Unicode   string `json:"unicode"`
-		Documents map[string]struct {
+		Format       int             `json:"format"`
+		Bootstrap    string          `json:"bootstrap"`
+		Unicode      string          `json:"unicode"`
+		BundledNames json.RawMessage `json:"bundledNames"`
+		Documents    map[string]struct {
 			Hash  string          `json:"hash"`
 			Dom   json.RawMessage `json:"dom"`
 			Names json.RawMessage `json:"names"`
@@ -88,7 +90,7 @@ func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey
 	out := map[domCacheKey]json.RawMessage{}
 	names := map[domCacheKey]json.RawMessage{}
 	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
-		return out, names
+		return out, names, nil
 	}
 	for _, d := range c.Documents {
 		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Dom
@@ -96,7 +98,7 @@ func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey
 			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Names
 		}
 	}
-	return out, names
+	return out, names, readNamesRegistry(c.BundledNames)
 }
 
 // loader reads a pipeline and its documents from one source of files.
@@ -107,6 +109,8 @@ type loader struct {
 	bootstrapHash      string
 	compiled           map[domCacheKey]json.RawMessage
 	compiledNames      map[domCacheKey]json.RawMessage
+	bundledNames       map[string]string
+	namesOverride      func(string) bool
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
@@ -141,7 +145,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 		if raw, ok := l.compiled[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
-				match, err := candidate.matches(l.compiledNames[key])
+				match, err := candidate.matches(l.compiledNames[key], l.bundledNames, l.namesOverride)
 				if err != nil {
 					return nil, err
 				}
@@ -410,6 +414,8 @@ func bundledLoader() (*loader, error) {
 		bootstrapHash: bundled.reader.hash,
 		compiled:      bundled.compiled,
 		compiledNames: bundled.compiledNames,
+		bundledNames:  bundled.bundledNames,
+		namesOverride: func(string) bool { return false },
 	}, nil
 }
 
@@ -440,6 +446,7 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		return string(data), err == nil
 	}
 	l.fromDisk = true
+	l.namesOverride = func(p string) bool { return p != "unicode-names.txt" }
 	return l.dialect(filepath.ToSlash(abs))
 }
 
@@ -463,6 +470,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
 	l.noCache = noCache
+	l.namesOverride = func(p string) bool { _, ok := norm[p]; return ok }
 	if t, ok := norm["unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
 			problem := &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
@@ -481,7 +489,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["compiled.json"]; ok {
-		l.compiled, l.compiledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash)
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash)
 	} else if l.bootstrapHash != bundled.reader.hash || l.uni.hash != bundled.uni.hash {
 		l.compiled = nil
 	}
