@@ -175,6 +175,10 @@ impl<'a> Reader<'a> {
                     return Err(Error::grammar("an undeclared or malformed parameter").at(at.0, at.1));
                 }
                 if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
+                    if problem == "nested too deeply" {
+                        crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
+                        continue;
+                    }
                     return Err(self.error(node, problem));
                 }
                 crate::parameters::append_source(&mut dom, kind, raw, self.unicode, self.defer_emission)

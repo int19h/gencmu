@@ -36,7 +36,7 @@ def pattern_item_parts(node):
     return node.get("optional", node.get("repeat", [])) + node.get("separator", [])
 
 
-def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0):
+def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=0, defer_depth=False):
     def rule_name(value):
         return isinstance(value, str) and (name(value) if name else bool(_RULE.fullmatch(value)) or len(value) == 1 and ord(value) > 127)
 
@@ -55,7 +55,7 @@ def layered_pattern_problem(root, *, name=None, terminal=None, test=None, depth=
     repeats = []
     while pending:
         node, item, repeated, level, inner = pending.pop()
-        if level > 256:
+        if not defer_depth and level > 256:
             return "nested too deeply"
         if not isinstance(node, dict):
             return "a malformed pattern"

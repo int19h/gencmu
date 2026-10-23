@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -71,6 +72,9 @@ func (b *domBuilder) appendReadDeclaration(d *domDoc, kind string, raw templateO
 	document := templateDocument([]any{})
 	document[field] = []any{raw}
 	closed, err := decodeDOMMode(templateJSON(document), b.uni, true)
+	if errors.Is(err, errTooDeep) {
+		return appendTemplateDeclaration(d, kind, raw)
+	}
 	if err != nil {
 		return err
 	}
@@ -496,6 +500,17 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if n["literal"] != nil {
 			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, uni); p != "" {
 				return p
+			}
+		}
+		if ends := templateList(n["range"]); len(ends) == 2 {
+			var literal [2]*domTerm
+			for i, end := range ends {
+				if value, ok := templateObj(end)["string"].(string); ok {
+					literal[i] = &domTerm{Kind: tmString, Str: value}
+				}
+			}
+			if problem := literalRangeProblem(literal); problem != "" {
+				return problem
 			}
 		}
 		for _, end := range templateList(n["range"]) {

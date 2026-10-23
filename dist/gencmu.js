@@ -3972,7 +3972,7 @@
 
   /**
    * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number}} [inspect]
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
@@ -3989,7 +3989,7 @@
     const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
     while (stack.length) {
       const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
-      if (depth > 256) return 'nested too deeply';
+      if (!inspect.deferDepth && depth > 256) return 'nested too deeply';
       if (!object(n)) return 'a malformed pattern';
       const keys = Object.keys(n);
       const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
@@ -4624,7 +4624,10 @@
           for (const arg of value.args) child("arg",arg);
         }
         if (value.literal) push("term",value.literal,depth,{params:task.params});
-        if (value.range) for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
+        if (value.range) {
+          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+          for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
+        }
         if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value);
         else if (value.test) child("term",value.value);
         if (value.expr) child("pattern-part",value.expr);
@@ -18511,7 +18514,7 @@
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
           closedFor = before;
-          const problem = layeredPatternProblem(pattern, {name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
+          const problem = layeredPatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
           return {pattern};
         }

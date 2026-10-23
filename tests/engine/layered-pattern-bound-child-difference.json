@@ -1,0 +1,15 @@
+{
+  "description": "Bound constants preserve child difference in a public pattern.",
+  "grammar": "%const $S \"x\"\n%const $T Accent\n%const $Low \"a\"\n%const $High \"z\"\n%const $P #·a« A »\n%const $R #(a ∪ b)\n%const $Q #«»\n%rule text $x:root\n%conditions $x ≅ #root« $S ∖ $P »\n%rule a A\n%rule b B\n%rule root \"x\"\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

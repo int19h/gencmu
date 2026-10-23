@@ -1,0 +1,18 @@
+{
+  "description": "An exact child stops at its own candidate.",
+  "grammar": "%rule text $x:root\n%conditions $x ≅ #·root« ·a »\n%rule root wrap\n%rule wrap a\n%rule a A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

@@ -398,15 +398,20 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     // stack, at the first item in the order of the document that breaks
     // it: a DOM just read is as deep as its document nests, and the checks
     // below walk it by recursion.
+    let raw_deep = |at: &(usize, usize), kind: &str| {
+        dom.unresolved
+            .get(at)
+            .is_some_and(|raw| crate::parameters::declaration_problem(raw, kind, unicode) == Some("nested too deeply"))
+    };
     let mut deep: Vec<(usize, usize)> = dom
         .rules
         .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule))
+        .filter(|rule| crate::dom::rule_too_deep(rule) || raw_deep(&rule.at, "rules"))
         .map(|rule| rule.at)
         .chain(
             dom.constants
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value))
+                .filter(|constant| crate::dom::term_too_deep(&constant.value) || raw_deep(&constant.at, "constants"))
                 .map(|constant| constant.at),
         )
         .chain(
@@ -415,13 +420,17 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .filter(|implication| {
                     crate::dom::term_too_deep(&implication.antecedent)
                         || crate::dom::term_too_deep(&implication.consequent)
+                        || raw_deep(&implication.at, "implications")
                 })
                 .map(|implication| implication.at),
         )
         .chain(
             dom.directives
                 .iter()
-                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
+                .filter(|directive| {
+                    directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
+                        || raw_deep(&directive.at, "directives")
+                })
                 .map(|directive| directive.at),
         )
         .chain(

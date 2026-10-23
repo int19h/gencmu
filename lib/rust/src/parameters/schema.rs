@@ -530,6 +530,9 @@ fn node_step<'a>(
             schedule(pending, v, "string", depth, false, sealed, uni);
         }
         if let Some(ends) = n.get("range").and_then(Json::as_array) {
+            if !crate::dom::schema::literal_range(&ends[0], &ends[1]) {
+                return Some("a pattern range requires ordered scalar endpoints");
+            }
             for v in ends {
                 schedule(pending, v, "string", depth, false, sealed, uni);
             }

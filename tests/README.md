@@ -29,7 +29,11 @@ The corpus records full outcomes. These shared fixtures also express stage cutof
 
 The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags. A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete dialects through the public loader.
+
+Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
+
+A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
 
 Each file is one case:
 
@@ -185,29 +189,17 @@ Open names are names that grammar authors choose.
 
 The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
 
-## Layered patterns: `layered-patterns.json`
-
-The `matching` cases test structural trees directly in all four libraries. Each case supplies a `pattern`, a `tree`, and an `expected` Boolean. Rule trees contain `name` and `children`. Terminal leaves contain `terminal`, `value`, and `tags`. A ranked seal uses `seal:true`.
-
-These cases cover exact prefixes, attached lists, empty lists, child choices, paths, sets, tests, and omission. Runners construct resolved predicates before matching. They retain named empty roots and remove empty children through the ordinary structural machine.
-
-All four runners also read `printing` and `shapes`. A printing case compares its pattern with `text`. A shape case compares pattern acceptance with its `valid` Boolean. Separate depth cases count constructors at the limit and beyond it. Growth cases require a repeated child sequence to retain fewer than ten structural states over 1,000 children.
-
-## Layered pattern notation
+## Layered pattern conformance
 
 The `notation/layered-pattern-*.json` cases use the public reader and format-40 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
-The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, attached lists, child choices, empty lists, parameter decorations, template families, named calls, and load errors.
+The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
-## Layered pattern values: `layered-pattern-values.json`
+Canonical pattern cases in `parameter-structure.json` load complete dialects. They assert expanded names and instance counts. Repeated calls with equal arguments share one instance despite different source positions.
 
-Binding replaces a constant reference with its stage value. All four runners bind each `pattern` through their stage evaluator. Each case supplies either a `resolved` pattern or an `error` position. The file declares already bound `constants`.
+Malformed pattern cases in `json-keys.json` exercise matching compiled entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
 
-The cases retain exact prefixes, attached lists, empty lists, child choices, and compound boundaries. They refuse decorations and terminal tests on pattern-valued constants. Range cases test scalar counts and endpoint order after binding, including inside separators.
-
-A bound tag set uses `set` in the shared JSON. Native runners compare its ordinary tag terms. Error positions contain a line and column, each counted from one. A reversed range with one constant reports that constant's use.
-
-Native codec tests also decode and write closed cases from `layered-patterns.json`. They send decoded values through the structural matcher for every matching case. Shared shape cases test empty lists at the constructor depth limit and beyond it.
+Small native tests retain state-reuse bounds, walk order, and codec preservation. They contain no shared conformance runners or prebound constant fixtures.
 
 ## Supplied notation values: `notation-values.json`
 

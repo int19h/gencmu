@@ -387,6 +387,20 @@ type domChecker struct {
 	problem     *domProblem
 }
 
+func literalRangeProblem(ends [2]*domTerm) string {
+	var known [2]bool
+	for i, end := range ends {
+		known[i] = end != nil && end.Kind == tmString
+		if known[i] && utf8.RuneCountInString(end.Str) != 1 {
+			return "a range endpoint must be one scalar"
+		}
+	}
+	if known[0] && known[1] && ends[0].Str > ends[1].Str {
+		return "a range starts above its end"
+	}
+	return ""
+}
+
 func (c *domChecker) fail(format string, args ...any) {
 	if c.problem == nil {
 		c.problem = &domProblem{message: c.label + ": " + fmt.Sprintf(format, args...), rule: c.rule, constant: c.constant, implication: c.implication}
@@ -1037,6 +1051,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 				c.term(p.Value, d, false)
 				return ""
 			case "range":
+				if problem := literalRangeProblem(p.Ends); problem != "" {
+					return problem
+				}
 				for _, end := range p.Ends {
 					if !stringTermShape(end) {
 						return "a pattern range requires literal or constant strings"

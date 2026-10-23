@@ -133,16 +133,6 @@ impl<'a> Reader<'a> {
                     continue;
                 }
                 let value = result?;
-                let kind = match task.mode {
-                    Mode::Expr => "expr",
-                    Mode::Call => "call",
-                    Mode::Condition => "condition",
-                    Mode::Pattern => "children",
-                    _ => "term",
-                };
-                if task.mode != Mode::Layered && crate::parameters::source_depth_problem(&value, kind, self.unicode) {
-                    return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
-                }
                 tasks.pop();
                 if tasks.is_empty() {
                     return Ok(value);
@@ -692,7 +682,11 @@ impl<'a> Reader<'a> {
                     let primary = self.one(n, "pattern-primary")?;
                     let pattern = self.parameter_layered(primary)?;
                     let name = |name: &str| is_classifier_name(name) || self.unicode.is_emoji_name(name);
-                    let inspect = crate::patterns::shapes::Inspection { name: Some(&name), ..Default::default() };
+                    let inspect = crate::patterns::shapes::Inspection {
+                        name: Some(&name),
+                        defer_depth: true,
+                        ..Default::default()
+                    };
                     if let Some(problem) = crate::patterns::shapes::problem(&p::clean(&pattern), &inspect) {
                         return Err(self.error(n, problem));
                     }

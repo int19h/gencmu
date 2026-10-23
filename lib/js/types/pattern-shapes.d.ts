@@ -4,7 +4,7 @@ export declare function layeredPatternParts(node: any): any[];
 export declare function patternItemParts(node: any): any[];
 /**
  * @param {any} root
- * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number}} [inspect]
+ * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
  * @returns {string|null}
  */
 export declare function layeredPatternProblem(root: any, inspect?: {
@@ -12,6 +12,7 @@ export declare function layeredPatternProblem(root: any, inspect?: {
     terminal?: (name: string) => boolean;
     test?: (test: any) => string | null;
     depth?: number;
+    deferDepth?: boolean;
 }): string | null;
 /**
  * @param {any} root

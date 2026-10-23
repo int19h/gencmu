@@ -1,0 +1,17 @@
+{
+  "description": "An ordinary empty list accepts a terminal leaf.",
+  "grammar": "%rule text $x:A\n%conditions $x ≅ #«»",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

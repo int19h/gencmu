@@ -1,0 +1,23 @@
+{
+  "description": "Bound constants preserve empty child in a public pattern.",
+  "grammar": "%const $S \"x\"\n%const $T Accent\n%const $Low \"a\"\n%const $High \"z\"\n%const $P #·a« A »\n%const $R #(a ∪ b)\n%const $Q #«»\n%rule text $x:root\n%conditions $x ≅ #root« $Q B »\n%rule a A\n%rule b B\n%rule root A B\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

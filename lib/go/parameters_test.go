@@ -447,6 +447,7 @@ func TestParameterSharedStructure(t *testing.T) {
 	var cases []struct {
 		Name, Grammar string
 		CacheFallback bool
+		Public        bool
 		Input         string
 		DOM           json.RawMessage
 		Argument      any
@@ -459,6 +460,14 @@ func TestParameterSharedStructure(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			if c.Public {
+				grammar := parameterGrammar(t, c.Grammar)
+				parameterEqual(t, parameterRuleNames(grammar), c.Order)
+				if c.Instances != 0 && len(grammar.instances) != c.Instances {
+					t.Fatalf("instance count: %d", len(grammar.instances))
+				}
+				return
+			}
 			raw := c.DOM
 			if len(raw) == 0 {
 				raw = parameterRead(t, c.Grammar).json()

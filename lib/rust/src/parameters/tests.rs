@@ -352,6 +352,22 @@ fn shared_parameter_structure() {
     let uni = unicode();
     for case in list(&cases) {
         let name = text(get(case, "name"));
+        if get(case, "public") == &Json::Bool(true) {
+            let source =
+                format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{}\n```", text(get(case, "grammar")));
+            let dialect =
+                crate::load_dialect_sources([("p.md", source)], "p.md").unwrap_or_else(|e| panic!("{name}: {e}"));
+            let g = &dialect.stages[0];
+            assert_eq!(
+                names(g),
+                list(get(case, "order")).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(),
+                "{name}"
+            );
+            if let Some(count) = case.get("instances") {
+                assert_eq!(g.parameters.instances.len(), count.as_int().unwrap() as usize, "{name}");
+            }
+            continue;
+        }
         let raw = if let Some(dom) = case.get("dom") {
             dom.clone()
         } else {
@@ -365,6 +381,7 @@ fn shared_parameter_structure() {
                 ("format", Json::Int(dom::DOM_FORMAT)),
                 ("bootstrap", hash(crate::loader::bundled("notation/bootstrap.json").unwrap())),
                 ("unicode", hash(crate::loader::bundled("unicode.txt").unwrap())),
+                ("properties", hash(crate::loader::bundled("unicode-properties.txt").unwrap())),
                 ("documents", obj([("g.md", obj([("hash", hash(&source)), ("dom", raw)]))])),
             ]);
             let sources = vec![

@@ -189,6 +189,12 @@ class ParameterStructure(unittest.TestCase):
         unicode = grammar_of('%rule text "a"').unicode
         for case in cases:
             with self.subTest(case=case['name']):
+                if case.get('public'):
+                    grammar = grammar_of(case['grammar'])
+                    self.assertEqual(list(grammar.rules), case['order'])
+                    if 'instances' in case:
+                        self.assertEqual(len(template_audit(grammar)['instances']), case['instances'])
+                    continue
                 dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
                 if case.get('cacheFallback'):
                     from gencmu import load_dialect_sources

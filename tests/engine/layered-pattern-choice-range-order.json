@@ -1,0 +1,13 @@
+{
+  "description": "Bound range errors retain their use position inside choice patterns.",
+  "grammar": "%const $Low \"a\"\n%const $Pattern #« A | \"z\"..$Low »\n%rule text A\n%rule a A",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 29
+    }
+  },
+  "input": ""
+}

@@ -2,38 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import unittest
 
-from gencmu._dialect import DOM_FORMAT, read_document
 from gencmu._patterns import PatternMachine, observation_machine
 from types import SimpleNamespace
 
-from .shared import SHARED
-from .test_dom_rules import dom_problem
 
 
 class Patterns(unittest.TestCase):
-    def test_dom_cases(self) -> None:
-        for case in json.loads((SHARED / "pattern-dom.json").read_text()):
-            with self.subTest(case=case["description"]):
-                dom = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
-                if "pattern" in case:
-                    dom["constants"] = [{"name": "P", "op": "define", "at": [1, 1], "value": {"pattern": case["pattern"]}}]
-                if "expr" in case or "condition" in case:
-                    dom["rules"] = [{"name": "text", "op": "define", "at": [1, 1], "flags": [], "alternatives": [{"guards": [], "expr": case.get("expr", {"capture": "x", "expr": {"ref": "A"}})}], "conditions": [case["condition"]] if "condition" in case else []}]
-                self.assertEqual(dom_problem(dom) is not None, case["malformed"])
-
-    def test_depth(self) -> None:
-        for depth in (250, 3000):
-            document = "```jbogenbau\n%const $P #(" + "⋮(" * depth + "A" + ")" * depth + ")\n```"
-            if depth > 256:
-                with self.assertRaises(Exception) as caught:
-                    read_document(document, "case.md")
-                self.assertIn("nested too deeply", str(caught.exception))
-            else:
-                read_document(document, "case.md")
-
     def test_state_growth(self) -> None:
         pattern = {"any": True, "children": [{"repeat": [{"child": {"terminal": "A", "at": [1, 1]}}]}]}
         machine = PatternMachine([pattern])

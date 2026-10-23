@@ -358,10 +358,6 @@ pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
 
 pub(crate) use schema::declaration as declaration_problem;
 
-pub(crate) fn source_depth_problem(n: &Json, kind: &str, unicode: &Unicode) -> bool {
-    schema::node(n, kind, 0, true, false, unicode) == Some("nested too deeply")
-}
-
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];
     while let Some(n) = pending.pop() {

@@ -1108,7 +1108,7 @@ class DomBuilder:
             self.closed_for = None
             try:
                 pattern = yield self._layered_pattern(self.only(node, "pattern-primary"))
-                problem = layered_pattern_problem(pattern, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
+                problem = layered_pattern_problem(pattern, defer_depth=True, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
                 if problem is not None:
                     raise self.fail(node, problem)
             finally:

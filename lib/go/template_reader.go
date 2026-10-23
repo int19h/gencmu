@@ -1,6 +1,9 @@
 package gencmu
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
 
 func templateSyntax(root *Node) bool {
 	pending := []*Node{root}
@@ -407,6 +410,9 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 			templateLocate(result, b.at(n))
 			if !b.featureContext && !templateUnresolved(result) && result["rule"] == nil && result["classifier"] == nil && result["integer"] == nil {
 				t, err := decodeTerm(templateJSON(result))
+				if errors.Is(err, errTooDeep) {
+					return
+				}
 				if err != nil {
 					b.fail(n, "%s", err)
 				}
@@ -488,7 +494,7 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 		defer func() { b.closedFor = closed }()
 		pattern := b.layeredPattern(primary)
 
-		problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
+		problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{deferDepth: true, name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
 		if problem != "" {
 			b.fail(n, "%s", problem)
 		}
@@ -536,6 +542,9 @@ func (b *domBuilder) templateCondition(n *Node) (result templateObject) {
 			templateLocate(result, b.at(n))
 			if !b.featureContext && !templateUnresolved(result) {
 				c, err := decodeCond(templateJSON(result))
+				if errors.Is(err, errTooDeep) {
+					return
+				}
 				if err != nil {
 					b.fail(n, "%s", err)
 				}

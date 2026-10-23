@@ -12,6 +12,7 @@ pub(crate) struct Inspection<'a> {
     pub terminal: NameTest<'a>,
     pub test: TestProblem<'a>,
     pub depth: usize,
+    pub defer_depth: bool,
 }
 fn has(n: &Json, key: &str) -> bool {
     n.get(key).is_some()
@@ -110,7 +111,7 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
     let mut pending = vec![Frame { node: root, item: false, repeated: false, inner: false, depth: inspect.depth }];
     let mut repeats = Vec::new();
     while let Some(t) = pending.pop() {
-        if t.depth > 256 {
+        if !inspect.defer_depth && t.depth > 256 {
             return Err("nested too deeply".into());
         }
         let n = t.node;

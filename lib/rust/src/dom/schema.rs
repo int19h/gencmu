@@ -78,7 +78,7 @@ fn string_atom(value: &Json) -> bool {
 }
 
 /// Literal endpoints must already form an ordered scalar interval.
-fn literal_range(left: &Json, right: &Json) -> bool {
+pub(crate) fn literal_range(left: &Json, right: &Json) -> bool {
     let text = |value: &Json| value.get("string").and_then(Json::as_str).map(str::to_string);
     let ends = [text(left), text(right)];
     ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
@@ -647,6 +647,11 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                         Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇")
                     ) {
                         return Some("a malformed comparator");
+                    }
+                    if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇"))
+                        && !bare_capture(value.get("left").unwrap())
+                    {
+                        return Some("a tree comparison requires a bare capture");
                     }
                     pending.push((Part::Term, value.get("left").unwrap(), next));
                     pending.push((Part::Term, value.get("right").unwrap(), next));

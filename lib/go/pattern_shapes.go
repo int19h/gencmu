@@ -7,6 +7,7 @@ import (
 
 // Pattern constructors and child items occupy separate positions in layered DOMs.
 type layeredPatternInspection struct {
+	deferDepth     bool
 	name, terminal func(string) bool
 	test           func(templateObject) string
 	depth          int
@@ -108,7 +109,7 @@ func layeredPatternProblem(root any, inspect layeredPatternInspection) string {
 	for len(pending) > 0 {
 		t := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if t.depth > 256 {
+		if !inspect.deferDepth && t.depth > 256 {
 			return "nested too deeply"
 		}
 		n := templateObj(t.node)
