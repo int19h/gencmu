@@ -1,13 +1,13 @@
 {
-  "description": "A string-set constant cannot supply a terminal atom inside a tree pattern (engine §10).",
-  "grammar": "%const $S \"a\" ∪ \"b\"\n%const $P #$S\n%rule text ε",
+  "description": "A string-set constant cannot supply a terminal atom inside a tree pattern (engine \u00a710).",
+  "grammar": "%const $S \"a\" \u222a \"b\"\n%const $P #$S\n%rule text \u03b5",
   "input": "",
   "expect": {
     "error": "grammar",
     "where": {
       "document": "main.md",
       "line": 4,
-      "column": 13
+      "column": 12
     }
   }
 }
