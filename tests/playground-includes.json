@@ -1,0 +1,38 @@
+[
+  {
+    "description": "The editor uses a decoded numeric include path.",
+    "sources": {
+      "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g‹U+002E›md\"\n```\n",
+      "g.md": "```jbogenbau\n%rule text \"a\"\n```\n"
+    },
+    "documents": [
+      "p.md",
+      "g.md"
+    ]
+  },
+  {
+    "description": "The editor uses inherited names and preserves literal path runs.",
+    "sources": {
+      "p.md": "```jbogenbau\n%names \"extra.txt\"\n%stage main\n%ambiguity-resolution greedy\n%include \"wrapper.md\"\n```\n",
+      "wrapper.md": "```jbogenbau\n%include \"é‹EDITOR LETTER›.md\"\n```\n",
+      "é.md": "```jbogenbau\n%rule text \"a\"\n```\n",
+      "extra.txt": "unicode-names 15.1.0\nname E000 EDITOR LETTER\n"
+    },
+    "documents": [
+      "p.md",
+      "wrapper.md",
+      "é.md"
+    ]
+  },
+  {
+    "description": "The editor uses a core abbreviation in an include path.",
+    "sources": {
+      "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g‹HT›.md\"\n```\n",
+      "g\t.md": "```jbogenbau\n%rule text \"a\"\n```\n"
+    },
+    "documents": [
+      "p.md",
+      "g\t.md"
+    ]
+  }
+]

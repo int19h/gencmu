@@ -241,6 +241,29 @@ async function main() {
     assert.deepEqual(parameterProof,{ok:true,rule:"text",children:["token","token"],templates:["pair"],instances:["text"]});
     console.log(`parameterized rules work in ${browser}`);
 
+    const includeCases = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-includes.json"),"utf8"));
+    const includeDocuments = await run(async cases => {
+      const results = [];
+      for (const item of cases) {
+        results.push(await new Promise((resolve,reject) => {
+          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources},message => {
+            if (message.kind === "ready") client.run(1,{dialect:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
+            if (message.kind === "result") {
+              const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),path => client.documentDirectives.get(path));
+              client.stop();
+              if (message.loadError || !message.parse?.ok) reject(new Error(JSON.stringify(message)));
+              else resolve(editor.documents);
+            }
+          });
+          client.start();
+        }));
+      }
+      return results;
+    },includeCases);
+    assert.deepEqual(includeDocuments,includeCases.map(item => item.documents));
+    console.log(`decoded include paths match the editor in ${browser}`);
+
     const namesFetches = [];
     await page.route("**/grammars/*names.txt", route => {
       const resource = new URL(route.request().url()).pathname.split("/").pop();

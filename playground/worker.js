@@ -81,6 +81,14 @@
         post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, names: loader.namesDependencies.get(dom), dom });
         return dom;
       };
+      // Send inspected directives for source reads and cache hits alike. The editor
+      // uses their decoded include operands, including inherited names.
+      const document = loader.documentDom.bind(loader);
+      loader.documentDom = (path, inherited) => {
+        const dom = document(path, inherited);
+        post({ kind: "directives", id: runId, path, directives: dom.directives });
+        return dom;
+      };
       dialects.clear();
       last = null;
       post({ kind: "ready", version: gencmu.version, ms: now() - started });
@@ -392,6 +400,7 @@
       this.edits = new Map();
       // The DOMs of edited documents the worker read, path to { hash, dom }.
       this.doms = new Map();
+      this.documentDirectives = new Map();
       this.namesResources = new Map();
       this.namesFetches = new Map();
       // Edits the running worker has not been told of yet.
@@ -412,8 +421,15 @@
       worker.onmessage = (event) => {
         if (this.worker !== worker) return;
         const message = event.data;
-        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode, properties: message.properties,
-          ...(message.names === undefined ? {} : { names: message.names }), dom: message.dom });
+        if (message.kind === "dom") {
+          this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode, properties: message.properties,
+            ...(message.names === undefined ? {} : { names: message.names }), dom: message.dom });
+        } else if (message.kind === "directives") {
+          if (message.id === this.runId && this.unsent.size === 0) {
+            this.documentDirectives.set(message.path, message.directives);
+            this.listener({kind:"documents"});
+          }
+        }
         else if (message.kind === "need-names") this.supplyNames(worker, message);
         else this.listener(message);
       };
@@ -467,6 +483,8 @@
 
     /** Changes a document; the bundled text itself clears the edit. */
     setDocument(path, text) {
+      // An edited preamble can change inherited names in other documents.
+      this.documentDirectives.clear();
       if (text === this.bundled[path]) this.edits.delete(path);
       else this.edits.set(path, text);
       this.unsent.add(path);
@@ -480,6 +498,7 @@
 
     /** Sends a run, after any edits the worker has not seen. */
     run(id, request) {
+      this.runId = id;
       for (const path of this.unsent) this.worker.postMessage({ kind: "set", path, text: this.text(path) === undefined ? null : this.text(path) });
       this.unsent.clear();
       this.worker.postMessage({ kind: "run", id, request });

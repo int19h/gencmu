@@ -40,7 +40,7 @@
   }
 
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
-  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document));
+  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), document => client.documentDirectives.get(document));
 
   const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
@@ -284,6 +284,9 @@
   function onWorkerMessage(message) {
     const running = job.running;
     switch (message.kind) {
+      case "documents":
+        renderDocuments();
+        break;
       case "ready":
         workerReady = true;
         timings.workerReady = performance.now() - client.startedAt;

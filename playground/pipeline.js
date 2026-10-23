@@ -103,6 +103,8 @@
     return found;
   }
 
+  // The fallback lists literal paths while a document awaits the worker.
+  // Escaped paths require its public reader and selected names scope.
   // The stage selectors and %include directives of a grammar text, in order.
   function directives(text) {
     const found = [];
@@ -112,7 +114,7 @@
       if (token.kind !== "keyword" || !next) return;
       if (["%stage", "%extend-stage", "%redefine-stage"].includes(token.value) && next.kind === "name")
         found.push({ stage: next.value, kind: token.value });
-      if (token.value === "%include" && next.kind === "string") found.push({ include: next.value });
+      if (token.value === "%include" && next.kind === "string" && !next.value.includes("‹")) found.push({ include: next.value });
     });
     return found;
   }
@@ -121,12 +123,17 @@
   // and each stage with the documents included in it, at every place they are
   // included; and every document the scan reached, once. `textOf` gives a
   // document's Markdown, or undefined when it does not exist.
-  function pipelineStages(path, textOf) {
+  function pipelineStages(path, textOf, directivesOf = () => undefined) {
     const scans = new Map();
     const scan = (documentPath) => {
       if (!scans.has(documentPath)) {
         const markdown = textOf(documentPath);
-        scans.set(documentPath, markdown === undefined ? [] : directives(grammarText(markdown)));
+        const parsed = directivesOf(documentPath);
+        const decoded = parsed?.flatMap(directive => {
+          if (["stage", "extend-stage", "redefine-stage"].includes(directive.name)) return [{stage:directive.args[0], kind:"%"+directive.name}];
+          return directive.name === "include" ? [{include:directive.args[0]}] : [];
+        });
+        scans.set(documentPath, decoded ?? (markdown === undefined ? [] : directives(grammarText(markdown))));
       }
       return scans.get(documentPath);
     };
