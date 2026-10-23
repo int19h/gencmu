@@ -1,6 +1,6 @@
 {
   "description": "An inert omission leaves the written route available. A written terminal can pass the nonempty value test (engine §4.1 and §10).",
-  "grammar": "%rule text (A [+T≠\"\"]) %conditions $ ≅ #(A T≠\"\")\n",
+  "grammar": "%rule text (A [+T≠\"\"]) %conditions $ ≅ #« A T≠\"\" »\n",
   "tokens": [
     {
       "text": "a",

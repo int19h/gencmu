@@ -9,7 +9,7 @@ from ._errors import GencmuError
 from ._trampoline import run
 from ._pattern_shapes import _print_layered
 from ._strings import spelling
-from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument
+from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
 
 
 def key_of(value):
@@ -111,7 +111,7 @@ def _print_argument(n, unicode):
             suffix = n['test'] + (yield _print_argument(n['value'], unicode))
         return expr + suffix
     if 'pattern' in n:
-        return '#(' + (yield _print_pattern(n['pattern'], unicode)) + ')'
+        return (yield _print_layered(n['pattern'], lambda node: _print_argument(node, unicode), True))
     for key, op in (('concat', ' ++ '), ('union', ' ∪ '), ('intersection', ' ∩ '), ('difference', ' ∖ ')):
         if key in n:
             values = n[key]
@@ -173,27 +173,6 @@ def _print_body(n, unicode, parent=''):
 
 
 def _print_pattern(n, unicode):
-    if 'node' in n or 'children' in n:
-        return (yield _print_pattern(n.get('node', n.get('children')), unicode))
-    if 'sequence' in n:
-        return (yield _print_join(n['sequence'], unicode, _print_pattern, ' '))
-    if 'siblings' in n:
-        return '⋯'
-    if 'path' in n:
-        text = yield _print_pattern(n['pattern'], unicode)
-        return '(' + text + ') ⋰' if n['path'] == 'first' else ('⋱ ' if n['path'] == 'last' else '⋮ ') + '(' + text + ')'
-    if 'optional' in n:
-        return '[' + (yield _print_pattern(n['optional'], unicode)) + ']'
-    if 'repeat' in n:
-        text = yield _print_pattern(n['repeat'], unicode)
-        separator = ' / ' + (yield _print_pattern(n['separator'], unicode)) if 'separator' in n else ''
-        return '{' + text + separator + '}'
-    for key, op in (('union', ' ∪ '), ('intersection', ' ∩ '), ('difference', ' ∖ ')):
-        if key in n:
-            parts = []
-            for value in n[key]:
-                parts.append('(' + (yield _print_pattern(value, unicode)) + ')')
-            return op.join(parts)
     return (yield _print_layered(n, lambda node: _print_argument(node, unicode), False))
 
 
@@ -201,6 +180,8 @@ def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
         return documents, None, [], [], []
+    patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
+    normalize = lambda value: normalize_argument(value, patterns)
     templates, names, instances = {}, {}, {}
     slots, events, queue, extra = [], [], [], []
 
@@ -263,7 +244,7 @@ def expand_templates(documents, unicode):
                     if 'capture' in part or 'captured' in part:
                         fail(event, part, 'an argument cannot read or declare captures')
                     if part.get('param') in params:
-                        edge = dict(to=(n['call'], i), growing=normalize_argument(arg).get('param') != part['param'], event=event, node=n, argument=arg)
+                        edge = dict(to=(n['call'], i), growing=normalize(arg).get('param') != part['param'], event=event, node=n, argument=arg)
                         edges[(rule['name'], params.index(part['param']))].append(edge)
     for source, outgoing in edges.items():
         for edge in outgoing:
@@ -285,7 +266,7 @@ def expand_templates(documents, unicode):
         signature = templates.get(call['call'])
         if not signature or len(call['args']) != signature['arity']:
             fail(event, call, 'an instance call requires the declared arity')
-        normalized = dict(call=call['call'], args=normalize_argument(call['args']), at=call['at'])
+        normalized = dict(call=call['call'], args=normalize(call['args']), at=call['at'])
         key = key_of(normalized)
         if key not in instances:
             instances[key] = dict(key=key, call=normalized, canonical=canonical_argument(normalized, unicode), name=None,
@@ -304,8 +285,10 @@ def expand_templates(documents, unicode):
                 pending.extend((v, False) for v in reversed(node))
             elif isinstance(node, dict):
                 if ready:
-                    if 'call' in node and not any('param' in n for n in nodes(node)):
+                    if 'call' in node and not any('param' in n for n in nodes(node['args'])):
                         intern(node, event, True)
+                    if 'call' in node and 'children' in node:
+                        pending.append((node['children'], False))
                     continue
                 if 'alternatives' in node:
                     children = []
@@ -374,7 +357,7 @@ def expand_templates(documents, unicode):
             discover(body, event)
 
     def convert(arg, position, event, use):
-        arg = normalize_argument(arg)
+        arg = normalize(arg)
         if position == 'arg':
             return arg
         if position == 'expr':
@@ -424,7 +407,21 @@ def expand_templates(documents, unicode):
         if not isinstance(root, dict):
             return root
         if 'param' in root:
-            return convert(env[root['param']], position, event, root)
+            converted = convert(env[root['param']], position, event, root)
+            if position != 'pattern' or not (root.get('exact') or 'children' in root):
+                return converted
+            if any(key in converted for key in ('union', 'intersection', 'difference', 'path')):
+                fail(event, root, 'a compound pattern cannot carry node decorations')
+            result = dict(converted)
+            if root.get('exact'):
+                if converted.get('exact'):
+                    fail(event, root, 'an exact prefix conflicts with an argument prefix')
+                result['exact'] = True
+            if 'children' in root:
+                if not ('name' in converted or 'call' in converted) or 'children' in converted:
+                    fail(event, root, 'an attached list requires a rule test without children')
+                result['children'] = yield substitute_walk(root['children'], env, event, 'pattern-item')
+            return result
         result = copy(root)
         for key, value in root.items():
             if key == 'at':
@@ -461,12 +458,22 @@ def expand_templates(documents, unicode):
                 while 'test' in head:
                     head = head['expr']
                 if 'param' in head:
-                    arg = normalize_argument(env[head['param']])
+                    arg = normalize(env[head['param']])
                     if set(arg) != {'tag'} or not arg['tag'][:1].isupper():
                         fail(event, head, 'an elidable parameter head requires one bare user tag')
             next_position = child_position(key, position)
             result[key] = yield substitute_walk(value, env, event, next_position)
-        for key in ('concat', 'union'):
+        if position == 'pattern' and 'test' in result and result['expr'].get('exact'):
+            if result.get('exact'):
+                use = root['expr']
+                while 'expr' in use:
+                    use = use['expr']
+                fail(event, use, 'an exact prefix conflicts with an argument prefix')
+            result['exact'] = True
+            result['expr'] = {key: value for key, value in result['expr'].items() if key != 'exact'}
+        for key in ('concat', 'union', 'intersection'):
+            if key == 'intersection' and position != 'pattern' and not pattern_term(result, patterns):
+                continue
             if key in result:
                 result[key] = [v for x in result[key] for v in x.get(key, [x])]
         return result
@@ -504,17 +511,36 @@ def expand_templates(documents, unicode):
         if not isinstance(root, dict):
             return root
         if 'call' in root:
-            instance = instances.get(key_of(normalize_argument(root)))
+            instance = instances.get(key_of(normalize(dict(call=root['call'], args=root['args'], at=root['at']))))
             name = effective(instance) if instance else canonical_argument(root, unicode)
-            return dict(name=name, at=root['at']) if position == 'pattern' else {'ref' if position == 'expr' else 'rule': name}
+            if position == 'pattern':
+                result = dict(name=name, at=root['at'])
+                if root.get('exact'):
+                    result['exact'] = True
+                if 'children' in root:
+                    result['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
+                return result
+            return {'ref' if position == 'expr' else 'rule': name}
+
         if position == 'pattern' and root.get('name') in templates:
-            members = [dict(name=effective(i), at=root['at']) for i in queue if i['call']['call'] == root['name']]
+            members = []
+            for instance in queue:
+                if instance['call']['call'] != root['name']:
+                    continue
+                member = {**root, 'name': effective(instance)}
+                if 'children' in root:
+                    member['children'] = yield rewrite_walk(root['children'], event, 'pattern-item')
+                members.append(member)
             return members[0] if len(members) == 1 else dict(union=members) if members else dict(difference=[dict(name='text', at=root['at']), dict(name='text', at=root['at'])])
         if root.get('ref') in templates or root.get('rule') in templates:
             fail(event, root, 'a bare template reference must name one instance')
         result = copy(root)
         for key, value in root.items():
             result[key] = value if key == 'at' else (yield rewrite_walk(value, event, child_position(key, position)))
+        if position == 'pattern':
+            for key in ('union', 'intersection'):
+                if key in result:
+                    result[key] = [part for value in result[key] for part in value.get(key, [value])]
         return result
 
     validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
@@ -551,13 +577,15 @@ def empty_dom(format_, rules):
 
 
 def child_position(key, position):
+    if key == 'children' or position == 'pattern-item' and key in ('choice', 'optional', 'repeat', 'separator'):
+        return 'pattern-item'
     if position == 'pattern' and key in ('union', 'intersection', 'difference'):
         return 'pattern'
     if key in ('alternatives', 'conditions', 'emit', 'tags', 'value', 'image', 'requirements', 'range', 'literal', 'concat', 'union', 'intersection', 'difference', 'left', 'right', 'receiver', 'if', 'then', 'not', 'all', 'any', 'args'):
         return 'term'
     if key in ('seq', 'choice', 'ranked', 'and', 'optional', 'repeat', 'separator', 'expr') and position != 'pattern':
         return 'expr'
-    if key in ('pattern', 'children', 'node'):
+    if key in ('pattern', 'child'):
         return 'pattern'
     return position
 
@@ -630,5 +658,5 @@ def template_audit(grammar):
 
 
 def ordered_keys(node):
-    order = ('if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'node', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after')
+    order = ('if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'child', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after')
     return [k for k in order if k in node] + sorted(k for k in node if k != 'at' and k not in order)

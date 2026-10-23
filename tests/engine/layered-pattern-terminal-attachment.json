@@ -1,0 +1,13 @@
+{
+  "description": "A terminal argument cannot receive a child list.",
+  "grammar": "%rule use(@P) \"a\"\n%conditions $ ≅ #@P« \"a\" »\n%rule text use(#\"a\")",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 18
+    }
+  }
+}

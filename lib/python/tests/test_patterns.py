@@ -35,7 +35,7 @@ class Patterns(unittest.TestCase):
                 read_document(document, "case.md")
 
     def test_state_growth(self) -> None:
-        pattern = {"children": {"repeat": {"node": {"terminal": "A", "at": [1, 1]}}}}
+        pattern = {"any": True, "children": [{"repeat": [{"child": {"terminal": "A", "at": [1, 1]}}]}]}
         machine = PatternMachine([pattern])
         leaf = machine.node(None, machine.empty, ("A", "a", frozenset(("A",))))
         prefix = machine.empty
@@ -47,7 +47,7 @@ class Patterns(unittest.TestCase):
 
     def test_beyond_word_size(self) -> None:
         roots = [{"terminal": "A" + str(i), "at": [1, 1]} for i in range(150)]
-        pattern = {"children": {"sequence": [{"node": roots[-1]} for _ in range(100)]}}
+        pattern = {"any": True, "children": [{"child": roots[-1]} for _ in range(100)]}
         machine = PatternMachine([*roots, pattern])
         leaf = machine.node(None, machine.empty, ("A149", "a", frozenset(("A149",))))
         self.assertTrue(machine.matches(leaf, roots[-1]))

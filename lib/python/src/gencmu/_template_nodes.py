@@ -54,12 +54,14 @@ def clone_nodes(root):
     return map_nodes(root, lambda node: node)
 
 
-def normalize_argument(root):
+def normalize_argument(root, patterns=frozenset()):
     def normalized(value):
         if isinstance(value, dict):
             if 'body' in value:
                 return argument_of_expression(value['body'])
-            for key in ('union', 'concat'):
+            for key in ('union', 'concat', 'intersection'):
+                if key == 'intersection' and not pattern_term(value, patterns):
+                    continue
                 if isinstance(value.get(key), list):
                     value[key] = [v for n in value[key] for v in n.get(key, [n])]
         return value
@@ -68,3 +70,36 @@ def normalize_argument(root):
 
 def identity(value):
     return map_nodes(value, lambda node: {k: v for k, v in sorted(node.items()) if k != 'at'} if isinstance(node, dict) else node)
+
+
+def pattern_term(root, patterns):
+    pending = [root]
+    while pending:
+        node = pending.pop()
+        if 'pattern' in node or node.get('const') in patterns:
+            return True
+        for key in ('union', 'intersection', 'difference'):
+            pending.extend(node.get(key, []))
+    return False
+
+
+def pattern_constant_names(definitions):
+    # A valid constant keeps its type across all redefinitions.
+    patterns, users = set(), {}
+    for definition in definitions:
+        pending = [definition['value']]
+        while pending:
+            node = pending.pop()
+            if 'pattern' in node:
+                patterns.add(definition['name'])
+            if 'const' in node:
+                users.setdefault(node['const'], set()).add(definition['name'])
+            for key in ('union', 'intersection', 'difference'):
+                pending.extend(node.get(key, []))
+    queue = list(patterns)
+    for name in queue:
+        for user in users.get(name, ()):
+            if user not in patterns:
+                patterns.add(user)
+                queue.append(user)
+    return patterns

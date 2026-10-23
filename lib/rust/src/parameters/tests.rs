@@ -210,8 +210,8 @@ fn uncalled_source_validation() {
 #[test]
 fn pattern_test_operands() {
     for grammar in [
-        "%rule use(@V) $x:_ %conditions $x ≅ #(_=@V)\n%rule text = use(\"a\")",
-        "%rule use(@T) $x:_ %conditions $x ≅ #(_<@T>)\n%rule text = use(_L)",
+        "%rule use(@V) $x:_ %conditions $x ≅ #_=@V\n%rule text = use(\"a\")",
+        "%rule use(@T) $x:_ %conditions $x ≅ #_<@T>\n%rule text = use(_L)",
         "%rule use(@X) @X<_L>\n%rule text = use(_)",
     ] {
         let c = format!(
@@ -321,7 +321,7 @@ fn ordinary_ranked_locations_survive_template_expansion() {
 
 #[test]
 fn nested_alias_twins_follow_expanded_order() {
-    for source in ["%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public \"a\"\n%rule text outer((named named)) outer((atom(\"a\") atom(\"a\"))) outer((named atom(\"a\"))) outer((atom(\"a\") named))\n%rule named = atom(\"a\")\n%redefine-rule public = outer((atom(\"a\") named))","%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#(atom(\"a\")))\n%rule named = atom(\"a\")"] {
+    for source in ["%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public \"a\"\n%rule text outer((named named)) outer((atom(\"a\") atom(\"a\"))) outer((named atom(\"a\"))) outer((atom(\"a\") named))\n%rule named = atom(\"a\")\n%redefine-rule public = outer((atom(\"a\") named))","%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#atom(\"a\"))\n%rule named = atom(\"a\")"] {
   let a=audit(&grammar(source));let instances:Vec<_>=list(get(&a,"instances")).iter().filter(|i|text(get(i,"template"))=="outer").collect();
   assert_eq!(instances.len(),if source.contains("public"){4}else{2});
   for (index,instance) in instances.iter().enumerate() {

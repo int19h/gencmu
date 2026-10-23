@@ -300,6 +300,8 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                     if id(node) in tested
                     else "a pattern atom requires a string or pattern constant"
                 )
+                if kind == "pattern" and (node.get("exact") or "children" in node):
+                    problem = "a pattern-valued constant cannot carry node decorations"
                 if problem is not None:
                     return None, (problem, {"const": node["constant"], "at": node["at"]})
             if "test" in node:

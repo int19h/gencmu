@@ -35,52 +35,67 @@
   {
     "description": "An optional consumes an ordinary child sequence.",
     "pattern": {
-      "children": {
-        "optional": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
+      "children": [
+        {
+          "optional": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
         }
-      }
+      ],
+      "any": true
     },
     "malformed": false
   },
   {
     "description": "A separated repeat consumes child sequences.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "separator": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "separator": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
         }
-      }
+      ],
+      "any": true
     },
     "malformed": false
   },
   {
     "description": "A sibling ellipsis accepts an empty gap.",
     "pattern": {
-      "children": {
-        "siblings": true
-      }
+      "children": [
+        {
+          "siblings": true
+        }
+      ],
+      "any": true
     },
     "malformed": false
   },
@@ -126,21 +141,24 @@
     "malformed": true
   },
   {
-    "description": "A sequence requires two items.",
+    "description": "An obsolete sequence wrapper cannot stand in a child item.",
     "pattern": {
-      "children": {
-        "sequence": [
-          {
-            "node": {
-              "terminal": "A",
-              "at": [
-                1,
-                1
-              ]
+      "any": true,
+      "children": [
+        {
+          "sequence": [
+            {
+              "node": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
             }
-          }
-        ]
-      }
+          ]
+        }
+      ]
     },
     "malformed": true
   },
@@ -205,69 +223,96 @@
   {
     "description": "An optional requires a nonempty written body.",
     "pattern": {
-      "children": {
-        "optional": {}
-      }
+      "children": [
+        {
+          "optional": [
+            {}
+          ]
+        }
+      ],
+      "any": true
     },
     "malformed": true
   },
   {
     "description": "A sibling ellipsis must be true.",
     "pattern": {
-      "children": {
-        "siblings": false
-      }
+      "children": [
+        {
+          "siblings": false
+        }
+      ],
+      "any": true
     },
     "malformed": true
   },
   {
     "description": "A repeat item cannot be a sibling ellipsis.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "siblings": true
+      "children": [
+        {
+          "repeat": [
+            {
+              "siblings": true
+            }
+          ]
         }
-      }
+      ],
+      "any": true
     },
     "malformed": true
   },
   {
     "description": "A repeat separator cannot contain a sibling ellipsis.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "separator": {
-          "optional": {
-            "siblings": true
-          }
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "separator": [
+            {
+              "optional": [
+                {
+                  "siblings": true
+                }
+              ]
+            }
+          ]
         }
-      }
+      ],
+      "any": true
     },
     "malformed": true
   },
   {
     "description": "A repeat rejects chain fields.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "chain": "left"
-      }
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "chain": "left"
+        }
+      ],
+      "any": true
     },
     "malformed": true
   },
@@ -891,36 +936,50 @@
   {
     "description": "A pattern separator must be a children expression: None.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "separator": null
-      }
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "separator": [
+            null
+          ]
+        }
+      ],
+      "any": true
     },
     "malformed": true
   },
   {
     "description": "A pattern separator must be a children expression: ''.",
     "pattern": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "separator": ""
-      }
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "separator": [
+            ""
+          ]
+        }
+      ],
+      "any": true
     },
     "malformed": true
   },

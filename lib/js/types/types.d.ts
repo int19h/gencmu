@@ -394,10 +394,13 @@ export type TemplateArgument = Term | {
 } | {
     requirements: Requirement[];
 };
-export type Pattern = {
+export type Pattern = (({
     name: string;
     at: Position;
-} | TemplateCall | Parameter | PatternAtom | {
+} | TemplateCall | Parameter) & {
+    exact?: true;
+    children?: PatternChildren;
+}) | ((PatternAtom | {
     test: "=" | "≠";
     value: Term;
     expr: PatternTestTarget;
@@ -405,7 +408,11 @@ export type Pattern = {
     test: "tags";
     requirements: Requirement[];
     expr: PatternAtom;
-} | {
+}) & {
+    exact?: true;
+}) | {
+    any: true;
+    exact?: true;
     children: PatternChildren;
 } | {
     union: Pattern[];
@@ -422,7 +429,9 @@ export type PatternTerminal = {
     at: Position;
 };
 export type PatternAtom = Parameter | PatternTerminal | {
-    literal: Term;
+    literal: {
+        string: string;
+    };
     at: Position;
 } | {
     range: [Term, Term];
@@ -439,17 +448,18 @@ export type PatternTestTarget = PatternAtom | {
     requirements: Requirement[];
     expr: PatternAtom;
 };
-export type PatternChildren = {
-    node: Pattern;
+export type PatternChildren = PatternItem[];
+export type PatternItem = {
+    child: Pattern;
 } | {
-    sequence: PatternChildren[];
+    siblings: true;
 } | {
     optional: PatternChildren;
 } | {
     repeat: PatternChildren;
     separator?: PatternChildren;
 } | {
-    siblings: true;
+    choice: PatternChildren[];
 };
 export type Expr = {
     choice: Expr[];
@@ -1196,19 +1206,17 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A structural node predicate in a grammar DOM (output §2).
- * @typedef {{name:string, at:Position} | TemplateCall | Parameter | PatternAtom
- *   | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom} | {children:PatternChildren}
+ * @typedef {(({name:string, at:Position} | TemplateCall | Parameter) & {exact?:true,children?:PatternChildren})
+ *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom}) & {exact?:true})
+ *   | {any:true, exact?:true, children:PatternChildren}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
  */
 /** @typedef {{terminal:string, at:Position}} PatternTerminal */
-/** @typedef {Parameter | PatternTerminal | {literal:Term,at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
+/** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
 /** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
-/**
- * A pattern expression over sibling nodes.
- * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
- *   | {repeat:PatternChildren, separator?:PatternChildren} | {siblings:true}} PatternChildren
- */
+/** @typedef {PatternItem[]} PatternChildren */
+/** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 /**
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}

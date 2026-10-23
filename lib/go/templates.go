@@ -42,6 +42,7 @@ type templateExpansion struct {
 }
 type templateExpander struct {
 	uni           *unicodeTable
+	patterns      map[string]bool
 	templates     map[string]*ruleTemplate
 	templateOrder []*ruleTemplate
 	instances     map[string]*ruleInstance
@@ -186,6 +187,13 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			}
 		}
 	}
+	definitions := []templateObject{}
+	for _, doc := range rawDocs {
+		for _, c := range templateList(doc["constants"]) {
+			definitions = append(definitions, templateObj(c))
+		}
+	}
+	x.patterns = templatePatternConstants(definitions)
 	x.flow(templateSorted(events, extra))
 	current := map[string]*ruleInstance{}
 	ordinary := map[string][]*templateEvent{}
@@ -417,12 +425,12 @@ func (x *templateExpander) intern(call templateObject, e *templateEvent, discove
 	if t == nil || len(templateList(call["args"])) != t.arity {
 		x.fail(e, call, "an instance call requires the declared arity")
 	}
-	for _, n := range templateNodes(call) {
+	for _, n := range templateNodes(call["args"]) {
 		if n["param"] != nil {
 			x.fail(e, n, "an instance edit requires a closed call")
 		}
 	}
-	normalized := templateObject{"call": call["call"], "args": templateNormalize(call["args"]), "at": call["at"]}
+	normalized := templateObject{"call": call["call"], "args": x.normalize(call["args"]), "at": call["at"]}
 	key := templateKey(normalized)
 	i := x.instances[key]
 	if i == nil {
@@ -472,19 +480,22 @@ func (x *templateExpander) discover(root any, e *templateEvent) {
 		}
 		if n["call"] != nil {
 			closed := true
-			for _, part := range templateNodes(n) {
+			for _, part := range templateNodes(n["args"]) {
 				closed = closed && part["param"] == nil
 			}
 			if closed {
 				x.intern(n, e, true)
 			}
 		}
+		if n["call"] != nil && n["children"] != nil {
+			x.discover(n["children"], e)
+		}
 	}
 }
 func templateOrderedKeys(n templateObject) []string {
 	keys := []string{}
 	seen := map[string]bool{}
-	for _, k := range []string{"if", "then", "op", "left", "right", "not", "any", "all", "body", "targets", "requirements", "negated", "value", "pattern", "node", "children", "expr", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "tags", "image", "before", "after"} {
+	for _, k := range []string{"if", "then", "op", "left", "right", "not", "any", "all", "body", "targets", "requirements", "negated", "value", "pattern", "child", "children", "expr", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "tags", "image", "before", "after"} {
 		if _, ok := n[k]; ok {
 			keys = append(keys, k)
 			seen[k] = true
@@ -541,7 +552,7 @@ func (x *templateExpander) flow(events []*templateEvent) {
 					for k, p := range params {
 						if p == part["param"] {
 							source := templateFlowPoint{templateText(e.rule["name"]), k}
-							edges[source] = append(edges[source], templateFlowEdge{to: templateFlowPoint{t.name, j}, growing: templateObj(templateNormalize(arg))["param"] != part["param"], event: e, node: n, argument: templateObj(arg)})
+							edges[source] = append(edges[source], templateFlowEdge{to: templateFlowPoint{t.name, j}, growing: templateObj(x.normalize(arg))["param"] != part["param"], event: e, node: n, argument: templateObj(arg)})
 						}
 					}
 				}
@@ -584,7 +595,7 @@ func (x *templateExpander) flow(events []*templateEvent) {
 	}
 }
 func (x *templateExpander) convert(arg templateObject, position string, e *templateEvent, use templateObject) templateObject {
-	arg = templateObj(templateNormalize(arg))
+	arg = templateObj(x.normalize(arg))
 	if position == "arg" {
 		return arg
 	}
@@ -674,7 +685,29 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 		return r
 	case map[string]any:
 		if n["param"] != nil {
-			return x.convert(env[templateText(n["param"])], position, e, n)
+			converted := x.convert(env[templateText(n["param"])], position, e, n)
+			if position != "pattern" || n["exact"] == nil && n["children"] == nil {
+				return converted
+			}
+			for _, key := range []string{"union", "intersection", "difference", "path"} {
+				if converted[key] != nil {
+					x.fail(e, n, "a compound pattern cannot carry node decorations")
+				}
+			}
+			result := templateCopy(converted)
+			if n["exact"] != nil {
+				if converted["exact"] != nil {
+					x.fail(e, n, "an exact prefix conflicts with an argument prefix")
+				}
+				result["exact"] = true
+			}
+			if n["children"] != nil {
+				if converted["name"] == nil && converted["call"] == nil || converted["children"] != nil {
+					x.fail(e, n, "an attached list requires a rule test without children")
+				}
+				result["children"] = x.substitute(n["children"], env, e, "pattern-item")
+			}
+			return result
 		}
 		r := templateCopy(n)
 		for _, k := range templateOrderedKeys(n) {
@@ -738,7 +771,7 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 					head = templateObj(head["expr"])
 				}
 				if head["param"] != nil {
-					arg := templateObj(templateNormalize(env[templateText(head["param"])]))
+					arg := templateObj(x.normalize(env[templateText(head["param"])]))
 					if !templateOnly(arg, "tag") || !className.MatchString(templateText(arg["tag"])) {
 						x.fail(e, head, "an elidable parameter head requires one bare user tag")
 					}
@@ -746,7 +779,25 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			}
 			r[k] = x.substitute(v, env, e, templateChildPosition(k, position))
 		}
-		for _, k := range []string{"concat", "union"} {
+		if position == "pattern" && r["test"] != nil && templateObj(r["expr"])["exact"] != nil {
+			if r["exact"] != nil {
+				use := templateObj(n["expr"])
+				for use["expr"] != nil {
+					use = templateObj(use["expr"])
+				}
+				x.fail(e, use, "an exact prefix conflicts with an argument prefix")
+			}
+			r["exact"] = true
+			inner := templateCopy(templateObj(r["expr"]))
+			delete(inner, "exact")
+			r["expr"] = inner
+		}
+
+		keys := []string{"concat", "union"}
+		if position == "pattern" || templatePatternTerm(r, x.patterns) {
+			keys = append(keys, "intersection")
+		}
+		for _, k := range keys {
 			if r[k] != nil {
 				flat := []any{}
 				for _, v := range templateList(r[k]) {
@@ -773,13 +824,20 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 		return r
 	case map[string]any:
 		if n["call"] != nil {
-			i := x.instances[templateKey(templateNormalize(n))]
+			i := x.instances[templateKey(x.normalize(templateObject{"call": n["call"], "args": n["args"], "at": n["at"]}))]
 			name := templateCanonical(n, x.uni)
 			if i != nil {
 				name = i.effective()
 			}
 			if position == "pattern" {
-				return templateObject{"name": name, "at": n["at"]}
+				result := templateObject{"name": name, "at": n["at"]}
+				if n["exact"] != nil {
+					result["exact"] = true
+				}
+				if n["children"] != nil {
+					result["children"] = x.rewrite(n["children"], e, "pattern-item")
+				}
+				return result
 			}
 			key := "rule"
 			if position == "expr" {
@@ -791,7 +849,12 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 			members := []any{}
 			for _, i := range x.queue {
 				if i.call["call"] == n["name"] {
-					members = append(members, templateObject{"name": i.effective(), "at": n["at"]})
+					member := templateCopy(n)
+					member["name"] = i.effective()
+					if n["children"] != nil {
+						member["children"] = x.rewrite(n["children"], e, "pattern-item")
+					}
+					members = append(members, member)
 				}
 			}
 			if len(members) == 1 {
@@ -811,6 +874,23 @@ func (x *templateExpander) rewrite(root any, e *templateEvent, position string) 
 				r[k] = x.rewrite(v, e, templateChildPosition(k, position))
 			}
 		}
+		if position == "pattern" {
+			for _, key := range []string{"union", "intersection"} {
+				if r[key] == nil {
+					continue
+				}
+				flat := []any{}
+				for _, v := range templateList(r[key]) {
+					if nested := templateObj(v)[key]; nested != nil {
+						flat = append(flat, templateList(nested)...)
+					} else {
+						flat = append(flat, v)
+					}
+				}
+				r[key] = flat
+			}
+		}
+
 		return r
 	}
 	return root

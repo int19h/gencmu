@@ -1,0 +1,43 @@
+{
+  "description": "a sibling gap in string content remains a terminal",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« \"⋯\" (* note *)«a» »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "child": {
+                        "literal": {
+                          "string": "⋯"
+                        }
+                      }
+                    },
+                    {
+                      "child": {
+                        "any": true,
+                        "children": [
+                          {
+                            "child": {
+                              "name": "a"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

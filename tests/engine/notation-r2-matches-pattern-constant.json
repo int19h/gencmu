@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 rejects `($P)` as a `.matches` receiver.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($P).matches(want | T)\n%rule unit A\n%rule family unit\n%rule want A",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($P).matches(want | T)\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {
       "text": "a",

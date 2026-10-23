@@ -1,6 +1,6 @@
 {
-  "description": "A covering emission tag clause resolves #(_) before ≅ and assigns X. The wildcard pattern matches _ under engine §§2 and 10 and §11.",
-  "grammar": "%rule text _\n%emits $ :: ($ ≅ #(_) ⟹ X)",
+  "description": "A covering emission tag clause resolves #_ before ≅ and assigns X. The wildcard pattern matches _ under engine §§2 and 10 and §11.",
+  "grammar": "%rule text _\n%emits $ :: ($ ≅ #_ ⟹ X)",
   "tokens": [
     {
       "text": "a",

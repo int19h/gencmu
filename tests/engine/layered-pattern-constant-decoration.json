@@ -1,0 +1,13 @@
+{
+  "description": "A pattern-valued constant cannot receive an exact prefix.",
+  "grammar": "%const $P #text\n%rule text \"a\"\n%conditions $ ≅ #·$P",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 19
+    }
+  }
+}

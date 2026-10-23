@@ -9274,13 +9274,16 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "param": "X",
-                "at": [
-                  3,
-                  22
-                ]
-              }
+              "children": [
+                {
+                  "param": "X",
+                  "at": [
+                    3,
+                    22
+                  ]
+                }
+              ],
+              "any": true
             }
           }
         }
@@ -9332,18 +9335,21 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "call": "atom",
-                "args": [
-                  {
-                    "string": "b"
-                  }
-                ],
-                "at": [
-                  3,
-                  22
-                ]
-              }
+              "children": [
+                {
+                  "call": "atom",
+                  "args": [
+                    {
+                      "string": "b"
+                    }
+                  ],
+                  "at": [
+                    3,
+                    22
+                  ]
+                }
+              ],
+              "any": true
             }
           }
         }
@@ -9395,26 +9401,25 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "sequence": [
-                  {
-                    "param": "X",
+              "children": [
+                {
+                  "param": "X",
+                  "at": [
+                    3,
+                    22
+                  ]
+                },
+                {
+                  "child": {
+                    "terminal": "A",
                     "at": [
                       3,
                       22
                     ]
-                  },
-                  {
-                    "node": {
-                      "terminal": "A",
-                      "at": [
-                        3,
-                        22
-                      ]
-                    }
                   }
-                ]
-              }
+                }
+              ],
+              "any": true
             }
           }
         }
@@ -9466,31 +9471,30 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "sequence": [
-                  {
-                    "call": "atom",
-                    "args": [
-                      {
-                        "string": "b"
-                      }
-                    ],
+              "children": [
+                {
+                  "call": "atom",
+                  "args": [
+                    {
+                      "string": "b"
+                    }
+                  ],
+                  "at": [
+                    3,
+                    22
+                  ]
+                },
+                {
+                  "child": {
+                    "terminal": "A",
                     "at": [
                       3,
                       22
                     ]
-                  },
-                  {
-                    "node": {
-                      "terminal": "A",
-                      "at": [
-                        3,
-                        22
-                      ]
-                    }
                   }
-                ]
-              }
+                }
+              ],
+              "any": true
             }
           }
         }
@@ -9542,15 +9546,20 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "optional": {
-                  "param": "X",
-                  "at": [
-                    3,
-                    22
+              "children": [
+                {
+                  "optional": [
+                    {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -9602,20 +9611,25 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "optional": {
-                  "call": "atom",
-                  "args": [
+              "children": [
+                {
+                  "optional": [
                     {
-                      "string": "b"
+                      "call": "atom",
+                      "args": [
+                        {
+                          "string": "b"
+                        }
+                      ],
+                      "at": [
+                        3,
+                        22
+                      ]
                     }
-                  ],
-                  "at": [
-                    3,
-                    22
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -9667,15 +9681,20 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "repeat": {
-                  "param": "X",
-                  "at": [
-                    3,
-                    22
+              "children": [
+                {
+                  "repeat": [
+                    {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -9727,20 +9746,25 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "repeat": {
-                  "call": "atom",
-                  "args": [
+              "children": [
+                {
+                  "repeat": [
                     {
-                      "string": "b"
+                      "call": "atom",
+                      "args": [
+                        {
+                          "string": "b"
+                        }
+                      ],
+                      "at": [
+                        3,
+                        22
+                      ]
                     }
-                  ],
-                  "at": [
-                    3,
-                    22
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -9792,24 +9816,31 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "repeat": {
-                  "node": {
-                    "terminal": "A",
-                    "at": [
-                      3,
-                      22
-                    ]
-                  }
-                },
-                "separator": {
-                  "param": "X",
-                  "at": [
-                    3,
-                    22
+              "children": [
+                {
+                  "repeat": [
+                    {
+                      "child": {
+                        "terminal": "A",
+                        "at": [
+                          3,
+                          22
+                        ]
+                      }
+                    }
+                  ],
+                  "separator": [
+                    {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -9861,29 +9892,36 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "repeat": {
-                  "node": {
-                    "terminal": "A",
-                    "at": [
-                      3,
-                      22
-                    ]
-                  }
-                },
-                "separator": {
-                  "call": "atom",
-                  "args": [
+              "children": [
+                {
+                  "repeat": [
                     {
-                      "string": "b"
+                      "child": {
+                        "terminal": "A",
+                        "at": [
+                          3,
+                          22
+                        ]
+                      }
                     }
                   ],
-                  "at": [
-                    3,
-                    22
+                  "separator": [
+                    {
+                      "call": "atom",
+                      "args": [
+                        {
+                          "string": "b"
+                        }
+                      ],
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   ]
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -12544,15 +12582,18 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "node": {
-                  "param": "X",
-                  "at": [
-                    3,
-                    22
-                  ]
+              "children": [
+                {
+                  "child": {
+                    "param": "X",
+                    "at": [
+                      3,
+                      22
+                    ]
+                  }
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -12604,20 +12645,23 @@
           },
           "right": {
             "pattern": {
-              "children": {
-                "node": {
-                  "call": "atom",
-                  "args": [
-                    {
-                      "string": "b"
-                    }
-                  ],
-                  "at": [
-                    3,
-                    22
-                  ]
+              "children": [
+                {
+                  "child": {
+                    "call": "atom",
+                    "args": [
+                      {
+                        "string": "b"
+                      }
+                    ],
+                    "at": [
+                      3,
+                      22
+                    ]
+                  }
                 }
-              }
+              ],
+              "any": true
             }
           }
         }
@@ -14240,15 +14284,18 @@
             "pattern": {
               "test": "tags",
               "expr": {
-                "children": {
-                  "node": {
-                    "param": "X",
-                    "at": [
-                      3,
-                      22
-                    ]
+                "children": [
+                  {
+                    "child": {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   }
-                }
+                ],
+                "any": true
               },
               "requirements": []
             }
@@ -14442,15 +14489,18 @@
             "pattern": {
               "test": "=",
               "expr": {
-                "children": {
-                  "node": {
-                    "param": "X",
-                    "at": [
-                      3,
-                      22
-                    ]
+                "children": [
+                  {
+                    "child": {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   }
-                }
+                ],
+                "any": true
               },
               "value": {
                 "string": "a"
@@ -14646,15 +14696,18 @@
             "pattern": {
               "test": "≠",
               "expr": {
-                "children": {
-                  "node": {
-                    "param": "X",
-                    "at": [
-                      3,
-                      22
-                    ]
+                "children": [
+                  {
+                    "child": {
+                      "param": "X",
+                      "at": [
+                        3,
+                        22
+                      ]
+                    }
                   }
-                }
+                ],
+                "any": true
               },
               "value": {
                 "string": "a"

@@ -1,0 +1,34 @@
+{
+  "description": "a closed child can precede a parameter",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« A @X »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "child": {
+                        "terminal": "A"
+                      }
+                    },
+                    {
+                      "child": {
+                        "param": "X"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -7,7 +7,7 @@ func templateSyntax(root *Node) bool {
 	for len(pending) > 0 {
 		n := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if n.Rule == "call" || n.Rule == "parameter" || n.Rule == "pattern-primary" {
+		if n.Rule == "call" || n.Rule == "parameter" || n.Rule == "pattern-primary" || n.Rule == "pattern-literal" {
 			return true
 		}
 		pending = append(pending, n.Children...)
@@ -388,7 +388,12 @@ func (b *domBuilder) templateTests(expr templateObject, tests []*Node) templateO
 		if t.Rule == "tag-test" {
 			expr = templateObject{"test": "tags", "expr": expr, "requirements": b.templateRequirements(t)}
 		} else {
-			expr = templateObject{"test": b.operator(b.token(b.only(t, "test"))), "expr": expr, "value": b.templateTerm(b.knownOf(b.only(t, "test-operand"), templateAtoms), false)}
+			operand := b.only(t, "test-operand")
+			value := b.templateTerm(b.knownOf(operand, templateAtoms), false)
+			if value["string"] == nil && value["const"] == nil && value["param"] == nil {
+				b.fail(operand, "a value test requires a string literal or constant")
+			}
+			expr = templateObject{"test": b.operator(b.token(b.only(t, "test"))), "expr": expr, "value": value}
 		}
 	}
 	return expr
@@ -448,8 +453,12 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 		}
 		return r
 	case "guarded-term":
-		r := b.templateTerm(b.only(n, "term"), argument)
-		cs := ofRule(n, "implication")
+		last := one(n, "union")
+		if last == nil {
+			last = b.only(n, "term")
+		}
+		r := b.templateTerm(last, argument)
+		cs := ofRule(n, "any-of")
 		for i := len(cs) - 1; i >= 0; i-- {
 			r = templateObject{"if": b.templateCondition(cs[i]), "then": r}
 		}
@@ -457,23 +466,39 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 	case "method":
 		return b.templateMethod(n)
 	case "pattern-literal":
-		if primary := one(n, "pattern-primary"); primary != nil {
-			closed := b.closedFor
-			b.closedFor = ""
-			defer func() { b.closedFor = closed }()
-			pattern := b.layeredPattern(primary)
-			problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
-			if problem != "" {
-				b.fail(n, "%s", problem)
+		primary := b.only(n, "pattern-primary")
+		closed := b.closedFor
+		b.closedFor = ""
+		defer func() { b.closedFor = closed }()
+		pattern := b.layeredPattern(primary)
+		pending := []any{pattern}
+		for len(pending) > 0 {
+			part := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			switch node := part.(type) {
+			case []any:
+				pending = append(pending, node...)
+			case map[string]any:
+				if name, ok := node["const"].(string); ok && strings.HasPrefix(name, "_") {
+					value, valid := engineScalar(name)
+					if valid {
+						for key := range node {
+							delete(node, key)
+						}
+						node["string"] = value
+					}
+				}
+				for _, value := range node {
+					pending = append(pending, value)
+				}
 			}
-			return templateObject{"pattern": pattern}
 		}
+		problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
+		if problem != "" {
+			b.fail(n, "%s", problem)
+		}
+		return templateObject{"pattern": pattern}
 
-		var p *Node
-		if p = one(n, "pattern-union"); p == nil {
-			p = b.only(n, "pattern-atom")
-		}
-		return templateObject{"pattern": templatePatternNode(b.templatePattern(p))}
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return nil
@@ -566,7 +591,12 @@ func templatePatternNode(p templateObject) templateObject {
 }
 func (b *domBuilder) templatePattern(n *Node) templateObject {
 	if !templateSyntax(n) {
-		return templateWrittenPattern(b.readPattern(n))
+		p := b.readPattern(n)
+		if p.Kind == "node" {
+			return templateObject{"node": templateWrittenPattern(p.Items[0])}
+		}
+		b.fail(n, "a pattern atom requires one node test")
+		return nil
 	}
 	switch n.Rule {
 	case "pattern-union", "pattern-intersection":

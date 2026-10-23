@@ -1,6 +1,6 @@
 {
-  "description": "A covering emission tag clause resolves (#(A) ∖ #(A)) before ≇ and assigns X. The difference-self pattern does not match A under engine §§2 and 10 and §11.",
-  "grammar": "%rule text A\n%emits $ :: ($ ≇ (#(A) ∖ #(A)) ⟹ X)",
+  "description": "A covering emission tag clause resolves (#A ∖ #A) before ≇ and assigns X. The difference-self pattern does not match A under engine §§2 and 10 and §11.",
+  "grammar": "%rule text A\n%emits $ :: ($ ≇ (#A ∖ #A) ⟹ X)",
   "tokens": [
     {
       "text": "a",

@@ -6,24 +6,35 @@ import re
 from typing import Any, Callable
 
 from . import _testing
+from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant
 
 Dom = dict[str, Any]
 
 
-def pattern_parts(node: Dom) -> list[Dom]:
-    for key in ("union", "intersection", "difference", "sequence"):
+def pattern_parts(node):
+    if isinstance(node, list):
+        return node
+    for key in ('union', 'intersection', 'difference'):
         if key in node:
             return node[key]
-    if "test" in node:
-        return [node["expr"]]
-    return [node[key] for key in ("pattern", "children", "node", "optional", "repeat", "separator") if key in node]
+    if 'test' in node:
+        return [node['expr']]
+    if 'path' in node:
+        return [node['pattern']]
+    if 'child' in node:
+        return [node['child']]
+    if 'choice' in node:
+        return [item for arm in node['choice'] for item in arm]
+    return [*node.get('children', []), *node.get('optional', node.get('repeat', [])), *node.get('separator', [])]
 
 
 def walk_pattern(root: Dom):
     stack = [(root, 0)]
     while stack:
         node, depth = stack.pop()
+        if not isinstance(node, dict):
+            continue
         yield node, depth
         stack.extend((child, depth + 1) for child in reversed(pattern_parts(node)))
 
@@ -32,92 +43,13 @@ def _consumes(root: Dom) -> bool:
     return any("node" in node or "siblings" in node for node, _ in walk_pattern(root))
 
 
-def pattern_problem(root: Any, test_fault: Callable[[Dom], str | None] | None = None, initial_depth: int = 0) -> str | None:
-    stack = [(root, False, False, initial_depth)]
-    while stack:
-        node, children, repeated, depth = stack.pop()
-        if depth > 256:
-            return "nested too deeply"
-        if not isinstance(node, dict):
-            return "a malformed pattern"
-        keys = set(node)
-        def push(value: Any, child: bool = False, repeat: bool = repeated) -> None:
-            stack.append((value, child, repeat, depth + 1))
-        if children:
-            if keys == {"node"}:
-                push(node["node"])
-            elif keys == {"siblings"}:
-                if node["siblings"] is not True or repeated:
-                    return "a sibling ellipsis cannot be a repeat item or separator"
-            elif keys == {"sequence"}:
-                if not isinstance(node["sequence"], list) or len(node["sequence"]) < 2:
-                    return "a malformed pattern sequence"
-                for child in node["sequence"]:
-                    push(child, True)
-            elif keys == {"optional"}:
-                push(node["optional"], True)
-            elif keys in ({"repeat"}, {"repeat", "separator"}):
-                push(node["repeat"], True, True)
-                if "separator" in node:
-                    push(node["separator"], True, True)
-            else:
-                return "a malformed pattern children expression"
-        elif 'param' in node or 'call' in node:
-            if not (keys == {'param', 'at'} or keys == {'call', 'args', 'at'}):
-                return 'a malformed pattern atom'
-        elif any(keys == {key, "at"} for key in ("name", "terminal", "constant")):
-            key = next(key for key in ("name", "terminal", "constant") if key in node)
-            name, at = node[key], node["at"]
-            if not isinstance(name, str) or not isinstance(at, list) or len(at) != 2 or any(type(n) is not int for n in at):
-                return "a malformed pattern atom"
-            if key == "name":
-                if len(name) != 1 and re.fullmatch(r"[a-z][A-Za-z0-9_-]*", name) is None:
-                    return "a malformed pattern rule name"
-            elif not (USER_NAME.fullmatch(name) or key == "terminal" and name in ENGINE_TAGS):
-                return "a malformed pattern terminal or constant"
-        elif keys in ({"literal", "at"}, {"range", "at"}, {"wildcard", "at"}):
-            at = node["at"]
-            if not isinstance(at, list) or len(at) != 2 or any(type(n) is not int or n < 1 for n in at):
-                return "a malformed pattern position"
-            if "wildcard" in node and node["wildcard"] is not True:
-                return "a malformed wildcard pattern"
-        elif "test" in node:
-            inner = node.get("expr")
-            value_test = node["test"] in ("=", "≠")
-            form = {"test", "expr", "value"} if value_test else {"test", "expr", "requirements"}
-            if keys != form or node["test"] not in ("tags", "=", "≠") or not isinstance(inner, dict):
-                return "a malformed pattern test"
-            if value_test and inner.get("test") == "tags":
-                base = inner.get("expr", {})
-            else:
-                base = inner
-            if not any(k in base for k in ("terminal", "literal", "range", "wildcard", "constant", "param")) or "test" in base:
-                return "a pattern test requires one terminal atom"
-            if test_fault is not None:
-                problem = test_fault(node)
-                if problem:
-                    return problem
-            push(inner)
-        elif keys == {"children"}:
-            push(node["children"], True)
-        elif keys == {"path", "pattern"}:
-            if node["path"] not in ("descendant", "first", "last"):
-                return "a malformed pattern path"
-            push(node["pattern"])
-        else:
-            key = next((key for key in ("union", "intersection", "difference") if keys == {key}), None)
-            if key is None or not isinstance(node[key], list) or len(node[key]) < 2 or key == "difference" and len(node[key]) != 2:
-                return "a malformed pattern"
-            for child in node[key]:
-                push(child)
-    for node, _ in walk_pattern(root):
-        if "repeat" in node and not _consumes(node["repeat"]):
-            return "a pattern repeat cannot match only empty sequences"
-    return None
+def pattern_problem(root, test_fault=None, initial_depth=0):
+    return layered_pattern_problem(root, test=test_fault, depth=initial_depth,
+        terminal=lambda name: USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
 
 
 def empty_pattern() -> Dom:
-    all_nodes = {"children": {"siblings": True}}
+    all_nodes = {"any": True, "children": [{"siblings": True}]}
     return {"difference": [all_nodes, all_nodes]}
 
 
@@ -184,20 +116,17 @@ class PatternMachine:
                 pending.append((node, True))
                 kids = [node["pattern"]] if "path" in node else node.get("union", node.get("intersection", node.get("difference", [])))
                 if "children" in node:
-                    if isinstance(node["children"], list):
-                        todo = list(node["children"])
-                        kids = []
-                        while todo:
-                            item = todo.pop()
-                            if "child" in item:
-                                kids.append(item["child"])
-                            elif "choice" in item:
-                                todo.extend(child for arm in item["choice"] for child in arm)
-                            else:
-                                todo.extend(item.get("optional", item.get("repeat", [])))
-                                todo.extend(item.get("separator", []))
-                    else:
-                        kids = [p["node"] for p, _ in walk_pattern(node["children"]) if "node" in p]
+                    todo = list(node["children"])
+                    kids = []
+                    while todo:
+                        item = todo.pop()
+                        if "child" in item:
+                            kids.append(item["child"])
+                        elif "choice" in item:
+                            todo.extend(child for arm in item["choice"] for child in arm)
+                        else:
+                            todo.extend(item.get("optional", item.get("repeat", [])))
+                            todo.extend(item.get("separator", []))
                 pending.extend((child, False) for child in reversed(kids))
                 continue
             predicate = dict(node)
@@ -232,18 +161,10 @@ class PatternMachine:
                     tasks.append((child, start, target))
                     start = target
                 pending.extend(reversed(tasks))
-            elif "child" in node or "node" in node:
-                edges.append((start, end, self.root_ids[id(node.get("child", node.get("node")))]))
+            elif "child" in node:
+                edges.append((start, end, self.root_ids[id(node["child"])]))
             elif "siblings" in node:
                 edges.extend(((start, end, None), (start, start, -1)))
-            elif "sequence" in node:
-                tasks = []
-                for i, child in enumerate(node["sequence"]):
-                    target = end if i == len(node["sequence"]) - 1 else size
-                    size += i != len(node["sequence"]) - 1
-                    tasks.append((child, start, target))
-                    start = target
-                pending.extend(reversed(tasks))
             elif "choice" in node:
                 pending.extend((arm, start, end) for arm in reversed(node["choice"]))
             elif "optional" in node:

@@ -1,0 +1,13 @@
+{
+  "description": "An exact prefix also conflicts through a terminal test.",
+  "grammar": "%rule use(@P) \"a\"\n%conditions $ ≅ #·@P<>\n%rule text use(#·\"a\")",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 19
+    }
+  }
+}

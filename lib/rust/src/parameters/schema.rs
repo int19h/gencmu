@@ -124,7 +124,7 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
     }
     for n in nodes(r) {
         if let Some(p) = n.get("param") {
-            if !only(n, &["param", "at"]) || at(n).is_none() || !scope.contains(text(p)) {
+            if !allowed(n, &["param", "at", "exact", "children"]) || at(n).is_none() || !scope.contains(text(p)) {
                 return Some("an undeclared or malformed parameter");
             }
         }
@@ -458,6 +458,77 @@ fn node_step<'a>(
     // Capture closure applies to every constructor, including nested calls.
     if kind == "arg" && nodes(n).any(|n| has(n, "capture") || has(n, "captured")) {
         return Some("an argument cannot read or declare captures");
+    }
+    if kind == "pattern" {
+        let name = |name: &str| named(&Json::Str(name.into()), uni) && !user_tag(&Json::Str(name.into()));
+        let term = |name: &str| user_tag(&Json::Str(name.into())) || crate::dom::schema::engine_tag(name);
+        let inspect = crate::patterns::shapes::Inspection {
+            name: Some(&name),
+            terminal: Some(&term),
+            depth,
+            ..Default::default()
+        };
+        if let Some(problem) = crate::patterns::shapes::problem(&clean(n), &inspect) {
+            return Some(if problem == "nested too deeply" { "nested too deeply" } else { "a malformed pattern" });
+        }
+        return schedule(pending, n, "pattern-part", depth, false, sealed, uni);
+    }
+    if kind == "pattern-part" {
+        if has(n, "call") {
+            for part in nodes(get(n, "args")) {
+                if user_tag(get(part, "rule")) {
+                    return Some("a pattern argument rule reads back as a tag");
+                }
+            }
+            if let Some(p) = items("args", "arg", 1) {
+                return Some(p);
+            }
+        }
+        if let Some(v) = n.get("literal") {
+            schedule(pending, v, "string", depth, false, sealed, uni);
+        }
+        if let Some(ends) = n.get("range").and_then(Json::as_array) {
+            for v in ends {
+                schedule(pending, v, "string", depth, false, sealed, uni);
+            }
+        }
+        if text(get(n, "test")) == "tags" {
+            for r in list(get(n, "requirements")) {
+                walk(get(r, "value"), "term");
+            }
+        } else if has(n, "test") {
+            walk(get(n, "value"), "string");
+        }
+        for key in ["expr", "pattern"] {
+            if let Some(v) = n.get(key) {
+                walk(v, "pattern-part");
+            }
+        }
+        for key in ["union", "intersection", "difference"] {
+            for v in list(get(n, key)) {
+                walk(v, "pattern-part");
+            }
+        }
+        for v in list(get(n, "children")) {
+            walk(v, "pattern-item");
+        }
+        return None;
+    }
+    if kind == "pattern-item" {
+        if let Some(v) = n.get("child") {
+            walk(v, "pattern-part");
+        }
+        for key in ["optional", "repeat", "separator"] {
+            for v in list(get(n, key)) {
+                walk(v, "pattern-item");
+            }
+        }
+        for arm in list(get(n, "choice")) {
+            for v in list(arm) {
+                walk(v, "pattern-item");
+            }
+        }
+        return None;
     }
     // Unresolved leaves still obey the category of their position.
     if has(n, "param") {

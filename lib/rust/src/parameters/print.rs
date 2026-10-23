@@ -130,7 +130,7 @@ pub(crate) fn canonical(n: &Json, u: &Unicode) -> String {
         );
     }
     if has(n, "pattern") {
-        return format!("#({})", pattern(get(n, "pattern"), u));
+        return crate::patterns::shapes::text(get(n, "pattern"), &|n| canonical(n, u), true);
     }
     for (k, op) in [("concat", " ++ "), ("union", " ∪ "), ("intersection", " ∩ "), ("difference", " ∖ ")] {
         if !has(n, k) {
@@ -245,40 +245,4 @@ fn body(n: &Json, u: &Unicode, parent: &str) -> String {
         );
     }
     canonical(n, u)
-}
-fn pattern(n: &Json, u: &Unicode) -> String {
-    let p = |n: &Json| pattern(n, u);
-    if has(n, "node") || has(n, "children") {
-        return p(n.get("node").unwrap_or_else(|| get(n, "children")));
-    }
-    if has(n, "sequence") {
-        return list(get(n, "sequence")).iter().map(p).collect::<Vec<_>>().join(" ");
-    }
-    if has(n, "siblings") {
-        return "⋯".into();
-    }
-    if has(n, "path") {
-        let s = p(get(n, "pattern"));
-        return match text(get(n, "path")) {
-            "first" => format!("({s}) ⋰"),
-            "last" => format!("⋱ ({s})"),
-            _ => format!("⋮ ({s})"),
-        };
-    }
-    if has(n, "optional") {
-        return format!("[{}]", p(get(n, "optional")));
-    }
-    if has(n, "repeat") {
-        return format!(
-            "{{{}{}}}",
-            p(get(n, "repeat")),
-            n.get("separator").map_or(String::new(), |s| format!(" / {}", p(s)))
-        );
-    }
-    for (k, op) in [("union", " ∪ "), ("intersection", " ∩ "), ("difference", " ∖ ")] {
-        if has(n, k) {
-            return list(get(n, k)).iter().map(|x| format!("({})", p(x))).collect::<Vec<_>>().join(op);
-        }
-    }
-    crate::patterns::shapes::text(n, &|n| canonical(n, u), false)
 }

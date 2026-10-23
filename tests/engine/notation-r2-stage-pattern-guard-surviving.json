@@ -1,7 +1,7 @@
 {
   "description": "Engine §13 rejects a guarded pattern at the surviving feature directive.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions ($ ⟹ #(text)) = ∅\n%rule text ε\n```\n"
+    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions ($ ⟹ #text) = ∅\n%rule text ε\n```\n"
   },
   "pipeline": "pipeline.md",
   "input": "",

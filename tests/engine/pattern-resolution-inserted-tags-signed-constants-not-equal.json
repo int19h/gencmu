@@ -1,6 +1,6 @@
 {
-  "description": "An inserted emission tag clause resolves #(A<$GOOD ¬$BAD>) before ≇ and assigns no tags. The signed-constants pattern matches A under engine §§2 and 10 and §11.",
-  "grammar": "%const $GOOD Extra\n%const $BAD Blocked\n%rule text A\n%emits ε :: ($ ≇ #(A<$GOOD ¬$BAD>) ⟹ X) := \"v\" :- \"i\"",
+  "description": "An inserted emission tag clause resolves #A<$GOOD ¬$BAD> before ≇ and assigns no tags. The signed-constants pattern matches A under engine §§2 and 10 and §11.",
+  "grammar": "%const $GOOD Extra\n%const $BAD Blocked\n%rule text A\n%emits ε :: ($ ≇ #A<$GOOD ¬$BAD> ⟹ X) := \"v\" :- \"i\"",
   "tokens": [
     {
       "text": "a",

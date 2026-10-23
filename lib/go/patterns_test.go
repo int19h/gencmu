@@ -19,12 +19,12 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 	for _, c := range []struct {
 		name, body, pattern, before, after string
 	}{
-		{"compound", "A", `(($P ∪ #(B)) ∩ #(A) ∖ ∅)`, `#(A)`, `#(C)`},
-		{"contextual empty", "A", `($P ∪ ∅)`, `#(A)`, `#(B)`},
-		{"signed constants", "A", `($P ∩ #(A<$GOOD ¬$BAD>))`, `#(A)`, `#(B)`},
-		{"literal identity", `"a"`, `$P`, `#("a")`, `#("b")`},
-		{"range identity", `"a".."z"`, `$P`, `#("a".."z")`, `#("a".."m")`},
-		{"wildcard identity", `_`, `$P`, `#(_)`, `#(A)`},
+		{"compound", "A", `(($P ∪ #B) ∩ #A ∖ ∅)`, `#A`, `#C`},
+		{"contextual empty", "A", `($P ∪ ∅)`, `#A`, `#B`},
+		{"signed constants", "A", `($P ∩ #A<$GOOD ¬$BAD>)`, `#A`, `#B`},
+		{"literal identity", `"a"`, `$P`, `#"a"`, `#"b"`},
+		{"range identity", `"a".."z"`, `$P`, `#"a".."z"`, `#"a".."m"`},
+		{"wildcard identity", `_`, `$P`, `#_`, `#A`},
 	} {
 		for _, comparator := range []string{"≅", "≇"} {
 			t.Run(c.name+comparator, func(t *testing.T) {

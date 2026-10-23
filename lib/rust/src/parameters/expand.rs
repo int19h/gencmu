@@ -75,6 +75,7 @@ pub(crate) struct Expansion {
 }
 struct Expander<'a> {
     uni: &'a Unicode,
+    patterns: BTreeSet<String>,
     templates: Vec<Template>,
     template_names: BTreeMap<String, usize>,
     instances: Vec<Instance>,
@@ -95,6 +96,9 @@ fn key(n: &Json) -> String {
     identity(n).to_json()
 }
 fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
+    if key == "children" || position == "pattern-item" && ["choice", "optional", "repeat", "separator"].contains(&key) {
+        return "pattern-item";
+    }
     if position == "pattern" && ["union", "intersection", "difference"].contains(&key) {
         return "pattern";
     }
@@ -131,7 +135,7 @@ fn child_position<'a>(key: &str, position: &'a str) -> &'a str {
     {
         return "expr";
     }
-    if ["pattern", "children", "node"].contains(&key) {
+    if ["pattern", "child"].contains(&key) {
         return "pattern";
     }
     position
@@ -152,6 +156,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     }
     let mut x = Expander {
         uni,
+        patterns: BTreeSet::new(),
         templates: Vec::new(),
         template_names: BTreeMap::new(),
         instances: Vec::new(),
@@ -226,6 +231,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         }
         raw_docs.push(raw);
     }
+    x.patterns = pattern_constant_names(raw_docs.iter().flat_map(|d| list(get(d, "constants"))));
     x.flow(&sorted(&events, &extra))?;
     let mut current: BTreeMap<String, usize> = BTreeMap::new();
     let mut ordinary: BTreeMap<String, Vec<Event>> = BTreeMap::new();
@@ -407,6 +413,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
     Ok(Some(Expansion { documents: expanded, order, records, validation: users }))
 }
 impl Expander<'_> {
+    fn normalize(&self, root: &Json) -> Json {
+        normalize_patterns(root, &self.patterns)
+    }
     fn flow(&self, events: &[Event]) -> R<()> {
         #[derive(Clone)]
         struct Edge {
@@ -443,7 +452,7 @@ impl Expander<'_> {
                         if let Some(p) = params.iter().position(|p| p == get(part, "param")) {
                             edges.entry((text(get(&e.rule, "name")).into(), p)).or_default().push(Edge {
                                 to: (name.into(), i),
-                                growing: get(&normalize(arg), "param") != get(part, "param"),
+                                growing: get(&self.normalize(arg), "param") != get(part, "param"),
                                 event: e.clone(),
                                 node: n.clone(),
                                 arg: arg.clone(),
@@ -497,11 +506,11 @@ impl Expander<'_> {
             .filter(|t| t.arity == list(get(call, "args")).len())
             .ok_or_else(|| event.fail(call, "an instance call requires the declared arity".into()))?;
         let _ = t;
-        if nodes(call).any(|n| has(n, "param")) {
+        if nodes(get(call, "args")).any(|n| has(n, "param")) {
             return Err(event.fail(call, "an instance call requires closed arguments".into()));
         }
         let call =
-            obj([("call", string(name)), ("args", normalize(get(call, "args"))), ("at", get(call, "at").clone())]);
+            obj([("call", string(name)), ("args", self.normalize(get(call, "args"))), ("at", get(call, "at").clone())]);
         let k = key(&call);
         let i = if let Some(i) = self.keys.get(&k) {
             *i
@@ -570,7 +579,7 @@ impl Expander<'_> {
                         "negated",
                         "value",
                         "pattern",
-                        "node",
+                        "child",
                         "children",
                         "expr",
                         "repeat",
@@ -596,8 +605,11 @@ impl Expander<'_> {
                         self.discover(v, event)?;
                     }
                 }
-                if has(root, "call") && !nodes(root).any(|n| has(n, "param")) {
+                if has(root, "call") && !nodes(get(root, "args")).any(|n| has(n, "param")) {
                     self.intern(root, event, true)?;
+                }
+                if has(root, "call") && has(root, "children") {
+                    self.discover(get(root, "children"), event)?;
                 }
             }
             _ => (),
@@ -605,7 +617,7 @@ impl Expander<'_> {
         Ok(())
     }
     fn convert(&self, arg: &Json, position: &str, event: &Event, use_: &Json) -> R<Json> {
-        let arg = normalize(arg);
+        let arg = self.normalize(arg);
         if position == "arg" {
             return Ok(arg);
         }
@@ -691,7 +703,26 @@ impl Expander<'_> {
         if has(root, "param") {
             let arg =
                 env.get(text(get(root, "param"))).ok_or_else(|| event.fail(root, "an undeclared parameter".into()))?;
-            return self.convert(arg, position, event, root);
+            let mut converted = self.convert(arg, position, event, root)?;
+            if position != "pattern" || !has(root, "exact") && !has(root, "children") {
+                return Ok(converted);
+            }
+            if ["union", "intersection", "difference", "path"].iter().any(|k| has(&converted, k)) {
+                return Err(event.fail(root, "a compound pattern cannot carry node decorations".into()));
+            }
+            if has(root, "exact") {
+                if has(&converted, "exact") {
+                    return Err(event.fail(root, "an exact prefix conflicts with an argument prefix".into()));
+                }
+                set(&mut converted, "exact", Json::Bool(true));
+            }
+            if has(root, "children") {
+                if !(has(&converted, "name") || has(&converted, "call")) || has(&converted, "children") {
+                    return Err(event.fail(root, "an attached list requires a rule test without children".into()));
+                }
+                set(&mut converted, "children", self.substitute(get(root, "children"), env, event, "pattern-item")?);
+            }
+            return Ok(converted);
         }
         let mut result = root.clone();
         for (k, v) in fields {
@@ -755,7 +786,7 @@ impl Expander<'_> {
                     head = get(head, "expr")
                 }
                 if let Some(arg) = env.get(text(get(head, "param"))) {
-                    let arg = identity(&normalize(arg));
+                    let arg = identity(&self.normalize(arg));
                     if !arg.as_object().is_some_and(|fs| {
                         fs.len() == 1
                             && has(&arg, "tag")
@@ -767,10 +798,31 @@ impl Expander<'_> {
             }
             set(&mut result, k, self.substitute(v, env, event, child_position(k, position))?);
         }
-        for k in ["concat", "union"] {
+        if position == "pattern" && has(&result, "test") && has(get(&result, "expr"), "exact") {
+            if has(&result, "exact") {
+                let mut use_ = get(root, "expr");
+                while has(use_, "expr") {
+                    use_ = get(use_, "expr");
+                }
+                return Err(event.fail(use_, "an exact prefix conflicts with an argument prefix".into()));
+            }
+            set(&mut result, "exact", Json::Bool(true));
+            let mut inner = get(&result, "expr").clone();
+            remove(&mut inner, "exact");
+            set(&mut result, "expr", inner);
+        }
+        for k in if position == "pattern" || pattern_term(&result, &self.patterns) {
+            vec!["concat", "union", "intersection"]
+        } else {
+            vec!["concat", "union"]
+        } {
             if let Some(xs) = result.get(k).and_then(Json::as_array) {
-                let j = joined(k, xs.to_vec());
-                set(&mut result, k, get(&j, k).clone())
+                let flat = xs
+                    .iter()
+                    .flat_map(|n| n.get(k).and_then(Json::as_array).unwrap_or(std::slice::from_ref(n)))
+                    .cloned()
+                    .collect();
+                set(&mut result, k, Json::Arr(flat))
             }
         }
         Ok(result)
@@ -783,7 +835,11 @@ impl Expander<'_> {
         if has(root, "call") {
             let name = self
                 .keys
-                .get(&key(&normalize(root)))
+                .get(&key(&self.normalize(&obj([
+                    ("call", get(root, "call").clone()),
+                    ("args", get(root, "args").clone()),
+                    ("at", get(root, "at").clone()),
+                ]))))
                 .map(|i| self.instances[*i].effective().to_string())
                 .unwrap_or_else(|| canonical(root, self.uni));
             let mut value = if position == "pattern" {
@@ -791,6 +847,14 @@ impl Expander<'_> {
             } else {
                 obj([(if position == "expr" { "ref" } else { "rule" }, string(name))])
             };
+            if position == "pattern" {
+                if has(root, "exact") {
+                    set(&mut value, "exact", Json::Bool(true));
+                }
+                if has(root, "children") {
+                    set(&mut value, "children", self.rewrite(get(root, "children"), event, "pattern-item")?);
+                }
+            }
             set(&mut value, SOURCE, root.get(SOURCE).cloned().unwrap_or_else(|| get(root, "at").clone()));
             return Ok(value);
         }
@@ -800,8 +864,15 @@ impl Expander<'_> {
                 .iter()
                 .map(|i| &self.instances[*i])
                 .filter(|i| get(&i.call, "call") == get(root, "name"))
-                .map(|i| obj([("name", string(i.effective())), ("at", get(root, "at").clone())]))
-                .collect();
+                .map(|i| {
+                    let mut member = root.clone();
+                    set(&mut member, "name", string(i.effective()));
+                    if has(root, "children") {
+                        set(&mut member, "children", self.rewrite(get(root, "children"), event, "pattern-item")?);
+                    }
+                    Ok(member)
+                })
+                .collect::<R<_>>()?;
             return Ok(if members.len() == 1 {
                 members[0].clone()
             } else if !members.is_empty() {
@@ -814,7 +885,7 @@ impl Expander<'_> {
         if ["ref", "rule"].iter().any(|k| self.template_names.contains_key(text(get(root, k)))) {
             return Err(event.fail(root, "a bare template reference must name one instance".into()));
         }
-        Ok(Json::Obj(
+        let mut result = Json::Obj(
             fields
                 .iter()
                 .map(|(k, v)| {
@@ -828,7 +899,19 @@ impl Expander<'_> {
                     ))
                 })
                 .collect::<R<_>>()?,
-        ))
+        );
+        if position == "pattern" {
+            for key in ["union", "intersection"] {
+                if has(&result, key) {
+                    let flat = list(get(&result, key))
+                        .iter()
+                        .flat_map(|v| if has(v, key) { list(get(v, key)).to_vec() } else { vec![v.clone()] })
+                        .collect();
+                    set(&mut result, key, Json::Arr(flat));
+                }
+            }
+        }
+        Ok(result)
     }
     fn decode(&self, root: &Json, event: &Event) -> R<Dom> {
         fn shadow(n: &Json, aliases: &mut BTreeMap<String, String>) -> Json {

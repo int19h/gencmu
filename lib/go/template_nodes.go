@@ -160,22 +160,22 @@ func templateArgument(expr templateObject) templateObject {
 	}
 	return templateObject{"body": expr}
 }
-func templateNormalize(root any) any {
+func templateNormalize(root any, patterns ...map[string]bool) any {
 	switch n := root.(type) {
 	case []any:
 		out := make([]any, len(n))
 		for i, v := range n {
-			out[i] = templateNormalize(v)
+			out[i] = templateNormalize(v, patterns...)
 		}
 		return out
 	case map[string]any:
 		if n["body"] != nil {
-			return templateArgument(templateObj(templateNormalize(n["body"])))
+			return templateArgument(templateObj(templateNormalize(n["body"], patterns...)))
 		}
 		out := templateObject{}
 		for k, v := range n {
-			out[k] = templateNormalize(v)
-			if k == "union" || k == "concat" {
+			out[k] = templateNormalize(v, patterns...)
+			if k == "union" || k == "concat" || k == "intersection" && templatePatternTerm(n, patterns...) {
 				if items, ok := out[k].([]any); ok {
 					flat := []any{}
 					for _, item := range items {
@@ -293,6 +293,9 @@ func templateDocument(rules []any) templateObject {
 	return templateObject{"format": float64(domFormat), "rules": rules, "directives": []any{}, "constants": []any{}, "classifiers": []any{}, "implications": []any{}}
 }
 func templateChildPosition(key, position string) string {
+	if key == "children" || position == "pattern-item" && (key == "choice" || key == "optional" || key == "repeat" || key == "separator") {
+		return "pattern-item"
+	}
 	if position == "pattern" && (key == "union" || key == "intersection" || key == "difference") {
 		return "pattern"
 	}
@@ -302,7 +305,7 @@ func templateChildPosition(key, position string) string {
 	if position != "pattern" && strings.Contains("|seq|choice|ranked|and|optional|repeat|separator|expr|", "|"+key+"|") {
 		return "expr"
 	}
-	if key == "pattern" || key == "children" || key == "node" {
+	if key == "pattern" || key == "child" {
 		return "pattern"
 	}
 	return position
@@ -322,3 +325,53 @@ func templateJoined(key string, items []any) templateObject {
 	}
 	return templateObject{key: flat}
 }
+
+func templatePatternTerm(root any, patterns ...map[string]bool) bool {
+	pending := []any{root}
+	for len(pending) > 0 {
+		n := templateObj(pending[len(pending)-1])
+		pending = pending[:len(pending)-1]
+		if n["pattern"] != nil || len(patterns) > 0 && patterns[0][templateText(n["const"])] {
+			return true
+		}
+		for _, key := range []string{"union", "intersection", "difference"} {
+			pending = append(pending, templateList(n[key])...)
+		}
+	}
+	return false
+}
+func templatePatternConstants(definitions []templateObject) map[string]bool {
+	patterns, users := map[string]bool{}, map[string][]string{}
+	for _, definition := range definitions {
+		name := templateText(definition["name"])
+		pending := []any{definition["value"]}
+		for len(pending) > 0 {
+			n := templateObj(pending[len(pending)-1])
+			pending = pending[:len(pending)-1]
+			if n["pattern"] != nil {
+				patterns[name] = true
+			}
+			if n["const"] != nil {
+				ref := templateText(n["const"])
+				users[ref] = append(users[ref], name)
+			}
+			for _, key := range []string{"union", "intersection", "difference"} {
+				pending = append(pending, templateList(n[key])...)
+			}
+		}
+	}
+	queue := []string{}
+	for name := range patterns {
+		queue = append(queue, name)
+	}
+	for i := 0; i < len(queue); i++ {
+		for _, user := range users[queue[i]] {
+			if !patterns[user] {
+				patterns[user] = true
+				queue = append(queue, user)
+			}
+		}
+	}
+	return patterns
+}
+func (x *templateExpander) normalize(root any) any { return templateNormalize(root, x.patterns) }

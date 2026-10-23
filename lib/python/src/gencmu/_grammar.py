@@ -437,6 +437,9 @@ class _Constants:
             else:
                 terminal = "_"
             result = {"terminal": terminal, "at": root["at"], **({"exact": True} if root.get("exact") else {})}
+        for key in ("union", "intersection"):
+            if key in result:
+                result[key] = [child for pattern in result[key] for child in pattern.get(key, [pattern])]
         return result
 
     def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:
@@ -451,6 +454,8 @@ class _Constants:
             for part in term[key]:
                 value = yield self._closed(path, part, item, "pattern")
                 patterns.append(value["pattern"] if isinstance(value, dict) else empty_pattern())
+            if key != "difference":
+                patterns = [child for pattern in patterns for child in pattern.get(key, [pattern])]
             return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]

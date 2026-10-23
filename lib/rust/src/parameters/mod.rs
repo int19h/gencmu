@@ -158,14 +158,24 @@ pub(crate) fn joined(key: &str, items: Vec<Json>) -> Json {
     obj([(key, Json::Arr(values))])
 }
 pub(crate) fn normalize(root: &Json) -> Json {
+    normalize_patterns(root, &std::collections::BTreeSet::new())
+}
+pub(crate) fn normalize_patterns(root: &Json, patterns: &std::collections::BTreeSet<String>) -> Json {
     map_nodes(root, |mut value| {
         if let Some(body) = value.get("body") {
             return argument(body.clone());
         }
-        for k in ["union", "concat"] {
+        for k in ["union", "concat", "intersection"] {
+            if k == "intersection" && !pattern_term(&value, patterns) {
+                continue;
+            }
             if let Some(xs) = value.get(k).and_then(Json::as_array) {
-                let j = joined(k, xs.to_vec());
-                set(&mut value, k, get(&j, k).clone());
+                let flat = xs
+                    .iter()
+                    .flat_map(|n| n.get(k).and_then(Json::as_array).unwrap_or(std::slice::from_ref(n)))
+                    .cloned()
+                    .collect();
+                set(&mut value, k, Json::Arr(flat));
             }
         }
         value
@@ -322,4 +332,50 @@ pub(crate) use schema::declaration as declaration_problem;
 
 pub(crate) fn source_depth_problem(n: &Json, kind: &str, unicode: &Unicode) -> bool {
     schema::node(n, kind, 0, true, false, unicode) == Some("nested too deeply")
+}
+
+pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
+    let mut pending = vec![root];
+    while let Some(n) = pending.pop() {
+        if has(n, "pattern") || patterns.contains(text(get(n, "const"))) {
+            return true;
+        }
+        for k in ["union", "intersection", "difference"] {
+            pending.extend(list(get(n, k)));
+        }
+    }
+    false
+}
+pub(crate) fn pattern_constant_names<'a>(
+    definitions: impl Iterator<Item = &'a Json>,
+) -> std::collections::BTreeSet<String> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut patterns = BTreeSet::new();
+    let mut users: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for definition in definitions {
+        let name = text(get(definition, "name"));
+        let mut pending = vec![get(definition, "value")];
+        while let Some(n) = pending.pop() {
+            if has(n, "pattern") {
+                patterns.insert(name.to_string());
+            }
+            if has(n, "const") {
+                users.entry(text(get(n, "const")).into()).or_default().push(name.into());
+            }
+            for k in ["union", "intersection", "difference"] {
+                pending.extend(list(get(n, k)));
+            }
+        }
+    }
+    let mut queue: Vec<_> = patterns.iter().cloned().collect();
+    let mut i = 0;
+    while i < queue.len() {
+        for user in users.get(&queue[i]).into_iter().flatten() {
+            if patterns.insert(user.clone()) {
+                queue.push(user.clone());
+            }
+        }
+        i += 1;
+    }
+    patterns
 }

@@ -1,0 +1,10 @@
+{
+  "description": "an exact prefix requires an operand",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #·\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 18
+    }
+  }
+}

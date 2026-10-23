@@ -1,0 +1,10 @@
+{
+  "description": "An exact parameter prefix decorates one supplied terminal.",
+  "grammar": "%rule use(@P) $x:\"a\"\n%conditions $x ≅ #·@P\n%rule text use(#\"a\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "A compound pattern argument cannot receive node decorations.",
+  "grammar": "%rule use(@P) \"a\"\n%conditions $ ≅ #·@P\n%rule text use(#(text ∪ other))\n%rule other \"b\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 19
+    }
+  }
+}

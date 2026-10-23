@@ -235,7 +235,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "r" $r:lujvo-rest
   | "n" $n:lujvo-rest
 %conditions
-  $r ≇ #(ccv-rafsi),
+  $r ≇ #ccv-rafsi,
   ¬$r.begins(r-letter),
   $n.begins(r-letter)
 

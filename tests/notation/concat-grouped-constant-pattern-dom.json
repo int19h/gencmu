@@ -1,9 +1,9 @@
 {
   "description": "Double parentheses preserve an unresolved constant atom and its position inside a pattern DOM (engine §9.3).",
-  "document": "```jbogenbau\n%const $P #(($Q))\n```",
+  "document": "```jbogenbau\n%const $P #$Q\n```",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 40,
       "rules": [],
       "directives": [],
       "constants": [
@@ -15,7 +15,7 @@
               "constant": "Q",
               "at": [
                 2,
-                14
+                12
               ]
             }
           },

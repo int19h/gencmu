@@ -1,6 +1,6 @@
 {
   "description": "An omitted final terminator stops the last-child path. Reconstruction preserves that barrier for the candidate that restores it (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule r (A [+T]) | (A [+OTHER] [+OTHER]) %conditions $ ≇ #(⋱A)\n",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule r (A [+T]) | (A [+OTHER] [+OTHER]) %conditions $ ≇ #(⋱ A)\n",
   "tokens": [
     {
       "text": "a",

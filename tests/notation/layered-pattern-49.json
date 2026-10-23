@@ -1,0 +1,10 @@
+{
+  "description": "syntax refuses #« [a]«b» »",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« [a]«b» »\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 23
+    }
+  }
+}

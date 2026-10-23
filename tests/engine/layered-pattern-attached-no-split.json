@@ -1,0 +1,11 @@
+{
+  "description": "A name and its attached child list cannot match different unary nodes.",
+  "grammar": "%rule text $x:outer\n%conditions $x ≅ #outer« \"a\" \"b\" »\n%rule outer inner\n%rule inner \"a\" \"b\"",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._patterns import pattern_problem, walk_pattern
+from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
 from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem, method_shape_problem
 
@@ -20,7 +21,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 35
+FORMAT = 40
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -243,7 +244,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
         if 'params' in r and (not isinstance(params, list) or not params or any(not isinstance(p, str) or re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', p) is None for p in params) or len(set(params)) != len(params) or 'args' in r):
             return 'malformed template parameters'
         for node in nodes(r):
-            if 'param' in node and (set(node) != {'param', 'at'} or not _is_position(node['at']) or node['param'] not in params):
+            if 'param' in node and (not {'param', 'at'} <= set(node) or not set(node) <= {'param', 'at', 'exact', 'children'} or not _is_position(node['at']) or node['param'] not in params):
                 return 'an undeclared or malformed parameter'
         if 'instance' in r:
             if set(r) != {'name', 'op', 'flags', 'instance', 'conditions', 'at'} or not isinstance(r['name'], str) or not (unicode.is_emoji_name(r['name']) or CLASSIFIER_NAME.fullmatch(r['name'])) or r['op'] not in ('define', 'redefine') or r['flags'] != [] or r['conditions'] != []:
@@ -364,6 +365,39 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             return f"a malformed {kind}"
         below = depth + 1
         keys = set(node)
+        if kind == 'pattern-part':
+            if 'call' in node:
+                for part in nodes(node['args']):
+                    if 'rule' in part and _tag(part['rule']):
+                        return 'a pattern argument rule reads back as a tag'
+                pending.extend(('arg', arg, below, False, False) for arg in node['args'])
+            if 'literal' in node:
+                pending.append(('string', node['literal'], depth, False, False))
+            if 'range' in node:
+                problem = range_problem(node['range'], unicode)
+                if problem:
+                    return problem
+                pending.extend(('string', end, depth, False, False) for end in node['range'])
+            if node.get('test') == 'tags':
+                pending.extend(('term', r['value'], below, False, False) for r in node['requirements'])
+            elif 'test' in node:
+                pending.append(('string', node['value'], below, False, False))
+            if 'expr' in node:
+                pending.append(('pattern-part', node['expr'], below, False, False))
+            if 'path' in node:
+                pending.append(('pattern-part', node['pattern'], below, False, False))
+            for key in ('union', 'intersection', 'difference'):
+                pending.extend(('pattern-part', part, below, False, False) for part in node.get(key, []))
+            pending.extend(('pattern-item', item, below, False, False) for item in node.get('children', []))
+            continue
+        if kind == 'pattern-item':
+            if 'child' in node:
+                pending.append(('pattern-part', node['child'], below, False, False))
+            for key in ('optional', 'repeat', 'separator'):
+                pending.extend(('pattern-item', item, below, False, False) for item in node.get(key, []))
+            for arm in node.get('choice', []):
+                pending.extend(('pattern-item', item, below, False, False) for item in arm)
+            continue
         # Unresolved leaves still obey the category of their position.
         if 'param' in node:
             if kind not in ('expr', 'arg', 'term', 'tags', 'string', 'target'):
@@ -592,40 +626,12 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
         elif "pattern" in node:
             if keys != {"pattern"}:
                 return "a malformed pattern term"
-            problem = pattern_problem(node["pattern"], initial_depth=below)
-            for part in nodes(node['pattern']):
-                if 'call' in part or 'param' in part:
-                    pending.append(('term', part, below, False, False))
+            problem = layered_pattern_problem(node['pattern'], depth=below,
+                name=lambda name: (CLASSIFIER_NAME.fullmatch(name) is not None or unicode.is_emoji_name(name)) and not _tag(name),
+                terminal=_tag)
             if problem:
                 return problem
-            for atom, offset in walk_pattern(node["pattern"]):
-                if "name" in atom and not (CLASSIFIER_NAME.fullmatch(atom["name"]) or unicode.is_emoji_name(atom["name"])):
-                    return "a malformed pattern rule name"
-                atom_depth = below + offset
-                # Pattern literals and ranges use the same transparent transition.
-                if "literal" in atom:
-                    pending.append(("string", atom["literal"], atom_depth, False, False))
-                elif "range" in atom:
-                    problem = range_problem(atom["range"], unicode)
-                    if problem:
-                        return problem
-                    pending.extend(("string", end, atom_depth, False, False) for end in atom["range"])
-                elif atom.get("test") == "tags":
-                    if not isinstance(atom["requirements"], list):
-                        return "a malformed pattern tag test"
-                    for requirement in atom["requirements"]:
-                        if (
-                            not isinstance(requirement, dict)
-                            or set(requirement) != {"negated", "value"}
-                            or type(requirement["negated"]) is not bool
-                        ):
-                            return "a malformed pattern tag requirement"
-                        operand = requirement["value"]
-                        if not isinstance(operand, dict) or not (set(operand) == {"tag"} or set(operand) == {"const", "at"}):
-                            return "a pattern tag test requires a tag or constant"
-                        pending.append(("tags", operand, atom_depth + 1, False, False))
-                elif "test" in atom:
-                    pending.append(("string", atom["value"], atom_depth + 1, False, False))
+            pending.append(('pattern-part', node['pattern'], below, False, False))
         elif any(k in node for k in ("union", "intersection", "difference")):
             key = next(k for k in ("union", "intersection", "difference") if k in node)
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):

@@ -1,6 +1,6 @@
 {
   "description": "The chosen x1 requires q and elides two T. Reconstruction reports x1 first and x2 second. Their m spans contain different synthetic tokens. Both closes use production 3 and map to the same empty span (engine §7.10).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x1 | x2 | e\n%rule m :: ($ ≅ #(⋮q) ⟹ Q-present) | ([q] [+T])\n\n%rule q [+T]\n%rule x1 (A $m:m B) %conditions Q-present ⊆ $m.tags\n\n%rule x2 (A T m B)\n%rule e (A [+T] [+T] [+T] B)",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x1 | x2 | e\n%rule m :: ($ ≅ #(⋮ q) ⟹ Q-present) | ([q] [+T])\n\n%rule q [+T]\n%rule x1 (A $m:m B) %conditions Q-present ⊆ $m.tags\n\n%rule x2 (A T m B)\n%rule e (A [+T] [+T] [+T] B)",
   "tokens": [
     {
       "text": "a",

@@ -273,7 +273,11 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 				if v.ty == tySet {
 					p = emptyPattern()
 				}
-				patterns = append(patterns, p)
+				if t.Kind != tmDifference && p.Kind == t.Kind {
+					patterns = append(patterns, p.Items...)
+				} else {
+					patterns = append(patterns, p)
+				}
 			}
 			return &constValue{ty: tyPattern, pattern: &domPattern{Kind: t.Kind, Items: patterns}}, nil
 		}

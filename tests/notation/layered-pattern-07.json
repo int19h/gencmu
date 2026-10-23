@@ -1,0 +1,32 @@
+{
+  "description": "grouped unions flatten",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #((a ∪ b) ∪ c)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "union": [
+                    {
+                      "name": "a"
+                    },
+                    {
+                      "name": "b"
+                    },
+                    {
+                      "name": "c"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

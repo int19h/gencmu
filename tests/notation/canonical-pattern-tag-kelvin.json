@@ -1,6 +1,6 @@
 {
   "description": "Pattern terminals and tag requirements use decomposed names.",
-  "document": "```jbogenbau\n%rule text $x:K\n%conditions $x ≅ #(K<K>)\n```",
+  "document": "```jbogenbau\n%rule text $x:K\n%conditions $x ≅ #K<K>\n```",
   "expect": {
     "dom": {
       "rules": [

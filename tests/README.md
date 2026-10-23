@@ -191,17 +191,11 @@ These cases cover exact prefixes, attached lists, empty lists, child choices, pa
 
 All four runners also read `printing` and `shapes`. A printing case compares its pattern with `text`. A shape case compares pattern acceptance with its `valid` Boolean. Separate depth cases count constructors at the limit and beyond it. Growth cases require a repeated child sequence to retain fewer than ten structural states over 1,000 children.
 
-## Layered readers: `layered-pattern-reader.json`
+## Layered pattern notation
 
-Each case supplies pattern source and either a decoded pattern or an error phase and offset. The file declares the parameters that the source can use. Offsets count Unicode scalars from the start of the pattern.
+The `notation/layered-pattern-*.json` cases use the public reader and format-40 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
 
-All four libraries read these cases through the candidate recognition grammar. They compare patterns and error positions before public DOM inspection and stage binding. They also round-trip every successful source case and every shared printing case.
-
-The fixture `fixtures/layered-patterns/recognition.json` contains candidate rules for the native libraries. JavaScript compares this snapshot with the grammar in `fixtures/layered-patterns/syntax.md`. Declaration positions occupy a reserved range, so replacement rules cannot collide with unchanged bootstrap declarations.
-
-The `constructors` cases remove listed operator tokens from recognized notation trees. They test supplied constructor shapes against the existing JavaScript reader behavior.
-
-Direct cases test atom positions and canonically equivalent punctuation. Growth cases use 128, 256, and 512 child groups or siblings. The largest case must stay within five times the smallest case's counted work.
+The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, attached lists, child choices, empty lists, parameter decorations, template families, named calls, and load errors.
 
 ## Layered pattern values: `layered-pattern-values.json`
 
@@ -271,7 +265,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 35. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 An optional `unicode` member supplies the contents of `unicode.txt` for that case. Without it, the case uses the bundled table.
 

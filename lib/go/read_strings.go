@@ -139,6 +139,13 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			p.Kind = "terminal"
 		}
 	}
+	if p.Kind == "literal" && p.Value.Kind == tmConst {
+		if value, scalar := engineScalar(p.Value.Str); scalar {
+			p.Value = &domTerm{Kind: tmString, Str: value}
+		} else {
+			p.Kind, p.Name, p.Value = "constant", p.Value.Str, nil
+		}
+	}
 	if p.Kind == "name" && !b.uni.isEmojiName(p.Name) && !classifierName.MatchString(p.Name) {
 		b.fail(first, "a malformed pattern rule name")
 	}

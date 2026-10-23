@@ -1,0 +1,13 @@
+{
+  "description": "An attached list cannot replace an argument child list.",
+  "grammar": "%rule use(@P) \"a\"\n%conditions $ ≅ #@P« \"a\" »\n%rule text use(#text« \"a\" »)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 18
+    }
+  }
+}

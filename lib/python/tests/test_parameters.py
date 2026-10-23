@@ -177,7 +177,7 @@ for index, case in enumerate(CASES):
 
 class NestedArgumentAliases(unittest.TestCase):
     def test_nested_alias_twins_follow_expanded_order(self):
-        for source in ['%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public "a"\n%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))\n%rule named = atom("a")\n%redefine-rule public = outer((atom("a") named))','%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#(atom("a")))\n%rule named = atom("a")']:
+        for source in ['%rule atom(@X) @X\n%rule outer(@X) @X\n%rule public "a"\n%rule text outer((named named)) outer((atom("a") atom("a"))) outer((named atom("a"))) outer((atom("a") named))\n%rule named = atom("a")\n%redefine-rule public = outer((atom("a") named))','%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(#named) outer(#atom("a"))\n%rule named = atom("a")']:
             instances = [i for i in template_audit(grammar_of(source))['instances'] if i['template'] == 'outer']
             assert len(instances) == (4 if 'public' in source else 2)
             for instance in instances:

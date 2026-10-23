@@ -297,7 +297,7 @@
   },
   {
     "name": "pattern family",
-    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #(use)",
+    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #use",
     "input": "a",
     "expect": {
       "result": {
@@ -307,7 +307,7 @@
   },
   {
     "name": "pattern exact call",
-    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #(use(\"a\"))",
+    "grammar": "%rule use(@X) @X\n%rule text $x:use(\"a\") %conditions $x ≅ #use(\"a\")",
     "input": "a",
     "expect": {
       "result": {
@@ -317,7 +317,7 @@
   },
   {
     "name": "pattern parameter",
-    "grammar": "%rule use(@X) $x:\"a\" %conditions $x ≅ #(@X)\n%rule text = use(\"a\")",
+    "grammar": "%rule use(@X) $x:\"a\" %conditions $x ≅ #@X\n%rule text = use(\"a\")",
     "input": "a",
     "expect": {
       "result": {
@@ -771,7 +771,7 @@
   },
   {
     "name": "pattern family in a constant",
-    "grammar": "%const $P #(atom)\n%rule atom(@X) @X\n%rule text $x:atom(\"a\") %conditions $x ≅ $P",
+    "grammar": "%const $P #atom\n%rule atom(@X) @X\n%rule text $x:atom(\"a\") %conditions $x ≅ $P",
     "input": "a",
     "expect": {
       "result": {
@@ -801,7 +801,7 @@
   },
   {
     "name": "a parameter supplies a tested pattern atom",
-    "grammar": "%rule use(@X) $x:_ %conditions $x ≅ #(@X)\n%rule text = use(_=\"a\")",
+    "grammar": "%rule use(@X) $x:_ %conditions $x ≅ #@X\n%rule text = use(_=\"a\")",
     "input": "a",
     "expect": {
       "result": {
@@ -861,7 +861,7 @@
   },
   {
     "name": "a sequence cannot replace a pattern atom",
-    "grammar": "%rule atom(@X) $x:\"a\" %conditions $x ≅ #(@X)\n%rule text = atom((\"a\" \"b\"))",
+    "grammar": "%rule atom(@X) $x:\"a\" %conditions $x ≅ #@X\n%rule text = atom((\"a\" \"b\"))",
     "input": "",
     "expect": {
       "error": "grammar"
@@ -981,7 +981,7 @@
   },
   {
     "name": "family matches named and locally redefined instances",
-    "grammar": "%rule atom(@X) @X\n%rule text $a:named $b:atom(\"b\")\n%conditions $a ≅ #(atom), $b ≅ #(atom)\n%rule named = atom(\"a\")\n%redefine-rule atom(\"b\") \"c\"",
+    "grammar": "%rule atom(@X) @X\n%rule text $a:named $b:atom(\"b\")\n%conditions $a ≅ #atom, $b ≅ #atom\n%rule named = atom(\"a\")\n%redefine-rule atom(\"b\") \"c\"",
     "input": "ac",
     "expect": {
       "result": {
@@ -991,7 +991,7 @@
   },
   {
     "name": "uncalled family matches nothing and discovers nothing",
-    "grammar": "%rule atom(@X) @X\n%rule text $a:A\n%conditions $a ≇ #(atom)",
+    "grammar": "%rule atom(@X) @X\n%rule text $a:A\n%conditions $a ≇ #atom",
     "expect": {
       "result": {
         "ok": true

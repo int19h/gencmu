@@ -553,59 +553,130 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 ## Tree patterns
 
-A pattern literal starts with `#(` and ends with `)`. The shorthand `#A` reads one ungrouped atom. Its lookahead excludes a plain group from shorthand recognition.
+A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Patterns combine with union, intersection, and difference. Sequences describe siblings, brackets make a sequence optional, and braces repeat it with an optional separator.
+Guillemets enclose child items. An adjacent list attaches to a rule test. Whitespace or a comment separates a bare list from the preceding item.
 
-`⋯` admits a sibling gap. `⋮` and `⋱` precede an atom for descendant and last-child paths. `⋰` follows an atom for a first-child path.
+Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
-Recognition admits repeated or reversed tests on names, terminals, and constants. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
+Recognition admits repeated or reversed terminal tests. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
 
 ```jbogenbau
 %rule pattern-literal
-  "#" "(" pattern-union ")" | "#" $short:pattern-atom
-%conditions
-  $short ⟹ $short.first-token.value ≠ "("
+  "#" pattern-primary
 
 %rule pattern-union
   {pattern-intersection / ("∪" | "∖")}
 
 %rule pattern-intersection
-  {pattern-sequence / "∩"}
+  {pattern-path / "∩"}
 
-%rule pattern-sequence
-  {pattern-item}
+%rule pattern-path
+  ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
 
-%rule pattern-item
-  pattern-atom | pattern-brackets | pattern-repeat | pattern-path | "⋯"
+%rule pattern-primary
+  pattern-node | pattern-bare | "(" pattern-union ")"
+
+%rule pattern-node
+  [$exact:"·"] $atom:pattern-atom [$list:pattern-children]
+%conditions
+  $exact ⟹ $exact.onward.begins(pattern-exact-start)
+  , $list ⟹ $atom.onward.begins(pattern-attached-start)
+  , ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
+
+%rule pattern-bare
+  [$exact:"·"] pattern-children
+%conditions
+  $exact ⟹ $exact.onward.begins(pattern-exact-start)
 
 %rule pattern-atom
-  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}] | pattern-literal | "(" pattern-union ")"
+  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
 
 %rule pattern-name
   Lowercase-Name | Emoji-Name | call | parameter
 
+%rule pattern-children
+  "«" [child-choice] "»"
+
+%rule child-choice
+  {child-alternative / "|"}
+
+%rule child-alternative
+  child-sequence | child-set
+
+%rule child-sequence
+  {child-item}
+
+%rule child-set
+  child-intersection ("∪" | "∖") child-intersection [{("∪" | "∖") child-intersection}]
+  | child-path "∩" child-path [{"∩" child-path}]
+
+%rule child-intersection
+  {child-path / "∩"}
+
+%rule child-item
+  child-path | pattern-brackets | pattern-repeat | "⋯"
+%conditions
+  ¬$.last-token.onward.begins(pattern-adjacent-item)
+
+%rule child-path
+  ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+
+%rule child-primary
+  pattern-node | pattern-bare | "(" child-choice ")"
+
 %rule pattern-brackets
-  "[" pattern-union "]"
+  "[" child-choice "]"
 
 %rule pattern-repeat
-  "{" pattern-union ["/" pattern-union] "}"
+  "{" child-choice ["/" child-choice] "}"
 
-%rule pattern-path
-  ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
+%rule pattern-exact-start
+  $mark:"·" $next:_
+%conditions
+  $.source-text = $mark.source-text ++ $next.source-text
+
+%rule pattern-attached-start
+  $atom:pattern-atom $open:"«"
+%conditions
+  $.source-text = $atom.source-text ++ $open.source-text
+
+%rule pattern-item-opening
+  "«" | "·"
+
+%rule pattern-adjacent-item
+  $left:_ $right:pattern-item-opening
+%conditions
+  $left.value ≠ "⋯"
+  , $left.value ≠ "⋰"
+  , $.source-text = $left.source-text ++ $right.source-text
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>pattern-literal</code> to <code>pattern-path</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>pattern-literal</code> to <code>pattern-adjacent-item</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-literal.svg" alt="Railroad diagram of the rule pattern-literal"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-union.svg" alt="Railroad diagram of the rule pattern-union"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-intersection.svg" alt="Railroad diagram of the rule pattern-intersection"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-sequence.svg" alt="Railroad diagram of the rule pattern-sequence"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-item.svg" alt="Railroad diagram of the rule pattern-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-path.svg" alt="Railroad diagram of the rule pattern-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-primary.svg" alt="Railroad diagram of the rule pattern-primary"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-node.svg" alt="Railroad diagram of the rule pattern-node"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-bare.svg" alt="Railroad diagram of the rule pattern-bare"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-atom.svg" alt="Railroad diagram of the rule pattern-atom"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-name.svg" alt="Railroad diagram of the rule pattern-name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-children.svg" alt="Railroad diagram of the rule pattern-children"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-choice.svg" alt="Railroad diagram of the rule child-choice"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-alternative.svg" alt="Railroad diagram of the rule child-alternative"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-sequence.svg" alt="Railroad diagram of the rule child-sequence"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-set.svg" alt="Railroad diagram of the rule child-set"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-intersection.svg" alt="Railroad diagram of the rule child-intersection"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-item.svg" alt="Railroad diagram of the rule child-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-path.svg" alt="Railroad diagram of the rule child-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-primary.svg" alt="Railroad diagram of the rule child-primary"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-brackets.svg" alt="Railroad diagram of the rule pattern-brackets"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-repeat.svg" alt="Railroad diagram of the rule pattern-repeat"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-path.svg" alt="Railroad diagram of the rule pattern-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-exact-start.svg" alt="Railroad diagram of the rule pattern-exact-start"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-attached-start.svg" alt="Railroad diagram of the rule pattern-attached-start"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-item-opening.svg" alt="Railroad diagram of the rule pattern-item-opening"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-adjacent-item.svg" alt="Railroad diagram of the rule pattern-adjacent-item"></p>
 </details>
 
 ## Directives

@@ -1,6 +1,6 @@
 {
   "description": "Control for conformance case 12 (engine §4.2 and §6, case 13).",
-  "grammar": "%rule text t (B | C)\n%rule t A [B]\n%conditions $ ≇ #(A B) ∨ ¬$.followed-by(C)",
+  "grammar": "%rule text t (B | C)\n%rule t A [B]\n%conditions $ ≇ #« A B » ∨ ¬$.followed-by(C)",
   "tokens": [
     {
       "text": "a",

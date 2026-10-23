@@ -621,7 +621,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -681,7 +681,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -741,7 +741,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -801,7 +801,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -861,7 +861,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -921,7 +921,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -981,7 +981,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -1041,7 +1041,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -1121,7 +1121,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,
@@ -1181,7 +1181,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%const $P #(child ∪ #bad-name)\n%rule text \"a\"\n```",
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
       "expect": {
         "error": {
           "line": 2,

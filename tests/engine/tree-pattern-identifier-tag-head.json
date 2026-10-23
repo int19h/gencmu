@@ -1,6 +1,6 @@
 {
   "description": "An identifier-tag literal can name the elidable terminal. Its body and pattern tests observe the same singleton tags (engine §4.1 and §10).",
-  "grammar": "%rule text (A [+T<T>]) %conditions $ ≅ #(A T<T>)\n",
+  "grammar": "%rule text (A [+T<T>]) %conditions $ ≅ #« A T<T> »\n",
   "tokens": [
     {
       "text": "a",

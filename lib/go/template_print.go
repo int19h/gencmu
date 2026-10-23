@@ -150,7 +150,7 @@ func templateCanonical(n templateObject, uni *unicodeTable) string {
 		return p(n["expr"]) + test
 	}
 	if n["pattern"] != nil {
-		return "#(" + templatePatternText(templateObj(n["pattern"]), uni) + ")"
+		return layeredPatternText(templateObj(n["pattern"]), func(n templateObject) string { return templateCanonical(n, uni) }, true)
 	}
 	for _, pair := range [][2]string{{"concat", " ++ "}, {"union", " ∪ "}, {"intersection", " ∩ "}, {"difference", " ∖ "}} {
 		if n[pair[0]] != nil {
@@ -278,52 +278,6 @@ func templateBodyText(n templateObject, uni *unicodeTable, parent string) string
 	return templateCanonical(n, uni)
 }
 
-// Legacy compound spelling remains until the public reader changes formats.
 func templatePatternText(n templateObject, uni *unicodeTable) string {
-	p := func(x any) string { return templatePatternText(templateObj(x), uni) }
-	for _, key := range []string{"node", "children"} {
-		if n[key] != nil {
-			return p(n[key])
-		}
-	}
-	if n["sequence"] != nil {
-		xs := []string{}
-		for _, v := range templateList(n["sequence"]) {
-			xs = append(xs, p(v))
-		}
-		return strings.Join(xs, " ")
-	}
-	if n["siblings"] != nil {
-		return "⋯"
-	}
-	if n["path"] != nil {
-		inner := "(" + p(n["pattern"]) + ")"
-		if n["path"] == "first" {
-			return inner + " ⋰"
-		}
-		if n["path"] == "last" {
-			return "⋱ " + inner
-		}
-		return "⋮ " + inner
-	}
-	if n["optional"] != nil {
-		return "[" + p(n["optional"]) + "]"
-	}
-	if n["repeat"] != nil {
-		sep := ""
-		if n["separator"] != nil {
-			sep = " / " + p(n["separator"])
-		}
-		return "{" + p(n["repeat"]) + sep + "}"
-	}
-	for _, pair := range [][2]string{{"union", " ∪ "}, {"intersection", " ∩ "}, {"difference", " ∖ "}} {
-		if n[pair[0]] != nil {
-			xs := []string{}
-			for _, v := range templateList(n[pair[0]]) {
-				xs = append(xs, "("+p(v)+")")
-			}
-			return strings.Join(xs, pair[1])
-		}
-	}
 	return layeredPatternText(n, func(n templateObject) string { return templateCanonical(n, uni) }, false)
 }

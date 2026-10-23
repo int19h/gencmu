@@ -1,0 +1,41 @@
+{
+  "description": "a space makes a separate bare list",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« a «b» »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "child": {
+                        "name": "a"
+                      }
+                    },
+                    {
+                      "child": {
+                        "any": true,
+                        "children": [
+                          {
+                            "child": {
+                              "name": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

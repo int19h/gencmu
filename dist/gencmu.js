@@ -2603,20 +2603,21 @@
     return {body:expr};
   }
 
-  /** @param {any} value @param {((source:any,target:any)=>void)|null} [copyLocation] @returns {any} */
-  function normalizeArgument(value, copyLocation = null) {
+  /** @param {any} value @param {((source:any,target:any)=>void)|null} [copyLocation] @param {Set<string>} [patterns] @returns {any} */
+  function normalizeArgument(value, copyLocation = null, patterns = new Set()) {
     if(!value || typeof value!=="object") return value;
-    if(Array.isArray(value)) return value.map(item => normalizeArgument(item,copyLocation));
+    if(Array.isArray(value)) return value.map(item => normalizeArgument(item,copyLocation,patterns));
     if(value.body) {
-      const converted=argumentOfExpression(normalizeArgument(value.body,copyLocation));
+      const converted=argumentOfExpression(normalizeArgument(value.body,copyLocation,patterns));
       return converted;
     }
     /** @type {Record<string,any>} */
     const result={};
     for(const [key,item] of Object.entries(value)) {
-      result[key]=normalizeArgument(item,copyLocation);
+      result[key]=normalizeArgument(item,copyLocation,patterns);
       if(["union","concat"].includes(key) && Array.isArray(result[key])) result[key]=result[key].flatMap((/** @type {any} */ n)=>n[key]??[n]);
     }
+    if(result.intersection && patternTerm(result,patterns)) result.intersection=result.intersection.flatMap((/** @type {any} */ n)=>n.intersection??[n]);
     if(copyLocation) copyLocation(value,result);
     return result;
   }
@@ -2631,6 +2632,38 @@
       for(const value of Object.values(node)) if(value && typeof value==='object') pending.push(value);
     }
     return false;
+  }
+
+  /** @param {any} root @param {Set<string>} patterns @returns {boolean} */
+  function patternTerm(root, patterns) {
+    const pending=[root];
+    while(pending.length) {
+      const n=pending.pop();
+      if(n?.pattern || patterns.has(n?.const)) return true;
+      for(const key of ['union','intersection','difference']) if(n?.[key]) pending.push(...n[key]);
+    }
+    return false;
+  }
+
+  /** @param {any[]} definitions @returns {Set<string>} */
+  function patternConstantNames(definitions) {
+    // All versions of a valid constant share its type, including self redefinitions.
+    const patterns=new Set(), users=new Map();
+    for(const definition of definitions) {
+      const pending=[definition.value];
+      while(pending.length) {
+        const n=pending.pop();
+        if(n?.pattern) patterns.add(definition.name);
+        if(n?.const) {
+          if(!users.has(n.const)) users.set(n.const,new Set());
+          users.get(n.const).add(definition.name);
+        }
+        for(const key of ['union','intersection','difference']) if(n?.[key]) pending.push(...n[key]);
+      }
+    }
+    const queue=[...patterns];
+    for(let i=0;i<queue.length;i++) for(const user of users.get(queue[i])??[]) if(!patterns.has(user)) {patterns.add(user);queue.push(user);}
+    return patterns;
   }
 
   // ---- methods.js
@@ -2800,10 +2833,199 @@
     return value;
   }
 
+  // ---- pattern-shapes.js
+  // Layered pattern constructors (docs/output.md, "Pattern values").
+  // This walk keeps pattern and item positions distinct before substitution.
+
+  /** @param {any} node @returns {any[]} */
+  function layeredPatternParts(node) {
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.path) return [node.pattern];
+    if (node.test) return [node.expr];
+    return node.children ?? [];
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function patternItemParts(node) {
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
+  }
+
+  /**
+   * @param {any} root
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number}} [inspect]
+   * @returns {string|null}
+   */
+  function layeredPatternProblem(root, inspect = {}) {
+    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
+    const repeats = [];
+    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
+    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isInteger(x) && x > 0);
+    const stringTerm = (/** @type {any} */ n) => object(n) && (
+      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
+      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
+    );
+    const requirementTerm = (/** @type {any} */ n) => stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_'));
+    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
+    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
+    while (stack.length) {
+      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
+      if (depth > 256) return 'nested too deeply';
+      if (!object(n)) return 'a malformed pattern';
+      const keys = Object.keys(n);
+      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
+      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
+      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
+        if (!Array.isArray(array) || !empty && !array.length) return false;
+        for (const node of array) push(node,true,inRepeat);
+        return true;
+      };
+      if (item) {
+        if (exact(['child'])) push(n.child,false,false);
+        else if (exact(['siblings'])) {
+          if (n.siblings !== true) return 'a malformed sibling ellipsis';
+          if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
+        } else if (exact(['optional'])) {
+          if (!items(n.optional)) return 'a malformed pattern optional';
+        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
+          if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
+          repeats.push(n.repeat);
+        } else if (exact(['choice'])) {
+          if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
+          for (const arm of n.choice) {
+            if (!items(arm) || arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
+          }
+        } else return 'a malformed pattern child item';
+        continue;
+      }
+      const compound = ['union','intersection','difference'].find(k => k in n);
+      if (compound) {
+        const operands = n[compound];
+        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
+        if (compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
+        for (const node of operands) push(node,false,false);
+        continue;
+      }
+      if ('path' in n) {
+        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
+        push(n.pattern,false,false);
+        continue;
+      }
+      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
+      if (form.length !== 1) return 'a malformed pattern node test';
+      const key = form[0];
+      if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
+      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return 'a child list requires a rule test';
+      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
+      if (key === 'test') {
+        if (n.test === 'tags') {
+          fields.push('requirements','expr');
+          if (!terminalAtom(n.expr) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a terminal atom';
+          for (const requirement of n.requirements) {
+            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
+          }
+        } else {
+          fields.push('value','expr');
+          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && terminalAtom(n.expr.expr))) return 'a pattern value test requires a terminal atom';
+          if (!stringTerm(n.value)) return 'a malformed pattern value test';
+        }
+        const problem = inspect.test?.(n);
+        if (problem) return problem;
+        push(n.expr,false,false,true);
+      } else if (key === 'any') {
+        if (n.any !== true || !('children' in n)) return 'a malformed bare child list';
+      } else {
+        fields.push('at');
+        if (!position(n.at)) return 'a malformed pattern position';
+        if (key === 'call') {
+          fields.push('args');
+          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return 'a malformed pattern call';
+        } else if (key === 'name') {
+          if (!ruleName(n.name)) return 'a malformed pattern rule name';
+        } else if (key === 'param' || key === 'constant') {
+          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return 'a malformed pattern reference';
+        } else if (key === 'terminal') {
+          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return 'a malformed pattern terminal';
+        } else if (key === 'wildcard') {
+          if (n.wildcard !== true) return 'a malformed pattern wildcard';
+        } else if (key === 'literal') {
+          if (!stringTerm(n.literal) || !('string' in n.literal)) return 'a malformed pattern literal';
+        } else if (key === 'range') {
+          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return 'a malformed pattern range';
+        }
+      }
+      if (!exact(fields)) return 'a malformed pattern node test';
+      if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
+    }
+    for (const repeat of repeats) {
+      const pending = [...repeat];
+      let consumes = false;
+      while (pending.length && !consumes) {
+        const item = pending.pop();
+        if ('child' in item) consumes = true;
+        else for (const child of patternItemParts(item)) pending.push(child);
+      }
+      if (!consumes) return 'a pattern repeat cannot match only empty sequences';
+    }
+    return null;
+  }
+
+  /**
+   * @param {any} root
+   * @param {(term:any)=>string} term
+   * @param {boolean} [literal]
+   * @returns {string}
+   */
+  function layeredPatternText(root, term, literal = true) {
+    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
+    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
+    /** @type {(items:any[])=>string} */
+    const items = array => array.map(n => {
+      let text;
+      if (n.child) text = pattern(n.child);
+      else if (n.siblings) return '⋯';
+      else if (n.optional) return '['+items(n.optional)+']';
+      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
+      else text = n.choice.map(items).join(' | ');
+      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
+    }).join(' ');
+    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
+    /** @type {(n:any)=>string} */
+    const pattern = n => {
+      if (n.path) {
+        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
+        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
+      }
+      if (set(n)) {
+        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
+        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
+          const grouped = key === 'intersection' && (x.union || x.difference)
+            || key === 'difference' && i === 1 && (x.union || x.difference)
+            || key === 'union' && i > 0 && x.difference;
+          const text = pattern(x);
+          return grouped ? '('+text+')' : text;
+        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
+      }
+      let text;
+      if (n.any) text = '';
+      else if (n.test) text = pattern(n.expr)+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
+      else if (n.literal) text = term(n.literal);
+      else if (n.range) text = n.range.map(term).join('..');
+      else if (n.wildcard) text = '_';
+      else if (n.constant) text = '$'+n.constant;
+      else text = term(n);
+      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
+    };
+    const text = pattern(root);
+    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
+  }
+
   // ---- patterns.js
 
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
+
 
 
 
@@ -2828,23 +3050,13 @@
 
   /** @param {any} node @returns {any[]} */
   function patternParts(node) {
-    if (!node || typeof node !== 'object') return [];
+    if (Array.isArray(node)) return node;
     if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.sequence) return node.sequence;
+    if (node.path) return [node.pattern];
     if (node.test) return [node.expr];
-    return ['pattern','children','node','optional','repeat','separator'].flatMap(key => key in node ? [node[key]] : []);
-  }
-
-  /** @param {any} value @returns {boolean} */
-  function canConsume(value) {
-    const stack = [value];
-    while (stack.length) {
-      const n = stack.pop();
-      if ('node' in n || 'siblings' in n) return true;
-      if (n.sequence) for (const child of n.sequence) stack.push(child);
-      else stack.push(n.optional ?? n.repeat);
-    }
-    return false;
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
   }
 
   /**
@@ -2854,67 +3066,7 @@
    * @returns {string | null}
    */
   function patternProblem(root, testFault) {
-    const stack = [{value:root, children:false, repeated:false, depth:0}];
-    while (stack.length) {
-      const {value:n, children, repeated, depth} = /** @type {any} */ (stack.pop());
-      if (depth > 256) return 'nested too deeply';
-      if (!n || typeof n !== 'object' || Array.isArray(n)) return 'a malformed pattern';
-      const keys = Object.keys(n);
-      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
-      const push = (/** @type {any} */ value, /** @type {boolean} */ c = false, r = repeated) => stack.push({value,children:c,repeated:r,depth:depth+1});
-      if (children) {
-        if (exact(['node'])) push(n.node);
-        else if (exact(['siblings'])) { if (n.siblings !== true || repeated) return 'a sibling ellipsis cannot be a repeat item or separator'; }
-        else if (exact(['sequence'])) {
-          if (!Array.isArray(n.sequence) || n.sequence.length < 2) return 'a malformed pattern sequence';
-          n.sequence.forEach((/** @type {any} */ x) => push(x,true));
-        } else if (exact(['optional'])) push(n.optional,true);
-        else if (exact(['repeat']) || exact(['repeat','separator'])) {
-          push(n.repeat,true,true);
-          if ('separator' in n) push(n.separator,true,true);
-          // Inspect after validating shapes, below.
-        } else return 'a malformed pattern children expression';
-      } else if (exact(['param','at']) || exact(['call','args','at'])) {
-        if (!Array.isArray(n.at) || n.at.length !== 2) return 'a malformed template pattern';
-      } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
-        const key = 'name' in n ? 'name' : 'terminal' in n ? 'terminal' : 'constant';
-        if (typeof n[key] !== 'string' || !Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern atom';
-        if (key === 'name' && !(/^[a-z][A-Za-z0-9_-]*$/.test(n.name) || [...n.name].length === 1)) return 'a malformed pattern rule name';
-        if (key === "constant" && !/^[A-Z][A-Za-z0-9_-]*$/.test(n.constant)) return "a malformed pattern constant";
-        if (key === "terminal" && !(/^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith("_") && PROPERTY_NAMES.has(n.terminal.slice(1)))) return "a malformed pattern terminal";
-      } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
-        if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern position';
-        if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
-        if ('literal' in n && (!n.literal || !['string', 'const', 'param'].some(key => key in n.literal))) return 'a malformed pattern literal';
-        if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
-      } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
-        const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant', 'param'].some(key => key in value);
-        if (n.test === 'tags') {
-          if (!base(n.expr) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a terminal atom';
-          for (const requirement of n.requirements) {
-            if (!requirement || Object.keys(requirement).length !== 2 || typeof requirement.negated !== 'boolean' || !requirement.value || !('tag' in requirement.value || 'const' in requirement.value || 'param' in requirement.value)) return 'a malformed pattern requirement';
-          }
-        } else if (!['=', '≠'].includes(n.test) || !(base(n.expr) || n.expr?.test === 'tags' && base(n.expr.expr))) return 'a pattern value test requires a terminal atom';
-        const fault = testFault(n);
-        if (fault) return fault;
-        push(n.expr);
-      } else if (exact(['children'])) push(n.children,true);
-      else if (exact(['path','pattern'])) {
-        if (!['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
-        push(n.pattern);
-      } else {
-        const key = ['union','intersection','difference'].find(k => exact([k]));
-        if (!key || !Array.isArray(n[key]) || n[key].length < 2 || (key === 'difference' && n[key].length !== 2)) return 'a malformed pattern';
-        n[key].forEach((/** @type {any} */ x) => push(x));
-      }
-    }
-    const todo = [root];
-    while (todo.length) {
-      const n = todo.pop();
-      if (n.repeat && !canConsume(n.repeat)) return 'a pattern repeat cannot match only empty sequences';
-      for (const child of patternParts(n)) todo.push(child);
-    }
-    return null;
+    return layeredPatternProblem(root, {test:testFault, terminal:name=>/^[A-Z][A-Za-z0-9_-]*$/.test(name) || name.startsWith('_') && PROPERTY_NAMES.has(name.slice(1))});
   }
 
   /**
@@ -2958,6 +3110,7 @@
       for(const key of ['union','intersection','difference','sequence','choice','pattern','children','child','node','optional','repeat','separator']) {
         if(node[key]) result[key]=yield resolve(node[key]);
       }
+      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
       return result;
     }
     return run(resolve(root));
@@ -3007,12 +3160,9 @@
           if (!n.length) edge(from,to);
           let a=from;
           n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
-        } else if (n.child || n.node) edge(from,to,this.compile(n.child ?? n.node));
+        } else if (n.child) edge(from,to,this.compile(n.child));
         else if (n.siblings) { edge(from,to); edge(from,from,-1); }
-        else if (n.sequence) {
-          let a=from;
-          n.sequence.forEach((/** @type {any} */ x,/** @type {number} */ i) => { const b=i===n.sequence.length-1?to:state(); build(x,a,b);a=b; });
-        } else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
+        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
         else if (n.optional) { edge(from,to); build(n.optional,from,to); }
         else if (n.repeat) {
           const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
@@ -3098,20 +3248,11 @@
   /** @param {any} pattern @returns {string} */
   function patternText(pattern) {
     /** @type {(n:any) => string} */
-    const value = (n) => n.string !== undefined ? JSON.stringify(n.string) : n.const ? `$${n.const}`
+    const value = (n) => n.name ?? n.terminal ?? (n.param ? "@"+n.param : n.requirements ? "<"+n.requirements.map((/** @type {any} */ r)=>(r.negated?"¬":"")+value(r.value)).join(" ")+">" : n.string !== undefined ? JSON.stringify(n.string) : n.const ? `$${n.const}`
       : n.tag ? n.tag : n.emptySet ? "∅" : n.set ? [...n.set].join(" ∪ ") || "∅"
       : n.union ? n.union.map(value).join(" ∪ ") : n.intersection ? n.intersection.map(value).join(" ∩ ")
-      : `(${value(n.difference[0])} ∖ ${value(n.difference[1])})`;
-    /** @type {(n:any) => string} */
-    const node = (n) => n.name ?? n.terminal ?? (n.constant ? `$${n.constant}` :
-      n.test ? `${node(n.expr)}${n.test}(${value(n.value)})` :
-      n.children ? `#(${children(n.children)})` :
-      n.path ? n.path === "first" ? `(${node(n.pattern)}) ⋰` : `${n.path === "descendant" ? "⋮" : "⋱"} (${node(n.pattern)})` :
-      `(${(n.union ?? n.intersection ?? n.difference).map(node).join(n.union ? " ∪ " : n.intersection ? " ∩ " : " ∖ ")})`);
-    /** @type {(n:any) => string} */
-    const children = (n) => n.node ? node(n.node) : n.siblings ? "⋯" : n.sequence ? n.sequence.map(children).join(" ")
-      : n.optional ? `[${children(n.optional)}]` : `{${children(n.repeat)}${n.separator ? ` / ${children(n.separator)}` : ""}}`;
-    return pattern.children ? `#(${children(pattern.children)})` : `#(${node(pattern)})`;
+      : `(${value(n.difference[0])} ∖ ${value(n.difference[1])})`);
+    return layeredPatternText(pattern,value);
   }
 
   // ---- dom.js
@@ -3121,6 +3262,7 @@
   // bootstrap's or a precompiled one from compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
+
 
 
 
@@ -3142,7 +3284,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 35;
+  const DOM_FORMAT = 40;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3355,6 +3497,40 @@
       /** @type {(kind: string, value: any, context?: any) => void} */
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, {params:task.params,...context});
       const fields = Object.keys(value);
+      if (kind === "pattern") {
+        const problem = layeredPatternProblem(value, {depth, name:name=>ruleName(name) && !tag(name), terminal:tag});
+        if (problem) return problem;
+        push("pattern-part",value,depth,{params:task.params});
+        continue;
+      }
+      if (kind === "pattern-part") {
+        if (value.param && !task.params.has(value.param)) return "an undeclared parameter";
+        if (value.call) {
+          const nodes=[value.args];
+          while(nodes.length) {
+            const node=nodes.pop();
+            if(!node || typeof node!=="object") continue;
+            if(node.rule && tag(node.rule)) return "a pattern argument rule reads back as a tag";
+            for(const operand of Object.values(node)) if(operand && typeof operand==="object") nodes.push(operand);
+          }
+          for (const arg of value.args) child("arg",arg);
+        }
+        if (value.literal) push("term",value.literal,depth,{params:task.params});
+        if (value.range) for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
+        if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value);
+        else if (value.test) child("term",value.value);
+        if (value.expr) child("pattern-part",value.expr);
+        if (value.path) child("pattern-part",value.pattern);
+        for (const key of ["union","intersection","difference"]) if (value[key]) for (const operand of value[key]) child("pattern-part",operand);
+        if (value.children) for (const item of value.children) child("pattern-item",item);
+        continue;
+      }
+      if (kind === "pattern-item") {
+        if (value.child) child("pattern-part",value.child);
+        for (const key of ["optional","repeat","separator"]) if (value[key]) for (const item of value[key]) child("pattern-item",item);
+        if (value.choice) for (const arm of value.choice) for (const item of arm) child("pattern-item",item);
+        continue;
+      }
       // Unresolved leaves still obey the category of their position.
       if ("param" in value) {
         if (!["expr", "arg", "term", "tags", "target", "pattern", "pattern-part"].includes(kind)) return `a malformed ${kind}`;
@@ -3469,17 +3645,6 @@
           if (!Array.isArray(values) || values.length < 2) return "a malformed connective";
           for (const condition of values) child("condition", condition);
         }
-      } else if (kind === "pattern") {
-        const problem = patternProblem(value, () => null);
-        if (problem) return problem;
-        push("pattern-part",value,depth);
-      } else if (kind === "pattern-part") {
-        if (typeof value.name === "string" && !ruleName(value.name)) return "a malformed pattern rule name";
-        if (value.test === "tags") for (const requirement of value.requirements) child("term", requirement.value);
-        else if (value.test) { if (!stringTerm(value.value)) return "a malformed pattern value test"; child("term", value.value); }
-        if (value.literal) { if (!stringTerm(value.literal)) return "a malformed pattern literal"; push("term", value.literal, depth); }
-        if (value.range) for (const endpoint of value.range) { if (!stringTerm(endpoint)) return "a malformed pattern range"; push("term", endpoint, depth); }
-        for (const item of patternParts(value)) if (item !== value.value) child("pattern-part", item);
       } else {
         if (!hasOneForm(value, [["string"], ["concat"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
         if ("string" in value) { if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return "a malformed scalar string"; }
@@ -4732,6 +4897,7 @@
         if (n.constant) {
           const type = constants(n.constant);
           if (!["string","pattern","any"].includes(type)) return {problem:"a pattern atom requires a string or pattern constant",node:n};
+          if(type==="pattern" && (n.exact || n.children)) return {problem:"a pattern-valued constant cannot carry node decorations",node:n};
         }
         if (n.literal || n.range) for (const operand of n.range ?? [n.literal]) {
           const found = yield typing(operand,constants);
@@ -5597,19 +5763,20 @@
 
 
 
+
   /** @param {any} node @returns {string[]} */
   function orderedKeys(node) {
-    const order = ['if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'node', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after'];
+    const order = ['if', 'then', 'op', 'left', 'right', 'not', 'any', 'all', 'body', 'targets', 'requirements', 'negated', 'value', 'pattern', 'child', 'children', 'expr', 'repeat', 'separator', 'optional', 'seq', 'choice', 'ranked', 'and', 'union', 'intersection', 'difference', 'concat', 'items', 'tags', 'image', 'before', 'after'];
     return [...order.filter(key=>Object.hasOwn(node,key)), ...Object.keys(node).filter(key=>key!=='at' && !order.includes(key)).sort()];
   }
 
-  /** @param {any} value @returns {any} */
-  function normalizeTemplateArgument(value) {
+  /** @param {any} value @param {Set<string>} [patterns] @returns {any} */
+  function normalizeTemplateArgument(value, patterns = new Set()) {
     return normalizeArgument(value,(source,target)=>{
       copyRankedLocation(source,target);
       copyRecipeLocation(source,target);
       copyBoundaryLocation(source,target);
-    });
+    },patterns);
   }
 
   /** @param {any} value @returns {any} */
@@ -5666,7 +5833,7 @@
       return n.body.empty || n.body.optional || n.body.repeat ? body : '('+body+')';
     }
     if(n.test) return print(n.expr)+(n.test==='tags'?print({requirements:n.requirements}):n.test+print(n.value));
-    if(n.pattern) return '#('+templatePatternText(n.pattern,unicode)+')';
+    if(n.pattern) return layeredPatternText(n.pattern,x=>canonicalArgument(x,unicode));
     if(n.concat || n.union || n.intersection || n.difference) {
       const key=/** @type {string} */ (['concat','union','intersection','difference'].find((/** @type {any} */ k)=>n[k]));
       const values=n[key];
@@ -5726,22 +5893,11 @@
     return canonicalArgument(n,unicode);
   }
 
-  /** @param {any} n @param {any} unicode @returns {string} */
-  function templatePatternText(n,unicode) {
-    const print=(/** @type {any} */ x)=>templatePatternText(x,unicode);
-    if(n.node || n.children) return print(n.node??n.children);
-    if(n.sequence) return n.sequence.map(print).join(' ');
-    if(n.siblings) return '⋯';
-    if(n.path) return n.path==='first'?'('+print(n.pattern)+') ⋰':(n.path==='last'?'⋱ ':'⋮ ')+'('+print(n.pattern)+')';
-    if(n.optional) return '['+print(n.optional)+']';
-    if(n.repeat) return '{'+print(n.repeat)+(n.separator?' / '+print(n.separator):'')+'}';
-    for(const [key,op] of [['union',' ∪ '],['intersection',' ∩ '],['difference',' ∖ ']]) if(n[key]) return n[key].map((/** @type {any} */ x)=>'('+print(x)+')').join(op);
-    return canonicalArgument(n,unicode);
-  }
-
   /** @param {any[]} documents @param {any} unicode @returns {any} */
   function expandTemplates(documents,unicode) {
     if(!documents.some((/** @type {any} */ d)=>hasUnresolved(d.dom))) return {documents,order:null,templates:[],instances:[]};
+    const patterns=patternConstantNames(documents.flatMap(d=>d.dom.constants));
+    const normalize=(/** @type {any} */ value)=>normalizeTemplateArgument(value,patterns);
     const templates=new Map(), names=new Map(), instances=new Map();
     /** @type {string[]} */ const slots=[];
     /** @type {any[]} */ const events=[];
@@ -5796,7 +5952,7 @@
         n.args.forEach((/** @type {any} */ arg,/** @type {number} */ i)=>{
           for(const part of templateNodes(arg)) {
             if(part.capture!==undefined || part.captured!==undefined) fail(event,part,'an argument cannot read or declare captures');
-            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:normalizeArgument(arg).param!==part.param,event,node:n,argument:arg});
+            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:normalize(arg).param!==part.param,event,node:n,argument:arg});
           }
         });
       }
@@ -5821,7 +5977,7 @@
     const intern=(call,event,discover=false)=>{
       const signature=templates.get(call.call);
       if(!signature || !Array.isArray(call.args) || signature.arity!==call.args.length) fail(event,call,'an instance call requires the declared arity');
-      const args=call.args.map(normalizeTemplateArgument);
+      const args=call.args.map(normalize);
       const normalized={call:call.call,args,at:call.at};
       const key=JSON.stringify(templateIdentity(normalized));
       if(!instances.has(key)) {
@@ -5853,7 +6009,8 @@
         for(const value of children) {
           if(Array.isArray(value)) value.forEach(visit);else if(value && typeof value==='object') visit(value);
         }
-        if(n.call && !templateNodes(n).some((/** @type {any} */ x)=>x.param)) intern(n,event,true);
+        if(n.call && !templateNodes(n.args).some((/** @type {any} */ x)=>x.param)) intern(n,event,true);
+        if(n.call && n.children) visit(n.children);
       };
       visit(root);
     };
@@ -5904,7 +6061,7 @@
     }
     /** @type {(arg:any,position:string,event:any,use:any)=>any} */
     const convert=(arg,position,event,use)=>{
-      arg=normalizeTemplateArgument(arg);
+      arg=normalize(arg);
       if(position==='arg') return arg;
       if(position==='expr') {
         if(arg.body) return arg.body;
@@ -5930,7 +6087,21 @@
     const substitute=(root,env,event,position='term')=>{
       if(!root || typeof root!=='object') return root;
       if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>substitute(x,env,event,position));
-      if(root.param) return convert(env.get(root.param),position,event,root);
+      if(root.param) {
+        const converted=convert(env.get(root.param),position,event,root);
+        if(position!=='pattern' || !root.exact && !('children' in root)) return converted;
+        if(['union','intersection','difference','path'].some(key=>key in converted)) fail(event,root,'a compound pattern cannot carry node decorations');
+        const result={...converted};
+        if(root.exact) {
+          if(converted.exact) fail(event,root,'an exact prefix conflicts with an argument prefix');
+          result.exact=true;
+        }
+        if('children' in root) {
+          if(!('name' in converted || 'call' in converted) || 'children' in converted) fail(event,root,'an attached list requires a rule test without children');
+          result.children=substitute(root.children,env,event,'pattern-item');
+        }
+        return result;
+      }
       /** @type {Record<string,any>} */
     const result={};
       for(const [key,value] of Object.entries(root)) {
@@ -5964,7 +6135,7 @@
           let head=value.seq?value.seq[0]:value;
           while(head.test) head=head.expr;
           if(head.param) {
-            const arg=normalizeArgument(env.get(head.param));
+            const arg=normalize(env.get(head.param));
             if(!arg.tag || !/^[A-Z]/.test(arg.tag) || Object.keys(arg).length!==1) fail(event,head,'an elidable parameter head requires one bare user tag');
           }
         }
@@ -5972,11 +6143,19 @@
         if(['alternatives','conditions','emit','tags','value','image','requirements','range','literal','concat','union','intersection','difference','left','right','receiver','if','then','not','all','any'].includes(key) && !(position==='pattern' && ['union','intersection','difference'].includes(key))) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator'].includes(key) && position!=='pattern') next='expr';
         if(key==='expr') next=position==='pattern'?'pattern':'expr';
-        if(key==='pattern' || key==='children' || key==='node') next='pattern';
+        if(key==='pattern' || key==='child') next='pattern';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
         result[key]=substitute(value,env,event,next);
+      }
+      if(position==='pattern' && result.test && result.expr.exact) {
+        if(result.exact) {let use=root.expr;while(use.expr) use=use.expr;fail(event,use,'an exact prefix conflicts with an argument prefix');}
+        result.exact=true;
+        const {exact,...expr}=result.expr;
+        result.expr=expr;
       }
       if(result.concat) result.concat=result.concat.flatMap((/** @type {any} */ x)=>x.concat??[x]);
       if(result.union) result.union=result.union.flatMap((/** @type {any} */ x)=>x.union??[x]);
+      if((position==='pattern' || patternTerm(result,patterns)) && result.intersection) result.intersection=result.intersection.flatMap((/** @type {any} */ x)=>x.intersection??[x]);
       copyRankedLocation(root,result);
       copyRecipeLocation(root,result);
       copyBoundaryLocation(root,result);
@@ -6005,12 +6184,12 @@
       if(!root || typeof root!=='object') return root;
       if(Array.isArray(root)) return root.map((/** @type {any} */ x)=>rewrite(x,event,position));
       if(root.call) {
-        const instance=instances.get(JSON.stringify(templateIdentity(normalizeArgument(root))));
+        const instance=instances.get(JSON.stringify(templateIdentity(normalize({call:root.call,args:root.args,at:root.at}))));
         const name=instance?effective(instance):canonicalArgument(root,unicode);
-        return position==='pattern'?{name,at:root.at}:position==='expr'?{ref:name}:{rule:name};
+        return position==='pattern'?{name,...(root.exact?{exact:true}:{}),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{ }),at:root.at}:position==='expr'?{ref:name}:{rule:name};
       }
       if(position==='pattern' && root.name && templates.has(root.name)) {
-        const members=queue.filter((/** @type {any} */ x)=>x.call.call===root.name).map((/** @type {any} */ x)=>({name:effective(x),at:root.at}));
+        const members=queue.filter((/** @type {any} */ x)=>x.call.call===root.name).map((/** @type {any} */ x)=>({...root,name:effective(x),...(root.children?{children:rewrite(root.children,event,'pattern-item')}:{})}));
         return members.length===1?members[0]:members.length?{union:members}:{difference:[{name:'text',at:root.at},{name:'text',at:root.at}]};
       }
       if(root.ref && templates.has(root.ref) || root.rule && templates.has(root.rule)) fail(event,root,'a bare template reference must name one instance');
@@ -6020,12 +6199,14 @@
         let next=position;
         if(['alternatives','conditions','emit','tags','value','image','left','right','receiver','range','literal','args'].includes(key)) next='term';
         if(['seq','choice','ranked','and','optional','repeat','separator','expr'].includes(key) && position!=='pattern') next='expr';
-        if(key==='pattern' || key==='node' || key==='children') next='pattern';
+        if(key==='pattern' || key==='child') next='pattern';
+        if(key==='children' || position==='pattern-item' && ['choice','optional','repeat','separator'].includes(key)) next='pattern-item';
         result[key]=key==='at'?value:rewrite(value,event,next);
       }
       copyRankedLocation(root,result);
       copyRecipeLocation(root,result);
       copyBoundaryLocation(root,result);
+      if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
       return result;
     };
     const validation=[];
@@ -7621,7 +7802,7 @@
       if ("string" in term) return { string: term.string };
       if ("concat" in term) return { string: term.concat.map(string).join("") };
       if ("tag" in term) return { set: tagSet([term.tag]) };
-      if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
+      if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ any:true, children:[{siblings:true}] }, { any:true, children:[{siblings:true}] }] } } : { set: tagSet() };
       if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
       if ("pattern" in term) {
         try {
@@ -7652,7 +7833,11 @@
           if ("pattern" in part || ("const" in part && "pattern" in lookup(part.const))) pattern = true;
           else for (const key of ["union", "intersection", "difference"]) if (part[key]) for (const child of part[key]) pending.push(child);
         }
-        if (pattern) return { pattern: { [operation]: operands.map((/** @type {Term} */ part) => /** @type {{pattern:any}} */ (this.evaluateClosed(path, part, item, lookup, "pattern")).pattern) } };
+        if (pattern) {
+          let values=operands.map((/** @type {Term} */ part) => /** @type {{pattern:any}} */ (this.evaluateClosed(path, part, item, lookup, "pattern")).pattern);
+          if(operation!=='difference') values=values.flatMap((/** @type {any} */ part)=>part[operation]??[part]);
+          return {pattern:{[operation]:values}};
+        }
       }
       if ("union" in term) {
         const result = new TagUnion();
@@ -16269,200 +16454,11 @@
     return ropeOf(sequence);
   }
 
-  // ---- pattern-shapes.js
-  // Layered pattern constructors (docs/output.md, "Pattern values").
-  // This walk keeps pattern and item positions distinct before substitution.
-
-  /** @param {any} node @returns {any[]} */
-  function layeredPatternParts(node) {
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    return node.children ?? [];
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function patternItemParts(node) {
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
-   * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number}} [inspect]
-   * @returns {string|null}
-   */
-  function layeredPatternProblem(root, inspect = {}) {
-    const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
-    const repeats = [];
-    const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
-    const position = (/** @type {any} */ n) => Array.isArray(n) && n.length === 2 && n.every((/** @type {any} */ x) => Number.isInteger(x) && x > 0);
-    const stringTerm = (/** @type {any} */ n) => object(n) && (
-      Object.keys(n).length === 1 && typeof n.string === 'string' && [...n.string].every(c => c.codePointAt(0) < 0xd800 || c.codePointAt(0) > 0xdfff)
-      || Object.keys(n).length === 2 && position(n.at) && (typeof n.const === 'string' && /^[A-Z][A-Za-z0-9_-]*$/.test(n.const) || typeof n.param === 'string' && /^[A-Za-z][A-Za-z0-9_-]*$/.test(n.param))
-    );
-    const requirementTerm = (/** @type {any} */ n) => stringTerm(n) && !('string' in n) || object(n) && Object.keys(n).length === 1 && typeof n.tag === 'string' && (inspect.terminal ? inspect.terminal(n.tag) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.tag) || n.tag.startsWith('_'));
-    const ruleName = (/** @type {any} */ name) => typeof name === 'string' && (inspect.name ? inspect.name(name) : /^[a-z][A-Za-z0-9_-]*$/.test(name) || [...name].length === 1 && (name.codePointAt(0) ?? 0) > 127);
-    const terminalAtom = (/** @type {any} */ n) => object(n) && ['terminal','literal','range','wildcard','constant','param'].some(k => k in n) && !('exact' in n || 'children' in n);
-    while (stack.length) {
-      const {node:n,item,repeated,depth,inner} = /** @type {any} */ (stack.pop());
-      if (depth > 256) return 'nested too deeply';
-      if (!object(n)) return 'a malformed pattern';
-      const keys = Object.keys(n);
-      const exact = (/** @type {string[]} */ fields) => keys.length === fields.length && fields.every(k => k in n);
-      const push = (/** @type {any} */ node, isItem = false, inRepeat = repeated, isInner = false) => stack.push({node,item:isItem,repeated:inRepeat,depth:depth+1,inner:isInner});
-      const items = (/** @type {any} */ array, inRepeat = repeated, empty = false) => {
-        if (!Array.isArray(array) || !empty && !array.length) return false;
-        for (const node of array) push(node,true,inRepeat);
-        return true;
-      };
-      if (item) {
-        if (exact(['child'])) push(n.child,false,false);
-        else if (exact(['siblings'])) {
-          if (n.siblings !== true) return 'a malformed sibling ellipsis';
-          if (repeated) return 'a sibling ellipsis cannot be a repeat item or separator';
-        } else if (exact(['optional'])) {
-          if (!items(n.optional)) return 'a malformed pattern optional';
-        } else if (exact(['repeat']) || exact(['repeat','separator'])) {
-          if (!items(n.repeat,true) || 'separator' in n && !items(n.separator,true)) return 'a malformed pattern repeat';
-          repeats.push(n.repeat);
-        } else if (exact(['choice'])) {
-          if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
-          for (const arm of n.choice) {
-            if (!items(arm) || arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
-          }
-        } else return 'a malformed pattern child item';
-        continue;
-      }
-      const compound = ['union','intersection','difference'].find(k => k in n);
-      if (compound) {
-        const operands = n[compound];
-        if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
-        for (const node of operands) push(node,false,false);
-        continue;
-      }
-      if ('path' in n) {
-        if (!exact(['path','pattern']) || !['descendant','first','last'].includes(n.path)) return 'a malformed pattern path';
-        push(n.pattern,false,false);
-        continue;
-      }
-      const form = ['name','call','param','terminal','literal','range','wildcard','constant','test','any'].filter(k => k in n);
-      if (form.length !== 1) return 'a malformed pattern node test';
-      const key = form[0];
-      if ('exact' in n && (n.exact !== true || inner)) return 'a malformed exact pattern prefix';
-      if ('children' in n && (inner || !['name','call','param','any'].includes(key))) return 'a child list requires a rule test';
-      let fields = [key, ...('exact' in n ? ['exact'] : []), ...('children' in n ? ['children'] : [])];
-      if (key === 'test') {
-        if (n.test === 'tags') {
-          fields.push('requirements','expr');
-          if (!terminalAtom(n.expr) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a terminal atom';
-          for (const requirement of n.requirements) {
-            if (!object(requirement) || Object.keys(requirement).length !== 2 || !('value' in requirement) || typeof requirement.negated !== 'boolean' || !requirementTerm(requirement.value)) return 'a malformed pattern requirement';
-          }
-        } else {
-          fields.push('value','expr');
-          if (!['=','≠'].includes(n.test) || !(terminalAtom(n.expr) || object(n.expr) && n.expr.test === 'tags' && !('exact' in n.expr || 'children' in n.expr) && terminalAtom(n.expr.expr))) return 'a pattern value test requires a terminal atom';
-          if (!stringTerm(n.value)) return 'a malformed pattern value test';
-        }
-        const problem = inspect.test?.(n);
-        if (problem) return problem;
-        push(n.expr,false,false,true);
-      } else if (key === 'any') {
-        if (n.any !== true || !('children' in n)) return 'a malformed bare child list';
-      } else {
-        fields.push('at');
-        if (!position(n.at)) return 'a malformed pattern position';
-        if (key === 'call') {
-          fields.push('args');
-          if (!ruleName(n.call) || !Array.isArray(n.args) || !n.args.length || n.args.some((/** @type {any} */ x) => !object(x))) return 'a malformed pattern call';
-        } else if (key === 'name') {
-          if (!ruleName(n.name)) return 'a malformed pattern rule name';
-        } else if (key === 'param' || key === 'constant') {
-          if (typeof n[key] !== 'string' || !(key === 'param' ? /^[A-Za-z][A-Za-z0-9_-]*$/ : /^[A-Z][A-Za-z0-9_-]*$/).test(n[key])) return 'a malformed pattern reference';
-        } else if (key === 'terminal') {
-          if (typeof n.terminal !== 'string' || !(inspect.terminal ? inspect.terminal(n.terminal) : /^[A-Z][A-Za-z0-9_-]*$/.test(n.terminal) || n.terminal.startsWith('_'))) return 'a malformed pattern terminal';
-        } else if (key === 'wildcard') {
-          if (n.wildcard !== true) return 'a malformed pattern wildcard';
-        } else if (key === 'literal') {
-          if (!stringTerm(n.literal) || !('string' in n.literal)) return 'a malformed pattern literal';
-        } else if (key === 'range') {
-          if (!Array.isArray(n.range) || n.range.length !== 2 || n.range.some((/** @type {any} */ x) => !stringTerm(x))) return 'a malformed pattern range';
-        }
-      }
-      if (!exact(fields)) return 'a malformed pattern node test';
-      if ('children' in n && !items(n.children,false,true)) return 'a malformed pattern child list';
-    }
-    for (const repeat of repeats) {
-      const pending = [...repeat];
-      let consumes = false;
-      while (pending.length && !consumes) {
-        const item = pending.pop();
-        if ('child' in item) consumes = true;
-        else for (const child of patternItemParts(item)) pending.push(child);
-      }
-      if (!consumes) return 'a pattern repeat cannot match only empty sequences';
-    }
-    return null;
-  }
-
-  /**
-   * @param {any} root
-   * @param {(term:any)=>string} term
-   * @param {boolean} [literal]
-   * @returns {string}
-   */
-  function layeredPatternText(root, term, literal = true) {
-    const atom = (/** @type {any} */ n) => !['union','intersection','difference','path'].some(k => k in n);
-    const set = (/** @type {any} */ n) => ['union','intersection','difference'].some(k => k in n);
-    /** @type {(items:any[])=>string} */
-    const items = array => array.map(n => {
-      let text;
-      if (n.child) text = pattern(n.child);
-      else if (n.siblings) return '⋯';
-      else if (n.optional) return '['+items(n.optional)+']';
-      else if (n.repeat) return '{'+items(n.repeat)+(n.separator?' / '+items(n.separator):'')+'}';
-      else text = n.choice.map(items).join(' | ');
-      return array.length > 1 && (n.choice || n.child && set(n.child)) ? '('+text+')' : text;
-    }).join(' ');
-    const children = (/** @type {any[]} */ array) => array.length ? '« '+items(array)+' »' : '«»';
-    /** @type {(n:any)=>string} */
-    const pattern = n => {
-      if (n.path) {
-        const operand = atom(n.pattern) ? pattern(n.pattern) : '('+pattern(n.pattern)+')';
-        return n.path === 'first' ? operand+' ⋰' : (n.path === 'last' ? '⋱ ' : '⋮ ')+operand;
-      }
-      if (set(n)) {
-        const key = n.union ? 'union' : n.intersection ? 'intersection' : 'difference';
-        return n[key].map((/** @type {any} */ x,/** @type {number} */ i) => {
-          const grouped = key === 'intersection' && (x.union || x.difference)
-            || key === 'difference' && i === 1 && (x.union || x.difference)
-            || key === 'union' && i > 0 && x.difference;
-          const text = pattern(x);
-          return grouped ? '('+text+')' : text;
-        }).join(key === 'union' ? ' ∪ ' : key === 'intersection' ? ' ∩ ' : ' ∖ ');
-      }
-      let text;
-      if (n.any) text = '';
-      else if (n.test) text = pattern(n.expr)+(n.test === 'tags' ? term({requirements:n.requirements}) : n.test+term(n.value));
-      else if (n.literal) text = term(n.literal);
-      else if (n.range) text = n.range.map(term).join('..');
-      else if (n.wildcard) text = '_';
-      else if (n.constant) text = '$'+n.constant;
-      else text = term(n);
-      return (n.exact ? '·' : '')+text+('children' in n ? children(n.children) : '');
-    };
-    const text = pattern(root);
-    return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
-  }
-
   // ---- reader.js
 
 
 
   // From the notation's syntax tree to a grammar DOM (engine §9).
-
 
 
 
@@ -17399,11 +17395,21 @@
         case "pattern-literal": {
           const before = closedFor;
           closedFor = null;
-          const primary = one(node, "pattern-primary");
-          const pattern = primary ? yield readLayeredPattern(primary) : asPattern(yield readPattern(one(node, "pattern-union") || only(node, "pattern-atom")));
+          const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
+          const pending=[pattern];
+          while(pending.length) {
+            const item=pending.pop();
+            if(!item || typeof item!=="object") continue;
+            if(item.const?.startsWith('_')) {
+              const string=String.fromCodePoint(parseInt(item.const.slice(1),16));
+              for(const key of Object.keys(item)) delete item[key];
+              item.string=string;
+            }
+            for(const part of Object.values(item)) if(part && typeof part==='object') pending.push(part);
+          }
           closedFor = before;
-          const problem = primary ? layeredPatternProblem(pattern, {name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)}) : patternProblem(pattern, () => null);
-          if (problem && (primary || !hasUnresolved(pattern))) fail(problem,node);
+          const problem = layeredPatternProblem(pattern, {name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
+          if (problem) fail(problem,node);
           return {pattern};
         }
         case "string": return decode(token(node));
@@ -17454,8 +17460,7 @@
       }
     }
 
-    // Layered constructors are selected by the pattern-primary constructor.
-    // Legacy constructors remain readable until the bootstrap changes formats.
+    // Pattern constructors follow the layered syntax of engine section 9.
     /** @param {any[]} items @param {ResultNode} node @returns {any} */
     function childPredicate(items, node) {
       if (items.length !== 1 || !('child' in items[0])) fail("a pattern path or set requires one whole pattern",node);
@@ -17479,6 +17484,7 @@
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
         const list=one(node,'pattern-children');
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
+        if(atom.literal?.const && !atom.literal.const.startsWith('_')) {atom.constant=atom.literal.const;delete atom.literal;}
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
@@ -17550,36 +17556,9 @@
       return fail(`unexpected ${kind} in layered pattern`,node);
     }
 
-    /** @param {any} n @returns {any} */
-    function asPattern(n) { return 'node' in n ? n.node : {children:n}; }
-    /** @param {any[]} items @returns {any} */
-    function sequencePattern(items) {
-      const flat=items.flatMap(n => n.sequence ?? [n]);
-      return flat.length===1 ? flat[0] : {sequence:flat};
-    }
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readPattern(node) {
       const kind=ruleOf(node);
-      if (kind==='pattern-union' || kind==='pattern-intersection') {
-        const nodes=some(node,kind==='pattern-union'?'pattern-intersection':'pattern-sequence');
-        const items=[];for(const child of nodes)items.push(yield readPattern(child));
-        if(items.length===1)return items[0];
-        const operators=parts(node).filter(n=>n.kind==='token').map(n=>valueOf(n));
-        let result=asPattern(items[0]);
-        for(let i=1;i<items.length;i++) {
-          const op=kind==='pattern-intersection'?'intersection':operators[i-1]==='∖'?'difference':'union';
-          result={[op]:[result,asPattern(items[i])]};
-        }
-        return {node:result};
-      }
-      if(kind==='pattern-sequence') {
-        const items=[];for(const child of some(node,'pattern-item'))items.push(yield readPattern(child));
-        return sequencePattern(items);
-      }
-      if(kind==='pattern-item') {
-        const child=parts(node)[0];if(!child)return lacks(node,'pattern item');
-        return child.kind==='token'&&valueOf(child)==='⋯'?{siblings:true}:yield readPattern(child);
-      }
       if (kind === "pattern-atom") {
         const inner = parts(node);
         const first = inner[0];
@@ -17589,8 +17568,6 @@
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testable = !named && (first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
           : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first)));
-        const grouped = first.kind === "token" && valueOf(first) === "(";
-        const nested = ruleOf(first) === "pattern-literal";
         checkTestOrder(tests, testable || ruleOf(first) === "parameter");
         if (["call", "parameter"].includes(ruleOf(first))) {
           let expr = ruleOf(first) === "call" ? yield readCall(first) : readParameter(first);
@@ -17603,8 +17580,6 @@
           if (!CLASSIFIER_NAME.test(name) && !unicode.isEmojiName?.(name)) fail("a malformed pattern rule name", nameToken);
           return { node: { name, at: at(nameToken) } };
         }
-        if (grouped) return yield readPattern(only(node, "pattern-union"));
-        if (nested) return { node: asPattern(yield readPattern(one(first, "pattern-union") || only(first, "pattern-atom"))) };
         let expr;
         if (first.kind === "token") {
           const name = valueOf(first);
@@ -17620,21 +17595,11 @@
         else if (ruleOf(first) === "wildcard") expr = { wildcard: true, at: at(first) };
         else if (ruleOf(first) === "constant-reference") {
           const value = yield readTerm(first);
-          expr = value.const.startsWith("_") ? { literal: value, at: at(first) } : { constant: value.const, at: at(first) };
+          expr = value.const.startsWith("_") ? { literal: {string:String.fromCodePoint(parseInt(value.const.slice(1),16))}, at: at(first) } : { constant: value.const, at: at(first) };
         } else return lacks(node, "pattern atom");
+        if(expr.literal?.const && !expr.literal.const.startsWith('_')) {expr.constant=expr.literal.const;delete expr.literal;}
         for (const test of tests) expr = { ...(yield readTest(test)), expr };
         return { node: expr };
-      }
-      if(kind==='pattern-brackets')return {optional:yield readPattern(only(node,'pattern-union'))};
-      if(kind==='pattern-repeat') {
-        const unions=some(node,'pattern-union');
-        const repeat=yield readPattern(unions[0]);
-        return unions.length===1?{repeat}:{repeat,separator:yield readPattern(unions[1])};
-      }
-      if(kind==='pattern-path') {
-        // The operator is a direct token, before or after the named atom.
-        const operator=valueOf(token(node));
-        return {node:{path:operator==='⋮'?'descendant':operator==='⋰'?'first':'last',pattern:asPattern(yield readPattern(only(node,'pattern-atom')))}};
       }
       return fail(`unexpected ${kind} in pattern`,node);
     }
@@ -19278,19 +19243,17 @@
 
   /**
    * A structural node predicate in a grammar DOM (output §2).
-   * @typedef {{name:string, at:Position} | TemplateCall | Parameter | PatternAtom
-   *   | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom} | {children:PatternChildren}
+   * @typedef {(({name:string, at:Position} | TemplateCall | Parameter) & {exact?:true,children?:PatternChildren})
+   *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom}) & {exact?:true})
+   *   | {any:true, exact?:true, children:PatternChildren}
    *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
    *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
    */
   /** @typedef {{terminal:string, at:Position}} PatternTerminal */
-  /** @typedef {Parameter | PatternTerminal | {literal:Term,at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
+  /** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
   /** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
-  /**
-   * A pattern expression over sibling nodes.
-   * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
-   *   | {repeat:PatternChildren, separator?:PatternChildren} | {siblings:true}} PatternChildren
-   */
+  /** @typedef {PatternItem[]} PatternChildren */
+  /** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 
   /**
    * A rule body expression.

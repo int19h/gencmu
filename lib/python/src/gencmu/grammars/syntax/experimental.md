@@ -296,10 +296,10 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   | {terms / CU 🆓} [CU 🆓]
   | CU 🆓 [{terms / CU 🆓} [CU 🆓]]
 
-%const $KE-FORETHOUGHT #([tag] KE [🆓] gek-sentence KEhE [🆓])
-%const $CONNECTED-KE-SELBRI #([tag] $KE-UNIT)
-%const $CONNECTED-KE-TAIL #($CONNECTED-KE-SELBRI tail-terms) ∪ $KE-FORETHOUGHT
-%const $CONNECTED-KE-WITH-VAU #($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
+%const $KE-FORETHOUGHT #« [tag] KE [🆓] gek-sentence KEhE [🆓] »
+%const $CONNECTED-KE-SELBRI #« [tag] $KE-UNIT »
+%const $CONNECTED-KE-TAIL #« $CONNECTED-KE-SELBRI tail-terms » ∪ $KE-FORETHOUGHT
+%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
 %rule headed-bridi-tail-with(@T, @G, @P, @H)
   [bridi-tail-head] bridi-tail-with(@T, @G, @P, @H)
@@ -360,7 +360,7 @@ An open tail can take terms after a reset. A closed tail can take only resets an
   [$h:reset-head IhAU 🆓]
   $b:main-headed-bridi-tail [top-sentence-link]
 %conditions
-  $h ≇ #(⋯ CU [🆓]) ∨ $b ≇ #(CU ⋰)
+  $h ≇ #« ⋯ CU [🆓] » ∨ $b ≇ #(CU ⋰)
 
 %redefine-rule tail-terms
   [terms] [+VAU] 🆓
@@ -561,8 +561,8 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 %const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
-%const $BARE-TAG #(tag KU="" [🆓])
-%const $BARE-NA #(NA [🆓] KU="" [🆓])
+%const $BARE-TAG #« tag KU="" [🆓] »
+%const $BARE-NA #« NA [🆓] KU="" [🆓] »
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -706,9 +706,9 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | ZOI 🆓
   | ZOhOI 🆓
 %conditions
-  $t ≇ #(sumti),
-  $u ≇ #(sumti),
-  $u ≇ #(tagged-term)
+  $t ≇ #sumti,
+  $u ≇ #sumti,
+  $u ≇ #tagged-term
 
 %redefine-rule sumti-tail
   | $s:sumti sumti-tail-1
@@ -1144,8 +1144,8 @@ A COI run can precede that quoted listener, as it can precede DOI. DOhOI takes n
 Its free modifier inherits `leftmost-longest`, so a complete longer vocative outranks a split into shorter modifiers. A written DOhU fixes its end.
 
 ```jbogenbau
-%const $NON-XI-FREE #(free) ∖ #(XI ⋯)
-%const $FREE-ENDING #(⋱ (🆓 ∩ #(⋯ $NON-XI-FREE ⋯)))
+%const $NON-XI-FREE #free ∖ #« XI ⋯ »
+%const $FREE-ENDING #(⋱ (🆓 ∩ « ⋯ $NON-XI-FREE ⋯ »))
 
 %redefine-rule(leftmost-longest) free
   | SEI 🆓 [terms [CU 🆓]] selbri [+SEhU]

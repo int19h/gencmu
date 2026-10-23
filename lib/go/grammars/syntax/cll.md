@@ -201,13 +201,13 @@ A `gek-sentence` joins two subsentences in forethought. The gek can contain a te
 The gek-sentence's tail terms follow the whole connection and apply to both sides.
 
 ```jbogenbau
-%const $STAG-TAG #(tag) ∖ #(⋮ (FIhO ∪ free))
-%const $KE-UNIT #(KE ⋯ KEhE [🆓])
-%const $KE-SELBRI #([$STAG-TAG] $KE-UNIT)
-%const $KE-GEK #([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])
-%const $KE-TAIL #($KE-SELBRI tail-terms) ∪ $KE-GEK
-%const $WRITTEN-VAU #([terms] VAU≠"" [🆓])
-%const $KE-TAIL-WITH-VAU #($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
+%const $STAG-TAG #tag ∖ #(⋮ (FIhO ∪ free))
+%const $KE-UNIT #« KE ⋯ KEhE [🆓] »
+%const $KE-SELBRI #« [$STAG-TAG] $KE-UNIT »
+%const $KE-GEK #« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »
+%const $KE-TAIL #« $KE-SELBRI tail-terms » ∪ $KE-GEK
+%const $WRITTEN-VAU #« [terms] VAU≠"" [🆓] »
+%const $KE-TAIL-WITH-VAU #« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
 %rule sentence
   [terms [CU 🆓]] bridi-tail

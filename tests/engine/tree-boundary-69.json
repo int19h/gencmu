@@ -1,6 +1,6 @@
 {
   "description": "A private whole-rule backward atom after a nonempty prefix is a load error (engine §4.2 and §6.1, case 69).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text X ($c:B ≻ C) :: ∅ | Y\n%conditions $.preceded-by(Y) ∨ $c ≅ #(B)",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X ($c:B ≻ C) :: ∅ | Y\n%conditions $.preceded-by(Y) ∨ $c ≅ #B",
   "tokens": [],
   "expect": {
     "error": "grammar",

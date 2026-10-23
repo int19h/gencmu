@@ -163,7 +163,7 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 	}
 	for _, node := range templateNodes(r) {
 		if p, ok := node["param"]; ok {
-			if !templateOnly(node, "param", "at") || !scope[templateText(p)] || templateAt(node) == [2]int{} {
+			if !templateAllowed(node, "param", "at", "exact", "children") || !scope[templateText(p)] || templateAt(node) == [2]int{} {
 				p := problem("an undeclared or malformed parameter")
 				if at := templateAt(node); at != [2]int{} {
 					p.at = at
@@ -444,6 +444,88 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		for _, v := range templateList(n[key]) {
 			if p := walk(v, k); p != "" {
 				return p
+			}
+		}
+		return ""
+	}
+	if kind == "pattern" {
+		problem := layeredPatternProblem(templateClean(n), layeredPatternInspection{depth: depth, name: func(name string) bool { return templateNamed(name, uni) && !isTag(name, uni) }, terminal: func(name string) bool { return isTag(name, uni) }})
+		if problem != "" {
+			return problem
+		}
+		return templateNodeProblem(n, "pattern-part", depth, whole, sealed, uni)
+	}
+	if kind == "pattern-part" {
+		if n["call"] != nil {
+			for _, part := range templateNodes(n["args"]) {
+				if part["rule"] != nil && isTag(templateText(part["rule"]), uni) {
+					return "a pattern argument rule reads back as a tag"
+				}
+			}
+			if p := list("args", "arg", 1); p != "" {
+				return p
+			}
+		}
+		if n["literal"] != nil {
+			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, uni); p != "" {
+				return p
+			}
+		}
+		for _, end := range templateList(n["range"]) {
+			if p := templateNodeProblem(end, "string", depth, false, sealed, uni); p != "" {
+				return p
+			}
+		}
+		if n["test"] == "tags" {
+			for _, r := range templateList(n["requirements"]) {
+				if p := walk(templateObj(r)["value"], "term"); p != "" {
+					return p
+				}
+			}
+		} else if n["test"] != nil {
+			if p := walk(n["value"], "string"); p != "" {
+				return p
+			}
+		}
+		for _, key := range []string{"expr", "pattern"} {
+			if n[key] != nil {
+				if p := walk(n[key], "pattern-part"); p != "" {
+					return p
+				}
+			}
+		}
+		for _, key := range []string{"union", "intersection", "difference"} {
+			for _, v := range templateList(n[key]) {
+				if p := walk(v, "pattern-part"); p != "" {
+					return p
+				}
+			}
+		}
+		for _, v := range templateList(n["children"]) {
+			if p := walk(v, "pattern-item"); p != "" {
+				return p
+			}
+		}
+		return ""
+	}
+	if kind == "pattern-item" {
+		if n["child"] != nil {
+			if p := walk(n["child"], "pattern-part"); p != "" {
+				return p
+			}
+		}
+		for _, key := range []string{"optional", "repeat", "separator"} {
+			for _, v := range templateList(n[key]) {
+				if p := walk(v, "pattern-item"); p != "" {
+					return p
+				}
+			}
+		}
+		for _, arm := range templateList(n["choice"]) {
+			for _, v := range templateList(arm) {
+				if p := walk(v, "pattern-item"); p != "" {
+					return p
+				}
 			}
 		}
 		return ""

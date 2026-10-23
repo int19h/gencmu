@@ -375,9 +375,9 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 
 func TestParameterPatternTestOperands(t *testing.T) {
 	for _, grammar := range []string{
-		`%rule use(@V) $x:_ %conditions $x ≅ #(_=@V)
+		`%rule use(@V) $x:_ %conditions $x ≅ #_=@V
 %rule text = use("a")`,
-		`%rule use(@T) $x:_ %conditions $x ≅ #(_<@T>)
+		`%rule use(@T) $x:_ %conditions $x ≅ #_<@T>
 %rule text = use(_L)`,
 		`%rule use(@X) @X<_L>
 %rule text = use(_)`,
@@ -411,7 +411,7 @@ func TestParameterNestedAliasTwins(t *testing.T) {
 %rule named = atom("a")
 %redefine-rule public = outer((atom("a") named))`, `%rule atom(@X) @X
 %rule outer(@P) $x:named %conditions $x ≅ @P
-%rule text outer(#named) outer(#(atom("a")))
+%rule text outer(#named) outer(#atom("a"))
 %rule named = atom("a")`} {
 		instances := []templateObject{}
 		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {

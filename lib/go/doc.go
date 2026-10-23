@@ -60,7 +60,7 @@
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 15 and grammar DOM format 35 follow docs/output.md.
+// Result format 15 and grammar DOM format 40 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="584" height="254" viewBox="0 0 584 254" role="img" aria-label="Railroad diagram of the rule child-set">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="75.6" lengthAdjust="spacingAndGlyphs">child-set</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<path d="M40 46h20"/>
+<g class="rule"><rect x="60" y="34" width="168" height="24" rx="0"/><text x="144" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">child-intersection</text></g>
+<path d="M228 46h10"/>
+<path d="M238 46h20"/>
+<g class="terminal"><rect x="258" y="34" width="42" height="24" rx="12"/><text x="279" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∪&quot;</text></g>
+<path d="M300 46H320"/>
+<path d="M238 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="258" y="68" width="42" height="24" rx="12"/><text x="279" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∖&quot;</text></g>
+<path d="M300 80H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M320 46h10"/>
+<g class="rule"><rect x="330" y="34" width="168" height="24" rx="0"/><text x="414" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">child-intersection</text></g>
+<path d="M498 46H498a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V124a10 10 0 0 0 10 10"/>
+<path d="M60 134h20"/>
+<path d="M80 134h20"/>
+<path d="M100 134h20"/>
+<g class="terminal"><rect x="120" y="122" width="42" height="24" rx="12"/><text x="141" y="139" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∪&quot;</text></g>
+<path d="M162 134H182"/>
+<path d="M100 134a10 10 0 0 1 10 10V158a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="120" y="156" width="42" height="24" rx="12"/><text x="141" y="173" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∖&quot;</text></g>
+<path d="M162 168H162a10 10 0 0 0 10 -10V144a10 10 0 0 1 10 -10"/>
+<path d="M182 134h10"/>
+<g class="rule"><rect x="192" y="122" width="168" height="24" rx="0"/><text x="276" y="139" textLength="151.2" lengthAdjust="spacingAndGlyphs">child-intersection</text></g>
+<path d="M360 134H380"/>
+<path d="M360 134a10 10 0 0 1 10 10V180a10 10 0 0 1 -10 10H100a10 10 0 0 1 -10 -10V144a10 10 0 0 1 10 -10"/>
+<path d="M380 134H400"/>
+<path d="M60 134a10 10 0 0 0 10 -10V122a10 10 0 0 1 10 -10H380a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
+<path d="M400 134H518"/>
+<path d="M518 134H564"/>
+<path d="M20 46a10 10 0 0 1 10 10V212a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="210" width="100" height="24" rx="0"/><text x="90" y="227" textLength="84" lengthAdjust="spacingAndGlyphs">child-path</text></g>
+<path d="M140 222h10"/>
+<g class="terminal"><rect x="150" y="210" width="42" height="24" rx="12"/><text x="171" y="227" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∩&quot;</text></g>
+<path d="M192 222h10"/>
+<g class="rule"><rect x="202" y="210" width="100" height="24" rx="0"/><text x="252" y="227" textLength="84" lengthAdjust="spacingAndGlyphs">child-path</text></g>
+<path d="M302 222h10"/>
+<path d="M312 222h20"/>
+<path d="M332 222h20"/>
+<g class="terminal"><rect x="352" y="210" width="42" height="24" rx="12"/><text x="373" y="227" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∩&quot;</text></g>
+<path d="M394 222h10"/>
+<g class="rule"><rect x="404" y="210" width="100" height="24" rx="0"/><text x="454" y="227" textLength="84" lengthAdjust="spacingAndGlyphs">child-path</text></g>
+<path d="M504 222H524"/>
+<path d="M504 222a10 10 0 0 1 10 10V234a10 10 0 0 1 -10 10H352a10 10 0 0 1 -10 -10V232a10 10 0 0 1 10 -10"/>
+<path d="M524 222H544"/>
+<path d="M312 222a10 10 0 0 0 10 -10V210a10 10 0 0 1 10 -10H524a10 10 0 0 1 10 10V212a10 10 0 0 0 10 10"/>
+<path d="M544 222H544a10 10 0 0 0 10 -10V144a10 10 0 0 1 10 -10"/>
+<path d="M564 134h6m0 -8v16m4 -16v16"/>
+</svg>

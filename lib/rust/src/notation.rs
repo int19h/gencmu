@@ -1487,7 +1487,13 @@ impl<'a> Reader<'a> {
                             "string-terminal" => {
                                 let symbol = self.symbol(first)?;
                                 let Expr::Literal(term) = &symbol else { unreachable!() };
-                                (P::Literal(term.clone(), self.first(first)), true)
+                                let pattern = match term {
+                                    Term::Const(name, _) if !name.starts_with('_') => {
+                                        P::Constant(name.clone(), self.first(first))
+                                    }
+                                    _ => P::Literal(term.clone(), self.first(first)),
+                                };
+                                (pattern, true)
                             }
                             "wildcard" => (P::Wildcard(self.first(first)), true),
                             "range" => {
@@ -1876,10 +1882,8 @@ impl<'a> Reader<'a> {
                         if right.span.end - right.span.start == 1 {
                             let at = name;
                             let name = self.value(self.token(name)?);
-                            return Err(self.error(
-                                at,
-                                format!("tree comparison requires a pattern; write #({name}), not {name}"),
-                            ));
+                            return Err(self
+                                .error(at, format!("tree comparison requires a pattern; write #{name}, not {name}")));
                         }
                     }
                     frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();

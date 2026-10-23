@@ -1,0 +1,39 @@
+{
+  "description": "a sibling gap can precede an adjacent bare list",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« ⋯«a» »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "siblings": true
+                    },
+                    {
+                      "child": {
+                        "any": true,
+                        "children": [
+                          {
+                            "child": {
+                              "name": "a"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

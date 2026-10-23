@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $GROUP (\"x\" ++ \"y\")\n%classifier c $K $JOIN-1 $GROUP ∈ AB\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 40,
       "rules": [],
       "directives": [],
       "constants": [

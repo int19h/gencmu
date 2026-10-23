@@ -1,6 +1,6 @@
 {
-  "description": "An alternative tag clause resolves #(\"a\") before ≇ and assigns no tags. The string pattern matches \"a\" under engine §§2 and 10.",
-  "grammar": "%rule text \"a\" :: ($ ≇ #(\"a\") ⟹ X)",
+  "description": "An alternative tag clause resolves #\"a\" before ≇ and assigns no tags. The string pattern matches \"a\" under engine §§2 and 10.",
+  "grammar": "%rule text \"a\" :: ($ ≇ #\"a\" ⟹ X)",
   "tokens": [
     {
       "text": "a",

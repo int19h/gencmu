@@ -1,0 +1,22 @@
+{
+  "description": "spaces after the literal marker do not change a node",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ # a\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "name": "a"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 accepts `($S)` as a string receiver for `.ngrams`.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($S).ngrams(1) = (\"a\" \"b\")\n%rule unit A\n%rule family unit\n%rule want A B",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($S).ngrams(1) = (\"a\" \"b\")\n%rule unit A\n%rule family unit\n%rule want A B",
   "tokens": [
     {
       "text": "a",

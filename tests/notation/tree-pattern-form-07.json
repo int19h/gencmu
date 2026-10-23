@@ -1,6 +1,6 @@
 {
   "description": "The reader accepts this pattern form. The notation stage constructs one reading.",
-  "document": "```jbogenbau\n%const $P #(A #(B C))\n```\n",
+  "document": "```jbogenbau\n%const $P #« A « B C » »\n```\n",
   "expect": {
     "dom": {
       "constants": [
@@ -8,33 +8,31 @@
           "name": "P",
           "value": {
             "pattern": {
-              "children": {
-                "sequence": [
-                  {
-                    "node": {
-                      "terminal": "A"
-                    }
-                  },
-                  {
-                    "node": {
-                      "children": {
-                        "sequence": [
-                          {
-                            "node": {
-                              "terminal": "B"
-                            }
-                          },
-                          {
-                            "node": {
-                              "terminal": "C"
-                            }
-                          }
-                        ]
-                      }
-                    }
+              "children": [
+                {
+                  "child": {
+                    "terminal": "A"
                   }
-                ]
-              }
+                },
+                {
+                  "child": {
+                    "children": [
+                      {
+                        "child": {
+                          "terminal": "B"
+                        }
+                      },
+                      {
+                        "child": {
+                          "terminal": "C"
+                        }
+                      }
+                    ],
+                    "any": true
+                  }
+                }
+              ],
+              "any": true
             }
           }
         }

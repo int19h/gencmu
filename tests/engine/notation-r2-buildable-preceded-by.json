@@ -1,6 +1,6 @@
 {
   "description": "Engine §9.3 rejects an unreachable `.preceded-by` terminal target that no body or nested query builds.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ¬$.preceded-by(T)\n%rule unit A\n%rule family unit\n%rule want A",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ¬$.preceded-by(T)\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {
       "text": "a",

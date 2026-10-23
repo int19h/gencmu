@@ -1,6 +1,6 @@
 {
-  "description": "A definition tag clause resolves #(\"a\"..\"z\") before ≅ and assigns X. The range pattern matches \"a\"..\"z\" under engine §§2 and 10.",
-  "grammar": "%rule text :: ($ ≅ #(\"a\"..\"z\") ⟹ X)\n  | \"a\"..\"z\"",
+  "description": "A definition tag clause resolves #\"a\"..\"z\" before ≅ and assigns X. The range pattern matches \"a\"..\"z\" under engine §§2 and 10.",
+  "grammar": "%rule text :: ($ ≅ #\"a\"..\"z\" ⟹ X)\n  | \"a\"..\"z\"",
   "tokens": [
     {
       "text": "a",

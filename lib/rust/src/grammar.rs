@@ -1092,9 +1092,15 @@ impl Constants<'_> {
             Term::Union(xs) | Term::Intersection(xs) => {
                 let ps = xs.iter().map(|x| self.evaluate_pattern(x, document, item)).collect::<Result<Vec<_>, _>>()?;
                 if matches!(term, Term::Union(_)) {
-                    Pattern::Union(ps)
+                    Pattern::Union(
+                        ps.into_iter().flat_map(|p| if let Pattern::Union(xs) = p { xs } else { vec![p] }).collect(),
+                    )
                 } else {
-                    Pattern::Intersection(ps)
+                    Pattern::Intersection(
+                        ps.into_iter()
+                            .flat_map(|p| if let Pattern::Intersection(xs) = p { xs } else { vec![p] })
+                            .collect(),
+                    )
                 }
             }
             Term::Difference(a, b) => Pattern::Difference(

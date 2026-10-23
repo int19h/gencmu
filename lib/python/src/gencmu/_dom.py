@@ -820,7 +820,7 @@ class DomBuilder:
             name = self._first_of_rule(operand, "name")
             if name is not None and self._first_of_rule(operand, "pattern-literal") is None and len(self.some(operand, "intersection")) == 1:
                 text = self.token_value(self.token(name))
-                raise self.fail(name, f"tree comparison requires a pattern; write #({text}), not {text}")
+                raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
             kind, problem = term_type(right, memo=self.types)
             if problem is None:
@@ -1037,6 +1037,8 @@ class DomBuilder:
                     if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
                         raise self.fail(first, "a malformed pattern rule name")
                     pattern = {"name": name, "at": at}
+                if isinstance(pattern.get('literal'), dict) and 'const' in pattern['literal'] and not pattern['literal']['const'].startswith('_'):
+                    pattern = {**{key: value for key, value in pattern.items() if key != 'literal'}, 'constant': pattern['literal']['const']}
                 result = {"node": self.wrap_tests(pattern, tests)}
         elif kind == "pattern-brackets":
             result = {"optional":parts[0]}
@@ -1049,9 +1051,6 @@ class DomBuilder:
             operator = self.token_value(self.token(node))
             path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[operator]
             result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
-        problem = pattern_problem(self._pattern_node(result))
-        if problem is not None and not has_unresolved(result):
-            raise self.fail(node, problem)
         return result
 
     def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
@@ -1074,6 +1073,8 @@ class DomBuilder:
             children = self.one(node, "pattern-children")
             if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
                 raise self.fail(children, "a child list requires a rule test")
+            if isinstance(atom.get('literal'), dict) and 'const' in atom['literal'] and not atom['literal']['const'].startswith('_'):
+                atom = {**{key: value for key, value in atom.items() if key != 'literal'}, 'constant': atom['literal']['const']}
             result = dict(atom)
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
                 result["exact"] = True
@@ -1164,15 +1165,21 @@ class DomBuilder:
             closed = self.closed_for
             self.closed_for = None
             try:
-                primary = self.one(node, "pattern-primary")
-                if primary is not None:
-                    pattern = yield self._layered_pattern(primary)
-                    problem = layered_pattern_problem(pattern, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
-                    if problem is not None:
-                        raise self.fail(node, problem)
-                else:
-                    children = yield self._pattern(self.one(node, "pattern-union") or self.only(node, "pattern-atom"))
-                    pattern = self._pattern_node(children)
+                pattern = yield self._layered_pattern(self.only(node, "pattern-primary"))
+                pending = [pattern]
+                while pending:
+                    part = pending.pop()
+                    if isinstance(part, list):
+                        pending.extend(part)
+                    elif isinstance(part, dict):
+                        if part.get('const', '').startswith('_'):
+                            value = chr(int(part['const'][1:], 16))
+                            part.clear()
+                            part['string'] = value
+                        pending.extend(part.values())
+                problem = layered_pattern_problem(pattern, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
+                if problem is not None:
+                    raise self.fail(node, problem)
             finally:
                 self.closed_for = closed
             return {"pattern": pattern}

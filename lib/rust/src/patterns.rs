@@ -47,181 +47,9 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
     j.as_object().is_some_and(|o| o.len() == keys.len() && keys.iter().all(|k| j.get(k).is_some()))
 }
 /// Convert patterns and child expressions without a recursive call stack.
-fn read_pattern(root: &Json) -> Result<Pattern, String> {
-    enum Value {
-        Pattern(Pattern),
-        Children(Children),
-    }
-    impl Value {
-        fn pattern(self) -> Pattern {
-            match self {
-                Self::Pattern(p) => p,
-                _ => unreachable!(),
-            }
-        }
-        fn children(self) -> Children {
-            match self {
-                Self::Children(c) => c,
-                _ => unreachable!(),
-            }
-        }
-    }
-    enum Build<'a> {
-        Path(String),
-        Test(&'a Json),
-        Children,
-        Node,
-        Sequence(usize),
-        Optional,
-        Repeat(bool),
-        Set(&'a str, usize),
-    }
-    enum Task<'a> {
-        Pattern(&'a Json, usize),
-        Children(&'a Json, usize, bool),
-        Build(Build<'a>),
-    }
-    let mut pending = vec![Task::Pattern(root, 0)];
-    let mut values = Vec::<Value>::new();
-    while let Some(task) = pending.pop() {
-        match task {
-            Task::Build(build) => {
-                let value = match build {
-                    Build::Path(path) => Value::Pattern(Pattern::Path(path, Box::new(values.pop().unwrap().pattern()))),
-                    Build::Test(j) => {
-                        let expr = values.pop().unwrap().pattern();
-                        let op = string(j, "test")?;
-                        if !dom::TEST_OPS.contains(&op.as_str())
-                            || !(matches!(
-                                expr,
-                                Pattern::Terminal(..)
-                                    | Pattern::Constant(..)
-                                    | Pattern::Literal(..)
-                                    | Pattern::Range(..)
-                                    | Pattern::Wildcard(..)
-                            ) || matches!(&expr, Pattern::Test(op, _, _) if op == "tags")
-                                && matches!(op.as_str(), "=" | "≠"))
-                        {
-                            return Err("a pattern test requires one terminal atom".into());
-                        }
-                        let value = if op == "tags" {
-                            dom::requirements_from_json(j)?
-                        } else {
-                            dom::term_from_json(field(j, "value")?)?
-                        };
-                        Value::Pattern(Pattern::Test(op, value, Box::new(expr)))
-                    }
-                    Build::Children => Value::Pattern(Pattern::Children(values.pop().unwrap().children())),
-                    Build::Node => Value::Children(Children::Node(Box::new(values.pop().unwrap().pattern()))),
-                    Build::Sequence(n) => {
-                        let start = values.len() - n;
-                        Value::Children(Children::Sequence(values.drain(start..).map(Value::children).collect()))
-                    }
-                    Build::Optional => Value::Children(Children::Optional(Box::new(values.pop().unwrap().children()))),
-                    Build::Repeat(separator) => {
-                        let sep = separator.then(|| Box::new(values.pop().unwrap().children()));
-                        let item = values.pop().unwrap().children();
-                        if !item.consumes() {
-                            return Err("a pattern repeat cannot match only empty sequences".into());
-                        }
-                        Value::Children(Children::Repeat(Box::new(item), sep))
-                    }
-                    Build::Set(key, n) => {
-                        let start = values.len() - n;
-                        let mut items: Vec<_> = values.drain(start..).map(Value::pattern).collect();
-                        Value::Pattern(match key {
-                            "union" => Pattern::Union(items),
-                            "intersection" => Pattern::Intersection(items),
-                            _ => {
-                                let right = items.pop().unwrap();
-                                Pattern::Difference(Box::new(items.pop().unwrap()), Box::new(right))
-                            }
-                        })
-                    }
-                };
-                values.push(value);
-            }
-            Task::Pattern(j, depth) => {
-                if depth > 256 {
-                    return Err("nested too deeply".into());
-                }
-                if exact(j, &["path", "pattern"]) {
-                    let path = string(j, "path")?;
-                    if !["descendant", "first", "last"].contains(&path.as_str()) {
-                        return Err("a malformed pattern path".into());
-                    }
-                    pending.push(Task::Build(Build::Path(path)));
-                    pending.push(Task::Pattern(field(j, "pattern")?, depth + 1));
-                } else if exact(j, &["test", "value", "expr"]) || exact(j, &["test", "requirements", "expr"]) {
-                    pending.push(Task::Build(Build::Test(j)));
-                    pending.push(Task::Pattern(field(j, "expr")?, depth + 1));
-                } else if exact(j, &["children"]) {
-                    pending.push(Task::Build(Build::Children));
-                    pending.push(Task::Children(field(j, "children")?, depth + 1, false));
-                } else if let Some(key) =
-                    ["union", "intersection", "difference"].into_iter().find(|key| exact(j, &[key]))
-                {
-                    let items = field(j, key)?.as_array().ok_or("a malformed pattern")?;
-                    if items.len() < 2 || key == "difference" && items.len() != 2 {
-                        return Err("a malformed pattern".into());
-                    }
-                    pending.push(Task::Build(Build::Set(key, items.len())));
-                    pending.extend(items.iter().rev().map(|j| Task::Pattern(j, depth + 1)));
-                } else {
-                    values.push(Value::Pattern(Pattern::read_atom(j)?));
-                }
-            }
-            Task::Children(j, depth, repeated) => {
-                if depth > 256 {
-                    return Err("nested too deeply".into());
-                }
-                if exact(j, &["node"]) {
-                    pending.push(Task::Build(Build::Node));
-                    pending.push(Task::Pattern(field(j, "node")?, depth + 1));
-                } else if exact(j, &["siblings"]) {
-                    if repeated || field(j, "siblings")?.as_bool() != Some(true) {
-                        return Err("a sibling ellipsis cannot be a repeat item or separator".into());
-                    }
-                    values.push(Value::Children(Children::Siblings));
-                } else if exact(j, &["sequence"]) {
-                    let items = field(j, "sequence")?.as_array().ok_or("a malformed pattern sequence")?;
-                    if items.len() < 2 {
-                        return Err("a malformed pattern sequence".into());
-                    }
-                    pending.push(Task::Build(Build::Sequence(items.len())));
-                    pending.extend(items.iter().rev().map(|j| Task::Children(j, depth + 1, repeated)));
-                } else if exact(j, &["optional"]) {
-                    pending.push(Task::Build(Build::Optional));
-                    pending.push(Task::Children(field(j, "optional")?, depth + 1, repeated));
-                } else if exact(j, &["repeat"]) || exact(j, &["repeat", "separator"]) {
-                    pending.push(Task::Build(Build::Repeat(j.get("separator").is_some())));
-                    if let Some(sep) = j.get("separator") {
-                        pending.push(Task::Children(sep, depth + 1, true));
-                    }
-                    pending.push(Task::Children(field(j, "repeat")?, depth + 1, true));
-                } else {
-                    return Err("a malformed pattern children expression".into());
-                }
-            }
-        }
-    }
-    Ok(values.pop().unwrap().pattern())
-}
-
 impl Pattern {
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
-        if crate::parameters::nodes(j).any(|node| {
-            node.get("exact").is_some()
-                || node.get("any").is_some()
-                || node.get("children").is_some_and(|children| children.as_array().is_some())
-        }) {
-            return Self::from_layered_json(j);
-        }
-        let p = read_pattern(j)?;
-        if let Some(problem) = p.problem() {
-            return Err(problem.into());
-        }
-        Ok(p)
+        Self::from_layered_json(j)
     }
     fn read_atom(j: &Json) -> Result<Self, String> {
         if exact(j, &["literal", "at"]) {
@@ -265,79 +93,7 @@ impl Pattern {
         Err("a malformed pattern".into())
     }
     pub(crate) fn write(&self, out: &mut String) {
-        match self {
-            Self::Node(..) | Self::Any => self.write_layered(out),
-            Self::Literal(term, a) => {
-                out.push_str("{\"literal\":");
-                dom::write_term(out, term);
-                out.push_str(&format!(",\"at\":[{},{}]}}", a.0, a.1));
-            }
-            Self::Range(left, right, a) => {
-                out.push_str("{\"range\":[");
-                dom::write_term(out, left);
-                out.push(',');
-                dom::write_term(out, right);
-                out.push_str(&format!("],\"at\":[{},{}]}}", a.0, a.1));
-            }
-            Self::Wildcard(a) => out.push_str(&format!("{{\"wildcard\":true,\"at\":[{},{}]}}", a.0, a.1)),
-            Self::Name(s, a) | Self::Terminal(s, a) | Self::Constant(s, a) => {
-                out.push('{');
-                write_str(
-                    out,
-                    match self {
-                        Self::Name(..) => "name",
-                        Self::Terminal(..) => "terminal",
-                        _ => "constant",
-                    },
-                );
-                out.push(':');
-                write_str(out, s);
-                out.push_str(&format!(",\"at\":[{},{}]}}", a.0, a.1));
-            }
-            Self::Test(op, value, expr) => {
-                out.push_str("{\"test\":");
-                write_str(out, op);
-                if op == "tags" {
-                    out.push_str(",\"requirements\":");
-                    dom::write_requirements(out, value);
-                } else {
-                    out.push_str(",\"value\":");
-                    dom::write_term(out, value);
-                }
-                out.push_str(",\"expr\":");
-                expr.write(out);
-                out.push('}');
-            }
-            Self::Children(c) => {
-                out.push_str("{\"children\":");
-                c.write(out);
-                out.push('}');
-            }
-            Self::Path(p, n) => {
-                out.push_str("{\"path\":");
-                write_str(out, p);
-                out.push_str(",\"pattern\":");
-                n.write(out);
-                out.push('}');
-            }
-            Self::Union(xs) | Self::Intersection(xs) => {
-                out.push_str(if matches!(self, Self::Union(_)) { "{\"union\":[" } else { "{\"intersection\":[" });
-                for (i, x) in xs.iter().enumerate() {
-                    if i > 0 {
-                        out.push(',');
-                    }
-                    x.write(out);
-                }
-                out.push_str("]}");
-            }
-            Self::Difference(a, b) => {
-                out.push_str("{\"difference\":[");
-                a.write(out);
-                out.push(',');
-                b.write(out);
-                out.push_str("]}");
-            }
-        }
+        self.write_layered(out);
     }
     pub(crate) fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
         match self {
@@ -578,10 +334,22 @@ impl Pattern {
             ),
             Self::Children(c) => Self::Children(c.map_values(constant, value)?),
             Self::Path(p, n) => Self::Path(p.clone(), Box::new(n.map_values(constant, value)?)),
-            Self::Union(xs) => Self::Union(xs.iter().map(|x| x.map_values(constant, value)).collect::<Result<_, _>>()?),
-            Self::Intersection(xs) => {
-                Self::Intersection(xs.iter().map(|x| x.map_values(constant, value)).collect::<Result<_, _>>()?)
-            }
+            Self::Union(xs) => Self::Union(
+                xs.iter()
+                    .map(|x| x.map_values(constant, value))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flat_map(|p| if let Self::Union(xs) = p { xs } else { vec![p] })
+                    .collect(),
+            ),
+            Self::Intersection(xs) => Self::Intersection(
+                xs.iter()
+                    .map(|x| x.map_values(constant, value))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flat_map(|p| if let Self::Intersection(xs) = p { xs } else { vec![p] })
+                    .collect(),
+            ),
             Self::Difference(a, b) => {
                 Self::Difference(Box::new(a.map_values(constant, value)?), Box::new(b.map_values(constant, value)?))
             }

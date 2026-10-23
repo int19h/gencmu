@@ -1,0 +1,10 @@
+{
+  "description": "An exact pattern call uses its named instance and keeps its decorations.",
+  "grammar": "%rule atom(@X) @X\n%rule named = atom(\"a\")\n%rule text $x:named\n%conditions $x ≅ #·atom(\"a\")« \"a\" »",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

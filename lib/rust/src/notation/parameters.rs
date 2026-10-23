@@ -45,7 +45,7 @@ pub(crate) struct State<'a> {
 pub(super) fn syntax(root: &Node) -> bool {
     let mut stack = vec![root];
     while let Some(n) = stack.pop() {
-        if matches!(rule_name(n), "call" | "parameter" | "pattern-primary") {
+        if matches!(rule_name(n), "call" | "parameter" | "pattern-primary" | "pattern-literal") {
             return true;
         }
         stack.extend(n.children.iter())
@@ -577,10 +577,15 @@ impl<'a> Reader<'a> {
                     return Err(self.error(t, "invalid test target or test order"));
                 }
                 value = true;
+                let operand = self.one(t, "test-operand")?;
+                let value = self.parameter_term(self.inner(operand, ATOMS)?, false)?;
+                if !["string", "const", "param"].iter().any(|key| has(&value, key)) {
+                    return Err(self.error(operand, "a value test requires a string literal or constant"));
+                }
                 expr = obj([
                     ("test", string(self.operator(self.token(self.one(t, "test")?)?))),
                     ("expr", expr),
-                    ("value", self.parameter_term(self.inner(self.one(t, "test-operand")?, ATOMS)?, false)?),
+                    ("value", value),
                 ]);
             }
         }
@@ -656,6 +661,13 @@ impl<'a> Reader<'a> {
                         return self.parameter_term(ps[0], argument);
                     }
                     let values = ps.iter().map(|p| self.parameter_term(p, false)).collect::<R<Vec<_>>>()?;
+                    if rule_name(n) == "concatenation" {
+                        for (part, value) in ps.iter().zip(&values) {
+                            if has(value, "pattern") {
+                                return Err(self.error(part, "a concatenation requires strings"));
+                            }
+                        }
+                    }
                     if rule_name(n) != "union" {
                         p::joined(if rule_name(n) == "intersection" { "intersection" } else { "concat" }, values)
                     } else {
@@ -670,8 +682,9 @@ impl<'a> Reader<'a> {
                     }
                 }
                 "guarded-term" => {
-                    let mut r = self.parameter_term(self.one(n, "term")?, argument)?;
-                    let cs: Vec<_> = Self::rules(n, "implication").collect();
+                    let last = Self::rules(n, "union").next().map(Ok).unwrap_or_else(|| self.one(n, "term"))?;
+                    let mut r = self.parameter_term(last, argument)?;
+                    let cs: Vec<_> = Self::rules(n, "any-of").collect();
                     for c in cs.into_iter().rev() {
                         r = obj([("if", self.parameter_condition(c)?), ("then", r)])
                     }
@@ -680,17 +693,27 @@ impl<'a> Reader<'a> {
                 "method" => self.parameter_method(n)?,
                 "pattern-literal" => {
                     let before = self.closed_for.replace(None);
-                    let pattern = if let Some(primary) = Self::rules(n, "pattern-primary").next() {
-                        let pattern = self.parameter_layered(primary)?;
-                        let name = |name: &str| is_classifier_name(name) || self.unicode.is_emoji_name(name);
-                        let inspect = crate::patterns::shapes::Inspection { name: Some(&name), ..Default::default() };
-                        if let Some(problem) = crate::patterns::shapes::problem(&p::clean(&pattern), &inspect) {
-                            return Err(self.error(n, problem));
+                    let primary = self.one(n, "pattern-primary")?;
+                    let mut pattern = self.parameter_layered(primary)?;
+                    let mut pending = vec![&mut pattern];
+                    while let Some(node) = pending.pop() {
+                        if let Some(name) = node.get("const").and_then(Json::as_str).filter(|n| n.starts_with('_')) {
+                            let code = u32::from_str_radix(&name[1..], 16).ok().and_then(char::from_u32);
+                            if let Some(value) = code {
+                                *node = obj([("string", string(value.to_string()))]);
+                            }
                         }
-                        pattern
-                    } else {
-                        pattern_node(self.parameter_pattern(self.pattern_literal_part(n)?)?)
-                    };
+                        match node {
+                            Json::Arr(items) => pending.extend(items.iter_mut()),
+                            Json::Obj(fields) => pending.extend(fields.iter_mut().map(|(_, value)| value)),
+                            _ => (),
+                        }
+                    }
+                    let name = |name: &str| is_classifier_name(name) || self.unicode.is_emoji_name(name);
+                    let inspect = crate::patterns::shapes::Inspection { name: Some(&name), ..Default::default() };
+                    if let Some(problem) = crate::patterns::shapes::problem(&p::clean(&pattern), &inspect) {
+                        return Err(self.error(n, problem));
+                    }
                     self.closed_for.set(before);
                     obj([("pattern", pattern)])
                 }
@@ -969,12 +992,5 @@ impl<'a> Reader<'a> {
             items.push(r);
         }
         Ok(obj([("items", Json::Arr(items))]))
-    }
-}
-
-#[cfg(test)]
-impl<'a> Reader<'a> {
-    pub(crate) fn layered_term_for_test(&self, node: &'a Node) -> R<Json> {
-        self.parameter_read(Mode::Term, node)
     }
 }

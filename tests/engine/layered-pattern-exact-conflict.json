@@ -1,0 +1,13 @@
+{
+  "description": "An exact prefix cannot replace an argument exact prefix.",
+  "grammar": "%rule use(@P) \"a\"\n%conditions $ ≅ #·@P\n%rule text use(#·text)",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 19
+    }
+  }
+}
