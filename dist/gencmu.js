@@ -7624,20 +7624,21 @@
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
       if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
       if ("pattern" in term) {
-        try { return { pattern: resolvePattern(term.pattern, (name,at) => {
-        const resolved = lookup(name);
-        if (!("string" in resolved) && !("pattern" in resolved)) throw this.documentError(path,at,"a pattern atom requires a string or pattern constant");
-        return resolved;
-      }, (value,atom) => {
-        if (atom.range) {
-          const strings = atom.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,atom.at ?? item,lookup));
-          const problem = rangeProblem(strings,this.unicode);
-          if (problem) throw this.faultError(path,atom.range,atom.at ?? item,problem);
-        }
-        return this.evaluateClosed(path,value,atom.at ?? item,lookup);
-      }, this.unicode) }; }
-        catch(error) {
-          if(error instanceof GencmuError && !error.where.document) throw this.documentError(path,[error.where.line ?? item[0],error.where.column ?? item[1]],error.message);
+        try {
+          return { pattern: resolvePattern(term.pattern, (name,at) => {
+            const resolved = lookup(name);
+            if (!("string" in resolved) && !("pattern" in resolved)) throw this.documentError(path,at,"a pattern atom requires a string or pattern constant");
+            return resolved;
+          }, (value,atom) => {
+            if (atom.range) {
+              const strings = atom.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,atom.at ?? item,lookup));
+              const problem = rangeProblem(strings,this.unicode);
+              if (problem) throw this.faultError(path,atom.range,atom.at ?? item,problem);
+            }
+            return this.evaluateClosed(path,value,atom.at ?? item,lookup);
+          }, this.unicode) };
+        } catch (error) {
+          if (error instanceof GencmuError && !error.where.document) throw this.documentError(path,[error.where.line ?? item[0],error.where.column ?? item[1]],error.message);
           throw error;
         }
       }
