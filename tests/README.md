@@ -291,6 +291,8 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 ### Unicode property performance gate
 
+`python3 tools/unicode-table.py --audit` compares shipped data with `unicode/property-digests.json`. It reads both character resources independently of UCD generation. Each of the 82 properties receives all 1,112,064 scalar records, including defaults and extension sets. Generation also runs this audit after writing resources. The command writes no files and requires Go for the shared digest helper.
+
 The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
 `python3 tools/bench-unicode-properties.py --baseline REF` compares all four libraries with baseline revision REF. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.

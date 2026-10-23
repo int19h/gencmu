@@ -35,7 +35,7 @@ import sys
 import argparse
 import re
 
-from unicode_properties import UCD, write_catalog, write_digests, write_properties
+from unicode_properties import UCD, audit_resources, write_catalog, write_digests, write_properties
 
 UNICODE_VERSION = "15.1.0"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -123,7 +123,13 @@ def main():
                        help="write names and core catalogs without regenerating character properties")
     modes.add_argument("--properties-only", action="store_true",
                        help="write the companion and embedded catalogs without regenerating core data or names")
+    modes.add_argument("--audit", action="store_true",
+                       help="compare shipped resources with pinned all-scalar digests without writing files")
     args = parser.parse_args()
+    if args.audit:
+        import json
+        print(json.dumps(audit_resources(ROOT), indent=2))
+        return
     if not args.properties_only:
         if args.derived_name is None or args.name_aliases is None:
             parser.error("--derived-name and --name-aliases are required without --properties-only")
@@ -142,6 +148,7 @@ def main():
         path = ROOT / "grammars/unicode.txt"
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"{path}: {len(lines)} lines, Unicode {ucd.version}", file=sys.stderr)
+    audit_resources(ROOT)
 
 if __name__ == "__main__":
     main()

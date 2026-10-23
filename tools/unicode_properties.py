@@ -356,3 +356,99 @@ def write_digests(root, ucd):
     data = {"unicode": ucd.version, "algorithm": "fnv1a64", "scalars": 0x110000 - 0x800,
             "properties": digests}
     (root / "tests/unicode/property-digests.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def audit_resources(root):
+    """Compare shipped assignments with independent pinned scalar digests."""
+    expected = json.loads((root / "tests/unicode/property-digests.json").read_text(encoding="utf-8"))
+    catalog_text = (root / "lib/js/src/unicode-property-catalog.js").read_text(encoding="utf-8")
+    catalog = json.loads(catalog_text.split(" = ", 1)[1].rstrip(";\n"))
+    limit = 0x110000
+    if expected["algorithm"] != "fnv1a64" or expected["scalars"] != limit - 0x800:
+        raise ValueError("The property audit requires complete scalar FNV-1a digests")
+    inventory = set(BINARY) | set(ENUMERATED) | {"Script_Extensions"}
+    if set(expected["properties"]) != inventory or set(catalog["types"]) != inventory:
+        raise ValueError("The property audit inventory differs from the pinned inventory")
+    core = [line.split() for line in (root / "grammars/unicode.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
+    companion = [line.split() for line in (root / "grammars/unicode-properties.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
+    if core[0] != ["unicode", expected["unicode"]] or companion[0] != ["unicode-properties", expected["unicode"]]:
+        raise ValueError("The shipped property resources differ from the pinned version")
+    declarations, ranges = {}, {}
+    for fields in companion[1:]:
+        kind, prop, *rest = fields
+        if kind in {"binary", "enumerated", "multiple"}:
+            if prop in CORE or prop in declarations or catalog["types"].get(prop) != kind:
+                raise ValueError("The shipped properties have an invalid declaration")
+            declarations[prop] = tuple(sorted(rest))
+        elif kind == "range":
+            first, last, *values = rest
+            ranges.setdefault(prop, []).append((int(first, 16), int(last, 16), tuple(sorted(values))))
+        elif kind != "value":
+            raise ValueError("The shipped properties have an unknown record")
+    if set(declarations) != inventory - CORE:
+        raise ValueError("The shipped properties omit a pinned property")
+
+    def assignments(prop):
+        values, indexes = [], {}
+
+        def intern(tags):
+            key = ",".join(sorted(set(tags)))
+            if key not in indexes:
+                indexes[key] = len(values)
+                values.append(key)
+            return indexes[key]
+
+        def category(short):
+            return [catalog["aliases"]["_" + short], catalog["aliases"]["_" + short[0]]]
+
+        kind = catalog["types"][prop]
+        if prop == "General_Category":
+            result = array("H", [intern(category("Cn"))]) * limit
+            for record, *fields in core:
+                if record == "category":
+                    short, first, last = fields
+                    assign(result, int(first, 16), int(last, 16), intern(category(short)))
+        elif prop == "Canonical_Combining_Class":
+            result = array("H", [intern([catalog["combining"]["0"]])]) * limit
+            for record, *fields in core:
+                if record == "combining":
+                    code, first, last = fields
+                    assign(result, int(first, 16), int(last, 16), intern([catalog["combining"][code]]))
+        elif prop in CORE:
+            result = array("H", [intern([])]) * limit
+            record = {"White_Space": "white-space", "Emoji_Presentation": "emoji-presentation", "Emoji_Component": "emoji-component"}[prop]
+            for entry, *fields in core:
+                if entry == record:
+                    first, last = fields
+                    assign(result, int(first, 16), int(last, 16), intern(["_" + prop]))
+        else:
+            def tags(members):
+                return ["_" + prop] if kind == "binary" and members else ["_" + prop + "_" + value for value in members]
+
+            result = array("H", [intern(tags(declarations[prop]))]) * limit
+            for first, last, members in ranges.get(prop, []):
+                if kind == "binary":
+                    members = ("Yes",)
+                assign(result, first, last, intern(tags(members)))
+        return result, values
+
+    command = ["go", "run", str(root / "tools/unicode-property-digests.go")]
+    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE) as process:
+        try:
+            for prop in sorted(inventory):
+                result, tags = assignments(prop)
+                header = json.dumps({"Property": prop, "Tags": tags}, separators=(",", ":"))
+                process.stdin.write((header + "\n").encode("ascii"))
+                if sys.byteorder != "little":
+                    result.byteswap()
+                process.stdin.write(result.tobytes())
+            process.stdin.close()
+            actual = dict(line.decode("ascii").split() for line in process.stdout)
+            if process.wait() or actual != expected["properties"]:
+                differences = sorted(prop for prop in inventory if actual.get(prop) != expected["properties"][prop])
+                raise ValueError("The shipped property assignments differ from the pinned digests: " + ", ".join(differences))
+        except BaseException:
+            process.kill()
+            process.wait()
+            raise
+    return {"unicode": expected["unicode"], "properties": len(inventory), "scalarsPerProperty": expected["scalars"], "digests": actual}
