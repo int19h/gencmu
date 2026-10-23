@@ -188,6 +188,8 @@ def main():
     parser.add_argument("--python", default=str(ROOT / "lib/python/.venv/bin/python"))
     parser.add_argument("--prepare-only", action="store_true", help="build workers and write the fixed manifests without timing")
     parser.add_argument("--conformance-only", action="store_true", help="run shared concurrent table controls without timing")
+    parser.add_argument("--library", action="append", choices=LIBRARIES, help="measure only the selected libraries")
+    parser.add_argument("--resume", action="store_true", help="resume completed phases for the same committed inputs")
     args = parser.parse_args()
     directory = args.output.resolve()
     directory.mkdir(parents=True, exist_ok=True)
@@ -231,18 +233,30 @@ def main():
               "coreSha256": hashlib.sha256((ROOT / "grammars/unicode.txt").read_bytes()).hexdigest(),
               "fullCorpusCount": len(cases), "libraries": {}, "complete": False, "passed": False}
     report_path = directory / "report.json"
+    if args.resume and report_path.exists():
+        if report["candidateDirty"]:
+            raise ValueError("A resumed comparison requires a clean committed candidate")
+        previous = json.loads(report_path.read_text())
+        for key in ("baseline", "candidate", "candidateDirty", "coreSha256", "fullCorpusCount"):
+            if previous[key] != report[key]:
+                raise ValueError("The resumed comparison changes " + key)
+        for key in ("platform", "machine", "node", "go", "rust", "python"):
+            if previous["environment"][key] != report["environment"][key]:
+                raise ValueError("The resumed comparison changes " + key)
+        report = previous
     save(report_path, report)
     comparison = Comparison(directory)
     tables, table_expected = concurrent_tables(directory)
-    all_passed = True
-    for library in LIBRARIES:
+    for library in dict.fromkeys(args.library or LIBRARIES):
+        if report["libraries"].get(library, {}).get("complete"):
+            continue
         print("Building " + library, flush=True)
         argv = [build(library, tree, directory / library / label, args.python)
                 for tree, label in [(baseline, "baseline"), (ROOT, "candidate")]]
         if args.prepare_only:
             continue
-        record = {"workloads": {}, "cold": [], "fullCorpus": {"chunks": [], "differences": []}}
-        report["libraries"][library] = record
+        record = report["libraries"].setdefault(library,
+            {"workloads": {}, "cold": [], "fullCorpus": {"chunks": [], "differences": []}})
         table_worker = Worker(argv[1], directory / library / "concurrent.log")
         try:
             observed = table_worker.request("concurrent", "-", tables)
@@ -264,6 +278,8 @@ def main():
                 if loaded[0] != loaded[1]:
                     raise ValueError(library + ": incompatible dialect features")
             for name, inputs in workloads.items():
+                if "passed" in record["workloads"].get(name, {}):
+                    continue
                 print(library + ": warm " + name, flush=True)
                 key = "corpus" if name == "corpus" else "forward"
                 path = directory / (name + ".tsv")
@@ -293,9 +309,13 @@ def main():
                 measurements["passed"] = (medians[1] <= medians[0] * 1.05
                     and all(result["seconds"] >= 1 for pair in measurements["pairs"] for result in pair["results"])
                     and not any(p["comparison"]["differences"] for p in measurements["pairs"]))
-                all_passed &= measurements["passed"]
                 save(report_path, report)
-            for offset in range(0, len(cases), 128):
+            completed = 0
+            for chunk in record["fullCorpus"]["chunks"]:
+                if chunk["offset"] != completed or chunk["count"] != min(128, len(cases) - completed):
+                    raise ValueError("The resumed corpus chunks do not form the selected prefix")
+                completed += chunk["count"]
+            for offset in range(completed, len(cases), 128):
                 chunk = cases[offset:offset + 128]
                 path = directory / "full.tsv"
                 manifest(path, chunk)
@@ -306,12 +326,11 @@ def main():
                 record["fullCorpus"]["differences"].extend(outcome["differences"])
                 save(report_path, report)
                 print(f"{library}: full corpus {min(offset + 128, len(cases))}/{len(cases)}", flush=True)
-            all_passed &= not record["fullCorpus"]["differences"]
         finally:
             for worker in workers:
                 worker.close()
         print(library + ": cold corpus", flush=True)
-        for index in range(9):
+        for index in range(len(record["cold"]), 9):
             pair = [None, None]
             for side in ([0, 1] if index % 2 == 0 else [1, 0]):
                 start = time.perf_counter()
@@ -329,12 +348,17 @@ def main():
         medians = [statistics.median(pair[side]["coldSeconds"] for pair in record["cold"]) for side in range(2)]
         record["coldMedianSeconds"] = medians
         record["coldPassed"] = medians[1] <= medians[0] + max(medians[0] * .05, .025)
-        all_passed &= record["coldPassed"]
+        record["complete"] = True
         save(report_path, report)
-    report["complete"] = not (args.prepare_only or args.conformance_only)
-    report["passed"] = report["complete"] and all_passed
+    report["complete"] = not (args.prepare_only or args.conformance_only) and all(
+        report["libraries"].get(library, {}).get("complete") for library in LIBRARIES)
+    measured_passed = all(record.get("coldPassed") and not record["fullCorpus"]["differences"]
+        and len(record["workloads"]) == len(workloads)
+        and all(measurement.get("passed") for measurement in record["workloads"].values())
+        for record in report["libraries"].values())
+    report["passed"] = report["complete"] and measured_passed
     save(report_path, report)
-    return 0 if report["passed"] or args.prepare_only or args.conformance_only else 1
+    return 0 if report["passed"] or args.prepare_only or args.conformance_only or args.library and measured_passed else 1
 
 
 if __name__ == "__main__":

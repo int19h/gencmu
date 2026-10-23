@@ -299,6 +299,8 @@ The [engine guarantee](../docs/engine.md#property-conformance-and-performance) r
 
 The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
 
+`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, core data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
+
 The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 
 The repeated-character workloads use this forwarding grammar:
