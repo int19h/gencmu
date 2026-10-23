@@ -1,0 +1,10 @@
+{
+  "description": "A bare name after a tree comparator requires the pattern marker.",
+  "document": "```jbogenbau\n%rule use(@P) @P\n%conditions $ ≅ sumti\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 17
+    }
+  }
+}

@@ -174,7 +174,8 @@ impl<'a> Reader<'a> {
                 if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
                     return Err(self.error(node, problem));
                 }
-                crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
+                crate::parameters::append_source(&mut dom, kind, raw, self.unicode, self.defer_emission)
+                    .map_err(|e| self.error(node, e))?;
                 continue;
             }
             match rule_name(node) {

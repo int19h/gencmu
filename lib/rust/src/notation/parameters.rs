@@ -663,7 +663,7 @@ impl<'a> Reader<'a> {
                     let values = ps.iter().map(|p| self.parameter_term(p, false)).collect::<R<Vec<_>>>()?;
                     if rule_name(n) == "concatenation" {
                         for (part, value) in ps.iter().zip(&values) {
-                            if has(value, "pattern") {
+                            if p::pattern_term(value, &std::collections::BTreeSet::new()) {
                                 return Err(self.error(part, "a concatenation requires strings"));
                             }
                         }
@@ -803,17 +803,28 @@ impl<'a> Reader<'a> {
                     ("right", self.parameter_term(ps[1], false)?),
                 ])
             }
-            "tree-comparison" => obj([
-                ("op", string(self.operator(self.token(self.one(n, "tree-comparator")?)?))),
-                (
-                    "left",
-                    obj([(
-                        "capture",
-                        string(self.value(self.token(self.one(n, "capture-reference")?)?).trim_start_matches('$')),
-                    )]),
-                ),
-                ("right", self.parameter_term(self.one(n, "union")?, false)?),
-            ]),
+            "tree-comparison" => {
+                let right = self.one(n, "union")?;
+                if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
+                    if right.span.end - right.span.start == 1 {
+                        let text = self.value(self.token(name)?);
+                        return Err(
+                            self.error(name, format!("tree comparison requires a pattern; write #{text}, not {text}"))
+                        );
+                    }
+                }
+                obj([
+                    ("op", string(self.operator(self.token(self.one(n, "tree-comparator")?)?))),
+                    (
+                        "left",
+                        obj([(
+                            "capture",
+                            string(self.value(self.token(self.one(n, "capture-reference")?)?).trim_start_matches('$')),
+                        )]),
+                    ),
+                    ("right", self.parameter_term(self.one(n, "union")?, false)?),
+                ])
+            }
             "method" => self.parameter_method(n)?,
             _ => return Err(self.error(n, "an unexpected condition with parameters")),
         };

@@ -817,8 +817,8 @@ class DomBuilder:
             left = {"capture":self.token_value(self.token(self.only(node, "capture-reference")))[1:]}
             op = self.operator(self.token(self.only(node, "tree-comparator")))
             operand = self.only(node, "union")
-            name = self._first_of_rule(operand, "name")
-            if name is not None and self._first_of_rule(operand, "pattern-literal") is None and len(self.some(operand, "intersection")) == 1:
+            name = self._first_of_rule(operand, "name") or self._first_of_rule(operand, "tag")
+            if name is not None and operand.span[1] - operand.span[0] == 1:
                 text = self.token_value(self.token(name))
                 raise self.fail(name, f"tree comparison requires a pattern; write #{text}, not {text}")
             right = yield self._term(operand)
@@ -1248,7 +1248,7 @@ class DomBuilder:
                 value = yield self._term(part, argument and len(nodes) == 1)
                 if len(nodes) > 1:
                     kind, problem = term_type(value, memo=self.types)
-                    if not self.feature_context and not has_unresolved(value) and (problem or kind not in ("string", "any")):
+                    if not self.feature_context and (problem and not has_unresolved(value) or problem is None and kind not in ("string", "any")):
                         raise self.fail(node, problem or "++ requires string operands")
                 items.extend(value.get("concat", [value]))
             if len(nodes) == 1:

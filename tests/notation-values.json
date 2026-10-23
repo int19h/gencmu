@@ -625,7 +625,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -685,7 +685,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -745,7 +745,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -805,7 +805,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -865,7 +865,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -925,7 +925,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -985,7 +985,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -1045,7 +1045,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -1125,7 +1125,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },
@@ -1185,7 +1185,7 @@
       "expect": {
         "error": {
           "line": 2,
-          "column": 22
+          "column": 21
         }
       }
     },

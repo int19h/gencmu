@@ -17248,11 +17248,11 @@
         case "tree-comparison": {
           const leftNode = only(inner,"capture-reference");
           const rightNode = only(inner,"union");
-          const leaf = firstOfRule(rightNode,"name");
+          const leaf = firstOfRule(rightNode,"name") ?? firstOfRule(rightNode,"tag");
           // A bare name gets this error before capital-initial tag typing.
           if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
             const name = valueOf(token(leaf));
-            fail(`tree comparison requires a pattern; write #(${name}), not ${name}`,leaf);
+            fail(`tree comparison requires a pattern; write #${name}, not ${name}`,leaf);
           }
           const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const right = /** @type {Term} */ (yield readTerm(rightNode));

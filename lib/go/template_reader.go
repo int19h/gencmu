@@ -424,7 +424,11 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 		}
 		items := []any{}
 		for _, p := range ps {
-			items = append(items, b.templateTerm(p, false))
+			value := b.templateTerm(p, false)
+			if n.Rule == "concatenation" && templatePatternTerm(value) {
+				b.fail(p, "a concatenation requires strings")
+			}
+			items = append(items, value)
 		}
 		if n.Rule != "union" {
 			key := n.Rule
@@ -576,6 +580,7 @@ func (b *domBuilder) templateCondition(n *Node) (result templateObject) {
 		ps := b.some(n, "union", 2)
 		return templateObject{"op": b.operator(b.token(b.only(n, "comparator"))), "left": b.templateTerm(ps[0], false), "right": b.templateTerm(ps[1], false)}
 	case "tree-comparison":
+		b.patternOperand(b.only(n, "union"))
 		return templateObject{"op": b.operator(b.token(b.only(n, "tree-comparator"))), "left": templateObject{"capture": strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}, "right": b.templateTerm(b.only(n, "union"), false)}
 	case "method":
 		return b.templateMethod(n)

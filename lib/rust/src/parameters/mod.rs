@@ -211,13 +211,13 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         } else if has(&n, "directive") {
             &["directive", "args", "conditions"]
         } else if has(&n, "call") {
-            &["call", "args"]
+            &["call", "args", "exact", "children"]
         } else if has(&n, "method") {
             &["method", "receiver", "args"]
         } else if has(&n, "guards") {
             &["guards", "expr", "tags", "value", "image"]
         } else if has(&n, "test") {
-            &["test", "expr", "value", "requirements"]
+            &["test", "requirements", "value", "expr"]
         } else if has(&n, "capture") && has(&n, "expr") {
             &["capture", "expr"]
         } else if has(&n, "capture") || has(&n, "insert") {
@@ -232,6 +232,10 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
             &["op", "left", "right"]
         } else if has(&n, "negated") {
             &["negated", "value"]
+        } else if has(&n, "name") {
+            &["name", "exact", "children"]
+        } else if ["terminal", "literal", "range", "wildcard", "constant", "any", "param"].iter().any(|k| has(&n, k)) {
+            &["terminal", "literal", "range", "wildcard", "constant", "any", "param", "exact", "children"]
         } else if has(&n, "path") {
             &["path", "pattern"]
         } else {
@@ -251,6 +255,30 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         }
         n
     })
+}
+pub(crate) fn append_source(
+    dom: &mut Dom,
+    kind: &str,
+    raw: Json,
+    unicode: &Unicode,
+    defer: bool,
+) -> Result<(), String> {
+    if unresolved(&raw) {
+        return append(dom, kind, raw);
+    }
+    // Closed declarations use the same typed representation on cache hits and source reads.
+    let mut document = obj([]);
+    for key in KINDS {
+        set(&mut document, key, Json::Arr(if key == kind { vec![raw.clone()] } else { Vec::new() }));
+    }
+    let mut closed = dom::decode_checked(&clean(&document), unicode, defer)?;
+    locations::restore_document(&mut closed, &document);
+    dom.rules.extend(closed.rules);
+    dom.constants.extend(closed.constants);
+    dom.directives.extend(closed.directives);
+    dom.classifiers.extend(closed.classifiers);
+    dom.implications.extend(closed.implications);
+    Ok(())
 }
 pub(crate) fn append(dom: &mut Dom, kind: &str, r: Json) -> Result<(), String> {
     let at = at(&r).ok_or("a declaration requires a position")?;
