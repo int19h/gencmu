@@ -25,6 +25,7 @@ type unicodeTable struct {
 	hash                   string
 	version                string
 	versionCount           int
+	properties             map[string]*propertyData
 }
 
 type combiningRange struct {

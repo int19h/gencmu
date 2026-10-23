@@ -7,10 +7,20 @@
 // for what it already has costs little. At most one run is in flight; a
 // change while one runs waits for it, unless the run has gone on long
 // enough to be worth stopping, in which case the worker is replaced.
-(function () {
+(async function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const bundled = self.gencmuGrammars;
+  const status = $("status");
+  try {
+    const url = new URL("grammars/unicode-properties.txt", document.baseURI);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    bundled["unicode-properties.txt"] = new TextDecoder("utf-8", {fatal:true, ignoreBOM:true}).decode(await response.arrayBuffer());
+  } catch (error) {
+    setStatus("error", `unicode-properties.txt did not load: ${error.message}`);
+    return;
+  }
 
   // How long a run whose answer is no longer wanted may go on before its
   // worker is replaced. Most parses take tens of milliseconds, and a new
@@ -133,7 +143,6 @@
 
   // ---- Status -----------------------------------------------------------------
 
-  const status = $("status");
   function setStatus(kind, text) {
     status.dataset.state = kind;
     $("status-text").textContent = text;

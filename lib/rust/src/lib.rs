@@ -75,6 +75,7 @@ mod tags;
 mod tree;
 mod unicode;
 mod unicode_names;
+mod unicode_properties;
 mod witness;
 mod work;
 

@@ -22,8 +22,10 @@ export declare class UnicodeTable {
     decompositions: Map<number, number[]>;
     /** @type {[number, number, number][]} */
     combining: [number, number, number][];
-    /** @param {string} text the contents of unicode.txt */
-    constructor(text: string);
+    /** @type {Map<string,import("./unicode-properties.js").PropertyData>} */
+    properties: Map<string, import("./unicode-properties.js").PropertyData>;
+    /** @param {string} text the contents of unicode.txt @param {string} [properties] */
+    constructor(text: string, properties?: string);
     /**
      * The General_Category of a code point, in its short form (engine §1):
      * `Cs` for a surrogate, which a table does not list, and `Cn` for any

@@ -19,14 +19,18 @@ import (
 var bundledFS embed.FS
 
 var bundled struct {
-	once          sync.Once
-	sources       map[string]string
-	uni           *unicodeTable
-	reader        *notationReader
-	compiled      map[domCacheKey]json.RawMessage
-	compiledNames map[domCacheKey]json.RawMessage
-	bundledNames  map[string]string
-	err           error
+	once             sync.Once
+	sources          map[string]string
+	uni              *unicodeTable
+	reader           *notationReader
+	compiled         map[domCacheKey]json.RawMessage
+	compiledNames    map[domCacheKey]json.RawMessage
+	bundledNames     map[string]string
+	err              error
+	propertiesOnce   sync.Once
+	propertiesUni    *unicodeTable
+	propertiesReader *notationReader
+	propertiesErr    error
 }
 
 func loadBundled() error {
@@ -398,8 +402,34 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 }
 
 func bundledLoader() (*loader, error) {
+	return loaderForBundled(true)
+}
+
+func loaderForBundled(withProperties bool) (*loader, error) {
 	if err := loadBundled(); err != nil {
 		return nil, err
+	}
+	uni, reader := bundled.uni, bundled.reader
+	if withProperties {
+		bundled.propertiesOnce.Do(func() {
+			text, ok := bundled.sources["unicode-properties.txt"]
+			if !ok {
+				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Message: "the bundled properties file is missing"}
+				return
+			}
+			copy := *bundled.uni
+			var err error
+			if copy.properties, err = parseProperties(text, &copy); err != nil {
+				bundled.propertiesErr = err
+				return
+			}
+			bundled.propertiesUni = &copy
+			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["notation/bootstrap.json"], &copy)
+		})
+		if bundled.propertiesErr != nil {
+			return nil, bundled.propertiesErr
+		}
+		uni, reader = bundled.propertiesUni, bundled.propertiesReader
 	}
 	return &loader{
 		read: func(p string) (string, bool) {
@@ -409,9 +439,9 @@ func bundledLoader() (*loader, error) {
 			data, err := bundledFS.ReadFile("grammars/" + p)
 			return string(data), err == nil
 		},
-		uni:           bundled.uni,
-		reader:        bundled.reader,
-		bootstrapHash: bundled.reader.hash,
+		uni:           uni,
+		reader:        reader,
+		bootstrapHash: reader.hash,
 		compiled:      bundled.compiled,
 		compiledNames: bundled.compiledNames,
 		bundledNames:  bundled.bundledNames,
@@ -463,13 +493,15 @@ func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, e
 
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Dialect, err error) {
 	defer guard(ErrorGrammar, &err)
-	l, lerr := bundledLoader()
-	if lerr != nil {
-		return nil, lerr
-	}
 	norm := make(map[string]string, len(sources))
 	for p, t := range sources {
 		norm[path.Clean(p)] = t
+	}
+	_, customCore := norm["unicode.txt"]
+	_, customProperties := norm["unicode-properties.txt"]
+	l, lerr := loaderForBundled(!customCore && !customProperties)
+	if lerr != nil {
+		return nil, lerr
 	}
 	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
 	l.noCache = noCache
@@ -481,14 +513,21 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 			return nil, problem
 		}
 	}
+	if text, ok := norm["unicode-properties.txt"]; ok {
+		copy := *l.uni
+		l.uni = &copy
+		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
+			return nil, err
+		}
+	}
 	if t, ok := norm["notation/bootstrap.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
-	} else if l.uni != bundled.uni {
-		r := *bundled.reader
-		r.uni = l.uni
-		l.reader = &r
+	} else if l.uni != l.reader.uni {
+		if l.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], l.uni); err != nil {
+			return nil, err
+		}
 	}
 	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["compiled.json"]; ok {

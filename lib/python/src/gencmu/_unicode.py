@@ -9,6 +9,7 @@ import re
 from ._errors import GencmuError
 from ._hash import fnv1a64
 from ._unicode_names_catalog import PINNED_CORE_NAMES
+from ._unicode_properties import read_properties
 
 CATEGORIES = (
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
@@ -30,7 +31,7 @@ def _number(field: str, base: int, limit: int) -> int:
 class UnicodeTable:
     """Character properties and canonical decomposition from the shared table."""
 
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, properties: str | None = None) -> None:
         self.emoji: dict[str, list[tuple[int, int]]] = {"Emoji_Presentation": [], "Emoji_Component": []}
         categories: list[tuple[int, int, str]] = []
         white_space: list[tuple[int, int]] = []
@@ -117,6 +118,7 @@ class UnicodeTable:
         self._categories = [category for _, _, category in categories]
         self._space_starts = [start for start, _ in white_space]
         self._space_ends = [end for _, end in white_space]
+        self.properties = read_properties(properties, self.version, self.version_count) if properties is not None else {}
 
     def category(self, code: int) -> str:
         """The General_Category of a code point, in its short form, by a

@@ -104,7 +104,7 @@ class UndecodableCache(unittest.TestCase):
         holder = tempfile.TemporaryDirectory(prefix="gencmu-utf8-")
         self.addCleanup(holder.cleanup)
         root = pathlib.Path(holder.name)
-        for name in ("unicode.txt", "notation/bootstrap.json", "compiled.json"):
+        for name in ("unicode.txt", "unicode-properties.txt", "notation/bootstrap.json", "compiled.json"):
             (root / name).parent.mkdir(parents=True, exist_ok=True)
             data = replaced.get(name.replace("/", "_").replace(".", "_"))
             if data is None:

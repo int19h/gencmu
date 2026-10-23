@@ -111,22 +111,23 @@ _lock = threading.Lock()
 # the texts that key them. The least recently used goes first.
 _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
-_unicode_tables: Recent[str, UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_readers: Recent[tuple[str, str], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_compiled_indexes: Recent[tuple[str, str, str], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_compiled_indexes: Recent[tuple[str, str, str, str | None], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
 _MAX_DOM_SIZE = 4_000_000
 
 
-def _unicode_table(text: str) -> UnicodeTable:
+def _unicode_table(text: str, properties: str | None = None) -> UnicodeTable:
+    key = (text, properties)
     with _lock:
-        table = _unicode_tables.get(text)
+        table = _unicode_tables.get(key)
     if table is None:
-        table = UnicodeTable(text)
+        table = UnicodeTable(text, properties)
         with _lock:
-            _unicode_tables.put(text, table, len(text))
+            _unicode_tables.put(key, table, len(text) + len(properties or ""))
     return table
 
 
@@ -357,29 +358,29 @@ class NotationReader:
         raise GencmuError(found, document=path, line=line, column=column, code="ranked-choice-syntax" if found.startswith("ranked-choice-syntax:") else None)
 
 
-def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
-    key = (bootstrap, unicode_text)
+def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) -> NotationReader:
+    key = (bootstrap, unicode_text, properties)
     with _lock:
         reader = _readers.get(key)
     if reader is None:
-        reader = NotationReader(bootstrap, _unicode_table(unicode_text))
+        reader = NotationReader(bootstrap, _unicode_table(unicode_text, properties))
         with _lock:
-            _readers.put(key, reader, len(bootstrap) + len(unicode_text))
+            _readers.put(key, reader, len(bootstrap) + len(unicode_text) + len(properties or ""))
     return reader
 
 
-def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
+def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
     """The precompiled DOMs usable with this bootstrap, by text hash.
     Their schema and exact string values follow engine §9."""
     if not compiled:
         return {}
-    key = (compiled, bootstrap_hash, unicode_text)
+    key = (compiled, bootstrap_hash, unicode_text, properties)
     with _lock:
         found = _compiled_indexes.get(key)
     if found is not None:
         return found
     index: dict[str, Dom] = {}
-    unicode = _unicode_table(unicode_text)
+    unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(compiled)
         if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint:
@@ -392,7 +393,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
-        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text))
+        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text) + len(properties or ""))
     return index
 
 
@@ -405,6 +406,7 @@ class _Resources:
     unicode: str
     bootstrap: str
     compiled: str | None
+    properties: str | None = None
 
 
 class _Loader:
@@ -416,9 +418,9 @@ class _Loader:
         self.lookup = lookup
         self.resources = found
         self.use_cache = use_cache
-        self.unicode = _unicode_table(found.unicode)
-        self.reader = _reader(found.bootstrap, found.unicode)
-        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode) if use_cache else {}
+        self.unicode = _unicode_table(found.unicode, found.properties)
+        self.reader = _reader(found.bootstrap, found.unicode, found.properties)
+        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode, found.properties) if use_cache else {}
         if use_cache and found.compiled:
             try:
                 envelope = json.loads(found.compiled)
@@ -530,7 +532,11 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
         raise GencmuError("the bundled unicode.txt is missing", document="unicode.txt")
     if bootstrap is None:
         raise _bootstrap_error(GencmuError("the bundled bootstrap is missing"))
-    return _Resources(unicode, bootstrap, get("compiled.json"))
+    custom_core = sources is not None and "unicode.txt" in sources
+    properties = sources.get("unicode-properties.txt") if custom_core else get("unicode-properties.txt")
+    if not custom_core and properties is None:
+        raise GencmuError("the bundled properties file is missing", document="unicode-properties.txt")
+    return _Resources(unicode, bootstrap, get("compiled.json"), properties)
 
 
 def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:

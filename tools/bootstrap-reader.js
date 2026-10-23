@@ -23,7 +23,17 @@ import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
 // and the marks that a character tag escapes (engine §1, §9).
-const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
+const unicode = new UnicodeTable(readResource("unicode.txt"), readResource("unicode-properties.txt"));
+
+/** @param {string} key @returns {string} */
+export function readResource(key) {
+  try {
+    const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
+    return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
+  } catch (error) {
+    throw new GencmuError("grammar", `${key}: reading the resource failed`, {document:key}, {cause:error});
+  }
+}
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
@@ -1016,14 +1026,7 @@ class Parser {
 export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
-  const names = new NamesScope(key => {
-    try {
-      const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
-      return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
-    } catch (error) {
-      throw new GencmuError("grammar", `${key}: cannot read the names resource`, {document:key}, {cause:error});
-    }
-  }, unicode, fnv1a64, inherited);
+  const names = new NamesScope(readResource, unicode, fnv1a64, inherited);
   const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;

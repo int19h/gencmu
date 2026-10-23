@@ -218,9 +218,23 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
 }
 
 impl Context {
+    #[cfg(test)]
     fn new(unicode: &str, bootstrap: &str, compiled: &str) -> Result<Context, Error> {
+        Self::with_properties(unicode, None, bootstrap, compiled)
+    }
+
+    fn with_properties(
+        unicode: &str,
+        properties: Option<&str>,
+        bootstrap: &str,
+        compiled: &str,
+    ) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
-        let unicode = Arc::new(Unicode::parse(unicode).map_err(unicode_error)?);
+        let mut unicode = Unicode::parse(unicode).map_err(unicode_error)?;
+        if let Some(properties) = properties {
+            unicode.properties = crate::unicode_properties::read_properties(properties, &unicode)?;
+        }
+        let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
         let compiled = Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash)?;
         Ok(Context { unicode, notation, compiled })
@@ -234,8 +248,13 @@ impl Context {
                     bundled(path)
                         .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
                 };
-                Context::new(file("unicode.txt")?, file("notation/bootstrap.json")?, file("compiled.json")?)
-                    .map(Arc::new)
+                Context::with_properties(
+                    file("unicode.txt")?,
+                    Some(file("unicode-properties.txt")?),
+                    file("notation/bootstrap.json")?,
+                    file("compiled.json")?,
+                )
+                .map(Arc::new)
             })
             .clone()
     }
@@ -705,18 +724,31 @@ where
 {
     let map: HashMap<String, String> = sources.into_iter().map(|(path, text)| (path.into(), text.into())).collect();
     let own = |path: &str| map.get(path).map(String::as_str);
-    let context =
-        if own("unicode.txt").is_none() && own("notation/bootstrap.json").is_none() && own("compiled.json").is_none() {
-            Context::bundled()?
-        } else {
-            let pick = |path: &str| -> Result<String, Error> {
-                own(path)
-                    .or_else(|| bundled(path))
-                    .map(str::to_string)
-                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
-            };
-            Arc::new(Context::new(&pick("unicode.txt")?, &pick("notation/bootstrap.json")?, &pick("compiled.json")?)?)
+    let context = if own("unicode.txt").is_none()
+        && own("unicode-properties.txt").is_none()
+        && own("notation/bootstrap.json").is_none()
+        && own("compiled.json").is_none()
+    {
+        Context::bundled()?
+    } else {
+        let pick = |path: &str| -> Result<String, Error> {
+            own(path)
+                .or_else(|| bundled(path))
+                .map(str::to_string)
+                .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
         };
+        let properties = if own("unicode.txt").is_some() {
+            own("unicode-properties.txt").map(str::to_string)
+        } else {
+            Some(pick("unicode-properties.txt")?)
+        };
+        Arc::new(Context::with_properties(
+            &pick("unicode.txt")?,
+            properties.as_deref(),
+            &pick("notation/bootstrap.json")?,
+            &pick("compiled.json")?,
+        )?)
+    };
     load(&context, &MapSources { map }, pipeline)
 }
 
