@@ -7747,11 +7747,19 @@
   function characterTokens(text, unicode) {
     if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
     const tokens = [];
+    // Recognition treats these sets as immutable. The dialect gives each
+    // public token its own set before returning a result.
+    /** @type {Map<number,TagSet>} */
+    const profiles = new Map();
     let index = 0;
     const original = [...text];
     for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
       const code = /** @type {number} */ (character.codePointAt(0));
-      const tags = tagSet(unicode.profile(code));
+      let tags = profiles.get(code);
+      if (!tags) {
+        tags = tagSet(unicode.profile(code));
+        profiles.set(code,tags);
+      }
       tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
       index++;
     }
