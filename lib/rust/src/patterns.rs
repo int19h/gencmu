@@ -1,4 +1,6 @@
 //! Finite observations of structural trees (engine §4.1).
+pub(crate) mod shapes;
+
 use crate::dom::{self, Arg, Term};
 use crate::json::{write_str, Json};
 
@@ -215,6 +217,9 @@ impl Pattern {
             return Ok(Self::Literal(dom::term_from_json(field(j, "literal")?)?, at(j)?));
         }
         if exact(j, &["wildcard", "at"]) && j.get("wildcard") == Some(&Json::Bool(true)) {
+            if shapes::problem(j, &shapes::Inspection::default()).is_some() {
+                return Err("a malformed pattern atom".into());
+            }
             return Ok(Self::Wildcard(at(j)?));
         }
         if exact(j, &["range", "at"]) {

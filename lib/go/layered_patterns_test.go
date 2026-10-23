@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -169,5 +170,128 @@ func TestLayeredPatternWalkKeepsChildOrder(t *testing.T) {
 	})
 	if len(names) != 3 || names[0] != "root" || names[1] != "a" || names[2] != "b" {
 		t.Fatalf("walk order = %v", names)
+	}
+}
+
+func layeredFixtureTerm(n templateObject) string {
+	for _, key := range []string{"name", "terminal", "tag"} {
+		if layeredHas(n, key) {
+			return templateText(n[key])
+		}
+	}
+	for _, pair := range [][2]string{{"param", "@"}, {"const", "$"}} {
+		if layeredHas(n, pair[0]) {
+			return pair[1] + templateText(n[pair[0]])
+		}
+	}
+	if layeredHas(n, "call") {
+		var args []string
+		for _, arg := range templateList(n["args"]) {
+			args = append(args, layeredFixtureTerm(templateObj(arg)))
+		}
+		return templateText(n["call"]) + "(" + strings.Join(args, ", ") + ")"
+	}
+	if layeredHas(n, "pattern") {
+		return layeredPatternText(templateObj(n["pattern"]), layeredFixtureTerm, true)
+	}
+	if layeredHas(n, "string") {
+		data, _ := json.Marshal(n["string"])
+		return string(data)
+	}
+	if layeredHas(n, "requirements") {
+		var args []string
+		for _, value := range templateList(n["requirements"]) {
+			r := templateObj(value)
+			prefix := ""
+			if r["negated"] == true {
+				prefix = "¬"
+			}
+			args = append(args, prefix+layeredFixtureTerm(templateObj(r["value"])))
+		}
+		return "<" + strings.Join(args, " ") + ">"
+	}
+	panic("unhandled fixture term")
+}
+func TestLayeredPatternShapesAndPrinting(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile("../../tests/layered-patterns.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases struct {
+		Shapes []struct {
+			Description string
+			Pattern     any
+			Valid       bool
+			Problem     string
+			Depth       int
+		}
+		Printing []struct {
+			Description string
+			Pattern     templateObject
+			Text        string
+		}
+	}
+	if err = json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases.Shapes {
+		t.Run("shape/"+c.Description, func(t *testing.T) {
+			problem := layeredPatternProblem(c.Pattern, layeredPatternInspection{depth: c.Depth})
+			if c.Problem != "" && problem != c.Problem {
+				t.Fatalf("shape problem = %q, want %q", problem, c.Problem)
+			}
+			if (problem == "") != c.Valid {
+				t.Fatalf("shape problem = %q, want valid = %v", problem, c.Valid)
+			}
+		})
+	}
+	for _, c := range cases.Printing {
+		t.Run("printing/"+c.Description, func(t *testing.T) {
+			if got := layeredPatternText(c.Pattern, layeredFixtureTerm, true); got != c.Text {
+				t.Fatalf("text = %q, want %q", got, c.Text)
+			}
+		})
+	}
+}
+func TestLayeredPatternDepthAndWidth(t *testing.T) {
+	t.Parallel()
+	p := templateObject{"name": "a", "at": templatePosition([2]int{1, 1})}
+	for i := 0; i < 256; i++ {
+		p = templateObject{"path": "descendant", "pattern": p}
+	}
+	if problem := layeredPatternProblem(p, layeredPatternInspection{}); problem != "" {
+		t.Fatal(problem)
+	}
+	if problem := layeredPatternProblem(templateObject{"path": "descendant", "pattern": p}, layeredPatternInspection{}); problem != "nested too deeply" {
+		t.Fatal(problem)
+	}
+	if got, want := layeredPatternText(p, layeredFixtureTerm, true), "#("+strings.Repeat("⋮ (", 255)+"⋮ a"+strings.Repeat(")", 256); got != want {
+		t.Fatal("deep print differs")
+	}
+	var children, siblings []any
+	for i := 0; i < 1000; i++ {
+		children = append(children, templateObject{"child": templateObject{"name": "a", "at": templatePosition([2]int{1, 1})}})
+		siblings = append(siblings, templateObject{"siblings": true})
+	}
+	for _, c := range []struct {
+		array []any
+		depth int
+	}{{children, 254}, {siblings, 255}} {
+		n := templateObject{"any": true, "children": c.array}
+		if problem := layeredPatternProblem(n, layeredPatternInspection{depth: c.depth}); problem != "" {
+			t.Fatal(problem)
+		}
+		if problem := layeredPatternProblem(n, layeredPatternInspection{depth: c.depth + 1}); problem != "nested too deeply" {
+			t.Fatal(problem)
+		}
+	}
+	wide := make([]any, 150000)
+	for i := range wide {
+		wide[i] = templateObject{"child": templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}}
+	}
+	n := templateObject{"any": true, "children": []any{templateObject{"repeat": []any{templateObject{"optional": wide}}}}}
+	if problem := layeredPatternProblem(n, layeredPatternInspection{}); problem != "" {
+		t.Fatal(problem)
 	}
 }

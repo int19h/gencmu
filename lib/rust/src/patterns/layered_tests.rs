@@ -143,3 +143,98 @@ fn a_layered_repeat_retains_finite_states() {
     }
     assert!(m.states.len() < 10, "{} structural states", m.states.len());
 }
+
+fn fixture_term(n: &Json) -> String {
+    for key in ["name", "terminal", "tag"] {
+        if n.get(key).is_some() {
+            return text(n, key);
+        }
+    }
+    for (key, prefix) in [("param", "@"), ("const", "$")] {
+        if n.get(key).is_some() {
+            return format!("{prefix}{}", text(n, key));
+        }
+    }
+    if n.get("call").is_some() {
+        return format!(
+            "{}({})",
+            text(n, "call"),
+            n.get("args").unwrap().as_array().unwrap().iter().map(fixture_term).collect::<Vec<_>>().join(", ")
+        );
+    }
+    if let Some(p) = n.get("pattern") {
+        return shapes::text(p, &fixture_term, true);
+    }
+    if let Some(s) = n.get("string") {
+        return s.to_json();
+    }
+    if let Some(rs) = n.get("requirements").and_then(Json::as_array) {
+        return format!(
+            "<{}>",
+            rs.iter()
+                .map(|r| format!(
+                    "{}{}",
+                    if r.get("negated").and_then(Json::as_bool) == Some(true) { "¬" } else { "" },
+                    fixture_term(r.get("value").unwrap())
+                ))
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+    }
+    panic!("unhandled fixture term {n:?}");
+}
+#[test]
+fn shared_layered_shapes_and_printing() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/layered-patterns.json");
+    let cases = crate::json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+    for case in cases.get("shapes").unwrap().as_array().unwrap() {
+        let depth = case.get("depth").and_then(Json::as_int).unwrap_or(0) as usize;
+        let problem =
+            shapes::problem(case.get("pattern").unwrap(), &shapes::Inspection { depth, ..Default::default() });
+        if let Some(expected) = case.get("problem").and_then(Json::as_str) {
+            assert_eq!(problem.as_deref(), Some(expected), "{}", text(case, "description"));
+        }
+        assert_eq!(
+            problem.is_none(),
+            case.get("valid").unwrap().as_bool().unwrap(),
+            "{}: {problem:?}",
+            text(case, "description")
+        );
+    }
+    for case in cases.get("printing").unwrap().as_array().unwrap() {
+        assert_eq!(
+            shapes::text(case.get("pattern").unwrap(), &fixture_term, true),
+            text(case, "text"),
+            "{}",
+            text(case, "description")
+        );
+    }
+}
+#[test]
+fn layered_depth_and_width() {
+    fn object(fields: Vec<(&str, Json)>) -> Json {
+        Json::Obj(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    }
+    let leaf = crate::json::parse(r#"{"name":"a","at":[1,1]}"#).unwrap();
+    let mut p = leaf.clone();
+    for _ in 0..256 {
+        p = object(vec![("path", Json::Str("descendant".into())), ("pattern", p)]);
+    }
+    assert_eq!(shapes::problem(&p, &shapes::Inspection::default()), None);
+    assert_eq!(shapes::text(&p, &fixture_term, true), format!("#({}⋮ a{}", "⋮ (".repeat(255), ")".repeat(256)));
+    p = object(vec![("path", Json::Str("descendant".into())), ("pattern", p)]);
+    assert_eq!(shapes::problem(&p, &shapes::Inspection::default()).as_deref(), Some("nested too deeply"));
+    for (item, depth) in [(object(vec![("child", leaf)]), 254), (object(vec![("siblings", Json::Bool(true))]), 255)] {
+        let p = object(vec![("any", Json::Bool(true)), ("children", Json::Arr(vec![item; 1000]))]);
+        assert_eq!(shapes::problem(&p, &shapes::Inspection { depth, ..Default::default() }), None);
+        assert_eq!(
+            shapes::problem(&p, &shapes::Inspection { depth: depth + 1, ..Default::default() }).as_deref(),
+            Some("nested too deeply")
+        );
+    }
+    let child = crate::json::parse(r#"{"child":{"param":"X","at":[1,1]}}"#).unwrap();
+    let items = object(vec![("optional", Json::Arr(vec![child; 150000]))]);
+    let repeat = object(vec![("repeat", Json::Arr(vec![items]))]);
+    let p = object(vec![("any", Json::Bool(true)), ("children", Json::Arr(vec![repeat]))]);
+    assert_eq!(shapes::problem(&p, &shapes::Inspection::default()), None);
+}

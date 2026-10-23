@@ -2763,6 +2763,271 @@
         "exact": true
       },
       "text": "#·A<¬B>=\"x\""
+    },
+    {
+      "description": "an emoji rule retains its name",
+      "pattern": {
+        "name": "🆓",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#🆓"
+    },
+    {
+      "description": "an empty string retains its terminal identity",
+      "pattern": {
+        "literal": {
+          "string": ""
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#\"\""
+    },
+    {
+      "description": "an exact terminal retains its prefix",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ],
+        "exact": true
+      },
+      "text": "#·A"
+    },
+    {
+      "description": "an exact tested terminal prefixes the outer test",
+      "pattern": {
+        "test": "≠",
+        "value": {
+          "param": "Value",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "expr": {
+          "test": "tags",
+          "requirements": [
+            {
+              "negated": true,
+              "value": {
+                "const": "Tags",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "expr": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "exact": true
+      },
+      "text": "#·A<¬$Tags>≠@Value"
+    },
+    {
+      "description": "range endpoints retain unresolved string arguments",
+      "pattern": {
+        "range": [
+          {
+            "const": "Low",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "param": "High",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#$Low..@High"
+    },
+    {
+      "description": "a call argument keeps a nested layered pattern",
+      "pattern": {
+        "call": "choose",
+        "args": [
+          {
+            "pattern": {
+              "any": true,
+              "children": []
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#choose(#«»)"
+    },
+    {
+      "description": "a nested choice keeps its sequence position",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "a",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "choice": [
+                    [
+                      {
+                        "child": {
+                          "name": "b",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "child": {
+                          "terminal": "A",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "text": "#« a (b | A) | b »"
+    },
+    {
+      "description": "an exact range retains its prefix",
+      "pattern": {
+        "range": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "z"
+          }
+        ],
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·\"a\"..\"z\""
+    },
+    {
+      "description": "an exact literal retains its prefix",
+      "pattern": {
+        "literal": {
+          "string": "a"
+        },
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·\"a\""
+    },
+    {
+      "description": "an exact wildcard retains its prefix",
+      "pattern": {
+        "wildcard": true,
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·_"
+    },
+    {
+      "description": "an exact string constant retains its prefix",
+      "pattern": {
+        "constant": "Letter",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·$Letter"
+    },
+    {
+      "description": "an exact parameter retains its prefix",
+      "pattern": {
+        "param": "X",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·@X"
+    },
+    {
+      "description": "an exact call retains its prefix",
+      "pattern": {
+        "call": "choose",
+        "args": [
+          {
+            "tag": "A"
+          }
+        ],
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·choose(A)"
     }
   ],
   "shapes": [
@@ -4295,6 +4560,641 @@
         ]
       },
       "valid": false
+    },
+    {
+      "description": "an emoji rule retains its name",
+      "pattern": {
+        "name": "🆓",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an empty string retains its terminal identity",
+      "pattern": {
+        "literal": {
+          "string": ""
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact terminal retains its prefix",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ],
+        "exact": true
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact tested terminal prefixes the outer test",
+      "pattern": {
+        "test": "≠",
+        "value": {
+          "param": "Value",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "expr": {
+          "test": "tags",
+          "requirements": [
+            {
+              "negated": true,
+              "value": {
+                "const": "Tags",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "expr": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "exact": true
+      },
+      "valid": true
+    },
+    {
+      "description": "range endpoints retain unresolved string arguments",
+      "pattern": {
+        "range": [
+          {
+            "const": "Low",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "param": "High",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a call argument keeps a nested layered pattern",
+      "pattern": {
+        "call": "choose",
+        "args": [
+          {
+            "pattern": {
+              "any": true,
+              "children": []
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a nested choice keeps its sequence position",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "a",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "choice": [
+                    [
+                      {
+                        "child": {
+                          "name": "b",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "child": {
+                          "terminal": "A",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a null pattern is malformed",
+      "pattern": null,
+      "valid": false,
+      "problem": "a malformed pattern"
+    },
+    {
+      "description": "a pattern cannot be an item array",
+      "pattern": [],
+      "valid": false,
+      "problem": "a malformed pattern"
+    },
+    {
+      "description": "a child list must be an array",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1
+        ],
+        "children": {}
+      },
+      "valid": false,
+      "problem": "a malformed pattern child list"
+    },
+    {
+      "description": "a child list cannot contain an undecorated node",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern child item"
+    },
+    {
+      "description": "a child item cannot carry a source position",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            },
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern child item"
+    },
+    {
+      "description": "a node requires a positive source position",
+      "pattern": {
+        "name": "a",
+        "at": [
+          0,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern position"
+    },
+    {
+      "description": "a source position cannot contain a boolean",
+      "pattern": {
+        "name": "a",
+        "at": [
+          true,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern position"
+    },
+    {
+      "description": "a source position retains exactly two coordinates",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern position"
+    },
+    {
+      "description": "a terminal has the terminal-name category",
+      "pattern": {
+        "terminal": "a",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern terminal"
+    },
+    {
+      "description": "a parameter retains the parameter-name category",
+      "pattern": {
+        "param": "_X",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern reference"
+    },
+    {
+      "description": "a wildcard requires true",
+      "pattern": {
+        "wildcard": false,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern wildcard"
+    },
+    {
+      "description": "a compound path has no node decorations",
+      "pattern": {
+        "path": "first",
+        "pattern": {
+          "name": "a",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "exact": true
+      },
+      "valid": false,
+      "problem": "a malformed pattern path"
+    },
+    {
+      "description": "a path requires a named axis",
+      "pattern": {
+        "path": "middle",
+        "pattern": {
+          "name": "a",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false,
+      "problem": "a malformed pattern path"
+    },
+    {
+      "description": "a tag test has exactly its designated members",
+      "pattern": {
+        "test": "tags",
+        "requirements": [],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false,
+      "problem": "a malformed pattern node test"
+    },
+    {
+      "description": "a tag test requires signed requirement records",
+      "pattern": {
+        "test": "tags",
+        "requirements": [
+          {
+            "value": {
+              "tag": "A"
+            }
+          }
+        ],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false,
+      "problem": "a malformed pattern requirement"
+    },
+    {
+      "description": "a requirement sign must be boolean",
+      "pattern": {
+        "test": "tags",
+        "requirements": [
+          {
+            "value": {
+              "tag": "A"
+            },
+            "negated": 0
+          }
+        ],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false,
+      "problem": "a malformed pattern requirement"
+    },
+    {
+      "description": "a requirement is not a decoded string",
+      "pattern": {
+        "test": "tags",
+        "requirements": [
+          {
+            "value": {
+              "string": "A"
+            },
+            "negated": false
+          }
+        ],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false,
+      "problem": "a malformed pattern requirement"
+    },
+    {
+      "description": "a rule cannot be a terminal-test target",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": "x"
+        },
+        "expr": {
+          "name": "a",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false,
+      "problem": "a pattern value test requires a terminal atom"
+    },
+    {
+      "description": "a repeat cannot consist only of nested gaps",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "optional": [
+                  {
+                    "siblings": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false,
+      "problem": "a sibling ellipsis cannot be a repeat item or separator"
+    },
+    {
+      "description": "a gap cannot occupy a whole pattern",
+      "pattern": {
+        "siblings": true
+      },
+      "valid": false,
+      "problem": "a malformed pattern node test"
+    },
+    {
+      "description": "a child list and its child use two constructor levels",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true,
+      "depth": 254
+    },
+    {
+      "description": "a child beyond the constructor depth limit is malformed",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": false,
+      "problem": "nested too deeply",
+      "depth": 255
+    },
+    {
+      "description": "a sibling item uses one constructor level",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "siblings": true
+          }
+        ]
+      },
+      "valid": true,
+      "depth": 255
+    },
+    {
+      "description": "a sibling beyond the constructor depth limit is malformed",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "siblings": true
+          }
+        ]
+      },
+      "valid": false,
+      "problem": "nested too deeply",
+      "depth": 256
+    },
+    {
+      "description": "an exact range retains its prefix",
+      "pattern": {
+        "range": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "z"
+          }
+        ],
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact literal retains its prefix",
+      "pattern": {
+        "literal": {
+          "string": "a"
+        },
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact wildcard retains its prefix",
+      "pattern": {
+        "wildcard": true,
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact string constant retains its prefix",
+      "pattern": {
+        "constant": "Letter",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact parameter retains its prefix",
+      "pattern": {
+        "param": "X",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact call retains its prefix",
+      "pattern": {
+        "call": "choose",
+        "args": [
+          {
+            "tag": "A"
+          }
+        ],
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
     }
   ]
 }

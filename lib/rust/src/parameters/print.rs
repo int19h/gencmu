@@ -280,5 +280,5 @@ fn pattern(n: &Json, u: &Unicode) -> String {
             return list(get(n, k)).iter().map(|x| format!("({})", p(x))).collect::<Vec<_>>().join(op);
         }
     }
-    canonical(n, u)
+    crate::patterns::shapes::text(n, &|n| canonical(n, u), false)
 }

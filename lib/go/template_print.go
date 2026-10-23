@@ -278,7 +278,7 @@ func templateBodyText(n templateObject, uni *unicodeTable, parent string) string
 	return templateCanonical(n, uni)
 }
 
-// Pattern spelling follows the reference printer while its syntax remains open.
+// Legacy compound spelling remains until the public reader changes formats.
 func templatePatternText(n templateObject, uni *unicodeTable) string {
 	p := func(x any) string { return templatePatternText(templateObj(x), uni) }
 	for _, key := range []string{"node", "children"} {
@@ -325,5 +325,5 @@ func templatePatternText(n templateObject, uni *unicodeTable) string {
 			return strings.Join(xs, pair[1])
 		}
 	}
-	return templateCanonical(n, uni)
+	return layeredPatternText(n, func(n templateObject) string { return templateCanonical(n, uni) }, false)
 }

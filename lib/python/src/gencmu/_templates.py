@@ -7,6 +7,7 @@ import json
 
 from ._errors import GencmuError
 from ._trampoline import run
+from ._pattern_shapes import _print_layered
 from ._strings import spelling
 from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument
 
@@ -193,7 +194,7 @@ def _print_pattern(n, unicode):
             for value in n[key]:
                 parts.append('(' + (yield _print_pattern(value, unicode)) + ')')
             return op.join(parts)
-    return (yield _print_argument(n, unicode))
+    return (yield _print_layered(n, lambda node: _print_argument(node, unicode), False))
 
 
 def expand_templates(documents, unicode):
