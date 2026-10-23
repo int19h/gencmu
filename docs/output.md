@@ -10,6 +10,8 @@ JSON member names are case-sensitive. Names that differ in case are distinct mem
 
 Canonical JSON is UTF-8 JSON with integers only. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
 
+Single-guillemet escapes belong to notation strings printed in names and diagnostics. JSON serialization still preserves the actual member values with ordinary JSON quoting. A notation string inside a JSON member therefore has both its notation spelling and the surrounding JSON string encoding.
+
 Libraries write object keys in the order that this document gives. They write no whitespace outside strings, and they write non-ASCII characters as themselves. This makes outputs easy to compare by eye. But conformance is equality of the parsed values.
 
 ### A parse result
@@ -23,7 +25,7 @@ Libraries write object keys in the order that this document gives. They write no
 Result format 15 defines these result values:
 
 - Rule-name strings admit punctuation, quotes, and emoji, including canonical call spellings.
-- A format scalar has general category Cf. Canonical terminal spellings write it as an engine constant, such as `$_200B` (engine §9.1).
+- A format scalar has general category Cf. Canonical terminal spellings escape it, as in `"‹ZWSP›"` (engine §9.1).
 - Stage-zero tokens carry `_Emoji_Presentation` and `_Emoji_Component` where their table properties apply. Forwarded tokens can retain those tags through ordinary inheritance. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
 
 Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
@@ -186,17 +188,17 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":36,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":37,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 36 supports node tests with exact prefixes, attached child lists, child choices, and flat pattern intersections. It also supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 37 supports node tests with exact prefixes, attached child lists, child choices, and flat pattern intersections. It also supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 36 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+A written literal joins its decomposed text runs with exact decoded escapes. DOM format 37 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-DOM format 36 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+DOM format 37 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 36 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":36,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 37 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":37,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -363,7 +365,9 @@ Terms have these forms:
 
 In a term, a run of bare tag names or string literals produces one `union` of its terms in written order. Set operations treat scalar strings as singleton sets. A lone string keeps its scalar type.
 
-Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
+Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands.
+
+Difference retains both operands. A term intersection retains its written nesting until type resolution. Pattern-valued intersections then flatten nested intersections before evaluation and instance keys. Other intersection types retain their nesting. Thus `(Word BY) ∩ $l.tags` keeps the run's union as its first operand.
 
 For example, `A ∪ (B ∪ C)` gives this term:
 
@@ -371,11 +375,9 @@ For example, `A ∪ (B ∪ C)` gives this term:
 {"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}
 ```
 
-`STRINGTERM` is `string`, string-valued `const`, or a declared `param` before expansion. A written string literal uses `string`, with dollar signs unchanged. Engine constants retain their `_` names and reference positions like user constants.
+`STRINGTERM` is `string`, string-valued `const`, or a declared `param` before expansion. A written string literal uses `string`, with escapes decoded and dollar signs unchanged.
 
 `concat` joins string terms in written order. Outside a recipe root, its array contains at least two operands. The reader flattens nested concatenations, including grouped operands. It preserves empty operands and does not merge literals or resolve constants. Supplied DOMs can retain nested `concat` terms.
-
-Engine constants resolve directly as scalar strings outside the user constant version graph (engine §2).
 
 `const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form, including template forms above. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
 
@@ -423,7 +425,7 @@ Recipe syntax joins atoms with `++` and accepts no other method chains or expres
 
 Substitution flattens nested concatenations into that array, in operand order. It preserves empty operands and each operand's source attribution. General terms also use `concat` for `++` in conditions and constants.
 
-DOM format 36 rejects the `interpolate` node.
+DOM format 37 rejects the `interpolate` node.
 
 Conditions have these forms:
 
@@ -451,8 +453,6 @@ An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{
 `%emits` without items creates `{"items":[{"capture":""}]}`. A clauses-only emission adds those clauses to that item. `%emits ε` creates `{"items":[{"insert":true}]}`. Erasure uses the separate rule member `erased:true`.
 
 A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. Its operation is `define` or `redefine`, and its value is closed. `%const` defines, and `%redefine-const` redefines. The name has no `$`. The value can hold `const` terms but never a value that the loader gives them.
-
-Engine constants cannot be declared.
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
@@ -504,9 +504,9 @@ An undecorated node test has one of these forms:
 
 TERMINALATOM is an undecorated `terminal`, `literal`, `range`, `wildcard`, or string-valued `constant`. Before substitution, it can also be a declared `param` that must become a terminal atom. TESTTARGET is TERMINALATOM or exactly one tag test on TERMINALATOM. The source order is tag then value. These inner objects carry no `exact` or `children` fields.
 
-A node test can add `"exact":true`, then `"children":[ITEM...]`. If the object has an `at` member, that member follows both additions. Both additions are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
+A node test can add `"exact":true`, then `"children":[ITEM...]` where permitted below. If the object has an `at` member, that member follows both additions. Both additions are optional. `exact` occurs only as true and suppresses the search for that node alone. `children` always records the written guillemets, including an empty or one-item array. Its absence imposes no child constraint.
 
-Every node-test form accepts these decorations, subject to constant and parameter resolution. This includes tested terminals and `_`. If a terminal leaf has an attached list, the list tests that leaf's empty child sequence. The decorations belong to the outermost test object, never its inner `expr`.
+Only `name`, `call`, and compatible `param` node tests accept `children`. A terminal, `wildcard`, tested atom, or string-valued `constant` cannot carry that member. Every node-test form can carry `exact:true`. On a tested atom, the exact prefix belongs to the outermost test object, never its inner `expr`.
 
 A bare child list has exactly this form, with optional `exact` before `children`:
 
@@ -528,7 +528,7 @@ PATTERN is a node test, a bare child list, or one of these compound forms:
 {"path":"last","pattern":PATTERN}
 ```
 
-An undecorated `constant` can instead denote a whole pattern. An undecorated `param` can substitute one whole pattern. A compound form cannot carry `exact`, `children`, tests, or `at`. A pattern-valued constant cannot carry node decorations or terminal tests.
+An undecorated `constant` can instead denote a whole pattern. An undecorated `param` can substitute one whole pattern. A compound form cannot carry `exact`, `children`, tests, or `at`. A pattern-valued constant cannot carry node decorations or terminal tests. A parameter with `children` must become a rule test or call without existing children.
 
 ITEM has exactly one of these shapes:
 
@@ -569,12 +569,12 @@ A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and 
 
 A bare template name tests its family. A call tests one instance. String-valued user constants use `constant` until binding through engine §2. Pattern-valued constants denote their whole predicate. Binding does not change the cached DOM.
 
-PATTERNSTRING is exactly a `string` term or an engine scalar `const` with its source position. A user constant never occupies this position. It uses `constant` instead. A parameter node uses `param`, without a `literal` wrapper. Range endpoints and test operands retain their ordinary STRINGTERM rules, including user constants and declared parameters.
+PATTERNSTRING is exactly a decoded `string` term. A user constant never occupies this position. It uses `constant` instead. A parameter node uses `param`, without a `literal` wrapper. Range endpoints and test operands retain their ordinary STRINGTERM rules, including user constants and declared parameters.
 
-Engine scalar atoms preserve both source positions. `#$_0061` has this complete DOM:
+A string atom records the source position of its opening quote. `#"‹U+0061›"` has this complete DOM:
 
 ```json
-{"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
+{"pattern":{"literal":{"string":"a"},"at":[1,2]}}
 ```
 
 The node test `#·a« b »` has this complete DOM:
@@ -594,9 +594,9 @@ The following examples omit source positions to show the boundaries:
 
 Union and intersection each require at least two operands. Neither permits a direct operand of its own kind. The reader flattens those operands in written order, including across parentheses. Supplied nested forms are malformed rather than additional pattern shapes. Difference retains exactly two operands. These rules preserve order and duplicates.
 
-After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested pattern intersections in supplied and cached DOMs.
+After substitution, the loader flattens any pattern intersection that substitution nests inside another intersection. This step precedes expanded-pattern validation, including in conditions and call arguments. Initial inspection still rejects nested PATTERN intersections in supplied and cached DOMs.
 
-The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Canonical pattern reading follows engine §2.3 and preserves the key of every valid shape.
+The DOM accepts exactly the reader's output, apart from source coordinates. Unknown members and overlapping constructors are malformed at every level. No `boundary`, `written`, or `omitted` pattern form exists. Ordinary reading of canonical pattern spelling follows engine §2.3 and preserves the key of every valid shape.
 
 A tree comparison uses the `op`, `left` and `right` members:
 
@@ -625,9 +625,9 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":36,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":37,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"names":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
-A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
+A library always compares the format, bootstrap hash, Unicode table hash, and document hash. An entry also contains `names` exactly when its source uses a name escape in a notation string. That member follows `hash` and fingerprints the loaded names file by the same FNV-1a algorithm. A required missing or mismatched `names` member gives a cache miss. Numeric-only documents omit it. Engine §8 defines the token-aware dependency inspection.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
@@ -657,10 +657,10 @@ In the `cll-ebnf` dialect, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citk
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 
 - A rule node is its name. If the node has only token descendants on one line of source, ` · ` and its text follow the name. They do not if any of those tokens has attachments. They also do not if the image of any of those tokens, or of their attachments, holds a line break.
-- A token node is its terminal, then its image from above in quotes. The quoted image is escaped as a JSON string, so a line break in it is written `\n`.
+- A token node is its terminal, then its image from above in quotes. The quoted image uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
 - The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
 
-  An attachment is its classes, then its image in quotes. Its classes are its tags that start and end with a capital and never start with `_`, in code point order, joined by ` ∪ `. An attachment with no class is its image alone. Its own attachments follow it in the same way, indented two spaces more.
+  An attachment is its classes, then its image in quotes with the same escapes. Its classes are its tags that start and end with a capital and never start with `_`, in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
 The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `cll-ebnf` dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:

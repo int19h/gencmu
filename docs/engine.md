@@ -33,9 +33,9 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal.
+A string terminal's identity is its resolved string. A literal, escaped literal, and equal user constant therefore identify one terminal.
 
-Canonical string diagnostics join nonempty quoted literal runs and engine scalar constants with `++`. Engine constants represent quotes, backslashes, controls, format scalars, nonspacing marks, and private-use scalars. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+Canonical string diagnostics write one quoted string with `‹…›` escapes. Escapes represent quotes, backslashes, controls, format scalars, nonspacing marks, private-use scalars, and the escape opener. They also represent Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A format scalar has general category Cf in the configured table.
 
@@ -45,7 +45,7 @@ A private-use scalar lies in three fixed ranges. These are U+E000 to U+F8FF, U+F
 
 A nonspacing mark has general category Mn in the configured Unicode table. Scalars with a `decompose` record, Hangul syllables and scalars of nonzero combining class also require escaping. Stage zero changes each of them in a grammar document. Other marks need no escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
 
-U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` as a separate string term. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
+U+0301 can appear as `"‹U+0301›"`, and U+ED80 as `"‹U+ED80›"`. A quotation mark uses `"‹U+0022›"`. Escapes contribute exact scalars after source decomposition.
 
 Stage zero is named `input`. It first decomposes the text into its canonical decomposition, Unicode Normalization Form D, with the configured Unicode table. Each scalar c at position i becomes its decomposition. That is the table's `decompose` record for c, the jamo of a Hangul syllable, or c itself. Each resulting scalar has origin i. Then each maximal run of scalars whose combining class is not 0 is sorted by combining class.
 
@@ -97,7 +97,7 @@ A table without `decompose` records decomposes only Hangul syllables, and one wi
 
 A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
 
-A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `$_D7FF..$_E000` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
+A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
 
 Engine property names correspond to the configured Unicode table. A general category uses its short form with `_`, such as `_Lu`. A major category groups the general categories sharing its letter. These are the general and major names:
 
@@ -114,6 +114,49 @@ The other engine names are `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Co
 Emoji properties use the same pinned Unicode version as categories and decomposition. A missing emoji record grants no membership. These properties add no case mapping.
 
 The engine inventory has no other name. `_lu` and `_Letter` are document errors. Engine tags are ordinary stored membership after stage zero. A grammar can read, inherit, forward, or filter them, but never introduce one. An empty value or a capitalized image does not imply an engine tag.
+
+### Unicode names for string escapes
+
+`tools/unicode-table.py` also generates `grammars/unicode-names.txt` from the same pinned Unicode version. The bundled version is 15.1.0. This file supplies names and aliases for string escapes. It supplies no stage-zero property tags. Libraries never use host Unicode data for name lookup.
+
+The generator uses the pinned [Unicode name rules](https://www.unicode.org/reports/tr44/tr44-32.html) and [NameAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/NameAliases.txt). It takes algorithmic ranges from [DerivedName.txt](https://www.unicode.org/Public/15.1.0/ucd/extracted/DerivedName.txt). An algorithmic name follows a scalar-based naming rule. The file stores those rules and ranges rather than one name per scalar.
+
+The names file is strict UTF-8. Its first nonblank line is `unicode-names VERSION`, with the version from `unicode.txt`. VERSION has three decimal components separated by dots. The version strings must match exactly. Remaining records have these forms:
+
+```text
+unicode-names 15.1.0
+name 0301 COMBINING ACUTE ACCENT
+alias abbreviation 200D ZWJ
+alias control 000A LINE FEED
+algorithm hex 3400 4DBF CJK UNIFIED IDEOGRAPH-
+algorithm hangul AC00 D7A3
+```
+
+A `name` record contains a scalar and its formal Unicode name. An `alias` record contains its kind, scalar, and alias. The kinds are `correction`, `control`, `alternate`, `figment`, and `abbreviation`. All five kinds are accepted in escapes. A scalar can have multiple aliases of each kind.
+
+An `algorithm hex` record contains inclusive scalar endpoints and a name prefix. The name is that prefix followed by the scalar's uppercase hexadecimal number, with at least four digits. A lookup accepts only the scalars within that record's range. The generator emits every corresponding range from the pinned data, including the ideograph families.
+
+An `algorithm hangul` record has exactly the endpoints AC00 and D7A3. Libraries compute syllable names with the Unicode 15.1 Hangul naming algorithm and its fixed jamo short names. They do not list syllable names in the file. Hexadecimal rules likewise compute names without expanding their ranges into records.
+
+Algorithmic formal names use algorithm records rather than explicit `name` records. An explicit name within a declared algorithmic range is malformed. A custom subset can retain an algorithm record or omit that family's names.
+
+LF ends each line, with an optional preceding CR. The final line can end at the file's end. Blank lines are ignored, and fields use ASCII spaces or tabs. After the fixed fields, the remaining words form the name or prefix, joined by single ASCII spaces. Names contain uppercase ASCII letters, digits, spaces, or hyphens. An empty name or prefix is malformed.
+
+Code point fields follow the numeric and scalar bounds of `unicode.txt`. Algorithmic ranges contain only scalars and cannot be reversed. Unknown records, alias kinds, repeated headers, and malformed fields are grammar errors. A scalar has at most one explicit formal name. Duplicate name or alias records are errors. One spelling cannot resolve to different scalars, including through algorithmic rules.
+
+Duplicate or overlapping algorithm ranges for the same naming rule are errors. Explicit and algorithmic names share one lookup namespace with aliases. The loader rejects any spelling that identifies different scalars. These requirements apply to custom names files too.
+
+Record order does not affect lookup or canonical printing. Exact spellings, including case and spaces, determine name lookup. The records contain individual scalar names and aliases. A sequence of several scalars cannot supply one escape. Numeric escapes do not consult this file.
+
+A library loads the names file only when source text uses a name escape or a printer needs abbreviation aliases. It can share the loaded data within one dialect. Unused names data remains unread and cannot cause an error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
+
+A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can contain a subset of the names and algorithms. An omitted name is unknown. The two files must declare the same version.
+
+If bundled resources exist and versions match, an omitted names file selects the bundled file. Without those resources, the caller must supply the names file when needed. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `unicode-names.txt` and its line when known. If printing first requires that file, the printer reports the same resource error.
+
+When names data is needed, the property table must declare exactly one Unicode version. A missing or repeated version prevents names-file selection and causes a grammar loading error. Numeric escape parsing does not add that version requirement by itself.
+
+An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. This error applies even inside a definition that a later statement replaces. The lexer validates every escape, including name lookup, before syntax recognition and stitching. Its string tokens retain the escape spellings.
 
 ### Engine-tag provenance
 
@@ -175,7 +218,7 @@ An item states a constant in one of two ways. `%const $NAME t` (`define`) define
 
 `t` is a closed term (§10). Every user constant reference binds to its name's final definition in the stitched stage. Other names can refer forward. Inside `%redefine-const $X t`, `$X` binds to X's immediately preceding definition. This lexical exception applies inside nested patterns, but never through another referenced constant.
 
-Engine scalar references from §9.1 resolve directly to their scalar strings. They need no declaration and never enter the user constant version graph. Declarations cannot use their names. This rule covers references in bodies, patterns, recipes, ranges, and concatenation.
+String escapes resolve during document reading. Their decoded scalars belong to string terms and never enter the constant version graph. This rule covers strings in every syntactic position.
 
 Each declaration creates an immutable version `(name, declaration-index)`. A redefinition records its predecessor. After stitching, the loader records each name's final version. It resolves self-references in a redefinition to its predecessor and all other references to final versions. These resolved edges never change during evaluation.
 
@@ -183,7 +226,7 @@ The loader builds a directed graph of dependencies between versions. It rejects 
 
 A predecessor remains an expression, not a snapshot of earlier values. Its other references use final definitions. Thus after `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`. Redefining A as `$B ∪ C` instead creates a cycle between final A and B.
 
-After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. Valid engine scalar constants remain predefined strings. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
+After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
@@ -197,7 +240,7 @@ A stage also has classifiers. A classifier maps a string to a tag set, the strin
 
 An entry has gates, one or more keys, an operator and one class. A gate is a guard `f?` or `¬f?`, as in an alternative (§3.1). A key is a string literal or string constant, with its exact value (§5, §9). The operator is `∈` or `∉`. The class begins and ends with an uppercase ASCII letter and never starts with `_`.
 
-A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE "‹U+0022›"` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH "‹U+005C›"` likewise supplies a backslash key.
 
 A classifier's value depends on the features, so the stage resolves it for one set of enabled features. It starts with no memberships, and takes the entries of every item of that name in the stitching order. It skips an entry whose gates do not all hold, as lowering drops an alternative (§3.1). For each key of any other entry, in order, `∈` adds the membership of the key in the class, and `∉` removes it. The value maps each key to the classes that it has after the last entry.
 
@@ -343,7 +386,7 @@ The use determines the conversion, before ordinary validation:
 | Pattern node with `·`, tests, or children | One node test that accepts those decorations |
 | General term | Term whose type after constant binding is the required string, string-set, tag-set, or pattern type |
 
-A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string or engine scalar becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
+A name becomes `ref` in a body, `name` in a pattern, or `rule` in a rule argument. A tag becomes a body `ref`, pattern `terminal`, or singleton tag term. A string becomes a body or pattern `literal`, or retains its term form. A user constant becomes a pattern `constant` or the ordinary constructor for its other use. Other conversions keep their ordinary tests and type restrictions. No conversion changes runtime scope.
 
 A pattern argument in a child item consumes one child. It never splices its children into the enclosing list. A node decoration requires a compatible node test after conversion. Each decoration conflicts only with the same decoration already on that argument. Written tests retain their ordinary target and order restrictions. A compound predicate cannot receive node decorations.
 
@@ -379,9 +422,11 @@ A target choice can also supply one grouped body choice where a body operand acc
 
 Elsewhere, substitution keeps the argument as one node. Ranked groups keep their own seals and priority. Ordinary union flattening still applies after substitution.
 
-Substitution also flattens pattern intersections before expanded-pattern validation, including in conditions and call arguments. Each resulting array retains operand order, duplicates, and source attribution. This normalization applies only to nesting that substitution creates. Initial shape inspection still rejects nested intersections in supplied or cached pattern DOMs.
+Substitution also flattens pattern intersections before expanded-pattern validation, including in conditions and call arguments. Each resulting array retains operand order, duplicates, and source attribution. This normalization applies only to nesting that substitution creates. Initial shape inspection still rejects nested intersections in supplied or cached PATTERN constructors.
 
-For example, a template condition can contain `#(@P ∩ A)`. With argument `#(A ∩ B)`, substitution produces `#(A ∩ B ∩ A)`. The expanded pattern has one intersection array with three operands. These are pattern constructors, distinct from term-level intersections of pattern values.
+After type resolution, term-level intersections with pattern type also flatten nested intersections in their effective form. This normalization precedes evaluation, expanded type inspection, and instance keys. The cached term keeps its unresolved shape. Intersections with tag-set or string-set type retain their nesting. Difference retains both operands for every type.
+
+For example, a template condition can contain `#(@P ∩ A)`. With argument `#(A ∩ B)`, substitution produces `#(A ∩ B ∩ A)`. The expanded pattern has one intersection array with three operands. Term-level intersections of pattern values also flatten, through groups and after substitution.
 
 ```jbogenbau
 %rule t(@P) A
@@ -397,7 +442,7 @@ Parameters carry no runtime state.
 
 An instance key uniquely identifies an instance. It contains the stage, template identity, and ordered argument DOMs after parameter substitution and argument conversion. Keys remove source positions.
 
-They flatten unions, concatenations, and runs as the reader does. Pattern intersections also flatten, including through grouping parentheses. Pattern child arrays and choices follow the reader shapes in `docs/output.md`. Invalid supplied pattern nesting is an error, rather than another key. Nested body `seq`, `choice`, `and`, and `ranked` nodes remain distinct.
+They flatten unions, concatenations, and runs as the reader does. Pattern intersections also flatten, including through grouping parentheses and in pattern-valued terms after type resolution. Pattern child arrays and choices follow the reader shapes in `docs/output.md`. Invalid supplied PATTERN nesting is an error, rather than another key. Nested body `seq`, `choice`, `and`, and `ranked` nodes remain distinct.
 
 They retain argument categories, operator order, constants by name, and rule references by name. They never expand a referenced rule's body or compare evaluated argument values.
 
@@ -419,9 +464,7 @@ An unnamed instance uses its canonical call spelling. The printer preserves the 
 
 Names, calls, tags, constants, `_`, `ε`, and `∅` retain their lexical spellings. A range joins its endpoints with `..`, without spaces. Signed requirements use `<A ¬B>`, including `<>`. Target choices use `a | b`.
 
-String arguments use JSON quoting. Quotes and backslashes use their two-character JSON escapes. The five short control escapes cover backspace, tab, newline, form feed, and carriage return. These short escapes take priority over the Unicode-escape rule below. Other controls use lowercase four-digit Unicode escapes. Slashes remain literal.
-
-The printer also escapes each remaining scalar that §9.1 spells as an engine constant. Those scalars use lowercase JSON Unicode escapes, with a surrogate pair above U+FFFF. Other non-ASCII scalars remain literal. This diagnostic spelling adds no escape syntax to grammar strings. It distinguishes a literal argument from an explicit concatenation argument.
+String arguments use ordinary notation quotes and the escapes of §9.1. Each required escape uses the selected abbreviation alias or numeric code point. Other scalars remain literal. This spelling distinguishes a literal argument from an explicit concatenation argument.
 
 Body arguments retain outer parentheses, except bare `ε`, optionals, and repetitions. The printer separates sequence items with one space. It uses ` | `, ` ≻ `, and ` & ` between operands. An optional has no internal padding. Braces have no internal padding except the spaces around `/` and between a chain marker and its item.
 
@@ -445,13 +488,11 @@ A choice uses ` | ` between alternative arrays. If a choice or set item shares i
 
 Tests follow their symbol without spaces. Method selectors follow their receiver without spaces. Methods use ` | ` for target choices and `, ` for other argument lists. A zero-argument selector has no parentheses. Call parentheses follow the same no-space adjacency rule.
 
-Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. They do not add diagnostic string escapes to ordinary grammar source.
+Every accepted argument has a canonical spelling. Complex arguments never require a public name merely to obtain a spelling. Canonical names identify argument trees injectively. The ordinary reader accepts those spellings under the same Unicode table, names data, and bindings.
 
-Canonical reading is a separate reading mode for these printed arguments. It uses the ordinary operator, adjacency, constructor, and binding rules. Its strings decode the printer's JSON escapes and preserve decoded scalars without stage-zero decomposition. Other tokens use the same loaded Unicode table and bindings as printing. This mode adds no new source-string syntax.
+For every valid pattern P, `key(read(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
 
-For every valid pattern P, `key(readCanonical(print(P))) = key(P)`. The key removes source positions and retains constants by name, decorations, boundaries, operator order, and duplicates. It does not identify patterns merely because they match the same trees. The requirement also applies to a pattern inside another argument or call.
-
-A pattern name that reads back as a terminal under the loaded Unicode table is invalid. This restriction covers ordinary rule names, template-family names, and call names. It also applies to supplied and cached DOMs. A pattern `literal` can name only an engine scalar constant, never a user constant.
+A pattern name that reads back as a terminal under the loaded Unicode table is invalid. This restriction covers ordinary rule names, template-family names, and call names. It also applies to supplied and cached DOMs. A pattern `literal` contains a decoded string. User constants use `constant`.
 
 Read-back inspection also descends through every argument and target inside a pattern call, including nested calls and body arguments. Each nominal rule reference must read back as a rule in its actual syntactic position. For example, a Unicode table can make `A` both an eligible emoji name and a tag spelling. If `f(A)` reads that argument as a tag, its supplied `rule:A` argument is invalid. The argument categories remain distinct, even if the template ignores that argument.
 
@@ -1649,7 +1690,11 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-An implementation can keep the DOMs that it built before. It keys each DOM by four values. They are the document's text hash, the bootstrap's hash, the fingerprint of the Unicode table and the DOM format version (`docs/output.md`). It treats a mismatch in any of the four as a miss. The fingerprint is the 64-bit FNV-1a hash of the table's text, written as the document hash is. A DOM depends on the table, because the table decides how stage zero decomposes the document.
+An implementation can keep the DOMs that it built before. Four values always enter its key: document text hash, bootstrap hash, Unicode table fingerprint, and DOM format version. Any mismatch gives a cache miss. The table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
+
+A document with a name escape also requires a names fingerprint in its cache entry. This fingerprint hashes the full `unicode-names.txt` text by the same algorithm. The loader identifies name escapes in notation string tokens, including include paths, before accepting an entry. It ignores comments, prose, and escaped literal openers during that inspection. Numeric escapes alone require no names fingerprint.
+
+A missing or mismatched required names fingerprint gives a cache miss. Missing or malformed required names data remains a loading error, even when a cache entry exists. Documents without name escapes omit that fingerprint and remain reusable across names-file changes. Printer alias lookup does not change a document DOM or its cache identity.
 
 `compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
 
@@ -1681,15 +1726,17 @@ It never reads directly as a reference, ordinary rule name, or bare pattern name
 
 A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must match `[a-z][a-z0-9_-]*`. `$fooBar:A` therefore reports the capture-name error at `$fooBar`. A user constant reference is `$` followed by an uppercase name.
 
-An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must consist of four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. This validity rule applies to engine constant tokens only.
-
 An Integer token is a nonempty run of ASCII decimal digits. Section 9.3 defines its validity as a method argument.
 
-String delimiters are straight double quotes. Their contents are plain text. Dollar signs are ordinary characters. The reader stores the decomposed token value between the delimiters. The reader does not validate scalar names inside strings.
+String delimiters are straight double quotes. Dollar signs and backslashes are ordinary characters. A string contains literal runs and `‹…›` escapes. Literal runs use stage-zero decomposition, while decoded escape scalars remain exact. The reader joins those parts without further normalization.
 
-Backslash has no escape meaning and is a lexical error. A string value containing a quote or backslash joins `$_0022` or `$_005C` with `++`.
+Lexical string tokens retain their quotes and escape spellings. Lexical validation does not replace escapes in those token values. During DOM conversion, the reader removes the quotes and decodes the original escapes exactly once. Include-path tokens follow the same rule, with original literal runs. Token source positions and texts retain the written spelling.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. The reader preserves its spelling without decomposition. Paths use separate tokens because includes select documents before constant binding. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. Paths use `/` separators.
+An escape starts at `‹` and ends at the next `›`. It contains `U+` and four to six hexadecimal digits, a formal Unicode name, or a name alias. Names match exactly, including case and spaces. A numeric escape accepts either case for its hexadecimal digits, but requires uppercase `U+`. Every escape must resolve to one scalar. Escape errors arise during lexing, before syntax recognition or reader inspection.
+
+A literal `‹` requires an escape. Without an open escape, `›` is literal. An escaped quote remains inside the string and cannot close it. Decoded delimiters never start another escape, comment, call, or pattern. An empty escape, unknown name, missing closer, quote, or line break within an escape is a lexical document error at `‹`.
+
+An include path is the first and only operand that `%include` takes, in straight double quotes. Its literal runs preserve the original text without decomposition. Its escapes use the ordinary string decoder. Path resolution uses the decoded result. Paths use separate tokens because includes select documents before constant binding.
 
 A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
 
@@ -1699,11 +1746,15 @@ Whitespace and comments separate tokens but add no grammar node. Call-name adjac
 
 Pattern child lists use `«` U+00AB and `»` U+00BB. If no whitespace or comment separates a node test from its following list, that list must attach to the test. Otherwise, the list begins a separate bare-list pattern. The prefix `·` U+00B7 must directly precede its node atom or bare list. It never prefixes a grouped or compound pattern. Neither a second list nor a list after a group attaches to that group.
 
+Between child items, `«` or `·` requires separation after a node test, closing `»`, or a group's closing `)`. Whitespace or a comment supplies that separation. A call's first adjacent child list belongs to that node test and remains attached. Thus `a« b »` is one node, while `a« b »« c »` and `(a)« b »` are errors. `a·« b »` is also an error.
+
 Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
-Canonical string diagnostics expand constants and concatenations. They join nonempty quoted literal runs and engine scalar constants with ` ++ `. An empty string uses `""`, and dollar signs stay literal. This diagnostic spelling need not parse as a terminal. A string constant can hold the displayed join.
+Canonical string diagnostics expand user constants and concatenations, then write the result as one quoted string. An empty string uses `""`. The printer does not insert concatenation operators. Dollar signs and unmatched `›` have no escape role by themselves.
 
-A quote, backslash, control, format scalar, nonspacing mark, private-use scalar, decomposable scalar, or scalar of nonzero combining class uses an engine constant. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+The printer escapes a quote, backslash, control, format scalar, nonspacing mark, private-use scalar, decomposable scalar, or scalar of nonzero combining class. It also escapes Hangul syllables and `‹`. Section 1 defines the predicates and their data sources. All other scalar values appear literally.
+
+For a scalar with abbreviation aliases, the printer chooses the shortest alias, then the first in ASCII order on equal length. Other alias kinds remain valid input but never supply canonical output. Without an abbreviation, the escape uses `U+` and uppercase hexadecimal digits. The number has at least four digits, without unnecessary leading zeros. For example, canonical newline is `"‹LF›"`, and canonical U+0301 is `"‹U+0301›"`.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins the canonical spellings of its endpoints with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1816,7 +1867,7 @@ terminal = tag | string-terminal | range | "_"
 pattern-children = "«" [child-choice] "»"
 child-choice = child-alternative {"|" child-alternative}
 child-alternative = child-sequence | child-set
-child-sequence = child-item {child-item}
+child-sequence = child-item {ITEM-BOUNDARY child-item}
 child-set = child-intersection ("∪" | "∖") child-intersection
             {("∪" | "∖") child-intersection}
           | child-path "∩" child-path {"∩" child-path}
@@ -1954,7 +2005,11 @@ Pattern productions use the grouping and binding rules of `docs/notation.md`. `#
 
 Rule atoms and pattern-valued constant atoms accept no tests.
 
+An attached list requires a rule-name test, template family, exact call, or parameter that becomes one of these. A terminal, `_`, tested atom, or string-valued constant in that position is a document error. The reader reports it at `«`, or at the parameter use if substitution reveals it. Bare lists remain valid without a name test. Their children retain their own searches and exact prefixes.
+
 ADJACENT requires zero intervening whitespace or comments. In `pattern-node`, it connects the prefix to its atom and the completed atom to its list. NO-ATTACHMENT consumes no token. It succeeds exactly when no adjacent `«` follows the completed atom. The two attachment routes are disjoint during recognition, before DOM conversion.
+
+ITEM-BOUNDARY also consumes no token. It enforces the separation rule of §9.1 between consecutive child items. It fails on an adjacent `«` or `·` after a node test, `»`, or group `)`. An attached list never crosses ITEM-BOUNDARY, including after a call's `)`. These assertions use original source positions, before the lexer discards whitespace and comments.
 
 A child set requires a set operator outside its groups. A child sequence cannot consume that operator. These alternatives therefore cannot recognize the same complete text.
 
@@ -1988,7 +2043,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
 | `constant-definition` | `constant-definer`, `constant-reference`, `term` | Operation, user name, unresolved value |
 | `constant-definer` | One `%const` or `%redefine-const` token | `define` or `redefine` |
-| `constant-reference` | One user or engine scalar reference token | `const`, name without `$`, and reference `at` |
+| `constant-reference` | One user constant reference token | `const`, name without `$`, and reference `at` |
 | `rule` | Definer, head, flags, then binding call or ordinary body and clauses | Ordinary definition, template with `params`, instance edit with `args`, or named `instance` binding. Header clauses precede body lookup. |
 | `call` | Call-name token, then ordered `call-argument` parts | `call`, ordered `args`, and call `at` |
 | `parameter` | One parameter token | `param` without `@`, and its `at` |
@@ -2085,36 +2140,36 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-repeat` | One nonempty item choice and optional nonempty separator choice | `repeat` item with arrays and optional `separator` |
 | `pattern-path` | One primary, optionally with one path token | Primary alone, or descendant, first, or last path |
 
-The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include path keeps the token's original text, without its quotes.
+The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include path decodes escapes within the token's original literal runs.
 
-For a string token, the reader removes only its delimiters. It preserves every character of the decomposed token value, including dollar signs.
-
-The result is always `string`. An engine scalar reference outside a string remains unresolved in the DOM like a user reference. Its scalar value resolves directly under §2. An include path retains its original spelling.
+For a string token, the reader removes its quotes and decodes every escape. Literal runs retain their decomposed token values. Escape results remain exact, and the result is always `string`. Include paths use the original literal runs with the same escape decoding. Neither form receives further normalization.
 
 Header, alternative, and item clauses use the same channel constructors. The reader looks up tags, value, then image. A value clause cannot supply an image clause's recipe. Attachment names come from their capture-reference parts, never from their emitted strings.
 
 For example, `%rule r := "v" :- "i" | "a"` supplies distinct header recipes. Its `value-clause` gives `value:{"concat":[{"string":"v"}]}`. Its `image-clause` gives `image:{"concat":[{"string":"i"}]}`. `%emits` supplies one whole-constituent item, while `%erased` supplies `erased:true` without an emission.
 
-A tag run or string run forms one union in written order. Any union operand that is itself a union flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. Intersection and difference retain their operands, so `(A ∪ B) ∩ C` keeps the union as one intersection operand.
+A tag run or string run forms one union in written order. Any union operand that is itself a union flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. For example, `A ∪ (B ∪ C)` becomes one three-operand union.
+
+Difference retains both operands. Term intersections retain their written nesting until type resolution. Pattern-valued intersections then flatten nested intersections. Thus `(A ∪ B) ∩ C` keeps the union as one intersection operand.
 
 A run requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. Without parentheses, the reader reports a document error at the run's first tag name or string token. It tests placement before reading the parts.
 
 A tag run requires at least two `tag` parts, and a string run requires at least two `string` parts. Thus `:: ∩ Word BY` fails at `Word`, and `A ∪ B C ∖ D` fails at `B`.
 
-An engine scalar atom in a pattern uses `literal` with an unresolved STRINGTERM reference and the atom's source position. A user constant atom uses `constant` and its source position, whatever its eventual type. Binding interprets it as a string terminal or a pattern predicate without changing the cached DOM. Tag then value tests wrap either constant form. Tested user atoms must resolve to strings.
+A string atom in a pattern uses `literal` with its decoded `string` and the quote's source position. A user constant atom uses `constant` and its source position, whatever its eventual type. Binding interprets it as a string terminal or a pattern predicate without changing the cached DOM. Tag then value tests can wrap either form. Tested user atoms must resolve to strings.
 
 The following compact examples show the additional conversions. Positions illustrate the corresponding written token's start.
 
 | Source form | Converted form |
 | --- | --- |
-| `$_0061` | `{"literal":{"const":"_0061","at":[1,1]}}` |
-| `#$_0061` | `{"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}` |
+| `"‹U+0061›"` | `{"literal":{"string":"a"}}` |
+| `#"‹U+0061›"` | `{"pattern":{"literal":{"string":"a"},"at":[1,2]}}` |
 | `#$S` | `{"pattern":{"constant":"S","at":[1,2]}}` |
 | `#$S="x"` | `{"pattern":{"test":"=","value":{"string":"x"},"expr":{"constant":"S","at":[1,2]}}}` |
 | `:: $f.tags ∪ Run-Initial Run-Final` | `{"union":[{"method":"tags","receiver":{"capture":"f"},"args":[]},{"tag":"Run-Initial"},{"tag":"Run-Final"}]}` |
 | `A ∪ (B ∪ C)` | `{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}` |
 | `(Word BY) ∩ $l.tags` | `{"intersection":[{"union":[{"tag":"Word"},{"tag":"BY"}]},{"method":"tags","receiver":{"capture":"l"},"args":[]}]}` |
-| `"a" ++ $_0301` | `{"concat":[{"string":"a"},{"const":"_0301","at":[1,8]}]}` |
+| `"a" ++ "‹U+0301›"` | `{"concat":[{"string":"a"},{"string":"\u0301"}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |
 | `Word ∪ ($c ⟹ $c.value.classify(lexicon))` | `{"union":[{"tag":"Word"},{"if":{"captured":"c"},"then":{"method":"classify","receiver":{"method":"value","receiver":{"capture":"c"},"args":[]},"args":[{"classifier":"lexicon"}]}}]}` |
 | `%emits ($b) $w ($a) :- "i"` | `{"items":[{"capture":"w","image":{"concat":[{"string":"i"}]},"before":["b"],"after":["a"]}]}` |
@@ -2130,7 +2185,7 @@ Reader set type errors stand at the set expression or comparison that requires i
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
-`+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings contain plain text and have no backslash escapes. Outside comments, a bare backslash in grammar text is an error. Comments can contain `(* see C:\temp *)`.
+`+` is the elision marker, and `++` is the string concatenation operator. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings accept single-guillemet escapes, and backslashes are ordinary string characters. Outside strings and comments, a bare backslash in grammar text is an error. Comments can contain `(* see C:\temp *)`.
 
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 
@@ -2244,7 +2299,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
-- A constant declaration whose name is an engine constant is an error at that name. Thus `%const $_0041 "x"` fails at `$_0041`, column 8.
+- A constant declaration requires a capitalized constant name. A string in that position is a document error.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
 - An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal.
 - An engine tag on either side of `%implies` is an error at that tag.
@@ -2386,9 +2441,9 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
-The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text.
+The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths decode escapes within their original literal runs. Diagnostic positions count the original text.
 
-String decoding preserves dollar signs literally. `++` joins string operands in conditions, constants, closed terms, and recipes. Include paths keep their original spelling. §9.1 defines scalar constants and canonical diagnostic spelling.
+String decoding preserves dollar signs literally. `++` joins string operands in conditions, constants, closed terms, and recipes. Include paths retain original spelling outside escapes. §9.1 defines string escapes and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
@@ -2474,9 +2529,9 @@ Body terminals, value tests, pattern terminals, range endpoints, and classifier 
 
 String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
 
-Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" "‹U+0301›"` reads two tokens. In a classifier entry, `"e" "‹U+0301›" ∈ K` gives two keys.
 
-`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
+`"e" ++ "‹U+0301›"` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
 In a set operation, a scalar string converts to its singleton string set. This includes empty strings, concatenated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
 

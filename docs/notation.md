@@ -82,7 +82,7 @@ A `:: T` clause gives constituent tags, with definition and alternative tags uni
 
 The sections below explain these forms.
 
-`(* ... *)` is a comment, anywhere in a block. Comments can contain backslashes, as in `(* see C:\temp *)`. Elsewhere, backslash is an error.
+`(* ... *)` is a comment, anywhere in a block. Comments can contain backslashes, as in `(* see C:\temp *)`. Backslashes are also ordinary characters inside strings.
 
 ## Names and terminals
 
@@ -108,13 +108,13 @@ A bare lowercase name names a rule or classifier, never a tag. Capitalized user 
 
 A tag literal is a terminal in a body. A string literal or string constant is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
 
-A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
+A scalar value is a Unicode code point outside surrogates. A string escape names one exact scalar. `"a"` and `"‹U+0061›"` have the same terminal identity. `"‹U+0301›"` contains a combining acute accent.
 
-A grammar document also decomposes. Written `"é"` and `"e" ++ $_0301` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" $_0301`.
+A grammar document also decomposes. Written `"é"` and `"e‹U+0301›"` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" "‹U+0301›"`.
 
-An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar signs inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
+Escape decoding follows source decomposition, so `"‹U+00E9›"` stays one scalar. Dollar signs and backslashes inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
 
-A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
+A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
 The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` complete the inventory.
 
@@ -128,7 +128,7 @@ An engine tag can stand in a tag test, a pattern, a condition, and a body termin
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The sections "Constants" and ["String concatenation"](#string-concatenation) describe scalar constants and string joins.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
 
 ## Tests
 
@@ -503,17 +503,30 @@ A constant stands wherever its type is required. A string constant can be a term
 
 The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
 
-### Strings and engine constants
+### String literals and escapes
 
-A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. Engine constants start with `$_` and four to six uppercase hexadecimal digits. A grammar cannot define or redefine an engine constant.
+A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. A string literal uses straight double quotes. Backslashes and dollar signs are ordinary string characters.
 
-A string literal is plain text between straight double quotes. A dollar sign is an ordinary character. A backslash remains a lexical error.
+An escape is a delimited spelling of one scalar. It uses single guillemets `‹ ›` (U+2039, U+203A). `‹U+0301›` names a code point in hexadecimal. `‹COMBINING ACUTE ACCENT›` uses its formal Unicode name, and `‹ZWJ›` uses a name alias.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. The reader preserves its spelling without decomposition. Paths use separate tokens because includes select documents before constant binding.
+Every string literal accepts these escapes, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include paths. An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
+
+A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open escape, `›` is an ordinary character. Escape decoding never scans its result again. Thus `"‹U+2039›ZWJ›"` contains the literal text `‹ZWJ›`.
+
+A numeric escape uses uppercase `U+` and four to six ASCII hexadecimal digits. Input digits can use either case. Its value must be a scalar at most U+10FFFF. A surrogate or malformed numeric escape is a document error at `‹`.
+
+Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Every alias kind in the pinned names file is valid. An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
+
+An include path is the first and only operand that `%include` takes, in straight double quotes. It uses the same escape decoder as other strings. Its unescaped text retains the original spelling without decomposition. Paths use separate tokens because includes select documents before constant binding. Path resolution uses the decoded string.
+
+Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. It chooses an abbreviation alias when available, otherwise `U+` with uppercase hexadecimal digits. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
 
 ```jbogenbau
-%const $ACCENTED "a" ++ $_0301
-%const $QUOTED $_0022 ++ "Hello!" ++ $_0022
+%const $ACCENTED "a‹U+0301›"
+%const $QUOTED "‹U+0022›Hello!‹U+0022›"
+%const $ACUTE "‹COMBINING ACUTE ACCENT›"
+%const $JOINER "‹ZWJ›"
+%const $PATH "C:\temp"
 %const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
@@ -534,9 +547,9 @@ Body terminals, value tests, pattern terminals, range endpoints, and classifier 
 
 String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
 
-Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" "‹U+0301›"` reads two tokens. In a classifier entry, `"e" "‹U+0301›" ∈ K` gives two keys.
 
-`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
+`"e" ++ "‹U+0301›"` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
 A range endpoint must resolve to one scalar because a range orders scalar values.
 
@@ -554,7 +567,7 @@ Patterns observe named rules, terminal reads, and omitted terminators before bra
 
 Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
 
-A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, engine constant, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
+A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, escaped literal, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
 A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
@@ -594,17 +607,19 @@ Thus `#sumti` accepts a sumti or its unary wrappers. `#·sumti` requires the can
 
 A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
 
-A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, engine scalars, ranges, and `_`. `_` retains the wildcard terminal's identity. It does not match every node. A pattern constant denotes a whole predicate rather than a node test.
+A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, ranges, and `_`. `_` retains the wildcard terminal's identity. It does not match every node. A pattern constant denotes a whole predicate rather than a node test.
 
 Node decorations are exact prefixes, tests, or child lists. Each decoration applies to its own node test. A compound pattern cannot acquire a node decoration.
 
-A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. Rule tests and pattern-valued constants accept no terminal tests. A pattern `literal` reference names only an engine scalar constant. User constants retain the distinct `constant` form in the DOM.
+A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. Rule tests and pattern-valued constants accept no terminal tests. A pattern `literal` holds a decoded string. User constants retain the distinct `constant` form in the DOM.
 
 A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
 
+A separate `«` or `·` requires whitespace or a comment after a node test, `»`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
+
 A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
 
-Every node test can carry a child list, including a terminal test. Terminal leaves have no structural children. Their attached list must accept the empty sequence for the combined test to hold. A ranked seal passes no node test, including a bare list.
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A ranked seal passes no node test, including a bare list.
 
 `«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
 
@@ -642,13 +657,13 @@ Optional and repeat bodies and choice arms must contain written items. A repeat 
 
 A parameter alone can substitute one whole pattern. In a child list, that pattern consumes one child and never splices siblings. With tests, an exact prefix, or an attached list, the argument must supply the corresponding node test. A supplied compound pattern cannot acquire a node attachment. Ordinary type rules apply after substitution.
 
-Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires an argument without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
+Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
 
-The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. [Engine §2.3](engine.md#23-parameterized-rules) defines canonical reading, including diagnostic string escapes. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
+The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-parameterized-rules) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
 
 ### Pattern migration
 
-The tables give replacement spellings without changing the structural tree. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
+The tables give replacement spellings without changing the structural tree. All string examples use the current escape syntax, including the replaced-form columns. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
 
 The form table covers the constructors, grouping boundaries, paths, sets, tests, and parameters:
 
@@ -661,7 +676,7 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(@X)` | `#@X` | One substituted pattern |
 | `#(_)` | `#_` | Wildcard terminal identity |
 | `#(T<A>="x")` | `#T<A>="x"` | Tests on the same terminal leaf |
-| `#("a")`, `#($_0061)`, `#($S)` | `#"a"`, `#$_0061`, `#$S` | Terminal identity or a constant's predicate |
+| `#("a")`, `#("‹U+0061›")`, `#($S)` | `#"a"`, `#"‹U+0061›"`, `#$S` | Terminal identity or a constant's predicate |
 | `#("a".."z")` | `#"a".."z"` | Range terminal identity |
 | `#(a b)` | `#« a b »` | Complete child sequence |
 | `#(a (b c))` | `#« a b c »` | Grouped sibling sequence |
@@ -688,11 +703,11 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
 | `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
 
-Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`, while engine scalar references retain `literal`. Such conversions belong to migration tooling, not format-36 shape acceptance.
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-37 shape acceptance.
 
-The following mapping converts valid format-35 pattern DOMs to format 36. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
+The following mapping converts valid format-35 pattern DOMs to format 37. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
 
-| Format-35 form | Format-36 form |
+| Format-35 form | Format-37 form |
 | --- | --- |
 | Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
 | Child `{"node":P}` | `[{"child":M(P)}]` |
@@ -706,15 +721,14 @@ The following mapping converts valid format-35 pattern DOMs to format 36. `M(P)`
 | Pattern `{"difference":[P,Q]}` | `{"difference":[M(P),M(Q)]}` |
 | Pattern `{"path":K,"pattern":P}` | `{"path":K,"pattern":M(P)}` |
 | Pattern `{"literal":{"const":USER,"at":Q},"at":P}` | `{"constant":USER,"at":P}` |
-| Pattern `literal` with engine scalar `const` | Retain `literal` and both source positions |
 | Pattern test | Retain the test and operands, then convert its `expr` with M |
 | Other pattern atom | Retain its constructor, fields, and source position |
 
-The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-36 DOM receives ordinary shape and type inspection.
+The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-37 DOM receives ordinary shape and type inspection.
 
-Malformed-DOM fixtures require corresponding format-36 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+Malformed-DOM fixtures require corresponding format-37 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
 
-Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-36 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-37 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
 
 The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
 
@@ -817,13 +831,13 @@ A replacement spelling does not determine whether the complete fixture loads or 
 | `#$A` | `#$A` |
 | `#$P` | `#$P` |
 | `#$Q` | `#$Q` |
-| `#$_0061` | `#$_0061` |
+| `#"‹U+0061›"` | `#"‹U+0061›"` |
 | `#("a" ++ "b")` | `#("a" ++ "b")` Invalid: inline concatenation cannot form a terminal. |
 | `#("a" ++ "b".."z")` | `#("a" ++ "b".."z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a")` | `#"a"` |
 | `#("a".."y" ++ "z")` | `#("a".."y" ++ "z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a".."z")` | `#"a".."z"` |
-| `#(#($_D800)<"bad">)` | `#(($_D800)<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
+| `#(#("‹U+D800›")<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
 | `#(#(A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#($JOIN-1)` | `#$JOIN-1` |
 | `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
@@ -834,14 +848,14 @@ A replacement spelling does not determine whether the complete fixture loads or 
 | `#($LETTER)` | `#$LETTER` |
 | `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
 | `#($S)` | `#$S` |
-| `#($_D800<"bad">)` | `#$_D800<"bad">` Invalid: U+D800 is not a scalar, and the requirement is not a tag. |
-| `#($_D800<"bad"><A>)` | `#$_D800<"bad"><A>` Invalid: scalar and tag-test restrictions still apply. |
-| `#($_D800=UI)` | `#$_D800=UI` Invalid: U+D800 is not a scalar, and a value operand requires a string. |
-| `#($_D800=UI<A>)` | `#$_D800=UI<A>` Invalid: scalar and test-operand restrictions still apply. |
+| `#("‹U+D800›"<"bad">)` | `#"‹U+D800›"<"bad">` Invalid: U+D800 is not a scalar, and the requirement is not a tag. |
+| `#("‹U+D800›"<"bad"><A>)` | `#"‹U+D800›"<"bad"><A>` Invalid: scalar and tag-test restrictions still apply. |
+| `#("‹U+D800›"=UI)` | `#"‹U+D800›"=UI` Invalid: U+D800 is not a scalar, and a value operand requires a string. |
+| `#("‹U+D800›"=UI<A>)` | `#"‹U+D800›"=UI<A>` Invalid: scalar and test-operand restrictions still apply. |
 | `#($K)` (U+212A) | `#$K` |
 | `#(($P))` | `#$P` |
 | `#(($Q))` | `#$Q` |
-| `#(($_D800)<"bad">)` | `#(($_D800)<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
+| `#(("‹U+D800›")<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
 | `#((A B)⋰)` | `#(« A B » ⋰)` |
 | `#((A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
@@ -1014,7 +1028,7 @@ A classifier gives a value its classes. A cmavo is a particle, a short structure
 
 An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string literal or string constant. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
 
-A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE "‹U+0022›"` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH "‹U+005C›"` likewise supplies a backslash key.
 
 Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
 
@@ -1366,7 +1380,11 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 
 A run of bare tag names or string literals can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
 
-`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Intersection and difference retain their operands. Other atoms require explicit operators.
+`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node.
+
+Difference retains both operands. Pattern-valued term intersections flatten after type resolution. Other intersection types retain their nesting. Other atoms require explicit operators.
+
+For example, `(#a ∩ #b) ∩ #c` flattens to `#a ∩ #b ∩ #c` in its effective form. The cached term retains its unresolved shape. Pattern literals retain their boundaries as operands.
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 

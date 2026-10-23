@@ -262,14 +262,16 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents total about 750 KiB, including prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
-The key of a DOM has four parts:
+The key of a DOM always has four parts:
 
 - A hash of the document's text
 - A hash of the bootstrap that read it
 - The version number of the DOM format
 - A fingerprint of the Unicode table
 
-A change to any of them misses the cache. A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
+A document with a name escape also requires the fingerprint of its names file. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
+
+A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
 The fixpoint alone proves only that the notation reads itself consistently. So `tests/notation/` also holds direct cases, run by every library: small documents with their expected DOMs and their expected errors.
 
@@ -417,6 +419,8 @@ Shareable suffix queries cost one recognition starting the target at every posit
 
 A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `#` literals and `≅` or `≇` conditions. A node test names one node, and an adjacent `« »` list constrains that node's children. A bare list constrains the children. It gives the parent no name. `_` retains its terminal identity.
 
+A child list requires a rule test, template family, or call. A compatible parameter can supply that test. Terminals and tested atoms cannot carry child lists. Separate items require whitespace or comments before `«` or `·` after a node test, `»`, or group `)`. A call's adjacent first list remains attached.
+
 Each node test searches through sole children by default. The prefix `·` makes only its own node exact. Child items retain their own searches unless they carry `·`. The name and attached child list must hold at the same visited node. Separate set operands can hold at different depths of the candidate's sole-child chain.
 
 Child lists contain sequences, choices, optionals, repetitions with `/` separators, and sibling gaps. Parentheses only group and never create a subtree boundary. Paths and sets combine whole patterns. Branches, omitted terminator leaves, and ranked seals preserve structural boundaries.
@@ -425,7 +429,7 @@ The pattern DOM stores child sequences as arrays. Empty and singleton child list
 
 Pattern unions and intersections flatten operands of their own kind, including after substitution. Node decorations are exact prefixes, tests, or child lists. Keys preserve order, duplicates, node decorations, and child boundaries.
 
-Canonical reading decodes diagnostic string escapes and gives the same key for every valid printed pattern. A rule-test name that reads back as a terminal under the loaded Unicode table is invalid. The same requirement covers nominal rule arguments inside pattern calls. Pattern literals name only engine scalar constants through the DOM's `literal` form. User constants use `constant` instead.
+The ordinary reader decodes the printer's single-guillemet escapes and gives the same key for every valid printed pattern. A rule-test name that reads back as a terminal under the loaded Unicode table is invalid. The same requirement covers nominal rule arguments inside pattern calls. Pattern literals hold decoded strings through the DOM's `literal` form. User constants use `constant` instead.
 
 All user constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 
@@ -439,7 +443,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 36 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 37 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 

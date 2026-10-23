@@ -424,7 +424,7 @@ An `%extend-rule` takes its own header clauses, never those of the base definiti
 
 ```jbogenbau
 %extend-rule stressed-vowel
-  | "A" $_0301 :: Stressed := "a" :- "A"
+  | "A" "‹U+0301›" :: Stressed := "a" :- "A"
 %emits
 ```
 
