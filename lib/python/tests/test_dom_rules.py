@@ -849,7 +849,7 @@ class PrecompiledDomRules(unittest.TestCase):
             with self.subTest(use_cache=use_cache):
                 result = gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache).parse("a")
                 self.assertFalse(result.ok)
-                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_General_Category_Letter", "_General_Category_Uppercase_Letter"}))
+                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_Canonical_Combining_Class_Not_Reordered", "_General_Category_Letter", "_General_Category_Uppercase_Letter"}))
 
     def test_ranges_and_properties(self) -> None:
         """A precompiled range or property is checked as the reader checks

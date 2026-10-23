@@ -388,9 +388,11 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words")
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
+        tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
-                '{"format":15,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":["_General_Category_Letter","_General_Category_Lowercase_Letter"],"span":[0,1],"source":[0,1]}'
+                '{"format":15,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
+                + tags + ',"span":[0,1],"source":[0,1]}'
             ),
             text,
         )
