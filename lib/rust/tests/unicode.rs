@@ -65,7 +65,7 @@ fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() 
 
 #[test]
 fn escaped_diagnostics_read_back_as_exact_scalars() {
-    // These constants include decomposition, Hangul, and non-Mn combining classes.
+    // These escapes include decomposition, Hangul, and non-Mn combining classes.
     let documents = sources("%rule text \"‹U+00E9›\" | \"‹U+AC00›\" | \"‹U+302E›\" | \"‹U+1B44›\"");
     let dialect = gencmu::load_dialect_sources(documents, "p.md").unwrap();
     let result = dialect.parse("?", &Default::default()).unwrap();
@@ -73,11 +73,11 @@ fn escaped_diagnostics_read_back_as_exact_scalars() {
     assert_eq!(error.expected.len(), 4);
     for expected in error.expected {
         let terminal = expected.terminal;
-        assert!(terminal.starts_with("$_"), "{terminal}");
+        assert!(terminal.starts_with("\"‹U+"), "{terminal}");
         let dialect = gencmu::load_dialect_sources(sources(&format!("%rule text {terminal}")), "p.md").unwrap();
         // A caller token keeps the exact scalar named by the diagnostic.
-        let name = terminal.strip_prefix('$').unwrap();
-        let code = u32::from_str_radix(name.strip_prefix('_').unwrap(), 16).unwrap();
+        let digits = terminal.strip_prefix("\"‹U+").unwrap().strip_suffix("›\"").unwrap();
+        let code = u32::from_str_radix(digits, 16).unwrap();
         let text = char::from_u32(code).unwrap().to_string();
         let token = gencmu::InputToken { text, ..Default::default() };
         assert!(dialect.parse_tokens(&[token], &Default::default()).unwrap().ok, "{terminal}");

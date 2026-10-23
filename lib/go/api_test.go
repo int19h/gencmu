@@ -115,7 +115,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		"syntax":        {oneStage("%ambiguity-resolution greedy\n%rule text A ) B"), 5, 14, "g.md"},
 		"keyword":       {oneStage("%ambiguity-resolution greedy\n%rule text A\n  %emit $"), 6, 3, "g.md"},
-		"escape":        {oneStage("%ambiguity-resolution greedy\n%rule text \"\\\\q\""), 5, 13, "g.md"},
+		"escape":        {oneStage("%ambiguity-resolution greedy\n%rule text \"‹U+D800›\""), 5, 13, "g.md"},
 		"undefined":     {oneStage("%ambiguity-resolution greedy\n%rule text nowhere"), 5, 1, "g.md"},
 		"defined twice": {oneStage("%ambiguity-resolution greedy\n%rule text A\n%rule text B"), 6, 1, "g.md"},
 		"definition":    {oneStage("%ambiguity-resolution greedy\n%rule text $a:A | B\n%emits $a"), 5, 1, "g.md"},

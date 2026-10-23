@@ -78,8 +78,8 @@ func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 		t.Fatal(failure)
 	}
 	parts := dom.Constants[0].Value.Items
-	if parts[1].At != [2]int{2, 20} || parts[3].At != [2]int{2, 37} {
-		t.Fatalf("constant locations: %#v %#v", parts[1], parts[3])
+	if dom.Constants[0].At != [2]int{2, 1} || parts[1].Kind != tmString || parts[1].Str != "\u0301" || parts[3].Str != "\u0323" || parts[1].At != [2]int{} || parts[3].At != [2]int{} {
+		t.Fatalf("decoded strings and definition location: %#v %#v", parts[1], parts[3])
 	}
 }
 

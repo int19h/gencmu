@@ -157,7 +157,7 @@ func TestParameterAuditNotes(t *testing.T) {
 func TestParameterCanonicalArguments(t *testing.T) {
 	uni := parameterGrammar(t, "%rule text \"a\"").uni
 	argument := templateObject{"call": "f", "args": []any{templateObject{"string": "a\n\t\u0301"}, templateObject{"concat": []any{templateObject{"string": "a"}, templateObject{"string": ""}}}}, "at": templatePosition([2]int{1, 1})}
-	parameterEqual(t, templateCanonical(argument, uni), `f("a\n\t\u0301", "a" ++ "")`)
+	parameterEqual(t, templateCanonical(argument, uni), `f("a‹LF›‹HT›‹U+0301›", "a" ++ "")`)
 	parameterEqual(t, templateCanonical(templateObject{"body": templateObject{"seq": []any{templateObject{"ref": "a"}, templateObject{"seq": []any{templateObject{"ref": "b"}, templateObject{"ref": "c"}}}}}}, uni), "(a (b c))")
 	tested := templateObject{"test": "tags", "expr": templateObject{"ref": "A"}, "requirements": []any{templateObject{"negated": false, "value": templateObject{"tag": "K"}}}}
 	parameterEqual(t, templateCanonical(tested, uni), "A<K>")
