@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Writes grammars/unicode.txt, the character data every gencmu library uses.
+"""Writes pinned Unicode resources, catalogs, and source digests.
 
 The engine reads Unicode properties from this table
 rather than with the platform's own Unicode data, so that the four libraries
 agree on every character whatever version their platform has. The table is
-generated from Python with Unicode 15.1.0 and the matching emoji-data.txt.
-Pass that file with --emoji-data. Pass the pinned DerivedName.txt and
-NameAliases.txt with --derived-name and --name-aliases. The emoji source is:
-https://www.unicode.org/Public/15.1.0/ucd/emoji/emoji-data.txt
+generated from the pinned Unicode 15.1.0 UCD files. Pass the extracted UCD
+directory with --ucd. Pass DerivedName.txt and NameAliases.txt with
+--derived-name and --name-aliases. Input hashes and the archive URL appear
+in tools/unicode-property-sources.json.
+The source digest helper requires Go. It hashes every scalar directly from
+the UCD assignments, without reading the generated properties file.
 
 Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
 
@@ -26,14 +28,14 @@ Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
 
 The record order is unicode, category, white-space, emoji-presentation, emoji-component, decompose, abbreviation, combining.
 Hangul syllables decompose by arithmetic and have no records.
-The tool compares its generated decomposition with Python before it writes the file.
+The tool compares extracted categories and combining classes with UnicodeData.txt.
 """
 import pathlib
-import random
 import sys
-import unicodedata
 import argparse
 import re
+
+from unicode_properties import UCD, write_catalog, write_digests, write_properties
 
 UNICODE_VERSION = "15.1.0"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -106,167 +108,40 @@ def write_names(records, catalog):
         (ROOT / path).write_text(text, encoding="utf-8")
 
 
-def emoji_ranges(path):
-    """Read binary emoji properties from the pinned Unicode data."""
-    records = {"Emoji_Presentation": [], "Emoji_Component": []}
-    text = path.read_text(encoding="utf-8")
-    if "Emoji Version 15.1" not in text:
-        raise SystemExit("emoji-data.txt must use Emoji Version 15.1")
-    for line in text.splitlines():
-        fields = line.split("#", 1)[0].strip().split(";")
-        if len(fields) != 2 or fields[1].strip() not in records:
-            continue
-        ends = fields[0].strip().split("..")
-        records[fields[1].strip()].append((int(ends[0], 16), int(ends[-1], 16)))
-    for prop, ranges in records.items():
-        if not ranges:
-            raise SystemExit(f"emoji-data.txt lacks {prop}")
-        merged = []
-        for start, end in sorted(ranges):
-            if merged and start <= merged[-1][1] + 1:
-                merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
-            else:
-                merged.append((start, end))
-        for start, end in merged:
-            yield prop.lower().replace("_", "-"), start, end
-
-# The White_Space property, from PropList.txt. Python has no API for it, and
-# it has not changed since Unicode 6.3. Each entry is a range, first and last.
-WHITE_SPACE = [
-    (0x0009, 0x000D),
-    (0x0020, 0x0020),
-    (0x0085, 0x0085),
-    (0x00A0, 0x00A0),
-    (0x1680, 0x1680),
-    (0x2000, 0x200A),
-    (0x2028, 0x2029),
-    (0x202F, 0x202F),
-    (0x205F, 0x205F),
-    (0x3000, 0x3000),
-]
-
-def scalar_values():
-    """Every Unicode scalar value: every code point but the surrogates."""
-    yield from range(0xD800)
-    yield from range(0xE000, 0x110000)
-
-def category_ranges():
-    """The longest runs of one General_Category, over the scalar values."""
-    start = previous = category = None
-    for code in scalar_values():
-        current = unicodedata.category(chr(code))
-        if category is not None and (current != category or code != previous + 1):
-            yield category, start, previous
-            start = None
-        if start is None:
-            start, category = code, current
-        previous = code
-    yield category, start, previous
-
 HANGUL_FIRST, HANGUL_LAST = 0xAC00, 0xD7A3
-
-def decompositions():
-    """The full canonical decomposition of every scalar that NFD changes, Hangul syllables aside."""
-    for code in scalar_values():
-        if HANGUL_FIRST <= code <= HANGUL_LAST:
-            continue
-        nfd = unicodedata.normalize("NFD", chr(code))
-        if nfd != chr(code):
-            yield code, [ord(c) for c in nfd]
-
-def combining_ranges():
-    """The longest runs of one nonzero Canonical_Combining_Class."""
-    run = None
-    for code in scalar_values():
-        klass = unicodedata.combining(chr(code))
-        if run and klass == run[0] and code == run[2] + 1:
-            run[2] = code
-            continue
-        if run and run[0]:
-            yield tuple(run)
-        run = [klass, code, code]
-    if run and run[0]:
-        yield tuple(run)
-
-def library_nfd(text, table, classes):
-    """The algorithm of engine §1, over the records that the tool writes."""
-    def klass(code):
-        return classes.get(code, 0)
-    out = []
-    for ch in text:
-        code = ord(ch)
-        if HANGUL_FIRST <= code <= HANGUL_LAST:
-            s = code - HANGUL_FIRST
-            out += [0x1100 + s // 588, 0x1161 + (s % 588) // 28] + ([0x11A7 + s % 28] if s % 28 else [])
-        else:
-            out += table.get(code, [code])
-    result, i = [], 0
-    while i < len(out):
-        if klass(out[i]) == 0:
-            result.append(out[i])
-            i += 1
-            continue
-        j = i
-        while j < len(out) and klass(out[j]) != 0:
-            j += 1
-        result += sorted(out[i:j], key=klass)
-        i = j
-    return "".join(map(chr, result))
-
-def check(table, ranges, samples=20000, seed=15):
-    """Stop with an error where the records disagree with Python's NFD."""
-    classes = {code: k for k, start, end in ranges for code in range(start, end + 1)}
-    for code in scalar_values():
-        c = chr(code)
-        if library_nfd(c, table, classes) != unicodedata.normalize("NFD", c):
-            raise SystemExit(f"U+{code:04X}: the records disagree with NFD")
-    marks = [code for k, s, e in ranges for code in range(s, e + 1)]
-    pool = list(table) + marks + [0x61, 0x41, 0xAC00, 0xD7A3]
-    rng = random.Random(seed)
-    for _ in range(samples):
-        s = "".join(chr(rng.choice(pool)) for _ in range(rng.randint(1, 6)))
-        if library_nfd(s, table, classes) != unicodedata.normalize("NFD", s):
-            raise SystemExit(f"{s!r}: the records disagree with NFD")
-
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--emoji-data", type=pathlib.Path,
-                        help="Unicode 15.1.0 ucd/emoji/emoji-data.txt")
-    parser.add_argument("--derived-name", type=pathlib.Path, required=True,
+    parser.add_argument("--ucd", type=pathlib.Path,
+                        help="the extracted pinned Unicode 15.1.0 UCD directory")
+    parser.add_argument("--derived-name", type=pathlib.Path,
                         help="Unicode 15.1.0 ucd/extracted/DerivedName.txt")
-    parser.add_argument("--name-aliases", type=pathlib.Path, required=True,
+    parser.add_argument("--name-aliases", type=pathlib.Path,
                         help="Unicode 15.1.0 ucd/NameAliases.txt")
-    parser.add_argument("--names-only", action="store_true",
-                        help="write names and core catalogs without regenerating character properties")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--names-only", action="store_true",
+                       help="write names and core catalogs without regenerating character properties")
+    modes.add_argument("--properties-only", action="store_true",
+                       help="write the companion and embedded catalogs without regenerating core data or names")
     args = parser.parse_args()
-    names, catalog, abbreviations = names_records(args.derived_name, args.name_aliases)
-    write_names(names, catalog)
+    if not args.properties_only:
+        if args.derived_name is None or args.name_aliases is None:
+            parser.error("--derived-name and --name-aliases are required without --properties-only")
+        names, catalog, abbreviations = names_records(args.derived_name, args.name_aliases)
+        write_names(names, catalog)
     if args.names_only:
         return
-    if args.emoji_data is None:
-        parser.error("--emoji-data is required without --names-only")
-    if unicodedata.unidata_version != UNICODE_VERSION:
-        raise SystemExit(f"Python must supply Unicode {UNICODE_VERSION}")
-    lines = [f"unicode {unicodedata.unidata_version}"]
-    for category, start, end in category_ranges():
-        lines.append(f"category {category} {start:04X} {end:04X}")
-    for start, end in WHITE_SPACE:
-        lines.append(f"white-space {start:04X} {end:04X}")
-    for prop, start, end in emoji_ranges(args.emoji_data):
-        lines.append(f"{prop} {start:04X} {end:04X}")
-    table = dict(decompositions())
-    ranges = list(combining_ranges())
-    check(table, ranges)
-    for code, scalars in table.items():
-        lines.append("decompose " + " ".join(f"{c:04X}" for c in [code] + scalars))
-    for code, alias in abbreviations:
-        lines.append(f"abbreviation {code:04X} {alias}")
-    for klass, start, end in ranges:
-        lines.append(f"combining {klass} {start:04X} {end:04X}")
-    path = pathlib.Path(__file__).resolve().parent.parent / "grammars" / "unicode.txt"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"{path}: {len(lines)} lines, Unicode {unicodedata.unidata_version}", file=sys.stderr)
+    if args.ucd is None:
+        parser.error("--ucd is required without --names-only")
+    ucd = UCD(ROOT, args.ucd)
+    write_properties(ROOT, ucd)
+    write_catalog(ROOT, ucd)
+    write_digests(ROOT, ucd)
+    if not args.properties_only:
+        lines = ucd.core_records(abbreviations)
+        path = ROOT / "grammars/unicode.txt"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"{path}: {len(lines)} lines, Unicode {ucd.version}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
