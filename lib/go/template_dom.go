@@ -448,13 +448,11 @@ func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) str
 }
 
 var templateSourceForms = map[string][]string{
-	"expr":             {"seq", "choice", "ranked", "and", "optional", "repeat", "capture", "test", "literal", "range", "ref", "wildcard", "empty"},
-	"condition":        {"op", "not", "any", "all", "if", "captured", "method"},
-	"string":           {"string", "const"},
-	"term":             {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
-	"recipe-term":      {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
-	"pattern":          {"test", "literal", "range", "terminal", "constant", "name", "wildcard", "children", "union", "intersection", "difference", "path"},
-	"pattern-children": {"node", "sequence", "optional", "repeat", "siblings"},
+	"expr":        {"seq", "choice", "ranked", "and", "optional", "repeat", "capture", "test", "literal", "range", "ref", "wildcard", "empty"},
+	"condition":   {"op", "not", "any", "all", "if", "captured", "method"},
+	"string":      {"string", "const"},
+	"term":        {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
+	"recipe-term": {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
 }
 
 func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
@@ -675,14 +673,6 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if err == nil {
 				c.condition(e, depth)
 			}
-		case "pattern", "pattern-children":
-			var e *domPattern
-			e, err = decodePattern(raw, kind == "pattern-children", depth)
-			if err == nil {
-				if p := patternProblem(e, depth, nil); p != "" {
-					return p
-				}
-			}
 		default:
 			var e *domTerm
 			e, err = decodeTerm(raw)
@@ -743,9 +733,6 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if kind == "expr" && !templateSymbol(n) {
 			return "a malformed test"
 		}
-		if kind == "pattern" && !templatePatternTestTarget(n) {
-			return "a malformed pattern test target or order"
-		}
 		if n["test"] == "tags" {
 			if !templateOnly(n, "test", "expr", "requirements") {
 				return "a malformed tag test"
@@ -765,10 +752,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	}
 	if n["range"] != nil {
 		fields := []string{"range"}
-		if kind == "pattern" {
-			fields = append(fields, "at")
-		}
-		if !templateOnly(n, fields...) || kind == "pattern" && templateAt(n) == [2]int{} || len(templateList(n["range"])) != 2 {
+		if !templateOnly(n, fields...) || len(templateList(n["range"])) != 2 {
 			return "a malformed range"
 		}
 		for _, v := range templateList(n["range"]) {
@@ -780,10 +764,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	}
 	if n["literal"] != nil {
 		fields := []string{"literal"}
-		if kind == "pattern" {
-			fields = append(fields, "at")
-		}
-		if !templateOnly(n, fields...) || kind == "pattern" && templateAt(n) == [2]int{} {
+		if !templateOnly(n, fields...) {
 			return "a malformed literal"
 		}
 		return templateNodeProblem(n["literal"], "string", depth, false, false, uni)
@@ -793,58 +774,6 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			return "a malformed recipe"
 		}
 		return list("concat", "recipe-atom", 1)
-	}
-	if kind == "pattern-children" {
-		if n["node"] != nil {
-			if !templateOnly(n, "node") {
-				return "a malformed pattern"
-			}
-			return walk(n["node"], "pattern")
-		}
-		if n["sequence"] != nil {
-			if !templateOnly(n, "sequence") {
-				return "a malformed pattern"
-			}
-			return list("sequence", "pattern-children", 2)
-		}
-		for _, key := range []string{"optional", "repeat"} {
-			if n[key] != nil {
-				if key == "optional" && !templateOnly(n, key) || key == "repeat" && !templateAllowed(n, key, "separator") {
-					return "a malformed pattern"
-				}
-				if p := walk(n[key], "pattern-children"); p != "" {
-					return p
-				}
-				if n["separator"] != nil {
-					return walk(n["separator"], "pattern-children")
-				}
-				return ""
-			}
-		}
-		return "a malformed pattern"
-	}
-	if kind == "pattern" {
-		if n["children"] != nil {
-			if !templateOnly(n, "children") {
-				return "a malformed pattern"
-			}
-			return walk(n["children"], "pattern-children")
-		}
-		for _, key := range []string{"union", "intersection", "difference"} {
-			if n[key] != nil {
-				if !templateOnly(n, key) || key == "difference" && len(templateList(n[key])) != 2 {
-					return "a malformed pattern"
-				}
-				return list(key, "pattern", 2)
-			}
-		}
-		if n["path"] != nil {
-			if !templateOnly(n, "path", "pattern") || n["path"] != "first" && n["path"] != "last" && n["path"] != "descendant" {
-				return "a malformed pattern path"
-			}
-			return walk(n["pattern"], "pattern")
-		}
-		return "a malformed pattern"
 	}
 	if n["pattern"] != nil {
 		if !templateOnly(n, "pattern") {
@@ -968,13 +897,6 @@ func templateSymbol(n templateObject) bool {
 		return inner["test"] == nil && templateSymbol(inner) || inner["test"] == "tags" && templateSymbol(inner)
 	}
 	return n["param"] != nil || n["call"] != nil || n["ref"] != nil || n["literal"] != nil || n["range"] != nil || n["wildcard"] == true
-}
-func templatePatternTestTarget(n templateObject) bool {
-	inner := templateObj(n["expr"])
-	if (n["test"] == "=" || n["test"] == "≠") && inner["test"] == "tags" {
-		inner = templateObj(inner["expr"])
-	}
-	return inner["test"] == nil && (inner["param"] != nil || inner["terminal"] != nil || inner["literal"] != nil || inner["range"] != nil || inner["wildcard"] != nil || inner["constant"] != nil)
 }
 func templateElidableHead(n templateObject) bool {
 	if xs := templateList(n["seq"]); len(xs) > 0 {

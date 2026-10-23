@@ -326,7 +326,7 @@ var domRules = map[string]bool{
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
-	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
+	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true,
 	"presence": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "concatenation": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,

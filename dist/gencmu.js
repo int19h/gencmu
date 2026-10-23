@@ -4225,7 +4225,7 @@
         else result.value=value(node.value,node);
         return result;
       }
-      for(const key of ['union','intersection','difference','sequence','choice','pattern','children','child','node','optional','repeat','separator']) {
+      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
         if(node[key]) result[key]=yield resolve(node[key]);
       }
       for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
@@ -7172,7 +7172,7 @@
         if(arg.rule) return {name:arg.rule,at:use.at};
         if(arg.tag || arg.terminal) return {terminal:arg.tag??arg.terminal,at:use.at};
         if(arg.pattern) return arg.pattern;
-        if('string' in arg || arg.const?.startsWith('_')) return {literal:arg,at:use.at};
+        if('string' in arg) return {literal:arg,at:use.at};
         if(arg.const) return {constant:arg.const,at:use.at};
         if(arg.test) return {...arg,expr:convert(argumentOfExpression(arg.expr),'pattern',event,use)};
         if(arg.range || arg.wildcard || arg.call) return {...arg,at:use.at};
@@ -18510,17 +18510,6 @@
           const before = closedFor;
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
-          const pending=[pattern];
-          while(pending.length) {
-            const item=pending.pop();
-            if(!item || typeof item!=="object") continue;
-            if(item.const?.startsWith('_')) {
-              const string=String.fromCodePoint(parseInt(item.const.slice(1),16));
-              for(const key of Object.keys(item)) delete item[key];
-              item.string=string;
-            }
-            for(const part of Object.values(item)) if(part && typeof part==='object') pending.push(part);
-          }
           closedFor = before;
           const problem = layeredPatternProblem(pattern, {name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
@@ -18595,7 +18584,7 @@
         const atom = kind === 'pattern-node' ? (yield readPattern(only(node,'pattern-atom'))).node : {any:true};
         const list=one(node,'pattern-children');
         if (list && !['name','call','param','any'].some(key => key in atom)) fail('a child list requires a rule test',list);
-        if(atom.literal?.const && !atom.literal.const.startsWith('_')) {atom.constant=atom.literal.const;delete atom.literal;}
+        if(atom.literal?.const) {atom.constant=atom.literal.const;delete atom.literal;}
         const {at:position,...fields}=atom;
         const exact=parts(node).some(part => tokenValue(part) === '·');
         return {...fields,...(exact ? {exact:true} : {}),...(list ? {children:yield readLayeredPattern(list)} : {}),...(position ? {at:position} : {})};
@@ -18708,7 +18697,7 @@
           const value = yield readTerm(first);
           expr = { constant: value.const, at: at(first) };
         } else return lacks(node, "pattern atom");
-        if(expr.literal?.const && !expr.literal.const.startsWith('_')) {expr.constant=expr.literal.const;delete expr.literal;}
+        if(expr.literal?.const) {expr.constant=expr.literal.const;delete expr.literal;}
         for (const test of tests) expr = { ...(yield readTest(test)), expr };
         return { node: expr };
       }
@@ -18899,7 +18888,7 @@
     "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
     "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "concatenation", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-primary", "pattern-node", "pattern-bare", "pattern-children", "child-choice", "child-alternative", "child-set", "child-intersection", "child-sequence", "child-item", "child-path", "child-primary",
-    "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
+    "pattern-literal", "pattern-union", "pattern-intersection", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
 
   /**

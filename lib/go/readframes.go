@@ -514,13 +514,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		}
 		f.parts, f.ops = ps, []string{"∩"}
 		return ask(&valueFrame{n: ps[0]})
-	case "pattern-literal":
-		part := one(n, "pattern-union")
-		if part == nil {
-			part = b.only(n, "pattern-atom")
-		}
-		c := b.readPattern(part)
-		return give(&domTerm{Kind: tmPattern, Pattern: patternNode(c)})
 	case "string":
 		return give(b.stringTerm(b.token(n)))
 	case "tag":

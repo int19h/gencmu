@@ -39,10 +39,6 @@ def walk_pattern(root: Dom):
         stack.extend((child, depth + 1) for child in reversed(pattern_parts(node)))
 
 
-def _consumes(root: Dom) -> bool:
-    return any("node" in node or "siblings" in node for node, _ in walk_pattern(root))
-
-
 def pattern_problem(root, test_fault=None, initial_depth=0):
     return layered_pattern_problem(root, test=test_fault, depth=initial_depth,
         terminal=lambda name: USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)

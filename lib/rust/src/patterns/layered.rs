@@ -152,11 +152,6 @@ impl Pattern {
         write(out, Write::Pattern(self));
     }
 }
-impl Children {
-    pub(super) fn write_layered_item(&self, out: &mut String) {
-        write(out, Write::Item(self));
-    }
-}
 enum Write<'a> {
     Pattern(&'a Pattern),
     Atom(&'a Pattern, bool, Option<&'a Children>),

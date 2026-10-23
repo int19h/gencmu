@@ -20,9 +20,7 @@ impl<'a> Reader<'a> {
             } else {
                 obj([("any", Json::Bool(true))])
             };
-            if let Some(name) =
-                get(&atom, "literal").get("const").and_then(Json::as_str).filter(|name| !name.starts_with('_'))
-            {
+            if let Some(name) = get(&atom, "literal").get("const").and_then(Json::as_str) {
                 let name = string(name);
                 p::remove(&mut atom, "literal");
                 set(&mut atom, "constant", name);

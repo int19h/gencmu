@@ -595,133 +595,45 @@ func (b *domBuilder) templateCondition(n *Node) (result templateObject) {
 	b.fail(n, "unexpected %s in a condition", n.Rule)
 	return nil
 }
-func templatePatternNode(p templateObject) templateObject {
-	if n := p["node"]; n != nil {
-		return templateObj(n)
-	}
-	return templateObject{"children": p}
-}
 func (b *domBuilder) templatePattern(n *Node) templateObject {
+	if n.Rule != "pattern-atom" {
+		b.fail(n, "unexpected %s in a pattern atom", n.Rule)
+	}
 	if !templateSyntax(n) {
-		p := b.readPattern(n)
-		if p.Kind == "node" {
-			return templateObject{"node": templateWrittenPattern(p.Items[0])}
-		}
-		b.fail(n, "a pattern atom requires one node test")
-		return nil
+		return templateObject{"node": templateWrittenPattern(b.patternAtom(n, parts(n)[0]))}
 	}
-	switch n.Rule {
-	case "pattern-union", "pattern-intersection":
-		part := "pattern-intersection"
-		if n.Rule == "pattern-intersection" {
-			part = "pattern-sequence"
+	first := parts(n)[0]
+	tests := []*Node{}
+	for _, p := range ruleParts(n) {
+		if p.Rule == "tag-test" || p.Rule == "value-test" {
+			tests = append(tests, p)
 		}
-		ps := b.some(n, part, 1)
-		r := b.templatePattern(ps[0])
-		if len(ps) == 1 {
-			return r
-		}
-		ops := []string{}
-		for _, p := range parts(n) {
-			if p.Kind == KindToken {
-				ops = append(ops, b.tokenValue(p))
+	}
+	var r templateObject
+	switch first.Rule {
+	case "parameter":
+		r = b.templateParameter(first)
+	case "call":
+		r = b.templateCall(first)
+	case "range":
+		ends := []any{}
+		for _, part := range ruleParts(first) {
+			if part.Rule == "string" || part.Rule == "constant-reference" || part.Rule == "parameter" {
+				ends = append(ends, b.templateTerm(part, false))
 			}
 		}
-		r = templatePatternNode(r)
-		for i, p := range ps[1:] {
-			key := "union"
-			if n.Rule == "pattern-intersection" {
-				key = "intersection"
-			} else if i < len(ops) && ops[i] == "∖" {
-				key = "difference"
-			}
-			r = templateJoined(key, []any{r, templatePatternNode(b.templatePattern(p))})
-		}
-		return templateObject{"node": r}
-	case "pattern-sequence":
-		ps := b.some(n, "pattern-item", 1)
-		if len(ps) == 1 {
-			return b.templatePattern(ps[0])
-		}
-		xs := []any{}
-		for _, p := range ps {
-			child := b.templatePattern(p)
-			if nested := templateList(child["sequence"]); nested != nil {
-				xs = append(xs, nested...)
-			} else {
-				xs = append(xs, child)
-			}
-		}
-		return templateObject{"sequence": xs}
-	case "pattern-item":
-		ps := ruleParts(n)
-		if len(ps) == 0 {
-			return templateObject{"siblings": true}
-		}
-		return b.templatePattern(ps[0])
-	case "pattern-brackets":
-		return templateObject{"optional": b.templatePattern(b.only(n, "pattern-union"))}
-	case "pattern-repeat":
-		ps := b.some(n, "pattern-union", 1)
-		r := templateObject{"repeat": b.templatePattern(ps[0])}
-		if len(ps) > 1 {
-			r["separator"] = b.templatePattern(ps[1])
-		}
-		return r
-	case "pattern-path":
-		return templateObject{"node": templateObject{"path": map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[b.tokenValue(b.token(n))], "pattern": templatePatternNode(b.templatePattern(b.only(n, "pattern-atom")))}}
-	case "pattern-atom":
-		first := parts(n)[0]
-		tests := []*Node{}
-		for _, p := range ruleParts(n) {
-			if p.Rule == "tag-test" || p.Rule == "value-test" {
-				tests = append(tests, p)
-			}
-		}
-		if first.Kind == KindToken && b.tokenValue(first) == "(" {
-			if len(tests) > 0 {
-				b.fail(tests[0], "invalid pattern test target or order")
-			}
-			return b.templatePattern(b.only(n, "pattern-union"))
-		}
-		if first.Rule == "pattern-literal" {
-			if len(tests) > 0 {
-				b.fail(tests[0], "invalid pattern test target or order")
-			}
-			p := one(first, "pattern-union")
-			if p == nil {
-				p = b.only(first, "pattern-atom")
-			}
-			return templateObject{"node": templatePatternNode(b.templatePattern(p))}
-		}
-		var r templateObject
-		switch first.Rule {
-		case "parameter":
-			r = b.templateParameter(first)
-		case "call":
-			r = b.templateCall(first)
-		case "range":
-			ends := []any{}
-			for _, part := range ruleParts(first) {
-				if part.Rule == "string" || part.Rule == "constant-reference" || part.Rule == "parameter" {
-					ends = append(ends, b.templateTerm(part, false))
-				}
-			}
-			r = templateObject{"range": ends, "at": templatePosition(b.at(first))}
+		r = templateObject{"range": ends, "at": templatePosition(b.at(first))}
 
-		default:
-			bare := *n
-			bare.Children = []*Node{first}
-			r = templateWrittenPattern(b.patternAtom(&bare, first))
-		}
-		valid := first.Rule == "parameter" || r["terminal"] != nil || r["literal"] != nil || r["range"] != nil || r["wildcard"] != nil || r["constant"] != nil
-		if len(tests) > 0 && !valid {
-			b.fail(tests[0], "invalid pattern test target or order")
-		}
-		return templateObject{"node": b.templateTests(r, tests)}
+	default:
+		bare := *n
+		bare.Children = []*Node{first}
+		r = templateWrittenPattern(b.patternAtom(&bare, first))
 	}
-	b.fail(n, "unexpected %s in a pattern", n.Rule)
-	return nil
+	valid := first.Rule == "parameter" || r["terminal"] != nil || r["literal"] != nil || r["range"] != nil || r["wildcard"] != nil || r["constant"] != nil
+	if len(tests) > 0 && !valid {
+		b.fail(tests[0], "invalid pattern test target or order")
+	}
+	return templateObject{"node": b.templateTests(r, tests)}
 }
 func (b *domBuilder) templateEmission(n *Node) templateObject {
 	// A closed item retains the ordinary reader's recipe and capture checks.

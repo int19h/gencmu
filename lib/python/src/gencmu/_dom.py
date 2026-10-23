@@ -11,7 +11,6 @@ from ._markdown import GrammarText
 from ._model import Node, Token
 from ._strings import ENGINE_TAGS, USER_NAME, lit_occurrences, literal_string
 from ._trampoline import Walk, run
-from ._patterns import pattern_problem
 from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression, has_unresolved
 from ._types import (
@@ -45,7 +44,7 @@ choice conjunction sequence primary repetition reference string-terminal string 
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
-implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator pattern-primary pattern-node pattern-bare pattern-children child-choice child-alternative child-set child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
+implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-atom pattern-brackets pattern-repeat pattern-path pattern-primary pattern-node pattern-bare pattern-children child-choice child-alternative child-set child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
@@ -949,122 +948,52 @@ class DomBuilder:
         if problem is not None:
             raise self.fail(node, problem)
 
-    @staticmethod
-    def _pattern_node(children: Dom) -> Dom:
-        return children["node"] if "node" in children else {"children":children}
-
-    def _pattern(self, node: Node) -> Walk:
-        kind = node.rule
-        if kind == "pattern-atom":
-            kids = self.kids(node)
-            if not kids:
-                raise self.lacks(node, "pattern atom")
-            first = kids[0]
-            named = first.rule in ("name", "reference") or first.kind == "token" and first.terminal in ("Lowercase-Name", "Emoji-Name")
-            tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
-            valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
-            if first.kind == "token":
-                name = self.token_value(first)
-                valid = USER_NAME.fullmatch(name) is not None or name.startswith("_")
-            if named:
-                valid = False
-            # Target and order errors precede conversion of a group's or
-            # nested literal's contents, just as for a tested primary.
-            self.test_order(tests, valid or first.rule == "parameter")
-            if first.rule in ("call", "parameter"):
-                expr = (yield self._call(first)) if first.rule == "call" else self.parameter(first)
-                return {"node": self.wrap_tests(expr, tests)}
-            if named:
-                name_token = first if first.kind == "token" else self.token(first)
-                name = self.token_value(name_token)
-                if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-                    raise self.fail(name_token, "a malformed pattern rule name")
-                return {"node": {"name": name, "at": list(self.position(name_token))}}
-        children: list[Node] = []
-        if kind == "pattern-union":
-            children = self.some(node, "pattern-intersection")
-        elif kind == "pattern-intersection":
-            children = self.some(node, "pattern-sequence")
-        elif kind == "pattern-sequence":
-            children = self.some(node, "pattern-item")
-        elif kind == "pattern-item":
-            children = [kid for kid in self.kids(node) if kid.kind != "token"]
-        elif kind in ("pattern-brackets", "pattern-repeat"):
-            children = self.some(node, "pattern-union")
-        elif kind == "pattern-path":
-            children = self.some(node, "pattern-atom")
-        elif kind == "pattern-atom":
-            if first.kind == "token" and self.token_value(first) == "(":
-                children = self.some(node, "pattern-union")
-            elif first.rule == "pattern-literal":
-                children = [self.one(first, "pattern-union") or self.only(first, "pattern-atom")]
-            elif first.rule == "pattern-union":
-                children = [first]
+    def _pattern_atom(self, node: Node) -> Walk:
+        kids = self.kids(node)
+        if not kids:
+            raise self.lacks(node, "pattern atom")
+        first = kids[0]
+        named = first.rule in ("name", "reference") or first.kind == "token" and first.terminal in ("Lowercase-Name", "Emoji-Name")
+        tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
+        valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
+        if first.kind == "token":
+            name = self.token_value(first)
+            valid = USER_NAME.fullmatch(name) is not None or name.startswith("_")
+        if named:
+            valid = False
+        # Inspect all tests before converting their operands.
+        self.test_order(tests, valid or first.rule == "parameter")
+        if first.rule in ("call", "parameter"):
+            expr = (yield self._call(first)) if first.rule == "call" else self.parameter(first)
+            return {"node": self.wrap_tests(expr, tests)}
+        if named:
+            name_token = first if first.kind == "token" else self.token(first)
+            name = self.token_value(name_token)
+            if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+                raise self.fail(name_token, "a malformed pattern rule name")
+            return {"node": {"name": name, "at": list(self.position(name_token))}}
+        token = first if first.kind == "token" else None if first.rule in ("string-terminal", "range") else self.token(first)
+        name = self.token_value(token) if token is not None else ""
+        at = list(self.position(first))
+        if first.rule == "constant-reference":
+            value = self.value(first)
+            pattern = {"constant": value["const"], "at": at}
+        elif first.rule in ("string-terminal", "string"):
+            value = self.value(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
+            pattern = {"literal": value, "at": at}
+        elif first.rule == "range":
+            pattern = {"range": self.range_of(first), "at": at}
+        elif first.rule == "wildcard" or name == "_":
+            pattern = {"wildcard": True, "at": at}
+        elif first.rule == "tag" or USER_NAME.fullmatch(name) or name.startswith("_"):
+            pattern = {"terminal": self.tag_of(token), "at": at}
         else:
-            raise self.fail(node, f"unexpected {kind} in a pattern")
-        parts: list[Dom] = []
-        for child in children:
-            parts.append((yield self._pattern(child)))
-        result: Dom
-        if kind in ("pattern-union", "pattern-intersection"):
-            if len(parts) == 1:
-                result = parts[0]
-            else:
-                pattern = self._pattern_node(parts[0])
-                ops = [self.token_value(kid) for kid in self.kids(node) if kid.kind == "token"]
-                for i, part in enumerate(parts[1:]):
-                    op = "intersection" if kind == "pattern-intersection" else "difference" if i < len(ops) and ops[i] == "∖" else "union"
-                    following = self._pattern_node(part)
-                    pattern = {op:[*pattern.get("union", [pattern]), *following.get("union", [following])]} if op == "union" else {op:[pattern, following]}
-                    problem = pattern_problem(pattern)
-                    if problem is not None and not has_unresolved(pattern):
-                        raise self.fail(node, problem)
-                result = {"node":pattern}
-        elif kind == "pattern-sequence":
-            flat: list[Dom] = []
-            for part in parts:
-                flat.extend(part["sequence"] if "sequence" in part else [part])
-            result = flat[0] if len(flat) == 1 else {"sequence":flat}
-        elif kind == "pattern-item":
-            result = parts[0] if parts else {"siblings":True}
-        elif kind == "pattern-atom":
-            if parts:
-                result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
-            else:
-                token = first if first.kind == "token" else None if first.rule in ("string-terminal", "range") else self.token(first)
-                name = self.token_value(token) if token is not None else ""
-                at = list(self.position(first))
-                if first.rule == "constant-reference":
-                    value = self.value(first)
-                    pattern = {"constant": value["const"], "at": at}
-                elif first.rule in ("string-terminal", "string"):
-                    value = self.value(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
-                    pattern = {"literal": value, "at": at}
-                elif first.rule == "range":
-                    pattern = {"range": self.range_of(first), "at": at}
-                elif first.rule == "wildcard" or name == "_":
-                    pattern = {"wildcard": True, "at": at}
-                elif first.rule == "tag" or USER_NAME.fullmatch(name) or name.startswith("_"):
-                    pattern = {"terminal": self.tag_of(token), "at": at}
-                else:
-                    if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
-                        raise self.fail(first, "a malformed pattern rule name")
-                    pattern = {"name": name, "at": at}
-                if isinstance(pattern.get('literal'), dict) and 'const' in pattern['literal'] and not pattern['literal']['const'].startswith('_'):
-                    pattern = {**{key: value for key, value in pattern.items() if key != 'literal'}, 'constant': pattern['literal']['const']}
-                result = {"node": self.wrap_tests(pattern, tests)}
-        elif kind == "pattern-brackets":
-            result = {"optional":parts[0]}
-        elif kind == "pattern-repeat":
-            result = {"repeat":parts[0]}
-            if len(parts) == 2:
-                result["separator"] = parts[1]
-        else:
-            # The direct operator token can follow the named atom.
-            operator = self.token_value(self.token(node))
-            path = {"⋮":"descendant", "⋰":"first", "⋱":"last"}[operator]
-            result = {"node":{"path":path, "pattern":self._pattern_node(parts[0])}}
-        return result
+            if not self.unicode.is_emoji_name(name) and CLASSIFIER_NAME.fullmatch(name) is None:
+                raise self.fail(first, "a malformed pattern rule name")
+            pattern = {"name": name, "at": at}
+        if isinstance(pattern.get('literal'), dict) and 'const' in pattern['literal']:
+            pattern = {**{key: value for key, value in pattern.items() if key != 'literal'}, 'constant': pattern['literal']['const']}
+        return {"node": self.wrap_tests(pattern, tests)}
 
     def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
         if len(items) != 1 or "child" not in items[0]:
@@ -1082,11 +1011,11 @@ class DomBuilder:
         if kind == "pattern-primary":
             return (yield self._layered_pattern(self.known_of(node, frozenset(("pattern-node", "pattern-bare", "pattern-union")))))
         if kind in ("pattern-node", "pattern-bare"):
-            atom = (yield self._pattern(self.only(node, "pattern-atom")))["node"] if kind == "pattern-node" else {"any": True}
+            atom = (yield self._pattern_atom(self.only(node, "pattern-atom")))["node"] if kind == "pattern-node" else {"any": True}
             children = self.one(node, "pattern-children")
             if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
                 raise self.fail(children, "a child list requires a rule test")
-            if isinstance(atom.get('literal'), dict) and 'const' in atom['literal'] and not atom['literal']['const'].startswith('_'):
+            if isinstance(atom.get('literal'), dict) and 'const' in atom['literal']:
                 atom = {**{key: value for key, value in atom.items() if key != 'literal'}, 'constant': atom['literal']['const']}
             result = dict(atom)
             if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
@@ -1179,17 +1108,6 @@ class DomBuilder:
             self.closed_for = None
             try:
                 pattern = yield self._layered_pattern(self.only(node, "pattern-primary"))
-                pending = [pattern]
-                while pending:
-                    part = pending.pop()
-                    if isinstance(part, list):
-                        pending.extend(part)
-                    elif isinstance(part, dict):
-                        if part.get('const', '').startswith('_'):
-                            value = chr(int(part['const'][1:], 16))
-                            part.clear()
-                            part['string'] = value
-                        pending.extend(part.values())
                 problem = layered_pattern_problem(pattern, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
                 if problem is not None:
                     raise self.fail(node, problem)

@@ -13,7 +13,6 @@ pub(crate) enum Part {
     Pattern,
     PatternNode,
     PatternItem,
-    Children { repeated: bool },
 }
 
 fn exact(value: &Json, required: &[&str], optional: &[&str]) -> bool {
@@ -764,27 +763,6 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     for arm in arms {
                         pending.extend(arm.as_array().unwrap().iter().map(|p| (Part::PatternItem, p, next)));
                     }
-                }
-            }
-            Part::Children { repeated } => {
-                if exact(value, &["node"], &[]) {
-                    pending.push((Part::Pattern, value.get("node").unwrap(), next));
-                } else if exact(value, &["siblings"], &[]) && is_true(value.get("siblings")) && !repeated {
-                } else if exact(value, &["optional"], &[]) {
-                    pending.push((kind, value.get("optional").unwrap(), next));
-                } else if exact(value, &["sequence"], &[]) {
-                    let Some(items) = value.get("sequence").and_then(Json::as_array).filter(|items| items.len() >= 2)
-                    else {
-                        return Some("a malformed pattern child sequence");
-                    };
-                    pending.extend(items.iter().map(|item| (kind, item, next)));
-                } else if exact(value, &["repeat"], &["separator"]) {
-                    pending.push((Part::Children { repeated: true }, value.get("repeat").unwrap(), next));
-                    if let Some(separator) = value.get("separator") {
-                        pending.push((Part::Children { repeated: true }, separator, next));
-                    }
-                } else {
-                    return Some("a malformed pattern child expression");
                 }
             }
         }

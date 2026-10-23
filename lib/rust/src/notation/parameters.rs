@@ -58,7 +58,7 @@ fn written<T>(value: &T, write: fn(&mut String, &T)) -> Json {
     crate::json::parse(&s).expect("a native DOM writer produces JSON")
 }
 fn pattern_node(n: Json) -> Json {
-    n.get("node").cloned().unwrap_or_else(|| obj([("children", n)]))
+    n.get("node").expect("a converted pattern atom").clone()
 }
 impl<'a> Reader<'a> {
     fn parameter_context(&self) -> Context {
@@ -690,21 +690,7 @@ impl<'a> Reader<'a> {
                 "pattern-literal" => {
                     let before = self.closed_for.replace(None);
                     let primary = self.one(n, "pattern-primary")?;
-                    let mut pattern = self.parameter_layered(primary)?;
-                    let mut pending = vec![&mut pattern];
-                    while let Some(node) = pending.pop() {
-                        if let Some(name) = node.get("const").and_then(Json::as_str).filter(|n| n.starts_with('_')) {
-                            let code = u32::from_str_radix(&name[1..], 16).ok().and_then(char::from_u32);
-                            if let Some(value) = code {
-                                *node = obj([("string", string(value.to_string()))]);
-                            }
-                        }
-                        match node {
-                            Json::Arr(items) => pending.extend(items.iter_mut()),
-                            Json::Obj(fields) => pending.extend(fields.iter_mut().map(|(_, value)| value)),
-                            _ => (),
-                        }
-                    }
+                    let pattern = self.parameter_layered(primary)?;
                     let name = |name: &str| is_classifier_name(name) || self.unicode.is_emoji_name(name);
                     let inspect = crate::patterns::shapes::Inspection { name: Some(&name), ..Default::default() };
                     if let Some(problem) = crate::patterns::shapes::problem(&p::clean(&pattern), &inspect) {
@@ -861,88 +847,18 @@ impl<'a> Reader<'a> {
             return Ok(value);
         }
         if !syntax(n) {
-            return Ok(written(&self.pattern_children(n, 0)?, |out, c| c.write(out)));
+            return Ok(obj([("node", written(&self.pattern_atom(n)?, |out, p| p.write(out)))]));
         }
         match rule_name(n) {
-            "pattern-union" | "pattern-intersection" => {
-                let ps = self.some(
-                    n,
-                    if rule_name(n) == "pattern-union" { "pattern-intersection" } else { "pattern-sequence" },
-                    1,
-                )?;
-                let mut r = self.parameter_pattern(ps[0])?;
-                if ps.len() == 1 {
-                    return Ok(r);
-                }
-                r = pattern_node(r);
-                let ops: Vec<_> = Self::tokens_of(n).map(|t| self.value(t)).collect();
-                for (i, p) in ps[1..].iter().enumerate() {
-                    let key = if rule_name(n) == "pattern-intersection" {
-                        "intersection"
-                    } else if ops.get(i) == Some(&"∖") {
-                        "difference"
-                    } else {
-                        "union"
-                    };
-                    r = p::joined(key, vec![r, pattern_node(self.parameter_pattern(p)?)]);
-                }
-                Ok(obj([("node", r)]))
-            }
-            "pattern-sequence" => {
-                let ps = self.some(n, "pattern-item", 1)?;
-                if ps.len() == 1 {
-                    return self.parameter_pattern(ps[0]);
-                }
-                Ok(obj([("sequence", Json::Arr(ps.iter().map(|n| self.parameter_pattern(n)).collect::<R<_>>()?))]))
-            }
-            "pattern-item" => {
-                if let Some(p) = Self::parts(n).into_iter().find(|p| p.kind == NodeKind::Rule) {
-                    self.parameter_pattern(p)
-                } else {
-                    Ok(obj([("siblings", Json::Bool(true))]))
-                }
-            }
-            "pattern-brackets" => Ok(obj([("optional", self.parameter_pattern(self.one(n, "pattern-union")?)?)])),
-            "pattern-repeat" => {
-                let ps = self.some(n, "pattern-union", 1)?;
-                let mut r = obj([("repeat", self.parameter_pattern(ps[0])?)]);
-                if ps.len() > 1 {
-                    set(&mut r, "separator", self.parameter_pattern(ps[1])?)
-                }
-                Ok(r)
-            }
-            "pattern-path" => Ok(obj([(
-                "node",
-                obj([
-                    (
-                        "path",
-                        string(match self.value(self.pattern_path_token(n)?) {
-                            "⋰" => "first",
-                            "⋱" => "last",
-                            _ => "descendant",
-                        }),
-                    ),
-                    ("pattern", pattern_node(self.parameter_pattern(self.one(n, "pattern-atom")?)?)),
-                ]),
-            )])),
             "pattern-atom" => {
-                if Self::tokens_of(n).any(|t| self.value(t) == "(") {
-                    return self.parameter_pattern(self.one(n, "pattern-union")?);
-                }
                 let base = Self::parts(n)
                     .into_iter()
-                    .find(|p| matches!(rule_name(p), "call" | "parameter" | "pattern-literal"))
+                    .find(|p| matches!(rule_name(p), "call" | "parameter"))
                     .map(Ok)
                     .unwrap_or_else(|| self.pattern_atom_base(n))?;
                 let mut expr = match rule_name(base) {
                     "call" => self.call(base)?,
                     "parameter" => self.parameter(base)?,
-                    "pattern-literal" => {
-                        return Ok(obj([(
-                            "node",
-                            pattern_node(self.parameter_pattern(self.pattern_literal_part(base)?)?),
-                        )]))
-                    }
                     "tag" => obj([("terminal", string(self.tag_of(self.token(base)?)?))]),
                     "string" => {
                         obj([("literal", written(&self.string_term(self.token(base)?)?, crate::dom::write_term))])

@@ -236,48 +236,6 @@ impl Pattern {
     }
 }
 impl Children {
-    fn consumes(&self) -> bool {
-        match self {
-            Self::Node(_) | Self::Siblings => true,
-            Self::Sequence(xs) | Self::Choice(xs) => xs.iter().any(Self::consumes),
-            Self::Optional(x) | Self::Repeat(x, _) => x.consumes(),
-        }
-    }
-    pub(crate) fn write(&self, out: &mut String) {
-        match self {
-            Self::Choice(_) => self.write_layered_item(out),
-            Self::Node(n) => {
-                out.push_str("{\"node\":");
-                n.write(out);
-                out.push('}');
-            }
-            Self::Siblings => out.push_str("{\"siblings\":true}"),
-            Self::Sequence(xs) => {
-                out.push_str("{\"sequence\":[");
-                for (i, x) in xs.iter().enumerate() {
-                    if i > 0 {
-                        out.push(',');
-                    }
-                    x.write(out);
-                }
-                out.push_str("]}");
-            }
-            Self::Optional(x) => {
-                out.push_str("{\"optional\":");
-                x.write(out);
-                out.push('}');
-            }
-            Self::Repeat(x, s) => {
-                out.push_str("{\"repeat\":");
-                x.write(out);
-                if let Some(s) = s {
-                    out.push_str(",\"separator\":");
-                    s.write(out);
-                }
-                out.push('}');
-            }
-        }
-    }
     fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
         match self {
             Self::Node(n) => n.constants(out),
@@ -945,83 +903,6 @@ fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
         }
         true
     })
-}
-
-impl Pattern {
-    pub(crate) fn problem(&self) -> Option<&'static str> {
-        #[derive(Clone, Copy)]
-        enum Part<'a> {
-            Node(&'a Pattern),
-            Children(&'a Children),
-            Items(&'a Children),
-        }
-        let mut todo = vec![(Part::Node(self), false, 0)];
-        while let Some((part, repeated, depth)) = todo.pop() {
-            if let Part::Items(Children::Sequence(items)) = part {
-                todo.extend(items.iter().map(|item| (Part::Items(item), repeated, depth)));
-                continue;
-            }
-            if depth > 256 {
-                return Some("nested too deeply");
-            }
-            let next = depth + 1;
-            match part {
-                Part::Node(p) => match p {
-                    Pattern::Node(node, _, children) => {
-                        todo.push((Part::Node(node), false, depth));
-                        todo.extend(children.as_ref().map(|children| (Part::Items(children), false, next)));
-                    }
-                    Pattern::Children(c) => todo.push((Part::Children(c), repeated, next)),
-                    Pattern::Test(_, _, p) | Pattern::Path(_, p) => todo.push((Part::Node(p), repeated, next)),
-                    Pattern::Union(xs) | Pattern::Intersection(xs) => {
-                        todo.extend(xs.iter().map(|p| (Part::Node(p), repeated, next)))
-                    }
-                    Pattern::Difference(a, b) => {
-                        todo.push((Part::Node(a), repeated, next));
-                        todo.push((Part::Node(b), repeated, next));
-                    }
-                    _ => {}
-                },
-                Part::Items(children) => match children {
-                    Children::Sequence(items) => {
-                        todo.extend(items.iter().map(|item| (Part::Items(item), repeated, depth)))
-                    }
-                    Children::Node(node) => todo.push((Part::Node(node), false, next)),
-                    Children::Siblings if repeated => {
-                        return Some("a sibling ellipsis cannot be a repeat item or separator")
-                    }
-                    Children::Siblings => {}
-                    Children::Choice(arms) => todo.extend(arms.iter().map(|arm| (Part::Items(arm), repeated, next))),
-                    Children::Optional(body) => todo.push((Part::Items(body), repeated, next)),
-                    Children::Repeat(body, separator) => {
-                        todo.push((Part::Items(body), true, next));
-                        todo.extend(separator.as_deref().map(|separator| (Part::Items(separator), true, next)));
-                    }
-                },
-                Part::Children(c) => match c {
-                    Children::Node(p) => todo.push((Part::Node(p), repeated, next)),
-                    Children::Siblings if repeated => {
-                        return Some("a sibling ellipsis cannot be a repeat item or separator")
-                    }
-                    Children::Siblings => {}
-                    Children::Sequence(xs) | Children::Choice(xs) => {
-                        todo.extend(xs.iter().map(|c| (Part::Children(c), repeated, next)))
-                    }
-                    Children::Optional(c) => todo.push((Part::Children(c), repeated, next)),
-                    Children::Repeat(c, s) => {
-                        if !c.consumes() {
-                            return Some("a pattern repeat cannot match only empty sequences");
-                        }
-                        todo.push((Part::Children(c), true, next));
-                        if let Some(s) = s {
-                            todo.push((Part::Children(s), true, next));
-                        }
-                    }
-                },
-            }
-        }
-        None
-    }
 }
 
 #[cfg(test)]

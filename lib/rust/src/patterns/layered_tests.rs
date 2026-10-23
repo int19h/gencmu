@@ -257,7 +257,6 @@ fn layered_typed_dom_round_trips() {
             "{}",
             text(case, "description")
         );
-        assert!(pattern.problem().is_none(), "{}", text(case, "description"));
     }
     for case in cases.get("shapes").unwrap().as_array().unwrap() {
         let valid = case.get("valid").unwrap().as_bool().unwrap();
@@ -284,8 +283,6 @@ fn layered_typed_dom_round_trips() {
     assert!(!crate::dom::term_too_deep(&term));
     let beyond = Term::Pattern(Box::new(Pattern::from_layered_json(&pattern).unwrap()));
     assert!(crate::dom::term_too_deep(&beyond));
-    let typed = Pattern::from_layered_json(&pattern).unwrap();
-    assert!(typed.problem().is_none());
     let deeper = crate::parameters::obj([("path", Json::Str("descendant".into())), ("pattern", pattern)]);
     assert_eq!(Pattern::from_layered_json(&deeper).unwrap_err(), "nested too deeply");
 }

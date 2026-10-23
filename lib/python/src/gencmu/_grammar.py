@@ -403,12 +403,12 @@ class _Constants:
             if "constant" in base and self.values[base["constant"]].type == "pattern":
                 raise self.fault_error(path, base, at, "a tested pattern atom requires a string constant")
         result = dict(root)
-        for key in ("union", "intersection", "difference", "sequence", "choice"):
+        for key in ("union", "intersection", "difference", "choice"):
             if key in root:
                 result[key] = []
                 for child in root[key]:
                     result[key].append((yield self._closed_pattern(path, child, at)))
-        for key in ("pattern", "children", "child", "node", "optional", "repeat", "separator"):
+        for key in ("pattern", "children", "child", "optional", "repeat", "separator"):
             if key in root:
                 result[key] = yield self._closed_pattern(path, root[key], at)
         if "test" in root:

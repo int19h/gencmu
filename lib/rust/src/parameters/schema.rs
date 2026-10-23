@@ -671,21 +671,6 @@ fn node_step<'a>(
             "pattern",
             "method",
         ],
-        "pattern" => &[
-            "test",
-            "literal",
-            "range",
-            "terminal",
-            "constant",
-            "name",
-            "wildcard",
-            "children",
-            "union",
-            "intersection",
-            "difference",
-            "path",
-        ],
-        "children" => &["node", "sequence", "optional", "repeat", "siblings"],
         _ => return Some("an unknown source category"),
     };
     if !forms.iter().any(|k| has(n, k)) {
@@ -698,8 +683,6 @@ fn node_step<'a>(
             "recipe" => Part::Recipe,
             "recipe-term" => Part::RecipeAtom,
             "string" => Part::String,
-            "pattern" => Part::Pattern,
-            "children" => Part::Children { repeated: false },
             _ => Part::Term,
         };
         return parts_problem(vec![(part, &clean(n), depth)], uni);
@@ -755,9 +738,6 @@ fn node_step<'a>(
         if kind == "expr" && !symbol(n) {
             return Some("a malformed test");
         }
-        if kind == "pattern" && !pattern_test_target(n) {
-            return Some("a malformed pattern test target or order");
-        }
         if text(get(n, "test")) == "tags" {
             if !only(n, &["test", "expr", "requirements"]) {
                 return Some("a malformed tag test");
@@ -776,8 +756,8 @@ fn node_step<'a>(
         return walk(get(n, "expr"), kind);
     }
     if has(n, "range") {
-        let fields: &[&str] = if kind == "pattern" { &["range", "at"] } else { &["range"] };
-        if !only(n, fields) || kind == "pattern" && at(n).is_none() || list(get(n, "range")).len() != 2 {
+        let fields: &[&str] = &["range"];
+        if !only(n, fields) || list(get(n, "range")).len() != 2 {
             return Some("a malformed range");
         }
         for v in list(get(n, "range")) {
@@ -786,8 +766,8 @@ fn node_step<'a>(
         return None;
     }
     if has(n, "literal") {
-        let fields: &[&str] = if kind == "pattern" { &["literal", "at"] } else { &["literal"] };
-        if !only(n, fields) || kind == "pattern" && at(n).is_none() {
+        let fields: &[&str] = &["literal"];
+        if !only(n, fields) {
             return Some("a malformed literal");
         }
         return schedule(pending, get(n, "literal"), "string", depth, false, sealed, uni);
@@ -797,55 +777,6 @@ fn node_step<'a>(
             return Some("a malformed recipe");
         }
         return items("concat", "recipe-atom", 1);
-    }
-    if kind == "children" {
-        if has(n, "node") {
-            if !only(n, &["node"]) {
-                return Some("a malformed pattern");
-            }
-            return walk(get(n, "node"), "pattern");
-        }
-        if has(n, "sequence") {
-            if !only(n, &["sequence"]) {
-                return Some("a malformed pattern");
-            }
-            return items("sequence", "children", 2);
-        }
-        for k in ["optional", "repeat"] {
-            if has(n, k) {
-                if !allowed(n, &[k, "separator"]) {
-                    return Some("a malformed pattern");
-                }
-                if let Some(p) = walk(get(n, k), "children") {
-                    return Some(p);
-                }
-                return n.get("separator").and_then(|s| walk(s, "children"));
-            }
-        }
-        return Some("a malformed pattern");
-    }
-    if kind == "pattern" {
-        if has(n, "children") {
-            if !only(n, &["children"]) {
-                return Some("a malformed pattern");
-            }
-            return walk(get(n, "children"), "children");
-        }
-        for k in ["union", "intersection", "difference"] {
-            if has(n, k) {
-                if !only(n, &[k]) || k == "difference" && list(get(n, k)).len() != 2 {
-                    return Some("a malformed pattern");
-                }
-                return items(k, "pattern", 2);
-            }
-        }
-        if has(n, "path") {
-            if !only(n, &["path", "pattern"]) || !matches!(text(get(n, "path")), "first" | "last" | "descendant") {
-                return Some("a malformed pattern path");
-            }
-            return walk(get(n, "pattern"), "pattern");
-        }
-        return Some("a malformed pattern");
     }
     if has(n, "pattern") {
         if !only(n, &["pattern"]) {
@@ -962,15 +893,6 @@ fn symbol(n: &Json) -> bool {
         };
     }
     ["param", "call", "ref", "literal", "range"].iter().any(|k| has(n, k)) || get(n, "wildcard") == &Json::Bool(true)
-}
-fn pattern_test_target(n: &Json) -> bool {
-    let mut inner = get(n, "expr");
-    if matches!(text(get(n, "test")), "=" | "≠") && text(get(inner, "test")) == "tags" {
-        inner = get(inner, "expr");
-    }
-    !has(inner, "test")
-        && (has(inner, "param")
-            || ["terminal", "literal", "range", "wildcard", "constant"].iter().any(|k| has(inner, k)))
 }
 fn elidable(n: &Json) -> bool {
     let n = list(get(n, "seq")).first().unwrap_or(n);

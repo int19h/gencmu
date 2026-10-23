@@ -368,7 +368,7 @@ def expand_templates(documents, unicode):
                 return dict(terminal=arg.get('tag', arg.get('terminal')), at=use['at'])
             if 'pattern' in arg:
                 return arg['pattern']
-            if 'string' in arg or arg.get('const', '').startswith('_'):
+            if 'string' in arg:
                 return dict(literal=arg, at=use['at'])
             if 'const' in arg:
                 return dict(constant=arg['const'], at=use['at'])
