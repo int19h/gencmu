@@ -521,7 +521,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	for _, c := range ruleParts(root) {
 		if templateSyntax(c) {
 			raw := b.templateDeclaration(c)
-			if err := appendTemplateDeclaration(d, c.Rule, raw); err != nil {
+			if err := b.appendReadDeclaration(d, c.Rule, raw); err != nil {
 				b.fail(c, "%s", err)
 			}
 			continue
