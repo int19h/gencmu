@@ -174,6 +174,10 @@ func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, 
 	if err != nil {
 		return nil, err
 	}
+	if !children && (o["exact"] != nil || o["any"] != nil || len(o["children"]) > 0 && o["children"][0] == '[') {
+		return decodeLayeredPattern(raw, depth)
+	}
+
 	forms := [][]string{{"name", "at"}, {"terminal", "at"}, {"constant", "at"}, {"literal", "at"}, {"range", "at"}, {"wildcard", "at"}, {"test", "expr", "value?", "requirements?"}, {"children"}, {"path", "pattern"}, {tmUnion}, {tmIntersection}, {tmDifference}}
 	if children {
 		forms = [][]string{{"node"}, {"siblings"}, {"sequence"}, {"optional"}, {"repeat", "separator?"}}
@@ -860,10 +864,13 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 	if p.Kind == "constant" {
 		v := g.constants[p.Name].value
 		if v.ty == tyPattern {
+			if p.Exact || p.Attached != nil {
+				return nil, g.constError(doc, p.At, "a pattern-valued constant cannot carry node decorations")
+			}
 			return v.pattern, nil
 		}
 		if v.ty == tyString {
-			return &domPattern{Kind: "terminal", Name: stringTerminal(v.s, g.uni), At: p.At}, nil
+			return &domPattern{Kind: "terminal", Name: stringTerminal(v.s, g.uni), At: p.At, Exact: p.Exact}, nil
 		}
 		return nil, g.constError(doc, p.At, "a pattern atom requires a string or pattern")
 	}
@@ -876,6 +883,17 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		}
 		n.Items[i] = v
 	}
+	if p.Attached != nil {
+		n.Attached = make([]*domPattern, len(p.Attached))
+		for i, child := range p.Attached {
+			value, err := g.resolvePatternValue(doc, child, at)
+			if err != nil {
+				return nil, err
+			}
+			n.Attached[i] = value
+		}
+	}
+
 	if p.Kind == "literal" {
 		v, err := g.evaluateClosed(doc, p.Value, at)
 		if err != nil {
@@ -887,15 +905,25 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		n.Kind, n.Name = "terminal", "_"
 	}
 	if p.Kind == "range" {
-		var ends [2]string
-		for i, t := range p.Ends {
-			v, err := g.evaluateClosed(doc, t, at)
+		var ends [2][]rune
+		for i, term := range p.Ends {
+			value, err := g.evaluateClosed(doc, term, at)
 			if err != nil {
 				return nil, err
 			}
-			ends[i] = v.s
+			ends[i] = []rune(value.s)
+			if value.ty != tyString || len(ends[i]) != 1 {
+				return nil, g.faultError(doc, term, p.At, "a range endpoint is one scalar")
+			}
 		}
-		n.Kind, n.Name = "terminal", stringTerminal(ends[0], g.uni)+".."+stringTerminal(ends[1], g.uni)
+		if ends[0][0] > ends[1][0] {
+			where := p.At
+			if references := constRefs(p.Ends[0], p.Ends[1]); len(references) > 0 {
+				where = references[0].At
+			}
+			return nil, g.constError(doc, where, "a range starts above its end")
+		}
+		n.Kind, n.Name = "terminal", stringTerminal(string(ends[0]), g.uni)+".."+stringTerminal(string(ends[1]), g.uni)
 	}
 	if p.Kind == "test" && p.Op == "tags" {
 		n.Requirements = nil

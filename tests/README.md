@@ -199,7 +199,19 @@ All four libraries read these cases through the candidate recognition grammar. T
 
 The fixture `fixtures/layered-patterns/recognition.json` contains candidate rules for the native libraries. JavaScript compares this snapshot with the grammar in `fixtures/layered-patterns/syntax.md`. Declaration positions occupy a reserved range, so replacement rules cannot collide with unchanged bootstrap declarations.
 
+The `constructors` cases remove listed operator tokens from recognized notation trees. They test supplied constructor shapes against the existing JavaScript reader behavior.
+
 Direct cases test atom positions and canonically equivalent punctuation. Growth cases use 128, 256, and 512 child groups or siblings. The largest case must stay within five times the smallest case's counted work.
+
+## Layered pattern values: `layered-pattern-values.json`
+
+Binding replaces a constant reference with its stage value. All four runners bind each `pattern` through their stage evaluator. Each case supplies either a `resolved` pattern or an `error` position. The file declares already bound `constants`.
+
+The cases retain exact prefixes, attached lists, empty lists, child choices, and compound boundaries. They refuse decorations and terminal tests on pattern-valued constants. Range cases test scalar counts and endpoint order after binding, including inside separators.
+
+A bound tag set uses `set` in the shared JSON. Native runners compare its ordinary tag terms. Error positions contain a line and column, each counted from one. A reversed range with one constant reports that constant's use.
+
+Native codec tests also decode and write closed cases from `layered-patterns.json`. They send decoded values through the structural matcher for every matching case. Shared shape cases test empty lists at the constructor depth limit and beyond it.
 
 ## Supplied notation values: `notation-values.json`
 

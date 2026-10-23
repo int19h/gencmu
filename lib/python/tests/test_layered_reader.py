@@ -44,7 +44,7 @@ class LayeredReader(unittest.TestCase):
         cls.prefix = "%rule probe(" + ", ".join("@" + name for name in cls.cases["parameters"]) + ") A\n%conditions $ ≅ "
         cls.start = len(cls.prefix.splitlines()[-1]) + 1
 
-    def read(self, pattern):
+    def read(self, pattern, omit=()):
         text = jbogenbau_text("```jbogenbau\n" + self.prefix + pattern + "\n```")
         tokens = character_tokens(text.text, self.unicode)
         features = frozenset()
@@ -58,6 +58,12 @@ class LayeredReader(unittest.TestCase):
                 return {"error": {"phase": name, "at": text.position(outcome.error.source[0])}}
             if index < len(self.reader.stages) - 1:
                 tokens = outcome.output
+        pending = [outcome.tree]
+        while pending:
+            current = pending.pop()
+            if current.kind == "rule":
+                current.children = [child for child in current.children if child.kind != "token" or tokens[child.token].value not in omit]
+                pending.extend(current.children)
         builder = DomBuilder(tokens, text, "layered-reader.md", self.unicode)
         pending = [outcome.tree]
         while pending:
@@ -110,3 +116,9 @@ class LayeredReader(unittest.TestCase):
                 self.assertEqual(len(result["pattern"]["children"]), 1 if kind == "groups" else size)
                 if baseline is None:
                     baseline = work.count
+
+    def test_supplied_constructors(self):
+        for case in self.cases['constructors']:
+            with self.subTest(case=case['description']):
+                result = self.read(case['source'], case['omit'])
+                self.assertEqual(without_positions(result.get('pattern')), case['pattern'], result)

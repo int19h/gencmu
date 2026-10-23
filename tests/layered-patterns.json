@@ -5195,6 +5195,26 @@
         ]
       },
       "valid": true
+    },
+    {
+      "description": "an exact empty child list at the depth limit adds no child level",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "valid": true,
+      "depth": 256
+    },
+    {
+      "description": "an exact empty child list beyond the depth limit is malformed",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "valid": false,
+      "depth": 257
     }
   ]
 }

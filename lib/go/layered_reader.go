@@ -102,9 +102,13 @@ func (f *layeredPatternFrame) resume(b *domBuilder, in any) readStep {
 		result := operands[0]
 		for index, operand := range operands[1:] {
 			key := "union"
-			if strings.HasSuffix(n.Rule, "intersection") || ops[index] == "∩" {
+			op := ""
+			if index < len(ops) {
+				op = ops[index]
+			}
+			if strings.HasSuffix(n.Rule, "intersection") || op == "∩" {
 				key = "intersection"
-			} else if ops[index] == "∖" {
+			} else if op == "∖" {
 				key = "difference"
 			}
 			result = layeredReaderSet(key, result, operand)

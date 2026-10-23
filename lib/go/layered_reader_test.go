@@ -63,7 +63,7 @@ func layeredRecognitionReader(t *testing.T) *notationReader {
 	}
 	return reader
 }
-func layeredRead(t *testing.T, nr *notationReader, prefix, pattern string) (result layeredReadResult) {
+func layeredRead(t *testing.T, nr *notationReader, prefix, pattern string, omitted ...string) (result layeredReadResult) {
 	t.Helper()
 	gt := extractGrammarText("```jbogenbau\n" + prefix + pattern + "\n```")
 	ps := newParseState(nr.uni, gt.text)
@@ -106,6 +106,24 @@ func layeredRead(t *testing.T, nr *notationReader, prefix, pattern string) (resu
 	if node == nil {
 		t.Fatal("the recognition tree contains no pattern literal")
 	}
+	omit := map[string]bool{}
+	for _, value := range omitted {
+		omit[value] = true
+	}
+	mutate := []*Node{node}
+	for len(mutate) > 0 {
+		current := mutate[len(mutate)-1]
+		mutate = mutate[:len(mutate)-1]
+		children := current.Children[:0]
+		for _, child := range current.Children {
+			if child.Kind != KindToken || !omit[tokens[child.Token].Value] {
+				children = append(children, child)
+				mutate = append(mutate, child)
+			}
+		}
+		current.Children = children
+	}
+
 	builder := &domBuilder{toks: tokens, gt: gt, doc: "layered-reader.md", uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if value := recover(); value != nil {
@@ -223,6 +241,25 @@ func TestLayeredReader(t *testing.T) {
 			}
 		})
 	}
+	var constructors struct {
+		Constructors []struct {
+			Description, Source string
+			Omit                []string
+			Pattern             templateObject
+		}
+	}
+	if err := json.Unmarshal(rawReaderFixture(t), &constructors); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range constructors.Constructors {
+		t.Run("supplied "+c.Description, func(t *testing.T) {
+			result := layeredRead(t, nr, prefix, c.Source, c.Omit...)
+			if !reflect.DeepEqual(templateIdentity(result.pattern), c.Pattern) {
+				t.Fatalf("%s: %s %v", templateJSON(result.pattern), result.phase, result.at)
+			}
+		})
+	}
+
 	for _, kind := range []string{"groups", "siblings"} {
 		t.Run(kind+" growth", func(t *testing.T) {
 			var baseline int64
@@ -267,4 +304,13 @@ func TestLayeredReader(t *testing.T) {
 			}
 		}
 	})
+}
+
+func rawReaderFixture(t *testing.T) []byte {
+	t.Helper()
+	raw, err := os.ReadFile("../../tests/layered-pattern-reader.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }

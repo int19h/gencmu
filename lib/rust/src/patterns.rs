@@ -1,4 +1,5 @@
 //! Finite observations of structural trees (engine §4.1).
+mod layered;
 pub(crate) mod shapes;
 
 use crate::dom::{self, Arg, Term};
@@ -14,6 +15,8 @@ pub(crate) enum Pattern {
     Constant(String, (usize, usize)),
     Test(String, Term, Box<Pattern>),
     Children(Children),
+    Node(Box<Pattern>, bool, Option<Children>),
+    Any,
     Path(String, Box<Pattern>),
     Union(Vec<Pattern>),
     Intersection(Vec<Pattern>),
@@ -24,6 +27,7 @@ pub(crate) enum Children {
     Node(Box<Pattern>),
     Siblings,
     Sequence(Vec<Children>),
+    Choice(Vec<Children>),
     Optional(Box<Children>),
     Repeat(Box<Children>, Option<Box<Children>>),
 }
@@ -206,6 +210,13 @@ fn read_pattern(root: &Json) -> Result<Pattern, String> {
 
 impl Pattern {
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
+        if crate::parameters::nodes(j).any(|node| {
+            node.get("exact").is_some()
+                || node.get("any").is_some()
+                || node.get("children").is_some_and(|children| children.as_array().is_some())
+        }) {
+            return Self::from_layered_json(j);
+        }
         let p = read_pattern(j)?;
         if let Some(problem) = p.problem() {
             return Err(problem.into());
@@ -255,6 +266,7 @@ impl Pattern {
     }
     pub(crate) fn write(&self, out: &mut String) {
         match self {
+            Self::Node(..) | Self::Any => self.write_layered(out),
             Self::Literal(term, a) => {
                 out.push_str("{\"literal\":");
                 dom::write_term(out, term);
@@ -339,6 +351,12 @@ impl Pattern {
                 p.constants(out);
                 dom::constants_in_term(v, out);
             }
+            Self::Node(node, _, children) => {
+                node.constants(out);
+                if let Some(children) = children {
+                    children.constants(out);
+                }
+            }
             Self::Children(c) => c.constants(out),
             Self::Path(_, p) => p.constants(out),
             Self::Union(xs) | Self::Intersection(xs) => {
@@ -380,12 +398,18 @@ impl Pattern {
                         pending.push(Part::Pattern(b));
                     }
                     Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                    Pattern::Node(node, _, children) => {
+                        pending.push(Part::Pattern(node));
+                        pending.extend(children.as_ref().map(Part::Children));
+                    }
                     Pattern::Children(children) => pending.push(Part::Children(children)),
                     _ => {}
                 },
                 Part::Children(children) => match children {
                     Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
-                    Children::Sequence(items) => pending.extend(items.iter().map(Part::Children)),
+                    Children::Sequence(items) | Children::Choice(items) => {
+                        pending.extend(items.iter().map(Part::Children))
+                    }
                     Children::Optional(inner) => pending.push(Part::Children(inner)),
                     Children::Repeat(item, separator) => {
                         pending.push(Part::Children(item));
@@ -436,6 +460,17 @@ impl Pattern {
                         .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
                 })
             }
+            Self::Node(node, _, children) => {
+                if let Self::Constant(name, at) = node.as_ref() {
+                    if matches!(constants(name), dom::Type::Pattern) {
+                        return Some(dom::Fault {
+                            problem: "a pattern-valued constant cannot carry node decorations".into(),
+                            at: Some(*at),
+                        });
+                    }
+                }
+                node.type_fault(constants).or_else(|| children.as_ref().and_then(|c| c.type_fault(constants)))
+            }
             Self::Children(c) => c.type_fault(constants),
             Self::Path(_, p) => p.type_fault(constants),
             Self::Union(xs) | Self::Intersection(xs) => xs.iter().find_map(|p| p.type_fault(constants)),
@@ -448,12 +483,13 @@ impl Children {
     fn consumes(&self) -> bool {
         match self {
             Self::Node(_) | Self::Siblings => true,
-            Self::Sequence(xs) => xs.iter().any(Self::consumes),
+            Self::Sequence(xs) | Self::Choice(xs) => xs.iter().any(Self::consumes),
             Self::Optional(x) | Self::Repeat(x, _) => x.consumes(),
         }
     }
     pub(crate) fn write(&self, out: &mut String) {
         match self {
+            Self::Choice(_) => self.write_layered_item(out),
             Self::Node(n) => {
                 out.push_str("{\"node\":");
                 n.write(out);
@@ -489,7 +525,7 @@ impl Children {
     fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
         match self {
             Self::Node(n) => n.constants(out),
-            Self::Sequence(xs) => {
+            Self::Sequence(xs) | Self::Choice(xs) => {
                 for x in xs {
                     x.constants(out);
                 }
@@ -507,7 +543,7 @@ impl Children {
     fn type_fault(&self, c: dom::ConstantTypes) -> Option<dom::Fault> {
         match self {
             Self::Node(n) => n.type_fault(c),
-            Self::Sequence(xs) => xs.iter().find_map(|x| x.type_fault(c)),
+            Self::Sequence(xs) | Self::Choice(xs) => xs.iter().find_map(|x| x.type_fault(c)),
             Self::Optional(x) => x.type_fault(c),
             Self::Repeat(x, s) => x.type_fault(c).or_else(|| s.as_ref().and_then(|s| s.type_fault(c))),
             Self::Siblings => None,
@@ -535,6 +571,11 @@ impl Pattern {
             }
             Self::Wildcard(a) => Self::Terminal("_".into(), *a),
             Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?)),
+            Self::Node(node, exact, children) => Self::Node(
+                Box::new(node.map_values(constant, value)?),
+                *exact,
+                children.as_ref().map(|c| c.map_values(constant, value)).transpose()?,
+            ),
             Self::Children(c) => Self::Children(c.map_values(constant, value)?),
             Self::Path(p, n) => Self::Path(p.clone(), Box::new(n.map_values(constant, value)?)),
             Self::Union(xs) => Self::Union(xs.iter().map(|x| x.map_values(constant, value)).collect::<Result<_, _>>()?),
@@ -554,6 +595,7 @@ impl Children {
             Self::Node(n) => Self::Node(Box::new(n.map_values(c, v)?)),
             Self::Siblings => Self::Siblings,
             Self::Sequence(xs) => Self::Sequence(xs.iter().map(|x| x.map_values(c, v)).collect::<Result<_, _>>()?),
+            Self::Choice(xs) => Self::Choice(xs.iter().map(|x| x.map_values(c, v)).collect::<Result<_, _>>()?),
             Self::Optional(x) => Self::Optional(Box::new(x.map_values(c, v)?)),
             Self::Repeat(x, s) => Self::Repeat(
                 Box::new(x.map_values(c, v)?),
@@ -639,6 +681,10 @@ fn pattern_key(p: &Pattern) -> String {
             Pattern::Terminal(s, _) => Pattern::Terminal(s.clone(), (0, 0)),
             Pattern::Constant(s, _) => Pattern::Constant(s.clone(), (0, 0)),
             Pattern::Test(op, v, n) => Pattern::Test(op.clone(), v.clone(), Box::new(plain(n))),
+            Pattern::Node(node, exact, attached) => {
+                Pattern::Node(Box::new(plain(node)), *exact, attached.as_ref().map(children))
+            }
+            Pattern::Any => Pattern::Any,
             Pattern::Children(c) => Pattern::Children(children(c)),
             Pattern::Path(s, n) => Pattern::Path(s.clone(), Box::new(plain(n))),
             Pattern::Union(xs) => Pattern::Union(xs.iter().map(plain).collect()),
@@ -650,6 +696,7 @@ fn pattern_key(p: &Pattern) -> String {
         match c {
             Children::Node(n) => Children::Node(Box::new(plain(n))),
             Children::Sequence(xs) => Children::Sequence(xs.iter().map(children).collect()),
+            Children::Choice(xs) => Children::Choice(xs.iter().map(children).collect()),
             Children::Optional(x) => Children::Optional(Box::new(children(x))),
             Children::Repeat(x, s) => {
                 Children::Repeat(Box::new(children(x)), s.as_ref().map(|x| Box::new(children(x))))
@@ -705,6 +752,15 @@ impl Machine {
             return id;
         }
         let pred = match p {
+            Pattern::Node(node, exact, attached) => {
+                let test = self.node_test(node);
+                let children = attached.as_ref().map(|children| {
+                    let items = self.pattern_items(children);
+                    self.sequence(&items)
+                });
+                Predicate::Node { test, exact: *exact, children }
+            }
+            Pattern::Any => Predicate::Node { test: NodeTest::Any, exact: false, children: None },
             Pattern::Name(s, _) => Predicate::Node { test: NodeTest::Name(s.clone()), exact: false, children: None },
             Pattern::Terminal(s, _) => {
                 Predicate::Node { test: NodeTest::Terminal(s.clone()), exact: false, children: None }
@@ -737,11 +793,32 @@ impl Machine {
         self.ids.insert(key, id);
         id
     }
+    fn node_test(&self, pattern: &Pattern) -> NodeTest {
+        match pattern {
+            Pattern::Name(name, _) => NodeTest::Name(name.clone()),
+            Pattern::Terminal(name, _) => NodeTest::Terminal(name.clone()),
+            Pattern::Any => NodeTest::Any,
+            Pattern::Test(..) => {
+                let mut tests = Vec::new();
+                let mut base = pattern;
+                while let Pattern::Test(op, value, inner) = base {
+                    tests.push((op.clone(), value.clone()));
+                    base = inner;
+                }
+                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
+                NodeTest::Test(tests, terminal.clone())
+            }
+            _ => unreachable!("a resolved node test"),
+        }
+    }
     fn pattern_items(&mut self, children: &Children) -> Vec<PatternItem> {
         match children {
             Children::Node(p) => vec![PatternItem::Child(self.compile(p))],
             Children::Siblings => vec![PatternItem::Siblings],
             Children::Sequence(items) => items.iter().flat_map(|c| self.pattern_items(c)).collect(),
+            Children::Choice(arms) => {
+                vec![PatternItem::Choice(arms.iter().map(|arm| self.pattern_items(arm)).collect())]
+            }
             Children::Optional(c) => vec![PatternItem::Choice(vec![self.pattern_items(c), vec![]])],
             Children::Repeat(c, s) => {
                 vec![PatternItem::Repeat(self.pattern_items(c), s.as_ref().map(|s| self.pattern_items(s)))]
@@ -1104,18 +1181,28 @@ fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
 
 impl Pattern {
     pub(crate) fn problem(&self) -> Option<&'static str> {
+        #[derive(Clone, Copy)]
         enum Part<'a> {
             Node(&'a Pattern),
             Children(&'a Children),
+            Items(&'a Children),
         }
         let mut todo = vec![(Part::Node(self), false, 0)];
         while let Some((part, repeated, depth)) = todo.pop() {
+            if let Part::Items(Children::Sequence(items)) = part {
+                todo.extend(items.iter().map(|item| (Part::Items(item), repeated, depth)));
+                continue;
+            }
             if depth > 256 {
                 return Some("nested too deeply");
             }
             let next = depth + 1;
             match part {
                 Part::Node(p) => match p {
+                    Pattern::Node(node, _, children) => {
+                        todo.push((Part::Node(node), false, depth));
+                        todo.extend(children.as_ref().map(|children| (Part::Items(children), false, next)));
+                    }
                     Pattern::Children(c) => todo.push((Part::Children(c), repeated, next)),
                     Pattern::Test(_, _, p) | Pattern::Path(_, p) => todo.push((Part::Node(p), repeated, next)),
                     Pattern::Union(xs) | Pattern::Intersection(xs) => {
@@ -1127,13 +1214,31 @@ impl Pattern {
                     }
                     _ => {}
                 },
+                Part::Items(children) => match children {
+                    Children::Sequence(items) => {
+                        todo.extend(items.iter().map(|item| (Part::Items(item), repeated, depth)))
+                    }
+                    Children::Node(node) => todo.push((Part::Node(node), false, next)),
+                    Children::Siblings if repeated => {
+                        return Some("a sibling ellipsis cannot be a repeat item or separator")
+                    }
+                    Children::Siblings => {}
+                    Children::Choice(arms) => todo.extend(arms.iter().map(|arm| (Part::Items(arm), repeated, next))),
+                    Children::Optional(body) => todo.push((Part::Items(body), repeated, next)),
+                    Children::Repeat(body, separator) => {
+                        todo.push((Part::Items(body), true, next));
+                        todo.extend(separator.as_deref().map(|separator| (Part::Items(separator), true, next)));
+                    }
+                },
                 Part::Children(c) => match c {
                     Children::Node(p) => todo.push((Part::Node(p), repeated, next)),
                     Children::Siblings if repeated => {
                         return Some("a sibling ellipsis cannot be a repeat item or separator")
                     }
                     Children::Siblings => {}
-                    Children::Sequence(xs) => todo.extend(xs.iter().map(|c| (Part::Children(c), repeated, next))),
+                    Children::Sequence(xs) | Children::Choice(xs) => {
+                        todo.extend(xs.iter().map(|c| (Part::Children(c), repeated, next)))
+                    }
                     Children::Optional(c) => todo.push((Part::Children(c), repeated, next)),
                     Children::Repeat(c, s) => {
                         if !c.consumes() {

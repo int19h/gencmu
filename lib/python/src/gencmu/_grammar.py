@@ -384,20 +384,33 @@ class _Constants:
         return False
 
     def _closed_pattern(self, path: str, root: Dom, at: Any) -> Walk:
+        if isinstance(root, list):
+            items = []
+            for child in root:
+                items.append((yield self._closed_pattern(path, child, at)))
+            return items
         if "constant" in root:
             constant = self.values[root["constant"]]
             if constant.type == "pattern":
+                if "exact" in root or "children" in root:
+                    raise self.fault_error(path, root, at, "a pattern-valued constant cannot carry node decorations")
                 return constant.value["pattern"]
             if constant.type == "string":
-                return {"terminal": spelling(constant.value, self.unicode), "at": root["at"]}
+                return {"terminal": spelling(constant.value, self.unicode), "at": root["at"], **({"exact": True} if root.get("exact") else {})}
             raise self.fault_error(path, root, at, "a pattern atom requires a string or pattern constant")
+        if "test" in root:
+            base = root["expr"]
+            while "test" in base:
+                base = base["expr"]
+            if "constant" in base and self.values[base["constant"]].type == "pattern":
+                raise self.fault_error(path, base, at, "a tested pattern atom requires a string constant")
         result = dict(root)
-        for key in ("union", "intersection", "difference", "sequence"):
+        for key in ("union", "intersection", "difference", "sequence", "choice"):
             if key in root:
                 result[key] = []
                 for child in root[key]:
                     result[key].append((yield self._closed_pattern(path, child, at)))
-        for key in ("pattern", "children", "node", "optional", "repeat", "separator"):
+        for key in ("pattern", "children", "child", "node", "optional", "repeat", "separator"):
             if key in root:
                 result[key] = yield self._closed_pattern(path, root[key], at)
         if "test" in root:
@@ -423,7 +436,7 @@ class _Constants:
                 terminal = "..".join(spelling(end, self.unicode) for end in ends)
             else:
                 terminal = "_"
-            result = {"terminal": terminal, "at": root["at"]}
+            result = {"terminal": terminal, "at": root["at"], **({"exact": True} if root.get("exact") else {})}
         return result
 
     def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:

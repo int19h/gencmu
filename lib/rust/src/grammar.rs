@@ -1008,6 +1008,9 @@ impl Constants<'_> {
 
     fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
         if let Term::Pattern(root) = term {
+            if let Some(fault) = root.type_fault(&|name| self.ty(name)) {
+                return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
+            }
             enum Part<'a> {
                 Pattern(&'a Pattern),
                 Children(&'a crate::patterns::Children),
@@ -1028,12 +1031,18 @@ impl Constants<'_> {
                             pending.push(Part::Pattern(b));
                         }
                         Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                        Pattern::Node(node, _, children) => {
+                            pending.push(Part::Pattern(node));
+                            pending.extend(children.as_ref().map(Part::Children));
+                        }
                         Pattern::Children(children) => pending.push(Part::Children(children)),
                         _ => {}
                     },
                     Part::Children(children) => match children {
                         Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
-                        Children::Sequence(items) => pending.extend(items.iter().map(Part::Children)),
+                        Children::Sequence(items) | Children::Choice(items) => {
+                            pending.extend(items.iter().map(Part::Children))
+                        }
                         Children::Optional(inner) => pending.push(Part::Children(inner)),
                         Children::Repeat(item, separator) => {
                             pending.push(Part::Children(item));
@@ -1966,3 +1975,6 @@ mod tests {
         });
     }
 }
+
+#[cfg(test)]
+mod layered_value_tests;

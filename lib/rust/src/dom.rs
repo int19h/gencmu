@@ -1561,7 +1561,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::Captured(_) => {}
             },
             // Pattern references are handled through Term::Pattern above.
-            Nested::Expr(_) | Nested::Pattern(_) | Nested::Children(_) => {}
+            Nested::Expr(_) | Nested::Pattern(_) | Nested::Children(_) | Nested::PatternItems(_) => {}
         }
     }
 }
@@ -1571,12 +1571,14 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
 const MAX_NESTING: usize = DOM_MAX_DEPTH;
 
 /// A node of a DOM that the check of nesting walks.
+#[derive(Clone, Copy)]
 enum Nested<'d> {
     Expr(&'d Expr),
     Term(&'d Term),
     Cond(&'d Cond),
     Pattern(&'d crate::patterns::Pattern),
     Children(&'d crate::patterns::Children),
+    PatternItems(&'d crate::patterns::Children),
 }
 
 /// Whether any DOM node exceeds the depth bound of engine §9.
@@ -1586,6 +1588,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
     let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
     while let Some((node, depth)) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
+        if let Nested::PatternItems(crate::patterns::Children::Sequence(items)) = node {
+            stack.extend(items.iter().map(|item| (Nested::PatternItems(item), depth)));
+            continue;
+        }
         if depth > MAX_NESTING {
             return true;
         }
@@ -1647,6 +1653,11 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Term(value), below));
                         stack.push((Nested::Pattern(inner), below));
                     }
+                    Pattern::Node(node, _, children) => {
+                        stack.push((Nested::Pattern(node), depth));
+                        stack.extend(children.as_ref().map(|c| (Nested::PatternItems(c), below)));
+                    }
+                    Pattern::Any => {}
                     Pattern::Children(children) => stack.push((Nested::Children(children), below)),
                     Pattern::Path(_, inner) => stack.push((Nested::Pattern(inner), below)),
                     Pattern::Union(items) | Pattern::Intersection(items) => {
@@ -1659,11 +1670,29 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Wildcard(..) | Pattern::Constant(..) => {}
                 }
             }
+            Nested::PatternItems(children) => {
+                use crate::patterns::Children;
+                match children {
+                    Children::Sequence(items) => {
+                        stack.extend(items.iter().map(|item| (Nested::PatternItems(item), depth)))
+                    }
+                    Children::Node(node) => stack.push((Nested::Pattern(node), below)),
+                    Children::Choice(arms) => stack.extend(arms.iter().map(|arm| (Nested::PatternItems(arm), below))),
+                    Children::Optional(body) => stack.push((Nested::PatternItems(body), below)),
+                    Children::Repeat(body, separator) => {
+                        stack.push((Nested::PatternItems(body), below));
+                        stack.extend(separator.as_deref().map(|separator| (Nested::PatternItems(separator), below)));
+                    }
+                    Children::Siblings => {}
+                }
+            }
             Nested::Children(children) => {
                 use crate::patterns::Children;
                 match children {
                     Children::Node(pattern) => stack.push((Nested::Pattern(pattern), below)),
-                    Children::Sequence(items) => stack.extend(items.iter().map(|item| (Nested::Children(item), below))),
+                    Children::Sequence(items) | Children::Choice(items) => {
+                        stack.extend(items.iter().map(|item| (Nested::Children(item), below)))
+                    }
                     Children::Optional(inner) => stack.push((Nested::Children(inner), below)),
                     Children::Repeat(inner, separator) => {
                         stack.push((Nested::Children(inner), below));

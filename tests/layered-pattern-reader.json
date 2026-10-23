@@ -1348,5 +1348,68 @@
         "offset": 2
       }
     }
+  ],
+  "constructors": [
+    {
+      "description": "a supplied union constructor without operator tokens retains its operands",
+      "source": "#(a ∪ b ∪ c)",
+      "omit": [
+        "∪"
+      ],
+      "pattern": {
+        "union": [
+          {
+            "name": "a"
+          },
+          {
+            "name": "b"
+          },
+          {
+            "name": "c"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a supplied child set constructor without operator tokens remains one child",
+      "source": "#« a ∪ b »",
+      "omit": [
+        "∪"
+      ],
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "union": [
+                {
+                  "name": "a"
+                },
+                {
+                  "name": "b"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a supplied intersection constructor does not require operator tokens",
+      "source": "#(a ∩ b)",
+      "omit": [
+        "∩"
+      ],
+      "pattern": {
+        "intersection": [
+          {
+            "name": "a"
+          },
+          {
+            "name": "b"
+          }
+        ]
+      }
+    }
   ]
 }

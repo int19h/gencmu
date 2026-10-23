@@ -40,14 +40,24 @@ enum Read {
     Error(String, (usize, usize)),
 }
 fn read(notation: &Dialect, prefix: &str, pattern: &str) -> Read {
+    read_omitting(notation, prefix, pattern, &[])
+}
+fn read_omitting(notation: &Dialect, prefix: &str, pattern: &str, omitted: &[&str]) -> Read {
     let source = format!("```jbogenbau\n{prefix}{pattern}\n```");
     let grammar = grammar_text(&source).unwrap();
-    let result = notation.parse_chars(grammar.chars.clone(), &ParseOptions::default()).unwrap();
+    let mut result = notation.parse_chars(grammar.chars.clone(), &ParseOptions::default()).unwrap();
     if let Some(error) = result.error {
         assert_eq!(error.kind, ParseErrorKind::Rejected, "{pattern}: {error:?}");
         return Read::Error(error.stage.unwrap(), grammar.position(error.source.unwrap().start));
     }
     let stage = result.stages.last().unwrap();
+    let mut mutate = vec![result.tree.as_mut().unwrap()];
+    while let Some(node) = mutate.pop() {
+        node.children.retain(|child| {
+            child.kind != NodeKind::Token || !omitted.contains(&stage.input[child.token.unwrap()].value.as_str())
+        });
+        mutate.extend(node.children.iter_mut());
+    }
     let mut pending = vec![result.tree.as_ref().unwrap()];
     let mut literal: Option<&Node> = None;
     while let Some(node) = pending.pop() {
@@ -157,6 +167,16 @@ fn shared_layered_reader() {
         let value = pattern(&result, case);
         assert_eq!(p::identity(value), p::identity(get(case, "pattern")), "{}", text(get(case, "description")));
         assert_eq!(crate::patterns::shapes::text(value, &term, true), text(get(case, "text")));
+    }
+    for case in list(get(&cases, "constructors")) {
+        let omitted = list(get(case, "omit")).iter().map(|value| value.as_str().unwrap()).collect::<Vec<_>>();
+        let result = read_omitting(&notation, &prefix, text(get(case, "source")), &omitted);
+        assert_eq!(
+            p::identity(pattern(&result, case)),
+            p::identity(get(case, "pattern")),
+            "{}",
+            text(get(case, "description"))
+        );
     }
     for kind in ["groups", "siblings"] {
         use crate::work::{budget, counted, reset, Work};

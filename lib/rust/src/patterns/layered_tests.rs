@@ -238,3 +238,113 @@ fn layered_depth_and_width() {
     let p = object(vec![("any", Json::Bool(true)), ("children", Json::Arr(vec![repeat]))]);
     assert_eq!(shapes::problem(&p, &shapes::Inspection::default()), None);
 }
+
+#[test]
+fn layered_typed_dom_round_trips() {
+    let cases = crate::json::parse(include_str!("../../../../tests/layered-patterns.json")).unwrap();
+    for case in cases.get("printing").unwrap().as_array().unwrap() {
+        let input = case.get("pattern").unwrap();
+        if crate::parameters::unresolved(input) {
+            continue;
+        }
+        let pattern = Pattern::from_layered_json(input).unwrap();
+        let mut out = String::new();
+        pattern.write_layered(&mut out);
+        let output = crate::json::parse(&out).unwrap();
+        assert_eq!(
+            crate::parameters::canonical_source(&output),
+            crate::parameters::canonical_source(input),
+            "{}",
+            text(case, "description")
+        );
+        assert!(pattern.problem().is_none(), "{}", text(case, "description"));
+    }
+    for case in cases.get("shapes").unwrap().as_array().unwrap() {
+        let valid = case.get("valid").unwrap().as_bool().unwrap();
+        let mut input = case.get("pattern").unwrap().clone();
+        if valid && crate::parameters::unresolved(&input) {
+            continue;
+        }
+        for _ in 0..case.get("depth").and_then(Json::as_int).unwrap_or(0) {
+            input = crate::parameters::obj([("path", Json::Str("descendant".into())), ("pattern", input)]);
+        }
+        let result = Pattern::from_layered_json(&input);
+        assert_eq!(result.is_ok(), valid, "{}: {result:?}", text(case, "description"));
+    }
+    let mut pattern = crate::json::parse(r#"{"any":true,"exact":true,"children":[]}"#).unwrap();
+    for _ in 0..256 {
+        pattern = crate::parameters::obj([("path", Json::Str("descendant".into())), ("pattern", pattern)]);
+    }
+
+    let mut term_pattern = crate::json::parse(r#"{"any":true,"exact":true,"children":[]}"#).unwrap();
+    for _ in 0..255 {
+        term_pattern = crate::parameters::obj([("path", Json::Str("descendant".into())), ("pattern", term_pattern)]);
+    }
+    let term = Term::Pattern(Box::new(Pattern::from_layered_json(&term_pattern).unwrap()));
+    assert!(!crate::dom::term_too_deep(&term));
+    let beyond = Term::Pattern(Box::new(Pattern::from_layered_json(&pattern).unwrap()));
+    assert!(crate::dom::term_too_deep(&beyond));
+    let typed = Pattern::from_layered_json(&pattern).unwrap();
+    assert!(typed.problem().is_none());
+    let deeper = crate::parameters::obj([("path", Json::Str("descendant".into())), ("pattern", pattern)]);
+    assert_eq!(Pattern::from_layered_json(&deeper).unwrap_err(), "nested too deeply");
+}
+
+fn public_matching_fixture(node: &Json) -> Json {
+    match node {
+        Json::Arr(items) => Json::Arr(items.iter().map(public_matching_fixture).collect()),
+        Json::Obj(fields) => Json::Obj(
+            fields
+                .iter()
+                .map(|(key, value)| {
+                    let result = if key == "requirements" {
+                        Json::Arr(
+                            value
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .flat_map(|requirement| {
+                                    let negative = requirement.get("negated").unwrap().clone();
+                                    requirement
+                                        .get("value")
+                                        .unwrap()
+                                        .get("set")
+                                        .unwrap()
+                                        .as_array()
+                                        .unwrap()
+                                        .iter()
+                                        .map(move |tag| {
+                                            crate::parameters::obj([
+                                                ("negated", negative.clone()),
+                                                ("value", crate::parameters::obj([("tag", tag.clone())])),
+                                            ])
+                                        })
+                                })
+                                .collect(),
+                        )
+                    } else {
+                        public_matching_fixture(value)
+                    };
+                    (key.clone(), result)
+                })
+                .collect(),
+        ),
+        value => value.clone(),
+    }
+}
+#[test]
+fn typed_layered_dom_matches_the_shared_trees() {
+    let cases = crate::json::parse(include_str!("../../../../tests/layered-patterns.json")).unwrap();
+    for case in cases.get("matching").unwrap().as_array().unwrap() {
+        let input = public_matching_fixture(case.get("pattern").unwrap());
+        let pattern = Pattern::from_layered_json(&input).unwrap();
+        let mut machine = Machine::new(std::slice::from_ref(&pattern));
+        let state = observe(&mut machine, case.get("tree").unwrap());
+        assert_eq!(
+            machine.matches(state, &pattern),
+            case.get("expected").unwrap().as_bool().unwrap(),
+            "{}",
+            text(case, "description")
+        );
+    }
+}

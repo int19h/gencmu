@@ -2738,10 +2738,74 @@
     return "string";
   }
 
+  // ---- trampoline.js
+  // Runs mutually recursive readers and walks without the call stack, so a
+  // document's nesting cannot exhaust it (engine §9).
+
+  /**
+   * A step of a reader written as a generator: it yields the generator of
+   * each call it would make, and receives that call's result in its place,
+   * or the call's error, thrown at the yield.
+   * @typedef {Generator<any, any, any>} Step
+   */
+
+
+
+  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
+  // it, and so does each node that a walk with an explicit stack meets. The
+  // tests of growth compare the steps across depths of nesting
+  // (tests/README.md).
+
+  /**
+   * Runs a reader to its result, keeping the chain of its calls in an
+   * explicit stack.
+   * @template T
+   * @param {Generator<any, T, any>} root
+   * @returns {T}
+   */
+  function run(root) {
+    /** @type {Step[]} */
+    const stack = [root];
+    /** @type {any} */
+    let value;
+    let failed = false;
+    /** @type {unknown} */
+    let error = null;
+    while (stack.length > 0) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const top = stack[stack.length - 1];
+      let step;
+      try {
+        step = failed ? top.throw(error) : top.next(value);
+      } catch (thrown) {
+        // A count past a test's budget leaves at once, so the test sees the
+        // first count past it, not a later count of the unwinding steps.
+        if (thrown instanceof WorkBudget) throw thrown;
+        stack.pop();
+        failed = true;
+        error = thrown;
+        continue;
+      }
+      failed = false;
+      error = null;
+      if (step.done) {
+        stack.pop();
+        value = step.value;
+      } else {
+        stack.push(step.value);
+        value = undefined;
+      }
+    }
+    if (failed) throw error;
+    return value;
+  }
+
   // ---- patterns.js
 
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
+
+
 
 
 
@@ -2861,22 +2925,42 @@
    * @returns {any}
    */
   function resolvePattern(root, constant, value, unicode) {
-    if (root.constant) {
-      const resolved = constant(root.constant,root.at);
-      return "string" in resolved ? {terminal:stringName(resolved.string,unicode),at:root.at} : resolved.pattern;
+    /** @param {any} atom @param {string} message @returns {never} */
+    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
+    /** @param {any} node @returns {Generator<any,any,any>} */
+    function* resolve(node) {
+      if (Array.isArray(node)) {
+        const items=[];
+        for(const child of node) items.push(yield resolve(child));
+        return items;
+      }
+      let result={...node};
+      if (node.constant) {
+        const resolved=constant(node.constant,node.at);
+        if ('pattern' in resolved) {
+          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
+          return resolved.pattern;
+        }
+        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.literal || node.range || node.wildcard) {
+        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
+          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
+        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.test) {
+        let base=node.expr;
+        while(base.test) base=base.expr;
+        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
+        result.expr=yield resolve(node.expr);
+        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
+        else result.value=value(node.value,node);
+        return result;
+      }
+      for(const key of ['union','intersection','difference','sequence','choice','pattern','children','child','node','optional','repeat','separator']) {
+        if(node[key]) result[key]=yield resolve(node[key]);
+      }
+      return result;
     }
-    if (root.literal) return {terminal:stringName(value(root.literal,root).string,unicode),at:root.at};
-    if (root.range) return {terminal:root.range.map((/** @type {any} */ end) => stringName(value(end,root).string,unicode)).join(".."),at:root.at};
-    if (root.wildcard) return {terminal:"_",at:root.at};
-    if (root.test) {
-      const expr = resolvePattern(root.expr,constant,value,unicode);
-      if (root.test === "tags") return {...root,expr,requirements:root.requirements.map((/** @type {any} */ requirement) => ({...requirement,value:value(requirement.value,root)}))};
-      return {...root,expr,value:value(root.value,root)};
-    }
-    const result = {...root};
-    for (const key of ["union","intersection","difference","sequence"]) if (root[key]) result[key] = root[key].map((/** @type {any} */ n) => resolvePattern(n,constant,value,unicode));
-    for (const key of ["pattern","children","node","optional","repeat","separator"]) if (root[key]) result[key] = resolvePattern(root[key],constant,value,unicode);
-    return result;
+    return run(resolve(root));
   }
 
   /** @param {any} value @returns {any} */
@@ -3028,68 +3112,6 @@
     const children = (n) => n.node ? node(n.node) : n.siblings ? "⋯" : n.sequence ? n.sequence.map(children).join(" ")
       : n.optional ? `[${children(n.optional)}]` : `{${children(n.repeat)}${n.separator ? ` / ${children(n.separator)}` : ""}}`;
     return pattern.children ? `#(${children(pattern.children)})` : `#(${node(pattern)})`;
-  }
-
-  // ---- trampoline.js
-  // Runs mutually recursive readers and walks without the call stack, so a
-  // document's nesting cannot exhaust it (engine §9).
-
-  /**
-   * A step of a reader written as a generator: it yields the generator of
-   * each call it would make, and receives that call's result in its place,
-   * or the call's error, thrown at the yield.
-   * @typedef {Generator<any, any, any>} Step
-   */
-
-
-
-  // Each step of a run counts as walkSteps of `hooks.work` while a test sets
-  // it, and so does each node that a walk with an explicit stack meets. The
-  // tests of growth compare the steps across depths of nesting
-  // (tests/README.md).
-
-  /**
-   * Runs a reader to its result, keeping the chain of its calls in an
-   * explicit stack.
-   * @template T
-   * @param {Generator<any, T, any>} root
-   * @returns {T}
-   */
-  function run(root) {
-    /** @type {Step[]} */
-    const stack = [root];
-    /** @type {any} */
-    let value;
-    let failed = false;
-    /** @type {unknown} */
-    let error = null;
-    while (stack.length > 0) {
-      if (hooks.work) countWork(hooks.work, "walkSteps");
-      const top = stack[stack.length - 1];
-      let step;
-      try {
-        step = failed ? top.throw(error) : top.next(value);
-      } catch (thrown) {
-        // A count past a test's budget leaves at once, so the test sees the
-        // first count past it, not a later count of the unwinding steps.
-        if (thrown instanceof WorkBudget) throw thrown;
-        stack.pop();
-        failed = true;
-        error = thrown;
-        continue;
-      }
-      failed = false;
-      error = null;
-      if (step.done) {
-        stack.pop();
-        value = step.value;
-      } else {
-        stack.push(step.value);
-        value = undefined;
-      }
-    }
-    if (failed) throw error;
-    return value;
   }
 
   // ---- dom.js
@@ -7601,7 +7623,8 @@
       if ("tag" in term) return { set: tagSet([term.tag]) };
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
       if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
-      if ("pattern" in term) return { pattern: resolvePattern(term.pattern, (name,at) => {
+      if ("pattern" in term) {
+        try { return { pattern: resolvePattern(term.pattern, (name,at) => {
         const resolved = lookup(name);
         if (!("string" in resolved) && !("pattern" in resolved)) throw this.documentError(path,at,"a pattern atom requires a string or pattern constant");
         return resolved;
@@ -7612,7 +7635,12 @@
           if (problem) throw this.faultError(path,atom.range,atom.at ?? item,problem);
         }
         return this.evaluateClosed(path,value,atom.at ?? item,lookup);
-      }, this.unicode) };
+      }, this.unicode) }; }
+        catch(error) {
+          if(error instanceof GencmuError && !error.where.document) throw this.documentError(path,[error.where.line ?? item[0],error.where.column ?? item[1]],error.message);
+          throw error;
+        }
+      }
       const operation = "union" in term ? "union" : "intersection" in term ? "intersection" : "difference" in term ? "difference" : null;
       if (operation) {
         const operands = /** @type {any} */ (term)[operation];

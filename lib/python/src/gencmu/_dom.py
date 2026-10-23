@@ -1091,7 +1091,8 @@ class DomBuilder:
             operators = [self.token_value(part) for part in self.kids(node) if part.kind == "token"]
             result = values[0]
             for index, value in enumerate(values[1:]):
-                key = "intersection" if kind.endswith("intersection") or operators[index] == "∩" else "difference" if operators[index] == "∖" else "union"
+                operator = operators[index] if index < len(operators) else None
+                key = "intersection" if kind.endswith("intersection") or operator == "∩" else "difference" if operator == "∖" else "union"
                 result = self._pattern_set(key, result, value)
             return result
         if kind in ("pattern-path", "child-path"):
