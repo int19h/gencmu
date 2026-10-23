@@ -17,6 +17,8 @@ import type { GrammarDom } from "./types.js";
 /** @typedef {{kind:string, first:number, last:number, prefix:string, line:number}} NameAlgorithm */
 /** @import { UnicodeTable } from "./unicode.js" */
 /** @import { GrammarDom } from "./types.js" */
+/** @param {any} value @returns {Record<string,string> | undefined} */
+export declare function namesRegistry(value: any): Record<string, string> | undefined;
 /** @param {string} path @param {GrammarDom} dom @param {string[]} [inherited] @returns {string[]} */
 export declare function selectedNames(path: string, dom: GrammarDom, inherited?: string[]): string[];
 export declare class UnicodeNames {

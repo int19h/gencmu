@@ -19104,7 +19104,8 @@
       base.inspect(pinned, this.unicode.abbreviations, false);
       const tables = [base];
       /** @type {Record<string,string>} */
-      const dependencies = {"unicode-names.txt": hash};
+      const dependencies = Object.create(null);
+      dependencies["unicode-names.txt"] = hash;
       for (const path of this.extras) {
         const text = this.read(path), table = new UnicodeNames(text, path, version);
         table.inspect(pinned, this.unicode.abbreviations, true);
@@ -19614,6 +19615,9 @@
       return text;
     }
 
+    /** @param {string} path @returns {string} */
+    needNames(path) { return this.need(path); }
+
     /**
      * The DOM of a grammar document, from the cache when its text, the
      * bootstrap and the format all match, else read with the notation.
@@ -19655,7 +19659,7 @@
     readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path);
-      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64, inherited);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
       const run = this.notation.run(text, { features: new Set(), inspectLexical: tokens => strings.inspect(tokens) });
@@ -19688,7 +19692,7 @@
       if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)
         || Object.values(dependencies).some(hash => typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return false;
       const paths = [...new Set(["unicode-names.txt",...extras])].sort(compareCodePoints);
-      if (Object.keys(dependencies).length !== paths.length || paths.some(path => !(path in dependencies))) return false;
+      if (Object.keys(dependencies).length !== paths.length || paths.some(path => !Object.hasOwn(dependencies,path))) return false;
       const registry = this.bundledNames;
       if (registry && paths.every(path => Object.hasOwn(registry,path) && !this.namesOverride(path))) {
         if (this.unicode.versionCount !== 1 || this.unicode.version !== "15.1.0") {
@@ -19696,7 +19700,7 @@
         }
         return paths.every(path => registry[path] === dependencies[path]);
       }
-      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64, extras);
+      const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, extras);
       names.load();
       return paths.every(path => names.dependencies?.[path] === dependencies[path]);
     }

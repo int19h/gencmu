@@ -1097,6 +1097,24 @@
       "error": {
         "document": "unicode.txt"
       }
+    },
+    {
+      "description": "Names cache: inherited object members cannot satisfy the resource set.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"toString\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"unrelated\":\"0000000000000000\"}}}}",
+      "sources": {
+        "unicode-names.txt": "bad\n"
+      },
+      "cached": false
+    },
+    {
+      "description": "Names cache: a prototype-spelled path remains a resource dependency.",
+      "find": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "replace": "{\"format\":40,\"bootstrap\":\"@bootstrap@\",\"unicode\":\"@unicode@\",\"documents\":{\"g.md\":{\"hash\":\"@source@\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"b\"}}}],\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"names\",\"args\":[\"__proto__\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]},\"names\":{\"unicode-names.txt\":\"5118b9917425bcae\",\"__proto__\":\"365331052562f95c\"}}}}",
+      "sources": {
+        "__proto__": "unicode-names 15.1.0\nname E000 EXTRA\n"
+      },
+      "cached": true
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

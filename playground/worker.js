@@ -1,10 +1,9 @@
 // The playground's parser worker, and the page's handle on it.
 //
-// The worker is built from sources already loaded in the page, so that
-// nothing is fetched: this is what lets the playground run from file://. Its
-// script is the text of `gencmuFactory` (dist/gencmu.js) followed by the text
-// of `workerMain` below, turned into a Blob URL; the grammar documents are
-// posted to it as a map from path to text.
+// The worker uses a Blob script built from the library and worker code.
+// Grammar documents arrive as a map. Names files arrive only after the
+// loader requests them, so a matching bundled cache needs no names fetch.
+// The page fetches resources relative to its own URL.
 //
 // Everything heavy happens in the worker, and everything it sends back is a
 // string or shallow plain data: a book chapter's tree is thousands of levels
@@ -17,11 +16,13 @@
 //       DOMs already read in an earlier worker, path to { hash, dom }
 //   { kind: "set", path, text }          a document changed (text null: gone)
 //   { kind: "run", id, request }         parse and render; see `run` below
+//   { kind: "names", id, resources }     fetched resource text, or path/error
 // Worker to page:
 //   { kind: "ready", version, ms }       after init
 //   { kind: "phase", id, phase, path }   what a run is doing: "loading" a
 //       dialect, "reading" a document with the notation, "parsing", "rendering"
-//   { kind: "dom", path, hash, dom }     a document just read, for the page
+//   { kind: "need-names", id, path }    names text required to resume loading
+//   { kind: "dom", path, hash, names, dom }     a document just read, for the page
 //       to hand to the next worker if this one is ever replaced
 //   { kind: "result", id, ... }          a run's answer
 //   { kind: "failed", id, message }      a run that threw, which is a bug;
@@ -46,6 +47,11 @@
     // auditing does not parse the text again.
     let last = null;
     let runId = null;
+    const pendingNames = new Map();
+    const namesErrors = new Map();
+    class NeedNames extends Error {
+      constructor(path) { super(path); this.path = path; }
+    }
 
     const post = (message) => scope.postMessage(message);
     const phase = (name, path) => post({ kind: "phase", id: runId, phase: name, path: path || null });
@@ -53,19 +59,26 @@
     function init(message) {
       const started = now();
       sources = new Map(Object.entries(message.sources));
+      pendingNames.clear();
+      namesErrors.clear();
       // One Loader for the worker's life: it caches every document's DOM by
       // path and text hash, so a document read once is not read again.
       loader = gencmu.loaderFromSources(sources);
+      loader.needNames = (path) => {
+        if (sources.has(path)) return loader.need(path);
+        if (namesErrors.has(path)) throw new gencmu.GencmuError("grammar", namesErrors.get(path), { document: path });
+        throw new NeedNames(path);
+      };
       for (const [path, entry] of Object.entries(message.compiled || {})) {
-        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, documents: { [path]: entry } });
+        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
       // Reading a document that compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
-      loader.readDocument = (markdown, path, deferEmission) => {
+      loader.readDocument = (markdown, path, deferEmission, inherited) => {
         phase("reading", path);
-        const dom = read(markdown, path, deferEmission);
-        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, dom });
+        const dom = read(markdown, path, deferEmission, inherited);
+        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, names: loader.namesDependencies.get(dom), dom });
         return dom;
       };
       dialects.clear();
@@ -74,6 +87,7 @@
     }
 
     function setDocument(path, text) {
+      namesErrors.delete(path);
       if (text === null) sources.delete(path);
       else sources.set(path, text);
       version++;
@@ -118,6 +132,7 @@
           },
         };
       } catch (error) {
+        if (error instanceof NeedNames) throw error;
         entry = { error: describeError(error) };
       }
       dialects.set(path, entry);
@@ -315,12 +330,32 @@
       return answer;
     }
 
+    function resumeRun(id, request) {
+      try { post(run(id, request)); }
+      catch (error) {
+        if (!(error instanceof NeedNames)) throw error;
+        pendingNames.set(id, request);
+        post({ kind: "need-names", id, path: error.path });
+      }
+    }
+
     scope.onmessage = (event) => {
       const message = event.data;
       try {
         if (message.kind === "init") init(message);
         else if (message.kind === "set") setDocument(message.path, message.text);
-        else if (message.kind === "run") post(run(message.id, message.request));
+        else if (message.kind === "run") resumeRun(message.id, message.request);
+        else if (message.kind === "names") {
+          for (const [path,text] of Object.entries(message.resources || {})) {
+            if (!sources.has(path)) sources.set(path,text);
+          }
+          if (message.error) namesErrors.set(message.path,message.error);
+          const request = pendingNames.get(message.id);
+          if (request) {
+            pendingNames.delete(message.id);
+            resumeRun(message.id,request);
+          }
+        }
       } catch (error) {
         post({ kind: "failed", id: message.id === undefined ? null : message.id, message: String((error && error.stack) || error) });
       }
@@ -357,6 +392,8 @@
       this.edits = new Map();
       // The DOMs of edited documents the worker read, path to { hash, dom }.
       this.doms = new Map();
+      this.namesResources = new Map();
+      this.namesFetches = new Map();
       // Edits the running worker has not been told of yet.
       this.unsent = new Set();
       // How many times each document was changed, so that a run can tell
@@ -375,7 +412,9 @@
       worker.onmessage = (event) => {
         if (this.worker !== worker) return;
         const message = event.data;
-        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode, dom: message.dom });
+        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode,
+          ...(message.names === undefined ? {} : { names: message.names }), dom: message.dom });
+        else if (message.kind === "need-names") this.supplyNames(worker, message);
         else this.listener(message);
       };
       worker.onerror = (event) => {
@@ -383,11 +422,36 @@
         if (this.worker === worker) this.listener({ kind: "crashed", message: event.message || "the parser worker stopped" });
       };
       const sources = Object.assign({}, this.bundled);
+      for (const [path,text] of this.namesResources) if (!Object.hasOwn(this.bundled,path)) sources[path] = text;
       for (const [path, text] of this.edits) sources[path] = text;
       const compiled = {};
       for (const [path, entry] of this.doms) if (this.edits.has(path)) compiled[path] = entry;
       this.unsent.clear();
       worker.postMessage({ kind: "init", sources, compiled });
+    }
+
+    async supplyNames(worker, message) {
+      const path = message.path;
+      const resource = path === "unicode-names-reference.txt" ? "unicode-names.txt" : path;
+      try {
+        if (!this.namesFetches.has(resource)) {
+          const url = new URL("grammars/" + resource, root.location.href);
+          const fetching = root.fetch(url).then(async response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await response.arrayBuffer());
+          });
+          this.namesFetches.set(resource,fetching);
+        }
+        const text = await this.namesFetches.get(resource);
+        const resources = resource === "unicode-names.txt"
+          ? { "unicode-names.txt": text, "unicode-names-reference.txt": text } : { [path]: text };
+        for (const [key,value] of Object.entries(resources)) this.namesResources.set(key,value);
+        if (this.worker === worker) worker.postMessage({ kind: "names", id: message.id, resources });
+      } catch (error) {
+        this.namesFetches.delete(resource);
+        if (this.worker === worker) worker.postMessage({ kind: "names", id: message.id, path,
+          error: `${path}: cannot load the names resource: ${error.message}` });
+      }
     }
 
     /** Stops the running worker; the next `start` makes a new one. */

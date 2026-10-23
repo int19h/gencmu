@@ -32,6 +32,9 @@ export type RunOptions = {
  */
 export declare class Loader {
     read: Resources;
+    namesOverride: (path: string) => boolean;
+    /** @type {Record<string,string> | undefined} */
+    bundledNames: Record<string, string> | undefined;
     unicodeHash: string;
     unicode: UnicodeTable;
     bootstrapHash: string;
@@ -44,8 +47,8 @@ export declare class Loader {
     namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
     /** @type {Map<string,string[]>} */
     inheritedNames: Map<string, string[]>;
-    /** @param {Resources} read */
-    constructor(read: Resources);
+    /** @param {Resources} read @param {(path:string)=>boolean} [namesOverride] */
+    constructor(read: Resources, namesOverride?: (path: string) => boolean);
     /**
      * Admit a cache envelope only under this loader's complete identity.
      * The playground uses the same gate for DOMs retained across workers.
@@ -58,6 +61,8 @@ export declare class Loader {
      * @returns {string}
      */
     need(path: string): string;
+    /** @param {string} path @returns {string} */
+    needNames(path: string): string;
     /**
      * The DOM of a grammar document, from the cache when its text, the
      * bootstrap and the format all match, else read with the notation.
