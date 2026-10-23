@@ -4363,15 +4363,6 @@
     }
   }
 
-  /** @param {any} pattern @returns {string} */
-  function patternText(pattern) {
-    /** @type {(n:any) => string} */
-    const value = (n) => n.name ?? n.terminal ?? (n.param ? "@"+n.param : n.requirements ? "<"+n.requirements.map((/** @type {any} */ r)=>(r.negated?"¬":"")+value(r.value)).join(" ")+">" : n.string !== undefined ? JSON.stringify(n.string) : n.const ? `$${n.const}`
-      : n.tag ? n.tag : n.emptySet ? "∅" : n.set ? [...n.set].join(" ∪ ") || "∅"
-      : n.union ? n.union.map(value).join(" ∪ ") : n.intersection ? n.intersection.map(value).join(" ∩ ")
-      : `(${value(n.difference[0])} ∖ ${value(n.difference[1])})`);
-    return layeredPatternText(pattern,value);
-  }
 
   // ---- dom.js
 
@@ -6933,6 +6924,7 @@
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
     if(n.emptySet) return '∅';
+    if(n.set) return [...n.set].sort(compareCodePoints).join(' ') || '∅';
     if(n.requirements && !n.test) return '<'+n.requirements.map((/** @type {any} */ x)=>(x.negated?'¬':'')+print(x.value)).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
     if(n.body) {
@@ -13324,6 +13316,12 @@
    * @import { StitchedAlternative } from "./grammar.js"
    */
 
+  // Standalone formatting has no selected resource. A caller can supply its
+  // table, and traces retain the table of their loaded dialect.
+  const diagnosticUnicode = new UnicodeTable("unicode 15.1.0\n");
+  /** @type {WeakMap<Trace, UnicodeTable>} */
+  const traceUnicode = new WeakMap();
+
   // ---- Where in the text --------------------------------------------------
 
   /**
@@ -13645,18 +13643,20 @@
 
   /**
    * @param {Argument} term
+   * @param {UnicodeTable} [unicode]
    * @returns {string}
    */
-  function formatTerm(term) {
-    return formatNotation({ term });
+  function formatTerm(term, unicode = diagnosticUnicode) {
+    return formatNotation({ term }, unicode);
   }
 
   /**
    * @param {Condition} condition
+   * @param {UnicodeTable} [unicode]
    * @returns {string}
    */
-  function formatCondition(condition) {
-    return formatNotation({ condition });
+  function formatCondition(condition, unicode = diagnosticUnicode) {
+    return formatNotation({ condition }, unicode);
   }
 
   /**
@@ -13669,15 +13669,16 @@
    * hand in one nested deeper than the call stack allows, since only a
    * document's DOM is held to DOM_MAX_DEPTH.
    * @param {Notation} root
+   * @param {UnicodeTable} unicode
    * @returns {string}
    */
-  function formatNotation(root) {
+  function formatNotation(root, unicode) {
     /** @type {{shape: {parts: Notation[], combine: (texts: string[]) => string}, next: number, texts: string[]}[]} */
-    const frames = [{ shape: notationShape(root), next: 0, texts: [] }];
+    const frames = [{ shape: notationShape(root, unicode), next: 0, texts: [] }];
     for (;;) {
       const frame = frames[frames.length - 1];
       if (frame.next < frame.shape.parts.length) {
-        frames.push({ shape: notationShape(frame.shape.parts[frame.next++]), next: 0, texts: [] });
+        frames.push({ shape: notationShape(frame.shape.parts[frame.next++], unicode), next: 0, texts: [] });
         continue;
       }
       frames.pop();
@@ -13691,9 +13692,10 @@
    * The parts of a term or condition, and how their texts make its own, in
    * the order in which the parts are written.
    * @param {Notation} notation
+   * @param {UnicodeTable} unicode
    * @returns {{parts: Notation[], combine: (texts: string[]) => string}}
    */
-  function notationShape(notation) {
+  function notationShape(notation, unicode) {
     /** @type {(text: string) => {parts: Notation[], combine: () => string}} */
     const leaf = (text) => ({ parts: [], combine: () => text });
     /** @type {(item: Argument) => Notation} */
@@ -13710,14 +13712,14 @@
       if ("not" in condition) return { parts: [asCondition(condition.not)], combine: ([inner]) => `¬(${inner})` };
       if ("captured" in condition) return leaf(`$${condition.captured}`);
       if ("if" in condition) return { parts: [asCondition(condition.if), asCondition(/** @type {Condition} */ (condition.then))], combine: ([left, right]) => `(${left} ⟹ ${right})` };
-      if ("method" in condition) return notationShape({ term: condition });
+      if ("method" in condition) return notationShape({ term: condition }, unicode);
       return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
     }
     const term = notation.term;
     if ("rule" in term) return leaf(term.rule);
     if ("classifier" in term) return leaf(term.classifier);
-    if ("string" in term) return leaf(quoted(term.string));
-    if ("pattern" in term) return leaf(patternText(term.pattern));
+    if ("string" in term) return leaf(stringName(term.string, unicode));
+    if ("pattern" in term) return leaf(canonicalArgument(term, unicode));
     // Stored tags use their written names.
     if ("tag" in term) return leaf(term.tag);
     if ("emptySet" in term) return leaf("∅");
@@ -13742,7 +13744,7 @@
     if ("terminal" in term) return leaf(term.terminal);
     if ("integer" in term) return leaf(term.integer);
     if ("param" in term) return leaf(`@${term.param}`);
-    if ("call" in term) return leaf(canonicalArgument(term,{isMark:()=>false}));
+    if ("call" in term) return leaf(canonicalArgument(term, unicode));
     return leaf(`$${term.capture}`);
   }
 
@@ -14457,7 +14459,9 @@
     const position = Math.max(0, Math.min(options.position, tokens.length));
     context.trace = { position, events: [], depth: 0 };
     const chart = recognize(context, "text", 0, tokens.length);
-    return { stage: stage.name, position, tokens, events: context.trace.events, expected: expectedAt(chart, position) };
+    const traced = { stage: stage.name, position, tokens, events: context.trace.events, expected: expectedAt(chart, position) };
+    traceUnicode.set(traced, dialect.loader.unicode);
+    return traced;
   }
 
   /**
@@ -14481,7 +14485,7 @@
         const item = formatItem(event.production, event.kind === "dropped" ? event.dot + 1 : event.dot);
         const span = event.kind === "dropped" ? "" : `  [${event.origin}..${position}]`;
         const refused = event.test !== undefined ? `\n      refused: the test of ${writtenSymbol(event.production.rhs[event.dot])} does not hold of what it spans`
-          : event.condition ? `\n      refused: ${formatCondition(event.condition)}` : "";
+          : event.condition ? `\n      refused: ${formatCondition(event.condition, traceUnicode.get(traced))}` : "";
         lines.push(`  ${item}${span}${refused}`);
       }
     }

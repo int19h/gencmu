@@ -45,5 +45,3 @@ export declare class PatternMachine {
     /** @param {number} state @param {any} pattern @returns {boolean} */
     matches(state: number, pattern: any): boolean;
 }
-/** @param {any} pattern @returns {string} */
-export declare function patternText(pattern: any): string;

@@ -1,3 +1,4 @@
+import { UnicodeTable } from "./unicode.js";
 import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
@@ -65,14 +66,16 @@ export declare function explainWarnings(result: ParseResult): string;
 export declare function tokenTable(result: ParseResult, stageName?: string): string;
 /**
  * @param {Argument} term
+ * @param {UnicodeTable} [unicode]
  * @returns {string}
  */
-export declare function formatTerm(term: Argument): string;
+export declare function formatTerm(term: Argument, unicode?: UnicodeTable): string;
 /**
  * @param {Condition} condition
+ * @param {UnicodeTable} [unicode]
  * @returns {string}
  */
-export declare function formatCondition(condition: Condition): string;
+export declare function formatCondition(condition: Condition, unicode?: UnicodeTable): string;
 export type Notation = {
     term: Argument;
 } | {
