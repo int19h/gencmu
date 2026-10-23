@@ -5,6 +5,7 @@ library."""
 from __future__ import annotations
 
 import os
+import json
 import pathlib
 import tempfile
 import unittest
@@ -13,6 +14,24 @@ import gencmu
 
 
 class DiskPaths(unittest.TestCase):
+    def test_selected_disk_names(self):
+        cases = json.loads((pathlib.Path(__file__).resolve().parents[3] / "tests/disk-names.json").read_text())
+        home = os.getcwd()
+        for item in cases:
+            with self.subTest(item["description"]), tempfile.TemporaryDirectory() as root:
+                for name, text in item["files"].items():
+                    pathlib.Path(root, name).write_text(text, encoding="utf-8")
+                os.chdir(root)
+                try:
+                    with self.assertRaises(gencmu.GencmuError) as caught:
+                        gencmu.load_dialect_file(pathlib.Path(root, "p.md"))
+                    error = caught.exception
+                    self.assertEqual(error.kind, "grammar")
+                    self.assertEqual(error.document, str(pathlib.Path(root, item["error"]["document"])))
+                    self.assertEqual((error.line, error.column), (item["error"]["line"], item["error"]["column"]))
+                finally:
+                    os.chdir(home)
+
     def test_errors_name_the_absolute_path_from_another_working_directory(self) -> None:
         home = os.getcwd()
         with tempfile.TemporaryDirectory() as included, tempfile.TemporaryDirectory() as pipeline, tempfile.TemporaryDirectory() as elsewhere:
