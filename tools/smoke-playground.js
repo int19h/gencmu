@@ -265,10 +265,12 @@ async function main() {
     console.log(`decoded include paths match the editor in ${browser}`);
 
     const namesFetches = [];
-    await page.route("**/grammars/*names.txt", route => {
-      const resource = new URL(route.request().url()).pathname.split("/").pop();
+    const namesPaths = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-names-paths.json"),"utf8"));
+    await page.route("**/grammars/**", route => {
+      const resource = decodeURIComponent(new URL(route.request().url()).pathname.split("/grammars/")[1]);
       namesFetches.push(resource);
       if (resource === "unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"grammars/unicode-names.txt"),"utf8") });
+      if (namesPaths.includes(resource)) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       if (resource === "smoke-extra-names.txt") return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       return route.fulfill({ status:404, body:"missing" });
     });
@@ -304,7 +306,27 @@ async function main() {
     assert.deepEqual(namesProof,{cached:{ok:true,error:null},missed:{ok:true,error:null},custom:{ok:true,error:null},
       numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:"missing-names.txt"}});
     assert.deepEqual(namesFetches,["unicode-names.txt","smoke-extra-names.txt","unicode-names.txt","unicode-names.txt","missing-names.txt"]);
-    await page.unroute("**/grammars/*names.txt");
+    const pathProof = await run(async paths => {
+      const results = [];
+      for (const path of paths) {
+        results.push(await new Promise((resolve,reject) => {
+          const source = '```jbogenbau\n%names "' + path + '"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"\n```';
+          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source},message => {
+            if (message.kind === "ready") client.run(1,{dialect:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
+            if (message.kind === "result") {
+              client.stop();
+              resolve({ok:!!message.parse?.ok,stored:client.namesResources.has(path),error:message.loadError?.message || null});
+            }
+          });
+          client.start();
+        }));
+      }
+      return results;
+    },namesPaths);
+    assert.deepEqual(pathProof,namesPaths.map(() => ({ok:true,stored:true,error:null})));
+    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["unicode-names.txt",path]));
+    await page.unroute("**/grammars/**");
     console.log(`lazy names fetching works in ${browser}`);
 
     // From here on, every answer the page shows as ready must be for the text

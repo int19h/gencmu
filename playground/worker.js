@@ -451,7 +451,7 @@
       const resource = path === "unicode-names-reference.txt" ? "unicode-names.txt" : path;
       try {
         if (!this.namesFetches.has(resource)) {
-          const url = new URL("grammars/" + resource, root.location.href);
+          const url = new URL("grammars/" + resource.split("/").map(encodeURIComponent).join("/"), root.location.href);
           const fetching = root.fetch(url).then(async response => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await response.arrayBuffer());
