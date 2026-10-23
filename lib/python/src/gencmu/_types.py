@@ -18,7 +18,6 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
-from ._strings import scalar
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -60,7 +59,7 @@ def type_name(kind: TermType) -> str:
 
 
 def _unknown_constants(name: str) -> TermType:
-    return "string" if scalar(name) is not None else "any"
+    return "any"
 
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}

@@ -140,22 +140,6 @@ func decodeRecipes(o jobj) (value, image *domTerm, err error) {
 	return
 }
 
-func engineScalar(name string) (string, bool) {
-	if len(name) < 5 || len(name) > 7 || name[0] != '_' {
-		return "", false
-	}
-	for _, c := range name[1:] {
-		if !(c >= '0' && c <= '9' || c >= 'A' && c <= 'F') {
-			return "", false
-		}
-	}
-	v, err := strconv.ParseUint(name[1:], 16, 32)
-	if err != nil || v > 0x10FFFF || v >= 0xD800 && v <= 0xDFFF {
-		return "", false
-	}
-	return string(rune(v)), true
-}
-
 func engineTag(name string) bool {
 	return strings.HasPrefix(name, "_") && name != "_Any" && propertyNames[strings.TrimPrefix(name, "_")]
 }
@@ -164,15 +148,7 @@ func isClass(name string) bool {
 	return isCapital(name) && name[len(name)-1] >= 'A' && name[len(name)-1] <= 'Z'
 }
 
-func userConstRefs(nodes ...any) []*domTerm {
-	var out []*domTerm
-	for _, r := range constRefs(nodes...) {
-		if _, scalar := engineScalar(r.Str); !scalar {
-			out = append(out, r)
-		}
-	}
-	return out
-}
+func userConstRefs(nodes ...any) []*domTerm { return constRefs(nodes...) }
 
 func stringTermShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
@@ -283,26 +259,20 @@ func (run *stageRun) spanImage(s spanVal) string {
 }
 
 func stringTerminal(s string, uni *unicodeTable) string {
-	var parts []string
-	var literal strings.Builder
-	flush := func() {
-		if literal.Len() > 0 {
-			parts = append(parts, "\""+literal.String()+"\"")
-			literal.Reset()
-		}
-	}
+	var out strings.Builder
+	out.WriteByte('"')
 	for _, c := range s {
-		if c == '"' || c == '\\' || c <= 0x1F || c >= 0x7F && c <= 0x9F ||
-			c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD || uni.isMark(c) || uni.changesInDocument(c) {
-			flush()
-			parts = append(parts, fmt.Sprintf("$_%04X", c))
+		if c == '"' || c == '‹' || c <= 0x1F || c >= 0x7F && c <= 0x9F || uni.isMark(c) || uni.category(c) == "Cf" || uni.changesInDocument(c) ||
+			c != 0x20 && uni.isWhiteSpace(c) || c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD {
+			alias, ok := uni.canonicalAbbreviations[c]
+			if !ok {
+				alias = fmt.Sprintf("U+%04X", c)
+			}
+			out.WriteString("‹" + alias + "›")
 		} else {
-			literal.WriteRune(c)
+			out.WriteRune(c)
 		}
 	}
-	flush()
-	if len(parts) == 0 {
-		return "\"\""
-	}
-	return strings.Join(parts, " ++ ")
+	out.WriteByte('"')
+	return out.String()
 }

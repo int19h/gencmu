@@ -22,36 +22,36 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
 
 ```jbogenbau
 %extend-rule consonant :: ∅
-  | $_ED80 := "p"
-  | $_ED81 := "t"
-  | $_ED82 := "k"
-  | $_ED83 := "f"
-  | $_ED90 := "b"
-  | $_ED91 := "d"
-  | $_ED92 := "g"
-  | $_ED93 := "v"
-  | $_ED84 := "l"
-  | $_ED85 := "s"
-  | $_ED86 := "c"
-  | $_ED87 := "m"
-  | $_ED94 := "r"
-  | $_ED95 := "z"
-  | $_ED96 := "j"
-  | $_ED97 := "n"
-  | $_ED88 := "x"
+  | "‹U+ED80›" := "p"
+  | "‹U+ED81›" := "t"
+  | "‹U+ED82›" := "k"
+  | "‹U+ED83›" := "f"
+  | "‹U+ED90›" := "b"
+  | "‹U+ED91›" := "d"
+  | "‹U+ED92›" := "g"
+  | "‹U+ED93›" := "v"
+  | "‹U+ED84›" := "l"
+  | "‹U+ED85›" := "s"
+  | "‹U+ED86›" := "c"
+  | "‹U+ED87›" := "m"
+  | "‹U+ED94›" := "r"
+  | "‹U+ED95›" := "z"
+  | "‹U+ED96›" := "j"
+  | "‹U+ED97›" := "n"
+  | "‹U+ED88›" := "x"
 %emits
   $
 
 %extend-rule apostrophe
-  $_ED8A
+  "‹U+ED8A›"
 %emits
   $ :: ∅ := "'"
 
 %extend-rule core-char
-  $_ED89
+  "‹U+ED89›"
 
 %extend-rule comma
-  $_ED9A | $_ED8C | $_ED99 | $_ED9B
+  "‹U+ED9A›" | "‹U+ED8C›" | "‹U+ED99›" | "‹U+ED9B›"
 ```
 
 <details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
@@ -73,27 +73,27 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
-  | ($_EDA0 | $_EDB0) := "a"
-  | ($_EDA1 | $_EDB1) := "e"
-  | ($_EDA2 | $_EDB2 | $_EDAA) := "i"
-  | ($_EDA3 | $_EDB3) := "o"
-  | ($_EDA4 | $_EDB4 | $_EDAB) := "u"
-  | ($_EDA5 | $_EDB5) := "y"
+  | ("‹U+EDA0›" | "‹U+EDB0›") := "a"
+  | ("‹U+EDA1›" | "‹U+EDB1›") := "e"
+  | ("‹U+EDA2›" | "‹U+EDB2›" | "‹U+EDAA›") := "i"
+  | ("‹U+EDA3›" | "‹U+EDB3›") := "o"
+  | ("‹U+EDA4›" | "‹U+EDB4›" | "‹U+EDAB›") := "u"
+  | ("‹U+EDA5›" | "‹U+EDB5›") := "y"
 %emits
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ($_EDA0 | $_EDB0) zbalermorna-stress := "A"
-  | ($_EDA1 | $_EDB1) zbalermorna-stress := "E"
-  | ($_EDA2 | $_EDB2) zbalermorna-stress := "I"
-  | ($_EDA3 | $_EDB3) zbalermorna-stress := "O"
-  | ($_EDA4 | $_EDB4) zbalermorna-stress := "U"
-  | ($_EDA5 | $_EDB5) zbalermorna-stress := "Y"
+  | ("‹U+EDA0›" | "‹U+EDB0›") zbalermorna-stress := "A"
+  | ("‹U+EDA1›" | "‹U+EDB1›") zbalermorna-stress := "E"
+  | ("‹U+EDA2›" | "‹U+EDB2›") zbalermorna-stress := "I"
+  | ("‹U+EDA3›" | "‹U+EDB3›") zbalermorna-stress := "O"
+  | ("‹U+EDA4›" | "‹U+EDB4›") zbalermorna-stress := "U"
+  | ("‹U+EDA5›" | "‹U+EDB5›") zbalermorna-stress := "Y"
 %emits
   $
 
 %rule zbalermorna-stress
-  $_ED98 | zbalermorna-stress $_ED98
+  "‹U+ED98›" | zbalermorna-stress "‹U+ED98›"
 
 %extend-rule vowel
   zbalermorna-diphthong | zbalermorna-stressed-diphthong
@@ -108,18 +108,18 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
-  $_ED98
+  "‹U+ED98›"
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
-%rule zbalermorna-ai = two-phonemes($_EDA6, "a", "i")
+%rule zbalermorna-ai = two-phonemes("‹U+EDA6›", "a", "i")
 
-%rule zbalermorna-ei = two-phonemes($_EDA7, "e", "i")
+%rule zbalermorna-ei = two-phonemes("‹U+EDA7›", "e", "i")
 
-%rule zbalermorna-oi = two-phonemes($_EDA8, "o", "i")
+%rule zbalermorna-oi = two-phonemes("‹U+EDA8›", "o", "i")
 
-%rule zbalermorna-au = two-phonemes($_EDA9, "a", "u")
+%rule zbalermorna-au = two-phonemes("‹U+EDA9›", "a", "u")
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
@@ -130,13 +130,13 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %emits
   $ :: Stressed := @A, ε :: ∅ := @B
 
-%rule zbalermorna-stressed-ai = stressed-two-phonemes($_EDA6, "A", "i")
+%rule zbalermorna-stressed-ai = stressed-two-phonemes("‹U+EDA6›", "A", "i")
 
-%rule zbalermorna-stressed-ei = stressed-two-phonemes($_EDA7, "E", "i")
+%rule zbalermorna-stressed-ei = stressed-two-phonemes("‹U+EDA7›", "E", "i")
 
-%rule zbalermorna-stressed-oi = stressed-two-phonemes($_EDA8, "O", "i")
+%rule zbalermorna-stressed-oi = stressed-two-phonemes("‹U+EDA8›", "O", "i")
 
-%rule zbalermorna-stressed-au = stressed-two-phonemes($_EDA9, "A", "u")
+%rule zbalermorna-stressed-au = stressed-two-phonemes("‹U+EDA9›", "A", "u")
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
@@ -151,7 +151,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
-  $_ED8B
+  "‹U+ED8B›"
 ```
 
 <details><summary>Railroad diagrams of the 23 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>

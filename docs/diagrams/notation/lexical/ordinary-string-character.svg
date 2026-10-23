@@ -1,16 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="231" height="136" viewBox="0 0 231 136" role="img" aria-label="Railroad diagram of the rule ordinary-string-character">
+<svg xmlns="http://www.w3.org/2000/svg" width="230" height="102" viewBox="0 0 230 102" role="img" aria-label="Railroad diagram of the rule ordinary-string-character">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="210" lengthAdjust="spacingAndGlyphs">ordinary-string-character</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="134" height="24" rx="12"/><text x="107" y="51" textLength="117.6" lengthAdjust="spacingAndGlyphs">$_0000..$_0021</text></g>
-<path d="M174 46H211"/>
+<g class="terminal"><rect x="40" y="34" width="126" height="24" rx="12"/><text x="103" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">&quot;\u0000&quot;..&quot;!&quot;</text></g>
+<path d="M166 46H186"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="134" height="24" rx="12"/><text x="107" y="85" textLength="117.6" lengthAdjust="spacingAndGlyphs">$_0023..$_005B</text></g>
-<path d="M174 80H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="151" height="24" rx="12"/><text x="115.5" y="119" textLength="134.4" lengthAdjust="spacingAndGlyphs">$_005D..$_10FFFF</text></g>
-<path d="M191 114H191a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M211 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="40" y="68" width="84" height="24" rx="12"/><text x="82" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">&quot;#&quot;..&quot;􏿿&quot;</text></g>
+<path d="M124 80H166a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M186 46h6m0 -8v16m4 -16v16"/>
 </svg>

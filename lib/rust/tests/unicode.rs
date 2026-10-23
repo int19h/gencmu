@@ -16,8 +16,8 @@ fn sources(rules: &str) -> BTreeMap<String, String> {
 fn a_partial_cluster_decomposes_its_whole_original_source() {
     let dialect = gencmu::load_dialect_sources(
         sources(
-            "%rule text \"e\" $mark:$_0301\n\
-             %conditions $mark.source-text = $_00E9, $mark.decomposed-source-text = \"é\"\n\
+            "%rule text \"e\" $mark:\"‹U+0301›\"\n\
+             %conditions $mark.source-text = \"‹U+00E9›\", $mark.decomposed-source-text = \"é\"\n\
              %emits $mark := $mark.decomposed-source-text :- $mark.source-text",
         ),
         "p.md",
@@ -55,7 +55,7 @@ fn decomposed_source_text_uses_only_the_callers_table() {
 
 #[test]
 fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() {
-    let sources = sources("%const $S \"$$(Ignored)é\" ++ $_0061 ++ \"한\" ++ $Absent\n%rule text $S");
+    let sources = sources("%const $S \"$$(Ignored)é\" ++ \"‹U+0061›\" ++ \"한\" ++ $Absent\n%rule text $S");
     let expected = common::position_of(&sources["g.md"], "$Absent");
     let error = gencmu::load_dialect_sources(sources, "p.md").unwrap_err();
     assert_eq!(error.document.as_deref(), Some("g.md"));
@@ -66,7 +66,7 @@ fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() 
 #[test]
 fn escaped_diagnostics_read_back_as_exact_scalars() {
     // These constants include decomposition, Hangul, and non-Mn combining classes.
-    let documents = sources("%rule text $_00E9 | $_AC00 | $_302E | $_1B44");
+    let documents = sources("%rule text \"‹U+00E9›\" | \"‹U+AC00›\" | \"‹U+302E›\" | \"‹U+1B44›\"");
     let dialect = gencmu::load_dialect_sources(documents, "p.md").unwrap();
     let result = dialect.parse("?", &Default::default()).unwrap();
     let error = result.error.unwrap();

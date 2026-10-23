@@ -64,7 +64,7 @@ class Parameters(unittest.TestCase):
     def test_canonical_arguments(self):
         unicode = grammar_of('%rule text "a"').unicode
         self.assertEqual(canonical_argument(dict(call='f', args=[dict(string='a\n\t\u0301'), dict(concat=[dict(string='a'), dict(string='')])], at=[1, 1]), unicode),
-                         'f("a\\n\\t\\u0301", "a" ++ "")')
+                         'f("a‹LF›‹HT›‹U+0301›", "a" ++ "")')
         self.assertEqual(canonical_argument(dict(body=dict(seq=[dict(ref='a'), dict(seq=[dict(ref='b'), dict(ref='c')])])), unicode), '(a (b c))')
 
     def test_supplied_dom(self):

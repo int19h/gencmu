@@ -488,7 +488,7 @@ fn skipped_source_cases_have_stage_equivalents() {
         let bodies = if name == "rejection-empty-supplied-slice" {
             vec!["%rule text _ %erased".to_string()]
         } else if name == "rejection-supplied-slice-before-text-end" {
-            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" $_000A \"b\"".to_string()]
+            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"‹U+000A›\" \"b\"".to_string()]
         } else if name == "rejection-supplied-slice-last-source" {
             // Empty generated tokens can reverse their source points. This
             // reaches the same EOF assertion as the reversed caller slice.

@@ -269,8 +269,8 @@ impl<'a> Reader<'a> {
         let definer = self.token(self.one(node, "constant-definer")?)?;
         let reference = self.token(self.one(node, "constant-reference")?)?;
         let name = self.value(reference).trim_start_matches('$').to_string();
-        if crate::dom::engine_scalar(&name).is_some() || !crate::dom::is_constant_name(&name) {
-            return Err(self.error(reference, "an engine scalar cannot be declared"));
+        if !crate::dom::is_constant_name(&name) {
+            return Err(self.error(reference, "a constant requires a user name"));
         }
         let redefine = match self.value(definer) {
             "%const" => false,
@@ -995,9 +995,6 @@ impl<'a> Reader<'a> {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
                         "constant-reference" => {
                             let term = self.constant_reference(self.token(part)?)?;
-                            if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
-                                return Err(self.error(operand, "a tag test requires a tag-set constant"));
-                            }
                             term
                         }
                         _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
@@ -1287,11 +1284,7 @@ impl<'a> Reader<'a> {
             // The reader knows no constant's type (§9).
             "constant-reference" => {
                 let term = self.constant_reference(token()?)?;
-                let ty = if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
-                    Type::String
-                } else {
-                    Type::Any
-                };
+                let ty = Type::Any;
                 typed(term, ty)
             }
             "capture-reference" => {
@@ -1491,9 +1484,7 @@ impl<'a> Reader<'a> {
                                 let symbol = self.symbol(first)?;
                                 let Expr::Literal(term) = &symbol else { unreachable!() };
                                 let pattern = match term {
-                                    Term::Const(name, _) if !name.starts_with('_') => {
-                                        P::Constant(name.clone(), self.first(first))
-                                    }
+                                    Term::Const(name, _) => P::Constant(name.clone(), self.first(first)),
                                     _ => P::Literal(term.clone(), self.first(first)),
                                 };
                                 (pattern, true)
@@ -1506,12 +1497,8 @@ impl<'a> Reader<'a> {
                             }
                             "constant-reference" => {
                                 let token = self.token(first)?;
-                                let term = self.constant_reference(token)?;
-                                if self.value(token).starts_with("$_") {
-                                    (P::Literal(term, self.at(token)), true)
-                                } else {
-                                    (P::Constant(self.value(token)[1..].into(), self.at(token)), true)
-                                }
+                                self.constant_reference(token)?;
+                                (P::Constant(self.value(token)[1..].into(), self.at(token)), true)
                             }
                             _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
                                 let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
@@ -1602,9 +1589,6 @@ impl<'a> Reader<'a> {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
                         "constant-reference" => {
                             let term = self.constant_reference(self.token(part)?)?;
-                            if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
-                                return Err(self.error(operand, "a tag test requires a tag-set constant"));
-                            }
                             term
                         }
                         _ => return Err(self.error(operand, "invalid tag requirement")),
@@ -1975,7 +1959,7 @@ impl<'a> Reader<'a> {
                         let c = cs.next()?;
                         cs.next().is_none().then_some(c)
                     }
-                    Term::Const(n, _) => crate::dom::engine_scalar(n),
+                    Term::Const(_, _) => None,
                     _ => None,
                 };
                 if matches!(&left, Term::Str(_)) && scalar(&left).is_none()
@@ -2013,7 +1997,7 @@ impl<'a> Reader<'a> {
 
     fn constant_reference(&self, token: &'a Node) -> R<Term> {
         let name = self.value(token).strip_prefix('$').unwrap_or("");
-        if !(crate::dom::is_constant_name(name) || crate::dom::engine_scalar(name).is_some()) {
+        if !crate::dom::is_constant_name(name) {
             return Err(self.error(token, "invalid constant name or scalar"));
         }
         Ok(Term::Const(name.into(), self.at(token)))

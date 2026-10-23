@@ -1,0 +1,23 @@
+{
+  "description": "The whitespace exception does not remove another escape predicate. The canonical call name reloads with the same instance key (engine §9.1).",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "one(\"‹U+0020›\")"
+          }
+        ]
+      }
+    }
+  },
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+0020›\")\n%extend-rule one(\"‹U+0020›\") \"z\"\n```",
+    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\ncategory Mn 0020 0020\n"
+  },
+  "pipeline": "p.md"
+}

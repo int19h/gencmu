@@ -10,6 +10,7 @@
 // fixpoint check compares their DOMs.
 
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { domOfTree, fnv1a64 } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
@@ -83,25 +84,22 @@ function lex(text, originalPositions) {
   const isNameChar = (c) => c !== undefined && /^[A-Za-z0-9_-]$/.test(c);
   // For each place: the end of the run of name characters from it; the
   // first `*)` at or after it; and, for each quote, the end of a quoted
-  // body that begins there, where a backslash escapes any character.
+  // body that begins there. Backslashes remain ordinary characters.
   const runEnds = new Array(n + 2).fill(n);
   const closes = new Array(n + 2).fill(n);
   const featureEnds = new Array(n + 2).fill(n);
   const engineEnds = new Array(n + 2).fill(n);
-  const scalarEnds = new Array(n + 2).fill(n);
   for (let i = n - 1; i >= 0; i--) {
     if (hooks.work) countWork(hooks.work, "walkSteps");
     runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
     featureEnds[i] = /^[A-Za-z0-9-]$/.test(chars[i]) ? featureEnds[i + 1] : i;
     engineEnds[i] = /^[A-Za-z0-9_]$/.test(chars[i]) ? engineEnds[i + 1] : i;
-    scalarEnds[i] = /^[A-Za-z0-9]$/.test(chars[i]) ? scalarEnds[i + 1] : i;
     closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
   }
   // A quoted form fails at the character that cannot continue it.
   const quoted = (from, path = false) => {
     let j = from;
     while (j < n && chars[j] !== '"') {
-      if (chars[j] === "\\") return { end: n + 1, reach: j };
       j++;
     }
     return { end: j + 1, reach: j };
@@ -173,7 +171,6 @@ function lex(text, originalPositions) {
     }
     if (c === "$") {
       prefixed(i + 1, (word) => (isCapital(word.slice(1)) ? "constant" : "capture"));
-      if (chars[i + 1] === "_") found.push([scalarEnds[i + 2], "constant"]);
       found.push([i + 1, "capture"]);
     }
     if (c === "%") prefixed(i + 1, (word) => (KEYWORDS.has(word) ? word : "keyword"));
@@ -1016,17 +1013,17 @@ class Parser {
  * @param {string} markdown
  * @param {string} path
  */
-export function readSyntaxTree(markdown, path) {
+export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
   const names = new NamesScope(key => {
     try {
-      const bytes = fs.readFileSync(new URL(`../grammars/${key === "unicode-names-reference.txt" ? "unicode-names.txt" : key}`, import.meta.url));
+      const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
       return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
     } catch (error) {
       throw new GencmuError("grammar", `${key}: cannot read the names resource`, {document:key}, {cause:error});
     }
-  }, unicode, fnv1a64);
+  }, unicode, fnv1a64, inherited);
   const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;
@@ -1055,7 +1052,7 @@ export function readSyntaxTree(markdown, path) {
   return {tree,tokens,positionOf:(token) => token.at,unicode,decodeString:(token,path) => strings.decode(token,path)};
 }
 
-export function readDocument(markdown,path) {
-  const {tree,tokens,positionOf,unicode,decodeString}=readSyntaxTree(markdown,path);
+export function readDocument(markdown,path,inherited = []) {
+  const {tree,tokens,positionOf,unicode,decodeString}=readSyntaxTree(markdown,path,inherited);
   return domOfTree(tree,tokens,positionOf,path,unicode,false,decodeString);
 }

@@ -38,7 +38,7 @@ from ._types import (
 )
 from ._validate import Marks
 from ._logical import Expansion, combine, optional, inherited
-from ._strings import scalar, literal_string, spelling, ENGINE_TAGS
+from ._strings import literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
 
@@ -277,7 +277,7 @@ class _Constants:
         self.deferred_emissions = []
 
     def type_of(self, name: str) -> TermType:
-        return "string" if scalar(name) is not None else self.values[name].type
+        return self.values[name].type
 
     def fault_error(self, path: str, node: Any, item: Any, problem: str) -> GencmuError:
         """The error for a construct whose types disagree, or whose value
@@ -302,8 +302,6 @@ class _Constants:
             dependencies = []
             for reference in constants_in(version["value"]):
                 name = reference["const"]
-                if scalar(name) is not None:
-                    continue
                 target = version["previous"] if name == version["name"] and version["op"] == "redefine" else self.latest.get(name)
                 if target is None:
                     raise _error(f"${name} is not defined in stage {self.stage}; dependency ${version['name']} → ${name}", version["path"], reference["at"], self.stage)
@@ -343,7 +341,7 @@ class _Constants:
             index += 1
             queued.discard(at)
             version = self.versions[at]
-            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: "string" if scalar(name) is not None else kinds.get(name, "any"))
+            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: kinds.get(name, "any"))
             if fault is not None:
                 raise self.fault_error(version["path"], fault[1], version["at"], fault[0])
             if kind in ("any", "set"):
@@ -362,7 +360,7 @@ class _Constants:
             if kind is None:
                 raise _error(f"the kind of the value of ${version['name']} is not given", version["path"], version["at"], self.stage)
             self.values = {}
-            for reference, (target, _) in zip((r for r in constants_in(version["value"]) if scalar(r["const"]) is None), version["dependencies"]):
+            for reference, (target, _) in zip(constants_in(version["value"]), version["dependencies"]):
                 self.values[reference["const"]] = target["result"]
             value = run(self._closed(version["path"], version["value"], version["at"], kind))
             version["result"] = _Constant(value, kind, version["path"])
@@ -469,8 +467,7 @@ class _Constants:
         if "emptySet" in term:
             return {"pattern":empty_pattern()} if expected == "pattern" else EMPTY
         if "const" in term:
-            direct = scalar(term["const"])
-            return direct if direct is not None else self.values[term["const"]].value
+            return self.values[term["const"]].value
         if "union" in term:
             gathered = Gathered()
             for part in term["union"]:
@@ -506,7 +503,7 @@ class _Constants:
         sides: list[frozenset[str]] = []
         for side in (implication["if"], implication["then"]):
             for reference in constants_in(side):
-                if scalar(reference["const"]) is None and reference["const"] not in self.values:
+                if reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             kind, fault = term_type_fault(side, self.type_of)
             if fault is None:
@@ -525,7 +522,7 @@ class _Constants:
         not empty (engine §2, §9, §10)."""
         for path, rule in self.users:
             for reference in constants_in(rule):
-                if scalar(reference["const"]) is None and reference["const"] not in self.values:
+                if reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
@@ -580,7 +577,7 @@ class _Constants:
         """Bind a closed string where the declaration requires one."""
         for reference in constants_in(term):
             name = reference["const"]
-            if scalar(name) is None and name not in self.values:
+            if name not in self.values:
                 raise _error(f"${name} is not defined in stage {self.stage}", path, reference["at"], self.stage)
         kind, fault = term_type_fault(term, self.type_of)
         if fault is None:
@@ -604,8 +601,7 @@ class _Constants:
         if "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
             return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
-            direct = scalar(node["const"])
-            constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+            constant = self.values[node["const"]]
             return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
         if node.get("op") in ("≅", "≇"):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
@@ -641,8 +637,7 @@ class _Constants:
             elif "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
                 copy = yield self._closed("", node, None)
             elif isinstance(node.get("const"), str):
-                direct = scalar(node["const"])
-                constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+                constant = self.values[node["const"]]
                 copy = constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
             elif node.get("op") in ("≅", "≇"):
                 copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
@@ -803,14 +798,14 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                 resolved_features.append((path, directive))
                 continue
             for reference in constants_in(directive["conditions"]):
-                if scalar(reference["const"]) is None and reference["const"] not in constants.values:
+                if reference["const"] not in constants.values:
                     raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
             conditions = run(constants.with_values(directive["conditions"]))
             problem = input_conditions_problem(conditions)
             if problem:
                 raise _error(problem, path, directive["at"], stage)
             for condition in conditions:
-                fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
+                fault = condition_type_fault(condition, lambda name: constants.values[name].type)
                 if fault:
                     raise _error(fault[0], path, directive["at"], stage)
             constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)

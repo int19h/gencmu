@@ -1272,7 +1272,7 @@ fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
 
 #[test]
 fn an_include_keeps_its_original_precomposed_path() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"e\" $_0301");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"e\" \"‹U+0301›\"");
     let document = sources.remove("g.md").unwrap();
     sources.insert("café.md".into(), document);
     sources.insert("p.md".into(), grammar("%stage main\n%include \"café.md\""));

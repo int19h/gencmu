@@ -1,10 +1,21 @@
 {
-  "description": "A backslash has no escape meaning in a string (engine §9.1).",
+  "description": "A backslash and the following characters remain literal (engine §9.1).",
   "document": "```jbogenbau\n%rule a \"\\x61\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 10
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "\\x61"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

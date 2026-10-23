@@ -128,11 +128,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		p.Kind, p.Ends = "range", b.stringRange(first)
 	case "constant-reference":
 		t := b.constantRef(first)
-		if _, scalar := engineScalar(t.Str); scalar {
-			p.Kind, p.Value = "literal", t
-		} else {
-			p.Kind, p.Name = "constant", t.Str
-		}
+		p.Kind, p.Name = "constant", t.Str
 	default:
 		p.Kind, p.Name = "name", name
 		if terminal {
@@ -140,11 +136,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	if p.Kind == "literal" && p.Value.Kind == tmConst {
-		if value, scalar := engineScalar(p.Value.Str); scalar {
-			p.Value = &domTerm{Kind: tmString, Str: value}
-		} else {
-			p.Kind, p.Name, p.Value = "constant", p.Value.Str, nil
-		}
+		p.Kind, p.Name, p.Value = "constant", p.Value.Str, nil
 	}
 	if p.Kind == "name" && !b.uni.isEmojiName(p.Name) && !classifierName.MatchString(p.Name) {
 		b.fail(first, "a malformed pattern rule name")
@@ -200,9 +192,7 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 	token := b.token(n)
 	name := strings.TrimPrefix(b.tokenValue(token), "$")
 	if !constName.MatchString(name) {
-		if _, ok := engineScalar(name); !ok {
-			b.fail(token, "invalid scalar constant %s", name)
-		}
+		b.fail(token, "a user constant begins with a capital")
 	}
 	return &domTerm{Kind: tmConst, Str: name, At: b.at(token)}
 }

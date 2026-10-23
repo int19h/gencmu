@@ -1,10 +1,10 @@
 {
-  "description": "A test on a body group fails before its invalid scalar contents.",
-  "document": "```jbogenbau\n%rule text ($_D800)<\"bad\">\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%rule text (\"‹U+D800›\")<\"bad\">\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 20
+      "column": 14
     }
   }
 }

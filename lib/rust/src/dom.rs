@@ -480,14 +480,6 @@ pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
     values.pop().unwrap_or_default()
 }
 
-pub(crate) fn engine_scalar(name: &str) -> Option<char> {
-    let digits = name.strip_prefix('_')?;
-    if !(4..=6).contains(&digits.len()) || !digits.bytes().all(|c| c.is_ascii_digit() || (b'A'..=b'F').contains(&c)) {
-        return None;
-    }
-    u32::from_str_radix(digits, 16).ok().and_then(char::from_u32)
-}
-
 pub(crate) fn method_alias(name: &str) -> &str {
     match name {
         "value" => "value",
@@ -1993,7 +1985,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::Tag(_) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
-        Term::Const(name, _) => Ok(if engine_scalar(name).is_some() { Type::String } else { constants(name) }),
+        Term::Const(name, _) => Ok(constants(name)),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),

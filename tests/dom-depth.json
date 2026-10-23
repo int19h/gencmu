@@ -165,11 +165,7 @@
     },
     "leaf": {
       "literal": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       }
     },
     "wrapper": {
@@ -205,11 +201,7 @@
     },
     "leaf": {
       "literal": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       }
     },
     "wrapper": {
@@ -287,11 +279,7 @@
     "leaf": {
       "range": [
         {
-          "const": "_0061",
-          "at": [
-            1,
-            1
-          ]
+          "string": "a"
         },
         {
           "string": "a"
@@ -766,11 +754,7 @@
     "leaf": {
       "test": "=",
       "value": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       },
       "expr": {
         "ref": "A"
@@ -1092,11 +1076,7 @@
     "leaf": {
       "op": "=",
       "left": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       },
       "right": {
         "string": "a"

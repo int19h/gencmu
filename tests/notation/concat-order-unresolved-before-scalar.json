@@ -1,10 +1,10 @@
 {
-  "description": "An unresolved join operand defers its type error, so the reader first reports the following invalid scalar constant (engine §9.3).",
-  "document": "```jbogenbau\n%const $S $Missing ++ $_D800\n%rule text \"x\"\n%ambiguity-resolution greedy\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%const $S $Missing ++ \"‹U+D800›\"\n%rule text \"x\"\n%ambiguity-resolution greedy\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 23
+      "column": 24
     }
   }
 }

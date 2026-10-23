@@ -1,10 +1,10 @@
 {
-  "description": "An engine scalar name cannot exceed the Unicode range (engine §9.1).",
-  "document": "```jbogenbau\n%rule a $_110000\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%rule a \"‹U+110000›\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 9
+      "column": 10
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "description": "Equality compares a constant with a separately evaluated join of the same engine scalars (engine §10).",
-  "grammar": "%const $S \"a\" ++ $_0301 ++ $_0323\n%rule text ε %conditions $S = (\"a\" ++ $_0301 ++ $_0323)",
+  "grammar": "%const $S \"a\" ++ \"‹U+0301›\" ++ \"‹U+0323›\"\n%rule text ε %conditions $S = (\"a\" ++ \"‹U+0301›\" ++ \"‹U+0323›\")",
   "input": "",
   "expect": {
     "result": {

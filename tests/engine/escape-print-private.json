@@ -1,0 +1,18 @@
+{
+  "description": "A private-use scalar requires an escape. The canonical call name reloads with the same instance key (engine §9.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+E000›\")\n%extend-rule one(\"‹U+E000›\") \"z\"",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "one(\"‹U+E000›\")"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "description": "String constants and engine scalar constants share exact terminal identity in patterns (engine §§2 and 12).",
-  "grammar": "%const $A \"a\"\n%rule text $_0061 %conditions $ ≅ #\"a\", $ ≅ #$A, $ ≅ #$_0061 %emits",
+  "description": "String constants and numeric escapes share exact terminal identity in patterns (engine §§2 and 12).",
+  "grammar": "%const $A \"a\"\n%rule text \"‹U+0061›\" %conditions $ ≅ #\"a\", $ ≅ #$A, $ ≅ #\"‹U+0061›\" %emits",
   "input": "a",
   "expect": {
     "result": {

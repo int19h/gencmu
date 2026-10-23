@@ -897,7 +897,7 @@ func TestInvalidUTF8(t *testing.T) {
 		return errors.As(err, &e) && e.Kind == ErrorUsage
 	}
 	// Each of these would read U+FFFD or U+D800 if the text became tokens.
-	rules := []string{`_Cs`, `_`, `$_D7FF..$_E000`, `$_FFFD`, "[{character}]\n%rule character _"}
+	rules := []string{`_Cs`, `_`, `"‹U+D7FF›".."‹U+E000›"`, `"‹U+FFFD›"`, "[{character}]\n%rule character _"}
 	for _, rule := range rules {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
 		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {

@@ -1,6 +1,6 @@
 {
-  "description": "An engine constant keeps its exact scalar and its original position.",
-  "document": "```jbogenbau\n%rule text $_00E9\n```",
+  "description": "A numeric escape contributes one exact scalar without a constant reference (engine §9.1).",
+  "document": "```jbogenbau\n%rule text \"‹U+00E9›\"\n```",
   "expect": {
     "dom": {
       "format": 40,
@@ -14,11 +14,7 @@
               "guards": [],
               "expr": {
                 "literal": {
-                  "const": "_00E9",
-                  "at": [
-                    2,
-                    12
-                  ]
+                  "string": "é"
                 }
               }
             }

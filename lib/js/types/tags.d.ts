@@ -2,13 +2,10 @@ import type { TagSet } from "./types.js";
 /**
  * The canonical diagnostic spelling of a scalar string (engine §9.1).
  * @param {string} value
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+ * @param {import("./unicode.js").UnicodeTable} unicode
  * @returns {string}
  */
-export declare function stringName(value: string, unicode: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-}): string;
+export declare function stringName(value: string, unicode: import("./unicode.js").UnicodeTable): string;
 /**
  * @param {Iterable<string>} [tags]
  * @returns {TagSet}

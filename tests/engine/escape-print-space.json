@@ -1,0 +1,18 @@
+{
+  "description": "The whitespace predicate exempts an ordinary space. The canonical call name reloads with the same instance key (engine §9.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+0020›\")\n%extend-rule one(\" \") \"z\"",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "one(\" \")"
+          }
+        ]
+      }
+    }
+  }
+}

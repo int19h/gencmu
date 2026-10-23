@@ -1,6 +1,6 @@
 {
   "description": "Written strings decompose, while constants name exact scalars.",
-  "document": "```jbogenbau\n%rule a (\"a\" \"́\" \"́\" \"'\" $_005C \"\" $_0009 \"é\" \"é\")\n```\n",
+  "document": "```jbogenbau\n%rule a (\"a\" \"́\" \"́\" \"'\" \"‹U+005C›\" \"\" \"‹U+0009›\" \"é\" \"é\")\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -31,11 +31,7 @@
                   },
                   {
                     "literal": {
-                      "const": "_005C",
-                      "at": [
-                        2,
-                        26
-                      ]
+                      "string": "\\"
                     }
                   },
                   {
@@ -45,11 +41,7 @@
                   },
                   {
                     "literal": {
-                      "const": "_0009",
-                      "at": [
-                        2,
-                        37
-                      ]
+                      "string": "\t"
                     }
                   },
                   {

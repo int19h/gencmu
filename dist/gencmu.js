@@ -1479,6 +1479,8 @@
       this.versionCount = 0;
       /** @type {Map<string, number>} */
       this.abbreviations = new Map();
+      /** @type {Map<number,string>} */
+      this.canonicalAbbreviations = new Map();
       // The category ranges, in order: parallel arrays for a binary search.
       /** @type {number[]} */
       this.starts = [];
@@ -1523,6 +1525,8 @@
           if (code >= 0xd800 && code <= 0xdfff || !/^[A-Z][A-Z0-9]*$/.test(alias)
             || this.abbreviations.has(alias) || PINNED_CORE_NAMES.has(alias) && PINNED_CORE_NAMES.get(alias) !== code) fail();
           this.abbreviations.set(alias, code);
+          const earlier = this.canonicalAbbreviations.get(code);
+          if (earlier === undefined || alias.length < earlier.length || alias.length === earlier.length && alias < earlier) this.canonicalAbbreviations.set(code,alias);
         }
         else if (entry === "decompose") {
           const scalars = fields.slice(1).map(hex);
@@ -1933,25 +1937,21 @@
   /**
    * The canonical diagnostic spelling of a scalar string (engine §9.1).
    * @param {string} value
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {import("./unicode.js").UnicodeTable} unicode
    * @returns {string}
    */
   function stringName(value, unicode) {
-    const parts = [];
-    let literal = "";
+    let result = '"';
     for (const character of value) {
       const code = /** @type {number} */ (character.codePointAt(0));
-      if (character === '"' || character === "\\" || code <= 0x1f ||
-          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) || unicode.changesInDocument?.(code) ||
-          (code >= 0xe000 && code <= 0xf8ff) ||
-          (code >= 0xf0000 && code <= 0xffffd) ||
-          (code >= 0x100000 && code <= 0x10fffd)) {
-        if (literal) { parts.push('"' + literal + '"'); literal = ""; }
-        parts.push(`$_${code.toString(16).toUpperCase().padStart(4, "0")}`);
-      } else literal += character;
+      if (character === '"' || character === "‹" || code <= 0x1f || code >= 0x7f && code <= 0x9f
+        || unicode.isMark(code) || unicode.category(code) === "Cf" || unicode.changesInDocument(code)
+        || code !== 0x20 && unicode.isWhiteSpace(code)
+        || code >= 0xe000 && code <= 0xf8ff || code >= 0xf0000 && code <= 0xffffd || code >= 0x100000 && code <= 0x10fffd) {
+        result += "‹" + (unicode.canonicalAbbreviations.get(code) ?? "U+" + code.toString(16).toUpperCase().padStart(4,"0")) + "›";
+      } else result += character;
     }
-    if (literal) parts.push('"' + literal + '"');
-    return parts.length ? parts.join(" ++ ") : '""';
+    return result + '"';
   }
 
   /**
@@ -4053,7 +4053,7 @@
    * @param {any} root
    * @param {(name:string, at:[number,number]) => any} constant
    * @param {(term:any, test:any) => any} value
-   * @param {{isMark(code:number):boolean, changesInDocument?(code:number):boolean}} unicode
+   * @param {import("./unicode.js").UnicodeTable} unicode
    * @returns {any}
    */
   function resolvePattern(root, constant, value, unicode) {
@@ -4320,10 +4320,7 @@
     const strings = range.map(end => {
       if (isDomObject(end) && typeof end.string === "string") return end.string;
       if (isDomObject(end) && isDomObject(end.value) && typeof end.value.string === "string") return end.value.string;
-      if (isDomObject(end) && typeof end.const === "string" && /^_[0-9A-F]{4,6}$/.test(end.const)) {
-        const code = parseInt(end.const.slice(1), 16);
-        if (code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) return String.fromCodePoint(code);
-      }
+
       return null;
     });
     if (strings.some(value => value !== null && [...value].length !== 1)) return "a range endpoint is one scalar";
@@ -4396,7 +4393,7 @@
     /** @type {(value: any) => boolean} */
     const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && PROPERTY_NAMES.has(value.slice(1))));
     /** @type {(value: any) => boolean} */
-    const constant = value => typeof value === "string" && (CONSTANT_NAME.test(value) || (/^_[0-9A-F]{4,6}$/.test(value) && parseInt(value.slice(1), 16) <= 0x10ffff && !(parseInt(value.slice(1), 16) >= 0xd800 && parseInt(value.slice(1), 16) <= 0xdfff)));
+    const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
     const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && (guard.kind === "gate" || guard.kind === "warning" && !guard.negated));
     /** @type {any[]} */
@@ -5931,7 +5928,7 @@
     if (typeof term.tag === "string") return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
     if (typeof term.capture === "string") return { type: "span" };
-    if (typeof term.const === "string") return { type: term.const.startsWith("_") ? "string" : constants(term.const) };
+    if (typeof term.const === "string") return { type: constants(term.const) };
     for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
       if (!Array.isArray(term[key])) continue;
       /** @type {TermType[]} */
@@ -6782,17 +6779,7 @@
   }
 
   /** @param {any} value @param {any} unicode @returns {string} */
-  function templateQuoted(value,unicode) {
-    let result='"';
-    for(const c of value) {
-      const code=c.codePointAt(0);
-      if('"\\\b\t\n\f\r'.includes(c)) result+=JSON.stringify(c).slice(1,-1);
-      else if(code<32 || stringName(c,unicode).startsWith("$_")) {
-        for(let i=0;i<c.length;i++) result+='\\u'+c.charCodeAt(i).toString(16).padStart(4,"0");
-      } else result+=c;
-    }
-    return result+'"';
-  }
+  function templateQuoted(value,unicode) { return stringName(value,unicode); }
 
   /** @param {any} n @param {any} unicode @returns {string} */
   function canonicalArgument(n,unicode) {
@@ -8316,7 +8303,7 @@
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+     * @param {import("./unicode.js").UnicodeTable} unicode
      *   the loader's table, for the tags of a range in a constant's value and
      *   the canonical value of a string constant in a test
      */
@@ -8365,7 +8352,7 @@
         try {
           if (!directive.conditions) return {path,directive};
           for (const reference of constantsIn(directive.conditions)) {
-            if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
+            if (!this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
           }
           const conditions = /** @type {Condition[]} */ (resolveNode(directive.conditions,this.constants));
           const problem = inputConditionsProblem(conditions);
@@ -8397,7 +8384,7 @@
       this.classifierKeys = new WeakMap();
       for (const {path,classifier} of this.classifierItems) for (const entry of classifier.entries) {
         const keys = entry.keys.map(term => {
-          for (const reference of constantsIn(term)) if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) {
+          for (const reference of constantsIn(term)) if (!this.constants.has(reference.const)) {
             throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
           }
           const found = termType(term,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
@@ -8584,7 +8571,7 @@
       const sides = [];
       for (const side of [implication.if, implication.then]) {
         for (const reference of constantsIn(side)) {
-          if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) {
+          if (!this.constants.has(reference.const)) {
             throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
           }
         }
@@ -8673,7 +8660,6 @@
       for (const version of this.constantVersions) {
         version.dependencies = [];
         for (const reference of constantsIn(version.value)) {
-          if (reference.const.startsWith("_")) continue;
           const target = reference.const === version.name && version.op === "redefine"
             ? version.previous : this.finalConstants.get(reference.const);
           if (!target) throw this.documentError(version.path, reference.at,
@@ -8785,7 +8771,7 @@
       if ("concat" in term) return { string: term.concat.map(string).join("") };
       if ("tag" in term) return { set: tagSet([term.tag]) };
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ any:true, children:[{siblings:true}] }, { any:true, children:[{siblings:true}] }] } } : { set: tagSet() };
-      if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
+      if ("const" in term) return lookup(term.const);
       if ("pattern" in term) {
         try {
           return { pattern: resolvePattern(term.pattern, (name,at) => {
@@ -8869,7 +8855,7 @@
       const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
       for (const { path, rule } of this.constantUsers) {
         for (const reference of constantsIn(rule)) {
-          if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) {
+          if (!this.constants.has(reference.const)) {
             throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
           }
         }
@@ -9108,7 +9094,7 @@
     const record = /** @type {Record<string, unknown>} */ (node);
     if (typeof record.const === "string") {
       /** @type {ConstantTerm} */
-      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: record.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(record.const.slice(1), 16)) } : /** @type {StageConstant} */ (constants.get(record.const)).value };
+      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
       copyRankedLocation(record,reference);
       return reference;
     }
@@ -17713,7 +17699,7 @@
     function* readConstant(node) {
       const keyword = valueOf(token(only(node, "constant-definer")));
       const name = valueOf(token(only(node, "constant-reference"))).slice(1);
-      if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("an engine constant cannot be declared", only(node, "constant-reference"));
+      if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a constant requires a user name", only(node, "constant-reference"));
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
       const value = /** @type {Term} */ (yield readTerm(valueNode));
@@ -18434,10 +18420,7 @@
         case "method": return yield readMethod(node);
         case "constant-reference": {
           const name = valueOf(token(node)).slice(1);
-          if (name.startsWith("_")) {
-            const code = parseInt(name.slice(1), 16);
-            if (!/^_[0-9A-F]{4,6}$/.test(name) || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) fail("an engine constant requires a scalar in uppercase hexadecimal", node);
-          } else if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
+          if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
           return { const: name, at: at(node) };
         }
         case "capture-reference": {
@@ -18585,7 +18568,7 @@
         else if (ruleOf(first) === "wildcard") expr = { wildcard: true, at: at(first) };
         else if (ruleOf(first) === "constant-reference") {
           const value = yield readTerm(first);
-          expr = value.const.startsWith("_") ? { literal: {string:String.fromCodePoint(parseInt(value.const.slice(1),16))}, at: at(first) } : { constant: value.const, at: at(first) };
+          expr = { constant: value.const, at: at(first) };
         } else return lacks(node, "pattern atom");
         if(expr.literal?.const && !expr.literal.const.startsWith('_')) {expr.constant=expr.literal.const;delete expr.literal;}
         for (const test of tests) expr = { ...(yield readTest(test)), expr };
@@ -18668,7 +18651,7 @@
       if (found.length < 2) lacks(node, "two string operands");
       const range = [];
       for (const end of found.slice(0, 2)) range.push(yield readTerm(end));
-      const scalars = range.map(term => typeof term.string === "string" ? term.string : term.const?.startsWith("_") ? String.fromCodePoint(parseInt(term.const.slice(1), 16)) : null);
+      const scalars = range.map(term => typeof term.string === "string" ? term.string : null);
       if (scalars.some(value => value !== null && [...value].length !== 1)) fail("a range endpoint is one scalar", node);
       if (scalars.every(value => value !== null) && scalars[0].codePointAt(0) > scalars[1].codePointAt(0)) fail("a range starts above its end", node);
       return range;

@@ -23,14 +23,6 @@ fn exact(value: &Json, required: &[&str], optional: &[&str]) -> bool {
     })
 }
 
-fn scalar_name(name: &str) -> bool {
-    name.strip_prefix('_').is_some_and(|digits| {
-        (4..=6).contains(&digits.len())
-            && digits.bytes().all(|c| c.is_ascii_digit() || (b'A'..=b'F').contains(&c))
-            && u32::from_str_radix(digits, 16).ok().and_then(char::from_u32).is_some()
-    })
-}
-
 pub(crate) fn engine_tag(name: &str) -> bool {
     name.strip_prefix('_').is_some_and(|name| name != "Any" && is_property_name(name))
 }
@@ -88,13 +80,7 @@ fn string_atom(value: &Json) -> bool {
 
 /// Literal endpoints must already form an ordered scalar interval.
 fn literal_range(left: &Json, right: &Json) -> bool {
-    let text = |value: &Json| {
-        if let Some(text) = value.get("string").and_then(Json::as_str) {
-            Some(text.to_string())
-        } else {
-            value.get("const").and_then(Json::as_str).and_then(engine_scalar).map(|c| c.to_string())
-        }
-    };
+    let text = |value: &Json| value.get("string").and_then(Json::as_str).map(str::to_string);
     let ends = [text(left), text(right)];
     ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
         && match (&ends[0], &ends[1]) {
@@ -546,10 +532,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                 {
                 } else if exact(value, &["const", "at"], &[]) {
                     if !is_position(value.get("at"))
-                        || !value
-                            .get("const")
-                            .and_then(Json::as_str)
-                            .is_some_and(|name| is_constant_name(name) || scalar_name(name))
+                        || !value.get("const").and_then(Json::as_str).is_some_and(is_constant_name)
                     {
                         return Some("a malformed constant reference");
                     }

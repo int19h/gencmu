@@ -61,7 +61,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 
 func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	t.Parallel()
-	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"e\" $_0301")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"e\" \"‹U+0301›\"")
 	sources["p.md"] = strings.ReplaceAll(sources["p.md"], "g.md", "café.md")
 	sources["café.md"] = sources["g.md"]
 	delete(sources, "g.md")
@@ -72,7 +72,7 @@ func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	doc := "```jbogenbau\n%const $S \"é$é\" ++ $_0301 ++ \"é\" ++ $_0323\n%rule text $S\n```"
+	doc := "```jbogenbau\n%const $S \"é$é\" ++ \"‹U+0301›\" ++ \"é\" ++ \"‹U+0323›\"\n%rule text $S\n```"
 	dom, failure := bundled.reader.read(doc, "g.md")
 	if failure != nil {
 		t.Fatal(failure)

@@ -1,61 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="187" height="510" viewBox="0 0 187 510" role="img" aria-label="Railroad diagram of the rule plain-vowel">
+<svg xmlns="http://www.w3.org/2000/svg" width="162" height="510" viewBox="0 0 162 510" role="img" aria-label="Railroad diagram of the rule plain-vowel">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">plain-vowel</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <path d="M40 46h20"/>
-<g class="terminal"><rect x="60" y="34" width="67" height="24" rx="12"/><text x="93.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA0</text></g>
-<path d="M127 46H147"/>
+<g class="terminal"><rect x="60" y="34" width="42" height="24" rx="12"/><text x="81" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 46H122"/>
 <path d="M40 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="68" width="67" height="24" rx="12"/><text x="93.5" y="85" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB0</text></g>
-<path d="M127 80H127a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M147 46H167"/>
+<g class="terminal"><rect x="60" y="68" width="42" height="24" rx="12"/><text x="81" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 80H102a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M122 46H142"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <path d="M40 114h20"/>
-<g class="terminal"><rect x="60" y="102" width="67" height="24" rx="12"/><text x="93.5" y="119" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA1</text></g>
-<path d="M127 114H147"/>
+<g class="terminal"><rect x="60" y="102" width="42" height="24" rx="12"/><text x="81" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 114H122"/>
 <path d="M40 114a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="136" width="67" height="24" rx="12"/><text x="93.5" y="153" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB1</text></g>
-<path d="M127 148H127a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
-<path d="M147 114H147a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="136" width="42" height="24" rx="12"/><text x="81" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 148H102a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
+<path d="M122 114H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <path d="M40 182h20"/>
-<g class="terminal"><rect x="60" y="170" width="67" height="24" rx="12"/><text x="93.5" y="187" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA2</text></g>
-<path d="M127 182H147"/>
+<g class="terminal"><rect x="60" y="170" width="42" height="24" rx="12"/><text x="81" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 182H122"/>
 <path d="M40 182a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="204" width="67" height="24" rx="12"/><text x="93.5" y="221" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB2</text></g>
-<path d="M127 216H127a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="204" width="42" height="24" rx="12"/><text x="81" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 216H102a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
 <path d="M40 182a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="238" width="67" height="24" rx="12"/><text x="93.5" y="255" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDAA</text></g>
-<path d="M127 250H127a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
-<path d="M147 182H147a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="238" width="42" height="24" rx="12"/><text x="81" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 250H102a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<path d="M122 182H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
 <path d="M40 284h20"/>
-<g class="terminal"><rect x="60" y="272" width="67" height="24" rx="12"/><text x="93.5" y="289" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA3</text></g>
-<path d="M127 284H147"/>
+<g class="terminal"><rect x="60" y="272" width="42" height="24" rx="12"/><text x="81" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 284H122"/>
 <path d="M40 284a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="306" width="67" height="24" rx="12"/><text x="93.5" y="323" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB3</text></g>
-<path d="M127 318H127a10 10 0 0 0 10 -10V294a10 10 0 0 1 10 -10"/>
-<path d="M147 284H147a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="306" width="42" height="24" rx="12"/><text x="81" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 318H102a10 10 0 0 0 10 -10V294a10 10 0 0 1 10 -10"/>
+<path d="M122 284H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
 <path d="M40 352h20"/>
-<g class="terminal"><rect x="60" y="340" width="67" height="24" rx="12"/><text x="93.5" y="357" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA4</text></g>
-<path d="M127 352H147"/>
+<g class="terminal"><rect x="60" y="340" width="42" height="24" rx="12"/><text x="81" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 352H122"/>
 <path d="M40 352a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="374" width="67" height="24" rx="12"/><text x="93.5" y="391" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB4</text></g>
-<path d="M127 386H127a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="374" width="42" height="24" rx="12"/><text x="81" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 386H102a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
 <path d="M40 352a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="408" width="67" height="24" rx="12"/><text x="93.5" y="425" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDAB</text></g>
-<path d="M127 420H127a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
-<path d="M147 352H147a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="408" width="42" height="24" rx="12"/><text x="81" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 420H102a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
+<path d="M122 352H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
 <path d="M40 454h20"/>
-<g class="terminal"><rect x="60" y="442" width="67" height="24" rx="12"/><text x="93.5" y="459" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA5</text></g>
-<path d="M127 454H147"/>
+<g class="terminal"><rect x="60" y="442" width="42" height="24" rx="12"/><text x="81" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 454H122"/>
 <path d="M40 454a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="476" width="67" height="24" rx="12"/><text x="93.5" y="493" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB5</text></g>
-<path d="M127 488H127a10 10 0 0 0 10 -10V464a10 10 0 0 1 10 -10"/>
-<path d="M147 454H147a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M167 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="60" y="476" width="42" height="24" rx="12"/><text x="81" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 488H102a10 10 0 0 0 10 -10V464a10 10 0 0 1 10 -10"/>
+<path d="M122 454H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M142 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -9,7 +9,7 @@ from ._clauses import attachment_order, definition_problem, duplicate_captures, 
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
-from ._strings import ENGINE_TAGS, USER_NAME, scalar, lit_occurrences, literal_string
+from ._strings import ENGINE_TAGS, USER_NAME, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._patterns import pattern_problem
 from ._pattern_shapes import layered_pattern_problem
@@ -1031,7 +1031,7 @@ class DomBuilder:
                 at = list(self.position(first))
                 if first.rule == "constant-reference":
                     value = self.value(first)
-                    pattern = {"literal": value, "at": at} if name.startswith("$_") else {"constant": value["const"], "at": at}
+                    pattern = {"constant": value["const"], "at": at}
                 elif first.rule in ("string-terminal", "string"):
                     value = self.value(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
                     pattern = {"literal": value, "at": at}
@@ -1301,8 +1301,8 @@ class DomBuilder:
             return {"capture": capture}
         if rule == "constant-reference":
             name = self.token_value(self.token(node))[1:]
-            if USER_NAME.fullmatch(name) is None and scalar(name) is None:
-                raise self.fail(node, "invalid scalar constant")
+            if USER_NAME.fullmatch(name) is None:
+                raise self.fail(node, "a constant requires a user name")
             return {"const": name, "at": list(self.position(node))}
         if rule == "method":
             result = yield self._method(node)

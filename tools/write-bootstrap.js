@@ -15,9 +15,9 @@ import { DOM_FORMAT } from "../lib/js/src/dom.js";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
 // The notation's pipeline, spliced from DOMs that the hand-written reader
 // makes.
-const { stages } = splicePipeline("dialects/notation.md", (documentPath) => {
+const { stages } = splicePipeline("dialects/notation.md", (documentPath, inherited) => {
   const file = path.join(root, documentPath);
-  return fs.existsSync(file) ? readDocument(fs.readFileSync(file, "utf8"), documentPath) : undefined;
+  return fs.existsSync(file) ? readDocument(fs.readFileSync(file, "utf8"), documentPath, inherited) : undefined;
 });
 const bootstrap = JSON.stringify({ format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) }) + "\n";
 // The new engine must read the candidate before the writer replaces the file.

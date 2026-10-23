@@ -6,6 +6,8 @@ export declare class UnicodeTable {
     versionCount: number;
     /** @type {Map<string, number>} */
     abbreviations: Map<string, number>;
+    /** @type {Map<number,string>} */
+    canonicalAbbreviations: Map<number, string>;
     /** @type {number[]} */
     starts: number[];
     /** @type {number[]} */

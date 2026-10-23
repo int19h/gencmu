@@ -393,7 +393,7 @@ pub(crate) fn stitch(
                 let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
                 for (name, _) in references {
-                    if crate::dom::engine_scalar(name).is_none() && !constants.values.contains_key(name) {
+                    if !constants.values.contains_key(name) {
                         return Err(located(
                             format!("${name} is not defined in stage {stage}"),
                             document,
@@ -1133,17 +1133,12 @@ impl Constants<'_> {
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
-                Term::Const(name, at) => match crate::dom::engine_scalar(name) {
-                    Some(c) => Value::Str(c.to_string()),
-                    None => self
-                        .values
-                        .get(name)
-                        .ok_or_else(|| {
-                            located(format!("${name} is not defined in stage {}", self.stage), document, *at)
-                        })?
-                        .value
-                        .clone(),
-                },
+                Term::Const(name, at) => self
+                    .values
+                    .get(name)
+                    .ok_or_else(|| located(format!("${name} is not defined in stage {}", self.stage), document, *at))?
+                    .value
+                    .clone(),
                 Term::Union(_) => Value::Set(operands.flat_map(|value| value.set()).collect()),
                 Term::Intersection(_) => {
                     let mut sets = operands.map(Value::set);
@@ -1215,7 +1210,7 @@ impl Constants<'_> {
             let mut references = Vec::new();
             constants_in_term(side, &mut references);
             for (name, at) in references {
-                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                if !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
@@ -1246,7 +1241,7 @@ impl Constants<'_> {
     ) -> Result<(), Error> {
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
-                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                if !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
@@ -1393,7 +1388,7 @@ impl Constants<'_> {
                     let mut references = Vec::new();
                     constants_in_term(key, &mut references);
                     for (name, at) in references {
-                        if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                        if !self.values.contains_key(name) {
                             return Err(located(
                                 format!("${name} is not defined in stage {}", self.stage),
                                 document,
@@ -1525,12 +1520,7 @@ impl Constants<'_> {
             return;
         }
         match term {
-            Term::Const(name, _) => {
-                *term = match crate::dom::engine_scalar(name) {
-                    Some(c) => Term::Str(c.to_string()),
-                    None => self.values[name.as_str()].value.term(),
-                }
-            }
+            Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
             }

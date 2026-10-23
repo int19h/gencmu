@@ -1,10 +1,21 @@
 {
-  "description": "A property-looking escape cannot stand in a string (engine §9.1).",
+  "description": "A backslash before p remains literal (engine §9.1).",
   "document": "```jbogenbau\n%rule a \"\\p\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 10
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "\\p"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

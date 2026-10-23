@@ -487,28 +487,7 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 		b.closedFor = ""
 		defer func() { b.closedFor = closed }()
 		pattern := b.layeredPattern(primary)
-		pending := []any{pattern}
-		for len(pending) > 0 {
-			part := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			switch node := part.(type) {
-			case []any:
-				pending = append(pending, node...)
-			case map[string]any:
-				if name, ok := node["const"].(string); ok && strings.HasPrefix(name, "_") {
-					value, valid := engineScalar(name)
-					if valid {
-						for key := range node {
-							delete(node, key)
-						}
-						node["string"] = value
-					}
-				}
-				for _, value := range node {
-					pending = append(pending, value)
-				}
-			}
-		}
+
 		problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
 		if problem != "" {
 			b.fail(n, "%s", problem)

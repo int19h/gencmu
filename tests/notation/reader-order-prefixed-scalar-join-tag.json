@@ -1,10 +1,10 @@
 {
-  "description": "The reader rejects an invalid later join operand before a subsequent tag-test error (engine §9.3).",
-  "document": "```jbogenbau\n%rule text \"x\" %conditions $.value = \"a\" ++ $_D800\n%rule later A<\"bad\">\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%rule text \"x\" %conditions $.value = \"a\" ++ \"‹U+D800›\"\n%rule later A<\"bad\">\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 45
+      "column": 46
     }
   }
 }

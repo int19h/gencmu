@@ -1,10 +1,10 @@
 {
-  "description": "The tag test after a value test fails before the invalid scalar base and value-test operand (engine §9.3).",
-  "document": "```jbogenbau\n%rule text $_D800=UI<A>\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%rule text \"‹U+D800›\"=UI<A>\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 21
+      "column": 13
     }
   }
 }

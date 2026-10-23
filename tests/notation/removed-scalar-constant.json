@@ -1,0 +1,10 @@
+{
+  "description": "The removed scalar-constant spelling is not notation syntax (engine §9.1).",
+  "document": "```jbogenbau\n%rule a $_0041\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 10
+    }
+  }
+}

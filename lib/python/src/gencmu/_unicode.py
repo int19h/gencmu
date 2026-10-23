@@ -40,6 +40,7 @@ class UnicodeTable:
         self.version = ""
         self.version_count = 0
         self.abbreviations: dict[str, int] = {}
+        self.canonical_abbreviations: dict[int, str] = {}
         lines = text.split("\n")
         for number, raw in enumerate(lines, 1):
             line = raw.removesuffix("\r") if number < len(lines) else raw
@@ -73,6 +74,9 @@ class UnicodeTable:
                             or alias in self.abbreviations or alias in PINNED_CORE_NAMES and PINNED_CORE_NAMES[alias] != code):
                         raise ValueError(entry)
                     self.abbreviations[alias] = code
+                    earlier = self.canonical_abbreviations.get(code)
+                    if earlier is None or (len(alias), alias) < (len(earlier), earlier):
+                        self.canonical_abbreviations[code] = alias
                 elif fields[0] == "category":
                     if fields[1] not in CATEGORIES:
                         raise ValueError(fields[1])

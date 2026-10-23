@@ -213,51 +213,57 @@ pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
 
 /// Canonical diagnostic spelling of a string terminal (engine §9.1).
 pub(crate) fn string_name(value: &str, unicode: &Unicode) -> String {
-    let mut parts = Vec::new();
-    let mut literal = String::new();
+    let mut out = String::from("\"");
     for c in value.chars() {
         let n = c as u32;
-        if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
+        if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x2039 | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
             || unicode.is_mark(n)
+            || unicode.category(n) == "Cf"
             || unicode.changes_in_document(n)
+            || n != 0x20 && unicode.is_white_space(n)
         {
-            if !literal.is_empty() {
-                parts.push(format!("\"{}\"", std::mem::take(&mut literal)));
+            out.push('‹');
+            if let Some(alias) = unicode.canonical_abbreviations.get(&n) {
+                out.push_str(alias);
+            } else {
+                use std::fmt::Write as _;
+                write!(out, "U+{n:04X}").unwrap();
             }
-            parts.push(format!("$_{n:04X}"));
+            out.push('›');
         } else {
-            literal.push(c);
+            out.push(c);
         }
     }
-    if !literal.is_empty() {
-        parts.push(format!("\"{literal}\""));
-    }
-    if parts.is_empty() {
-        "\"\"".into()
-    } else {
-        parts.join(" ++ ")
-    }
+    out.push('"');
+    out
 }
 
 /// Reads the canonical diagnostic spelling, without grammar recognition.
-pub(crate) fn string_value(mut name: &str) -> Option<String> {
+pub(crate) fn string_value(name: &str, unicode: &Unicode) -> Option<String> {
+    let body = name.strip_prefix('"')?.strip_suffix('"')?;
+    let mut chars = body.chars();
     let mut out = String::new();
-    loop {
-        if let Some(body) = name.strip_prefix('"') {
-            let end = body.find('"')?;
-            out.push_str(&body[..end]);
-            name = &body[end + 1..];
+    while let Some(c) = chars.next() {
+        if c != '‹' {
+            out.push(c);
+            continue;
+        }
+        let mut escape = String::new();
+        loop {
+            let c = chars.next()?;
+            if c == '›' {
+                break;
+            }
+            escape.push(c);
+        }
+        let code = if let Some(hex) = escape.strip_prefix("U+") {
+            u32::from_str_radix(hex, 16).ok()?
         } else {
-            let body = name.strip_prefix('$')?;
-            let end = body.find(' ').unwrap_or(body.len());
-            out.push(crate::dom::engine_scalar(&body[..end])?);
-            name = &body[end..];
-        }
-        if name.is_empty() {
-            return Some(out);
-        }
-        name = name.strip_prefix(" ++ ")?;
+            *unicode.abbreviations.get(&escape)?
+        };
+        out.push(char::from_u32(code)?);
     }
+    Some(out)
 }
 
 #[cfg(test)]

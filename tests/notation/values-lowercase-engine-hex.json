@@ -1,10 +1,21 @@
 {
-  "document": "```jbogenbau\n%rule r $_00ff\n```\n",
+  "document": "```jbogenbau\n%rule r \"‹U+00ff›\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 9
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "ÿ"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   },
-  "description": "Engine constants require uppercase hexadecimal digits (engine §9.1)."
+  "description": "Numeric escape digits accept either hexadecimal case (engine §9.1)."
 }

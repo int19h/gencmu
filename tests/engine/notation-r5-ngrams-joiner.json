@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 counts code points inside joined emoji sequences when it builds n-grams.",
-  "grammar": "%const $S (\"👩\" ++ $_200D ++ \"💻\").ngrams(2)\n%rule text ε %conditions $S = ((\"👩\" ++ $_200D) ∪ ($_200D ++ \"💻\"))",
+  "grammar": "%const $S (\"👩\" ++ \"‹U+200D›\" ++ \"💻\").ngrams(2)\n%rule text ε %conditions $S = ((\"👩\" ++ \"‹U+200D›\") ∪ (\"‹U+200D›\" ++ \"💻\"))",
   "tokens": [],
   "expect": {
     "result": {

@@ -80,7 +80,6 @@
         const start = ++i;
         let valid = true;
         while (i < cs.length && cs[i] !== "\"") {
-          if (cs[i] === "\\") valid = false;
           i++;
         }
         const value = cs.slice(start, i).join("");

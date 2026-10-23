@@ -330,6 +330,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
     pub close_families: Vec<FxSet<u32>>,
     pub rules: Vec<LRule>,
@@ -1652,6 +1653,7 @@ fn lower_mode(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        unicode: grammar.unicode.clone(),
         close_families: close_families(grammar),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,

@@ -1,6 +1,6 @@
 {
   "description": "Caller tokens skip decomposition.",
-  "grammar": "%rule text $_00E9\n%emits $",
+  "grammar": "%rule text \"‹U+00E9›\"\n%emits $",
   "input": "é",
   "tokens": [
     {

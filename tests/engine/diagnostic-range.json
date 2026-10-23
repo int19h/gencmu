@@ -1,6 +1,6 @@
 {
   "description": "Canonical terminal spelling preserves exact scalar identity.",
-  "grammar": "%rule text $_00E0..$_017A",
+  "grammar": "%rule text \"‹U+00E0›\"..\"‹U+017A›\"",
   "tokens": [
     {
       "text": "é",
@@ -14,7 +14,7 @@
       "tree": {
         "children": [
           {
-            "terminal": "$_00E0..$_017A"
+            "terminal": "\"‹U+00E0›\"..\"‹U+017A›\""
           }
         ]
       }

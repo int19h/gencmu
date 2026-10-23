@@ -1,67 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="365" height="442" viewBox="0 0 365 442" role="img" aria-label="Railroad diagram of the rule stressed-vowel">
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="442" viewBox="0 0 340 442" role="img" aria-label="Railroad diagram of the rule stressed-vowel">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">stressed-vowel</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <path d="M40 46h20"/>
-<g class="terminal"><rect x="60" y="34" width="67" height="24" rx="12"/><text x="93.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA0</text></g>
-<path d="M127 46H147"/>
+<g class="terminal"><rect x="60" y="34" width="42" height="24" rx="12"/><text x="81" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 46H122"/>
 <path d="M40 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="68" width="67" height="24" rx="12"/><text x="93.5" y="85" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB0</text></g>
-<path d="M127 80H127a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M147 46h10"/>
-<g class="rule"><rect x="157" y="34" width="168" height="24" rx="0"/><text x="241" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 46H345"/>
+<g class="terminal"><rect x="60" y="68" width="42" height="24" rx="12"/><text x="81" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 80H102a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M122 46h10"/>
+<g class="rule"><rect x="132" y="34" width="168" height="24" rx="0"/><text x="216" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 46H320"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <path d="M40 114h20"/>
-<g class="terminal"><rect x="60" y="102" width="67" height="24" rx="12"/><text x="93.5" y="119" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA1</text></g>
-<path d="M127 114H147"/>
+<g class="terminal"><rect x="60" y="102" width="42" height="24" rx="12"/><text x="81" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 114H122"/>
 <path d="M40 114a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="136" width="67" height="24" rx="12"/><text x="93.5" y="153" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB1</text></g>
-<path d="M127 148H127a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
-<path d="M147 114h10"/>
-<g class="rule"><rect x="157" y="102" width="168" height="24" rx="0"/><text x="241" y="119" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 114H325a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="136" width="42" height="24" rx="12"/><text x="81" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 148H102a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
+<path d="M122 114h10"/>
+<g class="rule"><rect x="132" y="102" width="168" height="24" rx="0"/><text x="216" y="119" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 114H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <path d="M40 182h20"/>
-<g class="terminal"><rect x="60" y="170" width="67" height="24" rx="12"/><text x="93.5" y="187" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA2</text></g>
-<path d="M127 182H147"/>
+<g class="terminal"><rect x="60" y="170" width="42" height="24" rx="12"/><text x="81" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 182H122"/>
 <path d="M40 182a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="204" width="67" height="24" rx="12"/><text x="93.5" y="221" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB2</text></g>
-<path d="M127 216H127a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
-<path d="M147 182h10"/>
-<g class="rule"><rect x="157" y="170" width="168" height="24" rx="0"/><text x="241" y="187" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 182H325a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="204" width="42" height="24" rx="12"/><text x="81" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 216H102a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<path d="M122 182h10"/>
+<g class="rule"><rect x="132" y="170" width="168" height="24" rx="0"/><text x="216" y="187" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 182H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
 <path d="M40 250h20"/>
-<g class="terminal"><rect x="60" y="238" width="67" height="24" rx="12"/><text x="93.5" y="255" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA3</text></g>
-<path d="M127 250H147"/>
+<g class="terminal"><rect x="60" y="238" width="42" height="24" rx="12"/><text x="81" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 250H122"/>
 <path d="M40 250a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="272" width="67" height="24" rx="12"/><text x="93.5" y="289" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB3</text></g>
-<path d="M127 284H127a10 10 0 0 0 10 -10V260a10 10 0 0 1 10 -10"/>
-<path d="M147 250h10"/>
-<g class="rule"><rect x="157" y="238" width="168" height="24" rx="0"/><text x="241" y="255" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 250H325a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="272" width="42" height="24" rx="12"/><text x="81" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 284H102a10 10 0 0 0 10 -10V260a10 10 0 0 1 10 -10"/>
+<path d="M122 250h10"/>
+<g class="rule"><rect x="132" y="238" width="168" height="24" rx="0"/><text x="216" y="255" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 250H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
 <path d="M40 318h20"/>
-<g class="terminal"><rect x="60" y="306" width="67" height="24" rx="12"/><text x="93.5" y="323" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA4</text></g>
-<path d="M127 318H147"/>
+<g class="terminal"><rect x="60" y="306" width="42" height="24" rx="12"/><text x="81" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 318H122"/>
 <path d="M40 318a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="340" width="67" height="24" rx="12"/><text x="93.5" y="357" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB4</text></g>
-<path d="M127 352H127a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
-<path d="M147 318h10"/>
-<g class="rule"><rect x="157" y="306" width="168" height="24" rx="0"/><text x="241" y="323" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 318H325a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="340" width="42" height="24" rx="12"/><text x="81" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 352H102a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M122 318h10"/>
+<g class="rule"><rect x="132" y="306" width="168" height="24" rx="0"/><text x="216" y="323" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 318H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
 <path d="M40 386h20"/>
-<g class="terminal"><rect x="60" y="374" width="67" height="24" rx="12"/><text x="93.5" y="391" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDA5</text></g>
-<path d="M127 386H147"/>
+<g class="terminal"><rect x="60" y="374" width="42" height="24" rx="12"/><text x="81" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 386H122"/>
 <path d="M40 386a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="408" width="67" height="24" rx="12"/><text x="93.5" y="425" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_EDB5</text></g>
-<path d="M127 420H127a10 10 0 0 0 10 -10V396a10 10 0 0 1 10 -10"/>
-<path d="M147 386h10"/>
-<g class="rule"><rect x="157" y="374" width="168" height="24" rx="0"/><text x="241" y="391" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
-<path d="M325 386H325a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M345 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="60" y="408" width="42" height="24" rx="12"/><text x="81" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;&quot;</text></g>
+<path d="M102 420H102a10 10 0 0 0 10 -10V396a10 10 0 0 1 10 -10"/>
+<path d="M122 386h10"/>
+<g class="rule"><rect x="132" y="374" width="168" height="24" rx="0"/><text x="216" y="391" textLength="151.2" lengthAdjust="spacingAndGlyphs">zbalermorna-stress</text></g>
+<path d="M300 386H300a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M320 46h6m0 -8v16m4 -16v16"/>
 </svg>

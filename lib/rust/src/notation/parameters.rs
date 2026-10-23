@@ -959,12 +959,8 @@ impl<'a> Reader<'a> {
                     "wildcard" => obj([("wildcard", Json::Bool(true))]),
                     "constant-reference" => {
                         let t = self.token(base)?;
-                        let term = self.constant_reference(t)?;
-                        if self.value(t).starts_with("$_") {
-                            obj([("literal", written(&term, crate::dom::write_term))])
-                        } else {
-                            obj([("constant", string(self.value(t).trim_start_matches('$')))])
-                        }
+                        self.constant_reference(t)?;
+                        obj([("constant", string(self.value(t).trim_start_matches('$')))])
                     }
                     _ => {
                         let t = if base.kind == NodeKind::Token { base } else { self.token(base)? };

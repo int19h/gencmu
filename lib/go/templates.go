@@ -636,7 +636,7 @@ func (x *templateExpander) convert(arg templateObject, position string, e *templ
 		if arg["pattern"] != nil {
 			return templateObj(arg["pattern"])
 		}
-		if arg["string"] != nil || strings.HasPrefix(templateText(arg["const"]), "_") {
+		if arg["string"] != nil {
 			return templateObject{"literal": arg, "at": use["at"]}
 		}
 		if arg["const"] != nil {

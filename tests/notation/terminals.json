@@ -1,6 +1,6 @@
 {
-  "description": "The DOM distinguishes scalar-string and engine-constant terminals from identifier tag references. Ordinary Sound tags are identifier references, with no phoneme-terminal form (engine §9.3, docs/output.md).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (\"a\" \"\" $_0022 Sound-0283-s Sound-0020-s Word KOhA)\n```\n",
+  "description": "The DOM distinguishes decoded string terminals from identifier tag references (engine §9.3).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (\"a\" \"\" \"‹U+0022›\" Sound-0283-s Sound-0020-s Word KOhA)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -21,11 +21,7 @@
                   },
                   {
                     "literal": {
-                      "const": "_0022",
-                      "at": [
-                        6,
-                        21
-                      ]
+                      "string": "\""
                     }
                   },
                   {

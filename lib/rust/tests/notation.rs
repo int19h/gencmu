@@ -198,8 +198,8 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
 fn pattern_test_order_precedes_invalid_bases() {
     for body in [
         r#"%rule text $c:A %conditions $c ≅ #(_Bogus<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ #($_D800<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ #($_D800=UI<A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #("‹U+0061›"<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #("‹U+0061›"=UI<A>)"#,
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
         let column = body[..body.find("<A>").unwrap()].chars().count() + 1;

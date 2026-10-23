@@ -639,8 +639,8 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	if b.tokenValue(definer) == "%redefine-const" {
 		k.Op = "redefine"
 	}
-	if _, scalar := engineScalar(k.Name); scalar || !constName.MatchString(k.Name) {
-		b.fail(reference, "an engine constant cannot be declared")
+	if !constName.MatchString(k.Name) {
+		b.fail(reference, "a constant requires a user name")
 	}
 	b.closedFor = "a constant's value"
 	k.Value = b.value(valueNode)

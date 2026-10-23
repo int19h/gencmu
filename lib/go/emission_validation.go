@@ -199,7 +199,7 @@ func (g *stageGrammar) resolveClassifierKeys() *Error {
 			entry.Keys = nil
 			for _, key := range entry.KeyTerms {
 				for _, ref := range constRefs(key) {
-					if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
+					if g.constants[ref.Str] == nil {
 						return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
 					}
 				}

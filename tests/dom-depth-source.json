@@ -57,7 +57,7 @@
     "description": "Pattern scalar constant path",
     "head": "%const $C #(",
     "prefix": "⋮ (",
-    "leaf": "$_0061",
+    "leaf": "\"‹U+0061›\"",
     "suffix": ")",
     "tail": ")",
     "atLimit": 255

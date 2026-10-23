@@ -126,9 +126,9 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬$c.matches(breaking-format-char)
 
 %rule breaking-format-char
-  | $_200B
-  | $_0600..$_0605 | $_06DD | $_070F | $_0890..$_0891 | $_08E2
-  | $_110BD | $_110CD
+  | "‹U+200B›"
+  | "‹U+0600›".."‹U+0605›" | "‹U+06DD›" | "‹U+070F›" | "‹U+0890›".."‹U+0891›" | "‹U+08E2›"
+  | "‹U+110BD›" | "‹U+110CD›"
 
 %redefine-rule run-char
   $c:_
@@ -307,10 +307,10 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   $
 
 %rule stress-mark
-  $_0301 | $_0300
+  "‹U+0301›" | "‹U+0300›"
 
 %rule glide-mark
-  $_0306
+  "‹U+0306›"
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>

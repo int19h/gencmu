@@ -1076,7 +1076,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("%s", msg)
 		}
 	case tmConst:
-		if _, scalar := engineScalar(t.Str); !constName.MatchString(t.Str) && !scalar {
+		if !constName.MatchString(t.Str) {
 			c.fail("a malformed constant $%s", t.Str)
 		}
 	case tmTag:
@@ -1386,9 +1386,6 @@ const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
 type constTypes func(name string) termType
 
 func (ct constTypes) of(name string) termType {
-	if _, ok := engineScalar(name); ok {
-		return tyString
-	}
 	if ct == nil {
 		return tyAny
 	}

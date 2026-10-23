@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -467,18 +466,9 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `$_0301`, 0xED80: `$_ED80`, '"': `$_0022`, '\\': `$_005C`, 0x7F: `$_007F`, 'é': `$_00E9`, '각': `$_AC01`, 0x10FFFD: `$_10FFFD`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"‹U+0301›"`, 0xED80: `"‹U+ED80›"`, '"': `"‹U+0022›"`, '\\': `"\"`, 0x7F: `"‹DEL›"`, 'é': `"‹U+00E9›"`, '각': `"‹U+AC01›"`, 0x10FFFD: `"‹U+10FFFD›"`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
-		}
-		name := fmt.Sprintf("_%04X", c)
-		if back, ok := engineScalar(name); !ok || back != string(c) {
-			t.Errorf("%s: %q, %v", name, back, ok)
-		}
-	}
-	for _, bad := range []string{"_61", "_0000301", "_ed80", "_D800", "_110000", "_Any"} {
-		if _, ok := engineScalar(bad); ok {
-			t.Errorf("%s is a scalar constant", bad)
 		}
 	}
 	for _, bad := range []string{"'a'", "/a/", "lowercase", "_Bogus"} {

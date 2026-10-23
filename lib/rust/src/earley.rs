@@ -34,7 +34,7 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .zip(&g.characters)
         .map(|(name, characters)| match characters {
             Some(characters) => Matcher::Characters(*characters),
-            None => match crate::tags::string_value(name) {
+            None => match crate::tags::string_value(name, &g.unicode) {
                 Some(value) => Matcher::Value(tags.tag(&value)),
                 None => Matcher::Tag(tags.tag(name)),
             },

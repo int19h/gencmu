@@ -14,16 +14,17 @@ import (
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
-	categories        []categoryRange
-	whiteSpace        [][2]rune
-	emojiPresentation [][2]rune
-	emojiComponent    [][2]rune
-	decompositions    map[rune][]rune
-	combining         []combiningRange
-	abbreviations     map[string]rune
-	hash              string
-	version           string
-	versionCount      int
+	categories             []categoryRange
+	whiteSpace             [][2]rune
+	emojiPresentation      [][2]rune
+	emojiComponent         [][2]rune
+	decompositions         map[rune][]rune
+	combining              []combiningRange
+	abbreviations          map[string]rune
+	canonicalAbbreviations map[rune]string
+	hash                   string
+	version                string
+	versionCount           int
 }
 
 type combiningRange struct {
@@ -55,7 +56,7 @@ var propertyNames = func() map[string]bool {
 }()
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
-	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, hash: fnv1a64(text)}
+	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
 	hex := func(s string) (rune, error) {
 		for _, c := range s {
 			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
@@ -109,6 +110,10 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 				return nil, fmt.Errorf("unicode.txt line %d: an invalid abbreviation", n+1)
 			}
 			t.abbreviations[alias] = code
+			earlier, found := t.canonicalAbbreviations[code]
+			if !found || len(alias) < len(earlier) || len(alias) == len(earlier) && alias < earlier {
+				t.canonicalAbbreviations[code] = alias
+			}
 			continue
 		case "decompose":
 			if len(f) < 3 {

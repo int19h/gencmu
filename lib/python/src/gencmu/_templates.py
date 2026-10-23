@@ -17,17 +17,7 @@ def key_of(value):
 
 
 def quoted(value, unicode):
-    result = '"'
-    for c in value:
-        code = ord(c)
-        if c in '"\\\b\t\n\f\r':
-            result += json.dumps(c)[1:-1]
-        elif code < 32 or spelling(c, unicode).startswith("$_"):
-            result += ''.join('\\u' + format(int.from_bytes(c.encode('utf-16-be')[i:i+2], 'big'), '04x')
-                              for i in range(0, len(c.encode('utf-16-be')), 2))
-        else:
-            result += c
-    return result + '"'
+    return spelling(value, unicode)
 
 
 def term_group(n, parent, index):

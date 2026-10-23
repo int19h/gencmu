@@ -51,7 +51,7 @@ fn pinned_public_edits() {
             .iter()
             .map(|a| match &a.alternative.expr {
                 dom::Expr::Literal(dom::Term::Str(s)) => s.clone(),
-                dom::Expr::Terminal(s) => crate::tags::string_value(s).unwrap(),
+                dom::Expr::Terminal(s) => crate::tags::string_value(s, &g.unicode).unwrap(),
                 e => panic!("literal expected: {e:?}"),
             })
             .collect();
@@ -97,7 +97,7 @@ fn audit_notes() {
 #[test]
 fn canonical_arguments() {
     let n = j(r#"{"call":"f","args":[{"string":"a\n\t\u0301"},{"concat":[{"string":"a"},{"string":""}]}],"at":[1,1]}"#);
-    assert_eq!(print::canonical(&n, &unicode()), "f(\"a\\n\\t\\u0301\", \"a\" ++ \"\")");
+    assert_eq!(print::canonical(&n, &unicode()), "f(\"a‹LF›‹HT›‹U+0301›\", \"a\" ++ \"\")");
     let n = j(r#"{"body":{"seq":[{"ref":"a"},{"seq":[{"ref":"b"},{"ref":"c"}]}]}}"#);
     assert_eq!(print::canonical(&n, &unicode()), "(a (b c))");
 }

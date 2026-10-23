@@ -10,13 +10,13 @@
 <g class="rule"><rect x="40" y="68" width="100" height="24" rx="0"/><text x="90" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">glide-mark</text></g>
 <path d="M140 80H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="67" height="24" rx="12"/><text x="73.5" y="119" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_0308</text></g>
-<path d="M107 114H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;̈&quot;</text></g>
+<path d="M82 114H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="136" width="67" height="24" rx="12"/><text x="73.5" y="153" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_0328</text></g>
-<path d="M107 148H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;̨&quot;</text></g>
+<path d="M82 148H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="170" width="67" height="24" rx="12"/><text x="73.5" y="187" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_030C</text></g>
-<path d="M107 182H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;̌&quot;</text></g>
+<path d="M82 182H149a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M169 46h6m0 -8v16m4 -16v16"/>
 </svg>

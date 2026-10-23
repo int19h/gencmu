@@ -1,6 +1,6 @@
 {
-  "description": "Engine §10 accepts compatible membership operands in `\"a\" ∈ $_0061`.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ∈ $_0061\n%rule unit A\n%rule family unit\n%rule want A",
+  "description": "Engine §10 accepts compatible membership operands in `\"a\" ∈ \"‹U+0061›\"`.",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ∈ \"‹U+0061›\"\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {
       "text": "a",

@@ -241,9 +241,9 @@ A letter rule tests only the marks that mean something on its letter. Any other 
 %rule named-mark
   | stress-mark :: Accent
   | glide-mark :: Breve
-  | $_0308 :: Dieresis
-  | $_0328 :: Ogonek
-  | $_030C :: Caron
+  | "‹U+0308›" :: Dieresis
+  | "‹U+0328›" :: Ogonek
+  | "‹U+030C›" :: Caron
 ```
 
 <details><summary>Railroad diagrams of <code>letter-marks</code>, <code>letter-mark</code> and <code>named-mark</code></summary>

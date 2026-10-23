@@ -54,6 +54,7 @@ pub(crate) struct Unicode {
     decompositions: Vec<(u32, Vec<char>)>,
     combining: Vec<(u32, u32, u8)>,
     pub(crate) abbreviations: std::collections::BTreeMap<String, u32>,
+    pub(crate) canonical_abbreviations: std::collections::BTreeMap<u32, String>,
     pub(crate) version: Option<String>,
     pub(crate) version_count: usize,
 }
@@ -97,6 +98,7 @@ impl Unicode {
             decompositions: Vec::new(),
             combining: Vec::new(),
             abbreviations: std::collections::BTreeMap::new(),
+            canonical_abbreviations: std::collections::BTreeMap::new(),
             version: None,
             version_count: 0,
         };
@@ -125,6 +127,13 @@ impl Unicode {
                         return Err(format!("unicode.txt line {number}: an invalid abbreviation"));
                     }
                     table.abbreviations.insert((*alias).into(), code);
+                    if table
+                        .canonical_abbreviations
+                        .get(&code)
+                        .map_or(true, |earlier| (alias.len(), *alias) < (earlier.len(), earlier.as_str()))
+                    {
+                        table.canonical_abbreviations.insert(code, (*alias).to_string());
+                    }
                 }
                 ["category", name, first, last] => {
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {

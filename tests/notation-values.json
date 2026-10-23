@@ -270,7 +270,7 @@
       "aliases": [
         {
           "spelling": "$_engineK",
-          "value": "$_0041",
+          "value": "\"‹U+0041›\"",
           "tags": [
             "Constant"
           ]
@@ -285,7 +285,7 @@
                 {
                   "expr": {
                     "literal": {
-                      "const": "_0041"
+                      "string": "A"
                     }
                   }
                 }
@@ -564,7 +564,7 @@
       "aliases": [
         {
           "spelling": "$_engineK",
-          "value": "$_0041",
+          "value": "\"‹U+0041›\"",
           "tags": [
             "Constant"
           ]
@@ -579,7 +579,7 @@
                 {
                   "expr": {
                     "literal": {
-                      "const": "_0041"
+                      "string": "A"
                     }
                   }
                 }

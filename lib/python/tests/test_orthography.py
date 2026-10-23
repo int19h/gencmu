@@ -99,10 +99,10 @@ class GrammarReading(unittest.TestCase):
                 dialect = gencmu.load_dialect_sources(texts, "p.md")
                 token = gencmu.Token("", frozenset(), (0, 1), (0, 0), value=value)
                 self.assertTrue(dialect.parse_tokens([token], "").ok)
-        texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text $_00E0..$_017A')
+        texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text "‹U+00E0›".."‹U+017A›"')
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         terminal = dialect.parse("").error.expected[0].terminal
-        self.assertEqual(terminal, '$_00E0..$_017A')
+        self.assertEqual(terminal, '"‹U+00E0›".."‹U+017A›"')
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text ' + terminal)
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         self.assertTrue(dialect.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)

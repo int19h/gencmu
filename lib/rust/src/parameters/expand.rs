@@ -656,7 +656,7 @@ impl Expander<'_> {
             if has(&arg, "pattern") {
                 return Ok(get(&arg, "pattern").clone());
             }
-            if has(&arg, "string") || text(get(&arg, "const")).starts_with('_') {
+            if has(&arg, "string") {
                 return Ok(obj([("literal", arg), ("at", get(use_, "at").clone())]));
             }
             if has(&arg, "const") {

@@ -395,7 +395,7 @@
                                                                         "children": [
                                                                           {
                                                                             "kind": "token",
-                                                                            "terminal": "$_0300",
+                                                                            "terminal": "\"‹U+0300›\"",
                                                                             "token": 3,
                                                                             "span": [
                                                                               3,

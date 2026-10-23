@@ -1,10 +1,10 @@
 {
-  "description": "An engine constant name cannot contain seven hexadecimal digits (engine §9.1).",
-  "document": "```jbogenbau\n%rule a $x:A %conditions $x.source-text = $_0000041\n```\n",
+  "description": "A numeric escape accepts four through six hexadecimal digits (engine §9.1).",
+  "document": "```jbogenbau\n%rule a $x:A %conditions $x.source-text = \"‹U+0000041›\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 43
+      "column": 44
     }
   }
 }

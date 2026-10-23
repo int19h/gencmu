@@ -219,7 +219,7 @@ fn pattern_string_terminal_constructors_and_tests() {
     );
     let rules = "%const $S \"a\"\n%const $P #($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
-    for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "$_D800=\"a\"<A>"] {
+    for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "\"‹U+0061›\"=\"a\"<A>"] {
         let rules = format!("%const $P #« {pattern} »\n%rule text A");
         let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
         let bootstrap = if pattern.starts_with('$') { &constants } else { &changed };
@@ -237,7 +237,7 @@ fn pattern_names_use_named_parts_or_tokens() {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
         let rules = "%const $P #child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
         assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
-        let rules = "%const $P #(child=$_D800)\n%rule text A";
+        let rules = "%const $P #(child=\"‹U+D800›\")\n%rule text A";
         assert_eq!(load_pattern_probe(rules, &changed).unwrap_err(), load_pattern_probe(rules, &bundled).unwrap_err());
     }
 }

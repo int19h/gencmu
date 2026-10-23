@@ -170,7 +170,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 
 A capture is `$` alone or `$` followed by a lowercase name. `$` alone names the enclosing constituent.
 
-A user constant starts with `$` and an uppercase name. An engine scalar reference starts with `$_` and letters or digits. The reader later requires valid hexadecimal digits and a Unicode scalar value.
+A user constant starts with `$` and an uppercase name.
 
 In these grammar strings, `"$"` denotes one dollar sign. Thus `"$" upper-name` reads a constant.
 
@@ -185,10 +185,7 @@ The boundary conditions prevent either token from ending inside its name. The sy
   $ :: Capture
 
 %rule constant-token
-  | user-constant
-  | "$" "_" [scalar-name]
-%conditions
-  ¬$.following-tokens.begins(scalar-name-character)
+  user-constant
 %emits
   $ :: Constant
 
@@ -197,19 +194,12 @@ The boundary conditions prevent either token from ending inside its name. The sy
 %conditions
   ¬$.following-tokens.begins(name-character)
 
-%rule scalar-name
-  scalar-name-character | scalar-name scalar-name-character
-
-%rule scalar-name-character
-  letter | digit
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>capture-token</code> to <code>scalar-name-character</code></summary>
+<details><summary>Railroad diagrams of <code>capture-token</code>, <code>constant-token</code> and <code>user-constant</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/capture-token.svg" alt="Railroad diagram of the rule capture-token"></p>
 <p><img src="../../docs/diagrams/notation/lexical/constant-token.svg" alt="Railroad diagram of the rule constant-token"></p>
 <p><img src="../../docs/diagrams/notation/lexical/user-constant.svg" alt="Railroad diagram of the rule user-constant"></p>
-<p><img src="../../docs/diagrams/notation/lexical/scalar-name.svg" alt="Railroad diagram of the rule scalar-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/scalar-name-character.svg" alt="Railroad diagram of the rule scalar-name-character"></p>
 </details>
 
 ## Feature guards
@@ -249,17 +239,17 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 
 ## Strings
 
-Straight double quotes enclose a string. Ordinary string characters exclude the quote and backslash: U+0022 and U+005C.
+Straight double quotes enclose a string. Ordinary string characters exclude only the quote, U+0022.
 
 Dollar signs are ordinary characters.
 
-A backslash has no string form, so the stage rejects it rather than treating it as an escape.
+Backslashes and dollar signs remain ordinary characters.
 
 The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
 
 ```jbogenbau
 %rule string
-  $_0022 [{string-part}] $_0022
+  "‹U+0022›" [{string-part}] "‹U+0022›"
 %emits
   $ :: String
 
@@ -267,7 +257,7 @@ The reader decodes the complete token only after syntax recognition. This keeps 
   ordinary-string-character
 
 %rule ordinary-string-character
-  $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
+  "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
 ```
 
 <details><summary>Railroad diagrams of <code>string</code>, <code>string-part</code> and <code>ordinary-string-character</code></summary>
@@ -282,7 +272,7 @@ The reader decodes the complete token only after syntax recognition. This keeps 
 
 `names` reads `%names` and its quoted path in the same way. Its keyword carries `KW-NAMES`. The reader collects leading names declarations before it inspects other string escapes.
 
-An include path keeps dollar signs literally. It excludes quotes and backslashes.
+An include path keeps dollar signs and backslashes literally. It excludes quotes.
 
 `include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare directive token when a path follows.
 
@@ -307,10 +297,10 @@ An include path keeps dollar signs literally. It excludes quotes and backslashes
   "%" whole-name="names"
 
 %rule include-path
-  $_0022 [{path-part}] $_0022
+  "‹U+0022›" [{path-part}] "‹U+0022›"
 
 %rule path-part
-  $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
+  "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>include</code> to <code>path-part</code></summary>
@@ -423,7 +413,7 @@ The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as com
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
   | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
-  | ("=" | "∈" | "⊆" | "≅") $_0338
+  | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
 %emits
   $
 ```

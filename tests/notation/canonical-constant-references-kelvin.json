@@ -1,6 +1,6 @@
 {
-  "description": "Bare and concatenated constant references use the same decomposed name and preserve exact scalar constants.",
-  "document": "```jbogenbau\n%const $K $_00E9\n%rule text $K $K\n```",
+  "description": "Bare and concatenated user constant references retain their identity. Numeric escapes preserve exact scalars.",
+  "document": "```jbogenbau\n%const $K \"‹U+00E9›\"\n%rule text $K $K\n```",
   "expect": {
     "dom": {
       "format": 40,
@@ -49,11 +49,7 @@
           "name": "K",
           "op": "define",
           "value": {
-            "const": "_00E9",
-            "at": [
-              2,
-              11
-            ]
+            "string": "é"
           },
           "at": [
             2,

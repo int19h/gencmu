@@ -1,6 +1,6 @@
 {
   "description": "A constant joins literal text with exact quotation-mark and backslash engine scalars (engine §2, §10).",
-  "grammar": "%const $S \"a\" ++ $_0022 ++ $_005C\n%rule text $S",
+  "grammar": "%const $S \"a\" ++ \"‹U+0022›\" ++ \"‹U+005C›\"\n%rule text $S",
   "input": "a",
   "expect": {
     "result": {

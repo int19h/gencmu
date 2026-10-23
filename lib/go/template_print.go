@@ -3,40 +3,9 @@ package gencmu
 import (
 	"fmt"
 	"strings"
-	"unicode/utf16"
 )
 
-func templateQuoted(s string, uni *unicodeTable) string {
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, c := range s {
-		switch c {
-		case '"', '\\':
-			b.WriteByte('\\')
-			b.WriteRune(c)
-		case '\b':
-			b.WriteString(`\b`)
-		case '\t':
-			b.WriteString(`\t`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\f':
-			b.WriteString(`\f`)
-		case '\r':
-			b.WriteString(`\r`)
-		default:
-			if strings.HasPrefix(stringTerminal(string(c), uni), "$_") {
-				for _, x := range utf16.Encode([]rune{c}) {
-					fmt.Fprintf(&b, `\u%04x`, x)
-				}
-			} else {
-				b.WriteRune(c)
-			}
-		}
-	}
-	b.WriteByte('"')
-	return b.String()
-}
+func templateQuoted(s string, uni *unicodeTable) string { return stringTerminal(s, uni) }
 func templateTermGroup(n templateObject, parent string, index int) bool {
 	if n["if"] != nil {
 		return true

@@ -1,29 +1,9 @@
 //! Canonical instance names. Pattern spelling follows the reference reader.
 use super::*;
 fn quoted(s: &str, u: &Unicode) -> String {
-    use std::fmt::Write;
-    let mut out = String::from("\"");
-    for c in s.chars() {
-        match c {
-            '\"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\x08' => out.push_str("\\b"),
-            '\t' => out.push_str("\\t"),
-            '\n' => out.push_str("\\n"),
-            '\x0c' => out.push_str("\\f"),
-            '\r' => out.push_str("\\r"),
-            c if (c as u32) < 32 || crate::tags::string_name(&c.to_string(), u).starts_with("$_") => {
-                let mut buf = [0; 2];
-                for unit in c.encode_utf16(&mut buf) {
-                    write!(out, "\\u{unit:04x}").unwrap()
-                }
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
+    crate::tags::string_name(s, u)
 }
+
 fn term_group(n: &Json, parent: &str, index: usize) -> bool {
     if has(n, "if") {
         return true;
