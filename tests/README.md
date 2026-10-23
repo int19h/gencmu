@@ -293,6 +293,8 @@ Cold runs use new processes and include loading and one timed corpus-sample batc
 
 Each revision also runs the full cll-ebnf corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
 
+Before comparing results, the baseline normalizes general-category names to their current long spellings. This includes tag sets, terminal identities, diagnostics, and canonical call names.
+
 A tag projection keeps all user tags and the engine inventory before profiles. That inventory consists of the atomic and seven major category tags, `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. The projection excludes Canonical_Combining_Class tags and every other newly exposed property tag. It applies recursively to all token and node tag sets, including attachments, witnesses, warnings, and error readings. Every other result field remains intact.
 
 The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.

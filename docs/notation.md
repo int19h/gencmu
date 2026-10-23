@@ -98,7 +98,7 @@ A tag is an identifier string. A tag has no strength: a token either carries it 
 
 - A class is a tag such as `KOhA`, `BRIVLA`, or `FOREIGN`.
 - A mark is a tag such as `Word`, `Stressed`, or `Run-Initial`.
-- An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
+- An engine tag is a stored property such as `_General_Category_Uppercase_Letter`, `_General_Category_Letter`, or `_White_Space`.
 
 A selma'o is a class of Lojban particles.
 
@@ -116,15 +116,15 @@ Escape decoding follows source decomposition, so `"‹U+00E9›"` stays one scal
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories retain compact names such as `_Lu`, `_Nd`, and `_L`.
+The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories use long canonical names such as `_General_Category_Uppercase_Letter`, `_General_Category_Decimal_Number`, and `_General_Category_Letter`.
 
-Other binary tags accept long or short names, such as `_Alphabetic` or `_Alpha`. Enumerated values accept all-long or all-short forms, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors. `_gc_Lu` and `_General_Category_Uppercase_Letter` also denote `_Lu`.
+Other binary tags accept long or short names, such as `_Alphabetic` or `_Alpha`. Enumerated values accept all-long or all-short forms, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors. The input spellings `_Lu` and `_gc_Lu` normalize to `_General_Category_Uppercase_Letter`. The compact input `_L` and short input `_gc_L` normalize to `_General_Category_Letter`.
 
 Script_Extensions is multi-valued: each script in its set supplies a tag such as `_Script_Extensions_Hiragana`. An explicit extension set replaces the UCD default singleton Script value. For text associated with a script, extension membership can be more useful than Script alone.
 
 Even without explicit grammar references, every stage-zero token carries its decomposed scalar's complete available profile. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
 
-[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. The reader normalizes aliases before constructing the DOM. Canonical names use long forms, except compact general categories. Mixed forms such as `_Script_Latn` are errors.
+[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. The reader normalizes aliases before constructing the DOM. Canonical names use long forms for every property, including general categories. Mixed forms such as `_Script_Latn` are errors.
 
 A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
 
@@ -134,9 +134,9 @@ Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and
 
 Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
-A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_L`. A grammar can forward or filter engine tags but never introduce them.
+A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_General_Category_Letter`. A grammar can forward or filter engine tags but never introduce them.
 
-An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _Lu`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
+An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _General_Category_Uppercase_Letter`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
@@ -791,11 +791,11 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
 | `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
 
-Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-39 shape acceptance.
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-40 shape acceptance.
 
-The following mapping converts valid format-35 pattern DOMs to format 39. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
+The following mapping converts valid format-35 pattern DOMs to format 40. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
 
-| Format-35 form | Format-39 form |
+| Format-35 form | Format-40 form |
 | --- | --- |
 | Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
 | Child `{"node":P}` | `[{"child":M(P)}]` |
@@ -813,11 +813,11 @@ The following mapping converts valid format-35 pattern DOMs to format 39. `M(P)`
 | Pattern test | Retain the test and operands, then convert its `expr` with M |
 | Other pattern atom | Retain its constructor, fields, and source position |
 
-The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The resulting format-39 DOM receives ordinary shape and type inspection.
+The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The conversion normalizes engine-tag identifiers to current canonical names, including general categories. The resulting format-40 DOM receives ordinary shape and type inspection.
 
-Malformed-DOM fixtures require corresponding format-39 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+Malformed-DOM fixtures require corresponding format-40 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
 
-Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-39 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-40 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
 
 The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
 
@@ -1247,7 +1247,7 @@ So `$content.value.split($PAUSE)` is the set of the runs of `$content`, the stre
 
 An empty delimiter is an error. A literal `""` or an empty string constant as the delimiter causes a document error. Constant evaluation and feature conditions also reject joined empty delimiters during loading. In a constant value, this document error has kind `grammar` and stands at the definition. In a rule condition, a joined empty delimiter causes a grammar error only when a parse evaluates the split. Engine §2 and §10 define these positions and evaluation times.
 
-A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_L ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
+A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_General_Category_Letter ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
 
 A whole capture's `.tags` reads its constituent tags. Another span, such as `$x.first-token`, unions its input token tags. `.tags(rule)` unions eligible whole-query readings and is empty without a match. `.classes` filters the same tag set for names starting and ending with capitals and never starting with `_`.
 

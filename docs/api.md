@@ -38,9 +38,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 39 supports templates, parameters, calls, named instances, argument lists, and backward queries. It also supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Literal text runs decompose, while decoded string escapes keep their exact scalars. Parse-result format 15 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 40 supports templates, parameters, calls, named instances, argument lists, and backward queries. It also supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Literal text runs decompose, while decoded string escapes keep their exact scalars. Parse-result format 15 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-39 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-40 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -147,7 +147,7 @@ Rust `InputToken` stores `value: Option<String>` and `image: Option<String>` alo
 
 Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string` use `nil` for defaults. Non-nil pointers can supply empty strings. `InputToken` also carries `Text`, `Tags`, `Span`, `Source`, `Before`, and `After`. Nonempty attachment slices remain usage errors. Output `Token` stores `Value` and `Image` as strings.
 
-For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied normalized comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_Lu` or any other engine tag unless the caller supplies it.
+For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied normalized comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_General_Category_Uppercase_Letter` or any other engine tag unless the caller supplies it.
 
 Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
 
@@ -173,7 +173,7 @@ import { loadDialectSources, toJson, toBrackets } from "gencmu";
 const dialect = loadDialect("cll-ebnf");
 const result = dialect.parse("mi klama", { features: ["y-cmavo"], until: "words" });
 const supplied = dialect.parse("A", {
-    tokens: [{ text: "A", value: "a", image: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }],
+    tokens: [{ text: "A", value: "a", image: "A", tags: ["_General_Category_Uppercase_Letter", "_General_Category_Letter"], span: [0, 1], source: [0, 1] }],
     until: "phonemes"
 });
 result.ok; result.tree; result.error; result.warnings;
@@ -200,7 +200,7 @@ import gencmu
 
 dialect = gencmu.load_dialect("cll-ebnf")
 result = dialect.parse("mi klama", features={"y-cmavo"}, until="words")
-tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_Lu", "_L"}, span=(0, 1), source=(0, 1))]
+tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_General_Category_Uppercase_Letter", "_General_Category_Letter"}, span=(0, 1), source=(0, 1))]
 supplied = dialect.parse_tokens(tokens, "A", until="phonemes")
 result.ok, result.tree, result.error, result.warnings
 dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
@@ -231,7 +231,7 @@ result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{
 result.OK; result.Tree; result.Error; result.Warnings
 value, image := "a", "A"
 supplied, err := dialect.ParseTokens("A", []gencmu.InputToken{{
-    Text: "A", Value: &value, Image: &image, Tags: []string{"_Lu", "_L"},
+    Text: "A", Value: &value, Image: &image, Tags: []string{"_General_Category_Uppercase_Letter", "_General_Category_Letter"},
     Span: [2]int{0, 1}, Source: [2]int{0, 1},
 }}, gencmu.ParseOptions{Until: "phonemes"})
 dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
@@ -263,7 +263,7 @@ let result = dialect.parse("mi klama", &gencmu::ParseOptions {
 })?;
 let supplied = dialect.parse_tokens(&[gencmu::InputToken {
     text: "A".into(), value: Some("a".into()), image: Some("A".into()),
-    tags: ["_Lu".into(), "_L".into()].into_iter().collect(),
+    tags: ["_General_Category_Uppercase_Letter".into(), "_General_Category_Letter".into()].into_iter().collect(),
 }], &gencmu::ParseOptions {
     until: Some("phonemes".into()), ..Default::default()
 })?;

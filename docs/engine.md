@@ -31,7 +31,7 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 
 - A user class starts and ends with a capital and never starts with `_`, such as `KOhA`.
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
-- An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
+- An engine tag is a stored property such as `_General_Category_Uppercase_Letter`, `_General_Category_Letter`, or `_White_Space`.
 
 A string terminal's identity is its resolved string. A literal, escaped literal, and equal user constant therefore identify one terminal.
 
@@ -100,25 +100,25 @@ The table need not cover every scalar. An unlisted core scalar gets Cn and lacks
 
 A table without `decompose` records decomposes only Hangul syllables, and one without `combining` records reorders nothing. The bundled notation needs the `decompose` records of U+2260, U+2209, U+2288 and U+2247.
 
-`Cs` belongs only to surrogates U+D800 to U+DFFF, which the table never lists. A surrogate is not a scalar and cannot become a stage-zero token. `_Cs` is a valid stored-tag name but stage zero never assigns it.
+`Cs` belongs only to surrogates U+D800 to U+DFFF, which the table never lists. A surrogate is not a scalar and cannot become a stage-zero token. `_General_Category_Surrogate` is a valid stored-tag name but stage zero never assigns it.
 
 A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
 
 A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
 
-Engine property names correspond to the configured Unicode table. A general category uses its short form with `_`, such as `_Lu`. A major category groups the general categories sharing its letter. These are the general and major names:
+Engine property names correspond to the configured Unicode table. A general-category tag uses its qualified long form, such as `_General_Category_Uppercase_Letter`. A major category groups related atomic categories. These are the canonical atomic and major names:
 
-- `_L`: `_Lu`, `_Ll`, `_Lt`, `_Lm` and `_Lo`
-- `_M`: `_Mn`, `_Mc` and `_Me`
-- `_N`: `_Nd`, `_Nl` and `_No`
-- `_P`: `_Pc`, `_Pd`, `_Ps`, `_Pe`, `_Pi`, `_Pf` and `_Po`
-- `_S`: `_Sm`, `_Sc`, `_Sk` and `_So`
-- `_Z`: `_Zs`, `_Zl` and `_Zp`
-- `_C`: `_Cc`, `_Cf`, `_Cs`, `_Co` and `_Cn`
+- `_General_Category_Letter`: `_General_Category_Uppercase_Letter`, `_General_Category_Lowercase_Letter`, `_General_Category_Titlecase_Letter`, `_General_Category_Modifier_Letter` and `_General_Category_Other_Letter`
+- `_General_Category_Mark`: `_General_Category_Nonspacing_Mark`, `_General_Category_Spacing_Mark` and `_General_Category_Enclosing_Mark`
+- `_General_Category_Number`: `_General_Category_Decimal_Number`, `_General_Category_Letter_Number` and `_General_Category_Other_Number`
+- `_General_Category_Punctuation`: `_General_Category_Connector_Punctuation`, `_General_Category_Dash_Punctuation`, `_General_Category_Open_Punctuation`, `_General_Category_Close_Punctuation`, `_General_Category_Initial_Punctuation`, `_General_Category_Final_Punctuation` and `_General_Category_Other_Punctuation`
+- `_General_Category_Symbol`: `_General_Category_Math_Symbol`, `_General_Category_Currency_Symbol`, `_General_Category_Modifier_Symbol` and `_General_Category_Other_Symbol`
+- `_General_Category_Separator`: `_General_Category_Space_Separator`, `_General_Category_Line_Separator` and `_General_Category_Paragraph_Separator`
+- `_General_Category_Other`: `_General_Category_Control`, `_General_Category_Format`, `_General_Category_Surrogate`, `_General_Category_Private_Use` and `_General_Category_Unassigned`
 
 The core binary names are `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. Their stored membership comes from the corresponding core property ranges. The property inventory below adds qualified value tags and further binary tags.
 
-`_` matches any token at any stage, including every stage-zero character. It requires no stored universal tag. A missing category record assigns `_Cn` and `_C`. Later stages never derive these tags from values or images.
+`_` matches any token at any stage, including every stage-zero character. It requires no stored universal tag. A missing category record assigns `_General_Category_Unassigned` and `_General_Category_Other`. Later stages never derive these tags from values or images.
 
 Emoji properties use the same pinned Unicode version as categories and decomposition. A missing emoji record grants no membership. These properties add no case mapping.
 
@@ -128,7 +128,7 @@ The engine inventory is closed to the categories above and the properties below.
 
 A binary property assigns Yes or No. An enumerated property gives each scalar one named value. A multi-valued property assigns a set of values. Catalog properties, such as Script, follow the enumerated rules.
 
-The inventory uses Unicode 15.1.0. It includes 56 binary properties, 25 enumerated or catalog properties, and Script_Extensions. General_Category retains its compact tags above. Canonical_Combining_Class also supplies tags, through the same map that orders combining marks.
+The inventory uses Unicode 15.1.0. It includes 56 binary properties, 25 enumerated or catalog properties, and Script_Extensions. General_Category supplies the canonical tags above. Canonical_Combining_Class also supplies tags, through the same map that orders combining marks.
 
 These are the included binary properties:
 
@@ -182,9 +182,9 @@ A binary tag uses either the long property name or its short alias, such as `_Al
 
 Other properties use `_PROPERTY_VALUE`, with either both long names or both short aliases. `_Script_Latin` and `_sc_Latn` identify the same tag. `_Canonical_Combining_Class_Above` and `_ccc_A` identify the same tag. Mixed forms, such as `_Script_Latn`, `_sc_Latin`, and `_ccc_Above`, are errors. If a short and long name are identical, that name works in either complete form.
 
-General categories also accept qualified long and short forms. `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` identify the same tag. This rule also covers the seven major groups, such as `_L`, `_gc_L`, and `_General_Category_Letter`. `_Uppercase_Letter`, `_LC`, `_gc_LC`, and `_General_Category_Cased_Letter` remain invalid.
+General categories accept compact, qualified short, and qualified long input forms. Every atomic and major category accepts all three forms. `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` identify the same tag. This rule also covers the seven major groups, such as `_L`, `_gc_L`, and `_General_Category_Letter`. `_Uppercase_Letter`, `_LC`, `_gc_LC`, and `_General_Category_Cased_Letter` remain invalid.
 
-The reader immediately normalizes accepted property spellings to one canonical spelling. General categories use their compact names, such as `_Lu`. Every other property uses its long form. DOMs, stored tags, terminal identities, instance keys, diagnostics, and output contain only canonical spellings. Aliases never add another tag or another parse.
+The reader immediately normalizes accepted property spellings to one canonical spelling. Every property uses its long form, including atomic and major general categories. DOMs, stored tags, terminal identities, instance keys, diagnostics, and output contain only canonical spellings. Aliases never add another tag or another parse.
 
 The long names and short aliases come from pinned [PropertyAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyAliases.txt) and [PropertyValueAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyValueAliases.txt). Some long values contain short letters, such as `_Grapheme_Cluster_Break_L`. Age accepts `_Age_V15_1` and `_age_15.1`, or `_Age_Unassigned` and `_age_NA`. Block uses aliases such as `_Block_Latin_1_Supplement`, rather than the spaced spelling in Blocks.txt.
 
@@ -200,7 +200,7 @@ A library resolves a complete token through that registry. It never guesses a pr
 
 Each library embeds the generated Unicode 15.1 property catalog, including property kinds, canonical value names, and accepted short spellings. The portable JavaScript library embeds this catalog too. Custom files use it for name and type inspection, without receiving bundled membership assignments. Runtime host data never supplies catalog entries.
 
-Names compare exactly. Mixed aliases, different case, double separators, and punctuation substitutions are document errors at the tag. For example, `_Script_Latn`, `_sc_Latin`, `_Script__Latin`, `_Bidi_Class_L`, `_lu`, and `_Letter` are invalid. `_Sc` remains the currency-symbol category, while `_sc_Latn` denotes Script Latin.
+Names compare exactly. Mixed aliases, different case, double separators, and punctuation substitutions are document errors at the tag. For example, `_Script_Latn`, `_sc_Latin`, `_Script__Latin`, `_Bidi_Class_L`, `_lu`, and `_Letter` are invalid. The compact input `_Sc` normalizes to `_General_Category_Currency_Symbol`, while `_sc_Latn` normalizes to `_Script_Latin`.
 
 If the configured table lacks a known property or value, its tag is a document error at that reference. This rule covers negative tests, pattern constants, supplied DOMs, disabled alternatives, and replaced definitions. For a declared value without scalar assignments, no scalar receives its tag from that table. The terminal remains valid and can match a trusted caller token. It cannot become a constant-failure predicate.
 
@@ -210,13 +210,13 @@ The API normalizes accepted aliases in caller token tags before set construction
 
 A scalar profile stores one scalar's initial engine tags. A profile never changes. Stage zero assigns each decomposed scalar its complete profile from the configured tables. Membership never depends on which tags a grammar names, its feature gates, or the selected stages. This rule applies while reading grammar documents too.
 
-Every included and available binary property contributes its Yes tag. Every included and available enumerated property contributes its value tag. Script_Extensions contributes every member tag. Compact category tags and their major groups remain present.
+Every included and available binary property contributes its Yes tag. Every included and available enumerated property contributes its value tag. Script_Extensions contributes every member tag. Long category tags and their major groups remain present.
 
 Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
 
 Later stages read stored sets, without deriving properties from value, image, text, or source. A changed value grants no new property tag. A filter can remove every tag of an enumerated property. A union can retain several values of that property. Neither operation reclassifies the resulting token.
 
-If a filter removes `_L` and keeps `_Lu`, that removal does not restore `_L`. If a filter removes an extension member, a retained Script tag does not restore that member. Even without explicit grammar references, serialization lists every retained property tag. Shared storage cannot hide tags from equality, intersections, forwarding, or output.
+If a filter removes `_General_Category_Letter` and keeps `_General_Category_Uppercase_Letter`, that removal does not restore `_General_Category_Letter`. If a filter removes an extension member, a retained Script tag does not restore that member. Even without explicit grammar references, serialization lists every retained property tag. Shared storage cannot hide tags from equality, intersections, forwarding, or output.
 
 ### Pinned properties file
 
@@ -267,7 +267,7 @@ ScriptExtensions.txt supplies explicit sets. For other scalars, the generator ma
 
 The generator and the shared data audit compare all 1,112,064 scalars with the pinned sources. They include range boundaries and neighboring scalars. Independent expected digests cover each property's complete assignments, including defaults and extension sets. Host Unicode APIs never provide expected memberships.
 
-Each property digest uses 64-bit FNV-1a over ASCII records in increasing scalar order. A record has six uppercase hexadecimal digits, a colon, sorted canonical tag names separated by commas, and LF. Binary No contributes an empty tag list. General_Category includes its compact atomic and major tags. The digest uses 16 lowercase hexadecimal digits, like the file fingerprints of §8.
+Each property digest uses 64-bit FNV-1a over ASCII records in increasing scalar order. A record has six uppercase hexadecimal digits, a colon, sorted canonical tag names separated by commas, and LF. Binary No contributes an empty tag list. General_Category includes its qualified long atomic and major tags. The digest uses 16 lowercase hexadecimal digits, like the file fingerprints of §8.
 
 A supplied `unicode-properties.txt` replaces the bundled properties file entirely. Omitted properties and values receive no bundled fallback. A custom core table without a companion file supports only its five core properties. A properties file without an overridden core uses the bundled core and must match its version.
 
@@ -284,17 +284,20 @@ Shared cases in `tests/engine/` and `tests/notation/` cover the following observ
 | Case | Required observation |
 | --- | --- |
 | Exact names | Long and short pairs normalize identically: `_Alphabetic` and `_Alpha`, `_Script_Latin` and `_sc_Latn`, `_Canonical_Combining_Class_Above` and `_ccc_A`. Mixed aliases, wrong case, unknown values, and excluded properties are errors. |
-| General categories | `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` normalize to `_Lu`. Major groups follow the same rule. Cased_Letter forms remain invalid. |
-| Alias boundaries | `_age_15.1` normalizes to `_Age_V15_1`. `_scx_Grek` normalizes to `_Script_Extensions_Greek`. `_Sc` stays distinct from Script. Compatibility aliases outside the designated columns are errors. |
-| Canonical identity | Alias spellings give equal DOMs apart from positions. Pattern keys, call names, and terminal identities are equal. Short source spellings produce long diagnostics, except compact general categories. |
+| General categories | All 37 categories accept their three input forms and normalize to long names. `_Lu`, `_gc_Lu`, and `_General_Category_Uppercase_Letter` normalize to `_General_Category_Uppercase_Letter`. `_L` and `_gc_L` normalize to `_General_Category_Letter`. Cased_Letter forms remain invalid. |
+| Alias boundaries | `_age_15.1` normalizes to `_Age_V15_1`. `_scx_Grek` normalizes to `_Script_Extensions_Greek`. The input `_Sc` normalizes to `_General_Category_Currency_Symbol` and stays distinct from Script. Compatibility aliases outside the designated columns are errors. |
+| Category output | Source `_Lu` produces `{"ref":"_General_Category_Uppercase_Letter"}` in a DOM. Source `_L` prints `_General_Category_Letter` in terminals, patterns, and call names. Token and node tag sets also use long names. |
+| Category DOMs | Supplied DOMs accept long category names. Compact or qualified short category names are malformed in supplied DOMs, although source input accepts them. |
+| Category names | An unnamed `keep(_Lu)` instance prints `keep(_General_Category_Uppercase_Letter)`. A pattern argument written `#_Lu` prints `#_General_Category_Uppercase_Letter`. Compact aliases do not survive in canonical names. |
+| Canonical identity | Alias spellings give equal DOMs apart from positions. Pattern keys, call names, and terminal identities are equal. Short and compact source spellings produce long diagnostics for every property, including general categories. |
 | Empty selectors | No bundled scalar receives Script Katakana_Or_Hiragana or Word_Break E_Base. Their terminals still match trusted caller tokens carrying those tags. |
 | Accents and reordering | `é` and decomposed equivalents produce profiles for `e` and U+0301. Lowercase belongs to `e`, and Diacritic belongs to U+0301. Reordered marks retain their profiles and source origins. |
 | Exact escaped scalars | An escaped precomposed grammar literal remains exact. Input decomposition still classifies its resulting scalars, independently of that literal. |
-| Hangul | `한` produces leading, vowel, and trailing jamo profiles. U+1100 has `_Lo`, `_L`, `_Hangul_Syllable_Type_Leading_Jamo`, and `_Grapheme_Cluster_Break_L`. |
+| Hangul | `한` produces leading, vowel, and trailing jamo profiles. U+1100 has `_General_Category_Other_Letter`, `_General_Category_Letter`, `_Hangul_Syllable_Type_Leading_Jamo`, and `_Grapheme_Cluster_Break_L`. |
 | Emoji | ASCII digits, `#`, and `*` have Emoji and Emoji_Component. U+200D, U+20E3, and U+FE0F retain their Emoji_Component membership. |
 | Defaults | U+0378 has Script Unknown, Line_Break Unknown, and Bidi_Class Left_To_Right. U+0590 has Bidi_Class Right_To_Left. Unassigned U+3FFFD has East_Asian_Width Wide. |
 | Extension sets | U+30FC has Script Common and extensions Hiragana and Katakana, without extension Common. Latin letters use singleton Latin. U+0951 has Script Inherited and all 13 explicit extension members, including Latin. |
-| Distinct classifications | U+00A0 has White_Space without Pattern_White_Space. U+200E reverses those memberships. U+00B4 has Diacritic and `_Sk`, without `_Mn`. ASCII A has East_Asian_Width Narrow. |
+| Distinct classifications | U+00A0 has White_Space without Pattern_White_Space. U+200E reverses those memberships. U+00B4 has Diacritic and `_General_Category_Modifier_Symbol`, without `_General_Category_Nonspacing_Mark`. ASCII A has East_Asian_Width Narrow. |
 | Core and normalization | Combining-class tags agree with canonical ordering. Quick_Check defaults and Maybe values match pinned data. Hangul syllable classes do not reappear after decomposition. |
 | Scalar limits | Supplementary scalars, private-use scalars, and noncharacters receive complete profiles. Surrogates remain rejected input. |
 | Generic observations | A grammar naming no additional property still forwards and serializes complete profiles. Adding an unrelated later-stage property reference changes no initial tag set. Whole-set comparisons include unnamed properties. |
@@ -442,13 +445,13 @@ Each expression below is legal with `lit = ∅`. Its result can retain an engine
 
 | Tag clause | Result |
 | --- | --- |
-| `:: $c.tags ∩ (_Lu ∪ _Ll)` | The stored `_Lu` or `_Ll` tags of `$c` |
-| `:: ($x ⟹ _Lu) ∩ $c.tags` | Stored `_Lu` when `$x` is present, otherwise empty |
-| `:: ($c.tags ∪ _Lu) ∩ $d.tags` | The union filtered by the stored tags of `$d` |
-| `:: (_Lu ∪ Word) ∩ $c.tags` | The stored `_Lu` and `Word` tags of `$c` |
-| `:: (_Lu ∩ $c.tags) ∪ (Word ∩ $c.tags)` | The same stored tags as the preceding row |
+| `:: $c.tags ∩ (_General_Category_Uppercase_Letter ∪ _General_Category_Lowercase_Letter)` | The stored `_General_Category_Uppercase_Letter` or `_General_Category_Lowercase_Letter` tags of `$c` |
+| `:: ($x ⟹ _General_Category_Uppercase_Letter) ∩ $c.tags` | Stored `_General_Category_Uppercase_Letter` when `$x` is present, otherwise empty |
+| `:: ($c.tags ∪ _General_Category_Uppercase_Letter) ∩ $d.tags` | The union filtered by the stored tags of `$d` |
+| `:: (_General_Category_Uppercase_Letter ∪ Word) ∩ $c.tags` | The stored `_General_Category_Uppercase_Letter` and `Word` tags of `$c` |
+| `:: (_General_Category_Uppercase_Letter ∩ $c.tags) ∪ (Word ∩ $c.tags)` | The same stored tags as the preceding row |
 
-In contrast, `:: _Lu` and `:: ($x ⟹ _Lu)` have `lit = {_Lu}`. Both are document errors at `_Lu`, even when the guard cannot hold.
+In contrast, `:: _General_Category_Uppercase_Letter` and `:: ($x ⟹ _General_Category_Uppercase_Letter)` have `lit = {_General_Category_Uppercase_Letter}`. Both are document errors at `_General_Category_Uppercase_Letter`, even when the guard cannot hold.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Classifiers cannot assign them because engine tags are not classes. Neither side of `%implies` can name one. An engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
 
@@ -2787,7 +2790,7 @@ A closed term reads no capture, span, query, classifier, or guarded term. It can
 
 A constant value is a closed term with string, string-set, tag-set or pattern type. So is the value of a test (§2), whose type is a string or a tag set. So is each side of an implication, whose type is a tag set. The loader evaluates constants after resolving the stage's version graph (§2).
 
-`..` joins range endpoints only in terminal syntax. It cannot construct a set in a condition. Stored property tests use tags, as in `_L ⊆ $c.tags`. Recipes use only the closed string language of §11.
+`..` joins range endpoints only in terminal syntax. It cannot construct a set in a condition. Stored property tests use tags, as in `_General_Category_Letter ⊆ $c.tags`. Recipes use only the closed string language of §11.
 
 `++` requires scalar strings on both sides. It performs no capture, span, tag, pattern, or set conversion. Use an explicit string method for captures and spans.
 

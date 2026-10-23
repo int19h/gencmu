@@ -414,7 +414,7 @@ Use string terminals for exact characters and ranges for scalar intervals. Use s
 
 `:: ∅` stops inheritance of the child's tags, engine tags included. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
 
-Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
+Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_General_Category_Uppercase_Letter ⊆ $c.tags` tests membership. `:: $c.tags ∩ _General_Category_Uppercase_Letter` filters inherited membership.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Classifiers and elidable terminators cannot assign them. [Engine §1](engine.md#engine-tag-provenance) defines `lit` for nested filters.
 
@@ -432,7 +432,7 @@ The value recipe supplies the plain vowel. The image recipe keeps visible stress
 
 The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, later stages read the vowel as unstressed. Make sure that phoneme fixtures cover both the tag and the image.
 
-A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
+A one-symbol mapping, such as `"B" := "b"`, inherits `_General_Category_Uppercase_Letter` and `_General_Category_Letter` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
 
 ## Phoneme values and stress
 

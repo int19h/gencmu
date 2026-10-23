@@ -28,6 +28,8 @@ Result format 15 defines these result values:
 - A format scalar has general category Cf. Canonical terminal spellings escape it, as in `"‹ZWSP›"` (engine §9.1).
 - Stage-zero tokens carry complete profiles for every supported property. Forwarding can retain any of those tags, including `_Emoji_Presentation` and `_Emoji_Component`. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
 
+General-category tags use long names in token tags, node tags, terminals, expected lists, witnesses, and canonical call names. Compact and short inputs never survive as category spellings in these fields.
+
 Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
 
 A stage has one of these forms:
@@ -55,7 +57,7 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `value` is always present and can be empty. Tags never determine either string.
 
-Output uses the canonical names of engine §1, without short aliases. Caller tags accept aliases and normalize before set construction. Supplied DOMs require canonical names. Both inputs require support for each named property and value.
+Output uses the long canonical names of engine §1, including every atomic and major general category. Caller tags accept aliases and normalize before set construction. Supplied DOMs require canonical names. Both inputs require support for each named property and value.
 
 Binary No supplies no tag. An enumerated default supplies its value tag. Script_Extensions supplies one tag per member.
 
@@ -194,19 +196,19 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":39,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 39 also supports document names preambles and stores only canonical property tag spellings. Its cache names dependency is a resource map. A names directive is `{"name":"names","args":["zbalermorna-names.txt"],"at":[1,1]}`. The `names` cache member is absent when no names data was loaded.
+DOM format 40 also supports document names preambles and stores only canonical property tag spellings. Its cache names dependency is a resource map. A names directive is `{"name":"names","args":["zbalermorna-names.txt"],"at":[1,1]}`. The `names` cache member is absent when no names data was loaded.
 
-DOM format 39 supports node tests with exact prefixes, attached child lists, child choices, and flat pattern intersections. It also supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 40 supports node tests with exact prefixes, attached child lists, child choices, and flat pattern intersections. It also supports templates, parameters, calls, named instances, requirement lists, body arguments, and backward queries. It also supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-A written literal joins its decomposed text runs with exact decoded escapes. DOM format 39 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+A written literal joins its decomposed text runs with exact decoded escapes. DOM format 40 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-DOM format 39 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+DOM format 40 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 39 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":39,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 40 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":40,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -289,7 +291,7 @@ An expression has exactly one of these forms:
 {"ranked":[EXPR,EXPR...]}    {"and":[EXPR,EXPR...]}
 {"optional":EXPR}           {"optional":EXPR,"elidable":true}
 {"repeat":EXPR,"separator":EXPR,"chain":"left"}
-{"ref":"sumti"}            {"ref":"KOhA"}            {"ref":"_Lu"}
+{"ref":"sumti"}            {"ref":"KOhA"}            {"ref":"_General_Category_Uppercase_Letter"}
 {"literal":STRINGTERM}      {"wildcard":true}
 {"range":[STRINGTERM,STRINGTERM]}
 {"capture":"x","expr":CAPTURETARGET}
@@ -433,7 +435,7 @@ Recipe syntax joins atoms with `++` and accepts no other method chains or expres
 
 Substitution flattens nested concatenations into that array, in operand order. It preserves empty operands and each operand's source attribution. General terms also use `concat` for `++` in conditions and constants.
 
-DOM format 39 rejects the `interpolate` node.
+DOM format 40 rejects the `interpolate` node.
 
 Conditions have these forms:
 
@@ -573,7 +575,7 @@ The first object gives an optional a forbidden separator. The second hides a gap
 
 By contrast, `#« {« ⋯ » @X} »` has a valid shape. Each repeated pair has a child matching the bare list, then one child matching X. The inner gap belongs to the bare list. It never consumes siblings at the repeat's level.
 
-A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`. A name must read back as a rule name under the loaded Unicode table. A name that instead reads as a terminal is malformed.
+A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_General_Category_Uppercase_Letter`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including emoji names, use `name`. A name must read back as a rule name under the loaded Unicode table. A name that instead reads as a terminal is malformed.
 
 A bare template name tests its family. A call tests one instance. String-valued user constants use `constant` until binding through engine §2. Pattern-valued constants denote their whole predicate. Binding does not change the cached DOM.
 
@@ -633,7 +635,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":39,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":40,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library always compares the format, bootstrap hash, core-table hash, properties fingerprint, and document hash. `properties` hashes the complete properties-file text. If a custom core has no companion, the fingerprint is `null`. Even for documents naming no additional property, the member is mandatory. A custom properties file causes unavoidable cache misses against bundled entries with a different fingerprint.
 

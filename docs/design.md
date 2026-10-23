@@ -76,7 +76,7 @@ The Markdown parser, `micromark` and `mdast-util-*`, supports the sync and prose
 The engine works with these objects:
 
 - A token is one unit that a stage reads or emits. Tokens include characters, phonemes, and words.
-- A tag is a named identifier mark on a token. Examples are `KOhA`, `Word`, and the stored engine tag `_Lu`.
+- A tag is a named identifier mark on a token. Examples are `KOhA`, `Word`, and the stored engine tag `_General_Category_Uppercase_Letter`.
 - A constituent is the input that one rule matches. Its span is the range of input tokens that it covers.
 - A capture names a part of an alternative. For example, `$c` lets a condition or emission use that part.
 
@@ -129,7 +129,7 @@ Stage zero, named `input`, supplies one token per decomposed scalar. A scalar va
 
 The pinned inventory includes 56 binary properties, 25 enumerated or catalog properties, and multi-valued Script_Extensions. General categories accept compact and qualified forms. Other tags accept all-long or all-short spellings, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors.
 
-The reader normalizes to long names, except compact general categories. The generator rejects collisions between different tag identities, including case-folded collisions. Names, string mappings, numeric values, deprecated properties, and contributory exception lists stay outside the inventory.
+The reader normalizes every property to its long name, including atomic and major general categories. The generator rejects collisions between different tag identities, including case-folded collisions. Names, string mappings, numeric values, deprecated properties, and contributory exception lists stay outside the inventory.
 
 The core file owns categories, combining classes, whitespace, and two emoji properties. A separate properties file owns additional classifications. The generator resolves UCD defaults, including unassigned regions and Script_Extensions fallback. A missing property is unavailable, rather than false. Grammar references to it fail during loading.
 
@@ -198,7 +198,7 @@ The dialects use these extensions and classifiers. A script document adds its le
 
 The Zantufa syntax is a grammar of its own. Zantufa 1.9999 restates almost every rule of camxes, a PEG grammar of Lojban. So the gencmu grammar translates the Zantufa rules one by one. It uses small rules for the conditions that state the lookaheads and ordered choices of the reference.
 
-A capitalized tag name is a terminal that reads stored membership. Strings and string constants read exact token values, including at stage zero. Scalar ranges such as `"0".."9"` read one-scalar values. Engine tags such as `_L` read stored Unicode properties.
+A capitalized tag name is a terminal that reads stored membership. Strings and string constants read exact token values, including at stage zero. Scalar ranges such as `"0".."9"` read one-scalar values. Engine tags such as `_General_Category_Letter` read stored Unicode properties.
 
 User tags use capitalized names, such as `Cmavo`, `Stressed`, and `PAUSE`. Stage zero assigns reserved Unicode property tags. Later stages forward or filter them but never introduce them. Tags never assign a token's value or image.
 
@@ -456,7 +456,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 39 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 40 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
