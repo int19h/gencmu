@@ -24,6 +24,7 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
+const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
@@ -60,19 +61,20 @@ const isCapital = (text) => /^[A-Z]/.test(text);
 // found once for the whole text, so the lexer's work grows with the
 // text's length. Each step of it counts as walkSteps of `hooks.work`
 // (tests/README.md).
-function lex(text, originalPositions) {
+function lex(text, originalPositions, layered = false) {
   const original = [...text];
   const decomposed = unicode.decomposeWithOrigins(text);
   const chars = decomposed.map(item => item.character);
   const positions = decomposed.map(item => originalPositions[item.origin]);
   const originalEnd = originalPositions[originalPositions.length - 1] || [1, 1];
   positions.push(decomposed.length ? originalPositions[decomposed[decomposed.length - 1].origin + 1] || originalEnd : originalEnd);
-  const source = (start, end) => {
+  const sourceBounds = (start, end) => {
     const origins = decomposed.slice(start, end).map(item => item.origin);
     let left = original.length, right = 0;
     for (const origin of origins) { left = Math.min(left, origin); right = Math.max(right, origin + 1); }
-    return original.slice(left, right).join("");
+    return [left,right];
   };
+  const source = (start,end) => { const [left,right]=sourceBounds(start,end); return original.slice(left,right).join(""); };
   const n = chars.length;
   const at = (index) => positions[index] || positions[positions.length - 1] || [1, 1];
   const isLetter = (c) => c !== undefined && /^[A-Za-z]$/.test(c);
@@ -203,7 +205,7 @@ function lex(text, originalPositions) {
     }
     if (["=", "∈", "⊆", "≅"].includes(c) && chars[i + 1] === "̸") found.push([i + 2, ({ "=": "≠", "∈": "∉", "⊆": "⊈", "≅": "≇" })[c]]);
     if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
-    if (SYMBOLS.has(c)) found.push([i + 1, c]);
+    if (SYMBOLS.has(c) || layered && LAYERED_SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
     return { found, reach };
@@ -236,9 +238,9 @@ function lex(text, originalPositions) {
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind?.startsWith("include:")) {
       const from = Number(kind.slice(8));
-      tokens.push({ kind: "%include", text: "%include", value: "%include", at: at(i), end: at(i + 8) });
-      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end) });
-    } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end) });
+      tokens.push({ kind: "%include", text: "%include", value: "%include", at: at(i), end: at(i + 8), ...(layered ? {source:sourceBounds(i,i+8)} : {}) });
+      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end), ...(layered ? {source:sourceBounds(from,end)} : {}) });
+    } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end), ...(layered ? {source:sourceBounds(i,end)} : {}) });
     i = end;
   }
   return tokens;
@@ -266,8 +268,9 @@ const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "
 // tried again costs nothing. It reports a syntax error at the furthest
 // token that any way reached, where the syntax stage reports it.
 class Parser {
-  constructor(tokens, endAt) {
+  constructor(tokens, endAt, layered = false) {
     this.tokens = tokens;
+    this.layered = layered;
     this.endAt = endAt;
     this.index = 0;
     this.furthest = null;
@@ -855,6 +858,7 @@ class Parser {
   }
 
   *patternLiteral() {
+    if (this.layered) return yield this.layeredLiteral();
     const start = this.index;
     const children = [this.expect("#")];
     if (this.is("(")) children.push(this.tok(), (yield this.patternUnion()), this.expect(")"));
@@ -917,6 +921,150 @@ class Parser {
     return this.node("pattern-atom", start, children);
   }
 
+  *layeredMemo(name,read) {
+    if (hooks.work) countWork(hooks.work,"walkSteps");
+    return yield this.memo(name,read);
+  }
+
+  adjacent() {
+    const before=this.tokens[this.index-1], after=this.peek();
+    return !!before && !!after && before.source[1] === after.source[0];
+  }
+
+  *layeredLiteral() { return yield this.layeredMemo('layeredLiteral',this.layeredLiteralBody); }
+  *layeredLiteralBody() {
+    const start=this.index;
+    return this.node('pattern-literal',start,[this.expect('#'),yield this.layeredPrimary(false)]);
+  }
+
+  *layeredUnion() { return yield this.layeredMemo('layeredUnion',this.layeredUnionBody); }
+  *layeredUnionBody() {
+    const start=this.index, children=[yield this.layeredIntersection()];
+    while (this.is('∪') || this.is('∖')) children.push(this.tok(),yield this.layeredIntersection());
+    return this.node('pattern-union',start,children);
+  }
+
+  *layeredIntersection() { return yield this.layeredMemo('layeredIntersection',this.layeredIntersectionBody); }
+  *layeredIntersectionBody() {
+    const start=this.index, children=[yield this.layeredPath(false)];
+    while (this.is('∩')) children.push(this.tok(),yield this.layeredPath(false));
+    return this.node('pattern-intersection',start,children);
+  }
+
+  *layeredPrimary(child) { return yield this.layeredMemo('layeredPrimary:'+child,function*() { return yield this.layeredPrimaryBody(child); }); }
+  *layeredPrimaryBody(child) {
+    const start=this.index;
+    let part;
+    if (this.is('(')) {
+      const children=[this.tok(),yield (child ? this.layeredChoice() : this.layeredUnion()),this.expect(')')];
+      return this.node(child ? 'child-primary' : 'pattern-primary',start,children);
+    }
+    const children=[];
+    if (this.is('·')) {
+      children.push(this.tok());
+      if (!this.adjacent()) { this.index--; this.fail('an exact pattern prefix must touch its node test'); }
+    }
+    if (this.is('«')) {
+      children.push(yield this.layeredChildren());
+      part=this.node('pattern-bare',start,children);
+    } else {
+      children.push(yield this.layeredAtom());
+      if (this.is('«') && this.adjacent()) children.push(yield this.layeredChildren());
+      part=this.node('pattern-node',start,children);
+    }
+    return this.node(child ? 'child-primary' : 'pattern-primary',start,[part]);
+  }
+
+  *layeredAtom() { return yield this.layeredMemo('layeredAtom',this.layeredAtomBody); }
+  *layeredAtomBody() {
+    const start=this.index, children=[];
+    if ((this.is('string') || this.is('constant') || this.is('parameter')) && this.is('..',1)) children.push(yield this.range());
+    else if (this.is('call-name')) children.push(yield this.call());
+    else if (this.is('parameter')) children.push(this.leaf('parameter'));
+    else if (this.is('identifier') || this.is('emoji')) children.push(this.tok());
+    else if (this.is('tag')) children.push(this.leaf('tag'));
+    else if (this.is('string')) children.push(this.leaf('string'));
+    else if (this.is('_')) children.push(this.leaf('wildcard'));
+    else if (this.is('constant')) children.push(this.leaf('constant-reference'));
+    else return this.fail('expected a pattern node test');
+    while (TEST_COMPARATORS.has(this.kindAt())) children.push(yield this.test());
+    return this.node('pattern-atom',start,children);
+  }
+
+  *layeredChildren() { return yield this.layeredMemo('layeredChildren',this.layeredChildrenBody); }
+  *layeredChildrenBody() {
+    const start=this.index, children=[this.expect('«')];
+    if (!this.is('»')) children.push(yield this.layeredChoice());
+    children.push(this.expect('»'));
+    return this.node('pattern-children',start,children);
+  }
+
+  *layeredChoice() { return yield this.layeredMemo('layeredChoice',this.layeredChoiceBody); }
+  *layeredChoiceBody() {
+    const start=this.index, children=[yield this.layeredAlternative()];
+    while (this.is('|')) children.push(this.tok(),yield this.layeredAlternative());
+    return this.node('child-choice',start,children);
+  }
+
+  *layeredAlternative() { return yield this.layeredMemo('layeredAlternative',this.layeredAlternativeBody); }
+  *layeredAlternativeBody() {
+    const start=this.index;
+    // A set needs an operator outside its groups. A sequence cannot eat it.
+    const set=yield this.attempt(this.layeredChildSet);
+    if (set) return this.node('child-alternative',start,[set]);
+    const items=[yield this.layeredItem()];
+    while (['identifier','emoji','call-name','parameter','tag','string','constant','_','«','·','(','[','{','⋯','⋮','⋱'].includes(this.kindAt())) {
+      if ((this.is('«') || this.is('·')) && this.adjacent() && !['⋯','⋰'].includes(this.tokens[this.index-1].kind)) this.fail('separate pattern items require whitespace or a comment');
+      items.push(yield this.layeredItem());
+    }
+    return this.node('child-alternative',start,[this.node('child-sequence',start,items)]);
+  }
+
+  *layeredChildSet() { return yield this.layeredMemo('layeredChildSet',this.layeredChildSetBody); }
+  *layeredChildSetBody() {
+    const start=this.index;
+    const children=[yield this.layeredChildIntersection()];
+    while (this.is('∪') || this.is('∖')) children.push(this.tok(),yield this.layeredChildIntersection());
+    if (children.length>1) return this.node('child-set',start,children);
+    // The all-intersection route has direct child-path parts.
+    const intersection=children[0];
+    if (intersection.children.length<3) return this.fail('a child set requires an operator');
+    return this.node('child-set',start,intersection.children);
+  }
+
+  *layeredChildIntersection() { return yield this.layeredMemo('layeredChildIntersection',this.layeredChildIntersectionBody); }
+  *layeredChildIntersectionBody() {
+    const start=this.index, children=[yield this.layeredPath(true)];
+    while (this.is('∩')) children.push(this.tok(),yield this.layeredPath(true));
+    return this.node('child-intersection',start,children);
+  }
+
+  *layeredPath(child) { return yield this.layeredMemo('layeredPath:'+child,function*() { return yield this.layeredPathBody(child); }); }
+  *layeredPathBody(child) {
+    const start=this.index, children=[];
+    if (this.is('⋮') || this.is('⋱')) children.push(this.tok(),yield this.layeredPrimary(child));
+    else {
+      children.push(yield this.layeredPrimary(child));
+      if (this.is('⋰')) children.push(this.tok());
+    }
+    return this.node(child ? 'child-path' : 'pattern-path',start,children);
+  }
+
+  *layeredItem() { return yield this.layeredMemo('layeredItem',this.layeredItemBody); }
+  *layeredItemBody() {
+    const start=this.index;
+    let part;
+    if (this.is('⋯')) part=this.tok();
+    else if (this.is('[')) part=this.node('pattern-brackets',start,[this.tok(),yield this.layeredChoice(),this.expect(']')]);
+    else if (this.is('{')) {
+      const children=[this.tok(),yield this.layeredChoice()];
+      if (this.is('/')) children.push(this.tok(),yield this.layeredChoice());
+      children.push(this.expect('}'));
+      part=this.node('pattern-repeat',start,children);
+    } else part=yield this.layeredPath(true);
+    return this.node('child-item',start,[part]);
+  }
+
   *argument() {
     const start = this.index;
     return this.node("argument", start, [this.is("integer") ? this.leaf("integer") : (yield this.term())]);
@@ -924,22 +1072,23 @@ class Parser {
 }
 
 /**
- * Reads a grammar document's Markdown into its DOM, or throws the grammar
- * error that the library's reader gives, at the same place (engine §9).
+ * Reads the tokens and syntax tree for the bootstrap recovery reader.
+ * The candidate mode selects layered patterns before the format change.
  * @param {string} markdown
  * @param {string} path
+ * @param {boolean} [layered]
  */
-export function readDocument(markdown, path) {
+export function readSyntaxTree(markdown, path, layered = false) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
   let tokens;
   let tree;
   try {
-    tokens = lex(text, positions);
+    tokens = lex(text, positions, layered);
     // An error at the end of the text stands where the last token ends, as
     // the syntax stage reports it.
     const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
-    const parser = new Parser(tokens, endAt);
+    const parser = new Parser(tokens, endAt, layered);
     try {
       tree = run(parser.document());
     } catch (error) {
@@ -955,5 +1104,10 @@ export function readDocument(markdown, path) {
     const [line, column] = error.at;
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column, ...(error.index !== null && rankedSyntaxFailure(tokens, error.index) ? { code: "ranked-choice-syntax" } : {}) });
   }
-  return domOfTree(tree, tokens, (token) => token.at, path, unicode);
+  return {tree,tokens,positionOf:(token) => token.at,unicode};
+}
+
+export function readDocument(markdown,path) {
+  const {tree,tokens,positionOf,unicode}=readSyntaxTree(markdown,path);
+  return domOfTree(tree,tokens,positionOf,path,unicode);
 }
