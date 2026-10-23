@@ -2,6 +2,8 @@
 //! category, whitespace, decomposition and combining-class properties. Every library reads this
 //! table rather than its platform's Unicode data.
 
+include!("unicode_names_catalog.rs");
+
 /// The General_Category values in their short form (engine §1).
 pub(crate) const CATEGORIES: [&str; 30] = [
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po", "Sm",
@@ -51,6 +53,7 @@ pub(crate) struct Unicode {
     emoji_component: Vec<(u32, u32)>,
     decompositions: Vec<(u32, Vec<char>)>,
     combining: Vec<(u32, u32, u8)>,
+    abbreviations: std::collections::BTreeMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,6 +94,7 @@ impl Unicode {
             emoji_component: Vec::new(),
             decompositions: Vec::new(),
             combining: Vec::new(),
+            abbreviations: std::collections::BTreeMap::new(),
         };
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
@@ -98,6 +102,22 @@ impl Unicode {
             let fields = line.split([' ', '\t']).filter(|field| !field.is_empty()).collect::<Vec<_>>();
             match fields.as_slice() {
                 [] | ["unicode", _] => {}
+                ["abbreviation", scalar, alias] => {
+                    let code = hex(scalar, number)?;
+                    let pinned = PINNED_CORE_NAMES
+                        .binary_search_by_key(alias, |&(name, _)| name)
+                        .ok()
+                        .map(|index| PINNED_CORE_NAMES[index].1);
+                    if char::from_u32(code).is_none()
+                        || !alias.as_bytes().first().is_some_and(u8::is_ascii_uppercase)
+                        || !alias.bytes().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+                        || table.abbreviations.contains_key(*alias)
+                        || pinned.is_some_and(|known| known != code)
+                    {
+                        return Err(format!("unicode.txt line {number}: an invalid abbreviation"));
+                    }
+                    table.abbreviations.insert((*alias).into(), code);
+                }
                 ["category", name, first, last] => {
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
                         return Err(format!("unicode.txt line {number}: an unknown category {name:?}"));

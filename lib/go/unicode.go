@@ -20,6 +20,7 @@ type unicodeTable struct {
 	emojiComponent    [][2]rune
 	decompositions    map[rune][]rune
 	combining         []combiningRange
+	abbreviations     map[string]rune
 	hash              string
 }
 
@@ -52,7 +53,7 @@ var propertyNames = func() map[string]bool {
 }()
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
-	t := &unicodeTable{decompositions: map[rune][]rune{}, hash: fnv1a64(text)}
+	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, hash: fnv1a64(text)}
 	hex := func(s string) (rune, error) {
 		for _, c := range s {
 			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
@@ -87,6 +88,23 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			if len(f) != 2 {
 				return nil, fmt.Errorf("unicode.txt line %d: expected 2 fields", n+1)
 			}
+			continue
+		case "abbreviation":
+			if len(f) != 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected 3 fields", n+1)
+			}
+			code, err := hex(f[1])
+			alias := f[2]
+			valid := len(alias) > 0 && alias[0] >= 'A' && alias[0] <= 'Z'
+			for _, c := range alias {
+				valid = valid && (c >= 'A' && c <= 'Z' || c >= '0' && c <= '9')
+			}
+			_, duplicate := t.abbreviations[alias]
+			pinned, standard := pinnedCoreNames[alias]
+			if err != nil || code >= 0xd800 && code <= 0xdfff || !valid || duplicate || standard && pinned != code {
+				return nil, fmt.Errorf("unicode.txt line %d: an invalid abbreviation", n+1)
+			}
+			t.abbreviations[alias] = code
 			continue
 		case "decompose":
 			if len(f) < 3 {

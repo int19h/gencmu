@@ -34,6 +34,9 @@ func loadBundled() error {
 			if err != nil || d.IsDir() {
 				return err
 			}
+			if strings.HasSuffix(p, "-names.txt") {
+				return nil
+			}
 			data, err := bundledFS.ReadFile(p)
 			if err != nil {
 				return err
@@ -345,7 +348,13 @@ func bundledLoader() (*loader, error) {
 		return nil, err
 	}
 	return &loader{
-		read:          func(p string) (string, bool) { s, ok := bundled.sources[p]; return s, ok },
+		read: func(p string) (string, bool) {
+			if text, ok := bundled.sources[p]; ok {
+				return text, true
+			}
+			data, err := bundledFS.ReadFile("grammars/" + p)
+			return string(data), err == nil
+		},
 		uni:           bundled.uni,
 		reader:        bundled.reader,
 		bootstrapHash: bundled.reader.hash,
@@ -405,7 +414,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	l.noCache = noCache
 	if t, ok := norm["unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
-			return nil, &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
+			problem := &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
+			_, _ = fmt.Sscanf(err.Error(), "unicode.txt line %d:", &problem.Line)
+			return nil, problem
 		}
 	}
 	if t, ok := norm["notation/bootstrap.json"]; ok {

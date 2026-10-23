@@ -8,6 +8,7 @@ import re
 
 from ._errors import GencmuError
 from ._hash import fnv1a64
+from ._unicode_names_catalog import PINNED_CORE_NAMES
 
 CATEGORIES = (
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
@@ -37,6 +38,7 @@ class UnicodeTable:
         self.decompositions: dict[int, tuple[int, ...]] = {}
         self.fingerprint = fnv1a64(text)
         self.version = ""
+        self.abbreviations: dict[str, int] = {}
         lines = text.split("\n")
         for number, raw in enumerate(lines, 1):
             line = raw.removesuffix("\r") if number < len(lines) else raw
@@ -46,13 +48,13 @@ class UnicodeTable:
             try:
                 entry = fields[0]
                 count = {"unicode": 2, "category": 4, "combining": 4, "white-space": 3,
-                         "emoji-presentation": 3, "emoji-component": 3}.get(entry)
+                         "emoji-presentation": 3, "emoji-component": 3, "abbreviation": 3}.get(entry)
                 if entry == "decompose":
                     if len(fields) < 3:
                         raise ValueError(entry)
                 elif count is None or len(fields) != count:
                     raise ValueError(entry)
-                code_fields = fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
+                code_fields = fields[1:2] if entry == "abbreviation" else fields[1:] if entry == "decompose" else fields[2:] if entry in ("category", "combining") else fields[1:] if entry != "unicode" else []
                 codes = [_number(field, 16, 6) for field in code_fields]
                 if any(code > 0x10FFFF for code in codes):
                     raise ValueError(entry)
@@ -63,6 +65,12 @@ class UnicodeTable:
                     raise ValueError(entry)
                 if fields[0] == "unicode":
                     self.version = fields[1]
+                elif entry == "abbreviation":
+                    code, alias = codes[0], fields[2]
+                    if (0xD800 <= code <= 0xDFFF or re.fullmatch(r"[A-Z][A-Z0-9]*", alias) is None
+                            or alias in self.abbreviations or alias in PINNED_CORE_NAMES and PINNED_CORE_NAMES[alias] != code):
+                        raise ValueError(entry)
+                    self.abbreviations[alias] = code
                 elif fields[0] == "category":
                     if fields[1] not in CATEGORIES:
                         raise ValueError(fields[1])
