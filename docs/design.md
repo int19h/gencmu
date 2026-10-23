@@ -55,7 +55,7 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. A failed fetch prevents loading and reports the resource error.
+The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. The core table, with printer abbreviations, comes from `dist/grammars.js`. For source names outside the core abbreviation map or a names-dependent cache entry, the playground fetches `grammars/unicode-names.txt`. A failed fetch prevents loading and reports the resource error.
 
 `dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. A contributor edits `grammars/` and runs one command.
 
@@ -129,7 +129,7 @@ The pinned inventory includes 56 binary properties, 25 enumerated or catalog pro
 
 The core file owns categories, combining classes, whitespace, and two emoji properties. A separate properties file owns additional classifications. The generator resolves UCD defaults, including unassigned regions and Script_Extensions fallback. A missing property is unavailable, rather than false. Grammar references to it fail during loading.
 
-Libraries can share immutable scalar profiles instead of copying property sets onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for dialects naming no additional property.
+Libraries can share immutable scalar profiles. They do not copy a property set onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for dialects naming no additional property.
 
 A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
@@ -278,7 +278,7 @@ The key of a DOM always has five parts:
 - A fingerprint of the core Unicode table
 - A fingerprint of the properties file, or `null` for a custom core without a companion
 
-A document with a name escape also requires the fingerprint of its names file. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
+A document that uses the names file also requires its fingerprint. Core abbreviation escapes need only the core-table fingerprint. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
 
 A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
@@ -805,7 +805,9 @@ An absent elidable optional leaves an `elided` node with an empty span, at the p
 
 Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
 
-Each library exposes this structure in the idiom of its language. JavaScript uses plain objects and arrays, and Python uses dataclasses. Go uses structs with slices, and Rust uses structs with `Vec` and owned `String`. These types let a result outlive the text and the dialect that it came from. Each library can serialize a result to the canonical JSON of `docs/output.md`. Each library also renders the canonical bracket form, because the shared tests compare it.
+Each library exposes this structure in the idiom of its language. JavaScript uses plain objects and arrays, and Python uses dataclasses. Go uses structs with slices, and Rust uses structs with `Vec` and owned `String`. These types let a result outlive the text and the dialect that it came from.
+
+A result privately retains its immutable originating core table for quoted tree images. JSON serialization omits that context, and tree rendering requires it. Each library can serialize a result to the canonical JSON of `docs/output.md`. Each library also renders the canonical bracket form, because the shared tests compare it.
 
 ## The API
 
@@ -890,6 +892,8 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. The grammar documents are a JavaScript object in the grammar bundle. At startup, the page fetches `grammars/unicode-properties.txt` relative to its own URL. It adds that text to the source map before loading a dialect. Local use requires an HTTP server because the resource fetch must succeed.
 
 The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only dialect.
+
+For source names outside the core abbreviation map or names-dependent caches, the page fetches `grammars/unicode-names.txt` before it resumes loading. It supplies that text to the worker's source map. Names loading remains separate from canonical rendering, which uses core abbreviations.
 
 `tools/smoke-playground.js` makes sure that the playground works in headless Chromium and Firefox. Playwright drives the browsers. CI runs the smoke test, and a contributor can run it locally. To run it locally, do these steps:
 

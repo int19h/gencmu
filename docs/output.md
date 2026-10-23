@@ -51,7 +51,7 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 {"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],"span":[0,2],"source":[0,2]}
 ```
 
-`tags` lists each stored identifier tag once in code-point order. Engine tags appear exactly when stored on the token. Stage-zero profiles include every available property, even when no grammar names it. Examples include `_Alphabetic`, `_Script_Latin`, and multiple Script_Extensions tags. Later filtering removes memberships without regenerating them.
+`tags` lists each stored identifier tag once in code-point order. For stored engine tags, output uses their canonical names. Even without explicit grammar references, stage-zero profiles include every available property. Examples include `_Alphabetic`, `_Script_Latin`, and multiple Script_Extensions tags. Later filtering removes memberships without regenerating them.
 
 `value` is always present and can be empty. Tags never determine either string.
 
@@ -631,9 +631,11 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 `grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":38,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"documents":{PATH:{"hash":HASH,"names":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
-A library always compares the format, bootstrap hash, core-table hash, properties fingerprint, and document hash. `properties` hashes the complete properties-file text. It is `null` only when a custom core has no companion. The member is mandatory, even for documents naming no additional property.
+A library always compares the format, bootstrap hash, core-table hash, properties fingerprint, and document hash. `properties` hashes the complete properties-file text. If a custom core has no companion, the fingerprint is `null`. Even for documents naming no additional property, the member is mandatory. A custom properties file causes unavoidable cache misses against bundled entries with a different fingerprint.
 
-An entry also contains `names` exactly when its source uses a name escape in a notation string. That member follows `hash` and fingerprints the loaded names file by the same FNV-1a algorithm. A required missing or mismatched `names` member gives a cache miss. Numeric-only documents omit it. Engine §8 defines the token-aware dependency inspection.
+If source conversion uses the names file, the cache writer records `names` after `hash`. Core abbreviations require no names-file dependency. That fingerprint uses the same FNV-1a algorithm over the names file.
+
+On a hash-matched, valid entry, the loader trusts this member without scanning source tokens. If the member is present, the loaded names fingerprint must match it. If the member is absent, no names dependency exists. Engine §8 defines loading errors and cache misses.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
@@ -659,6 +661,8 @@ Tree patterns do not change bracket grouping. The renderer applies the rules bel
 In the `cll-ebnf` dialect, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
 
 ### Tree
+
+The renderer uses the result's originating core table for quoted images and abbreviations. The result retains that immutable context privately, beyond the dialect's lifetime. Canonical JSON omits this context. Without an originating context, tree rendering reports a usage error instead of selecting bundled or ambient data. Printing never needs the lazy names file.
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 

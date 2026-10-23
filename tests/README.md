@@ -267,6 +267,38 @@ For ranked admission, record chart facts, admission groups, and retained edges. 
 
 The cases in `without-elision-growth.json` bound the measured close-summary fixtures. Their bounds do not establish a grammar-wide bound on summaries. A passing language corpus alone does not establish sharing and termination properties. The growth sections below define the fixture bounds. The growth tests of each library define its counters, as `lib/js/test/ranked-growth.test.js` and `lib/js/test/grammar-growth.test.js` do in JavaScript.
 
+### Unicode property performance gate
+
+The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
+
+`python3 tools/bench-unicode-properties.py --baseline REF` compares all four libraries with baseline revision REF. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+
+The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
+
+The repeated-character workloads use this forwarding grammar:
+
+```jbogenbau
+%stage main
+%ambiguity-resolution greedy
+%rule text {token}
+%rule token _
+%emits $
+```
+
+The three inputs contain 4,096 ASCII a characters, 2,048 pairs of e and U+0301, or 1,365 Hangul 한 syllables. Every decomposed scalar passes through its own token rule and retains its tags. The text rule has no whole-constituent emission that merges those tokens.
+
+Timings include stage-zero construction, parsing, and tag propagation. Each workload receives two warm-up runs, then nine paired timed runs with revision order alternating between pairs. Calibration selects one repetition count for both revisions of a workload, so each timed batch lasts at least one second. The report records that count and time per repetition. Median warm time per repetition can increase by at most five percent for each workload and library.
+
+Cold runs use new processes and include loading and one timed corpus-sample batch. They use the same nine-pair ordering. The median increase cannot exceed five percent or 25 milliseconds, whichever is larger. The report also records peak memory and separate JSON serialization time. Those two measurements have no separate numerical gate.
+
+Each revision also runs the full cll-ebnf corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
+
+A tag projection keeps all user tags and the engine inventory before profiles. That inventory consists of the atomic and seven major category tags, `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. The projection excludes Canonical_Combining_Class tags and every other newly exposed property tag. It applies recursively to all token and node tag sets, including attachments, witnesses, warnings, and error readings. Every other result field remains intact.
+
+The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.
+
+The harness records both revisions, environment, selection manifest, raw timings, medians, peak memory, serialization time, and full-corpus differences. It exits unsuccessfully for a timing failure, missing measurement, unexplained outcome change, or changed timed-workload result. CI requires this comparison for implementation changes that affect profiles. The gate cannot pass through omitted logical tags or reduced parse work.
+
 ## Growth cases: `growth.json`
 
 ```
@@ -529,4 +561,4 @@ Lines that begin with `#` are comments. An entry that the check does not need is
 
 `unicode/NormalizationTest.txt` is the complete Unicode 15.1 normalization conformance file from Unicode.org. Each library tests its canonical decomposition against every data line. Columns 1, 2 and 3 decompose to column 3. Columns 4 and 5 decompose to column 5. Every scalar that part 1 omits decomposes to itself.
 
-The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact engine constants, original constant reference positions and original include paths.
+The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact escaped scalars, original user-constant positions, and include paths. Escape-inspection cases pin the ordering between lexical recognition, escape errors, syntax errors, and reader errors. The [escape migration](../docs/notation.md#escape-migration) defines changed fixture outcomes.

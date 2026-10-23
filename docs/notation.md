@@ -120,9 +120,9 @@ The configured Unicode tables supply stored stage-zero property tags. The bundle
 
 Script_Extensions is multi-valued: each script in its set supplies a tag such as `_Script_Extensions_Hiragana`. An explicit extension set replaces the UCD default singleton Script value. For text associated with a script, extension membership can be more useful than Script alone.
 
-Every stage-zero token carries the complete available profile of its decomposed scalar, even when no grammar names those properties. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
+Even without explicit grammar references, every stage-zero token carries its decomposed scalar's complete available profile. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
 
-[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. Short aliases such as `_Alpha` and `_Script_Latn` are errors. A known property or value missing from the configured table is a load error at its reference. A supported value with no members is valid and matches nothing.
+[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. Short aliases such as `_Alpha` and `_Script_Latn` are errors. A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
 
 The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
@@ -523,11 +523,13 @@ A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open esca
 
 A numeric escape uses uppercase `U+` and four to six ASCII hexadecimal digits. Input digits can use either case. Its value must be a scalar at most U+10FFFF. A surrogate or malformed numeric escape is a document error at `‹`.
 
-Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Every alias kind in the pinned names file is valid. An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
+Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the lazy names file. Every alias kind in that file is valid.
+
+An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
 
 An include path is the first and only operand that `%include` takes, in straight double quotes. It uses the same escape decoder as other strings. Its unescaped text retains the original spelling without decomposition. Paths use separate tokens because includes select documents before constant binding. Path resolution uses the decoded string.
 
-Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. It chooses an abbreviation alias when available, otherwise `U+` with uppercase hexadecimal digits. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
+Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. If the core table supplies an abbreviation, the printer uses it. Otherwise, it writes `U+` with uppercase hexadecimal digits. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
 
 ```jbogenbau
 %const $ACCENTED "a‹U+0301›"
@@ -538,6 +540,78 @@ Canonical names and terminal diagnostics use these same string literals. The pri
 %const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
+
+### Escape migration
+
+The replaced notation used predefined scalar references such as `$_0301`. Current notation uses quoted escapes instead. These source spellings appear here only to define migration. They are not accepted current syntax.
+
+| Replaced form or position | Current form or migration rule |
+| --- | --- |
+| `$_0301`, `$_0022`, `$_005C` | `"‹U+0301›"`, `"‹U+0022›"`, `"‹U+005C›"` |
+| `$_D7FF..$_E000` | `"‹U+D7FF›".."‹U+E000›"` |
+| `"e" $_0301` | `"e" "‹U+0301›"`, still two token terminals |
+| `"e" ++ $_0301` | `"e" ++ "‹U+0301›"`, with the explicit concatenation retained |
+| Pattern `#$_0301` | `#"‹U+0301›"`, through the pattern migration below |
+| Body terminals, constants, recipes, tests, classifier keys, ranges, conditions, and call arguments | Replace each scalar reference with one quoted numeric escape, without merging adjacent terms. |
+| Old diagnostic `"a" ++ $_0301` | Current diagnostic `"a‹U+0301›"`, after resolved values join into one printed string |
+| `{"const":"_0301","at":[L,C]}` in a string-term position | `{"string":"\u0301"}`, without the removed reference's `at` |
+| A user `const` or a containing constructor | Keep the user name or constructor, then recursively convert its string terms. |
+| Surrogate or out-of-range scalar references | A corresponding numeric escape fails escape inspection at `‹`. It cannot produce a valid decoded DOM string. |
+| A declaration that used a predefined scalar reference as its name | It remains an invalid declaration. A quoted replacement cannot become a constant name. |
+
+DOM conversion visits every term and argument, including pattern literals, range endpoints, test operands, recipes, classifier keys, and nested call arguments. It needs no Unicode names lookup. Only user constant references retain their names. Existing concatenation boundaries, empty operands, and source positions on surviving constructors remain intact.
+
+Scalar conversion can merge previously distinct call-argument keys. Bindings and instance edits require inspection after conversion. If distinct argument identities are needed, user constants can retain separate names.
+
+The format-35 pattern mapping below applies this scalar conversion before it converts pattern structure. An invalid legacy scalar requires an invalid-source escape case or a corresponding malformed-string DOM case. Migration cannot discard its intended violation or construct a valid string from a surrogate.
+
+The following four notation cases become valid documents. Backslashes remain ordinary characters and do not decode the following letters.
+
+| Case | Current decoded string |
+| --- | --- |
+| `character-bad-escape` | Backslash followed by x61 |
+| `error-bad-escape` | Backslash followed by q in the value test |
+| `character-escaped-p` | Backslash followed by p |
+| `property-escaped-p-later` | a, backslash, then p{L} |
+
+For the cases below, the migrated invalid escape precedes every reader error. Each error has kind `grammar` and the stated line and column. Positions include the pattern replacements in the fixture table. A separate lexical failure still precedes escape inspection. This also changes previously successful extra-parts cases that hid an invalid scalar from the reader.
+
+| Case | New line | New column |
+| --- | --- | --- |
+| `canonical-name-concat-position` | 2 | 30 |
+| `character-surrogate` | 2 | 10 |
+| `concat-order-second-tag-before-scalar` | 2 | 24 |
+| `concat-order-set-before-scalar` | 2 | 25 |
+| `concat-order-tag-before-scalar` | 2 | 17 |
+| `concat-order-unresolved-before-scalar` | 2 | 24 |
+| `reader-order-capture-name-before-scalar` | 2 | 16 |
+| `reader-order-grouped-terminal-scalar` | 2 | 14 |
+| `reader-order-pattern-repeated-tag-before-scalar` | 2 | 36 |
+| `reader-order-pattern-reversed-tests-before-scalar` | 2 | 36 |
+| `reader-order-pattern-scalar-reference-tag` | 2 | 36 |
+| `reader-order-pattern-scalar-reference-value` | 2 | 36 |
+| `reader-order-prefixed-scalar-join-tag` | 2 | 46 |
+| `reader-order-prefixed-scalar-join-value` | 2 | 46 |
+| `reader-order-range-first-scalar-tag` | 2 | 13 |
+| `reader-order-range-first-scalar-value` | 2 | 13 |
+| `reader-order-range-last-scalar-tag` | 2 | 18 |
+| `reader-order-range-last-scalar-value` | 2 | 18 |
+| `reader-order-repeated-tag-before-scalar` | 2 | 13 |
+| `reader-order-reversed-tests-before-scalar` | 2 | 13 |
+| `reader-order-scalar-reference-tag` | 2 | 13 |
+| `reader-order-scalar-reference-value` | 2 | 13 |
+| `reader-order-target-before-group-scalar` | 2 | 14 |
+| `string-escape-surrogate` | 2 | 12 |
+| `string-escape-too-large` | 2 | 10 |
+| `values-invalid-engine-scalar` | 2 | 10 |
+| `notation-shapes.extraParts[0]` | 3 | 22 |
+| `notation-shapes.extraParts[1]` | 4 | 34 |
+| `notation-shapes.extraParts[2]` | 3 | 17 |
+| `notation-shapes.extraParts[9]` | 3 | 27 |
+| `notation-shapes.extraParts[59]` | 3 | 38 |
+| `notation-shapes.extraParts[61]` | 3 | 38 |
+
+If an old case must retain its reader-order purpose, a valid scalar replaces its invalid scalar. A separate invalid-escape case pins the new earlier phase. Descriptions, expected DOMs, diagnostic strings, and error positions follow the migrated source. Grammar documents receive the same replacements, without changing token or concatenation boundaries.
 
 ### String concatenation
 
@@ -671,7 +745,7 @@ The DOM accepts exactly the reader's shapes, apart from source coordinates. Read
 
 ### Pattern migration
 
-The tables give replacement spellings without changing the structural tree. All string examples use the current escape syntax, including the replaced-form columns. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
+The tables give replacement spellings without changing the structural tree. Replaced-form columns preserve actual source spellings. Replacement columns use current string escapes. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
 
 The form table covers the constructors, grouping boundaries, paths, sets, tests, and parameters:
 
@@ -684,7 +758,7 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(@X)` | `#@X` | One substituted pattern |
 | `#(_)` | `#_` | Wildcard terminal identity |
 | `#(T<A>="x")` | `#T<A>="x"` | Tests on the same terminal leaf |
-| `#("a")`, `#("‹U+0061›")`, `#($S)` | `#"a"`, `#"‹U+0061›"`, `#$S` | Terminal identity or a constant's predicate |
+| `#("a")`, `#($_0061)`, `#($S)` | `#"a"`, `#"‹U+0061›"`, `#$S` | Terminal identity or a constant's predicate |
 | `#("a".."z")` | `#"a".."z"` | Range terminal identity |
 | `#(a b)` | `#« a b »` | Complete child sequence |
 | `#(a (b c))` | `#« a b c »` | Grouped sibling sequence |
@@ -713,7 +787,7 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 
 Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-38 shape acceptance.
 
-The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
+The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
 
 | Format-35 form | Format-38 form |
 | --- | --- |
@@ -728,11 +802,12 @@ The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)`
 | Pattern `{"intersection":[P1,...,Pn]}` | Convert each operand with M, then flatten direct intersection operands |
 | Pattern `{"difference":[P,Q]}` | `{"difference":[M(P),M(Q)]}` |
 | Pattern `{"path":K,"pattern":P}` | `{"path":K,"pattern":M(P)}` |
+| String term `{"const":"_0301","at":Q}` anywhere | `{"string":"\u0301"}` before structural conversion |
 | Pattern `{"literal":{"const":USER,"at":Q},"at":P}` | `{"constant":USER,"at":P}` |
 | Pattern test | Retain the test and operands, then convert its `expr` with M |
 | Other pattern atom | Retain its constructor, fields, and source position |
 
-The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-38 DOM receives ordinary shape and type inspection.
+The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The resulting format-38 DOM receives ordinary shape and type inspection.
 
 Malformed-DOM fixtures require corresponding format-38 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
 
@@ -839,13 +914,13 @@ A replacement spelling does not determine whether the complete fixture loads or 
 | `#$A` | `#$A` |
 | `#$P` | `#$P` |
 | `#$Q` | `#$Q` |
-| `#"‹U+0061›"` | `#"‹U+0061›"` |
+| `#$_0061` | `#"‹U+0061›"` |
 | `#("a" ++ "b")` | `#("a" ++ "b")` Invalid: inline concatenation cannot form a terminal. |
 | `#("a" ++ "b".."z")` | `#("a" ++ "b".."z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a")` | `#"a"` |
 | `#("a".."y" ++ "z")` | `#("a".."y" ++ "z")` Invalid: inline concatenation cannot form a range endpoint. |
 | `#("a".."z")` | `#"a".."z"` |
-| `#(#("‹U+D800›")<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
+| `#(#($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
 | `#(#(A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#($JOIN-1)` | `#$JOIN-1` |
 | `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
@@ -856,14 +931,14 @@ A replacement spelling does not determine whether the complete fixture loads or 
 | `#($LETTER)` | `#$LETTER` |
 | `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
 | `#($S)` | `#$S` |
-| `#("‹U+D800›"<"bad">)` | `#"‹U+D800›"<"bad">` Invalid: U+D800 is not a scalar, and the requirement is not a tag. |
-| `#("‹U+D800›"<"bad"><A>)` | `#"‹U+D800›"<"bad"><A>` Invalid: scalar and tag-test restrictions still apply. |
-| `#("‹U+D800›"=UI)` | `#"‹U+D800›"=UI` Invalid: U+D800 is not a scalar, and a value operand requires a string. |
-| `#("‹U+D800›"=UI<A>)` | `#"‹U+D800›"=UI<A>` Invalid: scalar and test-operand restrictions still apply. |
+| `#($_D800<"bad">)` | `#"‹U+D800›"<"bad">` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800<"bad"><A>)` | `#"‹U+D800›"<"bad"><A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800=UI)` | `#"‹U+D800›"=UI` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800=UI<A>)` | `#"‹U+D800›"=UI<A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
 | `#($K)` (U+212A) | `#$K` |
 | `#(($P))` | `#$P` |
 | `#(($Q))` | `#$Q` |
-| `#(("‹U+D800›")<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid: tests cannot follow a group. The scalar is also invalid. |
+| `#(($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
 | `#((A B)⋰)` | `#(« A B » ⋰)` |
 | `#((A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
 | `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
