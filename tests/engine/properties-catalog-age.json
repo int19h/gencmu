@@ -1,0 +1,669 @@
+{
+  "description": "Every Age value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26\n%rule r0 $x:_Age_Unassigned<_age_NA>\n%conditions $x ≅ #_age_NA<_age_NA>, _age_NA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_NA\n%rule r1 $x:_Age_V10_0<_age_10.0>\n%conditions $x ≅ #_age_10.0<_age_10.0>, _age_10.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_10.0\n%rule r2 $x:_Age_V11_0<_age_11.0>\n%conditions $x ≅ #_age_11.0<_age_11.0>, _age_11.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_11.0\n%rule r3 $x:_Age_V12_0<_age_12.0>\n%conditions $x ≅ #_age_12.0<_age_12.0>, _age_12.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_12.0\n%rule r4 $x:_Age_V12_1<_age_12.1>\n%conditions $x ≅ #_age_12.1<_age_12.1>, _age_12.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_12.1\n%rule r5 $x:_Age_V13_0<_age_13.0>\n%conditions $x ≅ #_age_13.0<_age_13.0>, _age_13.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_13.0\n%rule r6 $x:_Age_V14_0<_age_14.0>\n%conditions $x ≅ #_age_14.0<_age_14.0>, _age_14.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_14.0\n%rule r7 $x:_Age_V15_0<_age_15.0>\n%conditions $x ≅ #_age_15.0<_age_15.0>, _age_15.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_15.0\n%rule r8 $x:_Age_V15_1<_age_15.1>\n%conditions $x ≅ #_age_15.1<_age_15.1>, _age_15.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_15.1\n%rule r9 $x:_Age_V1_1<_age_1.1>\n%conditions $x ≅ #_age_1.1<_age_1.1>, _age_1.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_1.1\n%rule r10 $x:_Age_V2_0<_age_2.0>\n%conditions $x ≅ #_age_2.0<_age_2.0>, _age_2.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_2.0\n%rule r11 $x:_Age_V2_1<_age_2.1>\n%conditions $x ≅ #_age_2.1<_age_2.1>, _age_2.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_2.1\n%rule r12 $x:_Age_V3_0<_age_3.0>\n%conditions $x ≅ #_age_3.0<_age_3.0>, _age_3.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_3.0\n%rule r13 $x:_Age_V3_1<_age_3.1>\n%conditions $x ≅ #_age_3.1<_age_3.1>, _age_3.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_3.1\n%rule r14 $x:_Age_V3_2<_age_3.2>\n%conditions $x ≅ #_age_3.2<_age_3.2>, _age_3.2 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_3.2\n%rule r15 $x:_Age_V4_0<_age_4.0>\n%conditions $x ≅ #_age_4.0<_age_4.0>, _age_4.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_4.0\n%rule r16 $x:_Age_V4_1<_age_4.1>\n%conditions $x ≅ #_age_4.1<_age_4.1>, _age_4.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_4.1\n%rule r17 $x:_Age_V5_0<_age_5.0>\n%conditions $x ≅ #_age_5.0<_age_5.0>, _age_5.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_5.0\n%rule r18 $x:_Age_V5_1<_age_5.1>\n%conditions $x ≅ #_age_5.1<_age_5.1>, _age_5.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_5.1\n%rule r19 $x:_Age_V5_2<_age_5.2>\n%conditions $x ≅ #_age_5.2<_age_5.2>, _age_5.2 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_5.2\n%rule r20 $x:_Age_V6_0<_age_6.0>\n%conditions $x ≅ #_age_6.0<_age_6.0>, _age_6.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_6.0\n%rule r21 $x:_Age_V6_1<_age_6.1>\n%conditions $x ≅ #_age_6.1<_age_6.1>, _age_6.1 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_6.1\n%rule r22 $x:_Age_V6_2<_age_6.2>\n%conditions $x ≅ #_age_6.2<_age_6.2>, _age_6.2 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_6.2\n%rule r23 $x:_Age_V6_3<_age_6.3>\n%conditions $x ≅ #_age_6.3<_age_6.3>, _age_6.3 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_6.3\n%rule r24 $x:_Age_V7_0<_age_7.0>\n%conditions $x ≅ #_age_7.0<_age_7.0>, _age_7.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_7.0\n%rule r25 $x:_Age_V8_0<_age_8.0>\n%conditions $x ≅ #_age_8.0<_age_8.0>, _age_8.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_8.0\n%rule r26 $x:_Age_V9_0<_age_9.0>\n%conditions $x ≅ #_age_9.0<_age_9.0>, _age_9.0 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _age_9.0",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_Unassigned",
+        "_age_NA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V10_0",
+        "_age_10.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V11_0",
+        "_age_11.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V12_0",
+        "_age_12.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V12_1",
+        "_age_12.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V13_0",
+        "_age_13.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V14_0",
+        "_age_14.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V15_0",
+        "_age_15.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V15_1",
+        "_age_15.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V1_1",
+        "_age_1.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V2_0",
+        "_age_2.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V2_1",
+        "_age_2.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V3_0",
+        "_age_3.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V3_1",
+        "_age_3.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V3_2",
+        "_age_3.2"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V4_0",
+        "_age_4.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V4_1",
+        "_age_4.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V5_0",
+        "_age_5.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V5_1",
+        "_age_5.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V5_2",
+        "_age_5.2"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V6_0",
+        "_age_6.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V6_1",
+        "_age_6.1"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V6_2",
+        "_age_6.2"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V6_3",
+        "_age_6.3"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V7_0",
+        "_age_7.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V8_0",
+        "_age_8.0"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Age_V9_0",
+        "_age_9.0"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Age_Unassigned"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V10_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V11_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V12_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V12_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V13_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V14_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V15_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V15_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V1_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V2_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V2_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V3_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V3_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V3_2"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V4_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V4_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V5_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V5_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V5_2"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V6_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V6_1"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V6_2"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V6_3"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V7_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V8_0"
+              ]
+            },
+            {
+              "tags": [
+                "_Age_V9_0"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Age_Unassigned"
+              }
+            ],
+            "tags": [
+              "_Age_Unassigned"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Age_V10_0"
+              }
+            ],
+            "tags": [
+              "_Age_V10_0"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Age_V11_0"
+              }
+            ],
+            "tags": [
+              "_Age_V11_0"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Age_V12_0"
+              }
+            ],
+            "tags": [
+              "_Age_V12_0"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Age_V12_1"
+              }
+            ],
+            "tags": [
+              "_Age_V12_1"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Age_V13_0"
+              }
+            ],
+            "tags": [
+              "_Age_V13_0"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Age_V14_0"
+              }
+            ],
+            "tags": [
+              "_Age_V14_0"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Age_V15_0"
+              }
+            ],
+            "tags": [
+              "_Age_V15_0"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Age_V15_1"
+              }
+            ],
+            "tags": [
+              "_Age_V15_1"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Age_V1_1"
+              }
+            ],
+            "tags": [
+              "_Age_V1_1"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Age_V2_0"
+              }
+            ],
+            "tags": [
+              "_Age_V2_0"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Age_V2_1"
+              }
+            ],
+            "tags": [
+              "_Age_V2_1"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Age_V3_0"
+              }
+            ],
+            "tags": [
+              "_Age_V3_0"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Age_V3_1"
+              }
+            ],
+            "tags": [
+              "_Age_V3_1"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Age_V3_2"
+              }
+            ],
+            "tags": [
+              "_Age_V3_2"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Age_V4_0"
+              }
+            ],
+            "tags": [
+              "_Age_V4_0"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Age_V4_1"
+              }
+            ],
+            "tags": [
+              "_Age_V4_1"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Age_V5_0"
+              }
+            ],
+            "tags": [
+              "_Age_V5_0"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Age_V5_1"
+              }
+            ],
+            "tags": [
+              "_Age_V5_1"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Age_V5_2"
+              }
+            ],
+            "tags": [
+              "_Age_V5_2"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Age_V6_0"
+              }
+            ],
+            "tags": [
+              "_Age_V6_0"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Age_V6_1"
+              }
+            ],
+            "tags": [
+              "_Age_V6_1"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Age_V6_2"
+              }
+            ],
+            "tags": [
+              "_Age_V6_2"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Age_V6_3"
+              }
+            ],
+            "tags": [
+              "_Age_V6_3"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Age_V7_0"
+              }
+            ],
+            "tags": [
+              "_Age_V7_0"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Age_V8_0"
+              }
+            ],
+            "tags": [
+              "_Age_V8_0"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Age_V9_0"
+              }
+            ],
+            "tags": [
+              "_Age_V9_0"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -103,7 +103,7 @@ function lex(text, originalPositions) {
     if (hooks.work) countWork(hooks.work, "walkSteps");
     runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
     featureEnds[i] = /^[A-Za-z0-9-]$/.test(chars[i]) ? featureEnds[i + 1] : i;
-    engineEnds[i] = /^[A-Za-z0-9_]$/.test(chars[i]) ? engineEnds[i + 1] : i;
+    engineEnds[i] = (/^[A-Za-z0-9_]$/.test(chars[i]) || chars[i] === "." && /^[0-9]$/.test(chars[i-1] ?? "") && /^[0-9]$/.test(chars[i+1] ?? "")) ? engineEnds[i + 1] : i;
     closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
   }
   // A quoted form fails at the character that cannot continue it.

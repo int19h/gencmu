@@ -542,7 +542,7 @@ impl<'a> Reader<'a> {
             }
             if rule_name(node) == "tag" {
                 let token = self.token(node)?;
-                if crate::dom::is_engine_tag(self.value(token)) {
+                if self.value(token).starts_with('_') {
                     return Ok(Some(token));
                 }
             }
@@ -589,7 +589,7 @@ impl<'a> Reader<'a> {
                 }
                 if rule_name(part) == "tag" {
                     let token = self.token(part)?;
-                    if crate::dom::is_engine_tag(self.value(token)) {
+                    if self.value(token).starts_with('_') {
                         literals.push(token);
                     }
                 } else {
@@ -2084,9 +2084,11 @@ impl<'a> Reader<'a> {
     fn tag_of(&self, token: &'a Node) -> R<String> {
         let text = self.value(token);
         if text.starts_with('_') {
-            if !crate::dom::is_engine_tag(text) {
-                return Err(self.error(token, "unknown engine tag"));
-            }
+            return self
+                .unicode
+                .canonical_tag(text)
+                .map(str::to_string)
+                .ok_or_else(|| self.error(token, "unknown or unavailable engine tag"));
         } else if !text.starts_with(|c: char| c.is_ascii_uppercase()) || !crate::tags::is_name(text) {
             return Err(self.error(token, "a user tag starts with an uppercase ASCII letter"));
         }

@@ -1,0 +1,69 @@
+{
+  "description": "Every NFKD_Quick_Check value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1\n%rule r0 $x:_NFKD_Quick_Check_No<_NFKD_Quick_Check_No>\n%conditions $x ≅ #_NFKD_Quick_Check_No<_NFKD_Quick_Check_No>, _NFKD_Quick_Check_No ⊆ $x.tags\n%emits $x :: $x.tags ∩ _NFKD_Quick_Check_No\n%rule r1 $x:_NFKD_Quick_Check_Yes<_NFKD_Quick_Check_Yes>\n%conditions $x ≅ #_NFKD_Quick_Check_Yes<_NFKD_Quick_Check_Yes>, _NFKD_Quick_Check_Yes ⊆ $x.tags\n%emits $x :: $x.tags ∩ _NFKD_Quick_Check_Yes",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_NFKD_QC_N",
+        "_NFKD_Quick_Check_No"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_NFKD_QC_Y",
+        "_NFKD_Quick_Check_Yes"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_NFKD_Quick_Check_No"
+              ]
+            },
+            {
+              "tags": [
+                "_NFKD_Quick_Check_Yes"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_NFKD_Quick_Check_No"
+              }
+            ],
+            "tags": [
+              "_NFKD_Quick_Check_No"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_NFKD_Quick_Check_Yes"
+              }
+            ],
+            "tags": [
+              "_NFKD_Quick_Check_Yes"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

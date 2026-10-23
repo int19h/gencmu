@@ -1,0 +1,165 @@
+{
+  "description": "Every East_Asian_Width value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5\n%rule r0 $x:_East_Asian_Width_Ambiguous<_ea_A>\n%conditions $x ≅ #_ea_A<_ea_A>, _ea_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_A\n%rule r1 $x:_East_Asian_Width_Fullwidth<_ea_F>\n%conditions $x ≅ #_ea_F<_ea_F>, _ea_F ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_F\n%rule r2 $x:_East_Asian_Width_Halfwidth<_ea_H>\n%conditions $x ≅ #_ea_H<_ea_H>, _ea_H ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_H\n%rule r3 $x:_East_Asian_Width_Narrow<_ea_Na>\n%conditions $x ≅ #_ea_Na<_ea_Na>, _ea_Na ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_Na\n%rule r4 $x:_East_Asian_Width_Neutral<_ea_N>\n%conditions $x ≅ #_ea_N<_ea_N>, _ea_N ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_N\n%rule r5 $x:_East_Asian_Width_Wide<_ea_W>\n%conditions $x ≅ #_ea_W<_ea_W>, _ea_W ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ea_W",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Ambiguous",
+        "_ea_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Fullwidth",
+        "_ea_F"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Halfwidth",
+        "_ea_H"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Narrow",
+        "_ea_Na"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Neutral",
+        "_ea_N"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_East_Asian_Width_Wide",
+        "_ea_W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_East_Asian_Width_Ambiguous"
+              ]
+            },
+            {
+              "tags": [
+                "_East_Asian_Width_Fullwidth"
+              ]
+            },
+            {
+              "tags": [
+                "_East_Asian_Width_Halfwidth"
+              ]
+            },
+            {
+              "tags": [
+                "_East_Asian_Width_Narrow"
+              ]
+            },
+            {
+              "tags": [
+                "_East_Asian_Width_Neutral"
+              ]
+            },
+            {
+              "tags": [
+                "_East_Asian_Width_Wide"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Ambiguous"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Ambiguous"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Fullwidth"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Fullwidth"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Halfwidth"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Halfwidth"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Narrow"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Narrow"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Neutral"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Neutral"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_East_Asian_Width_Wide"
+              }
+            ],
+            "tags": [
+              "_East_Asian_Width_Wide"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

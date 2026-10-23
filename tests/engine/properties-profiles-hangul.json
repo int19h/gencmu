@@ -1,0 +1,145 @@
+{
+  "description": "Stage zero forwards every available stored membership independently of grammar references.",
+  "grammar": "%rule text {one}\n%rule one _ %emits $",
+  "input": "한",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ᄒ",
+              "tags": [
+                "_Age_V1_1",
+                "_Alphabetic",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Hangul_Jamo",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Wide",
+                "_General_Category_Letter",
+                "_General_Category_Other_Letter",
+                "_Grapheme_Base",
+                "_Grapheme_Cluster_Break_L",
+                "_Hangul_Syllable_Type_Leading_Jamo",
+                "_ID_Continue",
+                "_ID_Start",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_JL",
+                "_NFC_Quick_Check_Yes",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Yes",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Hangul",
+                "_Script_Hangul",
+                "_Sentence_Break_OLetter",
+                "_Vertical_Orientation_Upright",
+                "_Word_Break_ALetter",
+                "_XID_Continue",
+                "_XID_Start"
+              ],
+              "text": "한",
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "ᅡ",
+              "tags": [
+                "_Age_V1_1",
+                "_Alphabetic",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Hangul_Jamo",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Neutral",
+                "_General_Category_Letter",
+                "_General_Category_Other_Letter",
+                "_Grapheme_Base",
+                "_Grapheme_Cluster_Break_V",
+                "_Hangul_Syllable_Type_Vowel_Jamo",
+                "_ID_Continue",
+                "_ID_Start",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_JV",
+                "_NFC_Quick_Check_Maybe",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Maybe",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Hangul",
+                "_Script_Hangul",
+                "_Sentence_Break_OLetter",
+                "_Vertical_Orientation_Upright",
+                "_Word_Break_ALetter",
+                "_XID_Continue",
+                "_XID_Start"
+              ],
+              "text": "한",
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "ᆫ",
+              "tags": [
+                "_Age_V1_1",
+                "_Alphabetic",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Hangul_Jamo",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Neutral",
+                "_General_Category_Letter",
+                "_General_Category_Other_Letter",
+                "_Grapheme_Base",
+                "_Grapheme_Cluster_Break_T",
+                "_Hangul_Syllable_Type_Trailing_Jamo",
+                "_ID_Continue",
+                "_ID_Start",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_JT",
+                "_NFC_Quick_Check_Maybe",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Maybe",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Hangul",
+                "_Script_Hangul",
+                "_Sentence_Break_OLetter",
+                "_Vertical_Orientation_Upright",
+                "_Word_Break_ALetter",
+                "_XID_Continue",
+                "_XID_Start"
+              ],
+              "text": "한",
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

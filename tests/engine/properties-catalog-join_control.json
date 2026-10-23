@@ -1,0 +1,45 @@
+{
+  "description": "Every Join_Control value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Join_Control<_Join_Control>\n%conditions $x ≅ #_Join_Control<_Join_Control>, _Join_Control ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Join_Control",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Join_C",
+        "_Join_Control"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Join_Control"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Join_Control"
+              }
+            ],
+            "tags": [
+              "_Join_Control"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

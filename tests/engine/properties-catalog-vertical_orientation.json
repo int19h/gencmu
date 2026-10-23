@@ -1,0 +1,117 @@
+{
+  "description": "Every Vertical_Orientation value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3\n%rule r0 $x:_Vertical_Orientation_Rotated<_vo_R>\n%conditions $x ≅ #_vo_R<_vo_R>, _vo_R ⊆ $x.tags\n%emits $x :: $x.tags ∩ _vo_R\n%rule r1 $x:_Vertical_Orientation_Transformed_Rotated<_vo_Tr>\n%conditions $x ≅ #_vo_Tr<_vo_Tr>, _vo_Tr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _vo_Tr\n%rule r2 $x:_Vertical_Orientation_Transformed_Upright<_vo_Tu>\n%conditions $x ≅ #_vo_Tu<_vo_Tu>, _vo_Tu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _vo_Tu\n%rule r3 $x:_Vertical_Orientation_Upright<_vo_U>\n%conditions $x ≅ #_vo_U<_vo_U>, _vo_U ⊆ $x.tags\n%emits $x :: $x.tags ∩ _vo_U",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Vertical_Orientation_Rotated",
+        "_vo_R"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Vertical_Orientation_Transformed_Rotated",
+        "_vo_Tr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Vertical_Orientation_Transformed_Upright",
+        "_vo_Tu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Vertical_Orientation_Upright",
+        "_vo_U"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Vertical_Orientation_Rotated"
+              ]
+            },
+            {
+              "tags": [
+                "_Vertical_Orientation_Transformed_Rotated"
+              ]
+            },
+            {
+              "tags": [
+                "_Vertical_Orientation_Transformed_Upright"
+              ]
+            },
+            {
+              "tags": [
+                "_Vertical_Orientation_Upright"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Vertical_Orientation_Rotated"
+              }
+            ],
+            "tags": [
+              "_Vertical_Orientation_Rotated"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Vertical_Orientation_Transformed_Rotated"
+              }
+            ],
+            "tags": [
+              "_Vertical_Orientation_Transformed_Rotated"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Vertical_Orientation_Transformed_Upright"
+              }
+            ],
+            "tags": [
+              "_Vertical_Orientation_Transformed_Upright"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Vertical_Orientation_Upright"
+              }
+            ],
+            "tags": [
+              "_Vertical_Orientation_Upright"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

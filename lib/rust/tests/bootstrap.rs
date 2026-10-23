@@ -171,7 +171,7 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
   ¬g? "do" ∉ KOhA
 %implies A ∩ B ⟹ C ∖ D
 %rule text :: U ∪ ($x ∧ $x.source-text.classify(lex) ⊆ V ⟹ W)
-  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU 🆓] [+KEI (A | B)] (F & G) "a".."z" _L Sound-a H UI<¬B> :: T ∪ $K
+  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU 🆓] [+KEI (A | B)] (F & G) "a".."z" _General_Category_Letter Sound-a H UI<¬B> :: T ∪ $K
   | g? text-tail
   %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.matches(text) ∧ $y, $x.tokens-after-first.begins(text), $y.source-text ∈ "a.b".split(".")
   %emits $x ($y) :: $x.tags, ε :: Y

@@ -1,0 +1,573 @@
+{
+  "description": "Every Word_Break value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22\n%rule r0 $x:_Word_Break_ALetter<_Word_Break_ALetter>\n%conditions $x ≅ #_Word_Break_ALetter<_Word_Break_ALetter>, _Word_Break_ALetter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_ALetter\n%rule r1 $x:_Word_Break_CR<_Word_Break_CR>\n%conditions $x ≅ #_Word_Break_CR<_Word_Break_CR>, _Word_Break_CR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_CR\n%rule r2 $x:_Word_Break_Double_Quote<_Word_Break_Double_Quote>\n%conditions $x ≅ #_Word_Break_Double_Quote<_Word_Break_Double_Quote>, _Word_Break_Double_Quote ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Double_Quote\n%rule r3 $x:_Word_Break_E_Base<_Word_Break_E_Base>\n%conditions $x ≅ #_Word_Break_E_Base<_Word_Break_E_Base>, _Word_Break_E_Base ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_E_Base\n%rule r4 $x:_Word_Break_E_Base_GAZ<_Word_Break_E_Base_GAZ>\n%conditions $x ≅ #_Word_Break_E_Base_GAZ<_Word_Break_E_Base_GAZ>, _Word_Break_E_Base_GAZ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_E_Base_GAZ\n%rule r5 $x:_Word_Break_E_Modifier<_Word_Break_E_Modifier>\n%conditions $x ≅ #_Word_Break_E_Modifier<_Word_Break_E_Modifier>, _Word_Break_E_Modifier ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_E_Modifier\n%rule r6 $x:_Word_Break_Extend<_Word_Break_Extend>\n%conditions $x ≅ #_Word_Break_Extend<_Word_Break_Extend>, _Word_Break_Extend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Extend\n%rule r7 $x:_Word_Break_ExtendNumLet<_Word_Break_ExtendNumLet>\n%conditions $x ≅ #_Word_Break_ExtendNumLet<_Word_Break_ExtendNumLet>, _Word_Break_ExtendNumLet ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_ExtendNumLet\n%rule r8 $x:_Word_Break_Format<_Word_Break_Format>\n%conditions $x ≅ #_Word_Break_Format<_Word_Break_Format>, _Word_Break_Format ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Format\n%rule r9 $x:_Word_Break_Glue_After_Zwj<_Word_Break_Glue_After_Zwj>\n%conditions $x ≅ #_Word_Break_Glue_After_Zwj<_Word_Break_Glue_After_Zwj>, _Word_Break_Glue_After_Zwj ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Glue_After_Zwj\n%rule r10 $x:_Word_Break_Hebrew_Letter<_Word_Break_Hebrew_Letter>\n%conditions $x ≅ #_Word_Break_Hebrew_Letter<_Word_Break_Hebrew_Letter>, _Word_Break_Hebrew_Letter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Hebrew_Letter\n%rule r11 $x:_Word_Break_Katakana<_Word_Break_Katakana>\n%conditions $x ≅ #_Word_Break_Katakana<_Word_Break_Katakana>, _Word_Break_Katakana ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Katakana\n%rule r12 $x:_Word_Break_LF<_Word_Break_LF>\n%conditions $x ≅ #_Word_Break_LF<_Word_Break_LF>, _Word_Break_LF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_LF\n%rule r13 $x:_Word_Break_MidLetter<_Word_Break_MidLetter>\n%conditions $x ≅ #_Word_Break_MidLetter<_Word_Break_MidLetter>, _Word_Break_MidLetter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_MidLetter\n%rule r14 $x:_Word_Break_MidNum<_Word_Break_MidNum>\n%conditions $x ≅ #_Word_Break_MidNum<_Word_Break_MidNum>, _Word_Break_MidNum ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_MidNum\n%rule r15 $x:_Word_Break_MidNumLet<_Word_Break_MidNumLet>\n%conditions $x ≅ #_Word_Break_MidNumLet<_Word_Break_MidNumLet>, _Word_Break_MidNumLet ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_MidNumLet\n%rule r16 $x:_Word_Break_Newline<_Word_Break_Newline>\n%conditions $x ≅ #_Word_Break_Newline<_Word_Break_Newline>, _Word_Break_Newline ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Newline\n%rule r17 $x:_Word_Break_Numeric<_Word_Break_Numeric>\n%conditions $x ≅ #_Word_Break_Numeric<_Word_Break_Numeric>, _Word_Break_Numeric ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Numeric\n%rule r18 $x:_Word_Break_Other<_Word_Break_Other>\n%conditions $x ≅ #_Word_Break_Other<_Word_Break_Other>, _Word_Break_Other ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Other\n%rule r19 $x:_Word_Break_Regional_Indicator<_Word_Break_Regional_Indicator>\n%conditions $x ≅ #_Word_Break_Regional_Indicator<_Word_Break_Regional_Indicator>, _Word_Break_Regional_Indicator ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Regional_Indicator\n%rule r20 $x:_Word_Break_Single_Quote<_Word_Break_Single_Quote>\n%conditions $x ≅ #_Word_Break_Single_Quote<_Word_Break_Single_Quote>, _Word_Break_Single_Quote ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_Single_Quote\n%rule r21 $x:_Word_Break_WSegSpace<_Word_Break_WSegSpace>\n%conditions $x ≅ #_Word_Break_WSegSpace<_Word_Break_WSegSpace>, _Word_Break_WSegSpace ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_WSegSpace\n%rule r22 $x:_Word_Break_ZWJ<_Word_Break_ZWJ>\n%conditions $x ≅ #_Word_Break_ZWJ<_Word_Break_ZWJ>, _Word_Break_ZWJ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Word_Break_ZWJ",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_LE",
+        "_Word_Break_ALetter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_CR",
+        "_Word_Break_CR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_DQ",
+        "_Word_Break_Double_Quote"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_EB",
+        "_Word_Break_E_Base"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_EBG",
+        "_Word_Break_E_Base_GAZ"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_EM",
+        "_Word_Break_E_Modifier"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_Extend",
+        "_Word_Break_Extend"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_EX",
+        "_Word_Break_ExtendNumLet"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_FO",
+        "_Word_Break_Format"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_GAZ",
+        "_Word_Break_Glue_After_Zwj"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_HL",
+        "_Word_Break_Hebrew_Letter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_KA",
+        "_Word_Break_Katakana"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_LF",
+        "_Word_Break_LF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_ML",
+        "_Word_Break_MidLetter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_MN",
+        "_Word_Break_MidNum"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_MB",
+        "_Word_Break_MidNumLet"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_NL",
+        "_Word_Break_Newline"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_NU",
+        "_Word_Break_Numeric"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_XX",
+        "_Word_Break_Other"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_RI",
+        "_Word_Break_Regional_Indicator"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_SQ",
+        "_Word_Break_Single_Quote"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_WSegSpace",
+        "_Word_Break_WSegSpace"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WB_ZWJ",
+        "_Word_Break_ZWJ"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Word_Break_ALetter"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_CR"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Double_Quote"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_E_Base"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_E_Base_GAZ"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_E_Modifier"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Extend"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_ExtendNumLet"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Format"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Glue_After_Zwj"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Hebrew_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Katakana"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_LF"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_MidLetter"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_MidNum"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_MidNumLet"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Newline"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Other"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Regional_Indicator"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_Single_Quote"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_WSegSpace"
+              ]
+            },
+            {
+              "tags": [
+                "_Word_Break_ZWJ"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Word_Break_ALetter"
+              }
+            ],
+            "tags": [
+              "_Word_Break_ALetter"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Word_Break_CR"
+              }
+            ],
+            "tags": [
+              "_Word_Break_CR"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Word_Break_Double_Quote"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Double_Quote"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Word_Break_E_Base"
+              }
+            ],
+            "tags": [
+              "_Word_Break_E_Base"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Word_Break_E_Base_GAZ"
+              }
+            ],
+            "tags": [
+              "_Word_Break_E_Base_GAZ"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Word_Break_E_Modifier"
+              }
+            ],
+            "tags": [
+              "_Word_Break_E_Modifier"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Word_Break_Extend"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Extend"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Word_Break_ExtendNumLet"
+              }
+            ],
+            "tags": [
+              "_Word_Break_ExtendNumLet"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Word_Break_Format"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Format"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Word_Break_Glue_After_Zwj"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Glue_After_Zwj"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Word_Break_Hebrew_Letter"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Hebrew_Letter"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Word_Break_Katakana"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Katakana"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Word_Break_LF"
+              }
+            ],
+            "tags": [
+              "_Word_Break_LF"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Word_Break_MidLetter"
+              }
+            ],
+            "tags": [
+              "_Word_Break_MidLetter"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Word_Break_MidNum"
+              }
+            ],
+            "tags": [
+              "_Word_Break_MidNum"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Word_Break_MidNumLet"
+              }
+            ],
+            "tags": [
+              "_Word_Break_MidNumLet"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Word_Break_Newline"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Newline"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Word_Break_Numeric"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Numeric"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Word_Break_Other"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Other"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Word_Break_Regional_Indicator"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Regional_Indicator"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Word_Break_Single_Quote"
+              }
+            ],
+            "tags": [
+              "_Word_Break_Single_Quote"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Word_Break_WSegSpace"
+              }
+            ],
+            "tags": [
+              "_Word_Break_WSegSpace"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Word_Break_ZWJ"
+              }
+            ],
+            "tags": [
+              "_Word_Break_ZWJ"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

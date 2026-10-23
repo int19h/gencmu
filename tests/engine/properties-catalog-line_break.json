@@ -1,0 +1,1173 @@
+{
+  "description": "Every Line_Break value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47\n%rule r0 $x:_Line_Break_Aksara<_lb_AK>\n%conditions $x ≅ #_lb_AK<_lb_AK>, _lb_AK ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_AK\n%rule r1 $x:_Line_Break_Aksara_Prebase<_lb_AP>\n%conditions $x ≅ #_lb_AP<_lb_AP>, _lb_AP ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_AP\n%rule r2 $x:_Line_Break_Aksara_Start<_lb_AS>\n%conditions $x ≅ #_lb_AS<_lb_AS>, _lb_AS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_AS\n%rule r3 $x:_Line_Break_Alphabetic<_lb_AL>\n%conditions $x ≅ #_lb_AL<_lb_AL>, _lb_AL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_AL\n%rule r4 $x:_Line_Break_Ambiguous<_lb_AI>\n%conditions $x ≅ #_lb_AI<_lb_AI>, _lb_AI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_AI\n%rule r5 $x:_Line_Break_Break_After<_lb_BA>\n%conditions $x ≅ #_lb_BA<_lb_BA>, _lb_BA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_BA\n%rule r6 $x:_Line_Break_Break_Before<_lb_BB>\n%conditions $x ≅ #_lb_BB<_lb_BB>, _lb_BB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_BB\n%rule r7 $x:_Line_Break_Break_Both<_lb_B2>\n%conditions $x ≅ #_lb_B2<_lb_B2>, _lb_B2 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_B2\n%rule r8 $x:_Line_Break_Break_Symbols<_lb_SY>\n%conditions $x ≅ #_lb_SY<_lb_SY>, _lb_SY ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_SY\n%rule r9 $x:_Line_Break_Carriage_Return<_lb_CR>\n%conditions $x ≅ #_lb_CR<_lb_CR>, _lb_CR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CR\n%rule r10 $x:_Line_Break_Close_Parenthesis<_lb_CP>\n%conditions $x ≅ #_lb_CP<_lb_CP>, _lb_CP ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CP\n%rule r11 $x:_Line_Break_Close_Punctuation<_lb_CL>\n%conditions $x ≅ #_lb_CL<_lb_CL>, _lb_CL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CL\n%rule r12 $x:_Line_Break_Combining_Mark<_lb_CM>\n%conditions $x ≅ #_lb_CM<_lb_CM>, _lb_CM ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CM\n%rule r13 $x:_Line_Break_Complex_Context<_lb_SA>\n%conditions $x ≅ #_lb_SA<_lb_SA>, _lb_SA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_SA\n%rule r14 $x:_Line_Break_Conditional_Japanese_Starter<_lb_CJ>\n%conditions $x ≅ #_lb_CJ<_lb_CJ>, _lb_CJ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CJ\n%rule r15 $x:_Line_Break_Contingent_Break<_lb_CB>\n%conditions $x ≅ #_lb_CB<_lb_CB>, _lb_CB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_CB\n%rule r16 $x:_Line_Break_E_Base<_lb_EB>\n%conditions $x ≅ #_lb_EB<_lb_EB>, _lb_EB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_EB\n%rule r17 $x:_Line_Break_E_Modifier<_lb_EM>\n%conditions $x ≅ #_lb_EM<_lb_EM>, _lb_EM ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_EM\n%rule r18 $x:_Line_Break_Exclamation<_lb_EX>\n%conditions $x ≅ #_lb_EX<_lb_EX>, _lb_EX ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_EX\n%rule r19 $x:_Line_Break_Glue<_lb_GL>\n%conditions $x ≅ #_lb_GL<_lb_GL>, _lb_GL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_GL\n%rule r20 $x:_Line_Break_H2<_lb_H2>\n%conditions $x ≅ #_lb_H2<_lb_H2>, _lb_H2 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_H2\n%rule r21 $x:_Line_Break_H3<_lb_H3>\n%conditions $x ≅ #_lb_H3<_lb_H3>, _lb_H3 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_H3\n%rule r22 $x:_Line_Break_Hebrew_Letter<_lb_HL>\n%conditions $x ≅ #_lb_HL<_lb_HL>, _lb_HL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_HL\n%rule r23 $x:_Line_Break_Hyphen<_lb_HY>\n%conditions $x ≅ #_lb_HY<_lb_HY>, _lb_HY ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_HY\n%rule r24 $x:_Line_Break_Ideographic<_lb_ID>\n%conditions $x ≅ #_lb_ID<_lb_ID>, _lb_ID ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_ID\n%rule r25 $x:_Line_Break_Infix_Numeric<_lb_IS>\n%conditions $x ≅ #_lb_IS<_lb_IS>, _lb_IS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_IS\n%rule r26 $x:_Line_Break_Inseparable<_lb_IN>\n%conditions $x ≅ #_lb_IN<_lb_IN>, _lb_IN ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_IN\n%rule r27 $x:_Line_Break_JL<_lb_JL>\n%conditions $x ≅ #_lb_JL<_lb_JL>, _lb_JL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_JL\n%rule r28 $x:_Line_Break_JT<_lb_JT>\n%conditions $x ≅ #_lb_JT<_lb_JT>, _lb_JT ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_JT\n%rule r29 $x:_Line_Break_JV<_lb_JV>\n%conditions $x ≅ #_lb_JV<_lb_JV>, _lb_JV ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_JV\n%rule r30 $x:_Line_Break_Line_Feed<_lb_LF>\n%conditions $x ≅ #_lb_LF<_lb_LF>, _lb_LF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_LF\n%rule r31 $x:_Line_Break_Mandatory_Break<_lb_BK>\n%conditions $x ≅ #_lb_BK<_lb_BK>, _lb_BK ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_BK\n%rule r32 $x:_Line_Break_Next_Line<_lb_NL>\n%conditions $x ≅ #_lb_NL<_lb_NL>, _lb_NL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_NL\n%rule r33 $x:_Line_Break_Nonstarter<_lb_NS>\n%conditions $x ≅ #_lb_NS<_lb_NS>, _lb_NS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_NS\n%rule r34 $x:_Line_Break_Numeric<_lb_NU>\n%conditions $x ≅ #_lb_NU<_lb_NU>, _lb_NU ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_NU\n%rule r35 $x:_Line_Break_Open_Punctuation<_lb_OP>\n%conditions $x ≅ #_lb_OP<_lb_OP>, _lb_OP ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_OP\n%rule r36 $x:_Line_Break_Postfix_Numeric<_lb_PO>\n%conditions $x ≅ #_lb_PO<_lb_PO>, _lb_PO ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_PO\n%rule r37 $x:_Line_Break_Prefix_Numeric<_lb_PR>\n%conditions $x ≅ #_lb_PR<_lb_PR>, _lb_PR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_PR\n%rule r38 $x:_Line_Break_Quotation<_lb_QU>\n%conditions $x ≅ #_lb_QU<_lb_QU>, _lb_QU ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_QU\n%rule r39 $x:_Line_Break_Regional_Indicator<_lb_RI>\n%conditions $x ≅ #_lb_RI<_lb_RI>, _lb_RI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_RI\n%rule r40 $x:_Line_Break_Space<_lb_SP>\n%conditions $x ≅ #_lb_SP<_lb_SP>, _lb_SP ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_SP\n%rule r41 $x:_Line_Break_Surrogate<_lb_SG>\n%conditions $x ≅ #_lb_SG<_lb_SG>, _lb_SG ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_SG\n%rule r42 $x:_Line_Break_Unknown<_lb_XX>\n%conditions $x ≅ #_lb_XX<_lb_XX>, _lb_XX ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_XX\n%rule r43 $x:_Line_Break_Virama<_lb_VI>\n%conditions $x ≅ #_lb_VI<_lb_VI>, _lb_VI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_VI\n%rule r44 $x:_Line_Break_Virama_Final<_lb_VF>\n%conditions $x ≅ #_lb_VF<_lb_VF>, _lb_VF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_VF\n%rule r45 $x:_Line_Break_Word_Joiner<_lb_WJ>\n%conditions $x ≅ #_lb_WJ<_lb_WJ>, _lb_WJ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_WJ\n%rule r46 $x:_Line_Break_ZWJ<_lb_ZWJ>\n%conditions $x ≅ #_lb_ZWJ<_lb_ZWJ>, _lb_ZWJ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_ZWJ\n%rule r47 $x:_Line_Break_ZWSpace<_lb_ZW>\n%conditions $x ≅ #_lb_ZW<_lb_ZW>, _lb_ZW ⊆ $x.tags\n%emits $x :: $x.tags ∩ _lb_ZW",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Aksara",
+        "_lb_AK"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Aksara_Prebase",
+        "_lb_AP"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Aksara_Start",
+        "_lb_AS"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Alphabetic",
+        "_lb_AL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Ambiguous",
+        "_lb_AI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Break_After",
+        "_lb_BA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Break_Before",
+        "_lb_BB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Break_Both",
+        "_lb_B2"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Break_Symbols",
+        "_lb_SY"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Carriage_Return",
+        "_lb_CR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Close_Parenthesis",
+        "_lb_CP"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Close_Punctuation",
+        "_lb_CL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Combining_Mark",
+        "_lb_CM"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Complex_Context",
+        "_lb_SA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Conditional_Japanese_Starter",
+        "_lb_CJ"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Contingent_Break",
+        "_lb_CB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_E_Base",
+        "_lb_EB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_E_Modifier",
+        "_lb_EM"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Exclamation",
+        "_lb_EX"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Glue",
+        "_lb_GL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_H2",
+        "_lb_H2"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_H3",
+        "_lb_H3"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Hebrew_Letter",
+        "_lb_HL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Hyphen",
+        "_lb_HY"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Ideographic",
+        "_lb_ID"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Infix_Numeric",
+        "_lb_IS"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Inseparable",
+        "_lb_IN"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_JL",
+        "_lb_JL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_JT",
+        "_lb_JT"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_JV",
+        "_lb_JV"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Line_Feed",
+        "_lb_LF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Mandatory_Break",
+        "_lb_BK"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Next_Line",
+        "_lb_NL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Nonstarter",
+        "_lb_NS"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Numeric",
+        "_lb_NU"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Open_Punctuation",
+        "_lb_OP"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Postfix_Numeric",
+        "_lb_PO"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Prefix_Numeric",
+        "_lb_PR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Quotation",
+        "_lb_QU"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Regional_Indicator",
+        "_lb_RI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Space",
+        "_lb_SP"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Surrogate",
+        "_lb_SG"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Unknown",
+        "_lb_XX"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Virama",
+        "_lb_VI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Virama_Final",
+        "_lb_VF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_Word_Joiner",
+        "_lb_WJ"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_ZWJ",
+        "_lb_ZWJ"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Line_Break_ZWSpace",
+        "_lb_ZW"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Line_Break_Aksara"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Aksara_Prebase"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Aksara_Start"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Alphabetic"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Ambiguous"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Break_After"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Break_Before"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Break_Both"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Break_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Carriage_Return"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Close_Parenthesis"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Close_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Combining_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Complex_Context"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Conditional_Japanese_Starter"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Contingent_Break"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_E_Base"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_E_Modifier"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Exclamation"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Glue"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_H2"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_H3"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Hebrew_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Hyphen"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Ideographic"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Infix_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Inseparable"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_JL"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_JT"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_JV"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Line_Feed"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Mandatory_Break"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Next_Line"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Nonstarter"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Open_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Postfix_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Prefix_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Quotation"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Regional_Indicator"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Space"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Surrogate"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Unknown"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Virama"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Virama_Final"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_Word_Joiner"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_ZWJ"
+              ]
+            },
+            {
+              "tags": [
+                "_Line_Break_ZWSpace"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Line_Break_Aksara"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Aksara"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Line_Break_Aksara_Prebase"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Aksara_Prebase"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Line_Break_Aksara_Start"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Aksara_Start"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Line_Break_Alphabetic"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Alphabetic"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Line_Break_Ambiguous"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Ambiguous"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Line_Break_Break_After"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Break_After"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Line_Break_Break_Before"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Break_Before"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Line_Break_Break_Both"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Break_Both"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Line_Break_Break_Symbols"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Break_Symbols"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Line_Break_Carriage_Return"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Carriage_Return"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Line_Break_Close_Parenthesis"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Close_Parenthesis"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Line_Break_Close_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Close_Punctuation"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Line_Break_Combining_Mark"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Combining_Mark"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Line_Break_Complex_Context"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Complex_Context"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Line_Break_Conditional_Japanese_Starter"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Conditional_Japanese_Starter"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Line_Break_Contingent_Break"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Contingent_Break"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Line_Break_E_Base"
+              }
+            ],
+            "tags": [
+              "_Line_Break_E_Base"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Line_Break_E_Modifier"
+              }
+            ],
+            "tags": [
+              "_Line_Break_E_Modifier"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Line_Break_Exclamation"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Exclamation"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Line_Break_Glue"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Glue"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Line_Break_H2"
+              }
+            ],
+            "tags": [
+              "_Line_Break_H2"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Line_Break_H3"
+              }
+            ],
+            "tags": [
+              "_Line_Break_H3"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Line_Break_Hebrew_Letter"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Hebrew_Letter"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Line_Break_Hyphen"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Hyphen"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Line_Break_Ideographic"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Ideographic"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Line_Break_Infix_Numeric"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Infix_Numeric"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Line_Break_Inseparable"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Inseparable"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_Line_Break_JL"
+              }
+            ],
+            "tags": [
+              "_Line_Break_JL"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_Line_Break_JT"
+              }
+            ],
+            "tags": [
+              "_Line_Break_JT"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_Line_Break_JV"
+              }
+            ],
+            "tags": [
+              "_Line_Break_JV"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_Line_Break_Line_Feed"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Line_Feed"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_Line_Break_Mandatory_Break"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Mandatory_Break"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_Line_Break_Next_Line"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Next_Line"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_Line_Break_Nonstarter"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Nonstarter"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_Line_Break_Numeric"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Numeric"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_Line_Break_Open_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Open_Punctuation"
+            ]
+          },
+          {
+            "rule": "r36",
+            "children": [
+              {
+                "terminal": "_Line_Break_Postfix_Numeric"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Postfix_Numeric"
+            ]
+          },
+          {
+            "rule": "r37",
+            "children": [
+              {
+                "terminal": "_Line_Break_Prefix_Numeric"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Prefix_Numeric"
+            ]
+          },
+          {
+            "rule": "r38",
+            "children": [
+              {
+                "terminal": "_Line_Break_Quotation"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Quotation"
+            ]
+          },
+          {
+            "rule": "r39",
+            "children": [
+              {
+                "terminal": "_Line_Break_Regional_Indicator"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Regional_Indicator"
+            ]
+          },
+          {
+            "rule": "r40",
+            "children": [
+              {
+                "terminal": "_Line_Break_Space"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Space"
+            ]
+          },
+          {
+            "rule": "r41",
+            "children": [
+              {
+                "terminal": "_Line_Break_Surrogate"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Surrogate"
+            ]
+          },
+          {
+            "rule": "r42",
+            "children": [
+              {
+                "terminal": "_Line_Break_Unknown"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Unknown"
+            ]
+          },
+          {
+            "rule": "r43",
+            "children": [
+              {
+                "terminal": "_Line_Break_Virama"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Virama"
+            ]
+          },
+          {
+            "rule": "r44",
+            "children": [
+              {
+                "terminal": "_Line_Break_Virama_Final"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Virama_Final"
+            ]
+          },
+          {
+            "rule": "r45",
+            "children": [
+              {
+                "terminal": "_Line_Break_Word_Joiner"
+              }
+            ],
+            "tags": [
+              "_Line_Break_Word_Joiner"
+            ]
+          },
+          {
+            "rule": "r46",
+            "children": [
+              {
+                "terminal": "_Line_Break_ZWJ"
+              }
+            ],
+            "tags": [
+              "_Line_Break_ZWJ"
+            ]
+          },
+          {
+            "rule": "r47",
+            "children": [
+              {
+                "terminal": "_Line_Break_ZWSpace"
+              }
+            ],
+            "tags": [
+              "_Line_Break_ZWSpace"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -752,7 +752,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 func TestMalformedCharacterClasses(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _L")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _General_Category_Letter")
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
@@ -788,7 +788,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	}
 	// The control: a well-formed entry is used, and rejects "ab"; in the
 	// bootstrap, it is read, and its notation then fails on g.md.
-	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}]}`)
+	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`)
 	if parse(compiled(control)) {
 		t.Fatal("the well-formed entry was not used")
 	}
@@ -797,16 +797,16 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		t.Fatalf("the well-formed bootstrap was refused: %v", err)
 	}
 	for _, expr := range []string{
-		`{"seq":[{"range":[{"string":"c"},{"string":"b"}]},{"ref":"_L"}]}`,
-		`{"seq":[{"range":[{"string":"bb"},{"string":"c"}]},{"ref":"_L"}]}`,
+		`{"seq":[{"range":[{"string":"c"},{"string":"b"}]},{"ref":"_General_Category_Letter"}]}`,
+		`{"seq":[{"range":[{"string":"bb"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`,
 		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_Bogus"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}]},"tags":{"ref":"_L"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]},"tags":{"ref":"_General_Category_Letter"}`,
 		// A range or a property beside a sequence, which is checked before
 		// the sequence is split.
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"range":[{"string":"z"},{"string":"a"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"range":[{"string":"a"},{"string":"z"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"ref":"_Bogus"}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"ref":"_L"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"range":[{"string":"z"},{"string":"a"}]}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"range":[{"string":"a"},{"string":"z"}]}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"ref":"_Bogus"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"ref":"_General_Category_Letter"}`,
 	} {
 		d := dom(expr)
 		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
@@ -897,7 +897,7 @@ func TestInvalidUTF8(t *testing.T) {
 		return errors.As(err, &e) && e.Kind == ErrorUsage
 	}
 	// Each of these would read U+FFFD or U+D800 if the text became tokens.
-	rules := []string{`_Cs`, `_`, `"‹U+D7FF›".."‹U+E000›"`, `"‹U+FFFD›"`, "[{character}]\n%rule character _"}
+	rules := []string{`_General_Category_Surrogate`, `_`, `"‹U+D7FF›".."‹U+E000›"`, `"‹U+FFFD›"`, "[{character}]\n%rule character _"}
 	for _, rule := range rules {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
 		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {

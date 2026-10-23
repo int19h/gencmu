@@ -12,6 +12,7 @@ pub(crate) const CATEGORIES: [&str; 30] = [
 
 /// Whether a name is a property (engine §1): a General_Category value in its
 /// short form, one of their one-letter groups, `White_Space` or `Any`.
+#[cfg(test)]
 pub(crate) fn is_property_name(name: &str) -> bool {
     Property::of(name).is_some()
 }

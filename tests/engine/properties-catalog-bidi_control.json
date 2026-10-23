@@ -1,0 +1,45 @@
+{
+  "description": "Every Bidi_Control value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Bidi_Control<_Bidi_Control>\n%conditions $x ≅ #_Bidi_Control<_Bidi_Control>, _Bidi_Control ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Bidi_Control",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_C",
+        "_Bidi_Control"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Bidi_Control"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Bidi_Control"
+              }
+            ],
+            "tags": [
+              "_Bidi_Control"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

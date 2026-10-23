@@ -1,0 +1,45 @@
+{
+  "description": "Every ID_Continue value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_ID_Continue<_ID_Continue>\n%conditions $x ≅ #_ID_Continue<_ID_Continue>, _ID_Continue ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ID_Continue",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_IDC",
+        "_ID_Continue"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_ID_Continue"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_ID_Continue"
+              }
+            ],
+            "tags": [
+              "_ID_Continue"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

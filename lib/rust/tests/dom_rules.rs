@@ -257,9 +257,11 @@ fn a_precompiled_range_or_property_is_checked() {
         expr(r#"{"ref":"_White_Space"}"#),
         // A range or a property is a terminal, and takes a test (§2).
         expr(r#"{"test":"=","value":{"string":"b"},"expr":{"range":[{"string":"b"},{"string":"z"}]}}"#),
-        expr(r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-b"}}],"expr":{"ref":"_L"}}"#),
         expr(
-            r#"{"seq":[{"capture":"c","expr":{"range":[{"string":"̀"},{"string":"ͯ"}]}},{"capture":"d","expr":{"ref":"_Cs"}}]}"#,
+            r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-b"}}],"expr":{"ref":"_General_Category_Letter"}}"#,
+        ),
+        expr(
+            r#"{"seq":[{"capture":"c","expr":{"range":[{"string":"̀"},{"string":"ͯ"}]}},{"capture":"d","expr":{"ref":"_General_Category_Surrogate"}}]}"#,
         ),
         with_tags(r#"{"union":[{"tag":"Character-a"},{"tag":"Character-x"}]}"#),
     ] {
@@ -273,13 +275,13 @@ fn a_precompiled_range_or_property_is_checked() {
         expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"A"}"#),
         expr(r#"{"property":"Letter"}"#),
         expr(r#"{"property":"lu"}"#),
-        expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"_L"}"#),
+        expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"_General_Category_Letter"}"#),
         expr(
             r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-a"}}],"expr":{"range":[{"string":"z"},{"string":"a"}]}}"#,
         ),
         expr(r#"{"test":"=","value":{"string":"a"},"expr":{"property":"Letter"}}"#),
         expr(r#"{"capture":"c","expr":{"property":"Foo"}}"#),
-        with_tags(r#"{"ref":"_L"}"#),
+        with_tags(r#"{"ref":"_General_Category_Letter"}"#),
         with_tags(r#"{"range":[{"string":"z"},{"string":"a"}]}"#),
         with_emission(r#"{"items":[{"tags":{"tag":"'a'..'z'"},"insert":true}]}"#),
     ] {
@@ -288,8 +290,9 @@ fn a_precompiled_range_or_property_is_checked() {
     // A range or a property beside a sequence is checked before the
     // sequence is split, so no member of the node goes unread.
     for beside in MALFORMED_BESIDE_A_SEQUENCE {
-        let dom =
-            expr(&format!(r#"{{"seq":[{{"range":[{{"string":"b"}},{{"string":"z"}}]}},{{"ref":"_L"}}],{beside}}}"#));
+        let dom = expr(&format!(
+            r#"{{"seq":[{{"range":[{{"string":"b"}},{{"string":"z"}}]}},{{"ref":"_General_Category_Letter"}}],{beside}}}"#
+        ));
         assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
     }
     assert!(document_was_read(&expr(r#"{"seq":[{"range":[{"string":"b"},{"string":"z"}]},{"property":"Bogus"}]}"#)));
@@ -319,16 +322,19 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     };
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
     // A bootstrap that is read, whose notation then fails on g.md.
-    assert_eq!(refusal(expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"ref":"_L"}]}"#)), None);
+    assert_eq!(
+        refusal(expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"ref":"_General_Category_Letter"}]}"#)),
+        None
+    );
     let mut refused = vec![
-        expr(r#"{"seq":[{"range":[{"string":"z"},{"string":"a"}]},{"ref":"_L"}]}"#),
-        expr(r#"{"seq":[{"range":[{"string":"aa"},{"string":"z"}]},{"ref":"_L"}]}"#),
+        expr(r#"{"seq":[{"range":[{"string":"z"},{"string":"a"}]},{"ref":"_General_Category_Letter"}]}"#),
+        expr(r#"{"seq":[{"range":[{"string":"aa"},{"string":"z"}]},{"ref":"_General_Category_Letter"}]}"#),
         expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"property":"Bogus"}]}"#),
-        with_tags(r#"{"ref":"_L"}"#),
+        with_tags(r#"{"ref":"_General_Category_Letter"}"#),
     ];
     for beside in MALFORMED_BESIDE_A_SEQUENCE {
         refused.push(expr(&format!(
-            r#"{{"seq":[{{"range":[{{"string":"a"}},{{"string":"z"}}]}},{{"ref":"_L"}}],{beside}}}"#
+            r#"{{"seq":[{{"range":[{{"string":"a"}},{{"string":"z"}}]}},{{"ref":"_General_Category_Letter"}}],{beside}}}"#
         )));
     }
     for dom in refused {

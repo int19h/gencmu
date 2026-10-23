@@ -104,12 +104,13 @@ export declare function splitString(string: string, delimiter: string): Set<stri
 /**
  * Whether a string is a user tag or a reserved engine tag (engine §1).
  * @param {unknown} tag
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, canonicalTag?(name:string):string|null}} [unicode]
  * @returns {boolean}
  */
 export declare function isTag(tag: unknown, unicode?: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
+    canonicalTag?(name: string): string | null;
 }): boolean;
 /**
  * The written form of a range, its identity as a terminal (engine §4):

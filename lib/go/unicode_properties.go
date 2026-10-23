@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -24,11 +25,12 @@ type propertyRange struct {
 }
 
 type propertyCatalogData struct {
-	Types   map[string]string
-	Values  map[string][]string
-	Aliases map[string]string
-	Tags    map[string][]string
-	Core    []string
+	Types     map[string]string
+	Values    map[string][]string
+	Aliases   map[string]string
+	Tags      map[string][]string
+	Core      []string
+	Combining map[string]string
 }
 
 var propertyInventory = func() propertyCatalogData {
@@ -181,4 +183,51 @@ func parseProperties(text string, core *unicodeTable) (map[string]*propertyData,
 		prop.ranges = merged
 	}
 	return properties, nil
+}
+
+func (t *unicodeTable) canonicalTag(spelling string) string {
+	canonical, ok := propertyInventory.Aliases[spelling]
+	if !ok {
+		return ""
+	}
+	identity := propertyInventory.Tags[canonical]
+	if slices.Contains(propertyInventory.Core, identity[0]) {
+		return canonical
+	}
+	data := t.properties[identity[0]]
+	if data != nil && (data.kind == "binary" || data.values[identity[1]]) {
+		return canonical
+	}
+	return ""
+}
+
+func (t *unicodeTable) profile(code rune) []string {
+	category := t.category(code)
+	tags := []string{propertyInventory.Aliases["_"+category], propertyInventory.Aliases["_"+category[:1]], propertyInventory.Combining[strconv.Itoa(t.combiningClass(code))]}
+	if t.isWhiteSpace(code) {
+		tags = append(tags, "_White_Space")
+	}
+	for _, prop := range []string{"Emoji_Presentation", "Emoji_Component"} {
+		if t.hasProperty(prop, code) {
+			tags = append(tags, "_"+prop)
+		}
+	}
+	for prop, data := range t.properties {
+		i := sort.Search(len(data.ranges), func(i int) bool { return data.ranges[i].first > code })
+		values := data.defaults
+		if i > 0 && code <= data.ranges[i-1].last {
+			values = data.ranges[i-1].values
+		}
+		if data.kind == "binary" {
+			if len(values) > 0 {
+				tags = append(tags, "_"+prop)
+			}
+		} else {
+			for _, value := range values {
+				tags = append(tags, "_"+prop+"_"+value)
+			}
+		}
+	}
+	sort.Strings(tags)
+	return tags
 }

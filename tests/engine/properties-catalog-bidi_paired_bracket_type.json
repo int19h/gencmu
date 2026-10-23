@@ -1,0 +1,93 @@
+{
+  "description": "Every Bidi_Paired_Bracket_Type value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2\n%rule r0 $x:_Bidi_Paired_Bracket_Type_Close<_bpt_c>\n%conditions $x ≅ #_bpt_c<_bpt_c>, _bpt_c ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bpt_c\n%rule r1 $x:_Bidi_Paired_Bracket_Type_None<_bpt_n>\n%conditions $x ≅ #_bpt_n<_bpt_n>, _bpt_n ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bpt_n\n%rule r2 $x:_Bidi_Paired_Bracket_Type_Open<_bpt_o>\n%conditions $x ≅ #_bpt_o<_bpt_o>, _bpt_o ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bpt_o",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Paired_Bracket_Type_Close",
+        "_bpt_c"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Paired_Bracket_Type_None",
+        "_bpt_n"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Paired_Bracket_Type_Open",
+        "_bpt_o"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Bidi_Paired_Bracket_Type_Close"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Paired_Bracket_Type_None"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Paired_Bracket_Type_Open"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Bidi_Paired_Bracket_Type_Close"
+              }
+            ],
+            "tags": [
+              "_Bidi_Paired_Bracket_Type_Close"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Bidi_Paired_Bracket_Type_None"
+              }
+            ],
+            "tags": [
+              "_Bidi_Paired_Bracket_Type_None"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Bidi_Paired_Bracket_Type_Open"
+              }
+            ],
+            "tags": [
+              "_Bidi_Paired_Bracket_Type_Open"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

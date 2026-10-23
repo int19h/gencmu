@@ -1,0 +1,10 @@
+{
+  "description": "_Canonical_Combining_Class_10 is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _Canonical_Combining_Class_10\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

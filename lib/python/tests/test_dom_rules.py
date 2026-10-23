@@ -773,7 +773,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ),
             (
                 "⊉ of ∅ on a property",
-                {"capture": "x", "expr": tested({"emptySet": True}, {"ref": "_L"}, "⊉")},
+                {"capture": "x", "expr": tested({"emptySet": True}, {"ref": "_General_Category_Letter"}, "⊉")},
                 "a tag test requires tags or constants",
             ),
             ("∩≠∅ of a constant", {"capture": "x", "expr": tested({"const": "A", "at": [1, 1]}, A, "∩≠∅")}, None),
@@ -842,14 +842,14 @@ class PrecompiledDomRules(unittest.TestCase):
     def test_the_unicode_table_keys_the_cache(self) -> None:
         """A cached grammar observes stored tags from its configured table."""
         pipeline = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
-        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _Ll\n```\n"}
+        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _General_Category_Lowercase_Letter\n```\n"}
         self.assertTrue(gencmu.load_dialect_sources(sources, "p.md").parse("a").ok)
         table = "unicode 0.0.0\ncategory Lu 0061 0061\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
         for use_cache in (False, True):
             with self.subTest(use_cache=use_cache):
                 result = gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache).parse("a")
                 self.assertFalse(result.ok)
-                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_L", "_Lu"}))
+                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_General_Category_Letter", "_General_Category_Uppercase_Letter"}))
 
     def test_ranges_and_properties(self) -> None:
         """A precompiled range or property is checked as the reader checks
@@ -862,7 +862,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 {
                     "seq": [
                         {"capture": "c", "expr": {"range": [{"string": "\u0300"}, {"string": "\u036f"}]}},
-                        {"capture": "d", "expr": {"ref": "_Cs"}},
+                        {"capture": "d", "expr": {"ref": "_General_Category_Surrogate"}},
                     ]
                 },
                 None,
@@ -872,7 +872,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a tested range", {"test": "=", "value": {"string": "a"}, "expr": {"range": [{"string": "a"}, {"string": "z"}]}}, None),
             (
                 "a tested stored property tag",
-                {"test": "tags", "requirements": [{"negated": False, "value": {"tag": "_L"}}], "expr": {"ref": "_L"}},
+                {"test": "tags", "requirements": [{"negated": False, "value": {"tag": "_General_Category_Letter"}}], "expr": {"ref": "_General_Category_Letter"}},
                 None,
             ),
         ):
@@ -1033,7 +1033,7 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertEqual(self.parse(broken), fresh)
 
 
-CLASS_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a".."z" _L\n```\n'
+CLASS_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a".."z" _General_Category_Letter\n```\n'
 CLASS_PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
 
@@ -1102,7 +1102,7 @@ class CharacterClassLoading(unittest.TestCase):
             # Put a rule of the shape above first in the bootstrap's first
             # document.
             bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
-            expr = {"seq": [{"range": [{"string": "a"}, {"string": "z"}]}, {"ref": "_L"}]}
+            expr = {"seq": [{"range": [{"string": "a"}, {"string": "z"}]}, {"ref": "_General_Category_Letter"}]}
             added = {
                 "name": "unused-rule",
                 "op": "define",

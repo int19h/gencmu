@@ -1,0 +1,573 @@
+{
+  "description": "Every Bidi_Class value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22\n%rule r0 $x:_Bidi_Class_Arabic_Letter<_bc_AL>\n%conditions $x ≅ #_bc_AL<_bc_AL>, _bc_AL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_AL\n%rule r1 $x:_Bidi_Class_Arabic_Number<_bc_AN>\n%conditions $x ≅ #_bc_AN<_bc_AN>, _bc_AN ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_AN\n%rule r2 $x:_Bidi_Class_Boundary_Neutral<_bc_BN>\n%conditions $x ≅ #_bc_BN<_bc_BN>, _bc_BN ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_BN\n%rule r3 $x:_Bidi_Class_Common_Separator<_bc_CS>\n%conditions $x ≅ #_bc_CS<_bc_CS>, _bc_CS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_CS\n%rule r4 $x:_Bidi_Class_European_Number<_bc_EN>\n%conditions $x ≅ #_bc_EN<_bc_EN>, _bc_EN ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_EN\n%rule r5 $x:_Bidi_Class_European_Separator<_bc_ES>\n%conditions $x ≅ #_bc_ES<_bc_ES>, _bc_ES ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_ES\n%rule r6 $x:_Bidi_Class_European_Terminator<_bc_ET>\n%conditions $x ≅ #_bc_ET<_bc_ET>, _bc_ET ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_ET\n%rule r7 $x:_Bidi_Class_First_Strong_Isolate<_bc_FSI>\n%conditions $x ≅ #_bc_FSI<_bc_FSI>, _bc_FSI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_FSI\n%rule r8 $x:_Bidi_Class_Left_To_Right<_bc_L>\n%conditions $x ≅ #_bc_L<_bc_L>, _bc_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_L\n%rule r9 $x:_Bidi_Class_Left_To_Right_Embedding<_bc_LRE>\n%conditions $x ≅ #_bc_LRE<_bc_LRE>, _bc_LRE ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_LRE\n%rule r10 $x:_Bidi_Class_Left_To_Right_Isolate<_bc_LRI>\n%conditions $x ≅ #_bc_LRI<_bc_LRI>, _bc_LRI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_LRI\n%rule r11 $x:_Bidi_Class_Left_To_Right_Override<_bc_LRO>\n%conditions $x ≅ #_bc_LRO<_bc_LRO>, _bc_LRO ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_LRO\n%rule r12 $x:_Bidi_Class_Nonspacing_Mark<_bc_NSM>\n%conditions $x ≅ #_bc_NSM<_bc_NSM>, _bc_NSM ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_NSM\n%rule r13 $x:_Bidi_Class_Other_Neutral<_bc_ON>\n%conditions $x ≅ #_bc_ON<_bc_ON>, _bc_ON ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_ON\n%rule r14 $x:_Bidi_Class_Paragraph_Separator<_bc_B>\n%conditions $x ≅ #_bc_B<_bc_B>, _bc_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_B\n%rule r15 $x:_Bidi_Class_Pop_Directional_Format<_bc_PDF>\n%conditions $x ≅ #_bc_PDF<_bc_PDF>, _bc_PDF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_PDF\n%rule r16 $x:_Bidi_Class_Pop_Directional_Isolate<_bc_PDI>\n%conditions $x ≅ #_bc_PDI<_bc_PDI>, _bc_PDI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_PDI\n%rule r17 $x:_Bidi_Class_Right_To_Left<_bc_R>\n%conditions $x ≅ #_bc_R<_bc_R>, _bc_R ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_R\n%rule r18 $x:_Bidi_Class_Right_To_Left_Embedding<_bc_RLE>\n%conditions $x ≅ #_bc_RLE<_bc_RLE>, _bc_RLE ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_RLE\n%rule r19 $x:_Bidi_Class_Right_To_Left_Isolate<_bc_RLI>\n%conditions $x ≅ #_bc_RLI<_bc_RLI>, _bc_RLI ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_RLI\n%rule r20 $x:_Bidi_Class_Right_To_Left_Override<_bc_RLO>\n%conditions $x ≅ #_bc_RLO<_bc_RLO>, _bc_RLO ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_RLO\n%rule r21 $x:_Bidi_Class_Segment_Separator<_bc_S>\n%conditions $x ≅ #_bc_S<_bc_S>, _bc_S ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_S\n%rule r22 $x:_Bidi_Class_White_Space<_bc_WS>\n%conditions $x ≅ #_bc_WS<_bc_WS>, _bc_WS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _bc_WS",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Arabic_Letter",
+        "_bc_AL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Arabic_Number",
+        "_bc_AN"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Boundary_Neutral",
+        "_bc_BN"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Common_Separator",
+        "_bc_CS"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_European_Number",
+        "_bc_EN"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_European_Separator",
+        "_bc_ES"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_European_Terminator",
+        "_bc_ET"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_First_Strong_Isolate",
+        "_bc_FSI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Left_To_Right",
+        "_bc_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Left_To_Right_Embedding",
+        "_bc_LRE"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Left_To_Right_Isolate",
+        "_bc_LRI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Left_To_Right_Override",
+        "_bc_LRO"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Nonspacing_Mark",
+        "_bc_NSM"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Other_Neutral",
+        "_bc_ON"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Paragraph_Separator",
+        "_bc_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Pop_Directional_Format",
+        "_bc_PDF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Pop_Directional_Isolate",
+        "_bc_PDI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Right_To_Left",
+        "_bc_R"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Right_To_Left_Embedding",
+        "_bc_RLE"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Right_To_Left_Isolate",
+        "_bc_RLI"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Right_To_Left_Override",
+        "_bc_RLO"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_Segment_Separator",
+        "_bc_S"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Bidi_Class_White_Space",
+        "_bc_WS"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Bidi_Class_Arabic_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Arabic_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Boundary_Neutral"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Common_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_European_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_European_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_European_Terminator"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_First_Strong_Isolate"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Left_To_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Left_To_Right_Embedding"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Left_To_Right_Isolate"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Left_To_Right_Override"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Nonspacing_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Other_Neutral"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Paragraph_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Pop_Directional_Format"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Pop_Directional_Isolate"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Right_To_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Right_To_Left_Embedding"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Right_To_Left_Isolate"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Right_To_Left_Override"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_Segment_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_Bidi_Class_White_Space"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Arabic_Letter"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Arabic_Letter"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Arabic_Number"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Arabic_Number"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Boundary_Neutral"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Boundary_Neutral"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Common_Separator"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Common_Separator"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_European_Number"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_European_Number"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_European_Separator"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_European_Separator"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_European_Terminator"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_European_Terminator"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_First_Strong_Isolate"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_First_Strong_Isolate"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Left_To_Right"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Left_To_Right"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Left_To_Right_Embedding"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Left_To_Right_Embedding"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Left_To_Right_Isolate"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Left_To_Right_Isolate"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Left_To_Right_Override"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Left_To_Right_Override"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Nonspacing_Mark"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Nonspacing_Mark"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Other_Neutral"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Other_Neutral"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Paragraph_Separator"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Paragraph_Separator"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Pop_Directional_Format"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Pop_Directional_Format"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Pop_Directional_Isolate"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Pop_Directional_Isolate"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Right_To_Left"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Right_To_Left"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Right_To_Left_Embedding"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Right_To_Left_Embedding"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Right_To_Left_Isolate"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Right_To_Left_Isolate"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Right_To_Left_Override"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Right_To_Left_Override"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_Segment_Separator"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_Segment_Separator"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Bidi_Class_White_Space"
+              }
+            ],
+            "tags": [
+              "_Bidi_Class_White_Space"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

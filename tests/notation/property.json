@@ -10,7 +10,7 @@
               "expr": {
                 "seq": [
                   {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   },
                   {
                     "capture": "c",

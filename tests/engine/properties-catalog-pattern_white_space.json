@@ -1,0 +1,45 @@
+{
+  "description": "Every Pattern_White_Space value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Pattern_White_Space<_Pattern_White_Space>\n%conditions $x ≅ #_Pattern_White_Space<_Pattern_White_Space>, _Pattern_White_Space ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Pattern_White_Space",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Pat_WS",
+        "_Pattern_White_Space"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Pattern_White_Space"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Pattern_White_Space"
+              }
+            ],
+            "tags": [
+              "_Pattern_White_Space"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

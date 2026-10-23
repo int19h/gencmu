@@ -270,7 +270,7 @@ func isCapital(name string) bool {
 
 // isTag accepts user tags and reserved Unicode tags (engine §1).
 func isTag(tag string, uni *unicodeTable) bool {
-	return isCapital(tag) && isName(tag) || engineTag(tag)
+	return isCapital(tag) && isName(tag) || (engineTag(tag) && uni.canonicalTag(tag) == tag)
 }
 
 // charClass is the characters a range or a property terminal matches: a

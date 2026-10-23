@@ -1,0 +1,44 @@
+{
+  "description": "Every Emoji value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Emoji<_Emoji>\n%conditions $x ≅ #_Emoji<_Emoji>, _Emoji ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Emoji",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Emoji"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Emoji"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Emoji"
+              }
+            ],
+            "tags": [
+              "_Emoji"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -24,7 +24,7 @@ fn exact(value: &Json, required: &[&str], optional: &[&str]) -> bool {
 }
 
 pub(crate) fn engine_tag(name: &str) -> bool {
-    name.strip_prefix('_').is_some_and(|name| name != "Any" && is_property_name(name))
+    crate::unicode_properties::identity(name).is_some()
 }
 
 fn tag(name: &str) -> bool {

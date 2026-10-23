@@ -1,0 +1,10 @@
+{
+  "description": "_Other_Alphabetic is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _Other_Alphabetic\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

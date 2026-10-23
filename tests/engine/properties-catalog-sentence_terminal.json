@@ -1,0 +1,45 @@
+{
+  "description": "Every Sentence_Terminal value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Sentence_Terminal<_Sentence_Terminal>\n%conditions $x ≅ #_Sentence_Terminal<_Sentence_Terminal>, _Sentence_Terminal ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Terminal",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_STerm",
+        "_Sentence_Terminal"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Sentence_Terminal"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Sentence_Terminal"
+              }
+            ],
+            "tags": [
+              "_Sentence_Terminal"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

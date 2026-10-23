@@ -25,7 +25,8 @@ latin.md reads a format character as nothing, as a comma, with two exceptions. T
 
 ```jbogenbau
 %extend-rule non-punctuation-char
-  _N | _Cc | _Co | _Cn
+  _General_Category_Number | _General_Category_Control
+  | _General_Category_Private_Use | _General_Category_Unassigned
 ```
 
 <details><summary>Railroad diagram of <code>non-punctuation-char</code></summary>

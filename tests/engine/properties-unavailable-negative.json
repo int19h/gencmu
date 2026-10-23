@@ -1,0 +1,18 @@
+{
+  "description": "Unavailable support fails at its reference before expansion and feature selection.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%rule text _<¬_Script_Latin>\n```",
+    "unicode-properties.txt": "unicode-properties 15.1.0\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 15
+    }
+  }
+}

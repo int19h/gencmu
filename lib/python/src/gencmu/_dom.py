@@ -690,7 +690,12 @@ class DomBuilder:
 
     def tag_of(self, token: Node) -> str:
         name = self.token_value(token)
-        if not (USER_NAME.fullmatch(name) or name in ENGINE_TAGS):
+        if name.startswith("_"):
+            canonical = self.unicode.canonical_tag(name)
+            if canonical is None:
+                raise self.fail(token, "unknown or unavailable engine tag")
+            return canonical
+        if not USER_NAME.fullmatch(name):
             raise self.fail(token, "invalid tag name")
         return name
 
@@ -960,7 +965,7 @@ class DomBuilder:
             valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
             if first.kind == "token":
                 name = self.token_value(first)
-                valid = USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS
+                valid = USER_NAME.fullmatch(name) is not None or name.startswith("_")
             if named:
                 valid = False
             # Target and order errors precede conversion of a group's or
@@ -1275,9 +1280,9 @@ class DomBuilder:
             return self.decode(self.token(node))
         if rule in ("tag", "name"):
             name = self.token_value(self.token(node))
-            if USER_NAME.fullmatch(name) or name in ENGINE_TAGS:
+            if USER_NAME.fullmatch(name) or name.startswith("_"):
                 value = {"tag": self.tag_of(self.token(node))}
-                if name in ENGINE_TAGS:
+                if name.startswith("_"):
                     if self.closed_for:
                         raise self.fail(node, "a closed declaration cannot contain an engine-tag literal")
                     self.engine_nodes[id(value)] = node

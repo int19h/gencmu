@@ -378,15 +378,21 @@ impl Dialect {
     /// tests and tools (see [`InputToken`]).
     pub fn parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error> {
         for token in tokens {
-            if let Some(tag) =
-                token.tags.iter().find(|tag| !crate::dom::is_constant_name(tag) && !crate::dom::is_engine_tag(tag))
+            if let Some(tag) = token
+                .tags
+                .iter()
+                .find(|tag| !crate::dom::is_constant_name(tag) && self.unicode.canonical_tag(tag).is_none())
             {
                 return Err(Error::usage(format!("{tag:?} is not a valid stored tag")));
             }
         }
         let joined: Vec<&str> = tokens.iter().map(|token| token.text.as_str()).collect();
         let chars: Vec<char> = joined.join(" ").chars().collect();
-        let tokens = tokens.to_vec();
+        let mut tokens = tokens.to_vec();
+        for token in &mut tokens {
+            token.tags =
+                token.tags.iter().map(|tag| self.unicode.canonical_tag(tag).unwrap_or(tag).to_string()).collect();
+        }
         self.run(
             chars,
             options,
@@ -1169,6 +1175,7 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
     crate::work::count(crate::work::Work::StageZero, 1);
     let decomposed = unicode.decompose_with_origins(chars);
     let mut input = Vec::with_capacity(decomposed.len());
+    let mut profiles = crate::fxhash::FxMap::default();
     let mut public = Vec::with_capacity(decomposed.len());
     for (index, scalar) in decomposed.iter().enumerate() {
         let c = scalar.character;
@@ -1176,20 +1183,10 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
         // Its character tag and nothing else (§1).
         let value = c.to_string();
         let text = chars[origin].to_string();
-        let category = unicode.category(c as u32);
-        let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
-        for (property, name) in [
-            (crate::unicode::Property::EmojiPresentation, "_Emoji_Presentation"),
-            (crate::unicode::Property::EmojiComponent, "_Emoji_Component"),
-        ] {
-            if unicode.has(property, c as u32) {
-                names.push(name.into());
-            }
-        }
-        if unicode.is_white_space(c as u32) {
-            names.push("_White_Space".into());
-        }
-        let set = tags.set_of(names.iter().map(String::as_str));
+        let set = *profiles.entry(c).or_insert_with(|| {
+            let names = unicode.profile(c as u32);
+            tags.set_of(names.iter().map(String::as_str))
+        });
         // A character token shows its decomposed scalar (§1).
         public.push(Token {
             text: text.clone(),

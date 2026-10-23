@@ -1,5 +1,5 @@
 {
-  "description": "Stored engine tags support all 30 General_Category values, the seven category groups and _White_Space. No stage-zero token has _Cs, and the final wildcard reads the supplementary character without a stored _Any tag (engine §1, §4).",
+  "description": "Stored engine tags support all 30 General_Category values, the seven category groups and _White_Space. No stage-zero token has _General_Category_Surrogate, and the final wildcard reads the supplementary character without a stored _Any tag (engine §1, §4).",
   "grammar": "%rule text (_Lu _Ll _Lt _Lm _Lo _Mn _Mc _Me _Nd _Nl _No _Pc _Pd _Ps _Pe _Pi _Pf _Po _Sm _Sc _Sk _So _Zs _Zl _Zp _Cc _Cf [_Cs] _Co _Cn _L _M _N _P _S _Z _C _White_Space _)",
   "input": "Aaǅʰ漢́ः⃝7Ⅻ①_-()«»!+$^©   \u0007​͸აा٥،€　\u0001😀",
   "expect": {
@@ -16,147 +16,147 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "_Lu"
+            "terminal": "_General_Category_Uppercase_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_Ll"
+            "terminal": "_General_Category_Lowercase_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_Lt"
+            "terminal": "_General_Category_Titlecase_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_Lm"
+            "terminal": "_General_Category_Modifier_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_Lo"
+            "terminal": "_General_Category_Other_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_Mn"
+            "terminal": "_General_Category_Nonspacing_Mark"
           },
           {
             "kind": "token",
-            "terminal": "_Mc"
+            "terminal": "_General_Category_Spacing_Mark"
           },
           {
             "kind": "token",
-            "terminal": "_Me"
+            "terminal": "_General_Category_Enclosing_Mark"
           },
           {
             "kind": "token",
-            "terminal": "_Nd"
+            "terminal": "_General_Category_Decimal_Number"
           },
           {
             "kind": "token",
-            "terminal": "_Nl"
+            "terminal": "_General_Category_Letter_Number"
           },
           {
             "kind": "token",
-            "terminal": "_No"
+            "terminal": "_General_Category_Other_Number"
           },
           {
             "kind": "token",
-            "terminal": "_Pc"
+            "terminal": "_General_Category_Connector_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Pd"
+            "terminal": "_General_Category_Dash_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Ps"
+            "terminal": "_General_Category_Open_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Pe"
+            "terminal": "_General_Category_Close_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Pi"
+            "terminal": "_General_Category_Initial_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Pf"
+            "terminal": "_General_Category_Final_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Po"
+            "terminal": "_General_Category_Other_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_Sm"
+            "terminal": "_General_Category_Math_Symbol"
           },
           {
             "kind": "token",
-            "terminal": "_Sc"
+            "terminal": "_General_Category_Currency_Symbol"
           },
           {
             "kind": "token",
-            "terminal": "_Sk"
+            "terminal": "_General_Category_Modifier_Symbol"
           },
           {
             "kind": "token",
-            "terminal": "_So"
+            "terminal": "_General_Category_Other_Symbol"
           },
           {
             "kind": "token",
-            "terminal": "_Zs"
+            "terminal": "_General_Category_Space_Separator"
           },
           {
             "kind": "token",
-            "terminal": "_Zl"
+            "terminal": "_General_Category_Line_Separator"
           },
           {
             "kind": "token",
-            "terminal": "_Zp"
+            "terminal": "_General_Category_Paragraph_Separator"
           },
           {
             "kind": "token",
-            "terminal": "_Cc"
+            "terminal": "_General_Category_Control"
           },
           {
             "kind": "token",
-            "terminal": "_Cf"
+            "terminal": "_General_Category_Format"
           },
           {
             "kind": "token",
-            "terminal": "_Co"
+            "terminal": "_General_Category_Private_Use"
           },
           {
             "kind": "token",
-            "terminal": "_Cn"
+            "terminal": "_General_Category_Unassigned"
           },
           {
             "kind": "token",
-            "terminal": "_L"
+            "terminal": "_General_Category_Letter"
           },
           {
             "kind": "token",
-            "terminal": "_M"
+            "terminal": "_General_Category_Mark"
           },
           {
             "kind": "token",
-            "terminal": "_N"
+            "terminal": "_General_Category_Number"
           },
           {
             "kind": "token",
-            "terminal": "_P"
+            "terminal": "_General_Category_Punctuation"
           },
           {
             "kind": "token",
-            "terminal": "_S"
+            "terminal": "_General_Category_Symbol"
           },
           {
             "kind": "token",
-            "terminal": "_Z"
+            "terminal": "_General_Category_Separator"
           },
           {
             "kind": "token",
-            "terminal": "_C"
+            "terminal": "_General_Category_Other"
           },
           {
             "kind": "token",

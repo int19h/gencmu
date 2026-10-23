@@ -109,19 +109,19 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   alpha-char | mark-char | digit-char | space-char
 
 %rule alpha-char
-  _L
+  _General_Category_Letter
 
 %rule mark-char
   combining-mark
 
 %rule combining-mark
-  _M
+  _General_Category_Mark
 
 %rule digit-char
   "0".."9"
 
 %extend-rule comma
-  $c:_Cf
+  $c:_General_Category_Format
 %conditions
   ¬$c.matches(breaking-format-char)
 

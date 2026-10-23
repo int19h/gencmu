@@ -1,0 +1,165 @@
+{
+  "description": "Every Hangul_Syllable_Type value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5\n%rule r0 $x:_Hangul_Syllable_Type_LVT_Syllable<_hst_LVT>\n%conditions $x ≅ #_hst_LVT<_hst_LVT>, _hst_LVT ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_LVT\n%rule r1 $x:_Hangul_Syllable_Type_LV_Syllable<_hst_LV>\n%conditions $x ≅ #_hst_LV<_hst_LV>, _hst_LV ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_LV\n%rule r2 $x:_Hangul_Syllable_Type_Leading_Jamo<_hst_L>\n%conditions $x ≅ #_hst_L<_hst_L>, _hst_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_L\n%rule r3 $x:_Hangul_Syllable_Type_Not_Applicable<_hst_NA>\n%conditions $x ≅ #_hst_NA<_hst_NA>, _hst_NA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_NA\n%rule r4 $x:_Hangul_Syllable_Type_Trailing_Jamo<_hst_T>\n%conditions $x ≅ #_hst_T<_hst_T>, _hst_T ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_T\n%rule r5 $x:_Hangul_Syllable_Type_Vowel_Jamo<_hst_V>\n%conditions $x ≅ #_hst_V<_hst_V>, _hst_V ⊆ $x.tags\n%emits $x :: $x.tags ∩ _hst_V",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_LVT_Syllable",
+        "_hst_LVT"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_LV_Syllable",
+        "_hst_LV"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_Leading_Jamo",
+        "_hst_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_Not_Applicable",
+        "_hst_NA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_Trailing_Jamo",
+        "_hst_T"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Hangul_Syllable_Type_Vowel_Jamo",
+        "_hst_V"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_LVT_Syllable"
+              ]
+            },
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_LV_Syllable"
+              ]
+            },
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_Leading_Jamo"
+              ]
+            },
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_Not_Applicable"
+              ]
+            },
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_Trailing_Jamo"
+              ]
+            },
+            {
+              "tags": [
+                "_Hangul_Syllable_Type_Vowel_Jamo"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_LVT_Syllable"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_LVT_Syllable"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_LV_Syllable"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_LV_Syllable"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_Leading_Jamo"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_Leading_Jamo"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_Not_Applicable"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_Not_Applicable"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_Trailing_Jamo"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_Trailing_Jamo"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Hangul_Syllable_Type_Vowel_Jamo"
+              }
+            ],
+            "tags": [
+              "_Hangul_Syllable_Type_Vowel_Jamo"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

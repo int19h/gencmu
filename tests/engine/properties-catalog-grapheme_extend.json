@@ -1,0 +1,45 @@
+{
+  "description": "Every Grapheme_Extend value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Grapheme_Extend<_Grapheme_Extend>\n%conditions $x ≅ #_Grapheme_Extend<_Grapheme_Extend>, _Grapheme_Extend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Extend",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Gr_Ext",
+        "_Grapheme_Extend"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Grapheme_Extend"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Grapheme_Extend"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Extend"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

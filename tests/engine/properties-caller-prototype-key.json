@@ -1,0 +1,15 @@
+{
+  "description": "Inherited JavaScript object members are not property aliases.",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "__proto__"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

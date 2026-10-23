@@ -149,19 +149,9 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     problem = scalar_problem(text)
     if problem is not None:
         raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-    tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
     for index, (char, origin) in enumerate(unicode.decompose_with_origins(text)):
-        found = tags.get(char)
-        if found is None:
-            category = unicode.category(ord(char))
-            assigned = {"_" + category, "_" + category[0]}
-            for prop in ("Emoji_Presentation", "Emoji_Component"):
-                if unicode.has_emoji(prop, ord(char)):
-                    assigned.add("_" + prop)
-            if unicode.is_white_space(ord(char)):
-                assigned.add("_White_Space")
-            found = tags[char] = frozenset(assigned)
+        found = unicode.profile(ord(char))
         tokens.append(Token(text[origin], found, (index, index + 1), (origin, origin + 1), value=char, image=char))
     return tokens
 
@@ -761,14 +751,14 @@ class Dialect:
                 value = getattr(token, field)
                 if not isinstance(value, str) or scalar_problem(value) is not None:
                     raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
-            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag) for tag in token.tags):
+            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self.unicode) for tag in token.tags):
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
         tokens = [
             replace(
                 token,
-                tags=frozenset(token.tags),
+                tags=frozenset(self.unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
                 span=None if token.span is None else (token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],

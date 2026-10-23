@@ -1,0 +1,11 @@
+{
+  "description": "Declared values without scalar assignments reject stage-zero input and remain valid caller terminals.",
+  "grammar": "%rule text _Word_Break_E_Base | _Word_Break_E_Base_GAZ | _Word_Break_E_Modifier | _Word_Break_Glue_After_Zwj",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

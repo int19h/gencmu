@@ -241,7 +241,7 @@
       "aliases": [
         {
           "spelling": "_engineK",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Engine-Tag"
           ]
@@ -255,7 +255,7 @@
               "alternatives": [
                 {
                   "expr": {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   }
                 }
               ]
@@ -524,7 +524,7 @@
       "aliases": [
         {
           "spelling": "_engineK",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Engine-Tag"
           ]
@@ -538,7 +538,7 @@
               "alternatives": [
                 {
                   "expr": {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   }
                 }
               ]
@@ -1133,7 +1133,7 @@
       "aliases": [
         {
           "spelling": "bad-name",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Emoji-Name"
           ]
@@ -1153,7 +1153,7 @@
       "aliases": [
         {
           "spelling": "bad-name",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Emoji-Name"
           ]
@@ -1173,7 +1173,7 @@
       "aliases": [
         {
           "spelling": "bad-name",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Emoji-Name"
           ]

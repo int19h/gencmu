@@ -12,7 +12,7 @@
             {
               "guards": [],
               "expr": {
-                "ref": "_Cs"
+                "ref": "_General_Category_Surrogate"
               }
             }
           ],

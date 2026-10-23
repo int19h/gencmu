@@ -1,0 +1,45 @@
+{
+  "description": "Every IDS_Trinary_Operator value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_IDS_Trinary_Operator<_IDS_Trinary_Operator>\n%conditions $x ≅ #_IDS_Trinary_Operator<_IDS_Trinary_Operator>, _IDS_Trinary_Operator ⊆ $x.tags\n%emits $x :: $x.tags ∩ _IDS_Trinary_Operator",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_IDST",
+        "_IDS_Trinary_Operator"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_IDS_Trinary_Operator"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_IDS_Trinary_Operator"
+              }
+            ],
+            "tags": [
+              "_IDS_Trinary_Operator"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

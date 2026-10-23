@@ -1097,7 +1097,7 @@
           },
           "args": [
             {
-              "terminal": "_L"
+              "terminal": "_General_Category_Letter"
             }
           ]
         }
@@ -4811,7 +4811,7 @@
           },
           "args": [
             {
-              "terminal": "_L"
+              "terminal": "_General_Category_Letter"
             }
           ]
         }
@@ -4875,7 +4875,7 @@
           },
           "args": [
             {
-              "terminal": "_L"
+              "terminal": "_General_Category_Letter"
             }
           ]
         }

@@ -921,6 +921,13 @@ func firstOfRule(n *Node, name string) *Node {
 
 func (b *domBuilder) tagOf(n *Node) string {
 	name := b.tokenValue(n)
+	if strings.HasPrefix(name, "_") {
+		canonical := b.uni.canonicalTag(name)
+		if canonical == "" {
+			b.fail(n, "unknown or unavailable engine tag %s", name)
+		}
+		return canonical
+	}
 	if !isTag(name, b.uni) {
 		b.fail(n, "%s is not a tag identifier", name)
 	}

@@ -1,0 +1,45 @@
+{
+  "description": "Every White_Space value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_White_Space<_White_Space>\n%conditions $x ≅ #_White_Space<_White_Space>, _White_Space ⊆ $x.tags\n%emits $x :: $x.tags ∩ _White_Space",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_WSpace",
+        "_White_Space"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_White_Space"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_White_Space"
+              }
+            ],
+            "tags": [
+              "_White_Space"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "description": "Every Radical value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Radical<_Radical>\n%conditions $x ≅ #_Radical<_Radical>, _Radical ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Radical",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Radical"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Radical"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Radical"
+              }
+            ],
+            "tags": [
+              "_Radical"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

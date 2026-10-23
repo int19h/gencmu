@@ -139,17 +139,21 @@ fn load_errors_carry_the_document_and_position() {
 
 #[test]
 fn sources_may_bring_their_own_tables() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text _L");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text _General_Category_Letter");
     // A character table that knows no letters, only the white space that
     // the notation reads between tokens.
     let table = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n";
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(!dialect.parse("a", &ParseOptions::default()).unwrap().ok);
-    let dialect = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text _L"), "p.md").unwrap();
+    let dialect = gencmu::load_dialect_sources(
+        single("%ambiguity-resolution greedy\n%rule text _General_Category_Letter"),
+        "p.md",
+    )
+    .unwrap();
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     // A scalar value that the caller's table omits is Cn (engine §1).
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text _Cn");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text _General_Category_Unassigned");
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);

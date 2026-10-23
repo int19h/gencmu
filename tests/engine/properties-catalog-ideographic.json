@@ -1,0 +1,45 @@
+{
+  "description": "Every Ideographic value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Ideographic<_Ideographic>\n%conditions $x ≅ #_Ideographic<_Ideographic>, _Ideographic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Ideographic",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Ideo",
+        "_Ideographic"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Ideographic"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Ideographic"
+              }
+            ],
+            "tags": [
+              "_Ideographic"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

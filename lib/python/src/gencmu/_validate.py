@@ -16,6 +16,7 @@ from ._types import constant_value_problem, open_part, rule_type_problem, term_t
 
 
 class Marks(Protocol):
+    def canonical_tag(self, spelling: str) -> str | None: ...
     def is_mark(self, code: int) -> bool: ...
     def is_emoji_name(self, name: str) -> bool: ...
     def changes_in_document(self, code: int) -> bool: ...
@@ -145,7 +146,20 @@ def _contains_engine(root: Any) -> bool:
 
 def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
     try:
-        return _dom_problem(dom, unicode, defer_emission)
+        problem = _dom_problem(dom, unicode, defer_emission)
+        if problem is not None:
+            return problem
+        pending = [dom]
+        while pending:
+            node = pending.pop()
+            if isinstance(node, list):
+                pending.extend(node)
+            elif isinstance(node, dict):
+                for key, value in node.items():
+                    if key in ("ref", "tag", "terminal") and isinstance(value, str) and value.startswith("_") and unicode.canonical_tag(value) != value:
+                        return "unknown, unavailable, or noncanonical engine tag"
+                    pending.append(value)
+        return None
     except (KeyError, IndexError, TypeError, ValueError):
         # External JSON can violate a child schema before type selection.
         return "a malformed DOM"

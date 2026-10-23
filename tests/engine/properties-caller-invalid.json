@@ -1,0 +1,15 @@
+{
+  "description": "Caller tags require valid and available property support.",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "_Script_Latn"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

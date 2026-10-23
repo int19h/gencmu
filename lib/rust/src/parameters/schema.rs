@@ -32,7 +32,52 @@ fn closed(n: &Json) -> Option<&'static str> {
         None
     }
 }
+fn introduced_tags(root: &Json) -> BTreeSet<String> {
+    let mut pending = vec![(root, false)];
+    let mut values: Vec<BTreeSet<String>> = Vec::new();
+    while let Some((n, ready)) = pending.pop() {
+        let operation = ["union", "intersection", "difference"].into_iter().find(|key| has(n, key));
+        if let Some(operation) = operation {
+            let items = list(get(n, operation));
+            if !ready {
+                pending.push((n, true));
+                pending.extend(items.iter().rev().map(|item| (item, false)));
+            } else {
+                let mut parts = values.split_off(values.len() - items.len()).into_iter();
+                let mut result = parts.next().unwrap_or_default();
+                match operation {
+                    "union" => {
+                        for part in parts {
+                            result.extend(part);
+                        }
+                    }
+                    "intersection" => {
+                        for part in parts {
+                            result.retain(|tag| part.contains(tag));
+                        }
+                    }
+                    _ => (),
+                }
+                values.push(result);
+            }
+        } else if has(n, "if") {
+            pending.push((get(n, "then"), false));
+        } else {
+            let tag = text(get(n, "tag"));
+            values.push(if crate::dom::schema::engine_tag(tag) {
+                BTreeSet::from([tag.to_string()])
+            } else {
+                BTreeSet::new()
+            });
+        }
+    }
+    values.pop().unwrap_or_default()
+}
+
 fn tag_clause(n: &Json, own: bool) -> Option<&'static str> {
+    if !introduced_tags(n).is_empty() {
+        return Some("a tag clause introduces an engine tag");
+    }
     let mut pending = vec![n];
     while let Some(n) = pending.pop() {
         match n {
@@ -40,9 +85,6 @@ fn tag_clause(n: &Json, own: bool) -> Option<&'static str> {
             Json::Obj(fs) => {
                 if has(n, "pattern") {
                     continue;
-                }
-                if crate::dom::schema::engine_tag(text(get(n, "tag"))) {
-                    return Some("a tag clause introduces an engine tag");
                 }
                 if own
                     && matches!(text(get(n, "method")), "tags" | "classes")

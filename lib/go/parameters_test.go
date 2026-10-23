@@ -341,7 +341,7 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 		{`%rule unused(@X) $x:(A @X)`, "malformed capture"},
 		{`%rule unused(@X) @X %emits $x :: @X, $x`, "lists a capture twice"},
 		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "lists a capture twice"},
-		{`%rule unused(@X) @X :: _L ∪ @X`, "engine tag"},
+		{`%rule unused(@X) @X :: _General_Category_Letter ∪ @X`, "engine tag"},
 		{`%rule unused(@X) @X :: $.tags ∪ @X`, "own tags"},
 		{`%rule unused(@X) @X := @X %erased`, "erased"},
 		{`%rule unused(@X) [+| @X]`, "leading separator"},
@@ -378,8 +378,8 @@ func TestParameterPatternTestOperands(t *testing.T) {
 		`%rule use(@V) $x:_ %conditions $x ≅ #_=@V
 %rule text = use("a")`,
 		`%rule use(@T) $x:_ %conditions $x ≅ #_<@T>
-%rule text = use(_L)`,
-		`%rule use(@X) @X<_L>
+%rule text = use(_General_Category_Letter)`,
+		`%rule use(@X) @X<_General_Category_Letter>
 %rule text = use(_)`,
 	} {
 		t.Run(grammar, func(t *testing.T) {

@@ -102,7 +102,7 @@ test("both readers admit written forms, including plain dollar text", () => {
     "%rule r $x:A≠\"x\" %conditions $x.value ≠ \"x\", \"a\" ∉ \"a b\".split(\" \"), A ⊈ $x.tags, $x ≇ #A",
     '%rule r "é$(_0301)"', '%rule r "a$(_0301)̣"', '%rule r "$(_00E9)"', '%include "café.md"',
     "%features Cbm Other", '%include "a$b.md"',
-    '%rule r "a".."‹U+007A›"', '%rule r _<¬_Lu>≠"x"',
+    '%rule r "a".."‹U+007A›"', '%rule r _<¬_General_Category_Uppercase_Letter>≠"x"',
     '%rule r := "v" :- "i" | "a" %emits',
     '%rule r := $.emitted.image :- "x" | _ %emits',
     '%rule r A %emits ε :: ∅ := "x"',
@@ -119,7 +119,7 @@ test("both readers admit written forms, including plain dollar text", () => {
     '%rule r A %conditions $.begins(B | r), $.matches(r | A)',
     '%rule r A %conditions $.begins(r | r | A | A), $.matches((r))',
     '%classifier words "a" "$(KEY)" ∈ AB', '%implies A B ⟹ C D',
-    '%rule r :: ($x ⟹ _Lu) ∩ $x.tags | $x:A',
+    '%rule r :: ($x ⟹ _General_Category_Uppercase_Letter) ∩ $x.tags | $x:A',
     '%rule r A %erased', "%rule r $x:🆓", "%rule r (A ≻ B) 🆓",
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
@@ -136,7 +136,7 @@ test("both readers reject invalid forms at the same specified position", () => {
     "%rule r $x:A %conditions $x ≅ #(sumti=\"x\")",
     "%rule r $x:A %conditions $x ≅ #(sumti<B><C>)",
     '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
-    "%rule r A<\"‹U+0041›\">", "%rule r :: _Lu | A", "%rule r :: ∩ Word BY | A",
+    "%rule r A<\"‹U+0041›\">", "%rule r :: _General_Category_Uppercase_Letter | A", "%rule r :: ∩ Word BY | A",
     "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',
     "%rule r $x:(A) %rule s A %emits _", '%rule r $x:(A) %classifier c "a" ∈ _',
     '%include "a.md".x', '%rule r $x:(A) %include "a.md".x', '%include "a.md".."b"',
@@ -152,8 +152,8 @@ test("both readers reject invalid forms at the same specified position", () => {
     '%rule r A %conditions $.begins()', '%rule r A %conditions $.matches()',
     '%rule r A %conditions $.begins((r | A))',
     '%rule r A %conditions $.matches(r, A)',
-    '%rule r A %conditions $.begins(_L)', '%rule r A %conditions $.matches(_L)',
-    '%rule r A %conditions $.followed-by(_L)', '%rule r A %conditions $.preceded-by(_L)',
+    '%rule r A %conditions $.begins(_General_Category_Letter)', '%rule r A %conditions $.matches(_General_Category_Letter)',
+    '%rule r A %conditions $.followed-by(_General_Category_Letter)', '%rule r A %conditions $.preceded-by(_General_Category_Letter)',
     '%rule r A=("a" "b")', "%rule r A %conditions $ ≅ #A=(\"a\" \"b\")",
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;

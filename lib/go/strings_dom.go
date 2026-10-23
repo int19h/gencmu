@@ -141,7 +141,7 @@ func decodeRecipes(o jobj) (value, image *domTerm, err error) {
 }
 
 func engineTag(name string) bool {
-	return strings.HasPrefix(name, "_") && name != "_Any" && propertyNames[strings.TrimPrefix(name, "_")]
+	return propertyInventory.Tags[name] != nil
 }
 
 func isClass(name string) bool {

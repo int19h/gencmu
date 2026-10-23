@@ -4,6 +4,15 @@
 
 pub(crate) mod schema;
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
+    for part in crate::parameters::nodes(dom) {
+        for field in ["ref", "tag", "terminal"] {
+            if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
+                if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
+                    return Some("unknown, unavailable, or noncanonical engine tag");
+                }
+            }
+        }
+    }
     if crate::parameters::unresolved(dom) {
         crate::parameters::problem(dom, unicode)
     } else {
@@ -14,7 +23,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
 use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
 use crate::tags::is_name;
-use crate::unicode::{is_property_name, Unicode};
+use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
 pub const DOM_FORMAT: i64 = 40;

@@ -1,0 +1,453 @@
+{
+  "description": "Every Grapheme_Cluster_Break value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17\n%rule r0 $x:_Grapheme_Cluster_Break_CR<_Grapheme_Cluster_Break_CR>\n%conditions $x ≅ #_Grapheme_Cluster_Break_CR<_Grapheme_Cluster_Break_CR>, _Grapheme_Cluster_Break_CR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_CR\n%rule r1 $x:_Grapheme_Cluster_Break_Control<_Grapheme_Cluster_Break_Control>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Control<_Grapheme_Cluster_Break_Control>, _Grapheme_Cluster_Break_Control ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Control\n%rule r2 $x:_Grapheme_Cluster_Break_E_Base<_Grapheme_Cluster_Break_E_Base>\n%conditions $x ≅ #_Grapheme_Cluster_Break_E_Base<_Grapheme_Cluster_Break_E_Base>, _Grapheme_Cluster_Break_E_Base ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_E_Base\n%rule r3 $x:_Grapheme_Cluster_Break_E_Base_GAZ<_Grapheme_Cluster_Break_E_Base_GAZ>\n%conditions $x ≅ #_Grapheme_Cluster_Break_E_Base_GAZ<_Grapheme_Cluster_Break_E_Base_GAZ>, _Grapheme_Cluster_Break_E_Base_GAZ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_E_Base_GAZ\n%rule r4 $x:_Grapheme_Cluster_Break_E_Modifier<_Grapheme_Cluster_Break_E_Modifier>\n%conditions $x ≅ #_Grapheme_Cluster_Break_E_Modifier<_Grapheme_Cluster_Break_E_Modifier>, _Grapheme_Cluster_Break_E_Modifier ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_E_Modifier\n%rule r5 $x:_Grapheme_Cluster_Break_Extend<_Grapheme_Cluster_Break_Extend>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Extend<_Grapheme_Cluster_Break_Extend>, _Grapheme_Cluster_Break_Extend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Extend\n%rule r6 $x:_Grapheme_Cluster_Break_Glue_After_Zwj<_Grapheme_Cluster_Break_Glue_After_Zwj>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Glue_After_Zwj<_Grapheme_Cluster_Break_Glue_After_Zwj>, _Grapheme_Cluster_Break_Glue_After_Zwj ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Glue_After_Zwj\n%rule r7 $x:_Grapheme_Cluster_Break_L<_Grapheme_Cluster_Break_L>\n%conditions $x ≅ #_Grapheme_Cluster_Break_L<_Grapheme_Cluster_Break_L>, _Grapheme_Cluster_Break_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_L\n%rule r8 $x:_Grapheme_Cluster_Break_LF<_Grapheme_Cluster_Break_LF>\n%conditions $x ≅ #_Grapheme_Cluster_Break_LF<_Grapheme_Cluster_Break_LF>, _Grapheme_Cluster_Break_LF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_LF\n%rule r9 $x:_Grapheme_Cluster_Break_LV<_Grapheme_Cluster_Break_LV>\n%conditions $x ≅ #_Grapheme_Cluster_Break_LV<_Grapheme_Cluster_Break_LV>, _Grapheme_Cluster_Break_LV ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_LV\n%rule r10 $x:_Grapheme_Cluster_Break_LVT<_Grapheme_Cluster_Break_LVT>\n%conditions $x ≅ #_Grapheme_Cluster_Break_LVT<_Grapheme_Cluster_Break_LVT>, _Grapheme_Cluster_Break_LVT ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_LVT\n%rule r11 $x:_Grapheme_Cluster_Break_Other<_Grapheme_Cluster_Break_Other>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Other<_Grapheme_Cluster_Break_Other>, _Grapheme_Cluster_Break_Other ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Other\n%rule r12 $x:_Grapheme_Cluster_Break_Prepend<_Grapheme_Cluster_Break_Prepend>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Prepend<_Grapheme_Cluster_Break_Prepend>, _Grapheme_Cluster_Break_Prepend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Prepend\n%rule r13 $x:_Grapheme_Cluster_Break_Regional_Indicator<_Grapheme_Cluster_Break_Regional_Indicator>\n%conditions $x ≅ #_Grapheme_Cluster_Break_Regional_Indicator<_Grapheme_Cluster_Break_Regional_Indicator>, _Grapheme_Cluster_Break_Regional_Indicator ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_Regional_Indicator\n%rule r14 $x:_Grapheme_Cluster_Break_SpacingMark<_Grapheme_Cluster_Break_SpacingMark>\n%conditions $x ≅ #_Grapheme_Cluster_Break_SpacingMark<_Grapheme_Cluster_Break_SpacingMark>, _Grapheme_Cluster_Break_SpacingMark ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_SpacingMark\n%rule r15 $x:_Grapheme_Cluster_Break_T<_Grapheme_Cluster_Break_T>\n%conditions $x ≅ #_Grapheme_Cluster_Break_T<_Grapheme_Cluster_Break_T>, _Grapheme_Cluster_Break_T ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_T\n%rule r16 $x:_Grapheme_Cluster_Break_V<_Grapheme_Cluster_Break_V>\n%conditions $x ≅ #_Grapheme_Cluster_Break_V<_Grapheme_Cluster_Break_V>, _Grapheme_Cluster_Break_V ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_V\n%rule r17 $x:_Grapheme_Cluster_Break_ZWJ<_Grapheme_Cluster_Break_ZWJ>\n%conditions $x ≅ #_Grapheme_Cluster_Break_ZWJ<_Grapheme_Cluster_Break_ZWJ>, _Grapheme_Cluster_Break_ZWJ ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Grapheme_Cluster_Break_ZWJ",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_CR",
+        "_Grapheme_Cluster_Break_CR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_CN",
+        "_Grapheme_Cluster_Break_Control"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_EB",
+        "_Grapheme_Cluster_Break_E_Base"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_EBG",
+        "_Grapheme_Cluster_Break_E_Base_GAZ"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_EM",
+        "_Grapheme_Cluster_Break_E_Modifier"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_EX",
+        "_Grapheme_Cluster_Break_Extend"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_GAZ",
+        "_Grapheme_Cluster_Break_Glue_After_Zwj"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_L",
+        "_Grapheme_Cluster_Break_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_LF",
+        "_Grapheme_Cluster_Break_LF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_LV",
+        "_Grapheme_Cluster_Break_LV"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_LVT",
+        "_Grapheme_Cluster_Break_LVT"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_XX",
+        "_Grapheme_Cluster_Break_Other"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_PP",
+        "_Grapheme_Cluster_Break_Prepend"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_RI",
+        "_Grapheme_Cluster_Break_Regional_Indicator"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_SM",
+        "_Grapheme_Cluster_Break_SpacingMark"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_T",
+        "_Grapheme_Cluster_Break_T"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_V",
+        "_Grapheme_Cluster_Break_V"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_GCB_ZWJ",
+        "_Grapheme_Cluster_Break_ZWJ"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_CR"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Control"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_E_Base"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_E_Base_GAZ"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_E_Modifier"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Extend"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Glue_After_Zwj"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_L"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_LF"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_LV"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_LVT"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Other"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Prepend"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_Regional_Indicator"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_SpacingMark"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_T"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_V"
+              ]
+            },
+            {
+              "tags": [
+                "_Grapheme_Cluster_Break_ZWJ"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_CR"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_CR"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Control"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Control"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_E_Base"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_E_Base"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_E_Base_GAZ"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_E_Base_GAZ"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_E_Modifier"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_E_Modifier"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Extend"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Extend"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Glue_After_Zwj"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Glue_After_Zwj"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_L"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_L"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_LF"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_LF"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_LV"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_LV"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_LVT"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_LVT"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Other"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Other"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Prepend"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Prepend"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_Regional_Indicator"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_Regional_Indicator"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_SpacingMark"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_SpacingMark"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_T"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_T"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_V"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_V"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Grapheme_Cluster_Break_ZWJ"
+              }
+            ],
+            "tags": [
+              "_Grapheme_Cluster_Break_ZWJ"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

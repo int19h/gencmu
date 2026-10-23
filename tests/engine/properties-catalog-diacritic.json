@@ -1,0 +1,45 @@
+{
+  "description": "Every Diacritic value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Diacritic<_Diacritic>\n%conditions $x ≅ #_Diacritic<_Diacritic>, _Diacritic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Diacritic",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Dia",
+        "_Diacritic"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Diacritic"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Diacritic"
+              }
+            ],
+            "tags": [
+              "_Diacritic"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

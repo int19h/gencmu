@@ -77,18 +77,15 @@ func (ps *parseState) characterTokens() []Token {
 	}
 	decomposed := ps.uni.decomposeWithOrigins(ps.text)
 	toks := make([]Token, len(decomposed))
+	profiles := map[rune][]string{}
 	for i, scalar := range decomposed {
 		c, origin := scalar.character, scalar.origin
-		category := ps.uni.category(c)
-		tags := []string{"_" + category, "_" + category[:1]}
-		for _, property := range []string{"Emoji_Presentation", "Emoji_Component"} {
-			if ps.uni.hasProperty(property, c) {
-				tags = append(tags, "_"+property)
-			}
+		tags, ok := profiles[c]
+		if !ok {
+			tags = ps.uni.profile(c)
+			profiles[c] = tags
 		}
-		if ps.uni.isWhiteSpace(c) {
-			tags = append(tags, "_White_Space")
-		}
+		tags = append([]string(nil), tags...)
 		toks[i] = Token{Text: string(ps.text[origin]), Value: string(c), Image: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
 	}
 	return toks

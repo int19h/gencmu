@@ -715,8 +715,15 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	return decodeDOMMode(raw, uni, false)
 }
 func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
-	if !expanded {
-		if node, err := templateFromJSON(raw); err == nil && templateUnresolved(node) {
+	if node, err := templateFromJSON(raw); err == nil {
+		for _, part := range templateNodes(node) {
+			for _, field := range []string{"ref", "tag", "terminal"} {
+				if name, ok := part[field].(string); ok && strings.HasPrefix(name, "_") && uni.canonicalTag(name) != name {
+					return nil, fmt.Errorf("unknown, unavailable, or noncanonical engine tag")
+				}
+			}
+		}
+		if !expanded && templateUnresolved(node) {
 			return decodeTemplateDOM(node, uni)
 		}
 	}

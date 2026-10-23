@@ -57,7 +57,7 @@ fn run_shared_case(name: &str) {
 /// (engine §9). Exact strings preserve case and punctuation.
 #[test]
 fn tests_in_a_body_are_read_and_refused() {
-    let document = "```jbogenbau\n%const $C Tag-c\n%rule text $l:LE=\"la\" {UI=\"ui\" / A=\"a\"} [KU = \"ku\"] word≠\"\" A<B> word<¬$C> A<¬B ¬Tag-c> _L<B> _L<> B (C)\n```\n";
+    let document = "```jbogenbau\n%const $C Tag-c\n%rule text $l:LE=\"la\" {UI=\"ui\" / A=\"a\"} [KU = \"ku\"] word≠\"\" A<B> word<¬$C> A<¬B ¬Tag-c> _General_Category_Letter<B> _General_Category_Letter<> B (C)\n```\n";
     let json = gencmu::tools::read_grammar_document(document).expect("a document with tests");
     let dom = parse_json(&json).expect("a DOM");
     let tests: Vec<String> = json

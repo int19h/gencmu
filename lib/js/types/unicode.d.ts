@@ -24,8 +24,14 @@ export declare class UnicodeTable {
     combining: [number, number, number][];
     /** @type {Map<string,import("./unicode-properties.js").PropertyData>} */
     properties: Map<string, import("./unicode-properties.js").PropertyData>;
+    /** @type {Map<number, readonly string[]>} */
+    profiles: Map<number, readonly string[]>;
     /** @param {string} text the contents of unicode.txt @param {string} [properties] */
     constructor(text: string, properties?: string);
+    /** @param {string} spelling @returns {string | null} */
+    canonicalTag(spelling: string): string | null;
+    /** @param {number} code @returns {readonly string[]} */
+    profile(code: number): readonly string[];
     /**
      * The General_Category of a code point, in its short form (engine §1):
      * `Cs` for a surrogate, which a table does not list, and `Cn` for any

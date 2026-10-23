@@ -31,12 +31,12 @@ class Values(unittest.TestCase):
         # Engine §1 retains occurrences, rather than every occurrence of
         # a name that survives somewhere else in the term.
         for term, retained in (
-            ("(_Lu ∩ A) ∪ _Lu", 1),
-            ("(A ∖ _Lu) ∪ _Lu", 1),
-            ("(_Lu ∩ A) ∪ (_Lu ∩ _Lu)", 1),
-            ("(A ∖ _Lu) ∪ (_Lu ∩ _Lu)", 1),
-            ("(_Lu ∩ _Lu) ∪ _Lu", 0),
-            ("(_Lu ∖ _Lu) ∪ _Lu", 0),
+            ("(_General_Category_Uppercase_Letter ∩ A) ∪ _General_Category_Uppercase_Letter", 1),
+            ("(A ∖ _General_Category_Uppercase_Letter) ∪ _General_Category_Uppercase_Letter", 1),
+            ("(_General_Category_Uppercase_Letter ∩ A) ∪ (_General_Category_Uppercase_Letter ∩ _General_Category_Uppercase_Letter)", 1),
+            ("(A ∖ _General_Category_Uppercase_Letter) ∪ (_General_Category_Uppercase_Letter ∩ _General_Category_Uppercase_Letter)", 1),
+            ("(_General_Category_Uppercase_Letter ∩ _General_Category_Uppercase_Letter) ∪ _General_Category_Uppercase_Letter", 0),
+            ("(_General_Category_Uppercase_Letter ∖ _General_Category_Uppercase_Letter) ∪ _General_Category_Uppercase_Letter", 0),
         ):
             for prefix, suffix in (
                 ('%rule text :: ', '\n | "a"'),
@@ -49,7 +49,7 @@ class Values(unittest.TestCase):
                     self.assertIsNotNone(error)
                     self.assertEqual(error.kind, "grammar")
                     self.assertIn("cannot introduce engine tags", error.message)
-                    offset = list(re.finditer("_Lu", term))[retained].start()
+                    offset = list(re.finditer("_General_Category_Uppercase_Letter", term))[retained].start()
                     self.assertEqual((error.line, error.column), (3 + prefix.count("\n"), len(prefix.rsplit("\n", 1)[-1]) + offset + 1))
 
     def test_captures_preserve_optional_query_priority(self) -> None:

@@ -1,0 +1,10 @@
+{
+  "description": "_ccc_10 is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _ccc_10\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

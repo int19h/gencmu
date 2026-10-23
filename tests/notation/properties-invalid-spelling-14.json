@@ -1,0 +1,10 @@
+{
+  "description": "_Numeric_Value is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _Numeric_Value\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

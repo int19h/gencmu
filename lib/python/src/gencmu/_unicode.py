@@ -10,6 +10,7 @@ from ._errors import GencmuError
 from ._hash import fnv1a64
 from ._unicode_names_catalog import PINNED_CORE_NAMES
 from ._unicode_properties import read_properties
+from ._unicode_property_catalog import PROPERTY_CATALOG
 
 CATEGORIES = (
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
@@ -120,6 +121,50 @@ class UnicodeTable:
         self._space_ends = [end for _, end in white_space]
         self.properties = read_properties(properties, self.version, self.version_count) if properties is not None else {}
         self.properties_fingerprint = fnv1a64(properties) if properties is not None else None
+        self._profiles = {}
+
+    def canonical_tag(self, spelling: str) -> str | None:
+        canonical = PROPERTY_CATALOG["aliases"].get(spelling)
+        if canonical is None:
+            return None
+        prop, value = PROPERTY_CATALOG["tags"][canonical]
+        if prop in PROPERTY_CATALOG["core"]:
+            return canonical
+        data = self.properties.get(prop)
+        return canonical if data is not None and (data.kind == "binary" or value in data.values) else None
+
+    def profile(self, code: int) -> frozenset[str]:
+        cached = self._profiles.get(code)
+        if cached is not None:
+            return cached
+        category = self.category(code)
+        tags = {PROPERTY_CATALOG["aliases"]["_" + category], PROPERTY_CATALOG["aliases"]["_" + category[0]],
+                PROPERTY_CATALOG["combining"][str(self.combining_class(code))]}
+        if self.is_white_space(code):
+            tags.add("_White_Space")
+        for prop in ("Emoji_Presentation", "Emoji_Component"):
+            if self.has_emoji(prop, code):
+                tags.add("_" + prop)
+        for prop, data in self.properties.items():
+            low, high = 0, len(data.ranges)
+            while low < high:
+                mid = (low + high) // 2
+                if data.ranges[mid][0] <= code:
+                    low = mid + 1
+                else:
+                    high = mid
+            record = data.ranges[low - 1] if low else None
+            values = record[2] if record is not None and code <= record[1] else data.defaults
+            if data.kind == "binary":
+                if values:
+                    tags.add("_" + prop)
+            else:
+                tags.update("_" + prop + "_" + value for value in values)
+        profile = frozenset(tags)
+        if len(self._profiles) >= 4096:
+            self._profiles.clear()
+        self._profiles[code] = profile
+        return profile
 
     def category(self, code: int) -> str:
         """The General_Category of a code point, in its short form, by a

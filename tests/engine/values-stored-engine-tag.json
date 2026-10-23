@@ -5,7 +5,7 @@
     {
       "text": "a",
       "tags": [
-        "_Lu"
+        "_General_Category_Uppercase_Letter"
       ],
       "value": "x"
     }
@@ -21,7 +21,7 @@
               "value": "x",
               "image": "a",
               "tags": [
-                "_Lu"
+                "_General_Category_Uppercase_Letter"
               ]
             }
           ]

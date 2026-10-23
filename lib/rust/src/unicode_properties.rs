@@ -174,3 +174,97 @@ pub(crate) fn read_properties(text: &str, core: &Unicode) -> Result<BTreeMap<Str
     }
     Ok(properties)
 }
+
+pub(crate) fn canonical(spelling: &str) -> Option<&'static str> {
+    static ALIASES: OnceLock<BTreeMap<String, String>> = OnceLock::new();
+    ALIASES
+        .get_or_init(|| {
+            catalog()
+                .get("aliases")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (key.clone(), value.as_str().unwrap().to_string()))
+                .collect()
+        })
+        .get(spelling)
+        .map(String::as_str)
+}
+
+pub(crate) fn identity(name: &str) -> Option<(&'static str, &'static str)> {
+    static TAGS: OnceLock<BTreeMap<String, (String, String)>> = OnceLock::new();
+    TAGS.get_or_init(|| {
+        catalog()
+            .get("tags")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(key, value)| {
+                let xs = value.as_array().unwrap();
+                (key.clone(), (xs[0].as_str().unwrap().to_string(), xs[1].as_str().unwrap().to_string()))
+            })
+            .collect()
+    })
+    .get(name)
+    .map(|(p, v)| (p.as_str(), v.as_str()))
+}
+
+impl Unicode {
+    pub(crate) fn canonical_tag(&self, spelling: &str) -> Option<&'static str> {
+        let name = canonical(spelling)?;
+        let (property, value) = identity(name)?;
+        if matches!(
+            property,
+            "General_Category" | "Canonical_Combining_Class" | "White_Space" | "Emoji_Presentation" | "Emoji_Component"
+        ) {
+            return Some(name);
+        }
+        let data = self.properties.get(property)?;
+        (data.kind == "binary" || data.values.contains(value)).then_some(name)
+    }
+
+    pub(crate) fn profile(&self, code: u32) -> Vec<String> {
+        let category = self.category(code);
+        let mut tags = vec![
+            canonical(&format!("_{category}")).unwrap().to_string(),
+            canonical(&format!("_{}", &category[..1])).unwrap().to_string(),
+            catalog()
+                .get("combining")
+                .unwrap()
+                .get(&self.combining_class(code).to_string())
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string(),
+        ];
+        if self.is_white_space(code) {
+            tags.push("_White_Space".into());
+        }
+        for (prop, name) in [
+            (crate::unicode::Property::EmojiPresentation, "_Emoji_Presentation"),
+            (crate::unicode::Property::EmojiComponent, "_Emoji_Component"),
+        ] {
+            if self.has(prop, code) {
+                tags.push(name.into());
+            }
+        }
+        for (name, data) in &self.properties {
+            let i = data.ranges.partition_point(|range| range.first <= code);
+            let values =
+                if i > 0 && code <= data.ranges[i - 1].last { &data.ranges[i - 1].values } else { &data.defaults };
+            if data.kind == "binary" {
+                if !values.is_empty() {
+                    tags.push(format!("_{name}"));
+                }
+            } else {
+                for value in values {
+                    tags.push(format!("_{name}_{value}"));
+                }
+            }
+        }
+        tags.sort();
+        tags
+    }
+}

@@ -1,0 +1,45 @@
+{
+  "description": "Every ASCII_Hex_Digit value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_ASCII_Hex_Digit<_ASCII_Hex_Digit>\n%conditions $x ≅ #_ASCII_Hex_Digit<_ASCII_Hex_Digit>, _ASCII_Hex_Digit ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ASCII_Hex_Digit",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_AHex",
+        "_ASCII_Hex_Digit"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_ASCII_Hex_Digit"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_ASCII_Hex_Digit"
+              }
+            ],
+            "tags": [
+              "_ASCII_Hex_Digit"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

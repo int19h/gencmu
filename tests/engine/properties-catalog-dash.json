@@ -1,0 +1,44 @@
+{
+  "description": "Every Dash value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Dash<_Dash>\n%conditions $x ≅ #_Dash<_Dash>, _Dash ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Dash",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Dash"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Dash"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Dash"
+              }
+            ],
+            "tags": [
+              "_Dash"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

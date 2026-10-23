@@ -23,7 +23,7 @@ class StageZero(unittest.TestCase):
                 self.assertEqual([token.text for token in tokens], [text[i] for i in origins])
                 self.assertEqual([token.source for token in tokens], [(i, i + 1) for i in origins])
                 self.assertEqual([token.span for token in tokens], [(i, i + 1) for i in range(len(values))])
-        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_Mn", "_M"}))
+        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark"}))
 
     def test_scalar_validation_precedes_decomposition(self) -> None:
         class UnusedTable(UnicodeTable):

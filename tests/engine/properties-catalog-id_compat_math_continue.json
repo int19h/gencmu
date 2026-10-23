@@ -1,0 +1,44 @@
+{
+  "description": "Every ID_Compat_Math_Continue value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_ID_Compat_Math_Continue<_ID_Compat_Math_Continue>\n%conditions $x ≅ #_ID_Compat_Math_Continue<_ID_Compat_Math_Continue>, _ID_Compat_Math_Continue ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ID_Compat_Math_Continue",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_ID_Compat_Math_Continue"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_ID_Compat_Math_Continue"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_ID_Compat_Math_Continue"
+              }
+            ],
+            "tags": [
+              "_ID_Compat_Math_Continue"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

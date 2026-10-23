@@ -1,0 +1,11 @@
+{
+  "description": "Declared values without scalar assignments reject stage-zero input and remain valid caller terminals.",
+  "grammar": "%rule text _Script_Extensions_Katakana_Or_Hiragana",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

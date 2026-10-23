@@ -5,9 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._unicode import CATEGORIES
-
-ENGINE_TAGS = frozenset("_" + name for name in (*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Emoji_Presentation", "Emoji_Component"))
+from ._unicode_property_catalog import PROPERTY_CATALOG
+ENGINE_TAGS = frozenset(PROPERTY_CATALOG["tags"])
 USER_NAME = re.compile(r"[A-Z][A-Za-z0-9_-]*")
 def is_constant(name: Any) -> bool:
     return isinstance(name, str) and USER_NAME.fullmatch(name) is not None

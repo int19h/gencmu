@@ -35,20 +35,21 @@ export declare function testValueFault(op: string, value: any, unicode?: {
  * character tags in their canonical spelling by the table, which says which
  * code points are marks, the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @returns {string | null}
  */
 export declare function rangeProblem(range: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
     isEmojiName?(name: string): boolean;
+    canonicalTag?(name: string): string | null;
 }): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the loader's table: the lowercase mapping that the strings of value
  * tests are checked against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
@@ -56,13 +57,14 @@ export declare function domProblem(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
     isEmojiName?(name: string): boolean;
+    canonicalTag?(name: string): string | null;
 }, deferEmission?: boolean): string | null;
 /** @param {any} term @returns {Set<string>} */
 export declare function engineLiterals(term: any): Set<string>;
 /**
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
@@ -70,6 +72,7 @@ export declare function isDom(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
     isEmojiName?(name: string): boolean;
+    canonicalTag?(name: string): string | null;
 }, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the

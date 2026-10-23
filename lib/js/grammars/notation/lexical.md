@@ -111,10 +111,15 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   engine-name-character | engine-name engine-name-character
 
 %rule engine-name-character
-  letter | digit | "_"
+  letter | digit | "_" | engine-digit-dot
+
+%rule engine-digit-dot
+  digit "."
+%conditions
+  $.following-tokens.begins(digit)
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>emoji-name</code> to <code>engine-name-character</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>emoji-name</code> to <code>engine-digit-dot</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/emoji-name.svg" alt="Railroad diagram of the rule emoji-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
@@ -128,6 +133,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name.svg" alt="Railroad diagram of the rule engine-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name-character.svg" alt="Railroad diagram of the rule engine-name-character"></p>
+<p><img src="../../docs/diagrams/notation/lexical/engine-digit-dot.svg" alt="Railroad diagram of the rule engine-digit-dot"></p>
 </details>
 
 ## Calls and parameters

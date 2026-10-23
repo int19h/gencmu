@@ -1,0 +1,165 @@
+{
+  "description": "Every Joining_Type value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5\n%rule r0 $x:_Joining_Type_Dual_Joining<_jt_D>\n%conditions $x ≅ #_jt_D<_jt_D>, _jt_D ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_D\n%rule r1 $x:_Joining_Type_Join_Causing<_jt_C>\n%conditions $x ≅ #_jt_C<_jt_C>, _jt_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_C\n%rule r2 $x:_Joining_Type_Left_Joining<_jt_L>\n%conditions $x ≅ #_jt_L<_jt_L>, _jt_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_L\n%rule r3 $x:_Joining_Type_Non_Joining<_jt_U>\n%conditions $x ≅ #_jt_U<_jt_U>, _jt_U ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_U\n%rule r4 $x:_Joining_Type_Right_Joining<_jt_R>\n%conditions $x ≅ #_jt_R<_jt_R>, _jt_R ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_R\n%rule r5 $x:_Joining_Type_Transparent<_jt_T>\n%conditions $x ≅ #_jt_T<_jt_T>, _jt_T ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jt_T",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Dual_Joining",
+        "_jt_D"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Join_Causing",
+        "_jt_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Left_Joining",
+        "_jt_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Non_Joining",
+        "_jt_U"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Right_Joining",
+        "_jt_R"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Type_Transparent",
+        "_jt_T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Joining_Type_Dual_Joining"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Type_Join_Causing"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Type_Left_Joining"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Type_Non_Joining"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Type_Right_Joining"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Type_Transparent"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Dual_Joining"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Dual_Joining"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Join_Causing"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Join_Causing"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Left_Joining"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Left_Joining"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Non_Joining"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Non_Joining"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Right_Joining"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Right_Joining"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Joining_Type_Transparent"
+              }
+            ],
+            "tags": [
+              "_Joining_Type_Transparent"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

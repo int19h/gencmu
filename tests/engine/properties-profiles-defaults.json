@@ -1,0 +1,112 @@
+{
+  "description": "Stage zero forwards every available stored membership independently of grammar references.",
+  "grammar": "%rule text {one}\n%rule one _ %emits $",
+  "input": "͸֐𿿽",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "͸",
+              "tags": [
+                "_Age_Unassigned",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Greek_And_Coptic",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Neutral",
+                "_General_Category_Other",
+                "_General_Category_Unassigned",
+                "_Grapheme_Cluster_Break_Other",
+                "_Hangul_Syllable_Type_Not_Applicable",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_Unknown",
+                "_NFC_Quick_Check_Yes",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Yes",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Unknown",
+                "_Script_Unknown",
+                "_Sentence_Break_Other",
+                "_Vertical_Orientation_Rotated",
+                "_Word_Break_Other"
+              ]
+            },
+            {
+              "value": "֐",
+              "tags": [
+                "_Age_Unassigned",
+                "_Bidi_Class_Right_To_Left",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Hebrew",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Neutral",
+                "_General_Category_Other",
+                "_General_Category_Unassigned",
+                "_Grapheme_Cluster_Break_Other",
+                "_Hangul_Syllable_Type_Not_Applicable",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_Unknown",
+                "_NFC_Quick_Check_Yes",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Yes",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Unknown",
+                "_Script_Unknown",
+                "_Sentence_Break_Other",
+                "_Vertical_Orientation_Rotated",
+                "_Word_Break_Other"
+              ]
+            },
+            {
+              "value": "𿿽",
+              "tags": [
+                "_Age_Unassigned",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_No_Block",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Wide",
+                "_General_Category_Other",
+                "_General_Category_Unassigned",
+                "_Grapheme_Cluster_Break_Other",
+                "_Hangul_Syllable_Type_Not_Applicable",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_Ideographic",
+                "_NFC_Quick_Check_Yes",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Yes",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Unknown",
+                "_Script_Unknown",
+                "_Sentence_Break_Other",
+                "_Vertical_Orientation_Upright",
+                "_Word_Break_Other"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "description": "Every Variation_Selector value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Variation_Selector<_Variation_Selector>\n%conditions $x ≅ #_Variation_Selector<_Variation_Selector>, _Variation_Selector ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Variation_Selector",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_VS",
+        "_Variation_Selector"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Variation_Selector"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Variation_Selector"
+              }
+            ],
+            "tags": [
+              "_Variation_Selector"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

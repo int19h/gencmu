@@ -704,12 +704,22 @@ func (d *Dialect) ParseTokens(text string, tokens []InputToken, options ParseOpt
 				return fail("a string is not valid UTF-8")
 			}
 		}
+		canonical := make([]string, 0, len(t.Tags))
+		seen := map[string]bool{}
 		for _, tag := range t.Tags {
-			if !isTag(tag, d.uni) {
+			name := tag
+			if strings.HasPrefix(tag, "_") {
+				name = d.uni.canonicalTag(tag)
+			}
+			if !isTag(name, d.uni) {
 				return fail("invalid stored tag " + tag)
 			}
+			if !seen[name] {
+				canonical = append(canonical, name)
+				seen[name] = true
+			}
 		}
-		own[i] = Token{Text: t.Text, Value: value, Image: image, Tags: append([]string(nil), t.Tags...), Span: t.Span, Source: t.Source}
+		own[i] = Token{Text: t.Text, Value: value, Image: image, Tags: canonical, Span: t.Span, Source: t.Source}
 	}
 	return d.parse(runes, own, options)
 }

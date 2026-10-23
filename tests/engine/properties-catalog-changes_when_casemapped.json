@@ -1,0 +1,45 @@
+{
+  "description": "Every Changes_When_Casemapped value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Changes_When_Casemapped<_Changes_When_Casemapped>\n%conditions $x ≅ #_Changes_When_Casemapped<_Changes_When_Casemapped>, _Changes_When_Casemapped ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Changes_When_Casemapped",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_CWCM",
+        "_Changes_When_Casemapped"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Changes_When_Casemapped"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Changes_When_Casemapped"
+              }
+            ],
+            "tags": [
+              "_Changes_When_Casemapped"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

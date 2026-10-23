@@ -317,7 +317,7 @@ func TestDOMRules(t *testing.T) {
 		{"a property has no other member", alt(`{"property":"L","range":[{"string":"a"},{"string":"z"}]}`)},
 		{"a tested range is checked", alt(`{"test":"⊇","value":{"tag":"'a'"},"expr":{"range":[{"string":"z"},{"string":"a"}]}}`)},
 		{"a tested property is checked", alt(`{"test":"=","value":{"string":"a"},"expr":{"ref":"_Letter"}}`)},
-		{"a property is not a term", tagged(`{"ref":"_L"}`)},
+		{"a property is not a term", tagged(`{"ref":"_General_Category_Letter"}`)},
 		{"a range in a term starts at or below its end", tagged(`{"range":[{"string":"z"},{"string":"a"}]}`)},
 		{"an inserted range is not one tag", emit(`{"items":[{"insert":"'a'..'z'"},{"capture":"x"}]}`)},
 		// Classifiers, implications and classify (engine §2, §9).
@@ -370,7 +370,7 @@ func TestDOMRules(t *testing.T) {
 	for _, ok := range []string{alt(good), alt(nested(255)),
 		// A range, a property, each captured, and a range in a term.
 		alt(`{"range":[{"string":"a"},{"string":"z"}]}`), alt(`{"ref":"_White_Space"}`),
-		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_Cs"}}]}`),
+		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_General_Category_Surrogate"}}]}`),
 		tagged(`{"union":[{"tag":"A"},{"tag":"X"}]}`),
 		// Classifiers, entries, implications and classify.
 		classified(`{"name":"lex","entries":[{"guards":[],"keys":[{"string":"mi"},{"string":"do"}],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":[{"string":"u'i"}],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
@@ -437,7 +437,7 @@ func TestDOMRules(t *testing.T) {
 		// bound of the nesting.
 		alt(`{"seq":[{"capture":"x","expr":{"test":"=","value":{"string":"la'i"},"expr":{"ref":"LE"}}},{"test":"≠","value":{"string":"a"},"expr":{"literal":{"string":"/a/"}}}]}`),
 		alt(`{"seq":[{"test":"=","value":{"string":""},"expr":{"ref":"LE"}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"UI"}}],"expr":{"ref":"Cmavo"}}]}`),
-		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"tag":"UI"}},{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"C"}}],"expr":{"range":[{"string":"a"},{"string":"z"}]}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"X"}}],"expr":{"ref":"_L"}}]}`),
+		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"tag":"UI"}},{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"C"}}],"expr":{"range":[{"string":"a"},{"string":"z"}]}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"X"}}],"expr":{"ref":"_General_Category_Letter"}}]}`),
 		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"const":"A","at":[1,1]}}],"expr":{"ref":"LE"}},{"test":"=","value":{"const":"S","at":[1,2]},"expr":{"ref":"LE"}}]}`),
 		alt(`{"seq":[{"capture":"l","expr":{"test":"=","value":{"string":"la"},"expr":{"ref":"LE"}}},{"repeat":{"test":"=","value":{"string":"ui"},"expr":{"ref":"UI"}}}]}`),
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
