@@ -58,7 +58,12 @@ fn take(value: Json, key: &str) -> Option<Json> {
 }
 
 impl Compiled {
-    fn parse(text: &str, bootstrap_hash: &str, unicode_hash: &str) -> Result<Compiled, Error> {
+    fn parse(
+        text: &str,
+        bootstrap_hash: &str,
+        unicode_hash: &str,
+        properties_hash: Option<&str>,
+    ) -> Result<Compiled, Error> {
         // A cache that does not parse, corrupt or malicious, is no cache:
         // every document is read through the notation instead.
         let Ok(value) = json::parse(text) else {
@@ -67,7 +72,12 @@ impl Compiled {
         let mut compiled = Compiled::default();
         let usable = value.get("format").and_then(Json::as_int) == Some(DOM_FORMAT)
             && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash)
-            && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash);
+            && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash)
+            && match (value.get("properties"), properties_hash) {
+                (Some(Json::Null), None) => true,
+                (Some(Json::Str(hash)), Some(expected)) => hash == expected,
+                _ => false,
+            };
         if !usable {
             return Ok(compiled);
         }
@@ -233,10 +243,12 @@ impl Context {
         let mut unicode = Unicode::parse(unicode).map_err(unicode_error)?;
         if let Some(properties) = properties {
             unicode.properties = crate::unicode_properties::read_properties(properties, &unicode)?;
+            unicode.properties_fingerprint = Some(fnv1a64(properties));
         }
         let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
-        let compiled = Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash)?;
+        let compiled =
+            Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash, unicode.properties_fingerprint.as_deref())?;
         Ok(Context { unicode, notation, compiled })
     }
 
@@ -1009,6 +1021,7 @@ mod ranked_location_tests {
             super::bundled("compiled.json").unwrap(),
             &bootstrap_hash(),
             &fnv1a64(super::bundled("unicode.txt").unwrap()),
+            bundled.unicode.properties_fingerprint.as_deref(),
         )
         .unwrap();
         let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
@@ -1079,10 +1092,22 @@ mod notation_cache_tests {
             let hash = if mismatch == Some("document") { &stale_document } else { &document_hash };
             let format = if mismatch == Some("format") { DOM_FORMAT - 1 } else { DOM_FORMAT };
             let dom = if mismatch.is_some() { &poisoned } else { expected };
+            let properties = base
+                .unicode
+                .properties_fingerprint
+                .as_ref()
+                .map(|hash| format!("\"{hash}\""))
+                .unwrap_or_else(|| "null".to_string());
             let envelope = format!(
-                r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
+                r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","properties":{properties},"documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
             );
-            let compiled = Compiled::parse(&envelope, bootstrap_hash, &unicode_hash).unwrap();
+            let compiled = Compiled::parse(
+                &envelope,
+                bootstrap_hash,
+                &unicode_hash,
+                base.unicode.properties_fingerprint.as_deref(),
+            )
+            .unwrap();
             if mismatch.is_none() {
                 assert_eq!(compiled.by_path.len(), 1, "{path}: matching entry is admitted");
             }

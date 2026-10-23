@@ -54,7 +54,7 @@ class GrammarReading(unittest.TestCase):
         first = _Loader(texts.get, resources)
         dom = first.dom("g.md")
         self.assertEqual(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"})
-        cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table),
+        cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
         compiled = json.dumps(cache)
         self.assertTrue(_compiled_index(compiled, first.reader.hash, table))

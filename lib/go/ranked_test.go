@@ -48,7 +48,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	if _, err := LoadDialectSources(sources, "p.md"); err != nil {
 		t.Fatalf("cache bypass control does not load: %v", err)
 	}
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, cached := LoadDialectSources(sources, "p.md")
 	if plain == nil || !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("%+v\n%+v", plain, cached)
@@ -119,7 +119,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 				}
 			}
 		}
-		documents[domCacheKey{fnv1a64(text), bundled.reader.hash, bundled.uni.hash, domFormat}] = dom.json()
+		documents[domCacheKey{fnv1a64(text), bundled.reader.hash, bundled.uni.hash, bundled.uni.propertiesHash, domFormat}] = dom.json()
 	}
 	// A missing reader makes any source parse or location recovery fail.
 	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, compiled: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}

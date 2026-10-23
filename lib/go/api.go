@@ -19,18 +19,18 @@ import (
 var bundledFS embed.FS
 
 var bundled struct {
-	once             sync.Once
-	sources          map[string]string
-	uni              *unicodeTable
-	reader           *notationReader
-	compiled         map[domCacheKey]json.RawMessage
-	compiledNames    map[domCacheKey]json.RawMessage
-	bundledNames     map[string]string
-	err              error
-	propertiesOnce   sync.Once
-	propertiesUni    *unicodeTable
-	propertiesReader *notationReader
-	propertiesErr    error
+	once                    sync.Once
+	sources                 map[string]string
+	uni                     *unicodeTable
+	reader                  *notationReader
+	err                     error
+	propertiesOnce          sync.Once
+	propertiesUni           *unicodeTable
+	propertiesReader        *notationReader
+	propertiesCompiled      map[domCacheKey]json.RawMessage
+	propertiesCompiledNames map[domCacheKey]json.RawMessage
+	propertiesBundledNames  map[string]string
+	propertiesErr           error
 }
 
 func loadBundled() error {
@@ -62,28 +62,28 @@ func loadBundled() error {
 			bundled.err = err
 			return
 		}
-		bundled.compiled, bundled.compiledNames, bundled.bundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.reader.hash, bundled.uni.hash)
 	})
 	return bundled.err
 }
 
 // domCacheKey includes every input that determines a document DOM (engine §8).
 type domCacheKey struct {
-	document, bootstrap, unicode string
-	format                       int
+	document, bootstrap, unicode, properties string
+	format                                   int
 }
 
 // readCompiled admits an envelope only under the complete loader identity.
-func readCompiled(text, bootstrapHash, unicodeHash string) map[domCacheKey]json.RawMessage {
-	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash)
+func readCompiled(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
+	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash)
 	return doms
 }
 
-func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
+func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`
 		Bootstrap    string          `json:"bootstrap"`
 		Unicode      string          `json:"unicode"`
+		Properties   json.RawMessage `json:"properties"`
 		BundledNames json.RawMessage `json:"bundledNames"`
 		Documents    map[string]struct {
 			Hash  string          `json:"hash"`
@@ -96,10 +96,22 @@ func readCompiledCache(text, bootstrapHash, unicodeHash string) (map[domCacheKey
 	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
 		return out, names, nil
 	}
+	// An absent fingerprint differs from explicit null for a core-only table.
+	var properties *string
+	if len(c.Properties) == 0 || unmarshalJSON(c.Properties, &properties) != nil {
+		return out, names, nil
+	}
+	if properties == nil {
+		if propertiesHash != "" {
+			return out, names, nil
+		}
+	} else if propertiesHash == "" || *properties != propertiesHash {
+		return out, names, nil
+	}
 	for _, d := range c.Documents {
-		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Dom
+		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
 		if len(d.Names) > 0 {
-			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Names
+			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
 		}
 	}
 	return out, names, readNamesRegistry(c.BundledNames)
@@ -145,7 +157,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	}
 	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
-		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, domFormat}
+		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
 		if raw, ok := l.compiled[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
@@ -410,6 +422,8 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		return nil, err
 	}
 	uni, reader := bundled.uni, bundled.reader
+	var compiled, compiledNames map[domCacheKey]json.RawMessage
+	var bundledNames map[string]string
 	if withProperties {
 		bundled.propertiesOnce.Do(func() {
 			text, ok := bundled.sources["unicode-properties.txt"]
@@ -423,13 +437,18 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 				bundled.propertiesErr = err
 				return
 			}
+			copy.propertiesHash = fnv1a64(text)
 			bundled.propertiesUni = &copy
 			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["notation/bootstrap.json"], &copy)
+			if bundled.propertiesErr == nil {
+				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
+			}
 		})
 		if bundled.propertiesErr != nil {
 			return nil, bundled.propertiesErr
 		}
 		uni, reader = bundled.propertiesUni, bundled.propertiesReader
+		compiled, compiledNames, bundledNames = bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames
 	}
 	return &loader{
 		read: func(p string) (string, bool) {
@@ -442,9 +461,9 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		uni:           uni,
 		reader:        reader,
 		bootstrapHash: reader.hash,
-		compiled:      bundled.compiled,
-		compiledNames: bundled.compiledNames,
-		bundledNames:  bundled.bundledNames,
+		compiled:      compiled,
+		compiledNames: compiledNames,
+		bundledNames:  bundledNames,
 		namesOverride: func(string) bool { return false },
 	}, nil
 }
@@ -499,6 +518,7 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	_, customCore := norm["unicode.txt"]
 	_, customProperties := norm["unicode-properties.txt"]
+	_, customBootstrap := norm["notation/bootstrap.json"]
 	l, lerr := loaderForBundled(!customCore && !customProperties)
 	if lerr != nil {
 		return nil, lerr
@@ -520,6 +540,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 			return nil, err
 		}
 	}
+	if customProperties {
+		l.uni.propertiesHash = fnv1a64(norm["unicode-properties.txt"])
+	}
 	if t, ok := norm["notation/bootstrap.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
@@ -531,9 +554,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["compiled.json"]; ok {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash)
-	} else if l.bootstrapHash != bundled.reader.hash || l.uni.hash != bundled.uni.hash {
-		l.compiled = nil
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+	} else if customCore || customProperties || customBootstrap {
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	}
 	return l.dialect(path.Clean(pipeline))
 }

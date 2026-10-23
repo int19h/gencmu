@@ -115,9 +115,10 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     let pipeline = "```jbogenbau\n%stage main\n%include \"t.md\"\n```\n";
     let dom = read_grammar_document(pipeline).expect("the pipeline's document");
     let compiled = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         fnv1a64(&bootstrap),
         fnv1a64(include_str!("../grammars/unicode.txt")),
+        fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         fnv1a64(pipeline)
     );
     let sources = [

@@ -152,7 +152,7 @@ class Compiled(unittest.TestCase):
         empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
         def load(file_format: int, dom: Dom) -> gencmu.Dialect:
-            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
+            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
             return gencmu.load_dialect_sources({**sources, "compiled.json": json.dumps(compiled)}, "p.md")
 
         with self.assertRaises(gencmu.GencmuError):

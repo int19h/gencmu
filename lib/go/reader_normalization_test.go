@@ -53,13 +53,13 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 					format--
 				}
 				envelope, err := json.Marshal(map[string]any{
-					"format": format, "bootstrap": bootstrap, "unicode": unicode,
+					"format": format, "bootstrap": bootstrap, "unicode": unicode, "properties": l.uni.propertiesHash,
 					"documents": map[string]any{path: map[string]any{"hash": hash, "dom": json.RawMessage(raw)}},
 				})
 				if err != nil {
 					t.Fatal(err)
 				}
-				l.compiled = readCompiled(string(envelope), l.bootstrapHash, l.uni.hash)
+				l.compiled = readCompiled(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 				if mode == "matching" && len(l.compiled) != 1 {
 					t.Fatal("matching cache not admitted")
 				}

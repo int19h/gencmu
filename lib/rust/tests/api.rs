@@ -22,10 +22,11 @@ fn single(rules: &str) -> BTreeMap<String, String> {
 /// the hash of the document of `rules`, holds `dom`.
 fn compiled(rules: &str, dom: &str) -> String {
     format!(
-        "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::DOM_FORMAT,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         gencmu::tools::fnv1a64(&grammar(rules))
     )
 }
@@ -1249,7 +1250,8 @@ fn inserted_tag_clauses_validate_rules_and_delimiters() {
 fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
     let rules = "%ambiguity-resolution greedy\n%rule text \"a\"";
     let dom = changed_dom(rules, r#"{"literal":{"string":"a"}}"#, r#"{"literal":{"string":"b"}}"#);
-    let cache = compiled(rules, &dom);
+    let properties = gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt"));
+    let cache = compiled(rules, &dom).replace(&format!("\"properties\":\"{properties}\""), "\"properties\":null");
     let bundled_table = include_str!("../grammars/unicode.txt");
     let bundled_hash = gencmu::tools::fnv1a64(bundled_table);
     let custom_table = bundled_table.replace("decompose 00E9 0065 0301\n", "");

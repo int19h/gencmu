@@ -119,6 +119,7 @@ class UnicodeTable:
         self._space_starts = [start for start, _ in white_space]
         self._space_ends = [end for _, end in white_space]
         self.properties = read_properties(properties, self.version, self.version_count) if properties is not None else {}
+        self.properties_fingerprint = fnv1a64(properties) if properties is not None else None
 
     def category(self, code: int) -> str:
         """The General_Category of a code point, in its short form, by a

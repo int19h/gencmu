@@ -176,9 +176,9 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
-        # Each DOM uses the document hash, bootstrap hash, table fingerprint
-        # and DOM format. The module's lock guards it.
-        self.doms: Recent[tuple[str, str, str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        # Each DOM uses the document hash, bootstrap hash, both table
+        # fingerprints, and DOM format. The module's lock guards it.
+        self.doms: Recent[tuple[str, str, str, str | None, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
         try:
             self.stages = self._bootstrap_stages(bootstrap, unicode)
         except GencmuError as error:
@@ -369,6 +369,12 @@ def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) ->
     return reader
 
 
+def _compiled_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable) -> bool:
+    return (isinstance(data, dict) and data.get("format") == DOM_FORMAT
+            and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint
+            and "properties" in data and data["properties"] == unicode.properties_fingerprint)
+
+
 def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
     """The precompiled DOMs usable with this bootstrap, by text hash.
     Their schema and exact string values follow engine §9."""
@@ -383,7 +389,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
     unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(compiled)
-        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint:
+        if _compiled_identity(data, bootstrap_hash, unicode):
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
@@ -424,8 +430,7 @@ class _Loader:
         if use_cache and found.compiled:
             try:
                 envelope = json.loads(found.compiled)
-                if (envelope.get("format") == DOM_FORMAT and envelope.get("bootstrap") == self.reader.hash
-                        and envelope.get("unicode") == self.unicode.fingerprint):
+                if _compiled_identity(envelope, self.reader.hash, self.unicode):
                     self.bundled_names = names_registry(envelope.get("bundledNames"))
             except (ValueError, AttributeError, TypeError, RecursionError):
                 pass
@@ -453,7 +458,7 @@ class _Loader:
         # The reader keeps the DOMs it read. So the bootstrap and the Unicode
         # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
-        key = (text_hash, self.reader.hash, self.unicode.fingerprint, DOM_FORMAT)
+        key = (text_hash, self.reader.hash, self.unicode.fingerprint, self.unicode.properties_fingerprint, DOM_FORMAT)
         names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
             found = self.compiled.get(text_hash)
@@ -833,7 +838,7 @@ def read_document(text: str, path: str = "document.md", *, sources: Mapping[str,
     """The DOM of one grammar document, read through the notation with no
     cache: the reading the shared notation cases test (engine §8, §9)."""
     found = _resources(sources)
-    reader = _reader(found.bootstrap, found.unicode)
+    reader = _reader(found.bootstrap, found.unicode, found.properties)
     def names_text(key):
         return sources[key] if sources is not None and key in sources else bundled_text(key)
     return reader.read(text, path, names=NamesScope(names_text, reader.unicode))

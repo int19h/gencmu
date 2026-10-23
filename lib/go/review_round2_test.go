@@ -109,7 +109,7 @@ func reviewCache(t *testing.T, sources map[string]string) string {
 		}
 		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
 	}
-	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "documents": documents})
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["unicode-properties.txt"]), "documents": documents})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["notation/bootstrap.json"])
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, failure := LoadDialectSources(sources, "p.md")
 	var e *Error
 	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
@@ -182,8 +182,12 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	}
 	// A valid cached recipe needs no source reader for location recovery.
 	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["notation/bootstrap.json"])
-	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash)
-	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, compiled: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
+	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))
+	configured, loadErr := bundledLoader()
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, compiled: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
 	if _, err := l.dialect("p.md"); err != nil {
 		t.Fatalf("valid cache reparsed: %v", err)
 	}

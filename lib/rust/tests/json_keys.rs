@@ -63,6 +63,7 @@ fn shared_json_keys() {
             ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
             (document.to_string(), text(&fixtures, "grammar").to_string()),
         ]);
+        sources.insert("unicode.txt".into(), include_str!("../grammars/unicode.txt").to_string());
         sources.insert("compiled.json".into(), cache);
         let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
         if let Some(Value::Object(resources)) = case.get("sources") {

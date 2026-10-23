@@ -183,7 +183,7 @@ for (const file of grammarFiles()) {
 }
 const bundledNames = Object.fromEntries(grammarFiles().filter(file => file === "unicode-names.txt" || file.endsWith("-names.txt"))
   .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(grammars,file),"utf8"))]));
-const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, bundledNames, documents };
+const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
 
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters

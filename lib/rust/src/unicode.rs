@@ -57,6 +57,7 @@ pub(crate) struct Unicode {
     pub(crate) canonical_abbreviations: std::collections::BTreeMap<u32, String>,
     pub(crate) version: Option<String>,
     pub(crate) version_count: usize,
+    pub(crate) properties_fingerprint: Option<String>,
     pub(crate) properties: std::collections::BTreeMap<String, crate::unicode_properties::PropertyData>,
 }
 
@@ -103,6 +104,7 @@ impl Unicode {
             version: None,
             version_count: 0,
             properties: std::collections::BTreeMap::new(),
+            properties_fingerprint: None,
         };
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;

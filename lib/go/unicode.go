@@ -23,6 +23,7 @@ type unicodeTable struct {
 	abbreviations          map[string]rune
 	canonicalAbbreviations map[rune]string
 	hash                   string
+	propertiesHash         string
 	version                string
 	versionCount           int
 	properties             map[string]*propertyData

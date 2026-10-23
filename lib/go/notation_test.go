@@ -220,7 +220,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash); len(got) != 0 {
+	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
 		t.Error("compiled.json was used with another bootstrap")
 	}
 }
@@ -232,7 +232,11 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	if len(bundled.compiled) == 0 {
+	configured, err := bundledLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(configured.compiled) == 0 {
 		t.Fatal("compiled.json holds no DOMs for this bootstrap")
 	}
 	var names []string
@@ -621,12 +625,12 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 1 {
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 1 {
 		t.Fatalf("a compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 0 {
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("a compiled.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {

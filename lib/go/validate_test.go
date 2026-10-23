@@ -494,7 +494,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)
@@ -612,7 +612,7 @@ func TestDeepConstant(t *testing.T) {
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
-	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 	d, err := LoadDialectSources(src, "p.md")
 	if err != nil {
 		t.Fatal(err)
@@ -653,7 +653,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 	outcome := func(g string, entry string) string {
 		src := oneStage(g)
 		if entry != "" {
-			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
 		}
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
@@ -720,7 +720,7 @@ func TestGuardFeatureName(t *testing.T) {
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s %s: %v", rules, classifiers, err)
@@ -795,7 +795,7 @@ func TestMixedForms(t *testing.T) {
 			s[k] = v
 		}
 		if dom != "" {
-			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
+			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
 		}
 		d, err := LoadDialectSources(s, "p.md")
 		if err != nil {

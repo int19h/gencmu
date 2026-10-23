@@ -70,7 +70,7 @@
         throw new NeedNames(path);
       };
       for (const [path, entry] of Object.entries(message.compiled || {})) {
-        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, bundledNames: loader.bundledNames, documents: { [path]: entry } });
+        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
       // Reading a document that compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
@@ -78,7 +78,7 @@
       loader.readDocument = (markdown, path, deferEmission, inherited) => {
         phase("reading", path);
         const dom = read(markdown, path, deferEmission, inherited);
-        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, names: loader.namesDependencies.get(dom), dom });
+        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, names: loader.namesDependencies.get(dom), dom });
         return dom;
       };
       dialects.clear();
@@ -412,7 +412,7 @@
       worker.onmessage = (event) => {
         if (this.worker !== worker) return;
         const message = event.data;
-        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode,
+        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode, properties: message.properties,
           ...(message.names === undefined ? {} : { names: message.names }), dom: message.dom });
         else if (message.kind === "need-names") this.supplyNames(worker, message);
         else this.listener(message);

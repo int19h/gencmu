@@ -19620,7 +19620,9 @@
       this.bundledNames = undefined;
       const unicodeText = this.need("unicode.txt");
       this.unicodeHash = fnv1a64(unicodeText);
-      this.unicode = new UnicodeTable(unicodeText, this.read("unicode-properties.txt"));
+      const propertiesText = this.read("unicode-properties.txt");
+      this.unicode = new UnicodeTable(unicodeText, propertiesText);
+      this.propertiesHash = propertiesText === undefined ? null : fnv1a64(propertiesText);
       try {
         const bootstrapText = this.need("notation/bootstrap.json");
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
@@ -19677,7 +19679,9 @@
      * @param {any} data
      */
     useCompiled(data) {
-      if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash || !data.documents || typeof data.documents !== "object") return;
+      if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash
+        || !Object.hasOwn(data, "properties") || data.properties !== this.propertiesHash
+        || !data.documents || typeof data.documents !== "object") return;
       this.bundledNames = namesRegistry(data.bundledNames);
       for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
         if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
@@ -19718,7 +19722,7 @@
         throw new GencmuError("usage", `${path}: the document is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`, { document: path });
       }
       const hash = fnv1a64(text);
-      const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${DOM_FORMAT}`;
+      const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${this.propertiesHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
       if (cached && this.namesMatch(this.namesDependencies.get(cached),selectedNames(path,cached,inherited))) return cached;
       const entry = this.compiled.get(path);

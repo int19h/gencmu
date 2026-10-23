@@ -677,7 +677,7 @@ class Robustness(unittest.TestCase):
         compiled = {
             "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "unicode": fnv1a64(bundled_text("unicode.txt") or ""),
+            "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""),
             "documents": {
                 "g.md": {
                     "hash": fnv1a64(sources["g.md"]),
@@ -788,7 +788,7 @@ class Robustness(unittest.TestCase):
                 doms[last] = read_document(end, last)
             entries = {path: {"hash": fnv1a64(text), "dom": doms[path]} for path, text in texts.items()}
             bootstrap = fnv1a64(bundled_text("notation/bootstrap.json") or "")
-            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "documents": entries})
+            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": entries})
             return texts
 
         def load(end: str | None) -> gencmu.Dialect:

@@ -144,7 +144,7 @@ class Parameters(unittest.TestCase):
         from gencmu._ranked import restore_locations
         from gencmu._template_nodes import nodes
         found = _resources()
-        reader = _reader(found.bootstrap, found.unicode)
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read('```jbogenbau\n%rule pair(@X,@Y) @X @Y\n%rule text pair("a","b") ("c" ≻ "d") :: ∅\n```', 'locations.md')
         before = deepcopy(dom)
         located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 42))
@@ -157,7 +157,7 @@ class Parameters(unittest.TestCase):
         from gencmu._model import Token
         from gencmu._ranked import restore_locations, expression_locations
         found = _resources()
-        reader = _reader(found.bootstrap, found.unicode)
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read('```jbogenbau\n%rule choice(@X) @X :: ∅\n%rule text choice(("a" ≻ "b"))\n```', 'locations.md')
         located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 29))
         expanded = expand_templates([('locations.md', located)], reader.unicode)

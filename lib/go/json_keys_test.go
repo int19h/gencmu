@@ -106,6 +106,7 @@ func TestSharedJSONKeys(t *testing.T) {
 	for _, item := range fixtures.Compiled {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
+			s["unicode.txt"] = string(unicode)
 			if item.Document != "" {
 				delete(s, "g.md")
 				s[item.Document] = fixtures.Grammar
@@ -277,11 +278,16 @@ func BenchmarkReadCompiledJSON(b *testing.B) {
 		b.Fatal(err)
 	}
 	unicodeHash := fnv1a64(string(table))
+	properties, err := os.ReadFile("../../grammars/unicode-properties.txt")
+	if err != nil {
+		b.Fatal(err)
+	}
+	propertiesHash := fnv1a64(string(properties))
 	text, hash := string(cache), fnv1a64(string(bootstrap))
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readCompiled(text, hash, unicodeHash)) == 0 {
+		if len(readCompiled(text, hash, unicodeHash, propertiesHash)) == 0 {
 			b.Fatal("cache miss")
 		}
 	}

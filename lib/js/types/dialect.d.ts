@@ -37,6 +37,7 @@ export declare class Loader {
     bundledNames: Record<string, string> | undefined;
     unicodeHash: string;
     unicode: UnicodeTable;
+    propertiesHash: string | null;
     bootstrapHash: string;
     notation: Dialect;
     /** @type {Map<string, CompiledEntry>} */
