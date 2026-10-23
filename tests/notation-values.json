@@ -266,11 +266,11 @@
     },
     {
       "id": "canonical-value-engine-scalar-ascii",
-      "description": "A supplied notation gives this semantic name its token value.",
+      "description": "A supplied Constant token cannot restore removed scalar references (engine §9.1).",
       "aliases": [
         {
           "spelling": "$_engineK",
-          "value": "\"‹U+0041›\"",
+          "value": "$_0041",
           "tags": [
             "Constant"
           ]
@@ -278,20 +278,9 @@
       ],
       "document": "```jbogenbau\n%rule text $_engineK\n```",
       "expect": {
-        "dom": {
-          "rules": [
-            {
-              "alternatives": [
-                {
-                  "expr": {
-                    "literal": {
-                      "string": "A"
-                    }
-                  }
-                }
-              ]
-            }
-          ]
+        "error": {
+          "line": 2,
+          "column": 12
         }
       }
     },
@@ -560,11 +549,11 @@
     },
     {
       "id": "canonical-value-engine-scalar-kelvin",
-      "description": "A supplied notation gives this semantic name its token value.",
+      "description": "A supplied Constant token cannot restore removed scalar references (engine §9.1).",
       "aliases": [
         {
           "spelling": "$_engineK",
-          "value": "\"‹U+0041›\"",
+          "value": "$_0041",
           "tags": [
             "Constant"
           ]
@@ -572,20 +561,9 @@
       ],
       "document": "```jbogenbau\n%rule text $_engineK\n```",
       "expect": {
-        "dom": {
-          "rules": [
-            {
-              "alternatives": [
-                {
-                  "expr": {
-                    "literal": {
-                      "string": "A"
-                    }
-                  }
-                }
-              ]
-            }
-          ]
+        "error": {
+          "line": 2,
+          "column": 12
         }
       }
     },
