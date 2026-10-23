@@ -12,6 +12,7 @@ from ._model import Node, Token
 from ._strings import ENGINE_TAGS, USER_NAME, scalar, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._patterns import pattern_problem
+from ._pattern_shapes import layered_pattern_problem
 from ._template_nodes import argument_of_expression, has_unresolved
 from ._types import (
     _METHODS,
@@ -44,7 +45,7 @@ choice conjunction sequence primary repetition reference string-terminal string 
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
 union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
-implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
+implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator pattern-primary pattern-node pattern-bare pattern-children child-choice child-alternative child-set child-intersection child-sequence child-item child-path child-primary call parameter call-argument requirement-argument target-argument body-argument symbol-argument""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference", "call", "parameter"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
@@ -1053,6 +1054,94 @@ class DomBuilder:
             raise self.fail(node, problem)
         return result
 
+    def _child_predicate(self, items: list[Dom], node: Node) -> Dom:
+        if len(items) != 1 or "child" not in items[0]:
+            raise self.fail(node, "a pattern path or set requires one whole pattern")
+        return items[0]["child"]
+
+    @staticmethod
+    def _pattern_set(key: str, left: Dom, right: Dom) -> Dom:
+        if key == "difference":
+            return {key: [left, right]}
+        return {key: [*left.get(key, [left]), *right.get(key, [right])]}
+
+    def _layered_pattern(self, node: Node) -> Walk:
+        kind = node.rule
+        if kind == "pattern-primary":
+            return (yield self._layered_pattern(self.known_of(node, frozenset(("pattern-node", "pattern-bare", "pattern-union")))))
+        if kind in ("pattern-node", "pattern-bare"):
+            atom = (yield self._pattern(self.only(node, "pattern-atom")))["node"] if kind == "pattern-node" else {"any": True}
+            children = self.one(node, "pattern-children")
+            if children is not None and not any(key in atom for key in ("name", "call", "param", "any")):
+                raise self.fail(children, "a child list requires a rule test")
+            result = dict(atom)
+            if any(part.kind == "token" and self.token_value(part) == "·" for part in self.kids(node)):
+                result["exact"] = True
+            if children is not None:
+                result["children"] = yield self._layered_pattern(children)
+            return result
+        if kind in ("pattern-union", "pattern-intersection", "child-set", "child-intersection"):
+            operands = [part for part in self.kids(node) if part.rule in ("pattern-intersection", "pattern-path", "child-intersection", "child-path")]
+            if not operands:
+                raise self.lacks(node, "pattern operands")
+            values = []
+            for operand in operands:
+                value = yield self._layered_pattern(operand)
+                values.append(self._child_predicate(value, operand) if operand.rule == "child-path" else value)
+            operators = [self.token_value(part) for part in self.kids(node) if part.kind == "token"]
+            result = values[0]
+            for index, value in enumerate(values[1:]):
+                key = "intersection" if kind.endswith("intersection") or operators[index] == "∩" else "difference" if operators[index] == "∖" else "union"
+                result = self._pattern_set(key, result, value)
+            return result
+        if kind in ("pattern-path", "child-path"):
+            primary = self.only(node, "pattern-primary" if kind == "pattern-path" else "child-primary")
+            value = yield self._layered_pattern(primary)
+            axis = next((part for part in self.kids(node) if part.kind == "token"), None)
+            if axis is None:
+                return value
+            op = self.token_value(axis)
+            if op not in ("⋮", "⋱", "⋰"):
+                raise self.fail(axis, "a malformed pattern path")
+            pattern = self._child_predicate(value, primary) if kind == "child-path" else value
+            result = {"path": {"⋮": "descendant", "⋱": "last", "⋰": "first"}[op], "pattern": pattern}
+            return [{"child": result}] if kind == "child-path" else result
+        if kind == "pattern-children":
+            choice = self.one(node, "child-choice")
+            return (yield self._layered_pattern(choice)) if choice is not None else []
+        if kind == "child-choice":
+            arms = []
+            for alternative in self.some(node, "child-alternative"):
+                items = yield self._layered_pattern(alternative)
+                arms.extend(items[0]["choice"] if len(items) == 1 and "choice" in items[0] else [items])
+            return arms[0] if len(arms) == 1 else [{"choice": arms}]
+        if kind == "child-alternative":
+            sequence = self.one(node, "child-sequence")
+            return (yield self._layered_pattern(sequence)) if sequence is not None else [{"child": (yield self._layered_pattern(self.only(node, "child-set")))}]
+        if kind == "child-sequence":
+            result = []
+            for item in self.some(node, "child-item"):
+                result.extend((yield self._layered_pattern(item)))
+            return result
+        if kind == "child-item":
+            parts = self.kids(node)
+            if not parts:
+                raise self.lacks(node, "child item")
+            child = parts[0]
+            return [{"siblings": True}] if child.kind == "token" and self.token_value(child) == "⋯" else (yield self._layered_pattern(child))
+        if kind == "child-primary":
+            choice = self.one(node, "child-choice")
+            return (yield self._layered_pattern(choice)) if choice is not None else [{"child": (yield self._layered_pattern(self.known_of(node, frozenset(("pattern-node", "pattern-bare")))))}]
+        if kind == "pattern-brackets":
+            return [{"optional": (yield self._layered_pattern(self.only(node, "child-choice")))}]
+        if kind == "pattern-repeat":
+            choices = self.some(node, "child-choice")
+            result = {"repeat": (yield self._layered_pattern(choices[0]))}
+            if len(choices) == 2:
+                result["separator"] = yield self._layered_pattern(choices[1])
+            return [result]
+        raise self.fail(node, f"unexpected {kind} in layered pattern")
+
     def tag_run_placement(self, node: Node) -> None:
         first = self.first_token(node)
         last = node.span[1] - 1
@@ -1074,10 +1163,18 @@ class DomBuilder:
             closed = self.closed_for
             self.closed_for = None
             try:
-                children = yield self._pattern(self.one(node, "pattern-union") or self.only(node, "pattern-atom"))
+                primary = self.one(node, "pattern-primary")
+                if primary is not None:
+                    pattern = yield self._layered_pattern(primary)
+                    problem = layered_pattern_problem(pattern, name=lambda name: CLASSIFIER_NAME.fullmatch(name) is not None or self.unicode.is_emoji_name(name))
+                    if problem is not None:
+                        raise self.fail(node, problem)
+                else:
+                    children = yield self._pattern(self.one(node, "pattern-union") or self.only(node, "pattern-atom"))
+                    pattern = self._pattern_node(children)
             finally:
                 self.closed_for = closed
-            return {"pattern":self._pattern_node(children)}
+            return {"pattern": pattern}
         if rule in ("test-operand", "term-atom"):
             # A test's operand is one term, as a term-atom reads it.
             return (yield self._term(self.known_of(node, _ATOMS), argument))

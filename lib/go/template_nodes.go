@@ -75,6 +75,53 @@ func templateCopy(n templateObject) templateObject {
 	}
 	return out
 }
+
+// Copy source nodes for DOM inspection while retaining their public positions.
+func templateClean(root templateObject) templateObject {
+	type pair struct{ source, target any }
+	out := templateObject{}
+	pending := []pair{{root, out}}
+	copyValue := func(value any) any {
+		switch value := value.(type) {
+		case map[string]any:
+			return templateObject{}
+		case []any:
+			return make([]any, len(value))
+		default:
+			return value
+		}
+	}
+	for len(pending) > 0 {
+		current := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch source := current.source.(type) {
+		case map[string]any:
+			target := templateObj(current.target)
+			for key, value := range source {
+				if key == templateSourceKey {
+					continue
+				}
+				child := copyValue(value)
+				target[key] = child
+				switch value.(type) {
+				case map[string]any, []any:
+					pending = append(pending, pair{value, child})
+				}
+			}
+		case []any:
+			target := templateList(current.target)
+			for index, value := range source {
+				child := copyValue(value)
+				target[index] = child
+				switch value.(type) {
+				case map[string]any, []any:
+					pending = append(pending, pair{value, child})
+				}
+			}
+		}
+	}
+	return out
+}
 func templateIdentity(root any) any {
 	switch n := root.(type) {
 	case []any:

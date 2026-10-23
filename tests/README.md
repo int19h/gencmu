@@ -189,7 +189,17 @@ The `matching` cases test structural trees directly in all four libraries. Each 
 
 These cases cover exact prefixes, attached lists, empty lists, child choices, paths, sets, tests, and omission. Runners construct resolved predicates before matching. They retain named empty roots and remove empty children through the ordinary structural machine.
 
-The JavaScript runner also reads `printing` and `shapes`. A printing case compares its pattern with `text`. A shape case compares pattern acceptance with its `valid` Boolean. Separate depth cases count constructors at the limit and beyond it. Growth cases require a repeated child sequence to retain fewer than ten structural states over 1,000 children.
+All four runners also read `printing` and `shapes`. A printing case compares its pattern with `text`. A shape case compares pattern acceptance with its `valid` Boolean. Separate depth cases count constructors at the limit and beyond it. Growth cases require a repeated child sequence to retain fewer than ten structural states over 1,000 children.
+
+## Layered readers: `layered-pattern-reader.json`
+
+Each case supplies pattern source and either a decoded pattern or an error phase and offset. The file declares the parameters that the source can use. Offsets count Unicode scalars from the start of the pattern.
+
+All four libraries read these cases through the candidate recognition grammar. They compare patterns and error positions before public DOM inspection and stage binding. They also round-trip every successful source case and every shared printing case.
+
+The fixture `fixtures/layered-patterns/recognition.json` contains candidate rules for the native libraries. JavaScript compares this snapshot with the grammar in `fixtures/layered-patterns/syntax.md`. Declaration positions occupy a reserved range, so replacement rules cannot collide with unchanged bootstrap declarations.
+
+Direct cases test atom positions and canonically equivalent punctuation. Growth cases use 128, 256, and 512 child groups or siblings. The largest case must stay within five times the smallest case's counted work.
 
 ## Supplied notation values: `notation-values.json`
 

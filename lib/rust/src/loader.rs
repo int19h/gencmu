@@ -1177,3 +1177,6 @@ mod parameter_query_locations {
         assert_eq!(location.targets, [(3, target)]);
     }
 }
+
+#[cfg(test)]
+mod layered_reader_tests;

@@ -7,7 +7,7 @@ func templateSyntax(root *Node) bool {
 	for len(pending) > 0 {
 		n := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if n.Rule == "call" || n.Rule == "parameter" {
+		if n.Rule == "call" || n.Rule == "parameter" || n.Rule == "pattern-primary" {
 			return true
 		}
 		pending = append(pending, n.Children...)
@@ -457,6 +457,18 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 	case "method":
 		return b.templateMethod(n)
 	case "pattern-literal":
+		if primary := one(n, "pattern-primary"); primary != nil {
+			closed := b.closedFor
+			b.closedFor = ""
+			defer func() { b.closedFor = closed }()
+			pattern := b.layeredPattern(primary)
+			problem := layeredPatternProblem(templateClean(pattern), layeredPatternInspection{name: func(name string) bool { return classifierName.MatchString(name) || b.uni.isEmojiName(name) }})
+			if problem != "" {
+				b.fail(n, "%s", problem)
+			}
+			return templateObject{"pattern": pattern}
+		}
+
 		var p *Node
 		if p = one(n, "pattern-union"); p == nil {
 			p = b.only(n, "pattern-atom")
@@ -646,6 +658,15 @@ func (b *domBuilder) templatePattern(n *Node) templateObject {
 			r = b.templateParameter(first)
 		case "call":
 			r = b.templateCall(first)
+		case "range":
+			ends := []any{}
+			for _, part := range ruleParts(first) {
+				if part.Rule == "string" || part.Rule == "constant-reference" || part.Rule == "parameter" {
+					ends = append(ends, b.templateTerm(part, false))
+				}
+			}
+			r = templateObject{"range": ends, "at": templatePosition(b.at(first))}
+
 		default:
 			bare := *n
 			bare.Children = []*Node{first}

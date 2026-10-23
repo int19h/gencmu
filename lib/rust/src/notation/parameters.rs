@@ -1,4 +1,5 @@
 //! Read unresolved template nodes without textual substitution.
+mod layered;
 use super::*;
 use crate::json::Json;
 use crate::parameters::{self as p, get, has, list, obj, position, set, string, text};
@@ -11,6 +12,7 @@ enum Mode {
     Term,
     Condition,
     Pattern,
+    Layered,
     Emission,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -43,7 +45,7 @@ pub(crate) struct State<'a> {
 pub(super) fn syntax(root: &Node) -> bool {
     let mut stack = vec![root];
     while let Some(n) = stack.pop() {
-        if matches!(rule_name(n), "call" | "parameter") {
+        if matches!(rule_name(n), "call" | "parameter" | "pattern-primary") {
             return true;
         }
         stack.extend(n.children.iter())
@@ -91,11 +93,28 @@ impl<'a> Reader<'a> {
     // A missing child suspends its constructor. The heap stack resumes it
     // after that child completes, with its recipe and capture context intact.
     pub(super) fn parameter_document(&self, node: &'a Node) -> R<Json> {
+        self.parameter_read(Mode::Declaration, node)
+    }
+    fn parameter_read(&self, mode: Mode, node: &'a Node) -> R<Json> {
         let context = self.parameter_context();
         *self.parameter_state.borrow_mut() = State::default();
         let result = (|| {
-            let mut tasks = vec![Task { mode: Mode::Declaration, node, argument: false, context }];
+            let mut tasks = vec![Task { mode, node, argument: false, context }];
+            let mut prepared = FxSet::default();
             while let Some(task) = tasks.last().copied() {
+                // Schedule sibling operands together. Restarting a lazy constructor
+                // after each sibling makes a wide child list quadratic.
+                if task.mode == Mode::Layered
+                    && !matches!(rule_name(task.node), "pattern-node" | "pattern-bare")
+                    && prepared.insert(task.key())
+                {
+                    let children: Vec<_> =
+                        Self::parts(task.node).into_iter().filter(|part| part.kind == NodeKind::Rule).collect();
+                    if !children.is_empty() {
+                        tasks.extend(children.into_iter().rev().map(|node| Task { node, ..task }));
+                        continue;
+                    }
+                }
                 self.parameter_restore(task.context);
                 self.parameter_state.borrow_mut().active = Some(task.key());
                 let result = match task.mode {
@@ -105,6 +124,7 @@ impl<'a> Reader<'a> {
                     Mode::Term => self.parameter_term(task.node, task.argument),
                     Mode::Condition => self.parameter_condition(task.node),
                     Mode::Pattern => self.parameter_pattern(task.node),
+                    Mode::Layered => self.parameter_layered(task.node),
                     Mode::Emission => self.parameter_emission(task.node),
                 };
                 let pending = self.parameter_state.borrow_mut().pending.take();
@@ -120,7 +140,7 @@ impl<'a> Reader<'a> {
                     Mode::Pattern => "children",
                     _ => "term",
                 };
-                if crate::parameters::source_depth_problem(&value, kind, self.unicode) {
+                if task.mode != Mode::Layered && crate::parameters::source_depth_problem(&value, kind, self.unicode) {
                     return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
                 }
                 tasks.pop();
@@ -659,7 +679,20 @@ impl<'a> Reader<'a> {
                 }
                 "method" => self.parameter_method(n)?,
                 "pattern-literal" => {
-                    obj([("pattern", pattern_node(self.parameter_pattern(self.pattern_literal_part(n)?)?))])
+                    let before = self.closed_for.replace(None);
+                    let pattern = if let Some(primary) = Self::rules(n, "pattern-primary").next() {
+                        let pattern = self.parameter_layered(primary)?;
+                        let name = |name: &str| is_classifier_name(name) || self.unicode.is_emoji_name(name);
+                        let inspect = crate::patterns::shapes::Inspection { name: Some(&name), ..Default::default() };
+                        if let Some(problem) = crate::patterns::shapes::problem(&p::clean(&pattern), &inspect) {
+                            return Err(self.error(n, problem));
+                        }
+                        pattern
+                    } else {
+                        pattern_node(self.parameter_pattern(self.pattern_literal_part(n)?)?)
+                    };
+                    self.closed_for.set(before);
+                    obj([("pattern", pattern)])
                 }
                 _ => return Err(self.error(n, format!("unexpected {} in a term", rule_name(n)))),
             }
@@ -854,7 +887,15 @@ impl<'a> Reader<'a> {
                     "string" => {
                         obj([("literal", written(&self.string_term(self.token(base)?)?, crate::dom::write_term))])
                     }
-                    "string-terminal" | "range" => written(&self.symbol(base)?, crate::dom::write_expr),
+                    "range" => {
+                        let ends = Self::parts(base)
+                            .into_iter()
+                            .filter(|part| matches!(rule_name(part), "string" | "constant-reference" | "parameter"))
+                            .map(|part| self.parameter_term(part, false))
+                            .collect::<R<Vec<_>>>()?;
+                        obj([("range", Json::Arr(ends))])
+                    }
+                    "string-terminal" => written(&self.symbol(base)?, crate::dom::write_expr),
                     "wildcard" => obj([("wildcard", Json::Bool(true))]),
                     "constant-reference" => {
                         let t = self.token(base)?;
@@ -928,5 +969,12 @@ impl<'a> Reader<'a> {
             items.push(r);
         }
         Ok(obj([("items", Json::Arr(items))]))
+    }
+}
+
+#[cfg(test)]
+impl<'a> Reader<'a> {
+    pub(crate) fn layered_term_for_test(&self, node: &'a Node) -> R<Json> {
+        self.parameter_read(Mode::Term, node)
     }
 }

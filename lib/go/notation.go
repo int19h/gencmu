@@ -291,6 +291,19 @@ type domBuilder struct {
 // §9). Every other rule is a wrapper, and the reader reads its parts in its
 // place.
 var domRules = map[string]bool{
+	"pattern-primary":    true,
+	"pattern-node":       true,
+	"pattern-bare":       true,
+	"pattern-children":   true,
+	"child-choice":       true,
+	"child-alternative":  true,
+	"child-set":          true,
+	"child-intersection": true,
+	"child-sequence":     true,
+	"child-item":         true,
+	"child-path":         true,
+	"child-primary":      true,
+
 	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
