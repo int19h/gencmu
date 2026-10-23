@@ -585,26 +585,28 @@ impl<'a> Reader<'a> {
             return Err(self.error(node, problem));
         }
         if let Some((_, index)) = crate::dom::engine_literals(&term).into_iter().min_by_key(|(_, index)| *index) {
-            let mut literals = Vec::new();
-            let mut pending = vec![node];
-            while let Some(part) = pending.pop() {
-                if matches!(rule_name(part), "pattern-literal" | "any-of") {
-                    continue;
-                }
-                if rule_name(part) == "tag" {
-                    let token = self.token(part)?;
-                    if self.value(token).starts_with('_') {
-                        literals.push(token);
-                    }
-                } else {
-                    pending.extend(part.children.iter().rev());
-                }
-            }
-            return Err(
-                self.error(literals.get(index).copied().unwrap_or(node), "a tag clause cannot introduce an engine tag")
-            );
+            return Err(self.engine_literal_error(node, index)?);
         }
         Ok(term)
+    }
+
+    fn engine_literal_error(&self, node: &'a Node, index: usize) -> R<Error> {
+        let mut literals = Vec::new();
+        let mut pending = vec![node];
+        while let Some(part) = pending.pop() {
+            if matches!(rule_name(part), "pattern-literal" | "any-of" | "method" | "call") {
+                continue;
+            }
+            if rule_name(part) == "tag" {
+                let token = self.token(part)?;
+                if self.value(token).starts_with('_') {
+                    literals.push(token);
+                }
+            } else {
+                pending.extend(part.children.iter().rev());
+            }
+        }
+        Ok(self.error(literals.get(index).copied().unwrap_or(node), "a tag clause cannot introduce an engine tag"))
     }
 
     /// `whole` is whether this is its alternative's whole expression, where

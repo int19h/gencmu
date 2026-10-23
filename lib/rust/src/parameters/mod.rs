@@ -357,6 +357,7 @@ pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
 }
 
 pub(crate) use schema::declaration as declaration_problem;
+pub(crate) use schema::engine_literals;
 
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];

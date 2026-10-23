@@ -1,0 +1,10 @@
+{
+  "description": "A difference never introduces literals from its right operand. Engine §1 defines the provenance rule.",
+  "grammar": "%rule unused(@X) :: @X ∖ _Lu | $x:@X\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

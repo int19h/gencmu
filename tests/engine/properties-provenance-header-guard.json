@@ -1,0 +1,17 @@
+{
+  "description": "A guard retains only the result's literal occurrences, independent of its condition. Engine §1 defines the provenance rule.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%rule unused(@X) :: (_Lu ⊆ $x.tags ⟹ _Ll) | $x:@X\n%rule text \"a\"\n```"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 38
+    }
+  }
+}

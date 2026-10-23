@@ -180,7 +180,20 @@ func (b *domBuilder) templateDeclaration(n *Node) templateObject {
 }
 func (b *domBuilder) templateClauses(n *Node, tagName string, out templateObject) {
 	if p := one(n, tagName); p != nil {
-		out["tags"] = b.templateTerm(b.only(p, "term"), false)
+		tags := b.templateTerm(b.only(p, "term"), false)
+		var retained *[2]int
+		for _, occurrences := range templateLiteralEngineTags(tags) {
+			for _, at := range occurrences {
+				at := at
+				if retained == nil || before(at, *retained) {
+					retained = &at
+				}
+			}
+		}
+		if retained != nil {
+			panic(grammarError(b.doc, *retained, "a tag clause introduces an engine tag"))
+		}
+		out["tags"] = tags
 	}
 	for _, key := range []string{"value", "image"} {
 		if p := one(n, key+"-clause"); p != nil {

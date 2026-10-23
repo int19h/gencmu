@@ -331,7 +331,12 @@ impl<'a> Reader<'a> {
     }
     fn parameter_clauses(&self, n: &'a Node, tag_name: &'static str, out: &mut Json) -> R<()> {
         if let Some(c) = Self::rules(n, tag_name).next() {
-            set(out, "tags", self.parameter_term(self.one(c, "term")?, false)?)
+            let source = self.one(c, "term")?;
+            let term = self.parameter_term(source, false)?;
+            if let Some((_, index)) = p::engine_literals(&term).into_iter().min_by_key(|(_, index)| *index) {
+                return Err(self.engine_literal_error(source, index)?);
+            }
+            set(out, "tags", term)
         }
         for k in ["value", "image"] {
             if let Some(c) = Self::rules(n, if k == "value" { "value-clause" } else { "image-clause" }).next() {

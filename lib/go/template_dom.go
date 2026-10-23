@@ -953,6 +953,9 @@ func templateCaptureShape(n templateObject) *domExpr {
 	return &domExpr{Kind: exWildcard}
 }
 func templateTagClauseProblem(root any, own bool) string {
+	if len(templateLiteralEngineTags(root)) != 0 {
+		return "a tag clause introduces an engine tag"
+	}
 	pending := []any{root}
 	for len(pending) > 0 {
 		v := pending[len(pending)-1]
@@ -963,9 +966,6 @@ func templateTagClauseProblem(root any, own bool) string {
 		case map[string]any:
 			if n["pattern"] != nil {
 				continue
-			}
-			if engineTag(templateText(n["tag"])) {
-				return "a tag clause introduces an engine tag"
 			}
 			if own && (n["method"] == "tags" || n["method"] == "classes") {
 				receiver := templateObj(n["receiver"])
@@ -981,4 +981,39 @@ func templateTagClauseProblem(root any, own bool) string {
 		}
 	}
 	return ""
+}
+
+// Keep the native provenance calculation for unresolved terms. Parameters,
+// calls, and every forwarded term contribute no literal memberships.
+func templateLiteralEngineTags(root any) map[string][][2]int {
+	type task struct {
+		raw  any
+		term *domTerm
+	}
+	result := &domTerm{}
+	pending := []task{{root, result}}
+	for len(pending) > 0 {
+		last := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		n := templateObj(last.raw)
+		t := last.term
+		t.Kind, t.Str, t.At = tmTag, templateText(n["tag"]), templateSourceAt(n)
+		for _, key := range []string{tmUnion, tmIntersection, tmDifference, tmIf} {
+			if n[key] == nil {
+				continue
+			}
+			t.Kind = key
+			items := templateList(n[key])
+			if key == tmIf {
+				items = []any{n["then"]}
+			}
+			for _, item := range items {
+				child := &domTerm{}
+				t.Items = append(t.Items, child)
+				pending = append(pending, task{item, child})
+			}
+			break
+		}
+	}
+	return literalEngineTags(result)
 }

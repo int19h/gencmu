@@ -1,0 +1,17 @@
+{
+  "description": "A difference retains only the left operand's literal occurrences. Engine §1 defines the provenance rule.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%rule unused(@X) :: (_Lu ∖ _Ll) ∪ @X | $x:@X\n%rule text \"a\"\n```"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 22
+    }
+  }
+}

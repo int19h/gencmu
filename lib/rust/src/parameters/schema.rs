@@ -32,9 +32,10 @@ fn closed(n: &Json) -> Option<&'static str> {
         None
     }
 }
-fn introduced_tags(root: &Json) -> BTreeSet<String> {
+pub(crate) fn engine_literals(root: &Json) -> Vec<(String, usize)> {
     let mut pending = vec![(root, false)];
-    let mut values: Vec<BTreeSet<String>> = Vec::new();
+    let mut values: Vec<Vec<(String, usize)>> = Vec::new();
+    let mut occurrence = 0;
     while let Some((n, ready)) = pending.pop() {
         let operation = ["union", "intersection", "difference"].into_iter().find(|key| has(n, key));
         if let Some(operation) = operation {
@@ -52,9 +53,14 @@ fn introduced_tags(root: &Json) -> BTreeSet<String> {
                         }
                     }
                     "intersection" => {
-                        for part in parts {
-                            result.retain(|tag| part.contains(tag));
-                        }
+                        let others: Vec<_> = parts.collect();
+                        let retained: BTreeSet<_> = result
+                            .iter()
+                            .map(|(tag, _)| tag.clone())
+                            .filter(|tag| others.iter().all(|part| part.iter().any(|(other, _)| other == tag)))
+                            .collect();
+                        result.extend(others.into_iter().flatten());
+                        result.retain(|(tag, _)| retained.contains(tag));
                     }
                     _ => (),
                 }
@@ -65,9 +71,11 @@ fn introduced_tags(root: &Json) -> BTreeSet<String> {
         } else {
             let tag = text(get(n, "tag"));
             values.push(if crate::dom::schema::engine_tag(tag) {
-                BTreeSet::from([tag.to_string()])
+                let value = vec![(tag.to_string(), occurrence)];
+                occurrence += 1;
+                value
             } else {
-                BTreeSet::new()
+                Vec::new()
             });
         }
     }
@@ -75,7 +83,7 @@ fn introduced_tags(root: &Json) -> BTreeSet<String> {
 }
 
 fn tag_clause(n: &Json, own: bool) -> Option<&'static str> {
-    if !introduced_tags(n).is_empty() {
+    if !engine_literals(n).is_empty() {
         return Some("a tag clause introduces an engine tag");
     }
     let mut pending = vec![n];

@@ -1,0 +1,10 @@
+{
+  "description": "An enclosing filter removes literal provenance from a complete template tag clause. Engine §1 defines the provenance rule.",
+  "grammar": "%rule unused(@X) :: (_Lu ∪ Word) ∩ @X | $x:@X\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

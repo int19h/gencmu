@@ -1,0 +1,10 @@
+{
+  "description": "An enclosing filter removes a guarded literal before provenance inspection. Engine §1 defines the provenance rule.",
+  "grammar": "%rule unused(@X) :: ($x ⟹ _Lu) ∩ @X | $x:@X\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
