@@ -51,12 +51,38 @@ func (t *tagset) list() []string {
 }
 
 type interner struct {
-	byKey map[string]*tagset
-	all   []*tagset
+	byKey       map[string]*tagset
+	all         []*tagset
+	packedNames map[string]uint8
+	byMask      map[[4]uint64]*tagset
 }
 
 func newInterner() *interner {
-	return &interner{byKey: map[string]*tagset{}}
+	return &interner{byKey: map[string]*tagset{}, packedNames: map[string]uint8{}, byMask: map[[4]uint64]*tagset{}}
+}
+
+// mask represents sets over the first 256 names exactly. Further names
+// use the canonical string key. The mask reads current list contents, so
+// changes to caller-owned slices cannot reuse a stale set.
+func (in *interner) mask(lists [][]string, c *workCount) ([4]uint64, bool) {
+	var mask [4]uint64
+	for _, list := range lists {
+		for _, name := range list {
+			if c != nil {
+				c.add("interned members")
+			}
+			index, found := in.packedNames[name]
+			if !found {
+				if len(in.packedNames) == 256 {
+					return mask, false
+				}
+				index = uint8(len(in.packedNames))
+				in.packedNames[name] = index
+			}
+			mask[index/64] |= uint64(1) << (index % 64)
+		}
+	}
+	return mask, true
 }
 
 // internedCount is the count of interned members, or nil when work is not
@@ -99,12 +125,22 @@ func (in *interner) make(names []string) *tagset {
 // which grows faster than the lists shows.
 func (in *interner) fromList(lists ...[]string) *tagset {
 	c := internedCount()
+	w := work.Load()
+	var mask [4]uint64
+	packed := false
+	if w == nil || !w.copyGrowing {
+		mask, packed = in.mask(lists, c)
+		if packed {
+			if found := in.byMask[mask]; found != nil {
+				return found
+			}
+		}
+	}
 	total := 0
 	for _, list := range lists {
 		total += len(list)
 	}
 	names := make([]string, 0, total)
-	w := work.Load()
 	for _, list := range lists {
 		for _, n := range list {
 			if w != nil && w.copyGrowing {
@@ -127,7 +163,11 @@ func (in *interner) fromList(lists ...[]string) *tagset {
 			out = append(out, n)
 		}
 	}
-	return in.make(out)
+	set := in.make(out)
+	if packed {
+		in.byMask[mask] = set
+	}
+	return set
 }
 
 func (in *interner) empty() *tagset { return in.make(nil) }
@@ -138,6 +178,9 @@ func (in *interner) single(name string) *tagset {
 
 // union holds every member of either.
 func (in *interner) union(a, b *tagset) *tagset {
+	if a == b {
+		return a
+	}
 	if len(b.names) == 0 {
 		return a
 	}
@@ -174,10 +217,13 @@ func (in *interner) union(a, b *tagset) *tagset {
 func (in *interner) unionAll(sets []*tagset) *tagset {
 	var only *tagset
 	total := 0
+	same := true
 	for _, s := range sets {
 		if len(s.names) > 0 {
 			if only == nil {
 				only = s
+			} else if only != s {
+				same = false
 			}
 			total += len(s.names)
 		}
@@ -185,7 +231,7 @@ func (in *interner) unionAll(sets []*tagset) *tagset {
 	if only == nil {
 		return in.empty()
 	}
-	if total == len(only.names) {
+	if same || total == len(only.names) {
 		return only
 	}
 	lists := make([][]string, len(sets))
@@ -197,6 +243,9 @@ func (in *interner) unionAll(sets []*tagset) *tagset {
 
 // intersection holds the members of both.
 func (in *interner) intersection(a, b *tagset) *tagset {
+	if a == b {
+		return a
+	}
 	c := internedCount()
 	var names []string
 	for _, n := range a.names {
@@ -231,6 +280,9 @@ func (in *interner) difference(a, b *tagset) *tagset {
 // subset says whether every member of a is in b. Each member of a and
 // each probe of b counts before it is looked at.
 func subset(a, b *tagset) bool {
+	if a == b {
+		return true
+	}
 	c := internedCount()
 	for _, n := range a.names {
 		if c != nil {
