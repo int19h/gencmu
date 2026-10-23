@@ -558,7 +558,16 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
             return None
         return _decode(data, key)
 
-    return _Loader(lookup, _resources(), use_cache, from_disk=True, names_override=lambda path: path != "unicode-names.txt").load(pipeline)
+    def names_override(key):
+        try:
+            os.stat(key.replace("/", os.sep))
+        except FileNotFoundError:
+            return False
+        except OSError:
+            return True
+        return True
+
+    return _Loader(lookup, _resources(), use_cache, from_disk=True, names_override=names_override).load(pipeline)
 
 
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:

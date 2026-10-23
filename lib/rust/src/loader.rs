@@ -538,7 +538,7 @@ fn normalize(path: &Path) -> PathBuf {
 
 impl Sources for DiskSources {
     fn names_override(&self, path: &str) -> bool {
-        path != "unicode-names.txt"
+        !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
         if path == "unicode-names-reference.txt" {

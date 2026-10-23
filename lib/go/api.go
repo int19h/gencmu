@@ -446,7 +446,10 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		return string(data), err == nil
 	}
 	l.fromDisk = true
-	l.namesOverride = func(p string) bool { return p != "unicode-names.txt" }
+	l.namesOverride = func(p string) bool {
+		_, err := os.Stat(filepath.FromSlash(p))
+		return !os.IsNotExist(err)
+	}
 	return l.dialect(filepath.ToSlash(abs))
 }
 
