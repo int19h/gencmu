@@ -1,0 +1,20 @@
+{
+  "description": "A hexadecimal naming rule resolves an in-range scalar.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹CJK UNIFIED IDEOGRAPH-3400›\"\n```"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "㐀",
+      "value": "㐀",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

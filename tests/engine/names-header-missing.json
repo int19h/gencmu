@@ -1,0 +1,16 @@
+{
+  "description": "A names resource requires a header.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "unicode-names.txt": ""
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "unicode-names.txt"
+    }
+  }
+}

@@ -3,6 +3,7 @@ export declare const PROPERTY_NAMES: Set<string>;
 export declare class UnicodeTable {
     /** @type {string | null} */
     version: string | null;
+    versionCount: number;
     /** @type {Map<string, number>} */
     abbreviations: Map<string, number>;
     /** @type {number[]} */

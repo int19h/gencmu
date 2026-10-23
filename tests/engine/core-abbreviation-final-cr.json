@@ -8,6 +8,10 @@
   "pipeline": "p.md",
   "input": "a",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "unicode.txt",
+      "line": 4
+    }
   }
 }

@@ -1,0 +1,20 @@
+{
+  "description": "A closing guillemet outside an escape remains literal.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"›\"\n```"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "›",
+      "value": "›",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -5,6 +5,7 @@ import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultN
 export type CompiledEntry = {
     hash: string;
     dom: GrammarDom;
+    names?: Record<string, string>;
 };
 export type RunOptions = {
     features: Set<string>;
@@ -12,11 +13,12 @@ export type RunOptions = {
     until?: string;
     elisionOnly?: boolean | null;
     tokens?: Token[];
+    inspectLexical?: (tokens: Token[]) => void;
 };
 /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
  * A precompiled document of compiled.json.
- * @typedef {{hash: string, dom: GrammarDom}} CompiledEntry
+ * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} CompiledEntry
  */
 /**
  * The options one run of the stages takes.
@@ -26,6 +28,7 @@ export type RunOptions = {
  * @property {string} [until]
  * @property {boolean | null} [elisionOnly]
  * @property {Token[]} [tokens]
+ * @property {(tokens:Token[])=>void} [inspectLexical]
  */
 export declare class Loader {
     read: Resources;
@@ -37,6 +40,8 @@ export declare class Loader {
     compiled: Map<string, CompiledEntry>;
     /** @type {Map<string, GrammarDom>} */
     cache: Map<string, GrammarDom>;
+    /** @type {WeakMap<GrammarDom,Record<string,string>>} */
+    namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
     /** @param {Resources} read */
     constructor(read: Resources);
     /**
@@ -66,6 +71,8 @@ export declare class Loader {
      * @returns {GrammarDom}
      */
     readDocument(markdown: string, path: string, deferEmission?: boolean): GrammarDom;
+    /** @param {Record<string,string> | undefined} dependencies @returns {boolean} */
+    namesMatch(dependencies: Record<string, string> | undefined): boolean;
     /**
      * A dialect from its pipeline document's path.
      * @param {string} path
@@ -124,9 +131,10 @@ export declare class Dialect {
  * @param {string} path
  * @param {UnicodeTable} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean): GrammarDom;
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
 /**
  * @param {string} text
  * @returns {string}

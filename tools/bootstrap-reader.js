@@ -11,12 +11,14 @@
 
 import fs from "node:fs";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { domOfTree } from "../lib/js/src/dialect.js";
+import { domOfTree, fnv1a64 } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { run } from "../lib/js/src/trampoline.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
 import { rankedSyntaxFailure } from "../lib/js/src/ranked.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
+import { NamesScope } from "../lib/js/src/unicode-names.js";
+import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
 // and the marks that a character tag escapes (engine §1, §9).
@@ -1016,10 +1018,13 @@ class Parser {
 export function readSyntaxTree(markdown, path) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
+  const names = new NamesScope(key => fs.readFileSync(new URL(`../grammars/${key === "unicode-names-reference.txt" ? "unicode-names.txt" : key}`, import.meta.url), "utf8"), unicode, fnv1a64);
+  const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;
   try {
     tokens = lex(text, positions);
+    strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "include-path" ? ["Include-Path"] : [])})));
     // An error at the end of the text stands where the last token ends, as
     // the syntax stage reports it.
     const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
@@ -1039,10 +1044,10 @@ export function readSyntaxTree(markdown, path) {
     const [line, column] = error.at;
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column, ...(error.index !== null && rankedSyntaxFailure(tokens, error.index) ? { code: "ranked-choice-syntax" } : {}) });
   }
-  return {tree,tokens,positionOf:(token) => token.at,unicode};
+  return {tree,tokens,positionOf:(token) => token.at,unicode,decodeString:(token,path) => strings.decode(token,path)};
 }
 
 export function readDocument(markdown,path) {
-  const {tree,tokens,positionOf,unicode}=readSyntaxTree(markdown,path);
-  return domOfTree(tree,tokens,positionOf,path,unicode);
+  const {tree,tokens,positionOf,unicode,decodeString}=readSyntaxTree(markdown,path);
+  return domOfTree(tree,tokens,positionOf,path,unicode,false,decodeString);
 }

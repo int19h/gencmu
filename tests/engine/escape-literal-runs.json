@@ -1,0 +1,20 @@
+{
+  "description": "Literal text decomposes beside an exact escaped scalar.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"é‹U+00E9›\"\n```"
+  },
+  "pipeline": "p.md",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "éé",
+      "value": "éé",
+      "tags": []
+    }
+  ]
+}
