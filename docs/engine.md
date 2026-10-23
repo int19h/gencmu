@@ -188,11 +188,11 @@ The reader immediately normalizes accepted property spellings to one canonical s
 
 The long names and short aliases come from pinned [PropertyAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyAliases.txt) and [PropertyValueAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyValueAliases.txt). Some long values contain short letters, such as `_Grapheme_Cluster_Break_L`. Age accepts `_Age_V15_1` and `_age_15.1`, or `_Age_Unassigned` and `_age_NA`. Block uses aliases such as `_Block_Latin_1_Supplement`, rather than the spaced spelling in Blocks.txt.
 
-If a class has a value alias, Canonical_Combining_Class uses its long value, such as `_Canonical_Combining_Class_Above` or `_Canonical_Combining_Class_Not_Reordered`. Other classes use their decimal number without leading zeros. Classes range from 0 through 254. Thus class 2 uses `_Canonical_Combining_Class_2`, class 10 uses `_Canonical_Combining_Class_CCC10`, and class 230 uses `_Canonical_Combining_Class_Above`.
+The combining-class catalog contains every integer from 0 through 254. A PropertyValueAliases.txt row for an integer supplies its long and short value aliases. If no row exists, both forms use the integer's decimal spelling without leading zeros. A row's existence decides this rule, even when its aliases contain digits.
 
-The short forms use the short value alias, such as `_ccc_CCC10`, `_ccc_NR`, and `_ccc_A`. A class without a value alias also uses its decimal number in the short form, such as `_ccc_2`. Decimal alternatives for aliased classes are invalid in both forms.
+Class 2 uses `_Canonical_Combining_Class_2` and `_ccc_2`. Class 10 uses `_Canonical_Combining_Class_CCC10` and `_ccc_CCC10`. Class 230 uses `_Canonical_Combining_Class_Above` and `_ccc_A`. `_Canonical_Combining_Class_10` and `_ccc_10` are invalid. A class without scalar assignments remains a valid terminal and can match a caller token carrying its tag.
 
-Each accepted spelling maps to exactly one canonical tag. The generator constructs the complete registry from the two designated alias columns. It rejects collisions between different identities, including collisions after ASCII case folding. Matching remains case-sensitive. Additional compatibility aliases in later columns do not supply tag spellings.
+Each accepted spelling maps to exactly one canonical tag. The generator uses the two designated alias columns and the combining-class decimal fallback defined above to construct the complete registry. It rejects collisions between different identities, including collisions after ASCII case folding. Matching remains case-sensitive. Additional compatibility aliases in later columns do not supply tag spellings.
 
 Canonical_Combining_Class uses its short and long alias columns after the numeric column. Script_Extensions uses Script's value aliases.
 
@@ -253,7 +253,7 @@ Outside ranges, each property uses its declared default. Duplicate members withi
 
 The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
 
-Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. Core combining classes without symbolic aliases use the decimal spellings defined above.
+Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. For core combining classes, an absent PropertyValueAliases.txt row requires the decimal spellings defined above. A row containing `CCC10` still supplies aliases and forbids decimal alternatives.
 
 The generator reads the pinned UCD files, including PropertyAliases.txt and PropertyValueAliases.txt. Binary sources include PropList.txt, DerivedCoreProperties.txt, emoji/emoji-data.txt, CompositionExclusions.txt, and DerivedNormalizationProps.txt. That last file supplies the binary properties Full_Composition_Exclusion and Changes_When_NFKC_Casefolded. Bidi_Mirrored comes from extracted/DerivedBinaryProperties.txt.
 
@@ -298,6 +298,7 @@ Shared cases in `tests/engine/` and `tests/notation/` cover the following observ
 | Defaults | U+0378 has Script Unknown, Line_Break Unknown, and Bidi_Class Left_To_Right. U+0590 has Bidi_Class Right_To_Left. Unassigned U+3FFFD has East_Asian_Width Wide. |
 | Extension sets | U+30FC has Script Common and extensions Hiragana and Katakana, without extension Common. Latin letters use singleton Latin. U+0951 has Script Inherited and all 13 explicit extension members, including Latin. |
 | Distinct classifications | U+00A0 has White_Space without Pattern_White_Space. U+200E reverses those memberships. U+00B4 has Diacritic and `_General_Category_Modifier_Symbol`, without `_General_Category_Nonspacing_Mark`. ASCII A has East_Asian_Width Narrow. |
+| Combining-class catalog | All 255 integers have tags. A missing alias row gives decimal forms, such as `_ccc_2`. Class 10 accepts `CCC10` in both forms and rejects decimal alternatives. Classes without assignments remain valid for caller tokens. |
 | Core and normalization | Combining-class tags agree with canonical ordering. Quick_Check defaults and Maybe values match pinned data. Hangul syllable classes do not reappear after decomposition. |
 | Scalar limits | Supplementary scalars, private-use scalars, and noncharacters receive complete profiles. Surrogates remain rejected input. |
 | Generic observations | A grammar naming no additional property still forwards and serializes complete profiles. Adding an unrelated later-stage property reference changes no initial tag set. Whole-set comparisons include unnamed properties. |
@@ -390,7 +391,7 @@ Pipeline splicing consumes these directives before stage stitching. They never e
 
 `tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. It names 50 characters in each encoding. A name supplies an exact scalar, rather than declaring a grammar terminal.
 
-The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Paired characters inside the supported intervals receive the same grammar treatment. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
+The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Each row marked Read contributes both scalars to exactly the same grammar alternatives. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
 
 The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
 
@@ -402,7 +403,7 @@ Each row gives one character and its exact scalar in each layout. The character'
 
 These qualified names keep the two scalar bindings distinct in one lookup namespace. The file supplies no unqualified spelling. For example, `‹ZBALERMORNA HUMBERT LETTER PY›` decodes to U+ED80. `‹ZBALERMORNA UCSUR LETTER PY›` decodes to U+F28A0. Neither spelling silently changes encoding.
 
-The final column records which older characters the current phoneme document reads. It distinguishes source inventory from existing grammar rules. The names file includes unread characters inside the specified intervals too.
+The final column records which older characters the current phoneme document reads. Each row marked Read requires a UCSUR counterpart in exactly the same alternatives. Both spellings produce the same token values, images, and tags. Token text and source metadata preserve the scalar that the input contains. The names file also includes characters marked Not read.
 
 | Character suffix | Humbert | UCSUR | Current older grammar |
 | --- | --- | --- | --- |
@@ -461,13 +462,15 @@ For every paired scalar, the UCSUR code point equals the older code point plus h
 
 The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Their UCSUR counterparts are U+F28D6–U+F28D9. Both sets receive encoding-qualified names in this resource. Every character occurs in both layouts, so no character belongs to only one encoding.
 
-The current grammar reads 43 older scalars. Three tone marks and four full diphthong letters have no current older rule. The table identifies those seven characters. A names declaration alone adds no phoneme rule. Grammar alternatives implement the encoding correspondence. Escape decoding never converts between the layouts.
+The current phoneme document reads 43 older scalars and no UCSUR scalar. The specified support for both encodings requires the alternative changes stated above. The seven rows marked Not read stay unread in both encodings until an explicit grammar rule accepts them. They are three tone marks and four full diphthong letters. A names declaration alone adds no phoneme rule. Escape decoding never converts between the layouts.
 
 The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
-Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. They require equal treatment for counterparts and no warning about the older encoding.
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets.
+
+Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. For every Read pair, cases require matching values, images, and tags, with text and source metadata retaining the written scalar. The seven Not read pairs remain unread in both encodings. No case warns about the older encoding.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 
@@ -2015,9 +2018,13 @@ Even without explicit property references, every document cache requires the pro
 
 When source conversion loads names data, the cache writer records a `names` map for that document. It maps `unicode-names.txt` and every selected extra's normalized resolved path to that resource's text hash. Paths use the same namespace as cached documents. Map keys use code-point order. Hashes use the same algorithm as document hashes. Numeric escapes and core abbreviation escapes alone require no names map.
 
-After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it loads the selected resources and compares their paths and fingerprints before accepting the entry. If `names` is absent, the entry requires no names data. A cache hit needs no source token scan or escape inspection.
+After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it loads the selected resources and compares their paths and fingerprints before accepting the entry. If `names` is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. A cache hit needs no source token scan or escape inspection.
 
-The loader obtains local declarations from the shape-valid cached DOM and combines them with the current inherited set. If that selected set differs from the recorded map's resource paths, the entry gives a cache miss. If a required resource hash differs, it also gives a cache miss. Missing or malformed required names data remains a loading error despite an existing entry. Documents without a names dependency omit the map and remain reusable across names-file changes. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
+If `names` is present, the expected resource set contains `unicode-names.txt` plus the current inherited and local extras. Local declarations come from the shape-valid cached DOM. All paths use their normalized resolved form. This is the same set that the cache writer records. A path-set difference or required resource hash difference gives a cache miss.
+
+If `names` is absent, the loader skips this comparison and keeps the otherwise valid entry. Local and inherited declarations still supply the resource scope for nested includes. Missing or malformed required names data remains a loading error when the map is present. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
+
+Shared cache cases require a hit when the complete base-and-extras set and all hashes match. A changed extra path or hash gives a miss when `names` is present. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
 
 `compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
 
