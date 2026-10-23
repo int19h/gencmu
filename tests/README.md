@@ -295,7 +295,7 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
-`python3 tools/bench-unicode-properties.py --baseline REF` compares all four libraries with baseline revision REF. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
 The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 
