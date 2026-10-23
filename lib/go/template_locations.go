@@ -130,7 +130,18 @@ func templateSourceDocument(raw templateObject, d *domDoc) {
 	}
 }
 func templateNativeRuleSource(raw templateObject, r *domRule) {
+	templateAnnotateTerm(templateObj(raw["tags"]), r.Tags)
+	templateAnnotateTerm(templateObj(raw["value"]), r.Value)
+	templateAnnotateTerm(templateObj(raw["image"]), r.Image)
+	for i, c := range r.Conditions {
+		templateAnnotateCond(templateObj(templateList(raw["conditions"])[i]), c)
+	}
 	for i, a := range r.Alternatives {
+		n := templateObj(templateList(raw["alternatives"])[i])
+		templateAnnotateExpr(templateObj(n["expr"]), a.Expr)
+		templateAnnotateTerm(templateObj(n["tags"]), a.Tags)
+		templateAnnotateTerm(templateObj(n["value"]), a.Value)
+		templateAnnotateTerm(templateObj(n["image"]), a.Image)
 		var visit func(templateObject, string)
 		visit = func(n templateObject, path string) {
 			if at := a.rankedLocations[path]; at != [2]int{} {

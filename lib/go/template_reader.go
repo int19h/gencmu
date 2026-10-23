@@ -161,6 +161,9 @@ func (b *domBuilder) templateDeclaration(n *Node) templateObject {
 		}
 		r := templateWrittenDirective(d.Directives[0])
 		if c := one(n, "conditions-clause"); c != nil {
+			before := b.featureContext
+			b.featureContext = d.Directives[0].Name == "features"
+			defer func() { b.featureContext = before }()
 			conditions := []any{}
 			for _, p := range b.some(c, "implication", 1) {
 				conditions = append(conditions, b.templateCondition(p))
@@ -402,6 +405,15 @@ func (b *domBuilder) templateTerm(n *Node, argument bool) (result templateObject
 	defer func() {
 		if result != nil {
 			templateLocate(result, b.at(n))
+			if !b.featureContext && !templateUnresolved(result) && result["rule"] == nil && result["classifier"] == nil && result["integer"] == nil {
+				t, err := decodeTerm(templateJSON(result))
+				if err != nil {
+					b.fail(n, "%s", err)
+				}
+				if _, problem := typeOf(t); problem != "" {
+					b.fail(n, "%s", problem)
+				}
+			}
 		}
 	}()
 	if !templateSyntax(n) {
@@ -543,9 +555,23 @@ func (b *domBuilder) templateCondition(n *Node) (result templateObject) {
 	defer func() {
 		if result != nil {
 			templateLocate(result, b.at(n))
+			if !b.featureContext && !templateUnresolved(result) {
+				c, err := decodeCond(templateJSON(result))
+				if err != nil {
+					b.fail(n, "%s", err)
+				}
+				checker := &domChecker{uni: b.uni}
+				checker.condition(c, 0)
+				if checker.problem != nil {
+					b.fail(n, "%s", checker.problem)
+				}
+				if problem := condTypeProblem(c); problem != "" {
+					b.fail(n, "%s", problem)
+				}
+			}
 		}
 	}()
-	if !templateSyntax(n) {
+	if !templateSyntax(n) && n.Rule == "implication" {
 		return templateSourceCond(b.implication(n))
 	}
 	switch n.Rule {
@@ -576,6 +602,8 @@ func (b *domBuilder) templateCondition(n *Node) (result templateObject) {
 		return templateJoined(key, out)
 	case "negation":
 		return templateObject{"not": b.templateCondition(b.only(n, "condition"))}
+	case "presence":
+		return templateObject{"captured": strings.TrimPrefix(b.tokenValue(b.token(n)), "$")}
 	case "comparison":
 		ps := b.some(n, "union", 2)
 		return templateObject{"op": b.operator(b.token(b.only(n, "comparator"))), "left": b.templateTerm(ps[0], false), "right": b.templateTerm(ps[1], false)}

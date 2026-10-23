@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // Decode a layered pattern only after its complete shape and depth pass.
@@ -14,7 +15,10 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 	}
 	root := templateObj(value)
 	problem := layeredPatternProblem(root, layeredPatternInspection{depth: depth, name: func(name string) bool {
-		return layeredRuleName(name) || strings.Contains(name, "(") && strings.HasSuffix(name, ")")
+		r, size := utf8.DecodeRuneInString(name)
+		// The public schema checks eligibility against the configured core.
+		return layeredRuleName(name) || strings.Contains(name, "(") && strings.HasSuffix(name, ")") ||
+			utf8.ValidString(name) && size > 0 && size == len(name) && r != '#' && r != '@' && r != '_' && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9')
 	}})
 	if problem != "" {
 		if problem == "nested too deeply" {

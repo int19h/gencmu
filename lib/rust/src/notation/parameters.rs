@@ -327,16 +327,12 @@ impl<'a> Reader<'a> {
                 let name = self.value(self.token(n)?).trim_start_matches('%');
                 let mut r = obj([("name", string(name)), ("args", Json::Arr(args)), ("at", position(self.first(n)))]);
                 if let Some(c) = Self::rules(n, "conditions-clause").next() {
-                    set(
-                        &mut r,
-                        "conditions",
-                        Json::Arr(
-                            self.some(c, "implication", 1)?
-                                .iter()
-                                .map(|n| self.parameter_condition(n))
-                                .collect::<R<_>>()?,
-                        ),
-                    )
+                    let before = self.feature_context.replace(name == "features");
+                    let conditions = self
+                        .some(c, "implication", 1)
+                        .and_then(|nodes| nodes.iter().map(|n| self.parameter_condition(n)).collect::<R<_>>());
+                    self.feature_context.set(before);
+                    set(&mut r, "conditions", Json::Arr(conditions?))
                 }
                 Ok(r)
             }
@@ -723,6 +719,13 @@ impl<'a> Reader<'a> {
         if !has(&r, p::SOURCE) {
             set(&mut r, p::SOURCE, position(self.at(n)))
         }
+        if !self.feature_context.get() && !p::unresolved(&r) {
+            if let Ok(term) = crate::dom::term_from_json(&p::clean(&r)) {
+                if let Err(problem) = crate::dom::term_type(&term) {
+                    return Err(self.error(n, problem));
+                }
+            }
+        }
         Ok(r)
     }
     fn parameter_method(&self, n: &'a Node) -> R<Json> {
@@ -759,6 +762,21 @@ impl<'a> Reader<'a> {
             }
             r = obj([("method", string(name)), ("receiver", r), ("args", Json::Arr(args))]);
             set(&mut r, p::SOURCE, position(self.at(n)));
+            if !self.feature_context.get() && !p::unresolved(&r) {
+                use crate::dom::schema::{parts_problem, Part};
+                let kind = if matches!(
+                    name,
+                    "matches" | "begins" | "starts-input" | "ends-input" | "followed-by" | "preceded-by"
+                ) {
+                    Part::Condition
+                } else {
+                    Part::Term
+                };
+                let closed = p::clean(&r);
+                if let Some(problem) = parts_problem(vec![(kind, &closed, 0)], self.unicode) {
+                    return Err(self.error(n, problem));
+                }
+            }
         }
         Ok(r)
     }
@@ -797,11 +815,19 @@ impl<'a> Reader<'a> {
             "negation" => obj([("not", self.parameter_condition(self.one(n, "condition")?)?)]),
             "comparison" => {
                 let ps = self.some(n, "union", 2)?;
-                obj([
-                    ("op", string(self.operator(self.token(self.one(n, "comparator")?)?))),
-                    ("left", self.parameter_term(ps[0], false)?),
-                    ("right", self.parameter_term(ps[1], false)?),
-                ])
+                let op = self.operator(self.token(self.one(n, "comparator")?)?);
+                let left = self.parameter_term(ps[0], false)?;
+                let right = self.parameter_term(ps[1], false)?;
+                if !self.feature_context.get() && !p::unresolved(&left) && !p::unresolved(&right) {
+                    let left = crate::dom::term_from_json(&p::clean(&left)).map_err(|e| self.error(n, e))?;
+                    let right = crate::dom::term_from_json(&p::clean(&right)).map_err(|e| self.error(n, e))?;
+                    let a = crate::dom::term_type(&left).map_err(|e| self.error(n, e))?;
+                    let b = crate::dom::term_type(&right).map_err(|e| self.error(n, e))?;
+                    if let Some(problem) = comparison_problem(op, a, b) {
+                        return Err(self.error(n, problem));
+                    }
+                }
+                obj([("op", string(op)), ("left", left), ("right", right)])
             }
             "tree-comparison" => {
                 let right = self.one(n, "union")?;

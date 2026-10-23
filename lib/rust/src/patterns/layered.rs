@@ -6,7 +6,9 @@ impl Pattern {
         let name = |name: &str| {
             name.contains('(') && name.ends_with(')')
                 || dom::is_classifier_name(name)
-                || name.chars().count() == 1 && name.chars().next().is_some_and(|c| !c.is_ascii())
+                // The public schema checks eligibility against the configured core.
+                || name.chars().count() == 1
+                    && name.chars().next().is_some_and(|c| !c.is_ascii_uppercase() && !c.is_ascii_digit() && c != '#' && c != '@' && c != '_')
         };
         let inspect = shapes::Inspection { name: Some(&name), ..Default::default() };
         if let Some(problem) = shapes::problem(root, &inspect) {
