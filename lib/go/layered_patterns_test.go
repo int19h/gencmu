@@ -154,3 +154,20 @@ func TestLayeredPatternRepeatStateGrowth(t *testing.T) {
 		t.Fatalf("%d structural states", len(m.states))
 	}
 }
+
+func TestLayeredPatternWalkKeepsChildOrder(t *testing.T) {
+	t.Parallel()
+	p := &domPattern{Kind: "name", Name: "root", Attached: []*domPattern{
+		{Kind: "node", Items: []*domPattern{{Kind: "name", Name: "a"}}},
+		{Kind: "node", Items: []*domPattern{{Kind: "name", Name: "b"}}},
+	}}
+	var names []string
+	walkPattern(p, func(n *domPattern) {
+		if n.Kind == "name" {
+			names = append(names, n.Name)
+		}
+	})
+	if len(names) != 3 || names[0] != "root" || names[1] != "a" || names[2] != "b" {
+		t.Fatalf("walk order = %v", names)
+	}
+}

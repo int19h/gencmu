@@ -40,7 +40,9 @@ func walkPattern(p *domPattern, visit func(*domPattern)) {
 			continue
 		}
 		visit(n)
-		stack = append(stack, n.Attached...)
+		for i := len(n.Attached) - 1; i >= 0; i-- {
+			stack = append(stack, n.Attached[i])
+		}
 		for i := len(n.Items) - 1; i >= 0; i-- {
 			stack = append(stack, n.Items[i])
 		}

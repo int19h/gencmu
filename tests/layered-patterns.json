@@ -4214,6 +4214,87 @@
         ]
       },
       "valid": true
+    },
+    {
+      "description": "a call name retains the rule-name category",
+      "pattern": {
+        "call": "A",
+        "args": [
+          {
+            "string": "a"
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a call name cannot contain punctuation",
+      "pattern": {
+        "call": "a!",
+        "args": [
+          {
+            "string": "a"
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a call requires one or more arguments",
+      "pattern": {
+        "call": "a",
+        "args": [],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a value-test operand retains its string-term shape",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": "a",
+          "extra": true
+        },
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "description": "a range endpoint retains its string-term shape",
+      "pattern": {
+        "range": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "z",
+            "extra": true
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
     }
   ]
 }
