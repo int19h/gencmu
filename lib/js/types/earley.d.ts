@@ -56,6 +56,8 @@ export declare class TagInterner {
     sets: TagSet[];
     /** @type {Map<string, number>} */
     ids: Map<string, number>;
+    /** @type {WeakMap<TagSet,number>} */
+    identities: WeakMap<TagSet, number>;
     constructor();
     /**
      * @param {TagSet} tags

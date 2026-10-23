@@ -2248,14 +2248,15 @@
    * @returns {number}
    */
   function compareCodePoints(left, right) {
-    const a = [...left];
-    const b = [...right];
-    const length = Math.min(a.length, b.length);
-    for (let index = 0; index < length; index++) {
-      const difference = /** @type {number} */ (a[index].codePointAt(0)) - /** @type {number} */ (b[index].codePointAt(0));
-      if (difference !== 0) return difference;
+    let a = 0, b = 0;
+    while (a < left.length && b < right.length) {
+      const first = /** @type {number} */ (left.codePointAt(a));
+      const second = /** @type {number} */ (right.codePointAt(b));
+      if (first !== second) return first - second;
+      a += first > 0xffff ? 2 : 1;
+      b += second > 0xffff ? 2 : 1;
     }
-    return a.length - b.length;
+    return left.length - a - (right.length - b);
   }
 
   /**
@@ -10010,12 +10011,17 @@
       this.sets = [];
       /** @type {Map<string, number>} */
       this.ids = new Map();
+      /** @type {WeakMap<TagSet,number>} */
+      this.identities = new WeakMap();
     }
     /**
      * @param {TagSet} tags
      * @returns {number}
      */
     intern(tags) {
+      // Interned sets remain unchanged throughout their recognition context.
+      const known = this.identities.get(tags);
+      if (known !== undefined) return known;
       const key = tagKey(tags);
       let id = this.ids.get(key);
       if (id === undefined) {
@@ -10023,6 +10029,7 @@
         this.sets.push(tags);
         this.ids.set(key, id);
       }
+      this.identities.set(tags,id);
       return id;
     }
     /**
