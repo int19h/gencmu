@@ -183,6 +183,14 @@ Open names are names that grammar authors choose.
 
 The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
 
+## Layered patterns: `layered-patterns.json`
+
+The `matching` cases test structural trees directly in all four libraries. Each case supplies a `pattern`, a `tree`, and an `expected` Boolean. Rule trees contain `name` and `children`. Terminal leaves contain `terminal`, `value`, and `tags`. A ranked seal uses `seal:true`.
+
+These cases cover exact prefixes, attached lists, empty lists, child choices, paths, sets, tests, and omission. Runners construct resolved predicates before matching. They retain named empty roots and remove empty children through the ordinary structural machine.
+
+The JavaScript runner also reads `printing` and `shapes`. A printing case compares its pattern with `text`. A shape case compares pattern acceptance with its `valid` Boolean. Separate depth cases count constructors at the limit and beyond it. Growth cases require a repeated child sequence to retain fewer than ten structural states over 1,000 children.
+
 ## Supplied notation values: `notation-values.json`
 
 Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.

@@ -184,7 +184,20 @@ class PatternMachine:
                 pending.append((node, True))
                 kids = [node["pattern"]] if "path" in node else node.get("union", node.get("intersection", node.get("difference", [])))
                 if "children" in node:
-                    kids = [p["node"] for p, _ in walk_pattern(node["children"]) if "node" in p]
+                    if isinstance(node["children"], list):
+                        todo = list(node["children"])
+                        kids = []
+                        while todo:
+                            item = todo.pop()
+                            if "child" in item:
+                                kids.append(item["child"])
+                            elif "choice" in item:
+                                todo.extend(child for arm in item["choice"] for child in arm)
+                            else:
+                                todo.extend(item.get("optional", item.get("repeat", [])))
+                                todo.extend(item.get("separator", []))
+                    else:
+                        kids = [p["node"] for p, _ in walk_pattern(node["children"]) if "node" in p]
                 pending.extend((child, False) for child in reversed(kids))
                 continue
             predicate = dict(node)
@@ -209,8 +222,18 @@ class PatternMachine:
         pending = [(root, 0, 1)]
         while pending:
             node, start, end = pending.pop()
-            if "node" in node:
-                edges.append((start, end, self.root_ids[id(node["node"])]))
+            if isinstance(node, list):
+                if not node:
+                    edges.append((start, end, None))
+                tasks = []
+                for i, child in enumerate(node):
+                    target = end if i == len(node) - 1 else size
+                    size += i != len(node) - 1
+                    tasks.append((child, start, target))
+                    start = target
+                pending.extend(reversed(tasks))
+            elif "child" in node or "node" in node:
+                edges.append((start, end, self.root_ids[id(node.get("child", node.get("node")))]))
             elif "siblings" in node:
                 edges.extend(((start, end, None), (start, start, -1)))
             elif "sequence" in node:
@@ -221,6 +244,8 @@ class PatternMachine:
                     tasks.append((child, start, target))
                     start = target
                 pending.extend(reversed(tasks))
+            elif "choice" in node:
+                pending.extend((arm, start, end) for arm in reversed(node["choice"]))
             elif "optional" in node:
                 edges.append((start, end, None))
                 pending.append((node["optional"], start, end))
@@ -308,9 +333,8 @@ class PatternMachine:
                 holds = leaf is not None and leaf[0] == p["terminal"]
             elif "test" in p:
                 holds = leaf is not None and terminal_predicate(p, leaf)
-            elif "children" in p:
-                machine = self.machines[p["machine"]]
-                holds = bool(state[4][p["machine"]][machine["start"]] & (1 << machine["end"]))
+            elif "any" in p or "children" in p:
+                holds = (name is not None or leaf is not None) if "any" in p else True
             elif "path" in p:
                 child = state[3] if p["path"] == "descendant" else state[1] if p["path"] == "first" else state[2]
                 holds = bool(bits & (1 << p["child"]) or child & bit)
@@ -320,7 +344,10 @@ class PatternMachine:
                 holds = all(bits & (1 << j) for j in p["operands"])
             elif "difference" in p:
                 holds = bool(bits & (1 << p["operands"][0]) and not bits & (1 << p["operands"][1]))
-            if any(key in p for key in ("name", "terminal", "test", "children")) and state[0] == 1:
+            if "children" in p:
+                machine = self.machines[p["machine"]]
+                holds = holds and bool(state[4][p["machine"]][machine["start"]] & (1 << machine["end"]))
+            if not p.get("exact", False) and any(key in p for key in ("name", "terminal", "test", "any", "children")) and state[0] == 1:
                 holds = holds or bool(state[1] & bit)
             if holds:
                 bits |= bit

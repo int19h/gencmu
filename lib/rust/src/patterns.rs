@@ -591,15 +591,26 @@ struct Nfa {
     epsilon: Vec<Bits>,
 }
 #[derive(Debug)]
-enum Predicate {
+enum NodeTest {
     Name(String),
     Terminal(String),
     Test(Vec<(String, Term)>, String),
-    Children(usize),
+    Any,
+}
+#[derive(Debug)]
+enum Predicate {
+    Node { test: NodeTest, exact: bool, children: Option<usize> },
     Path(String, usize),
     Union(Vec<usize>),
     Intersection(Vec<usize>),
     Difference(usize, usize),
+}
+#[derive(Debug)]
+enum PatternItem {
+    Child(usize),
+    Siblings,
+    Choice(Vec<Vec<PatternItem>>),
+    Repeat(Vec<PatternItem>, Option<Vec<PatternItem>>),
 }
 #[derive(Debug)]
 pub(crate) struct Machine {
@@ -647,6 +658,13 @@ fn pattern_key(p: &Pattern) -> String {
 }
 impl Machine {
     pub(crate) fn new(roots: &[Pattern]) -> Self {
+        Self::build(|m| {
+            for p in roots {
+                m.compile(p);
+            }
+        })
+    }
+    fn build(configure: impl FnOnce(&mut Self)) -> Self {
         let mut m = Self {
             predicates: vec![],
             machines: vec![],
@@ -659,9 +677,7 @@ impl Machine {
             families: Default::default(),
         };
         m.families.enable_oracle();
-        for p in roots {
-            m.compile(p);
-        }
+        configure(&mut m);
         let zero = vec![0; m.predicates.len().div_ceil(64)];
         let relations = m.machines.iter().map(|n| n.epsilon.clone()).collect();
         m.empty = m.intern(State {
@@ -684,8 +700,10 @@ impl Machine {
             return id;
         }
         let pred = match p {
-            Pattern::Name(s, _) => Predicate::Name(s.clone()),
-            Pattern::Terminal(s, _) => Predicate::Terminal(s.clone()),
+            Pattern::Name(s, _) => Predicate::Node { test: NodeTest::Name(s.clone()), exact: false, children: None },
+            Pattern::Terminal(s, _) => {
+                Predicate::Node { test: NodeTest::Terminal(s.clone()), exact: false, children: None }
+            }
             Pattern::Test(..) => {
                 let mut tests = Vec::new();
                 let mut base = p;
@@ -694,13 +712,12 @@ impl Machine {
                     base = inner;
                 }
                 let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
-                Predicate::Test(tests, terminal.clone())
+                Predicate::Node { test: NodeTest::Test(tests, terminal.clone()), exact: false, children: None }
             }
             Pattern::Children(c) => {
-                let n = self.sequence(c);
-                let id = self.machines.len();
-                self.machines.push(n);
-                Predicate::Children(id)
+                let items = self.pattern_items(c);
+                let id = self.sequence(&items);
+                Predicate::Node { test: NodeTest::Any, exact: false, children: Some(id) }
             }
             Pattern::Path(path, p) => Predicate::Path(path.clone(), self.compile(p)),
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
@@ -715,50 +732,59 @@ impl Machine {
         self.ids.insert(key, id);
         id
     }
-    fn sequence(&mut self, c: &Children) -> Nfa {
-        fn build(m: &mut Machine, n: &mut Nfa, c: &Children, from: usize, to: usize) {
-            fn state(n: &mut Nfa) -> usize {
-                let id = n.size;
-                n.size += 1;
-                id
+    fn pattern_items(&mut self, children: &Children) -> Vec<PatternItem> {
+        match children {
+            Children::Node(p) => vec![PatternItem::Child(self.compile(p))],
+            Children::Siblings => vec![PatternItem::Siblings],
+            Children::Sequence(items) => items.iter().flat_map(|c| self.pattern_items(c)).collect(),
+            Children::Optional(c) => vec![PatternItem::Choice(vec![self.pattern_items(c), vec![]])],
+            Children::Repeat(c, s) => {
+                vec![PatternItem::Repeat(self.pattern_items(c), s.as_ref().map(|s| self.pattern_items(s)))]
             }
-            match c {
-                Children::Node(p) => {
-                    let id = m.compile(p);
-                    n.edges.push((from, to, Some(id)));
-                }
-                Children::Siblings => {
-                    n.edges.push((from, to, None));
-                    n.edges.push((from, from, Some(usize::MAX)));
-                }
-                Children::Sequence(xs) => {
-                    let mut a = from;
-                    for (i, x) in xs.iter().enumerate() {
-                        let b = if i + 1 == xs.len() { to } else { state(n) };
-                        build(m, n, x, a, b);
-                        a = b;
+        }
+    }
+    fn sequence(&mut self, items: &[PatternItem]) -> usize {
+        fn state(n: &mut Nfa) -> usize {
+            let id = n.size;
+            n.size += 1;
+            id
+        }
+        fn build(n: &mut Nfa, items: &[PatternItem], from: usize, to: usize) {
+            if items.is_empty() {
+                n.edges.push((from, to, None));
+            }
+            let mut start = from;
+            for (i, item) in items.iter().enumerate() {
+                let end = if i + 1 == items.len() { to } else { state(n) };
+                match item {
+                    PatternItem::Child(p) => n.edges.push((start, end, Some(*p))),
+                    PatternItem::Siblings => {
+                        n.edges.push((start, end, None));
+                        n.edges.push((start, start, Some(usize::MAX)));
+                    }
+                    PatternItem::Choice(arms) => {
+                        for arm in arms {
+                            build(n, arm, start, end);
+                        }
+                    }
+                    PatternItem::Repeat(body, separator) => {
+                        let a = state(n);
+                        let b = state(n);
+                        build(n, body, start, a);
+                        n.edges.push((a, end, None));
+                        if let Some(separator) = separator {
+                            build(n, separator, a, b);
+                        } else {
+                            n.edges.push((a, b, None));
+                        }
+                        build(n, body, b, a);
                     }
                 }
-                Children::Optional(x) => {
-                    n.edges.push((from, to, None));
-                    build(m, n, x, from, to);
-                }
-                Children::Repeat(x, s) => {
-                    let a = state(n);
-                    let b = state(n);
-                    build(m, n, x, from, a);
-                    n.edges.push((a, to, None));
-                    if let Some(s) = s {
-                        build(m, n, s, a, b);
-                    } else {
-                        n.edges.push((a, b, None));
-                    }
-                    build(m, n, x, b, a);
-                }
+                start = end;
             }
         }
         let mut n = Nfa { size: 2, start: 0, end: 1, edges: vec![], epsilon: vec![] };
-        build(self, &mut n, c, 0, 1);
+        build(&mut n, items, 0, 1);
         n.epsilon = vec![vec![0; n.size.div_ceil(64)]; n.size];
         for i in 0..n.size {
             set(&mut n.epsilon[i], i);
@@ -775,7 +801,9 @@ impl Machine {
                 }
             }
         }
-        n
+        let id = self.machines.len();
+        self.machines.push(n);
+        id
     }
     fn intern(&mut self, s: State) -> u32 {
         if let Some(&id) = self.state_ids.get(&s) {
@@ -884,14 +912,20 @@ impl Machine {
         let mut bits = vec![0; self.predicates.len().div_ceil(64)];
         for (i, p) in self.predicates.iter().enumerate() {
             let mut holds = match p {
-                Predicate::Name(n) => name == Some(n),
-                Predicate::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                Predicate::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
-                    name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
-                }),
-                Predicate::Children(id) => {
-                    let n = &self.machines[*id];
-                    bit(&s.relations[*id][n.start], n.end)
+                Predicate::Node { test, children, .. } => {
+                    let holds = match test {
+                        NodeTest::Name(n) => name == Some(n),
+                        NodeTest::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
+                        NodeTest::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
+                            name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
+                        }),
+                        NodeTest::Any => name.is_some() || leaf.is_some(),
+                    };
+                    holds
+                        && children.map_or(true, |id| {
+                            let n = &self.machines[id];
+                            bit(&s.relations[id][n.start], n.end)
+                        })
                 }
                 Predicate::Path(path, child) => {
                     bit(&bits, *child)
@@ -908,9 +942,7 @@ impl Machine {
                 Predicate::Intersection(xs) => xs.iter().all(|&i| bit(&bits, i)),
                 Predicate::Difference(a, b) => bit(&bits, *a) && !bit(&bits, *b),
             };
-            if matches!(p, Predicate::Name(_) | Predicate::Terminal(_) | Predicate::Test(..) | Predicate::Children(_))
-                && s.count == 1
-            {
+            if matches!(p, Predicate::Node { exact: false, .. }) && s.count == 1 {
                 holds |= bit(&s.first, i);
             }
             if holds {
@@ -1155,3 +1187,7 @@ mod tests {
         assert!(m.matches(node, &p));
     }
 }
+
+#[cfg(test)]
+#[path = "patterns/layered_tests.rs"]
+mod layered_tests;

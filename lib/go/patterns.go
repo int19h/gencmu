@@ -18,6 +18,8 @@ type domPattern struct {
 	Op           string
 	Requirements []tagRequirement
 	Ends         [2]*domTerm
+	Exact        bool
+	Attached     []*domPattern
 }
 
 func patternNode(c *domPattern) *domPattern {
@@ -38,6 +40,7 @@ func walkPattern(p *domPattern, visit func(*domPattern)) {
 			continue
 		}
 		visit(n)
+		stack = append(stack, n.Attached...)
 		for i := len(n.Items) - 1; i >= 0; i-- {
 			stack = append(stack, n.Items[i])
 		}
@@ -277,7 +280,7 @@ func (w *jsonWriter) pattern(p *domPattern) {
 		w.str(p.Name)
 		w.raw(`,"at":`)
 		w.pair(p.At)
-	case "siblings":
+	case "siblings", "any":
 		w.raw("true")
 	case "literal":
 		p.Value.writeJSON(w)
@@ -310,7 +313,7 @@ func (w *jsonWriter) pattern(p *domPattern) {
 		w.str(p.Name)
 		w.raw(`,"pattern":`)
 		w.pattern(p.Items[0])
-	case tmUnion, tmIntersection, tmDifference, "sequence":
+	case tmUnion, tmIntersection, tmDifference, "sequence", "choice":
 		w.raw("[")
 		for i, n := range p.Items {
 			if i > 0 {
@@ -326,17 +329,24 @@ func (w *jsonWriter) pattern(p *domPattern) {
 			w.pattern(p.Items[1])
 		}
 	}
+	if p.Exact {
+		w.raw(`,"exact":true`)
+	}
+	if p.Attached != nil {
+		w.raw(`,"children":[`)
+		for i, item := range p.Attached {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.pattern(item)
+		}
+		w.raw("]")
+	}
 	w.raw("}")
 }
 func patternKey(p *domPattern) string {
-	copy := *p
-	copy.At = [2]int{}
-	copy.Items = make([]*domPattern, len(p.Items))
-	for i, n := range p.Items {
-		copy.Items[i] = patternKeyCopy(n)
-	}
 	var w jsonWriter
-	w.pattern(&copy)
+	w.pattern(patternKeyCopy(p))
 	return string(w.buf)
 }
 func patternKeyCopy(p *domPattern) *domPattern {
@@ -345,6 +355,12 @@ func patternKeyCopy(p *domPattern) *domPattern {
 	n.Items = make([]*domPattern, len(p.Items))
 	for i, c := range p.Items {
 		n.Items[i] = patternKeyCopy(c)
+	}
+	if p.Attached != nil {
+		n.Attached = make([]*domPattern, len(p.Attached))
+		for i, c := range p.Attached {
+			n.Attached[i] = patternKeyCopy(c)
+		}
 	}
 	return &n
 }
@@ -406,8 +422,13 @@ func (m *patternMachine) compile(p *domPattern) int {
 		for _, n := range p.Items {
 			pred.operands = append(pred.operands, m.compile(n))
 		}
-	case "children":
-		n := m.sequence(p.Items[0])
+	}
+	if p.Kind == "children" || p.Attached != nil {
+		items := &domPattern{Kind: "sequence", Items: p.Attached}
+		if p.Kind == "children" {
+			items = p.Items[0]
+		}
+		n := m.sequence(items)
 		pred.machine = len(m.machines)
 		m.machines = append(m.machines, n)
 	}
@@ -430,6 +451,9 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 			edge(a, b, -2)
 			edge(a, a, -1)
 		case "sequence":
+			if len(p.Items) == 0 {
+				edge(a, b, -2)
+			}
 			for i, c := range p.Items {
 				t := b
 				if i < len(p.Items)-1 {
@@ -437,6 +461,10 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 				}
 				build(c, a, t)
 				a = t
+			}
+		case "choice":
+			for _, arm := range p.Items {
+				build(arm, a, b)
 			}
 		case "optional":
 			edge(a, b, -2)
@@ -580,8 +608,9 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case "test":
 			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
 		case "children":
-			n := m.machines[pr.machine]
-			holds = s.relations[pr.machine][n.start].Bit(n.end) != 0
+			holds = true
+		case "any":
+			holds = name != "" || tags != nil
 		case "path":
 			holds = bits.Bit(pr.operands[0]) != 0
 			child := s.any
@@ -603,7 +632,11 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case tmDifference:
 			holds = bits.Bit(pr.operands[0]) != 0 && bits.Bit(pr.operands[1]) == 0
 		}
-		if (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children") && s.count == 1 {
+		if pr.machine >= 0 {
+			n := m.machines[pr.machine]
+			holds = holds && s.relations[pr.machine][n.start].Bit(n.end) != 0
+		}
+		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children" || p.Kind == "any") && s.count == 1 {
 			holds = holds || s.first.Bit(i) != 0
 		}
 		if holds {

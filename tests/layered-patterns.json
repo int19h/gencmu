@@ -1,0 +1,4219 @@
+{
+  "matching": [
+    {
+      "description": "a name searches unary wrappers",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact name stays at the candidate",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an exact name accepts the candidate",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a name search stops at a branch",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a terminal searches unary wrappers",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact terminal stays at the candidate",
+      "pattern": {
+        "terminal": "A",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an exact terminal accepts its leaf",
+      "pattern": {
+        "terminal": "A",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "terminal": "A",
+        "value": "a",
+        "tags": [
+          "A"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an attached list and name share a node",
+      "pattern": {
+        "name": "a",
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "attachments cannot split their tests across nodes",
+      "pattern": {
+        "name": "a",
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "name": "inner",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an intersection keeps independent searches",
+      "pattern": {
+        "intersection": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "any": true,
+            "children": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "name": "inner",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact attachment accepts the candidate",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact attachment does not search wrappers",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a bare list searches wrappers",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact bare list stays at the candidate",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a one-child list differs from its child test",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a one-child list accepts a matching child",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an empty list reaches a leaf",
+      "pattern": {
+        "any": true,
+        "children": []
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact empty list rejects a nonempty node",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an exact empty list accepts a leaf",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "tree": {
+        "terminal": "A",
+        "value": "a",
+        "tags": [
+          "A"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an empty list accepts a directly captured empty rule",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "tree": {
+        "name": "empty",
+        "children": []
+      },
+      "expected": true
+    },
+    {
+      "description": "an empty named child contributes no sibling",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "name": "empty",
+            "children": []
+          },
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a seal passes no bare list",
+      "pattern": {
+        "any": true,
+        "children": []
+      },
+      "tree": {
+        "seal": true
+      },
+      "expected": false
+    },
+    {
+      "description": "an exact bare list passes no seal",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "tree": {
+        "seal": true
+      },
+      "expected": false
+    },
+    {
+      "description": "a seal stops a node search",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "seal": true
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a sibling gap consumes a seal",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "siblings": true
+          }
+        ]
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "seal": true
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a child search stays independent of its exact parent",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "wrapper",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact child suppresses its own search",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "exact": true,
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "name": "wrap",
+            "children": [
+              {
+                "name": "a",
+                "children": [
+                  {
+                    "terminal": "A",
+                    "value": "a",
+                    "tags": [
+                      "A"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a union accepts its second operand",
+      "pattern": {
+        "union": [
+          {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "terminal": "B",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "terminal": "B",
+        "value": "b",
+        "tags": [
+          "B"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an intersection rejects a failed operand",
+      "pattern": {
+        "intersection": [
+          {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "terminal": "B",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "terminal": "A",
+        "value": "a",
+        "tags": [
+          "A"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "difference negates the complete right predicate",
+      "pattern": {
+        "difference": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "any": true,
+            "children": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a descendant path can reach a branch child",
+      "pattern": {
+        "path": "descendant",
+        "pattern": {
+          "name": "a",
+          "exact": true,
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "name": "a",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a path includes its starting candidate",
+      "pattern": {
+        "path": "descendant",
+        "pattern": {
+          "name": "root",
+          "exact": true,
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a first-child path follows the first child",
+      "pattern": {
+        "path": "first",
+        "pattern": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a first-child path rejects a later sibling",
+      "pattern": {
+        "path": "first",
+        "pattern": {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a last-child path follows the last child",
+      "pattern": {
+        "path": "last",
+        "pattern": {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a last-child path stops at an omitted leaf",
+      "pattern": {
+        "path": "last",
+        "pattern": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a child sequence consumes every sibling",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a child sequence rejects extra siblings",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an optional consumes zero children",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": []
+      },
+      "expected": true
+    },
+    {
+      "description": "an optional consumes its complete sequence",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a repeat consumes several item sequences",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a repeat requires one item sequence",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": []
+      },
+      "expected": false
+    },
+    {
+      "description": "a separated repeat consumes its separators",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ],
+            "separator": [
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a separated repeat rejects a trailing separator",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ],
+            "separator": [
+              {
+                "child": {
+                  "terminal": "B",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a nullable repeat can consume an empty sequence",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "optional": [
+                  {
+                    "child": {
+                      "terminal": "A",
+                      "at": [
+                        1,
+                        1
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": []
+      },
+      "expected": true
+    },
+    {
+      "description": "a choice chooses a complete arm",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "terminal": "A",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "terminal": "B",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "terminal": "C",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a choice accepts another arm length",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "terminal": "A",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "terminal": "B",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "terminal": "C",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "C",
+            "value": "c",
+            "tags": [
+              "C"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a choice retains its sibling position",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "terminal": "B",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "terminal": "C",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "C",
+            "value": "c",
+            "tags": [
+              "C"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "multiple gaps can be empty",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "siblings": true
+          },
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "siblings": true
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "siblings": true
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "terminal": "B",
+            "value": "b",
+            "tags": [
+              "B"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a gap never descends into a child",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "siblings": true
+          },
+          {
+            "child": {
+              "terminal": "B",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "name": "pair",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "an attached list can contain another sibling level",
+      "pattern": {
+        "name": "a",
+        "children": [
+          {
+            "child": {
+              "any": true,
+              "children": [
+                {
+                  "child": {
+                    "terminal": "A",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "terminal": "B",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "tree": {
+        "name": "a",
+        "children": [
+          {
+            "name": "pair",
+            "children": [
+              {
+                "terminal": "A",
+                "value": "a",
+                "tags": [
+                  "A"
+                ]
+              },
+              {
+                "terminal": "B",
+                "value": "b",
+                "tags": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a tag test observes the matched leaf",
+      "pattern": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "set": [
+                "Extra"
+              ]
+            }
+          }
+        ],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "name": "wrap",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A",
+              "Extra"
+            ]
+          }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "an exact tag test does not search wrappers",
+      "pattern": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "set": [
+                "Extra"
+              ]
+            }
+          }
+        ],
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "exact": true
+      },
+      "tree": {
+        "name": "wrap",
+        "children": [
+          {
+            "terminal": "A",
+            "value": "a",
+            "tags": [
+              "A",
+              "Extra"
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "description": "a value test reads an omitted empty value",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "terminal": "B",
+        "value": "",
+        "tags": [
+          "B"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "description": "a value test rejects another terminal identity",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "tree": {
+        "terminal": "A",
+        "value": "",
+        "tags": [
+          "A"
+        ]
+      },
+      "expected": false
+    }
+  ],
+  "printing": [
+    {
+      "description": "a node needs no outer parentheses",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#a"
+    },
+    {
+      "description": "an exact node keeps its prefix",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·a"
+    },
+    {
+      "description": "a bare list retains its boundary",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "text": "#« a »"
+    },
+    {
+      "description": "an empty list retains its guillemets",
+      "pattern": {
+        "any": true,
+        "children": []
+      },
+      "text": "#«»"
+    },
+    {
+      "description": "an exact empty list retains its prefix",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "text": "#·«»"
+    },
+    {
+      "description": "an attached child list has no intervening space",
+      "pattern": {
+        "name": "a",
+        "children": [
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "name": "c",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#a« b c »"
+    },
+    {
+      "description": "exact attached lists retain both decorations",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#·a« b »"
+    },
+    {
+      "description": "a literal stays a decoded string",
+      "pattern": {
+        "literal": {
+          "string": "a"
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#\"a\""
+    },
+    {
+      "description": "a user constant retains its name",
+      "pattern": {
+        "constant": "LETTER",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#$LETTER"
+    },
+    {
+      "description": "a parameter retains its name",
+      "pattern": {
+        "param": "X",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#@X"
+    },
+    {
+      "description": "a call retains its adjacent arguments",
+      "pattern": {
+        "call": "pair",
+        "args": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "text": "#pair(\"a\", \"b\")"
+    },
+    {
+      "description": "sets use whole-pattern parentheses",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∪ b)"
+    },
+    {
+      "description": "intersections group weaker operands",
+      "pattern": {
+        "intersection": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "union": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∩ (b ∪ c))"
+    },
+    {
+      "description": "a left difference needs no parentheses",
+      "pattern": {
+        "difference": [
+          {
+            "union": [
+              {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∪ b ∖ c)"
+    },
+    {
+      "description": "a right difference retains its grouping",
+      "pattern": {
+        "difference": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "difference": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∖ (b ∖ c))"
+    },
+    {
+      "description": "a later union operand retains a difference",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "difference": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∪ (b ∖ c))"
+    },
+    {
+      "description": "a first union operand needs no extra grouping",
+      "pattern": {
+        "union": [
+          {
+            "difference": [
+              {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "text": "#(a ∖ b ∪ c)"
+    },
+    {
+      "description": "a first-child path over a list retains the list",
+      "pattern": {
+        "path": "first",
+        "pattern": {
+          "any": true,
+          "children": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            },
+            {
+              "child": {
+                "terminal": "B",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "text": "#(« A B » ⋰)"
+    },
+    {
+      "description": "a nested path retains grouping",
+      "pattern": {
+        "path": "descendant",
+        "pattern": {
+          "path": "last",
+          "pattern": {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      },
+      "text": "#(⋮ (⋱ a))"
+    },
+    {
+      "description": "a sole child set needs no extra grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "union": [
+                {
+                  "name": "a",
+                  "at": [
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "name": "b",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "text": "#« a ∪ b »"
+    },
+    {
+      "description": "a child set beside another item needs grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "union": [
+                {
+                  "name": "b",
+                  "at": [
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "name": "c",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "text": "#« a (b ∪ c) »"
+    },
+    {
+      "description": "a sole choice needs no extra grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "a",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "c",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "text": "#« a b | c »"
+    },
+    {
+      "description": "a choice beside another item needs grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "c",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "text": "#« a (b | c) »"
+    },
+    {
+      "description": "a repeat keeps whole choices on either side of its separator",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "choice": [
+                  [
+                    {
+                      "child": {
+                        "name": "a",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ],
+                  [
+                    {
+                      "child": {
+                        "name": "b",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ]
+                ]
+              }
+            ],
+            "separator": [
+              {
+                "choice": [
+                  [
+                    {
+                      "child": {
+                        "name": "b",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ],
+                  [
+                    {
+                      "child": {
+                        "name": "c",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "text": "#« {a | b / b | c} »"
+    },
+    {
+      "description": "an optional keeps a sole set ungrouped",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "intersection": [
+                    {
+                      "name": "a",
+                      "at": [
+                        1,
+                        1
+                      ]
+                    },
+                    {
+                      "name": "b",
+                      "at": [
+                        1,
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "text": "#« [a ∩ b] »"
+    },
+    {
+      "description": "a sibling gap prints one glyph",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "siblings": true
+          },
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "text": "#« a ⋯ b »"
+    },
+    {
+      "description": "terminal tests follow the same atom",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": "x"
+        },
+        "expr": {
+          "test": "tags",
+          "requirements": [
+            {
+              "negated": true,
+              "value": {
+                "tag": "B"
+              }
+            }
+          ],
+          "expr": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "exact": true
+      },
+      "text": "#·A<¬B>=\"x\""
+    }
+  ],
+  "shapes": [
+    {
+      "description": "a node needs no outer parentheses",
+      "pattern": {
+        "name": "a",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact node keeps its prefix",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a bare list retains its boundary",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an empty list retains its guillemets",
+      "pattern": {
+        "any": true,
+        "children": []
+      },
+      "valid": true
+    },
+    {
+      "description": "an exact empty list retains its prefix",
+      "pattern": {
+        "any": true,
+        "exact": true,
+        "children": []
+      },
+      "valid": true
+    },
+    {
+      "description": "an attached child list has no intervening space",
+      "pattern": {
+        "name": "a",
+        "children": [
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "name": "c",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "exact attached lists retain both decorations",
+      "pattern": {
+        "name": "a",
+        "exact": true,
+        "children": [
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a literal stays a decoded string",
+      "pattern": {
+        "literal": {
+          "string": "a"
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a user constant retains its name",
+      "pattern": {
+        "constant": "LETTER",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a parameter retains its name",
+      "pattern": {
+        "param": "X",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a call retains its adjacent arguments",
+      "pattern": {
+        "call": "pair",
+        "args": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "sets use whole-pattern parentheses",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "intersections group weaker operands",
+      "pattern": {
+        "intersection": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "union": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a left difference needs no parentheses",
+      "pattern": {
+        "difference": [
+          {
+            "union": [
+              {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a right difference retains its grouping",
+      "pattern": {
+        "difference": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "difference": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a later union operand retains a difference",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "difference": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a first union operand needs no extra grouping",
+      "pattern": {
+        "union": [
+          {
+            "difference": [
+              {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a first-child path over a list retains the list",
+      "pattern": {
+        "path": "first",
+        "pattern": {
+          "any": true,
+          "children": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            },
+            {
+              "child": {
+                "terminal": "B",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "description": "a nested path retains grouping",
+      "pattern": {
+        "path": "descendant",
+        "pattern": {
+          "path": "last",
+          "pattern": {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "description": "a sole child set needs no extra grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "union": [
+                {
+                  "name": "a",
+                  "at": [
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "name": "b",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a child set beside another item needs grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "union": [
+                {
+                  "name": "b",
+                  "at": [
+                    1,
+                    1
+                  ]
+                },
+                {
+                  "name": "c",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a sole choice needs no extra grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "a",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                },
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "c",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a choice beside another item needs grouping",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "name": "b",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "c",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a repeat keeps whole choices on either side of its separator",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "choice": [
+                  [
+                    {
+                      "child": {
+                        "name": "a",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ],
+                  [
+                    {
+                      "child": {
+                        "name": "b",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ]
+                ]
+              }
+            ],
+            "separator": [
+              {
+                "choice": [
+                  [
+                    {
+                      "child": {
+                        "name": "b",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ],
+                  [
+                    {
+                      "child": {
+                        "name": "c",
+                        "at": [
+                          1,
+                          1
+                        ]
+                      }
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an optional keeps a sole set ungrouped",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "intersection": [
+                    {
+                      "name": "a",
+                      "at": [
+                        1,
+                        1
+                      ]
+                    },
+                    {
+                      "name": "b",
+                      "at": [
+                        1,
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a sibling gap prints one glyph",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "siblings": true
+          },
+          {
+            "child": {
+              "name": "b",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "terminal tests follow the same atom",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": "x"
+        },
+        "expr": {
+          "test": "tags",
+          "requirements": [
+            {
+              "negated": true,
+              "value": {
+                "tag": "B"
+              }
+            }
+          ],
+          "expr": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "exact": true
+      },
+      "valid": true
+    },
+    {
+      "description": "an optional cannot acquire a separator",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "param": "X",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ],
+            "separator": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "an unresolved child does not hide a repeated gap",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "optional": [
+                  {
+                    "siblings": true
+                  }
+                ]
+              },
+              {
+                "child": {
+                  "param": "X",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a separator cannot contain a sibling gap",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "param": "X",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ],
+            "separator": [
+              {
+                "siblings": true
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a nested child list has its own sibling level",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "any": true,
+                  "children": [
+                    {
+                      "siblings": true
+                    }
+                  ]
+                }
+              },
+              {
+                "child": {
+                  "param": "X",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "a terminal cannot acquire a child list",
+      "pattern": {
+        "terminal": "A",
+        "children": [],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a tested atom cannot acquire a child list",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "children": []
+      },
+      "valid": false
+    },
+    {
+      "description": "a string constant cannot acquire a child list",
+      "pattern": {
+        "constant": "STRING",
+        "children": [],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "an exact prefix occurs only as true",
+      "pattern": {
+        "name": "a",
+        "exact": false,
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a bare test requires children",
+      "pattern": {
+        "any": true
+      },
+      "valid": false
+    },
+    {
+      "description": "a bare test uses true",
+      "pattern": {
+        "any": false,
+        "children": []
+      },
+      "valid": false
+    },
+    {
+      "description": "an optional contains written items",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": []
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a repeat contains written items",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": []
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a repeat separator contains written items",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "repeat": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ],
+            "separator": []
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a choice requires two arms",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "terminal": "A",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "choice arms contain written items",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "child": {
+                    "terminal": "A",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ],
+              []
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "singleton choice arms must be flat",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "choice": [
+              [
+                {
+                  "choice": [
+                    [
+                      {
+                        "child": {
+                          "name": "a",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ],
+                    [
+                      {
+                        "child": {
+                          "name": "b",
+                          "at": [
+                            1,
+                            1
+                          ]
+                        }
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "child": {
+                    "name": "c",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "pattern unions must be flat",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "union": [
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "c",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "pattern intersections must be flat",
+      "pattern": {
+        "intersection": [
+          {
+            "intersection": [
+              {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              },
+              {
+                "name": "b",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a difference retains two operands",
+      "pattern": {
+        "difference": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "c",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a compound cannot acquire an exact prefix",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ],
+        "exact": true
+      },
+      "valid": false
+    },
+    {
+      "description": "a compound cannot acquire children",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ],
+        "children": []
+      },
+      "valid": false
+    },
+    {
+      "description": "a compound cannot acquire a source position",
+      "pattern": {
+        "union": [
+          {
+            "name": "a",
+            "at": [
+              1,
+              1
+            ]
+          },
+          {
+            "name": "b",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a literal contains a string and no constant wrapper",
+      "pattern": {
+        "literal": {
+          "const": "STRING",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "at": [
+          1,
+          1
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a child uses its designated member only",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            },
+            "extra": true
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a child item is not an array",
+      "pattern": {
+        "any": true,
+        "children": [
+          [
+            {
+              "child": {
+                "name": "a",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "the replaced sequence wrapper is malformed",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "sequence": [
+              {
+                "child": {
+                  "name": "a",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              },
+              {
+                "child": {
+                  "name": "b",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "the replaced node wrapper is malformed",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "node": {
+              "name": "a",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "a tested inner atom cannot carry exact",
+      "pattern": {
+        "test": "=",
+        "value": {
+          "string": ""
+        },
+        "expr": {
+          "terminal": "A",
+          "exact": true,
+          "at": [
+            1,
+            1
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "description": "value tests cannot reverse the test order",
+      "pattern": {
+        "test": "tags",
+        "requirements": [],
+        "expr": {
+          "test": "=",
+          "value": {
+            "string": ""
+          },
+          "expr": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      },
+      "valid": false
+    },
+    {
+      "description": "a gap remains a leaf",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "siblings": true,
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "description": "an unresolved parameter does not permit unknown members",
+      "pattern": {
+        "param": "X",
+        "at": [
+          1,
+          1
+        ],
+        "extra": true
+      },
+      "valid": false
+    },
+    {
+      "description": "mixed unresolved child items retain their context",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "child": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "child": {
+              "param": "X",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "description": "an unresolved child can follow an optional",
+      "pattern": {
+        "any": true,
+        "children": [
+          {
+            "optional": [
+              {
+                "child": {
+                  "terminal": "A",
+                  "at": [
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "child": {
+              "param": "X",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      "valid": true
+    }
+  ]
+}
