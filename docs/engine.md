@@ -388,9 +388,9 @@ Pipeline splicing consumes these directives before stage stitching. They never e
 
 ### Bundled zbalermorna names
 
-`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 96 added names. It names 46 characters in the supported older interval and 50 characters in the UCSUR allocation. A name supplies an exact scalar, rather than declaring a grammar terminal.
+`tools/unicode-table.py` supplies `grammars/phonemes/zbalermorna-names.txt` from the mapping below. The file uses `unicode-names 15.1.0` and contains 100 added names. It names 50 characters in each encoding. A name supplies an exact scalar, rather than declaring a grammar terminal.
 
-The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB5, and the UCSUR allocation is U+F28A0–U+F28DF. Paired characters inside the supported intervals receive the same grammar treatment. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
+The zbalermorna phoneme grammar reads both encodings. The older interval is U+ED80–U+EDB9, and the UCSUR allocation is U+F28A0–U+F28DF. Paired characters inside the supported intervals receive the same grammar treatment. Neither loading nor parsing warns merely because text uses the older encoding. `grammars/phonemes/zbalermorna.md` declares `%names "zbalermorna-names.txt"` before its rules. Bundled dialects select this resource through that declaration.
 
 The older source is Jack Humbert's [Unicode Space proposal at commit 920b28d](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/doc/unicode.md). Its [manri font source at the same commit](https://github.com/JackHumbert/zbalermorna/blob/920b28d798ae1c06885c674bbf02b08ffed12b2f/src/unicode-manri.sfd) resolves three inconsistent numeric tone rows. The font assigns RE TONGA to U+ED8D, CI TONGA to U+ED8E, and VO TONGA to U+ED8F. The proposal's glyph grid agrees with those assignments.
 
@@ -452,22 +452,22 @@ The final column records which older characters the current phoneme document rea
 | LETTER FULL OBU | U+EDB3 | U+F28D3 | Read |
 | LETTER FULL UBU | U+EDB4 | U+F28D4 | Read |
 | LETTER FULL YBU | U+EDB5 | U+F28D5 | Read |
-| LETTER FULL AIBU | Outside range (U+EDB6) | U+F28D6 | Not read |
-| LETTER FULL EIBU | Outside range (U+EDB7) | U+F28D7 | Not read |
-| LETTER FULL OIBU | Outside range (U+EDB8) | U+F28D8 | Not read |
-| LETTER FULL AUBU | Outside range (U+EDB9) | U+F28D9 | Not read |
+| LETTER FULL AIBU | U+EDB6 | U+F28D6 | Not read |
+| LETTER FULL EIBU | U+EDB7 | U+F28D7 | Not read |
+| LETTER FULL OIBU | U+EDB8 | U+F28D8 | Not read |
+| LETTER FULL AUBU | U+EDB9 | U+F28D9 | Not read |
 
-For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB5 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
+For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB9 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
 
-Four full diphthong letters occur only in the UCSUR side of the specified input intervals. They are U+F28D6 FULL AIBU, U+F28D7 FULL EIBU, U+F28D8 FULL OIBU, and U+F28D9 FULL AUBU. Humbert's full proposal also defines them at U+EDB6–U+EDB9, beyond the older interval selected here. Those older scalars receive no names in this resource. Thus neither full proposal has a character absent from the other, but the supported older interval omits these four.
+The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Their UCSUR counterparts are U+F28D6–U+F28D9. Both sets receive encoding-qualified names in this resource. Every character occurs in both layouts, so no character belongs to only one encoding.
 
-The current grammar reads 43 older scalars. RE TONGA, CI TONGA, and VO TONGA exist in both layouts but have no current older rule. A names declaration alone adds no phoneme rule. Grammar alternatives implement the encoding correspondence. Escape decoding never converts between the layouts.
+The current grammar reads 43 older scalars. Three tone marks and four full diphthong letters have no current older rule. The table identifies those seven characters. A names declaration alone adds no phoneme rule. Grammar alternatives implement the encoding correspondence. Escape decoding never converts between the layouts.
 
 The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
-Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode all 96 zbalermorna names and distinguish both encodings. They cover every pair, all four interval-only characters, reserved gaps, and the corrected tone rows. They require equal treatment for counterparts and no warning about the older encoding.
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. They require equal treatment for counterparts and no warning about the older encoding.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 
