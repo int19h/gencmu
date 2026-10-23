@@ -167,7 +167,7 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         Some("stage" | "extend-stage" | "redefine-stage") => {
                             matches!(&args[..], [name] if name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name))
                         }
-                        Some("include") => args.len() == 1,
+                        Some("include" | "names") => args.len() == 1,
                         Some("features") => !args.is_empty() && args.iter().all(|name| feature(name)),
                         Some("ambiguity-resolution") => matches!(
                             &args[..],
@@ -396,7 +396,23 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    let _ = unicode;
+    names_problem(dom)
+}
+
+pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
+    let first_statement = ["rules", "directives", "constants", "classifiers", "implications"]
+        .into_iter()
+        .flat_map(|key| array(dom, key).into_iter().flatten().map(move |item| (key, item)))
+        .filter(|(key, item)| *key != "directives" || item.get("name").and_then(Json::as_str) != Some("names"))
+        .filter_map(|(_, item)| position(item).ok())
+        .min();
+    if let Some(first) = first_statement {
+        if array(dom, "directives").into_iter().flatten().any(|item| {
+            item.get("name").and_then(Json::as_str) == Some("names") && position(item).is_ok_and(|at| at > first)
+        }) {
+            return Some("%names must precede every other statement");
+        }
+    }
     None
 }
 

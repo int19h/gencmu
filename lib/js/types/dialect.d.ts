@@ -42,6 +42,8 @@ export declare class Loader {
     cache: Map<string, GrammarDom>;
     /** @type {WeakMap<GrammarDom,Record<string,string>>} */
     namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
+    /** @type {Map<string,string[]>} */
+    inheritedNames: Map<string, string[]>;
     /** @param {Resources} read */
     constructor(read: Resources);
     /**
@@ -60,19 +62,21 @@ export declare class Loader {
      * The DOM of a grammar document, from the cache when its text, the
      * bootstrap and the format all match, else read with the notation.
      * @param {string} path
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    documentDom(path: string): GrammarDom;
+    documentDom(path: string, inherited?: string[]): GrammarDom;
     /**
      * Reads a grammar document's Markdown into its DOM with the notation.
      * @param {string} markdown
      * @param {string} path
      * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    readDocument(markdown: string, path: string, deferEmission?: boolean): GrammarDom;
-    /** @param {Record<string,string> | undefined} dependencies @returns {boolean} */
-    namesMatch(dependencies: Record<string, string> | undefined): boolean;
+    readDocument(markdown: string, path: string, deferEmission?: boolean, inherited?: string[]): GrammarDom;
+    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @returns {boolean} */
+    namesMatch(dependencies: Record<string, string> | undefined, extras: string[]): boolean;
     /**
      * A dialect from its pipeline document's path.
      * @param {string} path

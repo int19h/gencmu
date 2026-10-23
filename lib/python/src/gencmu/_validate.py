@@ -29,7 +29,7 @@ CLASSIFIER_NAME = re.compile(r"[a-z][A-Za-z0-9_-]*")
 CAPTURE_NAME = re.compile(r"[a-z][a-z0-9_-]*")
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _FEATURE = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
-_DIRECTIVES = {"ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "features"}
+_DIRECTIVES = {"ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "names", "features"}
 TEST_OPS = frozenset(("tags", "=", "≠"))
 
 
@@ -183,7 +183,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
             return "a malformed directive"
         if name in ("stage", "extend-stage", "redefine-stage"):
             valid = len(args) == 1 and CLASSIFIER_NAME.fullmatch(args[0]) is not None
-        elif name == "include":
+        elif name in ("include", "names"):
             valid = len(args) == 1
         elif name == "features":
             valid = bool(args) and all(_FEATURE.fullmatch(x) for x in args)
@@ -198,6 +198,12 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
             )
         if not valid:
             return "a directive has invalid operands"
+    ordered = sorted(((item, key == "directives" and item.get("name") == "names") for key in ("rules", "directives", "constants", "classifiers", "implications") for item in dom[key]), key=lambda pair: pair[0]["at"])
+    seen_statement = False
+    for item, names in ordered:
+        if names and seen_statement:
+            return "%names must precede every other statement"
+        seen_statement = seen_statement or not names
     for c in dom["constants"]:
         if (
             set(c) != {"name", "op", "value", "at"}

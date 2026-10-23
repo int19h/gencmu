@@ -1,0 +1,24 @@
+{
+  "description": "A names directive requires one path.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%names\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 1
+    }
+  }
+}

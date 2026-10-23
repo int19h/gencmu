@@ -11,6 +11,8 @@ export declare class DocumentStrings {
     unicode: UnicodeTable;
     names: NamesScope;
     position: (offset: number) => Position;
+    /** @type {Set<number>} */
+    namesPaths: Set<number>;
     /**
      * @param {string} path
      * @param {UnicodeTable} unicode

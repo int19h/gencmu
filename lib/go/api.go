@@ -117,7 +117,11 @@ type loader struct {
 	fromDisk bool
 }
 
-func (l *loader) document(p string) (*domDoc, *Error) {
+func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
+	var inherited []string
+	if len(selected) > 0 {
+		inherited = selected[0]
+	}
 	text, ok := l.read(p)
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
@@ -131,19 +135,20 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 		}
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
-	names := newNamesScope(l.namesText, l.uni, nil)
+	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
 		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, domFormat}
 		if raw, ok := l.compiled[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
-				match, err := names.matches(l.compiledNames[key])
+				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
+				match, err := candidate.matches(l.compiledNames[key])
 				if err != nil {
 					return nil, err
 				}
 				if !match {
 					return l.readSource(p, text, names)
 				}
-				dom.namesDependencies = names.dependencies
+				dom.namesDependencies = candidate.dependencies
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
 				}
@@ -266,18 +271,20 @@ func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 // (engine §13). A document included more than once is read once.
 func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
-	return splicePipeline(pipelinePath, func(p string) (*domDoc, *Error) {
-		if dom, ok := doms[p]; ok {
+	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
+		encoded, _ := json.Marshal(names)
+		key := p + "\x00" + string(encoded)
+		if dom, ok := doms[key]; ok {
 			return dom, nil
 		}
 		if _, ok := l.read(p); !ok {
 			return nil, nil
 		}
-		dom, err := l.document(p)
+		dom, err := l.document(p, names)
 		if err != nil {
 			return nil, err
 		}
-		doms[p] = dom
+		doms[key] = dom
 		return dom, nil
 	})
 }

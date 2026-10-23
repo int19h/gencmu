@@ -99,7 +99,7 @@ pub(super) fn problem(root: &Json, uni: &Unicode) -> Option<&'static str> {
         }
         set(&mut ordinary, kind, Json::Arr(closed));
     }
-    dom::schema::problem(&ordinary, uni)
+    dom::schema::names_problem(root).or_else(|| dom::schema::problem(&ordinary, uni))
 }
 pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'static str> {
     let mut scope = BTreeSet::new();

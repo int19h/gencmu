@@ -24,7 +24,7 @@ from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
-from ._names import NamesDom, NamesScope
+from ._names import NO_NAMES, NamesDom, NamesScope, selected_names
 from ._string_escapes import DocumentStrings
 
 DOM_FORMAT = FORMAT
@@ -410,6 +410,7 @@ class _Resources:
 class _Loader:
     def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True, *, from_disk: bool = False) -> None:
         self.from_disk = from_disk
+        self.inherited_names = {}
         self.lookup = lookup
         self.resources = found
         self.use_cache = use_cache
@@ -429,7 +430,8 @@ class _Loader:
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
 
-    def dom(self, path: str) -> Dom:
+    def dom(self, path: str, inherited=()) -> Dom:
+        self.inherited_names[path] = list(inherited)
         text = self.text(path)
         # A document is a sequence of scalar values, as a text is (engine §1).
         problem = scalar_problem(text)
@@ -440,14 +442,14 @@ class _Loader:
         # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
         key = (text_hash, self.reader.hash, self.unicode.fingerprint, DOM_FORMAT)
-        names = NamesScope(self.names_text, self.unicode)
+        names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
             found = self.compiled.get(text_hash)
-            if found is not None and names.matches(getattr(found, "names_dependencies", None)):
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES)):
                 return found
             with _lock:
                 found = self.reader.doms.get(key)
-            if found is not None and names.matches(getattr(found, "names_dependencies", None)):
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES)):
                 return found
         dom = self.reader.read(text, path, True, names)
         with _lock:
@@ -458,12 +460,12 @@ class _Loader:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
-        def document(path):
+        def document(path, inherited=()):
             if self.lookup(path) is None:
                 return None
-            dom = self.dom(path)
-            return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode)) if path == diagnostic_document else dom
-        return splice_pipeline(pipeline_path, document)
+            dom = self.dom(path, inherited) if inherited else self.dom(path)
+            return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
+        return splice_pipeline(pipeline_path, document, document)
 
     def load(self, pipeline_path: str) -> Dialect:
         try:
@@ -479,7 +481,7 @@ class _Loader:
                 # positions only; the failed cached grammar remains the
                 # authority for this diagnostic.
                 at, index, channel = location
-                fresh = self.reader.read(self.text(error.document), error.document, True, NamesScope(self.names_text, self.unicode))
+                fresh = self.reader.read(self.text(error.document), error.document, True, NamesScope(self.names_text, self.unicode, self.inherited_names.get(error.document, ())))
                 for rule in fresh["rules"]:
                     if tuple(rule["at"]) == at:
                         owner = rule if channel.startswith("rule_") else rule["alternatives"][index]

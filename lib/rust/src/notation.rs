@@ -148,10 +148,16 @@ impl<'a> Reader<'a> {
 
     pub(crate) fn document(&self, root: &'a Node) -> R<Dom> {
         let mut dom = Dom::default();
+        let mut statement_seen = false;
         for node in Self::parts(root) {
             if node.kind != NodeKind::Rule {
                 continue;
             }
+            let names = rule_name(node) == "directive" && self.value(self.token(node)?) == "%names";
+            if names && statement_seen {
+                return Err(self.error(node, "%names must precede every other statement"));
+            }
+            statement_seen |= !names;
             if parameters::syntax(node) {
                 let raw = self.parameter_document(node)?;
                 let kind = match rule_name(node) {
@@ -300,7 +306,7 @@ impl<'a> Reader<'a> {
                 && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
         };
         for part in &parts {
-            if name == "include" {
+            if name == "include" || name == "names" {
                 if rule_name(part) != "argument-string" {
                     return Err(self.error(node, "%include takes one quoted path"));
                 }
@@ -318,7 +324,7 @@ impl<'a> Reader<'a> {
             }
         }
         let valid = match name {
-            "include" => args.len() == 1,
+            "include" | "names" => args.len() == 1,
             "stage" | "extend-stage" | "redefine-stage" => {
                 matches!(&args[..], [name] if crate::dom::is_classifier_name(name))
             }

@@ -8,6 +8,13 @@ import re
 from ._errors import GencmuError
 from ._hash import fnv1a64
 from ._unicode_names_catalog import PINNED_NAMES_HASH
+from ._markdown import resolve
+
+NO_NAMES = object()
+
+
+def selected_names(path, dom, inherited=()):
+    return sorted(set(inherited) | {resolve(path, d["args"][0]) for d in dom["directives"] if d["name"] == "names"})
 
 
 def _fail(path, message, line=None):
@@ -229,11 +236,10 @@ class NamesScope:
         return None
 
     def matches(self, dependencies):
-        if dependencies is None:
+        if dependencies is NO_NAMES:
             return True
-        if (not isinstance(dependencies, dict) or set(dependencies) != {"unicode-names.txt"}
-                or not isinstance(dependencies["unicode-names.txt"], str)
-                or re.fullmatch(r"[0-9a-f]{16}", dependencies["unicode-names.txt"]) is None):
+        if (not isinstance(dependencies, dict) or set(dependencies) != {"unicode-names.txt", *self.extras}
+                or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{16}", value) is None for value in dependencies.values())):
             return False
         self.load()
         return self.dependencies == dependencies

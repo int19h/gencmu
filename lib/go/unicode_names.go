@@ -264,6 +264,17 @@ func newNamesScope(read func(string) (string, bool), uni *unicodeTable, extras [
 	slices.Sort(paths)
 	return &namesScope{read: read, uni: uni, extras: slices.Compact(paths)}
 }
+
+func selectedNames(path string, dom *domDoc, inherited []string) []string {
+	paths := append([]string{}, inherited...)
+	for _, directive := range dom.Directives {
+		if directive.Name == "names" {
+			paths = append(paths, resolvePath(path, directive.Args[0]))
+		}
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths)
+}
 func (n *namesScope) need(path string) (string, *Error) {
 	text, ok := n.read(path)
 	if !ok {
@@ -367,11 +378,24 @@ func (n *namesScope) matches(raw json.RawMessage) (bool, *Error) {
 		return true, nil
 	}
 	var dependencies map[string]string
-	if unmarshalJSON(raw, &dependencies) != nil || len(dependencies) != 1 || !namesFingerprintPattern.MatchString(dependencies["unicode-names.txt"]) {
+	paths := append([]string{"unicode-names.txt"}, n.extras...)
+	slices.Sort(paths)
+	paths = slices.Compact(paths)
+	if unmarshalJSON(raw, &dependencies) != nil || len(dependencies) != len(paths) {
 		return false, nil
+	}
+	for _, path := range paths {
+		if !namesFingerprintPattern.MatchString(dependencies[path]) {
+			return false, nil
+		}
 	}
 	if err := n.load(); err != nil {
 		return false, err
 	}
-	return dependencies["unicode-names.txt"] == n.dependencies["unicode-names.txt"], nil
+	for _, path := range paths {
+		if dependencies[path] != n.dependencies[path] {
+			return false, nil
+		}
+	}
+	return true, nil
 }

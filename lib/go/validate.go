@@ -122,6 +122,23 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		positions[m.At] = true
 	}
+	namesPositions := map[[2]int]bool{}
+	for _, dir := range d.Directives {
+		if dir.Name == "names" {
+			namesPositions[dir.At] = true
+		}
+	}
+	firstStatement := [2]int{}
+	for at := range positions {
+		if !namesPositions[at] && (firstStatement == [2]int{} || before(at, firstStatement)) {
+			firstStatement = at
+		}
+	}
+	for _, dir := range d.Directives {
+		if dir.Name == "names" && firstStatement != [2]int{} && before(firstStatement, dir.At) {
+			return &domProblem{message: "%names must precede every other statement", at: dir.At}
+		}
+	}
 	// A classifier: its name, and entries of gates, exact string keys, an
 	// operator and a class (engine §2, §9).
 	for _, c := range d.Classifiers {
@@ -339,7 +356,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
 	case "stage", "extend-stage", "redefine-stage":
 		return len(dir.Args) == 1 && classifierName.MatchString(dir.Args[0])
-	case "include":
+	case "include", "names":
 		return len(dir.Args) == 1
 	case "features":
 		if len(dir.Args) == 0 {

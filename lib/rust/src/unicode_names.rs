@@ -243,11 +243,35 @@ impl Names {
 }
 
 type ReadNames<'a> = &'a dyn Fn(&str) -> Result<Option<String>, Error>;
+type ResolveNames<'a> = &'a dyn Fn(&str, &str) -> Option<String>;
+
+pub(crate) fn selected_names(
+    path: &str,
+    dom: &crate::dom::Dom,
+    inherited: &[String],
+    resolve: ResolveNames<'_>,
+) -> Result<Vec<String>, Error> {
+    let mut paths: BTreeSet<String> = inherited.iter().cloned().collect();
+    for directive in &dom.directives {
+        if directive.name == "names" {
+            let target = &directive.args[0];
+            let resolved = resolve(path, target).ok_or_else(|| {
+                Error::grammar("the names path leaves the grammar resources")
+                    .in_document(path)
+                    .at(directive.at.0, directive.at.1)
+            })?;
+            paths.insert(resolved);
+        }
+    }
+    Ok(paths.into_iter().collect())
+}
 
 pub(crate) struct NamesScope<'a> {
     read: ReadNames<'a>,
     unicode: &'a Unicode,
-    extras: BTreeSet<String>,
+    extras: RefCell<BTreeSet<String>>,
+    document: &'a str,
+    resolve: ResolveNames<'a>,
     tables: RefCell<Option<Vec<Names>>>,
     pub dependencies: RefCell<Option<BTreeMap<String, String>>>,
 }
@@ -257,10 +281,31 @@ impl<'a> NamesScope<'a> {
         Self {
             read,
             unicode,
-            extras: extras.into_iter().collect(),
+            extras: RefCell::new(extras.into_iter().collect()),
+            document: "",
+            resolve: &crate::markdown::resolve,
             tables: RefCell::new(None),
             dependencies: RefCell::new(None),
         }
+    }
+
+    pub fn in_document(mut self, document: &'a str, resolve: ResolveNames<'a>) -> Self {
+        self.document = document;
+        self.resolve = resolve;
+        self
+    }
+
+    pub fn for_dom(&self, dom: &crate::dom::Dom) -> Result<Self, Error> {
+        let inherited: Vec<String> = self.extras.borrow().iter().cloned().collect();
+        let paths = selected_names(self.document, dom, &inherited, self.resolve)?;
+        Ok(Self::new(self.read, self.unicode, paths).in_document(self.document, self.resolve))
+    }
+
+    pub fn add_path(&self, path: &str) -> Result<(), Error> {
+        let resolved = (self.resolve)(self.document, path)
+            .ok_or_else(|| Error::grammar("the names path leaves the grammar resources").in_document(self.document))?;
+        self.extras.borrow_mut().insert(resolved);
+        Ok(())
     }
 
     fn need(&self, path: &str) -> Result<String, Error> {
@@ -303,7 +348,7 @@ impl<'a> NamesScope<'a> {
         base.inspect(inspection, &self.unicode.abbreviations, false)?;
         let mut extras = Vec::new();
         let mut dependencies = BTreeMap::from([("unicode-names.txt".into(), hash)]);
-        for path in &self.extras {
+        for path in self.extras.borrow().iter() {
             let text = self.need(path)?;
             let names = Names::parse(&text, path, version)?;
             names.inspect(inspection, &self.unicode.abbreviations, true)?;
@@ -349,21 +394,25 @@ impl<'a> NamesScope<'a> {
         let Json::Obj(fields) = dependencies else {
             return Ok(false);
         };
-        if fields.len() != 1 || fields[0].0 != "unicode-names.txt" {
+        let mut paths = self.extras.borrow().clone();
+        paths.insert("unicode-names.txt".into());
+        if fields.len() != paths.len() {
             return Ok(false);
         }
-        let Some(hash) = fields[0].1.as_str() else {
-            return Ok(false);
-        };
-        if hash.len() != 16 || !hash.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) {
-            return Ok(false);
+        for (path, value) in fields {
+            let Some(hash) = value.as_str() else {
+                return Ok(false);
+            };
+            if !paths.contains(path)
+                || hash.len() != 16
+                || !hash.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+            {
+                return Ok(false);
+            }
         }
         self.load()?;
-        Ok(self
-            .dependencies
-            .borrow()
-            .as_ref()
-            .and_then(|set| set.get("unicode-names.txt"))
-            .is_some_and(|current| current == hash))
+        Ok(fields.iter().all(|(path, value)| {
+            self.dependencies.borrow().as_ref().and_then(|set| set.get(path)).map(String::as_str) == value.as_str()
+        }))
     }
 }

@@ -33,7 +33,7 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
 %rule piece
   | call-name | parameter-token | emoji-name | word | string | engine-tag
   | capture-token | constant-token | guard
-  | include | keyword | integer | symbol | negation | layout
+  | include | names | keyword | integer | symbol | negation | layout
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
@@ -276,13 +276,15 @@ The reader decodes the complete token only after syntax recognition. This keeps 
 <p><img src="../../docs/diagrams/notation/lexical/ordinary-string-character.svg" alt="Railroad diagram of the rule ordinary-string-character"></p>
 </details>
 
-## Include paths
+## Resource paths
 
 `include` reads `%include` and its quoted path together, then emits two tokens. The keyword carries `KW-INCLUDE`, and the path carries `Include-Path`.
 
+`names` reads `%names` and its quoted path in the same way. Its keyword carries `KW-NAMES`. The reader collects leading names declarations before it inspects other string escapes.
+
 An include path keeps dollar signs literally. It excludes quotes and backslashes.
 
-`include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare `%include` token when a path follows.
+`include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare directive token when a path follows.
 
 ```jbogenbau
 %rule include
@@ -290,11 +292,19 @@ An include path keeps dollar signs literally. It excludes quotes and backslashes
 %emits
   $keyword :: KW-INCLUDE, $path :: Include-Path
 
+%rule names
+  $keyword:names-keyword [layout-run] $path:include-path
+%emits
+  $keyword :: KW-NAMES, $path :: Include-Path
+
 %rule include-tail
   [layout-run] include-path
 
 %rule include-keyword
   "%" whole-name="include"
+
+%rule names-keyword
+  "%" whole-name="names"
 
 %rule include-path
   $_0022 [{path-part}] $_0022
@@ -303,10 +313,12 @@ An include path keeps dollar signs literally. It excludes quotes and backslashes
   $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>include</code> to <code>path-part</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>include</code> to <code>path-part</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/include.svg" alt="Railroad diagram of the rule include"></p>
+<p><img src="../../docs/diagrams/notation/lexical/names.svg" alt="Railroad diagram of the rule names"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-tail.svg" alt="Railroad diagram of the rule include-tail"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-keyword.svg" alt="Railroad diagram of the rule include-keyword"></p>
+<p><img src="../../docs/diagrams/notation/lexical/names-keyword.svg" alt="Railroad diagram of the rule names-keyword"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-path.svg" alt="Railroad diagram of the rule include-path"></p>
 <p><img src="../../docs/diagrams/notation/lexical/path-part.svg" alt="Railroad diagram of the rule path-part"></p>
 </details>
@@ -352,7 +364,7 @@ A keyword is `%` followed by a whole name. Each known keyword receives its own t
 
 An unknown keyword receives `Keyword`, which the syntax grammar never reads. Recognition therefore reports it as a syntax error at that token.
 
-The `%include` alternative applies only when no quoted path follows. A complete include instead uses the path rule above.
+The `%include` and `%names` alternatives apply only when no quoted path follows. A complete directive instead uses its path rule above.
 
 Value tests select known keywords. `$KEYWORDS` holds their exact names. The fallback excludes that set with one membership condition.
 
@@ -361,7 +373,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   "rule" "redefine-rule" "extend-rule" "conditions"
   "emits" "erased" "ambiguity-resolution" "stage"
   "extend-stage" "redefine-stage" "include" "features"
-  "const" "redefine-const" "classifier" "implies"
+  "const" "redefine-const" "classifier" "implies" "names"
 
 %rule keyword
   | "%" whole-name="rule" :: KW-RULE
@@ -375,6 +387,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" whole-name="extend-stage" :: KW-EXTEND-STAGE
   | "%" whole-name="redefine-stage" :: KW-REDEFINE-STAGE
   | "%" $include:whole-name="include" :: KW-INCLUDE
+  | "%" $names:whole-name="names" :: KW-NAMES
   | "%" whole-name="features" :: KW-FEATURES
   | "%" whole-name="const" :: KW-CONST
   | "%" whole-name="redefine-const" :: KW-REDEFINE-CONST
@@ -383,7 +396,8 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" $other:whole-name :: Keyword
 %conditions
   $other.value ∉ $KEYWORDS,
-  $include ⟹ ¬$.following-tokens.begins(include-tail)
+  $include ⟹ ¬$.following-tokens.begins(include-tail),
+  $names ⟹ ¬$.following-tokens.begins(include-tail)
 %emits
   $
 ```

@@ -10,13 +10,43 @@ import (
 var numericEscapePattern = regexp.MustCompile(`^U\+[0-9A-Fa-f]{4,6}$`)
 
 type documentStrings struct {
-	path     string
-	uni      *unicodeTable
-	names    *namesScope
-	position func(int) [2]int
+	path       string
+	uni        *unicodeTable
+	names      *namesScope
+	position   func(int) [2]int
+	namesPaths map[int]bool
 }
 
+var namesStatementKeywords = []string{"%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"}
+
 func (d *documentStrings) inspect(tokens []Token) *Error {
+	quoted := func(token Token) bool {
+		return slices.Contains(token.Tags, "String") || slices.Contains(token.Tags, "Include-Path")
+	}
+	d.namesPaths = map[int]bool{}
+	for i := 0; i+1 < len(tokens); i++ {
+		if tokens[i].Value == "%names" && quoted(tokens[i+1]) {
+			d.namesPaths[tokens[i+1].Source[0]] = true
+		}
+	}
+	extras := append([]string{}, d.names.extras...)
+	for i := 0; i < len(tokens) && tokens[i].Value == "%names"; {
+		end := i + 1
+		for end < len(tokens) && !slices.Contains(namesStatementKeywords, tokens[end].Value) {
+			end++
+		}
+		if end != i+2 || !quoted(tokens[i+1]) {
+			return grammarError(d.path, d.position(tokens[i].Source[0]), "%%names takes one quoted path")
+		}
+		path, err := d.decode(tokens[i+1], true)
+		if err != nil {
+			return err
+		}
+		extras = append(extras, resolvePath(d.path, path))
+		i = end
+	}
+	slices.Sort(extras)
+	d.names.extras = slices.Compact(extras)
 	for _, token := range tokens {
 		path := slices.Contains(token.Tags, "Include-Path")
 		if path || slices.Contains(token.Tags, "String") {
@@ -69,7 +99,7 @@ func (d *documentStrings) decode(token Token, path bool) (string, *Error) {
 			}
 			code = rune(n)
 		} else {
-			value, ok, err := d.names.lookup(name, false)
+			value, ok, err := d.names.lookup(name, d.namesPaths[token.Source[0]])
 			if err != nil {
 				return "", err
 			}

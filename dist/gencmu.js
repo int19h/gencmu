@@ -4256,7 +4256,7 @@
 
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   // The directives of the notation (engine §9).
-  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "features"]);
+  const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "names", "features"]);
   // A capture's name is all lower case (engine §9).
   const CAPTURE_NAME = /^[a-z][a-z0-9_-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
@@ -4420,9 +4420,11 @@
       }
       if (!DIRECTIVE_NAMES.has(name) || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
       if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
-      if (name === "include" && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
+      if ((name === "include" || name === "names") && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
       if (name === "ambiguity-resolution" && !(args.length >= 1 && args.length <= 2 && ["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) return "a malformed directive";
     }
+    const firstStatement = [...dom.rules,...dom.constants,...dom.classifiers,...dom.implications,...dom.directives.filter((/** @type {any} */ d) => d.name !== "names")].map(item => item.at).sort((a,b) => a[0]-b[0] || a[1]-b[1])[0];
+    if (firstStatement && dom.directives.some((/** @type {any} */ d) => d.name === "names" && (d.at[0] > firstStatement[0] || d.at[0] === firstStatement[0] && d.at[1] > firstStatement[1]))) return "%names must precede every other statement";
     for (const definition of dom.constants) {
       if (!exact(definition, ["name", "op", "value", "at"]) || !CONSTANT_NAME.test(definition.name) || !["define", "redefine"].includes(definition.op)) return "a malformed constant";
       push("term", definition.value);
@@ -17582,8 +17584,12 @@
     /** @type {Set<string>} */
     let parameterScope=new Set();
     const tagSources = new Map();
+    let statementSeen = false;
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
+      const namesDirective = ruleOf(item) === "directive" && valueOf(token(item)) === "%names";
+      if (namesDirective && statementSeen) fail("%names must precede every other statement", item);
+      if (!namesDirective) statementSeen = true;
       if (ruleOf(item) === "directive") {
         const name = valueOf(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
@@ -18747,7 +18753,7 @@
   function operandProblem(name, kinds) {
     const names = kinds.every((kind) => kind === "name" || kind === "class");
     if (["stage", "extend-stage", "redefine-stage"].includes(name)) return kinds.length === 1 && names ? null : `%${name} takes one name`;
-    if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
+    if (name === "include" || name === "names") return kinds.length === 1 && kinds[0] === "string" ? null : `%${name} takes one string`;
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
     if (name === "ambiguity-resolution" && !(kinds.length >= 1 && kinds.length <= 2)) return "%ambiguity-resolution takes one or two names";
     return names ? null : `%${name} takes names only`;
@@ -18882,262 +18888,8 @@
     return parts.join("/");
   }
 
-  // ---- pipeline.js
-  // A pipeline: the items of a pipeline document, with each %include replaced
-  // by the items of the document it names, assigned to the selected stage
-  // (engine §13).
-
-
-
-
-
-
-  /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
-
-  /**
-   * An item of a document: a rule, a directive, a constant's definition, a
-   * classifier or an implication.
-   * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant} | {classifier: DomClassifier}
-   *   | {implication: DomImplication}} Item
-   */
-
-  /**
-   * One stage of a spliced pipeline: its name, where its %stage stands, and its
-   * items as runs of consecutive items of one document, each with a DOM that
-   * holds exactly those items.
-   * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[], changes: StageChange[]}} SplicedStage
-   * @typedef {{kind: "extended" | "replaced", document: string, line: number, column: number}} StageChange
-   */
-
-  /**
-   * A document's rules, directives, constants, classifiers and implications
-   * in the order they were written, which is the order of their positions
-   * (engine §9).
-   * @param {GrammarDom} dom
-   * @returns {Item[]}
-   */
-  function itemsInOrder(dom) {
-    /** @type {Item[]} */
-    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive })),
-      ...dom.constants.map((constant) => ({ constant })), ...dom.classifiers.map((classifier) => ({ classifier })),
-      ...dom.implications.map((implication) => ({ implication }))];
-    return items.sort((a, b) => itemAt(a)[0] - itemAt(b)[0] || itemAt(a)[1] - itemAt(b)[1]);
-  }
-
-  /**
-   * Splices the pipeline document at `path`. `domOf` gives a document's DOM,
-   * or undefined when the document does not exist.
-   * @param {string} path
-   * @param {(path: string) => GrammarDom | undefined} domOf
-   * @returns {{stages: SplicedStage[], features: string[]}}
-   */
-  function splicePipeline(path, domOf) {
-    /** @type {SplicedStage[]} */
-    const stages = [];
-    /** @type {string[]} */
-    const features = [];
-    // Sets beside the lists, so that a check of a name costs one lookup and
-    // not a scan of all that came before it.
-    const featureNames = new Set();
-    /** @type {{stage: SplicedStage, run: {path:string, dom:GrammarDom}, directive: import("./types.js").DomDirective}[]} */
-    const declarations = [];
-    /** @type {Map<string, SplicedStage>} */
-    const stageNames = new Map();
-    /** @type {{path: string, dom: GrammarDom} | null} the run being built */
-    let run = null;
-    /** @type {SplicedStage | undefined} */
-    let selected;
-
-    const top = domOf(path);
-    if (top === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
-    // The documents being included, outermost first, each with its items and
-    // the next one to splice. An explicit stack, since a chain of includes can
-    // be longer than the call stack is deep. A set of their paths finds a
-    // cycle with one lookup.
-    /** @type {{path: string, dom: GrammarDom, items: Item[], next: number}[]} */
-    const frames = [{ path, dom: top, items: itemsInOrder(top), next: 0 }];
-    const including = new Set([path]);
-    while (frames.length > 0) {
-      const frame = frames[frames.length - 1];
-      if (frame.next === frame.items.length) {
-        frames.pop();
-        including.delete(frame.path);
-        // What follows an include starts a run of its own.
-        run = null;
-        continue;
-      }
-      const item = frame.items[frame.next++];
-      const { path: documentPath, dom } = frame;
-      if (hooks.work) countWork(hooks.work, "splice");
-      const where = itemAt(item);
-      const at = { document: documentPath, line: where[0], column: where[1] };
-      const place = `${documentPath}:${at.line}:${at.column}`;
-      if ("directive" in item && item.directive.name === "include") {
-        const target = resolvePath(documentPath, item.directive.args[0]);
-        // Joined only for an error: a chain of D documents joined at each
-        // include would cost the square of D.
-        const through = () => frames.map((open) => open.path).join(" → ");
-        if (including.has(target)) {
-          throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
-        }
-        const included = domOf(target);
-        if (included === undefined) {
-          throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
-        }
-        run = null;
-        frames.push({ path: target, dom: included, items: itemsInOrder(included), next: 0 });
-        including.add(target);
-      } else if ("directive" in item && item.directive.name === "features" && !selected) {
-        if (item.directive.conditions) throw new GencmuError("grammar", `${place}: global features cannot have conditions`, at);
-        for (const name of item.directive.args) {
-          if (hooks.work) countWork(hooks.work, "splice");
-          if (featureNames.has(name)) continue;
-          featureNames.add(name);
-          features.push(name);
-        }
-      } else if ("directive" in item && item.directive.name === "stage") {
-        const name = item.directive.args[0];
-        const earlier = stageNames.get(name);
-        if (earlier) {
-          throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
-        }
-        /** @type {SplicedStage} */
-        const stage = { name, at, documents: [], changes: [] };
-        selected = stage;
-        stages.push(stage);
-        stageNames.set(name, stage);
-        run = null;
-      } else if ("directive" in item && ["extend-stage", "redefine-stage"].includes(item.directive.name)) {
-        const name = item.directive.args[0];
-        selected = stageNames.get(name);
-        if (!selected) throw new GencmuError("grammar", `${place}: %${item.directive.name} names an unknown stage ${name}`, at);
-        const replaced = item.directive.name === "redefine-stage";
-        if (replaced) selected.documents = [];
-        selected.changes.push({ kind: replaced ? "replaced" : "extended", ...at });
-        run = null;
-      } else {
-        const stage = selected;
-        if (!stage) {
-          const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
-            : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
-          throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
-        }
-        if (run === null || run.path !== documentPath) {
-          run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
-          stage.documents.push(run);
-        }
-        if ("rule" in item) run.dom.rules.push(item.rule);
-        else if ("constant" in item) run.dom.constants.push(item.constant);
-        else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
-        else if ("implication" in item) run.dom.implications.push(item.implication);
-        else {
-          run.dom.directives.push(item.directive);
-          if (item.directive.name === "features") declarations.push({stage, run, directive:item.directive});
-        }
-      }
-    }
-    if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
-    for (const stage of stages) {
-      if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
-        throw new GencmuError("grammar", `${stage.at.document}:${stage.at.line}:${stage.at.column}: stage ${stage.name} has no rules`, stage.at);
-      }
-    }
-    const surviving = new Set(stages.flatMap(stage => stage.documents));
-    const owners = new Map();
-    for (const {stage, run, directive} of declarations) {
-      if (!surviving.has(run)) continue;
-      for (const name of directive.args) {
-        const owner = owners.get(name);
-        if (owner !== undefined && owner !== stage.name) {
-          const [line,column] = directive.at;
-          throw new GencmuError("grammar", `${run.path}:${line}:${column}: feature ${name} is local to both ${owner} and ${stage.name}`,
-            {document:run.path,line,column,stage:stage.name});
-        }
-        owners.set(name,stage.name);
-      }
-    }
-    return { stages, features: features.sort(compareCodePoints) };
-  }
-
-  /**
-   * A dialect's pipeline as one jbogenbau text: its features in one %features,
-   * then every item of the spliced stream but %include and %features, each as
-   * its author wrote it, with a comment naming the document of each run of
-   * items as a string (docs/design.md, "Pipelines").
-   * @param {{path: string, declared: string[], loader: {read: (path: string) => string | undefined, documentDom: (path: string) => GrammarDom}}} dialect
-   * @returns {string}
-   */
-  function stitchText(dialect) {
-    const { loader, declared: features } = dialect;
-    /** @type {string[]} */
-    const out = features.length ? [`%features ${features.join(" ")}`, ""] : [];
-    let selected = false;
-    /** @type {string | null} */
-    let last = null;
-    // The documents being walked, outermost first, each with the next item
-    // to write. An explicit stack, since a chain of includes can be longer
-    // than the call stack is deep.
-    /** @type {{path: string, chars: string[], index: Map<string, number>, items: Item[], next: number}[]} */
-    const frames = [];
-    /** @param {string} documentPath */
-    const enter = (documentPath) => {
-      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
-      const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
-      frames.push({ path: documentPath, chars: [...text], index, items: itemsInOrder(loader.documentDom(documentPath)), next: 0 });
-    };
-    enter(dialect.path);
-    while (frames.length > 0) {
-      const frame = frames[frames.length - 1];
-      const { path: documentPath, chars, index, items } = frame;
-      if (frame.next === items.length) {
-        frames.pop();
-        continue;
-      }
-      const i = frame.next++;
-      const item = items[i];
-      const start = /** @type {number} */ (index.get(`${itemAt(item)[0]}:${itemAt(item)[1]}`));
-      const end = i + 1 < items.length ? /** @type {number} */ (index.get(`${itemAt(items[i + 1])[0]}:${itemAt(items[i + 1])[1]}`)) : chars.length;
-      if ("directive" in item && item.directive.name === "include") {
-        enter(resolvePath(documentPath, item.directive.args[0]));
-        continue;
-      }
-
-      if ("directive" in item && ["stage", "extend-stage", "redefine-stage"].includes(item.directive.name)) selected = true;
-      if ("directive" in item && item.directive.name === "features" && !selected) continue;
-      if (last !== documentPath) {
-        if (out.length && out[out.length - 1] !== "") out.push("");
-        out.push(`(* ${commentLabel(documentPath)} *)`);
-        last = documentPath;
-      }
-      // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
-      out.push(chars.slice(start, end).join("").trimEnd());
-    }
-    return out.join("\n") + "\n";
-  }
-
-  /**
-   * A document's path as a jbogenbau string, with `*)` written `*\u{29}` so
-   * that it cannot end the comment that holds it.
-   * @param {string} path
-   * @returns {string}
-   */
-  function commentLabel(path) {
-    return `"${path.replace(/[\\"]/g, "\\$&").replace(/\*\)/g, "*\\u{29}")}"`;
-  }
-
-  /**
-   * @param {Item} item
-   * @returns {[number, number]}
-   */
-  function itemAt(item) {
-    if ("rule" in item) return item.rule.at;
-    if ("constant" in item) return item.constant.at;
-    if ("classifier" in item) return item.classifier.at;
-    if ("implication" in item) return item.implication.at;
-    return item.directive.at;
-  }
-
   // ---- unicode-names.js
+
 
 
 
@@ -19145,6 +18897,12 @@
   /** @typedef {{code:number, name:string, kind:string, line:number}} NameRecord */
   /** @typedef {{kind:string, first:number, last:number, prefix:string, line:number}} NameAlgorithm */
   /** @import { UnicodeTable } from "./unicode.js" */
+  /** @import { GrammarDom } from "./types.js" */
+
+  /** @param {string} path @param {GrammarDom} dom @param {string[]} [inherited] @returns {string[]} */
+  function selectedNames(path, dom, inherited = []) {
+    return [...new Set([...inherited, ...dom.directives.filter(d => d.name === "names").map(d => resolvePath(path,d.args[0]))])].sort(compareCodePoints);
+  }
 
   /** @param {string} path @param {string} message @param {number} [line] @returns {never} */
   function namesFailure(path, message, line) {
@@ -19368,8 +19126,269 @@
     }
   }
 
+  // ---- pipeline.js
+  // A pipeline: the items of a pipeline document, with each %include replaced
+  // by the items of the document it names, assigned to the selected stage
+  // (engine §13).
+
+
+
+
+
+
+
+  /** @import { DomClassifier, DomConstant, DomDirective, DomImplication, DomRule, GrammarDom } from "./types.js" */
+
+  /**
+   * An item of a document: a rule, a directive, a constant's definition, a
+   * classifier or an implication.
+   * @typedef {{rule: DomRule} | {directive: DomDirective} | {constant: DomConstant} | {classifier: DomClassifier}
+   *   | {implication: DomImplication}} Item
+   */
+
+  /**
+   * One stage of a spliced pipeline: its name, where its %stage stands, and its
+   * items as runs of consecutive items of one document, each with a DOM that
+   * holds exactly those items.
+   * @typedef {{name: string, at: {document: string, line: number, column: number}, documents: {path: string, dom: GrammarDom}[], changes: StageChange[]}} SplicedStage
+   * @typedef {{kind: "extended" | "replaced", document: string, line: number, column: number}} StageChange
+   */
+
+  /**
+   * A document's rules, directives, constants, classifiers and implications
+   * in the order they were written, which is the order of their positions
+   * (engine §9).
+   * @param {GrammarDom} dom
+   * @returns {Item[]}
+   */
+  function itemsInOrder(dom) {
+    /** @type {Item[]} */
+    const items = [...dom.rules.map((rule) => ({ rule })), ...dom.directives.map((directive) => ({ directive })),
+      ...dom.constants.map((constant) => ({ constant })), ...dom.classifiers.map((classifier) => ({ classifier })),
+      ...dom.implications.map((implication) => ({ implication }))];
+    return items.sort((a, b) => itemAt(a)[0] - itemAt(b)[0] || itemAt(a)[1] - itemAt(b)[1]);
+  }
+
+  /**
+   * Splices the pipeline document at `path`. `domOf` gives a document's DOM,
+   * or undefined when the document does not exist.
+   * @param {string} path
+   * @param {(path: string, names:string[]) => GrammarDom | undefined} domOf
+   * @returns {{stages: SplicedStage[], features: string[]}}
+   */
+  function splicePipeline(path, domOf) {
+    /** @type {SplicedStage[]} */
+    const stages = [];
+    /** @type {string[]} */
+    const features = [];
+    // Sets beside the lists, so that a check of a name costs one lookup and
+    // not a scan of all that came before it.
+    const featureNames = new Set();
+    /** @type {{stage: SplicedStage, run: {path:string, dom:GrammarDom}, directive: import("./types.js").DomDirective}[]} */
+    const declarations = [];
+    /** @type {Map<string, SplicedStage>} */
+    const stageNames = new Map();
+    /** @type {{path: string, dom: GrammarDom} | null} the run being built */
+    let run = null;
+    /** @type {SplicedStage | undefined} */
+    let selected;
+
+    const top = domOf(path, []);
+    if (top === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
+    // The documents being included, outermost first, each with its items and
+    // the next one to splice. An explicit stack, since a chain of includes can
+    // be longer than the call stack is deep. A set of their paths finds a
+    // cycle with one lookup.
+    /** @type {{path: string, dom: GrammarDom, items: Item[], next: number, names:string[]}[]} */
+    const frames = [{ path, dom: top, items: itemsInOrder(top), next: 0, names:selectedNames(path,top) }];
+    const including = new Set([path]);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      if (frame.next === frame.items.length) {
+        frames.pop();
+        including.delete(frame.path);
+        // What follows an include starts a run of its own.
+        run = null;
+        continue;
+      }
+      const item = frame.items[frame.next++];
+      const { path: documentPath, dom } = frame;
+      if (hooks.work) countWork(hooks.work, "splice");
+      const where = itemAt(item);
+      const at = { document: documentPath, line: where[0], column: where[1] };
+      const place = `${documentPath}:${at.line}:${at.column}`;
+      if ("directive" in item && item.directive.name === "names") continue;
+      if ("directive" in item && item.directive.name === "include") {
+        const target = resolvePath(documentPath, item.directive.args[0]);
+        // Joined only for an error: a chain of D documents joined at each
+        // include would cost the square of D.
+        const through = () => frames.map((open) => open.path).join(" → ");
+        if (including.has(target)) {
+          throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
+        }
+        const included = domOf(target, frame.names);
+        if (included === undefined) {
+          throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
+        }
+        run = null;
+        frames.push({ path: target, dom: included, items: itemsInOrder(included), next: 0, names:selectedNames(target,included,frame.names) });
+        including.add(target);
+      } else if ("directive" in item && item.directive.name === "features" && !selected) {
+        if (item.directive.conditions) throw new GencmuError("grammar", `${place}: global features cannot have conditions`, at);
+        for (const name of item.directive.args) {
+          if (hooks.work) countWork(hooks.work, "splice");
+          if (featureNames.has(name)) continue;
+          featureNames.add(name);
+          features.push(name);
+        }
+      } else if ("directive" in item && item.directive.name === "stage") {
+        const name = item.directive.args[0];
+        const earlier = stageNames.get(name);
+        if (earlier) {
+          throw new GencmuError("grammar", `${place}: a second stage named ${name}; the first is at ${earlier.at.document}:${earlier.at.line}:${earlier.at.column}`, at);
+        }
+        /** @type {SplicedStage} */
+        const stage = { name, at, documents: [], changes: [] };
+        selected = stage;
+        stages.push(stage);
+        stageNames.set(name, stage);
+        run = null;
+      } else if ("directive" in item && ["extend-stage", "redefine-stage"].includes(item.directive.name)) {
+        const name = item.directive.args[0];
+        selected = stageNames.get(name);
+        if (!selected) throw new GencmuError("grammar", `${place}: %${item.directive.name} names an unknown stage ${name}`, at);
+        const replaced = item.directive.name === "redefine-stage";
+        if (replaced) selected.documents = [];
+        selected.changes.push({ kind: replaced ? "replaced" : "extended", ...at });
+        run = null;
+      } else {
+        const stage = selected;
+        if (!stage) {
+          const what = "rule" in item ? `the rule ${item.rule.name}` : "constant" in item ? `the constant $${item.constant.name}`
+            : "classifier" in item ? `the classifier ${item.classifier.name}` : "implication" in item ? "%implies" : `%${item.directive.name}`;
+          throw new GencmuError("grammar", `${place}: ${what} stands before the first %stage`, at);
+        }
+        if (run === null || run.path !== documentPath) {
+          run = { path: documentPath, dom: { format: dom.format, rules: [], directives: [], constants: [], classifiers: [], implications: [] } };
+          stage.documents.push(run);
+        }
+        if ("rule" in item) run.dom.rules.push(item.rule);
+        else if ("constant" in item) run.dom.constants.push(item.constant);
+        else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
+        else if ("implication" in item) run.dom.implications.push(item.implication);
+        else {
+          run.dom.directives.push(item.directive);
+          if (item.directive.name === "features") declarations.push({stage, run, directive:item.directive});
+        }
+      }
+    }
+    if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
+    for (const stage of stages) {
+      if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
+        throw new GencmuError("grammar", `${stage.at.document}:${stage.at.line}:${stage.at.column}: stage ${stage.name} has no rules`, stage.at);
+      }
+    }
+    const surviving = new Set(stages.flatMap(stage => stage.documents));
+    const owners = new Map();
+    for (const {stage, run, directive} of declarations) {
+      if (!surviving.has(run)) continue;
+      for (const name of directive.args) {
+        const owner = owners.get(name);
+        if (owner !== undefined && owner !== stage.name) {
+          const [line,column] = directive.at;
+          throw new GencmuError("grammar", `${run.path}:${line}:${column}: feature ${name} is local to both ${owner} and ${stage.name}`,
+            {document:run.path,line,column,stage:stage.name});
+        }
+        owners.set(name,stage.name);
+      }
+    }
+    return { stages, features: features.sort(compareCodePoints) };
+  }
+
+  /**
+   * A dialect's pipeline as one jbogenbau text: its features in one %features,
+   * then every item of the spliced stream but %include and %features, each as
+   * its author wrote it, with a comment naming the document of each run of
+   * items as a string (docs/design.md, "Pipelines").
+   * @param {{path: string, declared: string[], loader: {read: (path: string) => string | undefined, documentDom: (path: string) => GrammarDom}}} dialect
+   * @returns {string}
+   */
+  function stitchText(dialect) {
+    const { loader, declared: features } = dialect;
+    /** @type {string[]} */
+    const out = features.length ? [`%features ${features.join(" ")}`, ""] : [];
+    let selected = false;
+    /** @type {string | null} */
+    let last = null;
+    // The documents being walked, outermost first, each with the next item
+    // to write. An explicit stack, since a chain of includes can be longer
+    // than the call stack is deep.
+    /** @type {{path: string, chars: string[], index: Map<string, number>, items: Item[], next: number}[]} */
+    const frames = [];
+    /** @param {string} documentPath */
+    const enter = (documentPath) => {
+      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
+      const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
+      frames.push({ path: documentPath, chars: [...text], index, items: itemsInOrder(loader.documentDom(documentPath)), next: 0 });
+    };
+    enter(dialect.path);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      const { path: documentPath, chars, index, items } = frame;
+      if (frame.next === items.length) {
+        frames.pop();
+        continue;
+      }
+      const i = frame.next++;
+      const item = items[i];
+      const start = /** @type {number} */ (index.get(`${itemAt(item)[0]}:${itemAt(item)[1]}`));
+      const end = i + 1 < items.length ? /** @type {number} */ (index.get(`${itemAt(items[i + 1])[0]}:${itemAt(items[i + 1])[1]}`)) : chars.length;
+      if ("directive" in item && item.directive.name === "include") {
+        enter(resolvePath(documentPath, item.directive.args[0]));
+        continue;
+      }
+
+      if ("directive" in item && ["stage", "extend-stage", "redefine-stage"].includes(item.directive.name)) selected = true;
+      if ("directive" in item && item.directive.name === "features" && !selected) continue;
+      if (last !== documentPath) {
+        if (out.length && out[out.length - 1] !== "") out.push("");
+        out.push(`(* ${commentLabel(documentPath)} *)`);
+        last = documentPath;
+      }
+      // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
+      out.push(chars.slice(start, end).join("").trimEnd());
+    }
+    return out.join("\n") + "\n";
+  }
+
+  /**
+   * A document's path as a jbogenbau string, with `*)` written `*\u{29}` so
+   * that it cannot end the comment that holds it.
+   * @param {string} path
+   * @returns {string}
+   */
+  function commentLabel(path) {
+    return `"${path.replace(/[\\"]/g, "\\$&").replace(/\*\)/g, "*\\u{29}")}"`;
+  }
+
+  /**
+   * @param {Item} item
+   * @returns {[number, number]}
+   */
+  function itemAt(item) {
+    if ("rule" in item) return item.rule.at;
+    if ("constant" in item) return item.constant.at;
+    if ("classifier" in item) return item.classifier.at;
+    if ("implication" in item) return item.implication.at;
+    return item.directive.at;
+  }
+
   // ---- string-escapes.js
 
+
+
+
+  const ESCAPE_STATEMENTS = new Set(["%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"]);
 
   /** @import { UnicodeTable } from "./unicode.js" */
   /** @import { NamesScope } from "./unicode-names.js" */
@@ -19388,10 +19407,29 @@
       this.unicode = unicode;
       this.names = names;
       this.position = position;
+      /** @type {Set<number>} */
+      this.namesPaths = new Set();
     }
 
     /** @param {Token[]} tokens */
     inspect(tokens) {
+      const quoted = (/** @type {Token | undefined} */ token) => token !== undefined && (token.tags.has("String") || token.tags.has("Include-Path"));
+      for (let index = 0; index < tokens.length; index++) {
+        if (tokens[index].value === "%names" && quoted(tokens[index + 1])) this.namesPaths.add(tokens[index + 1].source[0]);
+      }
+      let index = 0;
+      const extras = new Set(this.names.extras);
+      while (tokens[index]?.value === "%names") {
+        let end = index + 1;
+        while (end < tokens.length && !ESCAPE_STATEMENTS.has(tokens[end].value)) end++;
+        if (end !== index + 2 || !quoted(tokens[index + 1])) {
+          const [line, column] = this.position(tokens[index].source[0]);
+          throw new GencmuError("grammar", `${this.path}:${line}:${column}: %names takes one quoted path`, {document:this.path, line, column});
+        }
+        extras.add(resolvePath(this.path, this.decode(tokens[index + 1], true)));
+        index = end;
+      }
+      this.names.extras = [...extras].sort(compareCodePoints);
       for (const token of tokens) {
         if (token.tags.has("String") || token.tags.has("Include-Path")) this.decode(token, token.tags.has("Include-Path"));
       }
@@ -19425,7 +19463,7 @@
           if (!/^U\+[0-9A-Fa-f]{4,6}$/.test(name)) fail();
           code = Number.parseInt(name.slice(2), 16);
           if (code > 0x10ffff || code >= 0xd800 && code <= 0xdfff) fail();
-        } else code = this.names.lookup(name);
+        } else code = this.names.lookup(name, this.namesPaths.has(token.source[0]));
         if (code === undefined) fail();
         result += String.fromCodePoint(/** @type {number} */ (code));
       }
@@ -19533,6 +19571,8 @@
       this.cache = new Map();
       /** @type {WeakMap<GrammarDom,Record<string,string>>} */
       this.namesDependencies = new WeakMap();
+      /** @type {Map<string,string[]>} */
+      this.inheritedNames = new Map();
     }
 
     /**
@@ -19566,9 +19606,11 @@
      * The DOM of a grammar document, from the cache when its text, the
      * bootstrap and the format all match, else read with the notation.
      * @param {string} path
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    documentDom(path) {
+    documentDom(path, inherited = []) {
+      this.inheritedNames.set(path,inherited);
       const text = this.need(path);
       // A document is a sequence of scalar values, as a text is (engine §1).
       const surrogate = loneSurrogate(text);
@@ -19578,14 +19620,14 @@
       const hash = fnv1a64(text);
       const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
-      if (cached && this.namesMatch(this.namesDependencies.get(cached))) return cached;
+      if (cached && this.namesMatch(this.namesDependencies.get(cached),selectedNames(path,cached,inherited))) return cached;
       const entry = this.compiled.get(path);
       let dom;
-      if (entry && entry.hash === hash && this.namesMatch(entry.names)) {
+      if (entry && entry.hash === hash && this.namesMatch(entry.names,selectedNames(path,entry.dom,inherited))) {
         dom = entry.dom;
         if (entry.names) this.namesDependencies.set(dom, entry.names);
       }
-      else dom = this.readDocument(text, path, true);
+      else dom = this.readDocument(text, path, true, inherited);
       this.cache.set(key, dom);
       return dom;
     }
@@ -19595,12 +19637,13 @@
      * @param {string} markdown
      * @param {string} path
      * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    readDocument(markdown, path, deferEmission = false) {
+    readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path);
-      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64);
+      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
       const run = this.notation.run(text, { features: new Set(), inspectLexical: tokens => strings.inspect(tokens) });
@@ -19627,15 +19670,16 @@
       return dom;
     }
 
-    /** @param {Record<string,string> | undefined} dependencies @returns {boolean} */
-    namesMatch(dependencies) {
+    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @returns {boolean} */
+    namesMatch(dependencies, extras) {
       if (dependencies === undefined) return true;
       if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)
-        || Object.keys(dependencies).some(path => path !== "unicode-names.txt" || !/^[0-9a-f]{16}$/.test(dependencies[path]))
-        || !("unicode-names.txt" in dependencies)) return false;
-      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64);
+        || Object.values(dependencies).some(hash => typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return false;
+      const paths = [...new Set(["unicode-names.txt",...extras])].sort(compareCodePoints);
+      if (Object.keys(dependencies).length !== paths.length || paths.some(path => !(path in dependencies))) return false;
+      const names = new NamesScope(key => this.need(key), this.unicode, fnv1a64, extras);
       names.load();
-      return names.dependencies?.["unicode-names.txt"] === dependencies["unicode-names.txt"];
+      return paths.every(path => names.dependencies?.[path] === dependencies[path]);
     }
 
     /**
@@ -19658,8 +19702,9 @@
         // Only a diagnostic needs locations absent from a cached DOM.
         const document = /** @type {string} */ (boundary ? boundary.document : recipe ? recipe.document : error.group?.document);
         const text = this.need(document);
-        const dom = this.documentDom(document);
-        if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true));
+        const inherited = this.inheritedNames.get(document) ?? [];
+        const dom = this.documentDom(document,inherited);
+        if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true,inherited));
         else {
           const {text:body,positions} = extractGrammarText(text,document);
           const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
@@ -19683,7 +19728,7 @@
      * @returns {{stages: import("./pipeline.js").SplicedStage[], features: string[]}}
      */
     pipeline(path) {
-      return splicePipeline(path, (documentPath) => (this.read(documentPath) === undefined ? undefined : this.documentDom(documentPath)));
+      return splicePipeline(path, (documentPath, inherited) => (this.read(documentPath) === undefined ? undefined : this.documentDom(documentPath,inherited)));
     }
   }
 

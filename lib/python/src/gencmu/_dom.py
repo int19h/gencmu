@@ -196,9 +196,14 @@ class DomBuilder:
         constants: list[Dom] = []
         classifiers: list[Dom] = []
         implications: list[Dom] = []
+        statement_seen = False
         for kid in self.kids(root):
             if kid.kind == "rule" and kid.rule not in _ITEMS:
                 raise self.fail(kid, f"the notation gives a {kid.rule} where an item stands")
+            names = kid.rule == "directive" and self.token_value(self.token(kid)) == "%names"
+            if names and statement_seen:
+                raise self.fail(kid, "%names must precede every other statement")
+            statement_seen = statement_seen or not names
             if kid.kind == "rule" and kid.rule == "rule":
                 rules.append(self.rule(kid))
             elif kid.kind == "rule" and kid.rule in ("directive"):
@@ -1346,8 +1351,8 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
 
     if name in ("stage", "extend-stage", "redefine-stage"):
         return None if len(kinds) == 1 and names else f"%{name} takes one name"
-    if name == "include":
-        return None if kinds == ["string"] else "%include takes one string"
+    if name in ("include", "names"):
+        return None if kinds == ["string"] else f"%{name} takes one string"
     if name == "features":
         return None if kinds and names else "%features takes one or more names"
     return None if names else f"%{name} takes names only"

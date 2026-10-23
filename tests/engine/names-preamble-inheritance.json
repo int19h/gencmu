@@ -1,0 +1,32 @@
+{
+  "description": "Nested includes inherit extras and sibling includes restore their parent scope.",
+  "documents": {
+    "p.md": "```jbogenbau\n%names \"parent.txt\"\n%stage main\n%ambiguity-resolution greedy\n%rule text child sibling\n%include \"child.md\"\n%include \"sibling.md\"\n```",
+    "g.md": "```jbogenbau\n\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "child.md": "```jbogenbau\n%names \"child.txt\"\n%include \"grandchild.md\"\n```",
+    "grandchild.md": "```jbogenbau\n%rule child \"‹LOCAL NAME›\"\n```",
+    "sibling.md": "```jbogenbau\n%names \"sibling.txt\"\n%rule sibling \"‹LOCAL NAME›\"\n```",
+    "parent.txt": "unicode-names 15.1.0\nname E000 PARENT NAME\n",
+    "child.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n",
+    "sibling.txt": "unicode-names 15.1.0\nname E002 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    },
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

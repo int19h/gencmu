@@ -102,10 +102,11 @@ impl Compiled {
         let Ok(mut dom) = dom_from_json(&entry.dom, unicode) else {
             return Ok(None);
         };
-        if !names.matches(entry.names.as_deref())? {
+        let candidate = names.for_dom(&dom)?;
+        if !candidate.matches(entry.names.as_deref())? {
             return Ok(None);
         }
-        dom.names_dependencies = names.dependencies.borrow().clone();
+        dom.names_dependencies = candidate.dependencies.borrow().clone();
         Ok(Some(dom))
     }
 }
@@ -239,7 +240,7 @@ impl Context {
 
     #[cfg(test)]
     fn document(&self, path: &str, text: &str, diagnostic: bool) -> Result<Dom, Error> {
-        let names = NamesScope::new(&bundled_names, &self.unicode, []);
+        let names = NamesScope::new(&bundled_names, &self.unicode, []).in_document(path, &crate::markdown::resolve);
         self.document_named(path, text, diagnostic, &names)
     }
 
@@ -284,7 +285,8 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
 fn read_document_named(notation: &Dialect, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
     let position = |index: usize| grammar.position(index);
-    let strings = DocumentStrings { unicode: &notation.unicode, names, position: &position };
+    let strings =
+        DocumentStrings { unicode: &notation.unicode, names, position: &position, names_paths: Default::default() };
     let options = ParseOptions::default();
     let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
@@ -558,22 +560,29 @@ impl Sources for DiskSources {
 struct Reading<'a> {
     context: &'a Context,
     sources: &'a dyn Sources,
-    read: HashMap<String, Arc<Dom>>,
+    read: HashMap<(String, Vec<String>), Arc<Dom>>,
     diagnostic_document: Option<&'a str>,
 }
 
 impl Documents for Reading<'_> {
     fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
-        if let Some(dom) = self.read.get(path) {
+        self.dom_with_names(path, &[])
+    }
+
+    fn dom_with_names(&mut self, path: &str, inherited: &[String]) -> Result<Option<Arc<Dom>>, Error> {
+        let key = (path.to_string(), inherited.to_vec());
+        if let Some(dom) = self.read.get(&key) {
             return Ok(Some(dom.clone()));
         }
         let Some(text) = self.sources.read(path)? else {
             return Ok(None);
         };
         let read_names = |name: &str| self.sources.names(name);
-        let names = NamesScope::new(&read_names, &self.context.unicode, []);
+        let resolve = |base: &str, target: &str| self.sources.resolve(base, target);
+        let names =
+            NamesScope::new(&read_names, &self.context.unicode, inherited.iter().cloned()).in_document(path, &resolve);
         let dom = Arc::new(self.context.document_named(path, &text, self.diagnostic_document == Some(path), &names)?);
-        self.read.insert(path.to_string(), dom.clone());
+        self.read.insert(key, dom.clone());
         Ok(Some(dom))
     }
 

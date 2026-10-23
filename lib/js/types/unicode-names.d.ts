@@ -12,6 +12,13 @@ export type NameAlgorithm = {
     line: number;
 };
 import type { UnicodeTable } from "./unicode.js";
+import type { GrammarDom } from "./types.js";
+/** @typedef {{code:number, name:string, kind:string, line:number}} NameRecord */
+/** @typedef {{kind:string, first:number, last:number, prefix:string, line:number}} NameAlgorithm */
+/** @import { UnicodeTable } from "./unicode.js" */
+/** @import { GrammarDom } from "./types.js" */
+/** @param {string} path @param {GrammarDom} dom @param {string[]} [inherited] @returns {string[]} */
+export declare function selectedNames(path: string, dom: GrammarDom, inherited?: string[]): string[];
 export declare class UnicodeNames {
     path: string;
     /** @type {NameRecord[]} */

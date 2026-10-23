@@ -689,13 +689,15 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 
 `%include` takes exactly one quoted path. Its first operand uses literal path decoding. An include path cannot serve as a method receiver.
 
+`%names` takes one quoted path and stands before every other statement. The loader inherits its extra names file through nested includes. Returning from an include restores the parent selection.
+
 ```jbogenbau
 %rule directive
   directive-name [{directive-argument}] [conditions-clause]
 
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE
-  | KW-INCLUDE | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
+  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
 
 %rule directive-argument
   argument-word | argument-string | argument-tag | argument-term

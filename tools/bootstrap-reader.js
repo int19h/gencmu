@@ -31,7 +31,7 @@ const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", 
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
-  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -180,7 +180,7 @@ function lex(text, originalPositions) {
     if (c === "_") found.push([engineEnds[i + 1], chars[i + 1] === undefined || engineEnds[i + 1] === i + 1 ? "_" : "tag"]);
     if (c === "%") {
       reach = Math.max(reach, i + 1);
-      if (chars.slice(i, runEnds[i + 1]).join("") === "%include") {
+      if (["%include", "%names"].includes(chars.slice(i, runEnds[i + 1]).join(""))) {
         let j = runEnds[i + 1];
         for (;;) {
           if (j < n && unicode.isWhiteSpace(chars[j].codePointAt(0))) j++;
@@ -240,7 +240,8 @@ function lex(text, originalPositions) {
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind?.startsWith("include:")) {
       const from = Number(kind.slice(8));
-      tokens.push({ kind: "%include", text: "%include", value: "%include", at: at(i), end: at(i + 8), source:sourceBounds(i,i+8) });
+      const endKeyword = runEnds[i + 1], keyword = chars.slice(i, endKeyword).join("");
+      tokens.push({ kind: keyword, text: keyword, value: keyword, at: at(i), end: at(endKeyword), source:sourceBounds(i,endKeyword) });
       tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end), source:sourceBounds(from,end) });
     } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end), source:sourceBounds(i,end) });
     i = end;
@@ -248,7 +249,7 @@ function lex(text, originalPositions) {
   return tokens;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
 const RULE_KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule"]);
 const CONSTANT_KEYWORDS = new Set(["%const", "%redefine-const"]);
 const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
@@ -1018,7 +1019,14 @@ class Parser {
 export function readSyntaxTree(markdown, path) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
-  const names = new NamesScope(key => fs.readFileSync(new URL(`../grammars/${key === "unicode-names-reference.txt" ? "unicode-names.txt" : key}`, import.meta.url), "utf8"), unicode, fnv1a64);
+  const names = new NamesScope(key => {
+    try {
+      const bytes = fs.readFileSync(new URL(`../grammars/${key === "unicode-names-reference.txt" ? "unicode-names.txt" : key}`, import.meta.url));
+      return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
+    } catch (error) {
+      throw new GencmuError("grammar", `${key}: cannot read the names resource`, {document:key}, {cause:error});
+    }
+  }, unicode, fnv1a64);
   const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;

@@ -1,0 +1,22 @@
+{
+  "description": "Equal additions across selected files are harmless.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%names \"extra.txt\"\n%names \"other.txt\"\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "other.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

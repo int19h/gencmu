@@ -9,10 +9,47 @@ pub(crate) struct DocumentStrings<'a> {
     pub unicode: &'a Unicode,
     pub names: &'a NamesScope<'a>,
     pub position: &'a dyn Fn(usize) -> (usize, usize),
+    pub names_paths: std::cell::RefCell<std::collections::BTreeSet<usize>>,
 }
+
+const STATEMENTS: [&str; 14] = [
+    "%names",
+    "%rule",
+    "%redefine-rule",
+    "%extend-rule",
+    "%stage",
+    "%extend-stage",
+    "%redefine-stage",
+    "%include",
+    "%features",
+    "%ambiguity-resolution",
+    "%const",
+    "%redefine-const",
+    "%classifier",
+    "%implies",
+];
 
 impl DocumentStrings<'_> {
     pub fn inspect(&self, tokens: &[Token]) -> Result<(), Error> {
+        let quoted = |token: &Token| token.tags.contains("String") || token.tags.contains("Include-Path");
+        for pair in tokens.windows(2) {
+            if pair[0].value == "%names" && quoted(&pair[1]) {
+                self.names_paths.borrow_mut().insert(pair[1].source.start);
+            }
+        }
+        let mut index = 0;
+        while tokens.get(index).is_some_and(|token| token.value == "%names") {
+            let mut end = index + 1;
+            while end < tokens.len() && !STATEMENTS.contains(&tokens[end].value.as_str()) {
+                end += 1;
+            }
+            let (line, column) = (self.position)(tokens[index].source.start);
+            if end != index + 2 || !quoted(&tokens[index + 1]) {
+                return Err(Error::grammar("%names takes one quoted path").at(line, column));
+            }
+            self.names.add_path(&self.decode(&tokens[index + 1], true)?).map_err(|error| error.at(line, column))?;
+            index = end;
+        }
         for token in tokens {
             let path = token.tags.contains("Include-Path");
             if path || token.tags.contains("String") {
@@ -65,7 +102,7 @@ impl DocumentStrings<'_> {
                 }
                 u32::from_str_radix(suffix, 16).ok().and_then(char::from_u32)
             } else {
-                self.names.lookup(&name, false)?
+                self.names.lookup(&name, self.names_paths.borrow().contains(&token.source.start))?
             };
             result.push(value.ok_or_else(fail)?);
             index += 1;

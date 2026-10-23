@@ -530,7 +530,13 @@ func (b *domBuilder) operator(n *Node) string { return canonicalOperator(b.token
 
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
+	statementSeen := false
 	for _, c := range ruleParts(root) {
+		names := c.Rule == "directive" && b.tokenValue(b.token(c)) == "%names"
+		if names && statementSeen {
+			b.fail(c, "%%names must precede every other statement")
+		}
+		statementSeen = statementSeen || !names
 		if templateSyntax(c) {
 			raw := b.templateDeclaration(c)
 			if err := b.appendReadDeclaration(d, c.Rule, raw); err != nil {
@@ -577,7 +583,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				case "argument-string":
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
-					if dir.Name == "include" && len(dir.Args) == 0 {
+					if (dir.Name == "include" || dir.Name == "names") && len(dir.Args) == 0 {
 						if b.strings != nil {
 							decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
 							if err != nil {
@@ -1051,9 +1057,9 @@ func operandProblem(name string, kinds []string) string {
 		if len(kinds) != 1 || !names {
 			return "%" + name + " takes one name"
 		}
-	case "include":
+	case "include", "names":
 		if len(kinds) != 1 || kinds[0] != operandString {
-			return "%include takes one string"
+			return "%" + name + " takes one string"
 		}
 	case "features":
 		if len(kinds) == 0 || !names {

@@ -55,10 +55,10 @@ export declare function itemsInOrder(dom: GrammarDom): Item[];
  * Splices the pipeline document at `path`. `domOf` gives a document's DOM,
  * or undefined when the document does not exist.
  * @param {string} path
- * @param {(path: string) => GrammarDom | undefined} domOf
+ * @param {(path: string, names:string[]) => GrammarDom | undefined} domOf
  * @returns {{stages: SplicedStage[], features: string[]}}
  */
-export declare function splicePipeline(path: string, domOf: (path: string) => GrammarDom | undefined): {
+export declare function splicePipeline(path: string, domOf: (path: string, names: string[]) => GrammarDom | undefined): {
     stages: SplicedStage[];
     features: string[];
 };
