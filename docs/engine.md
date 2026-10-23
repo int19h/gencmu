@@ -51,7 +51,7 @@ Stage zero is named `input`. It first decomposes the text into its canonical dec
 
 The sort is stable, and every scalar keeps its origin. Stage zero supplies one token for each scalar dₖ of the result, at index k. Its `span` is `[k,k+1)`. Its `source` is `[i,i+1)`, where i is the origin of dₖ. Its `text` is the original text over its source. Its `value` and `image` are dₖ.
 
-Its stored tags are the general category and major category of dₖ, plus `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where their table properties apply. Stage zero is implicit and adds no executed grammar-stage result.
+Its stored tags are the complete scalar profile of dₖ, as defined below. This profile includes all available property memberships, without depending on grammar references. Stage zero is implicit and adds no executed grammar-stage result.
 
 Stage zero assigns both emoji property tags in every dialect. In the bundled Unicode table, ASCII digits, `#`, and `*` have Emoji_Component. Their stage-zero tokens therefore carry `_Emoji_Component`. U+200D, U+20E3, and U+FE0F also carry it. Ordinary inheritance can forward these stored tags.
 
@@ -109,11 +109,189 @@ Engine property names correspond to the configured Unicode table. A general cate
 - `_Z`: `_Zs`, `_Zl` and `_Zp`
 - `_C`: `_Cc`, `_Cf`, `_Cs`, `_Co` and `_Cn`
 
-The other engine names are `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. Their stored membership comes from the corresponding property ranges. `_` matches any token at any stage, including every stage-zero character. It requires no stored universal tag. A missing category record assigns `_Cn` and `_C`. Later stages never derive these tags from values or images.
+The core binary names are `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. Their stored membership comes from the corresponding core property ranges. The property inventory below adds qualified value tags and further binary tags.
+
+`_` matches any token at any stage, including every stage-zero character. It requires no stored universal tag. A missing category record assigns `_Cn` and `_C`. Later stages never derive these tags from values or images.
 
 Emoji properties use the same pinned Unicode version as categories and decomposition. A missing emoji record grants no membership. These properties add no case mapping.
 
-The engine inventory has no other name. `_lu` and `_Letter` are document errors. Engine tags are ordinary stored membership after stage zero. A grammar can read, inherit, forward, or filter them, but never introduce one. An empty value or a capitalized image does not imply an engine tag.
+The engine inventory is closed to the categories above and the properties below. `_lu` and `_Letter` are document errors. Engine tags are ordinary stored membership after stage zero. A grammar can read, inherit, forward, or filter them, but never introduce one. An empty value or a capitalized image does not imply an engine tag.
+
+### Unicode property inventory
+
+A binary property assigns Yes or No. An enumerated property gives each scalar one named value. A multi-valued property assigns a set of values. Catalog properties, such as Script, follow the enumerated rules.
+
+The inventory uses Unicode 15.1.0. It includes 56 binary properties, 25 enumerated or catalog properties, and Script_Extensions. General_Category retains its compact tags above. Canonical_Combining_Class also supplies tags, through the same map that orders combining marks.
+
+These are the included binary properties:
+
+| Group | Long property names |
+| --- | --- |
+| Letters and case | Alphabetic, Cased, Case_Ignorable, Lowercase, Uppercase |
+| Case changes | Changes_When_Casefolded, Changes_When_Casemapped, Changes_When_Lowercased, Changes_When_Titlecased, Changes_When_Uppercased, Changes_When_NFKC_Casefolded |
+| Identifiers | ID_Start, ID_Continue, XID_Start, XID_Continue, ID_Compat_Math_Start, ID_Compat_Math_Continue |
+| Ideographs | Ideographic, Unified_Ideograph, Radical, IDS_Binary_Operator, IDS_Trinary_Operator, IDS_Unary_Operator |
+| Marks and graphemes | Diacritic, Extender, Grapheme_Base, Grapheme_Extend, Prepended_Concatenation_Mark, Variation_Selector |
+| Punctuation and numbers | Dash, Quotation_Mark, Terminal_Punctuation, Sentence_Terminal, Hex_Digit, ASCII_Hex_Digit, Math |
+| Layout and syntax | White_Space, Pattern_White_Space, Pattern_Syntax, Bidi_Control, Bidi_Mirrored, Join_Control, Logical_Order_Exception, Soft_Dotted |
+| Status and normalization | Default_Ignorable_Code_Point, Noncharacter_Code_Point, Deprecated, Composition_Exclusion, Full_Composition_Exclusion |
+| Emoji | Emoji, Emoji_Presentation, Emoji_Modifier, Emoji_Modifier_Base, Emoji_Component, Extended_Pictographic, Regional_Indicator |
+
+These are the included enumerated and catalog properties:
+
+| Group | Long property names |
+| --- | --- |
+| Core classifications | General_Category, Canonical_Combining_Class |
+| Catalogs | Script, Block, Age |
+| Layout | Bidi_Class, Bidi_Paired_Bracket_Type, East_Asian_Width, Vertical_Orientation |
+| Breaking | Line_Break, Word_Break, Grapheme_Cluster_Break, Sentence_Break |
+| Joining and syllables | Joining_Type, Joining_Group, Hangul_Syllable_Type, Indic_Conjunct_Break, Indic_Positional_Category, Indic_Syllabic_Category |
+| Decomposition and numbers | Decomposition_Type, Numeric_Type |
+| Normalization tests | NFC_Quick_Check, NFD_Quick_Check, NFKC_Quick_Check, NFKD_Quick_Check |
+
+All four Quick_Check properties use value tags, including the two with only Yes and No. They describe individual scalars, not normalization of whole strings. Break classes likewise supply character classifications, not segmentation boundaries. The grammar supplies any segmentation algorithm.
+
+Script_Extensions is the included multi-valued property. Each member supplies a separate tag. In the UCD, an explicit extension set replaces the default singleton Script value. U+30FC therefore has Script Common and extension members Hiragana and Katakana, without extension member Common. A Latin letter has extension member Latin through the UCD default.
+
+The following groups supply no engine tags:
+
+| Excluded group | Reason |
+| --- | --- |
+| Other_Alphabetic, Other_Default_Ignorable_Code_Point, Other_Grapheme_Extend, Other_ID_Continue, Other_ID_Start, Other_Lowercase, Other_Math, Other_Uppercase | These contributory properties contain derivation exceptions rather than complete classifications. |
+| Grapheme_Link, Hyphen, Expands_On_NFC, Expands_On_NFD, Expands_On_NFKC, Expands_On_NFKD | Unicode deprecates these properties. The distinct Deprecated classification remains included. |
+| String mappings and miscellaneous scalar mappings | Names, case mappings, paired characters, and decomposition mappings return data rather than classification memberships. |
+| Numeric_Value and Unihan numeric properties | Rational values need numeric operations rather than named classes. Numeric_Type remains included. |
+| Other Unihan data and source records | Readings, dictionary data, and source mappings fall outside scalar classifications. |
+| Whole-string properties and named sequences | One scalar token cannot represent a sequence property, such as an RGI emoji sequence. |
+| Security properties outside the UCD | UTS #39 requires a separate inventory and version decision. |
+
+The names file supplies string escapes, without supplying tags. Core decomposition records still supply NFD. Included normalization properties remain valid even when stage-zero decomposition makes some values unreachable.
+
+### Property tag spelling
+
+A binary tag is `_` followed by its long property name, such as `_Alphabetic`. Only Yes supplies membership. There is no No tag. A test such as `_<¬_Alphabetic>` tests absence from stored tags.
+
+Other properties use `_PROPERTY_VALUE`, with the long property and value names. Examples are `_Script_Latin`, `_Bidi_Class_Right_To_Left`, `_East_Asian_Width_Wide`, and `_Script_Extensions_Hiragana`. The general-category tags above are the only compact exception. `_General_Category_Uppercase_Letter`, `_Uppercase_Letter`, and `_LC` are not additional spellings.
+
+The long names come from pinned [PropertyAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyAliases.txt) and [PropertyValueAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/PropertyValueAliases.txt). Some long values contain short letters, such as `_Grapheme_Cluster_Break_L`. Age uses its long names, such as `_Age_V15_1` and `_Age_Unassigned`. Block uses aliases such as `_Block_Latin_1_Supplement`, rather than the spaced spelling in Blocks.txt.
+
+Canonical_Combining_Class uses its long symbolic value when one exists, such as `_Canonical_Combining_Class_Above` or `_Canonical_Combining_Class_Not_Reordered`. Other classes use their decimal number without leading zeros. Classes range from 0 through 254. Thus class 2 uses `_Canonical_Combining_Class_2`, while class 230 has only the Above spelling.
+
+Each spelling identifies exactly one tag. The generator constructs the complete registry and rejects collisions between properties, values, and compact category tags. A library resolves a complete token through that registry. It never guesses a property boundary from an underscore. A Unicode update cannot introduce a colliding spelling.
+
+Names compare exactly. Short aliases, different case, double separators, and punctuation substitutions are document errors at the tag. For example, `_Alpha`, `_Script_Latn`, `_sc_Latn`, `_Script__Latin`, `_Bidi_Class_L`, `_lu`, and `_Letter` are invalid. `_Sc` remains the currency-symbol category.
+
+A known tag whose property or value is unavailable in the configured table is also a document error at that tag. This rule covers negative tests, pattern constants, supplied DOMs, disabled alternatives, and replaced definitions. A declared value with no matching scalars is valid and matches nothing. Supplied token tags require the same spelling and availability, with failures reported as usage errors.
+
+### Stored scalar profiles
+
+A scalar profile stores one scalar's initial engine tags. A profile never changes. Stage zero assigns each decomposed scalar its complete profile from the configured tables. Membership never depends on which tags a grammar names, its feature gates, or the selected stages. This rule applies while reading grammar documents too.
+
+Every included and available binary property contributes its Yes tag. Every included and available enumerated property contributes its value tag. Script_Extensions contributes every member tag. Compact category tags and their major groups remain present.
+
+Libraries can share profiles across repeated scalars and equal profiles. They must keep table identities separate. Profile construction can wait until first use, but every observation sees the complete logical set from token creation. Filtering or extending one token's tags never mutates another token's profile.
+
+Later stages read stored sets, without deriving properties from value, image, text, or source. A changed value grants no new property tag. A filter can remove every tag of an enumerated property. A union can retain several values of that property. Neither operation reclassifies the resulting token.
+
+Removing `_L` while retaining `_Lu` does not regenerate `_L`. Removing an extension member does not reconstruct it from a retained Script tag. Serialization lists every retained tag, including properties that no grammar names. Shared storage cannot hide tags from equality, intersections, forwarding, or output.
+
+### Pinned properties file
+
+`tools/unicode-table.py` generates `grammars/unicode-properties.txt` from the pinned UCD. The bundled version is 15.1.0. Libraries read that file rather than host Unicode data. Character names remain in their separate, lazily loaded file.
+
+General_Category, Canonical_Combining_Class, White_Space, Emoji_Presentation, and Emoji_Component belong only to `unicode.txt`. The properties file cannot redeclare them. Their core records imply support, including the existing defaults in partial core tables. Combining-class tags use the same numeric map as canonical ordering, without a second assignment table.
+
+The properties file declares the other supported properties and their value domains. Its first nonblank line is `unicode-properties VERSION`. VERSION has three decimal components and must exactly match the core table's declared version. A properties file requires exactly one version header in each file. The catalog of accepted names and types is the pinned inventory above.
+
+```text
+unicode-properties 15.1.0
+binary Alphabetic
+enumerated Script Unknown
+value Script Unknown
+value Script Latin
+multiple Script_Extensions Unknown
+value Script_Extensions Unknown
+value Script_Extensions Hiragana
+value Script_Extensions Katakana
+range Alphabetic 0041 005A
+range Script 0041 005A Latin
+range Script_Extensions 30FC 30FC Hiragana Katakana
+```
+
+`binary PROPERTY` declares a binary property, with No outside its ranges. `enumerated PROPERTY DEFAULT` declares an enumerated property and its default value. `multiple PROPERTY DEFAULT...` declares Script_Extensions and its nonempty default set. Each property has exactly one declaration.
+
+`value PROPERTY VALUE` declares an available long value name. Every default and range value requires that declaration. Binary properties accept no value declarations. Enumerated and multiple properties can declare values with no assigned scalars. Script_Extensions uses Script's value names but does not require Script itself to be available.
+
+`range PROPERTY FIRST LAST` assigns Yes for a binary property. Other range records append one value for an enumerated property or a nonempty complete set for Script_Extensions. Endpoints are inclusive. An explicit range replaces the declared default at its scalars. Script_Extensions sets replace rather than extend the default set.
+
+Outside ranges, each property uses its declared default. Duplicate members within a set are malformed. Set order has no meaning. Equal overlapping assignments can merge. Conflicting enumerated values or extension sets at one scalar are grammar errors. Repeated binary ranges denote their union.
+
+The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
+
+Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. Core combining classes without symbolic aliases use the decimal spellings defined above.
+
+The generator reads the pinned UCD files, including PropertyAliases.txt and PropertyValueAliases.txt. Binary sources include PropList.txt, DerivedCoreProperties.txt, emoji/emoji-data.txt, CompositionExclusions.txt, and the binary entries in DerivedNormalizationProps.txt. Bidi_Mirrored comes from extracted/DerivedBinaryProperties.txt.
+
+Enumerated sources include Scripts.txt, Blocks.txt, DerivedAge.txt, BidiBrackets.txt, HangulSyllableType.txt, IndicPositionalCategory.txt, IndicSyllabicCategory.txt, and VerticalOrientation.txt. Break data comes from GraphemeBreakProperty.txt, WordBreakProperty.txt, and SentenceBreakProperty.txt under `auxiliary/`, plus LineBreak.txt under the UCD root.
+
+The generator uses DerivedBidiClass.txt, DerivedEastAsianWidth.txt, DerivedJoiningType.txt, DerivedJoiningGroup.txt, DerivedDecompositionType.txt, DerivedNumericType.txt, DerivedGeneralCategory.txt, and DerivedCombiningClass.txt under `extracted/`. DerivedCoreProperties.txt supplies Indic_Conjunct_Break. DerivedNormalizationProps.txt supplies the four Quick_Check properties. UnicodeData.txt supplies the canonical decomposition mappings used by the core table.
+
+The generator resolves every applicable `@missing` default before it compresses ranges, following [UAX #44](https://www.unicode.org/reports/tr44/tr44-32.html#Missing_Values). Later, more specific UCD defaults override earlier general defaults. Explicit assignments override those defaults. This includes nondefault values in unassigned bidi and East_Asian_Width regions. Omitted scalar rows never imply a generic default without those rules.
+
+ScriptExtensions.txt supplies explicit sets. For other scalars, the generator materializes the singleton Script value before range compression. Libraries never infer extension membership from stored Script tags. Thus custom tables can supply Script_Extensions independently. The generated file has sorted, disjoint, maximal ranges for each effective assignment that differs from its declared default.
+
+The generator and the shared data audit compare all 1,112,064 scalars with the pinned sources. They include range boundaries and neighboring scalars. Independent expected digests cover each property's complete assignments, including defaults and extension sets. Host Unicode APIs never provide expected memberships.
+
+Each property digest uses 64-bit FNV-1a over ASCII records in increasing scalar order. A record has six uppercase hexadecimal digits, a colon, sorted canonical tag names separated by commas, and LF. Binary No contributes an empty tag list. General_Category includes its compact atomic and major tags. The digest uses 16 lowercase hexadecimal digits, like the file fingerprints of §8.
+
+A supplied `unicode-properties.txt` replaces the bundled properties file entirely. Omitted properties and values receive no bundled fallback. A custom core table without a companion file supports only its five core properties. A properties file without an overridden core uses the bundled core and must match its version.
+
+Without either override, a library loads the bundled properties file with the core table. A missing bundled file is a grammar loading error. Present properties files are read and inspected even when a grammar names no additional property. An invalid or mismatched file names `unicode-properties.txt` and its line when known.
+
+Custom subsets are valid. A declared binary property without ranges is supported and false everywhere. An omitted declaration makes the property unavailable, rather than false. Naming an unavailable property is a load error at the reference, including in otherwise unused source. A supplied DOM receives the same inspection.
+
+The playground fetches the pinned properties file at startup, before it loads any dialect. The browser grammar bundle excludes that file. A failed fetch prevents dialect loading and reports the missing resource. The portable JavaScript API receives the file through its source map.
+
+### Property conformance and performance
+
+Shared cases in `tests/engine/` and `tests/notation/` cover the following observations. Listed tags are required memberships, rather than complete output arrays. Expected arrays include every retained tag exactly once in code-point order. The four libraries use identical data and expected values.
+
+| Case | Required observation |
+| --- | --- |
+| Exact names | `_Alphabetic`, `_Script_Latin`, `_Script_Extensions_Greek`, `_Age_V15_1`, and `_Sc` are valid names. Short aliases, wrong case, unknown values, and excluded properties are errors. |
+| Empty selectors | Script Katakana_Or_Hiragana and Word_Break E_Base are valid unused values in the bundled version. |
+| Accents and reordering | `é` and decomposed equivalents produce profiles for `e` and U+0301. Lowercase belongs to `e`, and Diacritic belongs to U+0301. Reordered marks retain their profiles and source origins. |
+| Exact escaped scalars | An escaped precomposed grammar literal remains exact. Input decomposition still classifies its resulting scalars, independently of that literal. |
+| Hangul | `한` produces leading, vowel, and trailing jamo profiles. U+1100 has `_Lo`, `_L`, `_Hangul_Syllable_Type_Leading_Jamo`, and `_Grapheme_Cluster_Break_L`. |
+| Emoji | ASCII digits, `#`, and `*` have Emoji and Emoji_Component. U+200D, U+20E3, and U+FE0F retain their Emoji_Component membership. |
+| Defaults | U+0378 has Script Unknown, Line_Break Unknown, and Bidi_Class Left_To_Right. U+0590 has Bidi_Class Right_To_Left. Unassigned U+3FFFD has East_Asian_Width Wide. |
+| Extension sets | U+30FC has Script Common and extensions Hiragana and Katakana, without extension Common. Latin letters use singleton Latin. U+0951 has Script Inherited and all 13 explicit extension members, including Latin. |
+| Distinct classifications | U+00A0 has White_Space without Pattern_White_Space. U+200E reverses those memberships. U+00B4 has Diacritic and `_Sk`, without `_Mn`. ASCII A has East_Asian_Width Narrow. |
+| Core and normalization | Combining-class tags agree with canonical ordering. Quick_Check defaults and Maybe values match pinned data. Hangul syllable classes do not reappear after decomposition. |
+| Scalar limits | Supplementary scalars, private-use scalars, and noncharacters receive complete profiles. Surrogates remain rejected input. |
+| Generic observations | A grammar naming no additional property still forwards and serializes complete profiles. Adding an unrelated later-stage property reference changes no initial tag set. Whole-set comparisons include unnamed properties. |
+| Inheritance and mutation | Forwarding, filtering, unions, changed values, and shared repeated characters preserve stored membership. A removed tag never reappears. One token's filter cannot change another token. |
+| Provenance | Bare property introduction, tag-set constants, implications, classifier assignment, omission markers, and boundary targets remain forbidden. Filtering forwarded tags is valid. Pattern terminals and pattern tests can read properties. |
+| Caller tokens | Empty caller tags stay empty. A supplied canonical property tag matches despite a different token value. Aliases and unavailable property tags cause usage errors. |
+| Conditional features | A condition over `_Script_Cyrillic ⊆ $.tags` reads retained memberships. Feature gates and replaced definitions do not change initial profiles or excuse invalid references. |
+| Custom resources | Missing support differs from declared-empty support. Shuffled records, equal overlaps, conflicting assignments, invalid headers, unknown records, undeclared values, and version mismatches follow the file rules. |
+| Independent tables | Alternating custom tables over one scalar, concurrent reads, cache hits, and profile eviction preserve each table's answers. |
+| Diagnostics and caches | Expected-terminal lists and supplied DOMs use canonical names. A properties-file change invalidates dependent caches. Missing or malformed bundled data fails even without an explicit property reference. |
+
+Shared cases also exercise property terminals, tag tests, patterns, conditions, filters, and canonical output for every declared value. A value without members receives a load-and-reject case. Corpus comparisons record every changed outcome caused by complete initial tag sets.
+
+A dialect naming no additional property must remain within the performance limits below. The release comparison runs all four libraries on the same machine and runtime versions. Its baseline is the implementation before property profiles. Both revisions use the same core Unicode data, corpus, build mode, and parsing configuration.
+
+The comparison covers the full cll-ebnf corpus and three repeated-character inputs. A one-stage grammar, `%rule text {_}` with `%emits $`, parses those inputs. They are 4,096 ASCII a characters, 2,048 pairs of e and U+0301, and 1,365 Hangul 한 syllables. These workloads name no additional property.
+
+The comparison measures stage-zero construction and parsing, including tag propagation. Nine paired runs alternate revision order after two warm-up runs. Each timed batch repeats enough work to last at least one second. Median warm parse time must increase by at most five percent for each workload and library.
+
+Cold runs use new processes and include resource loading and one corpus parse batch. Their median increase must not exceed five percent or 25 milliseconds, whichever is larger. The comparison reports peak memory and separate JSON serialization time. It compares parse outcomes, trees, and strings, with core-tag projections for comparisons against the baseline.
+
+The performance gate cannot pass through omitted logical tags or different parse work. Conformance cases independently inspect full profiles and whole-set operations. An implementation change that affects profiles reruns both the conformance suite and this comparison before merge. A failed timing limit blocks that change until the implementation meets it.
+
+`python3 tools/bench-unicode-properties.py --baseline REF` performs the comparison against the baseline revision REF. It records both revision IDs, environment, workloads, raw timings, medians, and memory measurements. It exits unsuccessfully for a timing failure, missing measurement, or changed parse outcome. CI requires this comparison for implementation changes that affect profiles.
+
 
 ### Unicode names for string escapes
 
@@ -160,7 +338,7 @@ An unknown name is a document error at the escape's opening `‹`. It never fall
 
 ### Engine-tag provenance
 
-A grammar cannot introduce an engine tag. The function `lit` finds engine tags supplied by literals rather than forwarded input. During reading, the reader applies `lit` to each complete `::` clause of a rule header, alternative, or emission item. It does not reject an intermediate term whose enclosing filter removes its literals.
+A grammar cannot introduce an engine tag. This restriction covers every binary, enumerated, and extension-member tag, including default values. The function `lit` finds engine tags supplied by literals rather than forwarded input. During reading, the reader applies `lit` to each complete `::` clause of a rule header, alternative, or emission item. It does not reject an intermediate term whose enclosing filter removes its literals.
 
 Conditions, tag tests, and patterns only read tags, so `lit` does not apply to their tag-set terms. Constants and `%implies` follow their separate literal bans below. A constant reference gives `lit = ∅` regardless of its value, so binding cannot change this check.
 
@@ -192,7 +370,9 @@ In contrast, `:: _Lu` and `:: ($x ⟹ _Lu)` have `lit = {_Lu}`. Both are documen
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Classifiers cannot assign them because engine tags are not classes. Neither side of `%implies` can name one. An engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
 
-Caller tokens bypass stage-zero character construction. Caller tokens also skip canonical decomposition, and the text beside them is not decomposed. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization. The caller can supply engine tags to represent earlier stages. Nonempty supplied attachments remain a usage error.
+Caller tokens bypass stage-zero character construction. Caller tokens also skip canonical decomposition, and the text beside them is not decomposed. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization.
+
+The caller can supply engine tags to represent earlier stages. Each supplied property tag requires its canonical spelling and support in the configured table. Its membership need not agree with the supplied value. Nonempty supplied attachments remain a usage error.
 
 ## 2. Grammars
 
@@ -1690,7 +1870,9 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-An implementation can keep the DOMs that it built before. Four values always enter its key: document text hash, bootstrap hash, Unicode table fingerprint, and DOM format version. Any mismatch gives a cache miss. The table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
+An implementation can keep the DOMs that it built before. Its key includes document text hash, bootstrap hash, core-table fingerprint, properties fingerprint, and DOM format version. Any mismatch gives a cache miss. Each table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
+
+The properties fingerprint is mandatory, including when no document names an additional property. With no companion for a custom core, it is `null`. An absent member or a different fingerprint gives a cache miss. Prepared stages and scalar-profile caches also distinguish the complete core and properties resources.
 
 A document with a name escape also requires a names fingerprint in its cache entry. This fingerprint hashes the full `unicode-names.txt` text by the same algorithm. The loader identifies name escapes in notation string tokens, including include paths, before accepting an entry. It ignores comments, prose, and escaped literal openers during that inspection. Numeric escapes alone require no names fingerprint.
 

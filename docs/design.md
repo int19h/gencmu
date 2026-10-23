@@ -55,7 +55,9 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-`dist/gencmu.js`, the library as one classic script (a script that is not an ES module), is generated too. So `index.html` works without a build step, from a clone opened with a double click and from GitHub Pages. One Node script, `node tools/sync.js`, writes all of these files, and it needs no dependencies to write them. CI runs it and fails if anything changed. A contributor edits `grammars/` and runs one command.
+The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. A failed fetch prevents loading and reports the resource error.
+
+`dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. A contributor edits `grammars/` and runs one command.
 
 ## Standard library only
 
@@ -121,7 +123,13 @@ These separate channels let a grammar preserve spelling while comparing normaliz
 
 The engine only concatenates strings. It assigns no meaning to pauses, stress, commas, phonemes, or quoted text. A grammar owns every mapping and spacing decision. This keeps a dialect's language policy visible in its documents.
 
-Stage zero, named `input`, supplies one token per decomposed scalar. A scalar value is a Unicode code point outside surrogates. Both token strings start as that decomposed scalar. The configured Unicode table supplies stored category and whitespace tags. Later stages only forward or filter those engine tags.
+Stage zero, named `input`, supplies one token per decomposed scalar. A scalar value is a Unicode code point outside surrogates. Both token strings start as that decomposed scalar. The configured Unicode tables supply complete stored scalar profiles. These include all supported properties, independently of grammar references. Later stages only forward or filter those engine tags.
+
+The pinned inventory includes 56 binary properties, 25 enumerated or catalog properties, and multi-valued Script_Extensions. General categories retain compact names. Other tags use one long spelling, such as `_Alphabetic` or `_Script_Latin`. The generator rejects any spelling collision. Names, string mappings, numeric values, deprecated properties, and contributory exception lists stay outside the inventory.
+
+The core file owns categories, combining classes, whitespace, and two emoji properties. A separate properties file owns additional classifications. The generator resolves UCD defaults, including unassigned regions and Script_Extensions fallback. A missing property is unavailable, rather than false. Grammar references to it fail during loading.
+
+Libraries can share immutable scalar profiles instead of copying property sets onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for dialects naming no additional property.
 
 A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
@@ -262,12 +270,13 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents total about 750 KiB, including prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
-The key of a DOM always has four parts:
+The key of a DOM always has five parts:
 
 - A hash of the document's text
 - A hash of the bootstrap that read it
 - The version number of the DOM format
-- A fingerprint of the Unicode table
+- A fingerprint of the core Unicode table
+- A fingerprint of the properties file, or `null` for a custom core without a companion
 
 A document with a name escape also requires the fingerprint of its names file. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
 
@@ -443,7 +452,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 37 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 38 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 15 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -878,7 +887,9 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
-The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. So it works from `file://`, where browsers refuse ES modules, and from GitHub Pages alike. Nothing is fetched: the grammars are a JavaScript object in `dist/grammars.js`. The page builds the worker from a `Blob` whose text is the library source and the grammar object. So the worker fetches nothing either.
+The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. The grammar documents are a JavaScript object in the grammar bundle. At startup, the page fetches `grammars/unicode-properties.txt` relative to its own URL. It adds that text to the source map before loading a dialect. Local use requires an HTTP server because the resource fetch must succeed.
+
+The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only dialect.
 
 `tools/smoke-playground.js` makes sure that the playground works in headless Chromium and Firefox. Playwright drives the browsers. CI runs the smoke test, and a contributor can run it locally. To run it locally, do these steps:
 
@@ -886,7 +897,7 @@ The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` load
 2. In `lib/js`, run `npx playwright install chromium firefox`.
 3. From the root of the repository, run `node tools/smoke-playground.js [--browser chromium|chrome|firefox] [URL]`.
 
-The test uses Playwright's own browsers, because a browser installed as a snap cannot read a checkout outside the home directory. Playwright is a development dependency of `lib/js` only, never of the libraries or the playground. With no URL, the smoke test opens `index.html` from `file://`. Given a URL, it tests the page at that URL instead, such as a deployment on GitHub Pages.
+The test uses Playwright's own browsers. Playwright is a development dependency of `lib/js` only, never of the libraries or the playground. Without a URL, the smoke test serves the checkout over loopback HTTP and opens `index.html`. With a URL, it tests that page instead. The test requires a successful properties fetch and exercises a failed fetch's loading error.
 
 The playground has these parts:
 
@@ -897,7 +908,7 @@ The playground has these parts:
 - The diagnostics above
 - An editor for the grammar documents, which parses the text again at once after each edit and lets the user download the edited documents
 
-The editor lists a dialect's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a worker (a `Blob` worker, which also works from `file://`), so a long text does not freeze the page.
+The editor lists a dialect's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a `Blob` worker, so a long text does not freeze the page.
 
 ## Output formats
 

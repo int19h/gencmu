@@ -116,7 +116,15 @@ Escape decoding follows source decomposition, so `"‹U+00E9›"` stays one scal
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` complete the inventory.
+The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories retain compact names such as `_Lu`, `_Nd`, and `_L`. Other binary tags use long names, such as `_Alphabetic`. Enumerated values use qualified long names, such as `_Script_Latin` and `_Line_Break_Alphabetic`.
+
+Script_Extensions is multi-valued: each script in its set supplies a tag such as `_Script_Extensions_Hiragana`. An explicit extension set replaces the UCD default singleton Script value. For text associated with a script, extension membership can be more useful than Script alone.
+
+Every stage-zero token carries the complete available profile of its decomposed scalar, even when no grammar names those properties. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
+
+[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. Short aliases such as `_Alpha` and `_Script_Latn` are errors. A known property or value missing from the configured table is a load error at its reference. A supported value with no members is valid and matches nothing.
+
+The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
 Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
 
@@ -703,11 +711,11 @@ The form table covers the constructors, grouping boundaries, paths, sets, tests,
 | `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
 | `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
 
-Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-37 shape acceptance.
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-38 shape acceptance.
 
-The following mapping converts valid format-35 pattern DOMs to format 37. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
+The following mapping converts valid format-35 pattern DOMs to format 38. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and constant references.
 
-| Format-35 form | Format-37 form |
+| Format-35 form | Format-38 form |
 | --- | --- |
 | Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
 | Child `{"node":P}` | `[{"child":M(P)}]` |
@@ -724,11 +732,11 @@ The following mapping converts valid format-35 pattern DOMs to format 37. `M(P)`
 | Pattern test | Retain the test and operands, then convert its `expr` with M |
 | Other pattern atom | Retain its constructor, fields, and source position |
 
-The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-37 DOM receives ordinary shape and type inspection.
+The conversion also visits patterns inside call arguments and other terms. It preserves constant names rather than their evaluated values. Flat intersections preserve order and duplicate operands. The resulting format-38 DOM receives ordinary shape and type inspection.
 
-Malformed-DOM fixtures require corresponding format-37 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+Malformed-DOM fixtures require corresponding format-38 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
 
-Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-37 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-38 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
 
 The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
 
