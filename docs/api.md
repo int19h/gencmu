@@ -18,7 +18,9 @@ A `unicode.txt` in the map replaces the bundled table entirely, with no fallback
 
 A supplied `unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors.
 
-A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map and matching names-dependent cache entries require names data. Canonical printing uses the core abbreviation records. A custom names file can omit standard entries and add names only for unnamed scalars (engine §1).
+A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map require names data. Names-dependent cache hits can use bundled fingerprints without reading names files (engine §8). Canonical printing uses the core abbreviation records.
+
+A custom names file can omit standard entries and add names only for unnamed scalars (engine §1). An unnamed scalar has no pinned formal name, algorithmic name, or alias. Controls therefore cannot receive custom names.
 
 A name is unknown only if neither the core abbreviation map nor the combined selected names files resolves it. Unknown names are document errors at `‹`. A missing required file, version mismatch, or malformed file is a grammar loading error (engine §1).
 
@@ -26,11 +28,17 @@ The decoded include path resolves against its containing document, with `.` and 
 
 `%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
 
-Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply `phonemes/zbalermorna-names.txt`. The portable caller supplies it when a document selects and needs it. Extras augment the selected standard names, without fallback for omitted standard entries.
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply `phonemes/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
+
+Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
 A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. If no matching cache entry exists, the library reads the document through the notation grammar.
 
-An entry always requires matching text hash, bootstrap hash, core-table hash, properties fingerprint, and DOM format. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras. Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
+An entry always requires matching text hash, bootstrap hash, core-table hash, properties fingerprint, and DOM format. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
+
+The optional `bundledNames` cache registry supplies fingerprints for unoverridden bundled resources without names-file reads. Any caller-supplied names resource requires loading and inspecting the complete selected set. A portable cache can also declare bundled names resources through this registry. Absent resource keys select those declared bundled fingerprints for cache comparison, without supplying file text.
+
+Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
 
 A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
 

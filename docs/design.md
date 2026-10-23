@@ -55,7 +55,7 @@ tools/sync.js              regenerates every generated file below
 
 `grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
 
-The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. The core table, with printer abbreviations, comes from `dist/grammars.js`. For source names outside the core abbreviation map or a names-dependent cache entry, the playground fetches `grammars/unicode-names.txt`.
+The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading dialects. The core table, with printer abbreviations, comes from `dist/grammars.js`. Bundled names-dependent cache hits use the `bundledNames` registry from `compiled.json`, which `dist/grammars.js` includes. Such hits fetch no names files. Source names outside the core abbreviation map require a fetch of `grammars/unicode-names.txt`.
 
 Declared extras use the same lazy path under `grammars/`, including `grammars/phonemes/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
 
@@ -282,7 +282,7 @@ The key of a DOM always has five parts:
 - A fingerprint of the core Unicode table
 - A fingerprint of the properties file, or `null` for a custom core without a companion
 
-A document that loads names data also requires the paths and fingerprints of its selected standard and extra files. Core abbreviation escapes need only the core-table fingerprint. Numeric-only documents have no names-file dependency. A change to a required fingerprint misses the cache.
+A document that loads names data also requires the paths and fingerprints of its selected standard and extra files. Core abbreviation escapes need only the core-table fingerprint. Numeric-only documents have no names-file dependency. The `bundledNames` registry supplies fingerprints for unoverridden bundled resources without names-file reads. Overrides require loading and inspecting the complete selected set. A change to a required fingerprint misses the cache.
 
 A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
@@ -897,9 +897,11 @@ The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` load
 
 The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only dialect.
 
-For source names outside the core abbreviation map or names-dependent caches, the page fetches `grammars/unicode-names.txt` before it resumes loading. Declared extras use their normalized grammar-relative paths under `grammars/`. Thus the zbalermorna declaration requests `grammars/phonemes/zbalermorna-names.txt`. Names files stay outside `dist/grammars.js`.
+For source names outside the core abbreviation map, the page fetches `grammars/unicode-names.txt` before it resumes loading. Bundled names-dependent cache hits use fingerprints from `compiled.json` without fetching any names file. Declared extras use their normalized grammar-relative paths under `grammars/`. Thus the zbalermorna declaration requests `grammars/phonemes/zbalermorna-names.txt`. Names files stay outside `dist/grammars.js`.
 
-The page supplies each resource under its matching source-map key, and fetch errors prevent loading. It supplies that text to the worker's source map. Names loading remains separate from canonical rendering, which uses core abbreviations.
+Names-file inspection uses the bundled standard names text, also fetched from `grammars/unicode-names.txt`. The page supplies that pinned text as `unicode-names-reference.txt`, even if the lookup base uses a replacement. It reuses one fetched copy for both purposes. Libraries embed only pinned one-word names and aliases for core inspection.
+
+The page supplies each resource under its matching source-map key, and fetch errors prevent loading. It supplies that text to the worker's source map. Before fetching names files, the worker can compare absent names-resource keys through the bundled registry. After a fetch, supplied text requires full comparison. Edited names files count as overrides. Names loading remains separate from canonical rendering, which uses core abbreviations.
 
 A pipeline names preamble passes extra resources to included documents. A grammar preamble can add its own resource. Returning from that grammar restores the parent's resources. Names never alter scalar properties or the accepted character inventory.
 

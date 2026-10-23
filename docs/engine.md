@@ -90,9 +90,11 @@ The records can stand in any order in a file. Each library sorts them when it lo
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
-The core loader inspects every abbreviation against the embedded pinned standard naming catalog. A record cannot bind a pinned formal name or alias to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `unicode.txt` and the record's line when known.
+The core loader inspects every abbreviation against an embedded catalog of pinned one-word names and aliases. These spellings match `[A-Z][A-Z0-9]*`. A record cannot bind one of those spellings to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `unicode.txt`.
 
-This inspection uses the same standard bindings that protect names files. It reads neither `unicode-names.txt` nor an extra names file. A custom core cannot redefine those standard bindings.
+If the record's line is known, the error includes it. Core inspection always uses the embedded Unicode 15.1 catalog, regardless of the core's declared version.
+
+The generator takes this catalog from pinned DerivedName.txt and NameAliases.txt. Libraries embed only the matching one-word spellings and their scalars. Core inspection reads neither `unicode-names.txt` nor an extra names file. A custom core cannot redefine those standard bindings.
 
 The generator copies all 354 abbreviation aliases from pinned NameAliases.txt into the core table. Printing uses only this always-loaded map, with no names-file lookup. A custom core replaces this map without fallback. Without an abbreviation for a scalar, the printer uses its numeric escape.
 
@@ -353,19 +355,25 @@ Duplicate or overlapping algorithm ranges for the same naming rule are errors. E
 
 Record order does not affect name lookup. Exact spellings, including case and spaces, determine name lookup. The records contain individual scalar names and aliases. A sequence of several scalars cannot supply one escape. Numeric escapes do not consult this file.
 
-If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A matching names-dependent cache entry also requires those files. Printing never loads them because abbreviations belong to the core table. A dialect can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
+If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A names-dependent cache entry can use bundled fingerprints without reading these files (§8). Printing never loads them because abbreviations belong to the core table. A dialect can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
 
 A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. The two files must declare the same version.
 
 A name is unknown only when neither the core abbreviation map nor the combined selected names files resolves it. Omission from the base file alone therefore does not make a name unknown. If lookup reaches names files, only the selected base file and declared extras can resolve it. No bundled fallback supplies omitted entries.
 
-A custom `name` record can name a scalar that has no formal Unicode name in the pinned version. Private-use scalars are one example. It cannot change a standard formal name, including an algorithmic name. Standard alias records must retain their pinned kind, spelling, and scalar. Custom algorithms can only retain or omit the pinned rules and ranges.
+An unnamed scalar has no pinned formal name, algorithmic name, or alias. A custom file can retain pinned formal names unchanged or add a `name` record for an unnamed scalar. Private-use scalars are one example. Controls have standard aliases, so `name 000A NEWLINE` is invalid.
+
+A custom record cannot change a standard formal name, including an algorithmic name. Standard alias records must retain their pinned kind, spelling, and scalar. Custom algorithms can only retain or omit the pinned rules and ranges.
 
 An added name starts with an uppercase ASCII letter. Its remaining characters are uppercase ASCII letters, digits, spaces, or hyphens. Single spaces separate words, without leading or trailing spaces. It cannot duplicate any pinned formal name or alias, even one omitted from the selected file. It cannot match an algorithmic name or the numeric escape form.
 
 It cannot conflict with an active core abbreviation or another selected file's name. Exact duplicate additions across different files are harmless, but conflicting names or two formal names for one scalar are loading errors.
 
-Each library embeds the pinned standard naming catalog for these restrictions, including computed naming rules. It consults that catalog during core abbreviation inspection and names-file loading. The catalog never supplies omitted lookup entries. The portable library includes the same catalog. A names file without an available catalog for its declared Unicode version causes a loading error. Custom core tables do not change which names count as standard.
+For names-file inspection, the reference is the complete bundled `unicode-names.txt`, including its algorithmic rules. A loader reads that reference whenever it reads a custom base file or an extra names file. The reference serves only inspection and never supplies omitted lookup entries. Libraries do not embed the complete catalog. Custom core tables do not change which names count as standard.
+
+Disk and bundled loaders obtain the reference from the package's pinned `unicode-names.txt`, independently of any selected replacement. The portable source map supplies that same text under the reserved key `unicode-names-reference.txt`. Libraries embed its pinned FNV-1a fingerprint (§8) and reject different reference text. A selected base with that fingerprint can also serve as the reference, without a second read.
+
+The reference declares Unicode 15.1.0. Names files require a reference with the same declared version. An unavailable reference, a different fingerprint, or a version mismatch is a grammar loading error naming `unicode-names-reference.txt`. No host database supplies the reference. The reference is not a selected lookup resource and adds no entry to a cache's `names` map.
 
 If bundled resources exist and versions match, an omitted names file selects the bundled file. If those resources are unavailable and names data is needed, the caller must supply the names file. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `unicode-names.txt`. If the line is known, the error includes it. These resource errors arise during source escape inspection or names-dependent cache loading, never from printing.
 
@@ -379,7 +387,11 @@ A preamble is the initial run of resource declarations.
 
 A grammar or pipeline document declares an extra names resource with `%names "PATH"`. These directives form a preamble before every other statement in that document. They can span several grammar blocks. Each directive takes exactly one quoted path. The path uses literal include-path decoding and resolves against the declaring document's directory. Its escapes can use numeric values or active core abbreviations, but cannot require a names file.
 
-After successful lexing, a preamble pass collects these declarations before ordinary escape inspection. A wrong count, wrong operand, or forbidden path escape fails at the `%names` directive. The first such failure in source order wins. A misplaced `%names` fails during reader conversion at that directive. The syntax grammar still recognizes ordinary directive operands. The hand-written bootstrap reader follows the same preamble pass.
+After successful lexing, a preamble pass collects the longest leading run of `%names` directives before ordinary escape inspection. Each directive's operands extend to the next directive or statement start, or to the token sequence's end. Statement-start tokens are the `definer`, `directive-name`, `%const`, `%redefine-const`, `%classifier`, and `%implies` keywords of §9.2. Comments and grammar-block boundaries do not end the run.
+
+The pass inspects leading directives in source order. For each directive, a wrong operand count or kind fails first at `%names`. It then inspects that path's escapes from left to right. A malformed or nonscalar escape fails at its opening `‹`. A name outside the core abbreviation map also fails at `‹`. Preamble errors precede every other escape-inspection error.
+
+Ordinary escape inspection applies the same restricted decoder to every `%names` path, including a misplaced directive's path. It never loads names data for that path. A misplaced `%names` fails later during reader conversion at the directive. The syntax grammar still recognizes ordinary directive operands. The hand-written bootstrap reader follows the same preamble pass.
 
 A document inherits the extra resources of its includers and adds its own declarations. The resulting set applies to all strings in that document and to its nested includes. Returning from an include restores the includer's set. A declaration in one sibling never affects another sibling. Resource selection is independent of stage selection, feature gates, and stage replacement.
 
@@ -393,7 +405,7 @@ The DOM retains each `%names` directive and its decoded path. Its declaration or
 
 Pipeline splicing consumes these directives before stage stitching. They never enter a stitched grammar or bootstrap stage. Supplied DOMs follow the same preamble placement and path rules. Canonical stitching omits these directives because it prints decoded strings with core abbreviations or numeric escapes.
 
-The [zbalermorna grammar's closing section](../grammars/phonemes/zbalermorna.md#two-encodings) gives a bundled example of an extra names resource. The grammar document owns that resource's inventory, source pins, and dialect behavior.
+The [zbalermorna grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) gives a bundled example of an extra names resource. The grammar document owns that resource's inventory, source pins, and dialect behavior.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
@@ -401,11 +413,13 @@ Shared core cases reject `abbreviation 0041 LF` and `abbreviation 0041 SPACE` du
 
 A header-only custom names file does not prevent core lookup of `‹LF›`. A name omitted from both lookup routes remains unknown, without bundled fallback. These cases distinguish core priority from file replacement.
 
-Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets.
+Shared names cases exercise allowed private-use additions, omitted standard names, forbidden renaming, control aliases, reserved algorithmic names, alias collisions, and conflicts between extras. They also cover inherited declarations, sibling isolation, duplicate paths, lazy missing files, source-map paths, and caches under different inherited sets. Separate cases require the pinned reference for custom and extra files. Core inspection uses its embedded 15.1 catalog even with a core declaring another version. A replacement file never restores omitted lookup entries through that reference.
 
 An unknown name is a document error at the escape's opening `‹`. It never falls back to a host name database or an empty string. The same error applies inside a definition that a later statement replaces.
 
 Escape inspection follows successful lexical recognition and precedes syntax recognition. It visits quoted tokens in text order and reports the first invalid escape at its opening `‹`.
+
+Shared cases distinguish leading preamble errors from misplaced directives. A leading wrong operand count wins over an invalid escape in that directive. Malformed numeric path escapes and noncore path names fail at `‹`. A misplaced path receives the same restriction without loading names data. An earlier unclosed rule beats a misplaced `%names foo` during syntax recognition. A misplaced directive with a valid path fails later during reader conversion.
 
 The lexical grammar performs no name lookup. Its string tokens retain their escape spellings. Shared cases combine invalid escapes with later lexical errors, earlier reader errors, and syntax errors. They also pin left-to-right selection between two invalid escapes.
 
@@ -1949,15 +1963,23 @@ Even without explicit property references, every document cache requires the pro
 
 When source conversion loads names data, the cache writer records a `names` map for that document. It maps `unicode-names.txt` and every selected extra's normalized resolved path to that resource's text hash. Paths use the same namespace as cached documents. Map keys use code-point order. Hashes use the same algorithm as document hashes. Numeric escapes and core abbreviation escapes alone require no names map.
 
-After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it loads the selected resources and compares their paths and fingerprints before accepting the entry. If `names` is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. A cache hit needs no source token scan or escape inspection.
+After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it compares the selected paths and fingerprints before accepting the entry. Bundled resources can use the fingerprint registry below without file reads. If `names` is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. A cache hit needs no source token scan or escape inspection.
 
 If `names` is present, the expected resource set contains `unicode-names.txt` plus the current inherited and local extras. Local declarations come from the shape-valid cached DOM. All paths use their normalized resolved form. This is the same set that the cache writer records. A path-set difference or required resource hash difference gives a cache miss.
 
-If `names` is absent, the loader skips this comparison and keeps the otherwise valid entry. Local and inherited declarations still supply the resource scope for nested includes. Missing or malformed required names data remains a loading error when the map is present. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
+If `names` is absent, the loader skips this comparison and keeps the otherwise valid entry. Local and inherited declarations still supply the resource scope for nested includes. If the map is present and comparison requires file loading, missing or malformed names data is a loading error. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
 
-Shared cache cases require a hit when the complete base-and-extras set and all hashes match. A changed extra path or hash gives a miss when `names` is present. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
+Shared cache cases require a hit when the complete base-and-extras set and all hashes match. If `names` is present, a changed extra path or hash gives a miss. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
 
-`compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
+`compiled.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
+
+The shortcut requires the active core to declare the bundled names version, 15.1.0. A different version is a grammar loading error. For an unoverridden bundled resource, the loader takes its current fingerprint from `bundledNames`. It compares that fingerprint with the document entry's `names` value. If every selected resource uses this route, a cache hit reads, parses, and fetches no names file. Supplied resources count as overrides, even if their bytes match the bundle.
+
+A supplied file always takes priority over registry metadata. A disk file outside the package bundle counts as an override. An absent source-map key can select its registered bundled fingerprint for cache comparison. This also permits portable cache hits without bundled names text. A miss still requires the selected file text before source conversion can use names.
+
+If any selected resource is overridden or lacks a registry entry, the loader reads and inspects the complete selected set. This includes the pinned reference for a custom base or extra. Path-set and fingerprint differences give cache misses. A malformed registry prevents this shortcut but does not invalidate an otherwise usable document entry. If `names` is absent, no registry comparison or names-file loading occurs.
+
+Shared cases require bundled names-dependent hits with zero names-file reads, even for a zbalermorna pipeline. They also cover a missing registry, overridden resources, mismatched hashes, and lazy playground fetches after a miss.
 
 A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every dialect that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
 
@@ -2457,7 +2479,10 @@ The lexical stage reads the longest punctuation token. `...` is one chain marker
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 
 1. Lexical recognition runs first. A lexical error stands at the furthest character that the lexical stage reaches. No preamble, escape, or syntax inspection occurs after that failure.
-2. After successful lexing, the names preamble pass of §1 selects extra resources. Escape inspection then visits string and path tokens in source order. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error.
+2. After successful lexing, the names preamble pass of §1 inspects only the longest leading run of `%names` directives. Operand count and kind errors fail first at the directive. Within each valid path operand, malformed, nonscalar, and forbidden name escapes fail at `‹`, from left to right. These preamble errors precede all other errors in this step.
+
+   Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error. Section 1 defines operand boundaries and preamble order.
+
 3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
 4. Within a rule, the reader reads the definer, name, flags, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.

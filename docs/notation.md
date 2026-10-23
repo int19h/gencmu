@@ -527,7 +527,7 @@ A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open esca
 
 A numeric escape uses uppercase `U+` and four to six ASCII hexadecimal digits. Input digits can use either case. Its value must be a scalar at most U+10FFFF. A surrogate or malformed numeric escape is a document error at `‹`.
 
-Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the selected lazy names resources. Declared extras add names for unnamed scalars without renaming standard characters. Every alias kind in the base file is valid.
+Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the selected lazy names resources. An unnamed scalar has no pinned formal name, algorithmic name, or alias. Declared extras add names only for these scalars, without renaming standard characters. Every alias kind in the base file is valid.
 
 An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
 
