@@ -644,15 +644,21 @@
       "cached": true
     },
     {
+      "description": "A valid layered repeat separator permits a compiled cache hit.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"any\":true,\"children\":[{\"repeat\":[{\"child\":{\"terminal\":\"A\",\"at\":[1,1]}}],\"separator\":[{\"child\":{\"terminal\":\"B\",\"at\":[1,1]}}]}]}}}]",
+      "cached": true
+    },
+    {
       "description": "A malformed pattern separator makes the compiled document a cache miss: None.",
       "find": "\"constants\":[]",
-      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":null}}}}]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"any\":true,\"children\":[{\"repeat\":[{\"child\":{\"terminal\":\"A\",\"at\":[1,1]}}],\"separator\":null}]}}}]",
       "cached": false
     },
     {
       "description": "A malformed pattern separator makes the compiled document a cache miss: ''.",
       "find": "\"constants\":[]",
-      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"children\":{\"repeat\":{\"node\":{\"terminal\":\"A\",\"at\":[1,1]}},\"separator\":\"\"}}}}]",
+      "replace": "\"constants\":[{\"name\":\"P\",\"op\":\"define\",\"at\":[1,1],\"value\":{\"pattern\":{\"any\":true,\"children\":[{\"repeat\":[{\"child\":{\"terminal\":\"A\",\"at\":[1,1]}}],\"separator\":\"\"}]}}}]",
       "cached": false
     },
     {
