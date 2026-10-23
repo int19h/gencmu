@@ -38,6 +38,7 @@ class UnicodeTable:
         self.decompositions: dict[int, tuple[int, ...]] = {}
         self.fingerprint = fnv1a64(text)
         self.version = ""
+        self.version_count = 0
         self.abbreviations: dict[str, int] = {}
         lines = text.split("\n")
         for number, raw in enumerate(lines, 1):
@@ -65,6 +66,7 @@ class UnicodeTable:
                     raise ValueError(entry)
                 if fields[0] == "unicode":
                     self.version = fields[1]
+                    self.version_count += 1
                 elif entry == "abbreviation":
                     code, alias = codes[0], fields[2]
                     if (0xD800 <= code <= 0xDFFF or re.fullmatch(r"[A-Z][A-Z0-9]*", alias) is None

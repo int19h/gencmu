@@ -97,7 +97,7 @@ def write_names(records, catalog):
     go = f"// {title}\npackage gencmu\n\nvar pinnedCoreNames = map[string]rune{{\n"
     width = max(len(name) for name, _ in catalog) + 4
     go += "".join("\t" + f'"{name}":'.ljust(width) + f"0x{code:04X},\n" for name, code in catalog) + "}\n"
-    python = f'"""{title}"""\n\nPINNED_CORE_NAMES = {{\n'
+    python = f'"""{title}"""\n\nPINNED_NAMES_HASH = "{fingerprint:016x}"\n\nPINNED_CORE_NAMES = {{\n'
     python += "".join(f'    "{name}": 0x{code:04X},\n' for name, code in catalog) + "}\n"
     for path, text in [("lib/js/src/unicode-names-catalog.js", js),
                        ("lib/rust/src/unicode_names_catalog.rs", rust),

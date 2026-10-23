@@ -104,6 +104,8 @@ An error that lowering finds (engine §3), such as an item of braces that can ma
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
+A resource error names the resource key. Its position omits an unknown line or column. The reserved keys include `unicode.txt`, `unicode-names.txt`, and `unicode-names-reference.txt`.
+
 ### Result invariants and witness tests
 
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:

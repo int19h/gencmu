@@ -74,7 +74,8 @@ class DeferredDom(dict):
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, defer_emission: bool = False) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, defer_emission: bool = False, decode_string=None) -> None:
+        self.decode_string = decode_string
         self.defer_emission = defer_emission
         self.deferred_emissions = []
         self.tokens = tokens
@@ -293,7 +294,9 @@ class DomBuilder:
         problem = operand_problem(name, [self.operand_kind(kid) for kid in operands])
         if problem:
             raise self.fail(node, problem)
-        args = [self.token_value(self.token(kid)) if kid.rule == "argument-word" else self.source_text(self.token(kid))[1:-1] for kid in operands]
+        args = [self.token_value(self.token(kid)) if kid.rule == "argument-word" else
+                self.decode_string(self.tokens[self.token(kid).token], True) if self.decode_string else
+                self.source_text(self.token(kid))[1:-1] for kid in operands]
         if name in ("stage", "extend-stage", "redefine-stage") and not CLASSIFIER_NAME.fullmatch(args[0]):
             raise self.fail(node, "a stage name starts lowercase")
         if name == "features" and any(re.fullmatch(r"[A-Za-z][A-Za-z0-9-]*", arg) is None for arg in args):
@@ -678,7 +681,7 @@ class DomBuilder:
         return None
 
     def decode(self, token: Node) -> Dom:
-        return {"string": self.token_value(token)[1:-1]}
+        return {"string": self.decode_string(self.tokens[token.token]) if self.decode_string else self.token_value(token)[1:-1]}
 
     def tag_of(self, token: Node) -> str:
         name = self.token_value(token)
