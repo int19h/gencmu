@@ -2265,7 +2265,9 @@
    * @returns {string[]}
    */
   function sortedTags(tags) {
-    return [...tags].sort(compareCodePoints);
+    const names = [...tags];
+    // UTF-16 and code-point order agree unless a string contains a surrogate.
+    return names.some(name => /[\uD800-\uDFFF]/.test(name)) ? names.sort(compareCodePoints) : names.sort();
   }
 
   const NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
