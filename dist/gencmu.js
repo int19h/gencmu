@@ -2640,7 +2640,7 @@
     while(pending.length) {
       const n=pending.pop();
       if(n?.pattern || patterns.has(n?.const)) return true;
-      for(const key of ['union','intersection','difference']) if(n?.[key]) pending.push(...n[key]);
+      for(const key of ['union','intersection','difference']) if(n?.[key]) for (const child of n[key]) pending.push(child);
     }
     return false;
   }
@@ -2658,7 +2658,7 @@
           if(!users.has(n.const)) users.set(n.const,new Set());
           users.get(n.const).add(definition.name);
         }
-        for(const key of ['union','intersection','difference']) if(n?.[key]) pending.push(...n[key]);
+        for(const key of ['union','intersection','difference']) if(n?.[key]) for (const child of n[key]) pending.push(child);
       }
     }
     const queue=[...patterns];

@@ -12674,7 +12674,7 @@
     "malformed": false
   },
   {
-    "description": "Unresolved leaf: parameter remains valid in pattern literal string",
+    "description": "Unresolved leaf: parameter remains valid as a pattern node test",
     "rule": {
       "name": "use",
       "params": [
@@ -12713,13 +12713,7 @@
           },
           "right": {
             "pattern": {
-              "literal": {
-                "param": "X",
-                "at": [
-                  3,
-                  22
-                ]
-              },
+              "param": "X",
               "at": [
                 3,
                 22
