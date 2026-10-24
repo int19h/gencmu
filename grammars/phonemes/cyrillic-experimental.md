@@ -144,15 +144,13 @@ The Cyrillic of CLL, in [cyrillic-cll.md](cyrillic-cll.md), ignores unknown mark
 %emits
   $
 
-%redefine-rule cll-cyrillic-stressed-vowel :: Stressed
-  | ("а" letter-marks<Accent> | "А" [letter-marks]) := "a" :- "A"
-  | ("е" letter-marks<Accent> | "Е" [letter-marks]) := "e" :- "E"
-  | ("и" letter-marks<Accent> | "И" [letter-marks]) := "i" :- "I"
-  | ("о" letter-marks<Accent> | "О" [letter-marks]) := "o" :- "O"
-  | ("у" letter-marks<Accent> | "У" [letter-marks]) := "u" :- "U"
-  | ("ъ" letter-marks<Accent> | "Ъ" [letter-marks]) := "y" :- "Y"
-%emits
-  $
+%redefine-rule cll-cyrillic-stressed-vowel = stressed-vowel-with(
+  ("а" letter-marks<Accent> | "А" [letter-marks]),
+  ("е" letter-marks<Accent> | "Е" [letter-marks]),
+  ("и" letter-marks<Accent> | "И" [letter-marks]),
+  ("о" letter-marks<Accent> | "О" [letter-marks]),
+  ("у" letter-marks<Accent> | "У" [letter-marks]),
+  ("ъ" letter-marks<Accent> | "Ъ" [letter-marks]))
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>cll-cyrillic-consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>

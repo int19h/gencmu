@@ -53,15 +53,7 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
 %emits
   $
 
-%rule cll-cyrillic-stressed-vowel :: Stressed
-  | "А" := "a" :- "A"
-  | "Е" := "e" :- "E"
-  | "И" := "i" :- "I"
-  | "О" := "o" :- "O"
-  | "У" := "u" :- "U"
-  | "Ъ" := "y" :- "Y"
-%emits
-  $
+%rule cll-cyrillic-stressed-vowel = stressed-vowel-with("А", "Е", "И", "О", "У", "Ъ")
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>

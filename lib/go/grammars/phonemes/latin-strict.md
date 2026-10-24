@@ -242,6 +242,8 @@ A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a 
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
 
+`stressed-vowel-with` fixes the six lowercase values and uppercase images. Its arguments supply the script-specific readers. Named instances keep each script's vowel rule in the phoneme tree.
+
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
@@ -271,15 +273,17 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 %emits
   $
 
-%rule stressed-vowel :: Stressed
-  | "A" := "a" :- "A"
-  | "E" := "e" :- "E"
-  | "I" := "i" :- "I"
-  | "O" := "o" :- "O"
-  | "U" := "u" :- "U"
-  | "Y" := "y" :- "Y"
+%rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
+  | @A := "a" :- "A"
+  | @E := "e" :- "E"
+  | @I := "i" :- "I"
+  | @O := "o" :- "O"
+  | @U := "u" :- "U"
+  | @Y := "y" :- "Y"
 %emits
   $
+
+%rule stressed-vowel = stressed-vowel-with("A", "E", "I", "O", "U", "Y")
 
 %rule apostrophe
   "'" | "’" | "‘" | "ʼ"
@@ -290,9 +294,10 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   ","
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>consonant</code> to <code>comma</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>comma</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel-with.svg" alt="Railroad diagram of the rule stressed-vowel-with"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/comma.svg" alt="Railroad diagram of the rule comma"></p>
