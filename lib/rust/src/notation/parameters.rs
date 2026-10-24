@@ -727,7 +727,7 @@ impl<'a> Reader<'a> {
                         if name == "classify" && has(&arg, "rule") {
                             arg = obj([("classifier", get(&arg, "rule").clone())])
                         }
-                        if matches!(name, "matches" | "begins" | "followed-by" | "preceded-by")
+                        if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by")
                             && has(&arg, "tag")
                             && !crate::dom::is_engine_tag(text(get(&arg, "tag")))
                         {
@@ -739,8 +739,11 @@ impl<'a> Reader<'a> {
                     set(&mut value, p::SOURCE, position(self.at(p)));
                     args.push(value);
                 }
-                let separator =
-                    if matches!(name, "matches" | "begins" | "followed-by" | "preceded-by") { "|" } else { "," };
+                let separator = if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by") {
+                    "|"
+                } else {
+                    ","
+                };
                 if Self::tokens_of(a).any(|p| self.value(p) != separator) {
                     return Err(self.error(a, "invalid method argument separator"));
                 }
@@ -751,7 +754,7 @@ impl<'a> Reader<'a> {
                 use crate::dom::schema::{parts_problem, Part};
                 let kind = if matches!(
                     name,
-                    "matches" | "begins" | "starts-input" | "ends-input" | "followed-by" | "preceded-by"
+                    "matches" | "begins" | "ends" | "starts-input" | "ends-input" | "followed-by" | "preceded-by"
                 ) {
                     Part::Condition
                 } else {

@@ -274,6 +274,7 @@ pub(crate) enum Cond {
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
     Begins(Term, Vec<String>),
+    Ends(Term, Vec<String>),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
     Final(Term),
@@ -804,13 +805,15 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                                 .collect::<R<Vec<_>>>()?,
                             BoundaryLocation::default(),
                         ),
-                        ("matches" | "begins", args) => {
+                        ("matches" | "begins" | "ends", args) => {
                             let targets = args
                                 .iter()
                                 .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
                                 .collect::<R<Vec<_>>>()?;
                             if name == "matches" {
                                 Cond::Matches(receiver, targets)
+                            } else if name == "ends" {
+                                Cond::Ends(receiver, targets)
                             } else {
                                 Cond::Begins(receiver, targets)
                             }
@@ -1430,8 +1433,14 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             write_term(out, right);
             out.push('}');
         }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
-            let name = if matches!(cond, Cond::Matches(..)) { "matches" } else { "begins" };
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
+            let name = if matches!(cond, Cond::Matches(..)) {
+                "matches"
+            } else if matches!(cond, Cond::Ends(..)) {
+                "ends"
+            } else {
+                "begins"
+            };
             out.push_str("{\"method\":");
             write_str(out, name);
             out.push_str(",\"receiver\":");
@@ -1591,6 +1600,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push(Nested::Term(span)),
@@ -1731,6 +1741,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push((Nested::Term(span), below)),
@@ -2077,6 +2088,7 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         }
         Cond::Matches(span, _)
         | Cond::Begins(span, _)
+        | Cond::Ends(span, _)
         | Cond::Initial(span)
         | Cond::Final(span)
         | Cond::Boundary(_, span, _, _) => match term_type_in(span, constants) {
@@ -2301,6 +2313,7 @@ impl Cond {
             }
             Cond::Matches(span, _)
             | Cond::Begins(span, _)
+            | Cond::Ends(span, _)
             | Cond::Initial(span)
             | Cond::Final(span)
             | Cond::Boundary(_, span, _, _) => stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet))),
@@ -2360,4 +2373,21 @@ pub(crate) fn ngrams(s: &str, digits: &str) -> Vec<String> {
         return Vec::new();
     }
     points.windows(n).map(|run| run.iter().collect()).collect()
+}
+
+/// Whether a span preserves a restoration constraint through onward.
+pub(crate) fn restored_span(mut term: &Term) -> bool {
+    for _ in 0..=256 {
+        match term {
+            Term::Call(name, _) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
+                return true
+            }
+            Term::Call(name, args) if name == "from" => {
+                let [Arg::Term(inner)] = &args[..] else { return false };
+                term = inner;
+            }
+            _ => return false,
+        }
+    }
+    false
 }

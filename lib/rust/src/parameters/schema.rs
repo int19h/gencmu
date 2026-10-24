@@ -364,7 +364,7 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
     None
 }
 fn query(name: &str) -> bool {
-    ["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"].contains(&name)
+    ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"].contains(&name)
 }
 fn bare_capture(n: &Json) -> bool {
     only(n, &["capture"]) && get(n, "capture").as_str().is_some_and(|s| s.is_empty() || dom::is_capture_name(s))
@@ -420,7 +420,11 @@ fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str>
             matches!(args,[a] if only(a,&["classifier"]) && get(a,"classifier").as_str().is_some_and(dom::is_classifier_name))
         }
         "tags" => span && (args.is_empty() || matches!(args,[a] if rule(a))),
-        "matches" | "begins" => span && !args.is_empty() && args.iter().all(target),
+        "matches" | "begins" | "ends" => {
+            span && (name != "ends" || !dom::schema::restored_span(receiver))
+                && !args.is_empty()
+                && args.iter().all(target)
+        }
         "followed-by" | "preceded-by" => bare && !args.is_empty() && args.iter().all(target),
         "without-elision-except" => bare && matches!(args,[a] if rule(a)),
         "without-elision" => bare && args.is_empty(),
@@ -818,7 +822,7 @@ fn node_step<'a>(
             if has(a, "rule") {
                 if !only(a, &["rule"])
                     || !named(get(a, "rule"), uni)
-                    || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"]
+                    || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"]
                         .contains(&name)
                 {
                     return Some("a malformed rule argument");
@@ -828,7 +832,7 @@ fn node_step<'a>(
             if has(a, "terminal") {
                 if !only(a, &["terminal"])
                     || !user_tag(get(a, "terminal"))
-                    || !["matches", "begins", "followed-by", "preceded-by"].contains(&name)
+                    || !["matches", "begins", "ends", "followed-by", "preceded-by"].contains(&name)
                 {
                     return Some("a malformed target argument");
                 }

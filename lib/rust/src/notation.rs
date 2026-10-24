@@ -1472,7 +1472,8 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
         if let Some(arguments) = Self::rules(selector, "arguments").next() {
-            let expected = if matches!(name, "matches" | "begins" | "followed-by" | "preceded-by") { "|" } else { "," };
+            let expected =
+                if matches!(name, "matches" | "begins" | "ends" | "followed-by" | "preceded-by") { "|" } else { "," };
             if Self::parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
@@ -1506,8 +1507,9 @@ impl<'a> Reader<'a> {
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
                 ("tags", [Arg::Rule(_)]) => span,
-                ("matches" | "begins", args) => {
-                    span && !args.is_empty()
+                ("matches" | "begins" | "ends", args) => {
+                    span && (name != "ends" || !crate::dom::restored_span(&receiver))
+                        && !args.is_empty()
                         && args
                             .iter()
                             .all(|a| matches!(a, Arg::Rule(_)) || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n)))
@@ -1557,50 +1559,54 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, problem));
         }
         let last = frame.index + 1 == selectors.len();
-        let value =
-            if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins") {
-                if !frame.condition || !last {
-                    return Err(self.error(frame.node, "a predicate method cannot supply a value"));
-                }
-                let mut args = args.into_iter();
-                let Some(Arg::Term(receiver)) = args.next() else { unreachable!() };
-                Val::Cond(match name {
-                    "starts-input" => Cond::Initial(receiver),
-                    "ends-input" => Cond::Final(receiver),
-                    "followed-by" | "preceded-by" => Cond::Boundary(
-                        name == "followed-by",
-                        receiver,
-                        args.map(|arg| match &arg {
-                            Arg::Rule(name) | Arg::Term(Term::Tag(name)) => name.clone(),
+        let value = if matches!(
+            name,
+            "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins" | "ends"
+        ) {
+            if !frame.condition || !last {
+                return Err(self.error(frame.node, "a predicate method cannot supply a value"));
+            }
+            let mut args = args.into_iter();
+            let Some(Arg::Term(receiver)) = args.next() else { unreachable!() };
+            Val::Cond(match name {
+                "starts-input" => Cond::Initial(receiver),
+                "ends-input" => Cond::Final(receiver),
+                "followed-by" | "preceded-by" => Cond::Boundary(
+                    name == "followed-by",
+                    receiver,
+                    args.map(|arg| match &arg {
+                        Arg::Rule(name) | Arg::Term(Term::Tag(name)) => name.clone(),
+                        _ => unreachable!(),
+                    })
+                    .collect(),
+                    crate::dom::BoundaryLocation {
+                        at: Some(self.first(frame.node)),
+                        targets: frame.arguments.as_ref().unwrap().iter().map(|n| self.first(n)).collect(),
+                    },
+                ),
+                _ => {
+                    let targets = args
+                        .map(|a| match &a {
+                            Arg::Rule(n) | Arg::Term(Term::Tag(n)) => n.clone(),
                             _ => unreachable!(),
                         })
-                        .collect(),
-                        crate::dom::BoundaryLocation {
-                            at: Some(self.first(frame.node)),
-                            targets: frame.arguments.as_ref().unwrap().iter().map(|n| self.first(n)).collect(),
-                        },
-                    ),
-                    _ => {
-                        let targets = args
-                            .map(|a| match &a {
-                                Arg::Rule(n) | Arg::Term(Term::Tag(n)) => n.clone(),
-                                _ => unreachable!(),
-                            })
-                            .collect();
-                        if name == "matches" {
-                            Cond::Matches(receiver, targets)
-                        } else {
-                            Cond::Begins(receiver, targets)
-                        }
+                        .collect();
+                    if name == "matches" {
+                        Cond::Matches(receiver, targets)
+                    } else if name == "ends" {
+                        Cond::Ends(receiver, targets)
+                    } else {
+                        Cond::Begins(receiver, targets)
                     }
-                })
-            } else {
-                if last && frame.condition {
-                    return Err(self.error(frame.node, "a condition requires a predicate method"));
                 }
-                let alias = crate::dom::method_alias(name);
-                Val::Term(Term::Call(alias.into(), args), call_type(alias))
-            };
+            })
+        } else {
+            if last && frame.condition {
+                return Err(self.error(frame.node, "a condition requires a predicate method"));
+            }
+            let alias = crate::dom::method_alias(name);
+            Val::Term(Term::Call(alias.into(), args), call_type(alias))
+        };
         if last {
             return Ok(Step::Done(value));
         }
@@ -2477,6 +2483,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
                 Cond::Matches(..)
                 | Cond::Begins(..)
+                | Cond::Ends(..)
                 | Cond::Initial(_)
                 | Cond::Final(_)
                 | Cond::Boundary(_, _, _, _)
@@ -2571,6 +2578,7 @@ fn flatten_groups(rule: &mut RuleDef) {
                 }
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push(PartMut::Term(span)),

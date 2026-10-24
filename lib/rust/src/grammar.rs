@@ -1562,6 +1562,7 @@ impl Constants<'_> {
             }
             Cond::Matches(..)
             | Cond::Begins(..)
+            | Cond::Ends(..)
             | Cond::Initial(_)
             | Cond::Final(_)
             | Cond::Boundary(_, _, _, _)
@@ -1637,6 +1638,7 @@ fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg]
         }
         Cond::Matches(..)
         | Cond::Begins(..)
+        | Cond::Ends(..)
         | Cond::Initial(_)
         | Cond::Final(_)
         | Cond::Boundary(_, _, _, _)
@@ -1828,6 +1830,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "classify"
                 | "matches"
                 | "begins"
+                | "ends"
                 | "initial",
                 _,
             ) => Err(format!("{name}() is called with the wrong arguments")),
@@ -1846,7 +1849,10 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_term(grammar, left)?;
             check_term(grammar, right)
         }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
+            if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
+                return Err(".ends cannot read a restored span".into());
+            }
             check_span(grammar, span)?;
             for target in rule {
                 if !is_terminal_name(target) {

@@ -94,6 +94,7 @@ pub(crate) enum LCond {
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
     Begins(Span, u32),
+    Ends(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
@@ -980,11 +981,13 @@ impl<'a> Scope<'a> {
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
             }
-            Cond::Matches(span, targets) | Cond::Begins(span, targets) => {
+            Cond::Matches(span, targets) | Cond::Begins(span, targets) | Cond::Ends(span, targets) => {
                 let mut choices = Vec::new();
                 for rule in targets {
                     choices.push(if matches!(cond, Cond::Matches(..)) {
                         LCond::Matches(self.span(span)?, self.rule(rule)?)
+                    } else if matches!(cond, Cond::Ends(..)) {
+                        LCond::Ends(self.span(span)?, self.rule(rule)?)
                     } else {
                         LCond::Begins(self.span(span)?, self.rule(rule)?)
                     })
@@ -2277,7 +2280,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     while let Some(p) = stack.pop() {
         match p {
             Part::C(c) => match c {
-                Cond::Matches(_, targets) | Cond::Begins(_, targets) => {
+                Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
                     result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
                 }
                 Cond::Compare(_, a, b) => stack.extend([Part::T(a), Part::T(b)]),

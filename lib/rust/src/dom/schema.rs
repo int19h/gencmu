@@ -74,6 +74,20 @@ fn span(value: &Json) -> bool {
         )
 }
 
+pub(crate) fn restored_span(mut value: &Json) -> bool {
+    for _ in 0..=256 {
+        match value.get("method").and_then(Json::as_str) {
+            Some("without-elision" | "without-elision-except") => return true,
+            Some("onward") => {
+                let Some(inner) = value.get("receiver") else { return false };
+                value = inner;
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
 fn string_atom(value: &Json) -> bool {
     exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
 }
@@ -675,8 +689,9 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                                                 })
                                     })
                             }
-                            (Some("matches" | "begins"), Some(args)) => {
-                                !args.is_empty()
+                            (Some(name @ ("matches" | "begins" | "ends")), Some(args)) => {
+                                (name != "ends" || !restored_span(receiver))
+                                    && !args.is_empty()
                                     && args.iter().all(|arg| {
                                         exact(arg, &["rule"], &[])
                                             && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
