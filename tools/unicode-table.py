@@ -108,6 +108,73 @@ def write_names(records, catalog):
         (ROOT / path).write_text(text, encoding="utf-8")
 
 
+# Humbert's 2014-06-06 proposal and the UCSUR proposal dated 2024-08-20.
+# The paired assignments follow the pinned Fairfax table in zbalermorna.md.
+ZBALERMORNA = """\
+ED80 LETTER PY
+ED81 LETTER TY
+ED82 LETTER KY
+ED83 LETTER FY
+ED84 LETTER LY
+ED85 LETTER SY
+ED86 LETTER CY
+ED87 LETTER MY
+ED88 LETTER XY
+ED89 SYMBOL FOR DENPA BU
+ED8A SYMBOL FOR YHY
+ED8B SYMBOL FOR CNIMAHO BU
+ED8C COMBINING PA TONGA
+ED8D COMBINING RE TONGA
+ED8E COMBINING CI TONGA
+ED8F COMBINING VO TONGA
+ED90 LETTER BY
+ED91 LETTER DY
+ED92 LETTER GY
+ED93 LETTER VY
+ED94 LETTER RY
+ED95 LETTER ZY
+ED96 LETTER JY
+ED97 LETTER NY
+ED98 COMBINING BAHEBU
+ED99 SYMBOL FOR SMAJI BU
+ED9A SYMBOL FOR SLAKA BU
+ED9B COMBINING TCENA BU
+EDA0 VOWEL SIGN ABU
+EDA1 VOWEL SIGN EBU
+EDA2 VOWEL SIGN IBU
+EDA3 VOWEL SIGN OBU
+EDA4 VOWEL SIGN UBU
+EDA5 VOWEL SIGN YBU
+EDA6 VOWEL SIGN AIBU
+EDA7 VOWEL SIGN EIBU
+EDA8 VOWEL SIGN OIBU
+EDA9 VOWEL SIGN AUBU
+EDAA LETTER SEMIVOWEL IY
+EDAB LETTER SEMIVOWEL UY
+EDB0 LETTER FULL ABU
+EDB1 LETTER FULL EBU
+EDB2 LETTER FULL IBU
+EDB3 LETTER FULL OBU
+EDB4 LETTER FULL UBU
+EDB5 LETTER FULL YBU
+EDB6 LETTER FULL AIBU
+EDB7 LETTER FULL EIBU
+EDB8 LETTER FULL OIBU
+EDB9 LETTER FULL AUBU
+"""
+
+
+def write_zbalermorna_names():
+    """Write the two qualified names for each assigned character."""
+    records = [f"unicode-names {UNICODE_VERSION}"]
+    for encoding, offset in [("HUMBERT", 0), ("UCSUR", 0xE3B20)]:
+        for row in ZBALERMORNA.splitlines():
+            code, suffix = row.split(" ", 1)
+            records.append(f"name {int(code, 16) + offset:04X} ZBALERMORNA {encoding} {suffix}")
+    path = ROOT / "grammars/phonemes/zbalermorna-names.txt"
+    path.write_text("\n".join(records) + "\n", encoding="utf-8")
+
+
 HANGUL_FIRST, HANGUL_LAST = 0xAC00, 0xD7A3
 
 def main():
@@ -123,6 +190,8 @@ def main():
                        help="write names and core catalogs without regenerating character properties")
     modes.add_argument("--properties-only", action="store_true",
                        help="write the companion and embedded catalogs without regenerating core data or names")
+    modes.add_argument("--zbalermorna-only", action="store_true",
+                       help="write the names resource for both zbalermorna encodings")
     modes.add_argument("--audit", action="store_true",
                        help="compare shipped resources with pinned all-scalar digests without writing files")
     args = parser.parse_args()
@@ -130,11 +199,15 @@ def main():
         import json
         print(json.dumps(audit_resources(ROOT), indent=2))
         return
+    if args.zbalermorna_only:
+        write_zbalermorna_names()
+        return
     if not args.properties_only:
         if args.derived_name is None or args.name_aliases is None:
             parser.error("--derived-name and --name-aliases are required without --properties-only")
         names, catalog, abbreviations = names_records(args.derived_name, args.name_aliases)
         write_names(names, catalog)
+        write_zbalermorna_names()
     if args.names_only:
         return
     if args.ucd is None:
