@@ -1597,7 +1597,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::Captured(_) => {}
             },
             // Pattern references are handled through Term::Pattern above.
-            Nested::Expr(_) | Nested::Pattern(_) | Nested::Children(_) | Nested::PatternItems(_) => {}
+            Nested::Expr(_) | Nested::Pattern(_) | Nested::PatternItems(_) => {}
         }
     }
 }
@@ -1613,7 +1613,6 @@ enum Nested<'d> {
     Term(&'d Term),
     Cond(&'d Cond),
     Pattern(&'d crate::patterns::Pattern),
-    Children(&'d crate::patterns::Children),
     PatternItems(&'d crate::patterns::Children),
 }
 
@@ -1717,21 +1716,6 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     Children::Repeat(body, separator) => {
                         stack.push((Nested::PatternItems(body), below));
                         stack.extend(separator.as_deref().map(|separator| (Nested::PatternItems(separator), below)));
-                    }
-                    Children::Siblings => {}
-                }
-            }
-            Nested::Children(children) => {
-                use crate::patterns::Children;
-                match children {
-                    Children::Node(pattern) => stack.push((Nested::Pattern(pattern), below)),
-                    Children::Sequence(items) | Children::Choice(items) => {
-                        stack.extend(items.iter().map(|item| (Nested::Children(item), below)))
-                    }
-                    Children::Optional(inner) => stack.push((Nested::Children(inner), below)),
-                    Children::Repeat(inner, separator) => {
-                        stack.push((Nested::Children(inner), below));
-                        stack.extend(separator.as_deref().map(|separator| (Nested::Children(separator), below)));
                     }
                     Children::Siblings => {}
                 }
