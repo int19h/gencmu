@@ -53,7 +53,7 @@ An emoji name contains one scalar with `Emoji_Presentation` and without `Emoji_C
 
 An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
-An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
+An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. The short Age aliases need it, as in `_age_15.1`. The greedy reading keeps that alias as one tag, and does not split it at the dot. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
 ```jbogenbau
 %rule emoji-name
@@ -103,14 +103,14 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule engine-tag
   "_" [engine-name]
 %conditions
-  ¬$.following-tokens.begins(engine-name-character)
+  ¬$.following-tokens.begins(engine-name-part)
 %emits
   $ :: Engine-Tag
 
 %rule engine-name
-  engine-name-character | engine-name engine-name-character
+  engine-name-part | engine-name engine-name-part
 
-%rule engine-name-character
+%rule engine-name-part
   letter | digit | "_" | engine-digit-dot
 
 %rule engine-digit-dot
@@ -132,7 +132,7 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 <p><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name.svg" alt="Railroad diagram of the rule engine-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/engine-name-character.svg" alt="Railroad diagram of the rule engine-name-character"></p>
+<p><img src="../../docs/diagrams/notation/lexical/engine-name-part.svg" alt="Railroad diagram of the rule engine-name-part"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-digit-dot.svg" alt="Railroad diagram of the rule engine-digit-dot"></p>
 </details>
 
@@ -191,21 +191,16 @@ The boundary conditions prevent either token from ending inside its name. The sy
   $ :: Capture
 
 %rule constant-token
-  user-constant
-%emits
-  $ :: Constant
-
-%rule user-constant
   "$" upper-name
 %conditions
   ¬$.following-tokens.begins(name-character)
-
+%emits
+  $ :: Constant
 ```
 
-<details><summary>Railroad diagrams of <code>capture-token</code>, <code>constant-token</code> and <code>user-constant</code></summary>
+<details><summary>Railroad diagrams of <code>capture-token</code> and <code>constant-token</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/capture-token.svg" alt="Railroad diagram of the rule capture-token"></p>
 <p><img src="../../docs/diagrams/notation/lexical/constant-token.svg" alt="Railroad diagram of the rule constant-token"></p>
-<p><img src="../../docs/diagrams/notation/lexical/user-constant.svg" alt="Railroad diagram of the rule user-constant"></p>
 </details>
 
 ## Feature guards
@@ -247,28 +242,22 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 
 Straight double quotes enclose a string. Ordinary string characters exclude only the quote, U+0022.
 
-Dollar signs are ordinary characters.
-
-Backslashes are ordinary characters.
+Dollar signs and backslashes are ordinary characters.
 
 The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
 
 ```jbogenbau
 %rule string
-  "‹U+0022›" [{string-part}] "‹U+0022›"
+  "‹U+0022›" [{ordinary-string-character}] "‹U+0022›"
 %emits
   $ :: String
-
-%rule string-part
-  ordinary-string-character
 
 %rule ordinary-string-character
   "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
 ```
 
-<details><summary>Railroad diagrams of <code>string</code>, <code>string-part</code> and <code>ordinary-string-character</code></summary>
+<details><summary>Railroad diagrams of <code>string</code> and <code>ordinary-string-character</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/string.svg" alt="Railroad diagram of the rule string"></p>
-<p><img src="../../docs/diagrams/notation/lexical/string-part.svg" alt="Railroad diagram of the rule string-part"></p>
 <p><img src="../../docs/diagrams/notation/lexical/ordinary-string-character.svg" alt="Railroad diagram of the rule ordinary-string-character"></p>
 </details>
 
@@ -303,20 +292,16 @@ An include path keeps dollar signs and backslashes literally. It excludes quotes
   "%" whole-name="names"
 
 %rule include-path
-  "‹U+0022›" [{path-part}] "‹U+0022›"
-
-%rule path-part
-  "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
+  "‹U+0022›" [{ordinary-string-character}] "‹U+0022›"
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>include</code> to <code>path-part</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>include</code> to <code>include-path</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/include.svg" alt="Railroad diagram of the rule include"></p>
 <p><img src="../../docs/diagrams/notation/lexical/names.svg" alt="Railroad diagram of the rule names"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-tail.svg" alt="Railroad diagram of the rule include-tail"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-keyword.svg" alt="Railroad diagram of the rule include-keyword"></p>
 <p><img src="../../docs/diagrams/notation/lexical/names-keyword.svg" alt="Railroad diagram of the rule names-keyword"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-path.svg" alt="Railroad diagram of the rule include-path"></p>
-<p><img src="../../docs/diagrams/notation/lexical/path-part.svg" alt="Railroad diagram of the rule path-part"></p>
 </details>
 
 ## Layout
