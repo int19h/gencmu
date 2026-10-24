@@ -3,7 +3,6 @@
 //! is a string in its canonical spelling, and has no strength.
 
 use std::cell::RefCell;
-use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crate::fxhash::FxMap;
@@ -25,7 +24,7 @@ pub(crate) struct Tags {
     /// The sets, each shared, so that a term can read one without a copy.
     sets: Vec<Arc<TagList>>,
     set_index: FxMap<Arc<TagList>, SetId>,
-    public_sets: RefCell<FxMap<SetId, BTreeSet<String>>>,
+    public_sets: RefCell<FxMap<SetId, crate::result::Tags>>,
 }
 
 impl Tags {
@@ -105,12 +104,12 @@ impl Tags {
     }
 
     /// The set's tags, in code point order.
-    pub(crate) fn to_set(&self, set: SetId) -> BTreeSet<String> {
+    pub(crate) fn to_set(&self, set: SetId) -> crate::result::Tags {
         let mut cache = self.public_sets.borrow_mut();
         if let Some(names) = cache.get(&set) {
             return names.clone();
         }
-        let names: BTreeSet<String> = self.list(set).iter().map(|&id| self.name(id).to_string()).collect();
+        let names: crate::result::Tags = self.list(set).iter().map(|&id| self.name(id).to_string()).collect();
         if cache.len() >= 256 {
             cache.clear();
         }

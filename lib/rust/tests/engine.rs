@@ -573,7 +573,13 @@ fn skipped_source_cases_have_stage_equivalents() {
                 assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
                 assert_eq!(
                     generated.tags,
-                    supplied.get("tags").unwrap().array().iter().map(|t| t.str().unwrap().to_string()).collect(),
+                    supplied
+                        .get("tags")
+                        .unwrap()
+                        .array()
+                        .iter()
+                        .map(|t| t.str().unwrap().to_string())
+                        .collect::<gencmu::Tags>(),
                     "{name}"
                 );
             }

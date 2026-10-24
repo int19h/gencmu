@@ -4,10 +4,108 @@
 use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::Range;
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, OnceLock};
 
 /// A tag set: each tag in its canonical spelling (engine §1), in code
-/// point order.
-pub type Tags = BTreeSet<String>;
+/// point order. Clones share immutable storage. A mutation makes an owned
+/// copy before changing the set.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tags(Arc<BTreeSet<String>>);
+
+impl Tags {
+    /// An empty tag set.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for Tags {
+    fn default() -> Self {
+        static EMPTY: OnceLock<Arc<BTreeSet<String>>> = OnceLock::new();
+        Self(EMPTY.get_or_init(|| Arc::new(BTreeSet::new())).clone())
+    }
+}
+
+impl fmt::Debug for Tags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl Deref for Tags {
+    type Target = BTreeSet<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Tags {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::make_mut(&mut self.0)
+    }
+}
+
+impl From<BTreeSet<String>> for Tags {
+    fn from(names: BTreeSet<String>) -> Self {
+        Self(Arc::new(names))
+    }
+}
+
+impl From<Tags> for BTreeSet<String> {
+    fn from(tags: Tags) -> Self {
+        Arc::try_unwrap(tags.0).unwrap_or_else(|names| (*names).clone())
+    }
+}
+
+impl<const N: usize> From<[String; N]> for Tags {
+    fn from(names: [String; N]) -> Self {
+        names.into_iter().collect()
+    }
+}
+
+impl FromIterator<String> for Tags {
+    fn from_iter<T: IntoIterator<Item = String>>(names: T) -> Self {
+        BTreeSet::from_iter(names).into()
+    }
+}
+
+impl Extend<String> for Tags {
+    fn extend<T: IntoIterator<Item = String>>(&mut self, names: T) {
+        self.deref_mut().extend(names);
+    }
+}
+
+impl<'a> IntoIterator for &'a Tags {
+    type Item = &'a String;
+    type IntoIter = std::collections::btree_set::Iter<'a, String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl IntoIterator for Tags {
+    type Item = String;
+    type IntoIter = std::collections::btree_set::IntoIter<String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BTreeSet::from(self).into_iter()
+    }
+}
+
+impl PartialEq<BTreeSet<String>> for Tags {
+    fn eq(&self, other: &BTreeSet<String>) -> bool {
+        self.deref() == other
+    }
+}
+
+impl PartialEq<Tags> for BTreeSet<String> {
+    fn eq(&self, other: &Tags) -> bool {
+        self == other.deref()
+    }
+}
 
 /// A token that a stage read or emitted (engine §1).
 #[derive(Debug, Clone, PartialEq, Eq)]

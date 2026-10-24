@@ -48,7 +48,9 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
-  Tags are a `BTreeSet<String>`. Stage zero stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values. Grammar recipes supply normalization.
+  `Tags` is a mutable set backed by a shared `BTreeSet<String>`. It copies shared storage before mutation. `Deref` and `DerefMut` expose the standard set methods. `From` converts owned `BTreeSet<String>` values in both directions.
+
+  Stage zero stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values. Grammar recipes supply normalization.
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
