@@ -56,7 +56,7 @@ The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CL
   %include "../words/lexicon-cll.md"
   ```
 
-The stage receives normalized phoneme values, images and tags. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o.
+The stage receives the phoneme values, images and tags. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o.
 
 If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 

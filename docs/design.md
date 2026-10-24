@@ -28,7 +28,7 @@ grammars/                  the grammar documents, the single source of truth
   indicators/              CLL indicator and ba'e rules, and the experimental layer
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
-  dialects/                pipeline documents: cll-ebnf, kihei, bpfk, experimental, zantufa, notation
+  dialects/                pipeline documents: cll-ebnf, bpfk, experimental, zantufa, notation
 docs/
   design.md                design choices and their reasons
   dialects.md              the dialect author guide

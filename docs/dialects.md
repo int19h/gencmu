@@ -57,7 +57,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
 2. Add the word class in the forms stage.
 
-   A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives normalized values.
+   A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives the phoneme values.
 
    A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with capitals and never start with `_`.
 
@@ -436,7 +436,7 @@ A one-symbol mapping, such as `"B" := "b"`, inherits `_General_Category_Uppercas
 
 ## Phoneme values and stress
 
-The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order. They contain no `normalize` stage. Therefore `until: "normalize"` is an unknown-stage usage error.
+The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order.
 
 A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
 
@@ -449,7 +449,7 @@ The `syllable-break` rule in [latin-strict.md](../grammars/phonemes/latin-strict
   $ :: Syllable-Break := "" :- ","
 ```
 
-The token retains the comma run as its text and source. Its empty value does not erase it. The forms stage receives phoneme values directly, without a `normalize` stage.
+The token retains the comma run as its text and source. Its empty value does not erase it. The forms stage receives phoneme values directly.
 
 ## Place recipes for parents
 

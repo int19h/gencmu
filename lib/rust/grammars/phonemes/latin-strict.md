@@ -4,7 +4,7 @@ This document opens the phoneme stage for the Latin orthography of *The Complete
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md), [Zantufa](../dialects/zantufa.md), and [Kihei](../dialects/kihei.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
+The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). A feature is a named switch that the grammars test. The CLL dialect turns the `cll-cyrillic` feature on by default. The other dialects include that document but turn its feature off by default.
 
@@ -19,7 +19,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The consonants `"b"`, `"c"`, `"d"` and so on through `"z"`
 - The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with `Stressed` when stressed
 - The apostrophe `"'"`
-- The syllable comma, with empty value, image `","`, and tag `Syllable-Break`
+- The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
 In cll-ebnf, a comma run emits one token with empty value, image `,`, and tag `Syllable-Break`. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
 

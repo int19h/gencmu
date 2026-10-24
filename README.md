@@ -4,7 +4,7 @@ gencmu is a Lojban parser whose grammar is data. Every layer of the language is 
 
 A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. A pipeline document defines each dialect. It lists the stages and the grammar documents of each stage.
 
-A phoneme is a unit of sound. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values and keeps the spelling that images show. The forms stage classifies words from phonemes. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
+A phoneme is a unit of sound. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values and keeps the spelling that images show. The forms stage divides the phonemes into words and classifies each word. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
 
 Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has a lowercase value and an uppercase image.
 
@@ -39,7 +39,6 @@ Open `index.html` in a browser, from the clone or from GitHub Pages. This page i
 | name | what it reads |
 | --- | --- |
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
-| `kihei` | CLL with `ki'ei` phrases that set a frame for subsequent utterances |
 | `bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `cll-ebnf` dialect does. |
 | `experimental` | CLL with extensions. Its baseline is camxes-exp, an experimental PEG parser of Lojban. |
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
@@ -63,7 +62,7 @@ console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
 
 ## Documents
 
-- [`docs/dialects.md`](docs/dialects.md): implement a dialect, with kihei as the worked example
+- [`docs/dialects.md`](docs/dialects.md): implement a dialect, with a worked example
 - [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors
 - [`docs/engine.md`](docs/engine.md): the engine specification, for implementers
 - [`docs/api.md`](docs/api.md): the library API in each language

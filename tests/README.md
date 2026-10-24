@@ -297,7 +297,7 @@ The [engine guarantee](../docs/engine.md#property-conformance-and-performance) r
 
 `python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
-Backward-query and stress changes use baseline `79e3af2f`, which includes the complete property profiles. Only workloads that the change can affect receive quick paired measurements.
+A later change uses the revision before that change as its baseline. That revision must include the complete property profiles. Such a change measures only the workloads that it can affect.
 
 The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
 
