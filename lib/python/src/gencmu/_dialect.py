@@ -671,6 +671,25 @@ class Dialect:
             raise found.error()
         return found
 
+    def _parse_selection(
+        self, features: Iterable[str], without_features: Iterable[str], until: str | None,
+    ) -> tuple[frozenset[str], frozenset[str], int]:
+        for option, value in (("features", features), ("without_features", without_features)):
+            if isinstance(value, str):
+                raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
+        names = self.stage_names
+        if until is None:
+            last = len(names) - 1
+        elif until in names:
+            last = names.index(until)
+        else:
+            raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
+        on = frozenset(features)
+        off = frozenset(without_features)
+        if on & off:
+            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
+        return (self.declared | on) - off, off, last
+
     def parse(
         self,
         text: str,
@@ -688,14 +707,9 @@ class Dialect:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        return self.parse_tokens(
-            character_tokens(text, self.unicode),
-            text,
-            features=features,
-            without_features=without_features,
-            until=until,
-            elision_only=elision_only,
-        )
+        tokens = character_tokens(text, self.unicode)
+        enabled, off, last = self._parse_selection(features, without_features, until)
+        return self._run(text, tokens, enabled, off, last, elision_only)
 
     def parse_tokens(
         self,
@@ -717,23 +731,7 @@ class Dialect:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        for option, value in (("features", features), ("without_features", without_features)):
-            if isinstance(value, str):
-                raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
-        names = self.stage_names
-        if until is None:
-            last = len(names) - 1
-        elif until in names:
-            last = names.index(until)
-        else:
-            raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        # The features on are the pipeline's, with the caller's added and the
-        # caller's turned off removed (engine §13).
-        on = frozenset(features)
-        off = frozenset(without_features)
-        if on & off:
-            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
-        enabled = (self.declared | on) - off
+        enabled, off, last = self._parse_selection(features, without_features, until)
         # A caller token stores value and image independently (engine
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
