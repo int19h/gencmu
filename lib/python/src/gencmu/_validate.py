@@ -583,7 +583,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by")
+                and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             problem = None if id(node) in deferred or dependent else condition_type_problem(node, memo=types)
@@ -606,7 +606,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
             if problem:
                 return problem
-            if kind != "condition" and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"):
+            if kind != "condition" and node["method"] in ("matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"):
                 return "a predicate method cannot supply a value"
             if not recipe and (
                 node["method"] in ("verbatim-text", "emitted")
@@ -629,7 +629,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                         if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
                             return "a malformed integer argument"
                         continue
-                    if not isinstance(arg[key], str) or not (key == "rule" and unicode.is_emoji_name(arg[key]) or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("matches", "begins", "followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
+                    if not isinstance(arg[key], str) or not (key == "rule" and unicode.is_emoji_name(arg[key]) or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("matches", "begins", "ends", "followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))

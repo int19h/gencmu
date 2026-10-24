@@ -318,6 +318,88 @@ class Sources:
             width *= 2
 
 
+_SUFFIX_BOUNDARY = object()
+
+
+@dataclass
+class SuffixState:
+    """A retained recognition and its eligible answers at completed boundaries."""
+
+    answers: dict[int, bool] = field(default_factory=dict)
+    parser: Any = None
+    walk: Walk | None = None
+    active: bool = False
+    error_at: int = 0
+    error: tuple[int, Exception] | None = None
+
+    def resume(self, context: StageContext, number: int, start: int, end: int) -> Walk:
+        if self.parser is None:
+            self.parser = Parser(context, start, end, query=True, suffix=self)
+            self.walk = self.parser.walk(number)
+        self.parser.end = end
+        self.parser.evaluator.end = end
+        value, error = None, None
+        try:
+            while True:
+                if error is not None:
+                    pending, error = error, None
+                    request = self.walk.throw(pending)
+                else:
+                    request = self.walk.send(value)
+                if request is _SUFFIX_BOUNDARY:
+                    return self.answers[end]
+                try:
+                    value = yield request
+                except Exception as exception:
+                    error = exception
+        except Exception as exception:
+            self.error = self.error_at, exception
+            raise
+
+
+def suffix_reads_end(lowered: Lowered, number: int) -> bool:
+    """Propagate end observations through bodies and restored queries through all query depths."""
+    known = lowered.suffix_dependencies.get(number)
+    if known is not None:
+        return known
+    pending, seen = [(number, False)], set()
+    while pending:
+        rule, nested = pending.pop()
+        if (rule, nested) in seen:
+            continue
+        seen.add((rule, nested))
+        for index in lowered.rule_productions[rule]:
+            p = lowered.productions[index]
+            pending.extend((child, nested) for child, terminal in zip(p.rhs, p.terminal) if not terminal)
+            clauses = [p.conds_predict, p.conds_at, p.tags_term, p.parent_tags,
+                       p.slot.ranked_conditions if p.slot else None]
+            visited = set()
+            while clauses:
+                node = clauses.pop()
+                if not isinstance(node, (dict, list, tuple)) or id(node) in visited:
+                    continue
+                visited.add(id(node))
+                if not isinstance(node, dict):
+                    clauses.extend(node)
+                    continue
+                method = node.get("method")
+                if not nested and method in ("onward", "following-tokens", "ends-input", "followed-by"):
+                    lowered.suffix_dependencies[number] = True
+                    return True
+                if method in ("matches", "begins", "ends", "tags") and node.get("args"):
+                    receiver = node["receiver"]
+                    while receiver.get("method") == "onward":
+                        receiver = receiver["receiver"]
+                    if receiver.get("method") in ("without-elision", "without-elision-except"):
+                        lowered.suffix_dependencies[number] = True
+                        return True
+                    pending.extend((lowered.rule_ids[arg["rule"]], True) for arg in node["args"] if "rule" in arg)
+                if "pattern" not in node:
+                    clauses.extend(node.values())
+    lowered.suffix_dependencies[number] = False
+    return False
+
+
 @dataclass
 class StageContext:
     """What every parse of one stage run shares: the stage's input tokens,
@@ -333,6 +415,7 @@ class StageContext:
     # which can hold where matches does not.
     memo: dict[tuple[Any, ...], NestedAnswer] = field(default_factory=dict)
     begins_memo: dict[tuple[Any, ...], bool] = field(default_factory=dict)
+    suffixes: dict[tuple, SuffixState] = field(default_factory=dict)
     # The nested parses running, by rule and span, whatever was asked of them.
     running: set[tuple[str, int, int]] = field(default_factory=set)
     token_tags: list[int] = field(default_factory=list)
@@ -499,6 +582,29 @@ class StageContext:
         elif self.tainted and (True, key) in self.tainted:
             self.aligned_asked += 1
         return found
+
+    def ends(self, rule: str, start: int, end: int) -> Walk:
+        """Read suffixes in one fixed window, with retained answers for shareable targets."""
+        self.require_inactive(rule, start, end)
+        number = self.lowered.rule_ids[rule]
+        key = (number, start, end) if suffix_reads_end(self.lowered, number) else (number, start)
+        state = self.suffixes.get(key)
+        if state is None:
+            state = self.suffixes[key] = SuffixState()
+        if state.error is not None and end >= state.error[0]:
+            raise state.error[1]
+        if end in state.answers:
+            return state.answers[end]
+        if state.active:
+            state = SuffixState()
+        active = rule, start, end
+        self.running.add(active)
+        state.active = True
+        try:
+            return (yield state.resume(self, number, start, end))
+        finally:
+            state.active = False
+            self.running.discard(active)
 
     def require_inactive(self, rule, start, end):
         if (rule, start, end) in self.running:
@@ -915,6 +1021,8 @@ class Evaluator:
             if isinstance(span, RestoredSpan):
                 return (yield self.context.aligned(rule, span, name == "begins")).accepted
             start, end, _ = span
+            if name == "ends":
+                return (yield self.context.ends(rule, start, end))
             return (yield self.context.begins(rule, start, end)) if name == "begins" else (yield self.context.nested(rule, start, end)).accepted
         if "not" in dom:
             return not (yield self.walk_condition(dom["not"], bound))
@@ -943,8 +1051,9 @@ class Evaluator:
 class Parser:
     """One Earley parse of tokens start..end of a stage's input."""
 
-    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None, query: bool = False) -> None:
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None, query: bool = False, suffix: SuffixState | None = None) -> None:
         self.query = query
+        self.suffix = suffix
         self.observe = observe
         self.family = family
         self.context = context
@@ -1001,6 +1110,7 @@ class Parser:
         tagtab = context.tagtab
         evaluator = self.evaluator
         n = self.end - base
+        suffix = self.suffix
 
         # The reconstruction mode of the check of engine §7.4, on the context
         # of the reconstructed input R alone; every other parse reads as
@@ -1377,6 +1487,8 @@ class Parser:
             conditions ready, it gives the walk that evaluates them and then
             adds the item, which the caller yields. A plain call costs less
             than a walk, so an advance without conditions makes none."""
+            if suffix is not None:
+                suffix.error_at = base + at
             production = productions[prod[item]]
             position = dot[item]
             if strict_step and position + 1 == len(production.rhs):
@@ -1554,6 +1666,17 @@ class Parser:
         def predict(rule: int, j: int, strict_prediction: bool = False, frame=None, requested=False) -> Walk:
             """The prediction that :func:`begin` began, a walk since its
             conditions can ask nested parses."""
+            if suffix is not None:
+                suffix.error_at = base + j
+                # Keep terminal-first predictions at the window end too.
+                # Their scans wait until a later request extends the window.
+                for number in lowered.rule_productions[rule]:
+                    production = candidate(productions[number],frame,requested)
+                    if production.elided is not None and not omission_allowed(production):
+                        continue
+                    if not production.conds_predict or (yield allowed(production,j)):
+                        add(production.id,0,j,NO_CAPS,j,SEED)
+                return
             for number in not_terminal_first[rule]:
                 production = candidate(productions[number],frame,requested)
                 number = production.id
@@ -1594,15 +1717,20 @@ class Parser:
 
         current = [0]
         following: list[int] = []
-        if begin(start_rule, 0, requested=self.observe):
+        if suffix is None and begin(start_rule, 0, requested=self.observe):
             yield from predict(start_rule, 0, requested=self.observe)
         furthest = 0
-        for j in range(n + 1):
+        proofs = None
+        for j in range((len(tokens) - base if suffix is not None else n) + 1):
             current[0] = j
             if j > 0:
                 agenda = following
                 following = []
-            if not agenda and not sets[j]:
+            if suffix is not None:
+                suffix.error_at = base + j
+                if begin(start_rule,j):
+                    yield from predict(start_rule,j)
+            if suffix is None and not agenda and not sets[j]:
                 break
             furthest = j
             while agenda:
@@ -1693,6 +1821,23 @@ class Parser:
                     walk = advance(waiter, part, j, (waiter, 2, item, 0))
                     if walk is not None:
                         yield walk
+            if suffix is not None:
+                witnesses = [item for item in sets[j].values() if item in tag
+                             and productions[prod[item]].lhs == start_rule
+                             and dot[item] == len(productions[prod[item]].rhs)
+                             and not productions[prod[item]].close_requested]
+                if proofs is None:
+                    # Eligibility observes item coordinates and never reads tokens.
+                    proofs = Forest([], lowered, prod, dot, origin, end, caps, edges, tag, [], j, {},
+                                    context.project, structures, machine, prefixes if has_slots else [],
+                                    strict if has_slots else [], close_structures, close_prefixes, closes,
+                                    False, family, family_prefixes, family_structures, records, boundaries,
+                                    annotations, failures)
+                proofs.furthest = j
+                suffix.answers[base + j] = bool(eligible(proofs,boundary_witnesses(proofs,witnesses)))
+                if base + j == self.end:
+                    yield _SUFFIX_BOUNDARY
+                    n = self.end - base
             if j < n:
                 sets.append({})
                 waiting.append({})

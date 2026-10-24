@@ -294,7 +294,7 @@ def needed(lowered: Any) -> frozenset[int]:
                     pending.extend(node)
                 elif isinstance(node,dict):
                     method = node.get("method")
-                    targets = [arg.get("rule", "\0query:" + arg.get("terminal", "")) for arg in node.get("args", [])] if method in ("matches", "begins", "tags") else []
+                    targets = [arg.get("rule", "\0query:" + arg.get("terminal", "")) for arg in node.get("args", [])] if method in ("matches", "begins", "ends", "tags") else []
                     span = node.get("receiver")
                     for target in targets:
                         target = lowered.rule_ids[target]
@@ -346,7 +346,7 @@ def local_demand(production):
             continue
         seen.add(id(node))
         if isinstance(node, dict):
-            value = node.get("receiver") if node.get("method") in ("matches", "begins") else None
+            value = node.get("receiver") if node.get("method") in ("matches", "begins", "ends") else None
             aligned = value["receiver"] if isinstance(value, dict) and value.get("method") == "onward" else value
             if isinstance(aligned, dict) and aligned.get("method") in ("without-elision", "without-elision-except"):
                 name = aligned["receiver"]["capture"]

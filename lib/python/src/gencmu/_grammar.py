@@ -884,7 +884,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                             stage,
                         )
                     if "method" in value:
-                        if value["method"] in ("matches", "begins"):
+                        if value["method"] in ("matches", "begins", "ends"):
                             query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
@@ -1125,6 +1125,7 @@ class Lowered:
     # place in ``implications``; made when emission first needs it.
     implications_by_tag: dict[str, list[int]] | None = None
 
+    suffix_dependencies: dict[int, bool] = field(default_factory=dict, repr=False, compare=False)
     close_rules: frozenset[int] | None = None
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)

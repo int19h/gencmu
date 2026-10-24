@@ -895,14 +895,14 @@ class DomBuilder:
                     if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
                         raise self.fail(node, "a classifier name must start with a lowercase letter")
                     arg = {"classifier": arg["rule"]}
-                if name in ("matches", "begins", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
+                if name in ("matches", "begins", "ends", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
                 from ._boundary import Located
                 arg = Located(arg, self.position(part))
                 args.append(arg)
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
-                if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
+                if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             if name in ('classify', 'ngrams') and has_unresolved(args):
                 raise self.fail(node, 'a parameter cannot replace a classifier name or integer argument')
@@ -926,7 +926,7 @@ class DomBuilder:
             self.boundary_nodes[id(receiver)] = node
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
-                if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
+                if any(separator != ("|" if name in ("matches", "begins", "ends", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context and not dependent:
