@@ -302,12 +302,9 @@ impl Context {
 }
 
 /// Reads a grammar document through the notation dialect (engine §8, §9).
-pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error> {
-    read_document_mode(notation, text, false)
-}
-fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
-    let names = NamesScope::new(&bundled_names, &notation.unicode, []);
-    read_document_named(notation, text, defer, &names)
+pub(crate) fn read_document(notation: &Dialect, text: &str, path: &str) -> Result<Dom, Error> {
+    let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
+    read_document_named(notation, text, false, &names)
 }
 
 fn bundled_names(path: &str) -> Result<Option<String>, Error> {
@@ -775,10 +772,11 @@ where
 
 /// Reads a grammar document through the bundled notation, bypassing the
 /// DOM cache, and returns its DOM as canonical JSON (`docs/output.md`,
-/// "A grammar DOM"). For tests and tools.
-pub fn read_grammar_document(text: &str) -> Result<String, Error> {
+/// "A grammar DOM"). The path supplies the base for relative names resources.
+/// An empty path selects the resource root. For tests and tools.
+pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
     let context = Context::bundled()?;
-    read_document(&context.notation, text).map(|dom| dom_to_json(&dom))
+    read_document(&context.notation, text, path).map(|dom| dom_to_json(&dom))
 }
 
 /// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
@@ -887,7 +885,7 @@ mod tests {
         }
         // An error is an outcome too. Its place is the notation cases'
         // concern.
-        let _ = read_grammar_document(text);
+        let _ = read_grammar_document(text, "");
         let counts = kinds.map(counted);
         // What reads next does so with no budget.
         reset();
@@ -947,7 +945,7 @@ mod tests {
             let arguments = vec!["$"; n].join(", ");
             format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: $.tags({arguments}) | \"a\"\n```\n")
         };
-        assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
+        assert!(read_grammar_document(&text(500), "").is_err(), "tags() of 500 arguments");
         let small = reading(&text(500), None);
         let large = reading(&text(2000), Some(five_times(small)));
         assert!(
@@ -976,7 +974,7 @@ mod tests {
         for (name, text) in cases {
             let text = move |n: usize| format!("```jbogenbau\n%ambiguity-resolution greedy\n{}\n```\n", text(n));
             // Once first, so that loading the notation counts in neither.
-            assert!(read_grammar_document(&text(250)).is_ok(), "{name}");
+            assert!(read_grammar_document(&text(250), "").is_ok(), "{name}");
             let small = reading(&text(250), None);
             let large = reading(&text(1000), Some(five_times(small)));
             assert!(
@@ -1051,7 +1049,7 @@ mod ranked_location_tests {
         let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
         let mut compiled = Compiled::default();
         for (path, text) in &sources.map {
-            let dom = read_document(&bundled.notation, text).unwrap();
+            let dom = read_document(&bundled.notation, text, "").unwrap();
             assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             compiled.by_path.insert(
                 path.clone(),
@@ -1153,7 +1151,7 @@ mod notation_cache_tests {
             cases += 1;
             let path = file.file_name().unwrap().to_str().unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
-            let expected = dom_to_json(&read_document(&bundled.notation, text).unwrap());
+            let expected = dom_to_json(&read_document(&bundled.notation, text, "").unwrap());
             assert_pattern(&case, &expected, path);
             cache_paths(&bundled, &bootstrap_hash(), path, text, &expected);
             eprintln!("notation cache paths: {path}");
@@ -1244,7 +1242,7 @@ mod notation_cache_tests {
             let context = Context::new(super::bundled("unicode.txt").unwrap(), &bootstrap, "null").unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
             if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
-                let error = read_document(&context.notation, text).expect_err("a bad name must fail");
+                let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
                 assert_eq!(
                     error.line,
                     expected.get("line").and_then(Json::as_int).map(|n| n as usize),
@@ -1257,8 +1255,9 @@ mod notation_cache_tests {
                 );
                 continue;
             }
-            let expected =
-                dom_to_json(&read_document(&context.notation, text).unwrap_or_else(|error| panic!("{id}: {error}")));
+            let expected = dom_to_json(
+                &read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")),
+            );
             assert_pattern(case, &expected, id);
             cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
             eprintln!("supplied notation values and cache paths: {id}");
@@ -1301,7 +1300,7 @@ mod parameter_cache_tests {
         use crate::parameters::{get, list, obj, position, set, string};
         let base = Context::bundled().unwrap();
         let text = "```jbogenbau\n%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text = atom(\"a\")\n```\n";
-        let source = read_document(&base.notation, text).unwrap();
+        let source = read_document(&base.notation, text, "").unwrap();
         let original = dom_to_json(&source);
         for valid in [true, false] {
             let mut raw = json::parse(&original).unwrap();
@@ -1340,7 +1339,7 @@ mod parameter_query_locations {
         let base = Context::bundled().unwrap();
         let line = "%rule text $x:atom(\"a\") %conditions $x.followed-by(atom(\"b\"))";
         let source = format!("```jbogenbau\n%rule atom(@X) @X\n{line}\n```\n");
-        let dom = read_document(&base.notation, &source).unwrap();
+        let dom = read_document(&base.notation, &source, "").unwrap();
         let x = crate::parameters::expand(&[(Arc::from("query.md"), Arc::new(dom))], &base.unicode).unwrap().unwrap();
         let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
         let crate::dom::Cond::Boundary(_, _, _, location) = &r.conditions[0] else { panic!("a boundary condition") };

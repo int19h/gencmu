@@ -887,11 +887,11 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
 #[test]
 fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
     let ok = format!("```jbogenbau\n%rule a {}B{}\n```\n", "[".repeat(256), "]".repeat(256));
-    assert!(gencmu::tools::read_grammar_document(&ok).is_ok());
+    assert!(gencmu::tools::read_grammar_document(&ok, "").is_ok());
     let parentheses = format!("```jbogenbau\n%rule a {}B{}\n```\n", "(".repeat(1000), ")".repeat(1000));
-    assert!(gencmu::tools::read_grammar_document(&parentheses).is_ok(), "parentheses do not nest the DOM");
+    assert!(gencmu::tools::read_grammar_document(&parentheses, "").is_ok(), "parentheses do not nest the DOM");
     let deep = format!("```jbogenbau\n%rule a B\n%rule c {}B{}\n```\n", "[".repeat(257), "]".repeat(257));
-    let error = gencmu::tools::read_grammar_document(&deep).expect_err("nested more than 256 deep");
+    let error = gencmu::tools::read_grammar_document(&deep, "").expect_err("nested more than 256 deep");
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
 }
 
@@ -906,7 +906,7 @@ fn deeply_guarded_boundary_conditions_report_the_nesting_limit() {
                     let condition =
                         format!("{}{receiver}.followed-by(B){}", "((".repeat(depth), " ⟹ T) ≠ ∅)".repeat(depth));
                     let document = format!("```jbogenbau\n%rule text $x:A B\n%conditions {condition}\n```\n");
-                    let error = gencmu::tools::read_grammar_document(&document).expect_err("the nesting limit");
+                    let error = gencmu::tools::read_grammar_document(&document, "").expect_err("the nesting limit");
                     assert_eq!(error.message, "an expression, term or condition is nested more than 256 deep");
                     assert_eq!((error.line, error.column), (Some(2), Some(1)), "{error}");
                 }
@@ -1034,7 +1034,7 @@ fn a_precompiled_constant_is_checked() {
 #[test]
 fn a_precompiled_constant_serves_the_parse() {
     let document = "```jbogenbau\n%ambiguity-resolution greedy\n%const $K Tag-a ∪ B\n%rule text :: $K | \"a\"\n```\n";
-    let read = gencmu::tools::read_grammar_document(document).expect("the document");
+    let read = gencmu::tools::read_grammar_document(document, "").expect("the document");
     assert!(
         read.contains(
             r#""constants":[{"name":"K","op":"define","value":{"union":[{"tag":"Tag-a"},{"tag":"B"}]},"at":[3,1]}]"#
@@ -1173,13 +1173,13 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
         Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
     };
     let empty = document("B", "$E ∖ B");
-    let read = gencmu::tools::read_grammar_document(&empty).expect("the document");
+    let read = gencmu::tools::read_grammar_document(&empty, "").expect("the document");
     assert_eq!(outcome(&empty, None), Ok(vec!["Y".to_string()]));
     assert_eq!(outcome(&empty, Some(&read)), Ok(vec!["Y".to_string()]));
     // A hit: the entry, changed, is the one the parse sees.
     assert_eq!(outcome(&empty, Some(&read.replace(r#"{"tag":"Y"}"#, r#"{"tag":"Z"}"#))), Ok(vec!["Z".to_string()]));
     let full = document("B ∖ B", "B");
-    let read = gencmu::tools::read_grammar_document(&full).expect("the document");
+    let read = gencmu::tools::read_grammar_document(&full, "").expect("the document");
     assert_eq!(outcome(&full, None), Err((4, 1)));
     assert_eq!(outcome(&full, Some(&read)), Err((4, 1)));
 }

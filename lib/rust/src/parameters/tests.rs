@@ -7,7 +7,7 @@ fn unicode() -> Unicode {
     Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap()
 }
 fn read(s: &str) -> Dom {
-    let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n")).unwrap();
+    let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap();
     dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode()).unwrap()
 }
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
@@ -198,8 +198,9 @@ fn uncalled_source_validation() {
         ("%rule unused(@X) @X := @X %erased", "erased"),
         ("%rule unused(@X) [+| @X]", "one sequence"),
     ] {
-        let error = crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n%rule text \"a\"\n```\n"))
-            .unwrap_err();
+        let error =
+            crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n%rule text \"a\"\n```\n"), "")
+                .unwrap_err();
         assert!(error.message.contains(message), "{source}: {error}")
     }
     for source in ["%rule unused(@X) $x:A | $x:@X", "%rule unused(@X) $x:@X %emits $x :: @X", "%rule unused(@X) [+@X]"]
@@ -221,7 +222,7 @@ fn pattern_test_operands() {
         crate::test_common::run_engine_case(&crate::test_common::parse_json(&c).unwrap()).unwrap();
     }
     let source = "%rule atom(@X) @X\n%rule unused(@X) @X %conditions $ ≅ #(atom(\"a\")=\"a\")\n%rule text \"a\"";
-    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n")).is_err());
+    assert!(crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "").is_err());
 }
 #[test]
 fn ranked_locations_do_not_change_dom() {
@@ -274,7 +275,7 @@ fn deep_source_groups_need_no_recursive_conversion() {
                 "(".repeat(4000),
                 ")".repeat(4000)
             );
-            crate::tools::read_grammar_document(&source).unwrap();
+            crate::tools::read_grammar_document(&source, "").unwrap();
         })
         .unwrap()
         .join()
@@ -291,7 +292,7 @@ fn deep_source_constructors_report_the_dom_limit() {
             ];
             for text in cases {
                 let source = format!("```jbogenbau\n{text}\n```\n");
-                let error = crate::tools::read_grammar_document(&source).unwrap_err();
+                let error = crate::tools::read_grammar_document(&source, "").unwrap_err();
                 assert_eq!(error.message, "an expression, term or condition is nested more than 256 deep");
             }
         })

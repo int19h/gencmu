@@ -34,7 +34,7 @@ fn compiled(rules: &str, dom: &str) -> String {
 /// The DOM that the reader gives for the document of `rules`, with the
 /// node `from` in it replaced by `to`.
 fn changed_dom(rules: &str, from: &str, to: &str) -> String {
-    let dom = gencmu::tools::read_grammar_document(&grammar(rules)).expect("a DOM");
+    let dom = gencmu::tools::read_grammar_document(&grammar(rules), "").expect("a DOM");
     assert!(dom.contains(from), "{from} is not in {dom}");
     dom.replacen(from, to, 1)
 }
@@ -659,7 +659,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         // JSON reader allows, but not so deep that the JSON does not parse,
         // as the first entry below is.
         let deep = format!("{}{{\"literal\":{{\"string\":\"b\"}}}}{}", "{\"optional\":".repeat(1000), "}".repeat(1000));
-        let dom = gencmu::tools::read_grammar_document(&grammar(text)).expect("a DOM");
+        let dom = gencmu::tools::read_grammar_document(&grammar(text), "").expect("a DOM");
         let rules = &dom[dom.find("\"rules\":").expect("rules")..dom.find(",\"directives\":").expect("directives")];
         for cache in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
@@ -1063,7 +1063,7 @@ fn ranked_groups_grow_with_forest_positions() {
 fn ranked_diagnostics_match_with_a_dom_cache() {
     let text="%const $K Tag-k\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
     let sources = single(text);
-    let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
+    let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
     let mut cached = sources.clone();
     // The source alone now loads. Only the cached DOM retains the export error.
     let clause = ":: $x ⟹ ($x.tags ∪ $K)";
@@ -1112,10 +1112,10 @@ fn ranked_error_retains_a_written_constant() {
 #[test]
 fn ranked_syntax_codes_and_retirement_are_specific() {
     for body in ["a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"] {
-        let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}"))).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}")), "").unwrap_err();
         assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
     }
-    let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b")).unwrap_err();
+    let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b"), "").unwrap_err();
     assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
     assert!(error.code.is_none());
     assert_eq!((error.line, error.column), (Some(4), Some(1)));
@@ -1144,7 +1144,7 @@ fn recipe_cycle_positions_match_with_a_dom_cache() {
     ] {
         let sources = single(text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
+        let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
         let mut cached = sources;
         cached.insert("compiled.json".into(), compiled(text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
@@ -1174,7 +1174,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
         let text = format!("%ambiguity-resolution greedy\n{rules}");
         let sources = single(&text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(&text)).unwrap();
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap();
         let mut cached = sources;
         cached.insert("compiled.json".into(), compiled(&text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
@@ -1190,7 +1190,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
 fn emitted_pairs_cannot_supply_source_observations() {
     for method in ["source-text", "verbatim-text"] {
         let text = format!("%rule text \"a\" := $.emitted.{method}");
-        let error = gencmu::tools::read_grammar_document(&grammar(&text)).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap_err();
         assert_eq!(error.kind, ErrorKind::Grammar);
         assert_eq!((error.line, error.column), {
             let at = common::position_of(&grammar(&text), "$.emitted");
@@ -1210,14 +1210,14 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
         let text = format!("%ambiguity-resolution greedy\n{text}");
         let mut sources = single(&text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(&text));
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text), "");
         // Public reader validation retains its missing-capture check.
         // The cached fixture uses the competing cycle as an absence-free DOM.
         let dom = match dom {
             Ok(dom) => dom,
             Err(_) => {
                 let control = text.replace("($x:A ≻ B)", "($x:A ≻ $x:B)");
-                gencmu::tools::read_grammar_document(&grammar(&control))
+                gencmu::tools::read_grammar_document(&grammar(&control), "")
                     .unwrap()
                     .replace(r#"{"capture":"x","expr":{"ref":"B"}}"#, r#"{"ref":"B"}"#)
             }

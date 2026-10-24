@@ -53,7 +53,7 @@ fn shared_source_depth_boundaries() {
                 field("suffix").repeat(n),
                 field("tail")
             );
-            let result = gencmu::tools::read_grammar_document(&source);
+            let result = gencmu::tools::read_grammar_document(&source, "");
             if extra == 0 {
                 assert!(result.is_ok(), "{}, at the limit: {result:?}", field("description"));
             } else {

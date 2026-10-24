@@ -3,7 +3,7 @@ mod common;
 use common::{parse_json, Value};
 
 fn read(text: &str) -> Result<String, gencmu::Error> {
-    gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"))
+    gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"), "")
 }
 #[test]
 fn parameter_source_round_trips() {

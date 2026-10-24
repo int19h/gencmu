@@ -107,7 +107,8 @@ fn compiled_doms_match_a_fresh_reading() {
                     Some(gencmu::tools::fnv1a64(&text).as_str()),
                     "{path}"
                 );
-                let fresh = parse_json(&gencmu::tools::read_grammar_document(&text).expect("a DOM")).expect("JSON");
+                let fresh =
+                    parse_json(&gencmu::tools::read_grammar_document(&text, &path).expect("a DOM")).expect("JSON");
                 same(entry.get("dom").expect("a DOM"), &fresh, &path)
                     .unwrap_or_else(|problem| panic!("{path} differs from its compiled DOM: {problem}"));
             })
