@@ -447,6 +447,11 @@
     return names;
   }
 
+  // ---- result-context.js
+  // Rendering context stays outside the public result and its JSON.
+  /** @type {WeakMap<object, import("./unicode.js").UnicodeTable>} */
+  const resultCores = new WeakMap();
+
   // ---- errors.js
   // The one error type the library throws: a grammar that cannot be loaded or
   // run. A text that does not parse is not an error but a result.
@@ -2401,6 +2406,9 @@
 
 
 
+
+
+
   /** @import { WitnessAction, ParseError, ParseResult, ResultNode, Span } from "./types.js" */
   /** @import { AttachedToken, Token } from "./tokens.js" */
 
@@ -2802,8 +2810,10 @@
    * @returns {string}
    */
   function toTree(result) {
+    const core = resultCores.get(result);
+    if (!core) throw new GencmuError("usage", "tree rendering requires the originating core table");
     if (!result.tree) return "";
-    return nodeTree(result.tree, finalInput(result), result.text);
+    return treeListing(result.tree, finalInput(result), result.text, value => stringName(value, core));
   }
 
   /**
@@ -2831,6 +2841,17 @@
    * @returns {string}
    */
   function nodeTree(root, tokens, text) {
+    const core = resultCores.get(tokens);
+    return treeListing(root, tokens, text, core ? value => stringName(value, core) : JSON.stringify);
+  }
+
+  /**
+   * @param {ResultNode} root
+   * @param {Token[]} tokens
+   * @param {string | undefined} text
+   * @param {(value:string)=>string} quote
+   */
+  function treeListing(root, tokens, text, quote) {
     /** @type {string[]} */
     const lines = [];
     root = withoutHollowNodes(root);
@@ -2860,7 +2881,7 @@
     };
     /** @type {(node: ResultNode) => string} */
     const image = (node) => {
-      if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
+      if (node.kind === "token") return `${node.terminal} ${quote(leafLabel(node, tokens))}`;
       if (node.kind === "elided") return `⟨${node.terminal}⟩`;
       return node.rule;
     };
@@ -2880,7 +2901,7 @@
       pushAttachments(token, indent);
       for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
         const classes = classesOf(task.attachment);
-        lines.push(" ".repeat(task.indent) + task.mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(task.attachment.image));
+        lines.push(" ".repeat(task.indent) + task.mark + (classes.length ? classes.join(" ∪ ") + " " : "") + quote(task.attachment.image));
         pushAttachments(task.attachment, task.indent + 2);
       }
     };
@@ -19699,6 +19720,7 @@
 
 
 
+
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
@@ -20164,6 +20186,8 @@
         text,
         features: [...options.features].sort(compareCodePoints),
       };
+      resultCores.set(result, this.loader.unicode);
+      for (const stage of stages) if (stage.input) resultCores.set(stage.input, this.loader.unicode);
       return result;
     }
   }
@@ -20417,11 +20441,6 @@
     const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
     return new Loader((path) => map.get(path), path => map.has(path));
   }
-
-  // ---- result-context.js
-  // Rendering context stays outside the public result and its JSON.
-  /** @type {WeakMap<object, import("./unicode.js").UnicodeTable>} */
-  const resultCores = new WeakMap();
 
   // ---- types.js
   // The shapes of the values the library passes around, as JSDoc type
