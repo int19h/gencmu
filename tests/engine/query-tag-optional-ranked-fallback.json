@@ -1,0 +1,26 @@
+{
+  "description": "A ranked choice inside an optional falls back when its terminal query is false.",
+  "grammar": "%rule text [($x:part ≻ fallback)] ::∅ %conditions $x.matches(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

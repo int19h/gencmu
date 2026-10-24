@@ -629,10 +629,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | $s:selbri-2 KEhE 🆓 linkargs [relative-clauses] [CEI 🆓 selbri]
   | selbri-2 [relative-clauses] [CEI 🆓 selbri]
 %conditions
-  ¬$s.onward.begins(ke-word)
-
-%rule ke-word
-  KE
+  ¬$s.onward.begins(KE)
 
 %rule selbri-2
   (* selbri_2 <- selbri_3 (CO_clause selbri_3)* *)
@@ -720,10 +717,9 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   BEI 🆓 term [links]
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>selbri</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>selbri</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri.svg" alt="Railroad diagram of the rule selbri"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/ke-word.svg" alt="Railroad diagram of the rule ke-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri-2.svg" alt="Railroad diagram of the rule selbri-2"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/selbri-3.svg" alt="Railroad diagram of the rule selbri-3"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/later-selbri-4.svg" alt="Railroad diagram of the rule later-selbri-4"></p>
@@ -760,15 +756,12 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 ```jbogenbau
 
-%rule roi-word
-  ROI
-
 %rule quantifier
   (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
   $m:mex [relative-clauses]
 %conditions
   ¬$m.without-elision.onward.begins(sumti-5 | selbri),
-  ¬$m.following-tokens.begins(roi-word)
+  ¬$m.following-tokens.begins(ROI)
 
 %rule mex
   (* mex <- mex_1 (operator+ mex_1?)* *)
@@ -821,7 +814,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   | VUhU 🆓
   | $j:joik-ek
 %conditions
-  ¬$j.following-tokens.begins(cu-word),
+  ¬$j.following-tokens.begins(CU),
   $j ≇ #« SE ⋯ »
 
 %rule operators
@@ -832,9 +825,6 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule operator-run
   {operator}
-
-%rule cu-word
-  CU
 
 %rule operand
   (* operand <- number BOI_elidible / lerfu_string BOI_elidible / VEI_clause mex VEhO_elidible
@@ -860,8 +850,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   BY 🆓 | LAU 🆓 lerfu-word | TEI 🆓 lerfu-string FOI 🆓
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>roi-word</code> to <code>lerfu-word</code></summary>
-<p><img src="../../docs/diagrams/syntax/zantufa/roi-word.svg" alt="Railroad diagram of the rule roi-word"></p>
+<details><summary>Railroad diagrams of the 17 rules from <code>quantifier</code> to <code>lerfu-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-link.svg" alt="Railroad diagram of the rule mex-link"></p>
@@ -875,7 +864,6 @@ The condition removes a connective operator whose first word is SE. The alternat
 <p><img src="../../docs/diagrams/syntax/zantufa/operator.svg" alt="Railroad diagram of the rule operator"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operators.svg" alt="Railroad diagram of the rule operators"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operator-run.svg" alt="Railroad diagram of the rule operator-run"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/cu-word.svg" alt="Railroad diagram of the rule cu-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operand.svg" alt="Railroad diagram of the rule operand"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/number.svg" alt="Railroad diagram of the rule number"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lerfu-string.svg" alt="Railroad diagram of the rule lerfu-string"></p>

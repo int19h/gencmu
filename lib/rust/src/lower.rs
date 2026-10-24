@@ -856,6 +856,7 @@ struct Scope<'a> {
     names: &'a FxMap<String, u32>,
     cap_pos: &'a [usize],
     rules: &'a std::collections::HashMap<String, usize>,
+    query_rules: &'a FxMap<String, u32>,
     /// The latest position of a capture mentioned so far.
     last: Option<usize>,
     /// Whether `$` has been mentioned so far.
@@ -964,6 +965,14 @@ impl<'a> Scope<'a> {
         })
     }
 
+    fn query_target(&self, name: &str) -> Result<u32, Missing> {
+        if is_terminal_name(name) {
+            self.query_rules.get(name).copied().ok_or(Missing)
+        } else {
+            self.rule(name)
+        }
+    }
+
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
             Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
@@ -985,11 +994,11 @@ impl<'a> Scope<'a> {
                 let mut choices = Vec::new();
                 for rule in targets {
                     choices.push(if matches!(cond, Cond::Matches(..)) {
-                        LCond::Matches(self.span(span)?, self.rule(rule)?)
+                        LCond::Matches(self.span(span)?, self.query_target(rule)?)
                     } else if matches!(cond, Cond::Ends(..)) {
-                        LCond::Ends(self.span(span)?, self.rule(rule)?)
+                        LCond::Ends(self.span(span)?, self.query_target(rule)?)
                     } else {
-                        LCond::Begins(self.span(span)?, self.rule(rule)?)
+                        LCond::Begins(self.span(span)?, self.query_target(rule)?)
                     })
                 }
                 if choices.len() == 1 {
@@ -1066,14 +1075,6 @@ fn lower_mode(
     classifiers: Arc<ClassifierTables>,
     validation: bool,
 ) -> Result<Lowered, LowerError> {
-    let query_grammar;
-    let targets = query_terminals(grammar);
-    let grammar = if targets.is_empty() {
-        grammar
-    } else {
-        query_grammar = with_query_rules(grammar, targets);
-        &query_grammar
-    };
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut lowerer = Lowerer {
         grammar,
@@ -1289,6 +1290,28 @@ fn lower_mode(
         });
     }
 
+    // Query helpers belong to the lowered grammar. Cloning the written
+    // grammar would invalidate the expression identities of ranked groups.
+    let mut query_rules = FxMap::default();
+    let mut query_symbols = Vec::new();
+    for terminal in query_terminals(grammar) {
+        let rule = rules.len() as u32;
+        let symbol = Sym::T(lowerer.terminal(&terminal, None));
+        query_rules.insert(terminal.clone(), rule);
+        query_symbols.push((rule, symbol));
+        rules.push(LRule {
+            family: rule,
+            name: format!("\0query:{terminal}"),
+            helper: true,
+            leftmost_longest: false,
+            fewest: false,
+            prods: Vec::new(),
+            elided: None,
+            elided_test: None,
+            elided_owner: None,
+        });
+    }
+
     let terminals = std::mem::take(&mut lowerer.terminals);
     let characters = std::mem::take(&mut lowerer.characters);
     let mut prods = Vec::with_capacity(order.len());
@@ -1411,8 +1434,15 @@ fn lower_mode(
                 .map(|guard| guard.feature.clone())
                 .collect();
             let cap_pos = production.cap_pos.clone();
-            let mut scope =
-                Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false, site: None };
+            let mut scope = Scope {
+                names: &names,
+                cap_pos: &cap_pos,
+                rules: &grammar.index,
+                query_rules: &query_rules,
+                last: None,
+                whole: false,
+                site: None,
+            };
             // Every clause is simplified for this production first (§3.6),
             // from its split, which is made once for each clause.
             let has = |name: &str| name.is_empty() || names.contains_key(name);
@@ -1661,6 +1691,33 @@ fn lower_mode(
         prods.push(production);
     }
 
+    for (rule, symbol) in query_symbols {
+        rules[rule as usize].prods.push(prods.len() as u32);
+        prods.push(Prod {
+            rule,
+            owner: rule,
+            syms: vec![symbol],
+            optionals: Vec::new(),
+            inherited: Some(0),
+            cap_at: vec![Some(0)],
+            tests: Vec::new(),
+            cap_pos: vec![0],
+            tags: Some(LTerm::Tags(Span::Cap(0))),
+            emit: LEmit::None,
+            strings: Default::default(),
+            item_strings: Vec::new(),
+            names: FxMap::default(),
+            erased: false,
+            conds: Vec::new(),
+            cond_at: vec![0; 3],
+            visible: false,
+            warnings: Vec::new(),
+            document: None,
+            at: (0, 0),
+            slot: None,
+        });
+    }
+
     let cycle = cycles(&rules, &prods);
     let reads_until = reads_until(&rules, &prods);
     let tests = std::mem::take(&mut lowerer.tests);
@@ -1683,7 +1740,7 @@ fn lower_mode(
         prepared: Prepared::default(),
     };
     if !validation {
-        lowered.ranked = ranked_runtime(grammar, &lowered);
+        lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules);
     }
     Ok(lowered)
 }
@@ -1788,19 +1845,11 @@ fn reads_by_passes(prods: &[Prod], reads: &mut [bool]) {
 }
 
 /// Prefix declarations determine ready helper conditions at loading time.
-fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
+fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered, query_rules: &FxMap<String, u32>) -> RankedRuntime {
     if grammar.ranked.groups.is_empty() {
         return RankedRuntime::default();
     }
     let mut runtime = RankedRuntime::default();
-    let query_grammar;
-    let targets = query_terminals(grammar);
-    let grammar = if targets.is_empty() {
-        grammar
-    } else {
-        query_grammar = with_query_rules(grammar, targets);
-        &query_grammar
-    };
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut source_private: FxMap<(usize, usize), BTreeSet<String>> = FxMap::default();
     for group in &grammar.ranked.groups {
@@ -1915,6 +1964,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 names: &names,
                 cap_pos: &p.cap_pos,
                 rules: &grammar.index,
+                query_rules,
                 last: None,
                 whole: false,
                 site: None,
@@ -1976,8 +2026,15 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 .filter(|name| !source_private[&slot.source].contains(*name))
                 .map(|name| (name.clone(), u32::MAX))
                 .collect();
-            let mut tag_scope =
-                Scope { names: &public, cap_pos: &[], rules: &grammar.index, last: None, whole: false, site: None };
+            let mut tag_scope = Scope {
+                names: &public,
+                cap_pos: &[],
+                rules: &grammar.index,
+                query_rules,
+                last: None,
+                whole: false,
+                site: None,
+            };
             let terms: Vec<LTerm> = source
                 .alternative
                 .tags
@@ -2305,37 +2362,6 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
         }
     }
     result
-}
-fn with_query_rules(grammar: &StageGrammar, targets: BTreeSet<String>) -> StageGrammar {
-    use crate::grammar::{RuleClauses, StitchedRule};
-    let mut grammar = grammar.clone();
-    for name in targets {
-        let document: Arc<str> = Arc::from("<query>");
-        let alternative = StitchedAlternative {
-            alternative: crate::dom::Alternative {
-                guards: Vec::new(),
-                expr: Expr::Terminal(name.clone()),
-                tags: None,
-                strings: Default::default(),
-                ranked_locations: Default::default(),
-            },
-            written: None,
-            written_alternative: 0,
-            text_order: usize::MAX,
-            clauses: Arc::new(RuleClauses {
-                tags: None,
-                strings: Default::default(),
-                emit: None,
-                conditions: Vec::new(),
-            }),
-            erased: false,
-            document: document.clone(),
-            at: (1, 1),
-        };
-        grammar.index.insert(name.clone(), grammar.rules.len());
-        grammar.rules.push(StitchedRule { flags: Vec::new(), name, alternatives: vec![alternative], document });
-    }
-    grammar
 }
 
 #[cfg(test)]

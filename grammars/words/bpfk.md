@@ -332,7 +332,7 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
   [{unstressed-syllable}]
 %conditions
   ¬$.onward.begins(cmavo | slinkuhi | h),
-  $.onward.begins(onset)
+  $.onward.begins(syllable-onset)
 
 %rule slinkuhi  (* A slinku'i form starts with a consonant plus a rafsi string, but the whole start is not itself a rafsi string. Only a lookahead. *)
   $c:consonant rafsi-string
@@ -538,7 +538,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 
 ```jbogenbau
 %rule final-syllable  (* The final counted syllable forbids y and marked stress. It excludes a following name and ends at a complete word boundary. *)
-  $o:onset $n:nucleus
+  $o:syllable-onset $n:nucleus
 %conditions
   ¬$o.following-tokens.begins(y | stressed),
   ¬$n.following-tokens.begins(cmevla),
@@ -576,7 +576,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   $s.following-tokens.begins(pause)
 
 %rule stressed                (* stressed <- onset comma* [AEIOU] *)
-  onset stress-mark
+  syllable-onset stress-mark
 
 %rule stress-mark             (* [AEIOU], a letter and not a vowel rule *)
   "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
@@ -600,6 +600,8 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 
 
 
+The `syllable-onset` hook reads an ordinary onset. Syllables, written stress, and the brivla head use it. A layer can extend their shared onset without changing the other restrictions.
+
 A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant before a syllabic consonant and a coda. A consonantal syllable cannot consume the same complete letters as a syllable with a vowel nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
 
 If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
@@ -608,11 +610,14 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %rule any-syllable  (* A vowel-bearing syllable has a nucleus. A consonantal syllable has none, so they cannot consume the same complete syllable. *)
   onset-nucleus-coda | consonantal-syllable
 
+%rule syllable-onset  (* This hook supplies the shared onset for syllables, stress tests, the brivla head and coda lookahead. *)
+  onset
+
 %rule onset-nucleus-coda  (* A vowel-bearing syllable has an optional nonempty coda. Omitting a required coda leaves consonants that cannot start the following syllable. *)
-  onset nucleus [coda]
+  syllable-onset nucleus [coda]
 
 %rule syllable  (* A counted syllable forbids a y nucleus. Its optional nonempty coda leaves no duplicate empty reading at a pause. *)
-  $o:onset nucleus [coda]
+  $o:syllable-onset nucleus [coda]
 %conditions
   ¬$o.following-tokens.begins(y)
 
@@ -680,8 +685,9 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   a | e | i | o | u
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
+<p><img src="../../docs/diagrams/words/bpfk/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../docs/diagrams/words/bpfk/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
 <p><img src="../../docs/diagrams/words/bpfk/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/consonantal-syllable.svg" alt="Railroad diagram of the rule consonantal-syllable"></p>
@@ -828,15 +834,18 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 
 
 
-Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
+The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
 The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
 
 ```jbogenbau
+%rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
+  h | glide
+
 %rule consonant-letter(@S, @B)
   $c:@S
 %conditions
-  ¬$c.following-tokens.begins(h | glide | @B)
+  ¬$c.following-tokens.begins(letter-ban | @B)
 
 %rule l = consonant-letter("l", l)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
 
@@ -873,7 +882,8 @@ The `consonant-letter` template takes the character and its forbidden targets. E
 %rule t = consonant-letter("t", t | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>consonant-letter</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>
+<p><img src="../../docs/diagrams/words/bpfk/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
 <p><img src="../../docs/diagrams/words/bpfk/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
 <p><img src="../../docs/diagrams/words/bpfk/l.svg" alt="Railroad diagram of the rule l"></p>
 <p><img src="../../docs/diagrams/words/bpfk/m.svg" alt="Railroad diagram of the rule m"></p>

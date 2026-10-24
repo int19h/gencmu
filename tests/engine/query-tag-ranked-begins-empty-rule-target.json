@@ -1,0 +1,19 @@
+{
+  "description": "An empty-reading rule in a mixed target choice makes begins hold on an empty capture.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.begins(empty | T)\n%rule part [A]\n%rule fallback ε\n%rule empty ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

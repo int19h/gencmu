@@ -9397,12 +9397,15 @@
         if (["matches", "begins", "ends"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
         for (const child of clauseChildren(part)) pending.push(child);
       }
-      for (const terminal of terminals) {
+      this.source = undefined;
+      for (const terminal of [...terminals].sort(compareCodePoints)) {
         const name = "\u0000query:" + terminal;
         this.addProduction({
           lhs: name, rhs: [{name: terminal, terminal: true}], helper: true,
           flags: [], owner: name, elided: null, elidedTest: null,
-          captures: [], conditions: [], tags: null, emit: null, erased: false, warnings: [],
+          captures: [{name: "\u0000child", index: 0}], conditions: [],
+          tags: {method: "tags", receiver: {capture: "\u0000child"}, args: []},
+          emit: null, erased: false, warnings: [],
         });
       }
       this.checkBraceItems();
@@ -9427,7 +9430,7 @@
      * @returns {Production}
      */
     addProduction(fields) {
-      if (fields.helper) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
+      if (fields.helper && this.source) this.structural.push({ lhs: fields.lhs, rhs: fields.rhs });
       // Each position, capture and condition counts before it is indexed, so
       // that an index built by a scan of the list for each position fails
       // its budget.

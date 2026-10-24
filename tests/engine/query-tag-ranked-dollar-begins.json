@@ -1,0 +1,27 @@
+{
+  "description": "A query on the whole alternative can use a terminal target beside a ranked choice.",
+  "grammar": "%rule text (part ≻ fallback) ::∅ %conditions $.begins(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

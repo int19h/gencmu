@@ -1,0 +1,15 @@
+{
+  "description": "An absent optional drops the terminal query on its absent private capture.",
+  "grammar": "%rule text [($x:part ≻ fallback)] ::∅ %conditions $x.matches(T)\n%rule part A\n%rule fallback A",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": []
+      }
+    }
+  }
+}

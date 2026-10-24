@@ -1,0 +1,49 @@
+{
+  "description": "A ranked helper lowers a tag query in a tag term that reads a public capture.",
+  "grammar": "%rule text $p:A (($x:part ≻ fallback) B) :: ($p.begins(P) ⟹ MARK) %conditions $x.begins(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "tags": [
+          "MARK"
+        ],
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "rule": "part"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

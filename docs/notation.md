@@ -494,10 +494,10 @@ A constant names a value that several rules use, such as a list of classes. Its 
 ```jbogenbau
 %const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO
 %const $PAUSE " "
-%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ GOhOI ∪ MUhOI ∪ LOhAI ∪ LEhAI
+%redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Quote marker classes enter through the marker constants. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
@@ -1289,6 +1289,8 @@ The five methods `.matches(S)`, `.begins(S)`, `.ends(S)`, `.followed-by(S)`, and
 Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
 Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
+
+In a rule with a ranked choice, a terminal target has the same meaning as in any other rule. For `matches` and `begins`, the engine reads the target through a helper that reads one token. The helper changes no ranked group and no capture. `followed-by` and `preceded-by` test the nodes of the parse, as "Neighbours in the parse" explains.
 
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 

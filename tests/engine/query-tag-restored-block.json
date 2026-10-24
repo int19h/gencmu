@@ -1,0 +1,28 @@
+{
+  "description": "A ranked block in the captured span prevents a restored terminal witness.",
+  "grammar": "%rule text $x:inner B ::∅ %conditions $x.without-elision.matches(T)\n%rule inner (A ≻ C) ::∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

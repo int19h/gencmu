@@ -32,7 +32,7 @@ def prepare_ranked(lowered):
     for p in lowered.productions:
         if p.ranked is not None:
             lowered.ranked_helpers[p.lhs] = p.ranked
-        if p.helper:
+        if p.helper and p.slot is not None:
             lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths[p.slot.path])
             p.contextual = id(p.slot.source) in sources
     for p in lowered.productions:

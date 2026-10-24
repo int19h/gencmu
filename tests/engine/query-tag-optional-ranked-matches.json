@@ -1,0 +1,27 @@
+{
+  "description": "A ranked choice inside an optional resolves the terminal target of its private capture.",
+  "grammar": "%rule text [($x:part ≻ fallback)] ::∅ %conditions $x.matches(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "part"
+          }
+        ]
+      }
+    }
+  }
+}

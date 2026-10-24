@@ -1,0 +1,35 @@
+{
+  "description": "A restored terminal query in a ranked choice selects the matching option.",
+  "grammar": "%rule text ($x:part ≻ fallback) B ::∅ %conditions $x.without-elision.matches(T)\n%rule part A\n%rule fallback A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "children": [
+          {
+            "rule": "part"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

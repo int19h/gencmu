@@ -1,0 +1,45 @@
+{
+  "description": "Nested ranked helpers keep public and private tag queries in the same capture scope.",
+  "grammar": "%rule text $p:A ((($x:part ≻ fallback) B) ≻ outer) ::∅ %conditions $p.begins(P) ∧ $x.begins(T)\n%rule part A\n%rule fallback A\n%rule outer A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "rule": "part"
+          },
+          {
+            "terminal": "B"
+          }
+        ]
+      }
+    }
+  }
+}

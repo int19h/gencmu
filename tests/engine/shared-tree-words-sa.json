@@ -1,0 +1,63 @@
+{
+  "description": "The SA erasure in grammars/words/stream.md reads cmavo-token without a separate word wrapper.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi sa do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "stream",
+            "children": [
+              {
+                "rule": "empty",
+                "children": [
+                  {},
+                  {
+                    "rule": "erasure",
+                    "children": [
+                      {
+                        "rule": "sa-erasure",
+                        "children": [
+                          {
+                            "rule": "sa-nest",
+                            "children": [
+                              {
+                                "rule": "sa-open"
+                              },
+                              {
+                                "rule": "spacing"
+                              },
+                              {
+                                "rule": "cmavo-token"
+                              }
+                            ]
+                          },
+                          {},
+                          {}
+                        ]
+                      }
+                    ]
+                  },
+                  {}
+                ]
+              },
+              {}
+            ]
+          },
+          {}
+        ]
+      }
+    },
+    "brackets": "([{mi   sa}  ] do)",
+    "warnings": []
+  }
+}

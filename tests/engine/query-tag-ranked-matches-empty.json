@@ -1,0 +1,24 @@
+{
+  "description": "A tag query never accepts an empty captured span inside a ranked choice.",
+  "grammar": "%rule text ($x:part ≻ fallback) ::∅ %conditions $x.matches(T)\n%rule part [A]\n%rule fallback ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "fallback"
+          }
+        ]
+      }
+    }
+  }
+}

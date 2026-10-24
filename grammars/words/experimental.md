@@ -41,7 +41,7 @@ The words stage drops hesitation outside opaque bodies, except before BU. That e
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
-The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
 %redefine-rule m = consonant-letter("m", m)              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
@@ -53,11 +53,11 @@ The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a gl
 
 ## Consonants before glides
 
-Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
+The `letter-ban` hook reads only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
 
 The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
-A coda is a syllable's ending consonant group. `brivla-onset` serves borrowing syllables, their stress tests and their head test. The coda lookahead uses it too. Thus a preceding syllable cannot take the consonant before `iy` or `uy` as its coda. The rafsi slot still uses ordinary `onset`.
+A coda is a syllable's ending consonant group. The `syllable-onset` hook uses `brivla-onset` for borrowing syllables, their stress tests and their head test. The coda lookahead uses it too. Thus a preceding syllable cannot take the consonant before `iy` or `uy` as its coda. The rafsi slot still uses ordinary `onset`.
 
 A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. At a borrowing's start, a CVC or CCV rafsi cannot directly precede one consonant, a glide and its nucleus unless that consonant is `r`.
 
@@ -82,29 +82,8 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %rule brivla-onset  (* An ordinary initial forbids a following glide. A CgV onset requires a consonant before its glide, unlike an ordinary glide onset. *)
   onset | cgv-onset
 
-%redefine-rule onset-nucleus-coda  (* The optional coda is nonempty. A medial coda cannot begin any syllable, including one with CgV. *)
-  brivla-onset nucleus [coda]
-
-%redefine-rule syllable  (* A counted syllable excludes y as its nucleus. The coda lookahead prevents it from taking the consonant of a following CgV onset. *)
-  $o:brivla-onset nucleus [coda]
-%conditions
-  ¬$o.following-tokens.begins(y)
-
-%redefine-rule final-syllable  (* The last syllable excludes y and written stress. Its complete word boundary fixes its end and excludes a following name. *)
-  $o:brivla-onset $n:nucleus
-%conditions
-  ¬$o.following-tokens.begins(y | stressed),
-  ¬$n.following-tokens.begins(cmevla),
-  $n.following-tokens.begins(post-word)
-
-%redefine-rule stressed  (* This lookahead reads the onset before written vowel stress. The ordinary and CgV onsets remain disjoint. *)
-  brivla-onset stress-mark
-
-%redefine-rule brivla-head  (* The head excludes particles, slinku'i forms and apostrophe starts. Stress fixes its unstressed syllables, and its onset test includes CgV. *)
-  [{unstressed-syllable}]
-%conditions
-  ¬$.onward.begins(cmavo | slinkuhi | h),
-  $.onward.begins(brivla-onset)
+%redefine-rule syllable-onset  (* This hook permits a consonant before a glide in syllables but leaves rafsi onsets unchanged. *)
+  brivla-onset
 
 %rule cgv-onset  (* The nonempty consonant initial precedes one glide. The glide requires a following nucleus. *)
   cgv-initial glide
@@ -132,29 +111,23 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 %conditions
   $c.value ≠ "r"
 
-%redefine-rule consonant-letter(@S, @B)
-  $c:@S
-%conditions
-  ¬$c.following-tokens.begins(h | @B)
+%redefine-rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide. *)
+  h
 
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>cmevla-shape</code> to <code>consonant-letter</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>
 <p><img src="../../docs/diagrams/words/experimental/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../docs/diagrams/words/experimental/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
 <p><img src="../../docs/diagrams/words/experimental/brivla-onset.svg" alt="Railroad diagram of the rule brivla-onset"></p>
-<p><img src="../../docs/diagrams/words/experimental/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
-<p><img src="../../docs/diagrams/words/experimental/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
-<p><img src="../../docs/diagrams/words/experimental/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
-<p><img src="../../docs/diagrams/words/experimental/stressed.svg" alt="Railroad diagram of the rule stressed"></p>
-<p><img src="../../docs/diagrams/words/experimental/brivla-head.svg" alt="Railroad diagram of the rule brivla-head"></p>
+<p><img src="../../docs/diagrams/words/experimental/syllable-onset.svg" alt="Railroad diagram of the rule syllable-onset"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-onset.svg" alt="Railroad diagram of the rule cgv-onset"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-initial.svg" alt="Railroad diagram of the rule cgv-initial"></p>
 <p><img src="../../docs/diagrams/words/experimental/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-cluster-form.svg" alt="Railroad diagram of the rule cgv-cluster-form"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-rafsi-continuation.svg" alt="Railroad diagram of the rule cgv-rafsi-continuation"></p>
-<p><img src="../../docs/diagrams/words/experimental/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
+<p><img src="../../docs/diagrams/words/experimental/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
 </details>
 
 ## Extended rafsi
