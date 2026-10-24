@@ -17,7 +17,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Results
 
-Stage zero turns input characters into tokens. Their tags include the configured category and major category. They also carry `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where their table properties apply.
+Stage zero turns input characters into tokens. Each token stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values.
 
 A text that does not parse gives a result whose `ok` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). Other parse-result errors have no `code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 

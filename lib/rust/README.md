@@ -48,11 +48,11 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
-  Tags are a `BTreeSet<String>`. Stage zero stores the configured category and major category. It also stores `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component` where their table properties apply. Later stages test this stored membership. Grammar recipes supply normalization.
+  Tags are a `BTreeSet<String>`. Stage zero stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values. Grammar recipes supply normalization.
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
-Grammar documents decompose too. Written strings decompose, but engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
+Grammar documents decompose too. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The cache requires matching document, bootstrap, Unicode, properties, and required names fingerprints.
 
 The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
 

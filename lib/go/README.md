@@ -40,7 +40,7 @@ A `feature-conflict` result names a disabled feature whose conditional declarati
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 35 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
+Grammar document object model (DOM) format 40 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
@@ -72,13 +72,17 @@ Such an action can have `Elided`, a read of a terminator that the check wrote ba
 
 A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
-The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Reserved Unicode tags include `_L`, `_Ll`, and `_White_Space`.
+The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Canonical Unicode tags include `_General_Category_Letter`, `_General_Category_Lowercase_Letter`, and `_White_Space`.
 
 A `Token` has `Value`, the string that recognition reads, and `Image`, the string that brackets show. Both strings remain exact. Each grammar recipe computes its chosen output channel. Ordinary concatenation adds no separator. The engine applies no lowercase conversion, comma removal, or pause join.
 
-Stage zero applies Unicode Normalization Form D (NFD). NFD splits precomposed characters and orders their combining marks. The shared Unicode table supplies all mappings and combining classes. The engine keeps the original text and source positions. `ParseTokens` bypasses decomposition. Stage-zero tokens carry `_Emoji_Presentation` and `_Emoji_Component` when the configured Unicode table grants those properties.
+Stage zero applies Unicode Normalization Form D (NFD). NFD splits precomposed characters and orders their combining marks. The shared Unicode table supplies all mappings and combining classes. The engine keeps the original text and source positions. `ParseTokens` bypasses decomposition.
 
-Grammar documents use the same decomposition. Written strings decompose, but engine constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 35. The fingerprint is the FNV-1a hash of the table text.
+Each stage-zero token stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values.
+
+Grammar documents use the same decomposition. Escaped scalars inside strings remain exact. Include paths decode escapes without decomposition. The `.decomposed-source-text` method decomposes the original source text of a span.
+
+The cache requires DOM format 40 and matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
