@@ -242,7 +242,7 @@ A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a 
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
 
-`stressed-vowel-with` fixes the six lowercase values and uppercase images. Its arguments supply the script-specific readers. Named instances keep each script's vowel rule in the phoneme tree.
+`stressed-vowel-with` gives each stressed vowel `Stressed`, a lowercase value and an uppercase image. Its six arguments are the patterns that read the six vowels in one script. Named instances keep each script's vowel rule in the phoneme tree.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 

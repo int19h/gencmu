@@ -43,11 +43,11 @@ The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE AC
 
 latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
-`quote-letter` reads a letter that is neither ignored nor a script period. `misplaced-quote` tests the tokens before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A combining mark after an ignored character belongs to no letter and fails this test.
+A letter is a character of category L that is neither ignored nor a script period. `quote-letter` reads one letter. `misplaced-quote` tests the tokens of the run before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A mark at the start of a run has no such suffix. A combining mark after an ignored character belongs to no letter and fails this test.
 
-`letters`, `capital-run` and `non-lojban-char-run` reject runs that match `misplaced-quote`. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks.
+`letters`, `capital-run` and `non-lojban-char-run` reject runs that match `misplaced-quote`. On the left, `letter-final` skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. `letter-final` on the left and `letter-after-ignored` on the right both skip ignored characters. These are commas, format characters and silent marks.
 
-A letter is a character of category L that is neither ignored nor a script period. The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
+The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
 Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `ends`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
@@ -376,7 +376,9 @@ A capital glide letter is plain. A glide is never stressed, so an accent on a gl
 
 krulermorna writes a diphthong with one letter: `ą` for ai, `ę` for ei, `ǫ` for oi, and `ǎ` for au. Its vlipa variant writes au as `ꜷ` U+A737, with the capital `Ꜷ` U+A736. Stage zero gives `ą` as `a` and an ogonek, and `ǎ` as `a` and a caron. `ꜷ` has no decomposition.
 
-A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text. An accent stresses the first vowel, so `ą́` has image `Ai`. A capital marks stress outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
+A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text.
+
+An accent stresses the first vowel, so `ą́` has image `Ai`. A capital marks stress outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
 
 An ogonek and a caron together on `a` give no reading, so the run is foreign. On `e` and `o`, the ogonek forms the diphthong and the caron is ignored.
 
