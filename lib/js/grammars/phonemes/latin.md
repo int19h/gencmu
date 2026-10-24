@@ -29,6 +29,8 @@ Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. 
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
+The rule lists these code points instead of naming the property. Thus the dialects need only the core properties, and they also work with a custom Unicode table.
+
 An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after the final quiet core, a material token keeps an ignored-only stretch.
 
 ```jbogenbau

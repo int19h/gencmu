@@ -4,7 +4,7 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 ## Running the tests
 
-Run `node tools/sync.js` from the repository root after a grammar change. Each library runs all of its tests and the core corpus sample by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
+Run `node tools/sync.js` from the repository root after a grammar change. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
 
 Run each command from the named library directory:
 
@@ -239,9 +239,9 @@ An extra part holds text that the reader refuses if it reads it. An outcome othe
 
 The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name. The cache template uses `@unicode@` for the fingerprint of the Unicode table.
 
-Each cache case selects an explicit core. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
+Each cache case names its core Unicode table, `unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
 
-Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the bundled core version. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
 The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
@@ -295,11 +295,11 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
-`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, core character data, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. The baseline is the implementation before property profiles. Both revisions use the same machine, runtime versions, character data from `unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
 The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
 
-`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, core data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
+`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, `unicode.txt` data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
 
 The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 
