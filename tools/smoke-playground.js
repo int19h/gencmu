@@ -250,7 +250,7 @@ async function main() {
             if (message.kind === "ready") client.run(1,{dialect:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
-              const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),path => client.documentDirectives.get(path));
+              const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),(path, names) => client.documentDirectives.get(JSON.stringify([path, names])));
               client.stop();
               if (message.loadError || !message.parse?.ok) reject(new Error(JSON.stringify(message)));
               else resolve(editor.documents);
