@@ -1497,6 +1497,7 @@ impl<'a> Reader<'a> {
                     | "last-token"
                     | "onward"
                     | "following-tokens"
+                    | "preceding-tokens"
                     | "classes"
                     | "starts-input"
                     | "ends-input"

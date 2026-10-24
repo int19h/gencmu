@@ -1039,6 +1039,7 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
         }
         Span::From(inner) => (span_bounds(inner, frame, input).0, input, Whose::Tokens),
         Span::After(inner) => (span_bounds(inner, frame, input).1, input, Whose::Tokens),
+        Span::Before(inner) => (0, span_bounds(inner, frame, input).0, Whose::Tokens),
     }
 }
 
@@ -3117,7 +3118,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     pending.push(inner);
                 }
-                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => pending.push(s),
+                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                    pending.push(s)
+                }
                 _ => {}
             }
         }

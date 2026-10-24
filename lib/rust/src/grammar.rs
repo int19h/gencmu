@@ -1735,7 +1735,10 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             _ => Err(".without-elision-except takes a bare capture and one rule name".to_string()),
         },
         Term::Call(name, args)
-            if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision") =>
+            if matches!(
+                name.as_str(),
+                "head" | "tail" | "last" | "from" | "after" | "preceding-tokens" | "without-elision"
+            ) =>
         {
             match &args[..] {
                 [Arg::Term(Term::Capture(_))] if name == "without-elision" => Ok(()),
@@ -1803,9 +1806,17 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                     Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
                 }
             }
-            ("head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except", _) => {
-                check_span(grammar, term)
-            }
+            (
+                "head"
+                | "tail"
+                | "last"
+                | "from"
+                | "after"
+                | "preceding-tokens"
+                | "without-elision"
+                | "without-elision-except",
+                _,
+            ) => check_span(grammar, term),
             (
                 "value"
                 | "text"

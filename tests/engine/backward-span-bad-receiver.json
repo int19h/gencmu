@@ -1,0 +1,15 @@
+{
+  "description": "A preceding span requires a capture or span. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%conditions \"a\".preceding-tokens.value = \"\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

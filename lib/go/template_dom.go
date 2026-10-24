@@ -400,7 +400,7 @@ func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) str
 		return "a malformed method receiver"
 	}
 	bare := templateBareCapture(receiver) || receiver["param"] != nil || receiver["call"] != nil
-	span := bare || strings.Contains("|first-token|tokens-after-first|last-token|onward|following-tokens|without-elision|without-elision-except|", "|"+templateText(receiver["method"])+"|") && receiver["method"] != nil
+	span := bare || strings.Contains("|first-token|tokens-after-first|last-token|onward|following-tokens|preceding-tokens|without-elision|without-elision-except|", "|"+templateText(receiver["method"])+"|") && receiver["method"] != nil
 	rule := func(v any) bool {
 		a := templateObj(v)
 		return templateOnly(a, "rule") && templateNamed(a["rule"], uni) || a["param"] != nil || a["call"] != nil
@@ -440,7 +440,7 @@ func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) str
 		valid = bare && len(args) == 0
 	case "verbatim-text", "emitted":
 		valid = recipe && bare && len(args) == 0
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "starts-input", "ends-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "last-token", "tokens-after-first", "onward", "following-tokens", "preceding-tokens", "starts-input", "ends-input":
 		valid = len(args) == 0 && (span || recipe && receiver["method"] == "emitted" && (name == "value" || name == "image"))
 	default:
 		return "unknown method name"

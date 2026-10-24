@@ -369,7 +369,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn uses(s: &Span) -> bool {
         match s {
             Span::WithoutElision(_, _) => true,
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => uses(s),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => uses(s),
             _ => false,
         }
     }
@@ -388,7 +388,9 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                     w.insert(p.rule);
                 }
             }
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span(s, p, w),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                span(s, p, w)
+            }
             _ => {}
         }
     }
@@ -736,7 +738,9 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 }
                 _ => {}
             },
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span(s, out),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                span(s, out)
+            }
             _ => {}
         }
     }

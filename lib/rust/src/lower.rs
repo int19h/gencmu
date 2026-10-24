@@ -42,6 +42,8 @@ pub(crate) enum Span {
     From(Box<Span>),
     /// From the end of the span to the end of the parse's input.
     After(Box<Span>),
+    /// From the context start to the start of the span.
+    Before(Box<Span>),
 }
 
 #[derive(Debug, Clone)]
@@ -889,6 +891,7 @@ impl<'a> Scope<'a> {
                     "last" => Ok(Span::Last(inner)),
                     "from" => Ok(Span::From(inner)),
                     "after" => Ok(Span::After(inner)),
+                    "preceding-tokens" => Ok(Span::Before(inner)),
                     _ => Err(Missing),
                 }
             }
@@ -916,7 +919,14 @@ impl<'a> Scope<'a> {
             Term::Call(name, _)
                 if matches!(
                     name.as_str(),
-                    "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except"
+                    "head"
+                        | "tail"
+                        | "last"
+                        | "from"
+                        | "after"
+                        | "preceding-tokens"
+                        | "without-elision"
+                        | "without-elision-except"
                 ) =>
             {
                 LTerm::Value(self.span(term)?)

@@ -402,6 +402,7 @@ fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str>
             "last-token",
             "onward",
             "following-tokens",
+            "preceding-tokens",
             "without-elision",
             "without-elision-except",
         ]
@@ -434,6 +435,7 @@ fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str>
         | "tokens-after-first"
         | "onward"
         | "following-tokens"
+        | "preceding-tokens"
         | "starts-input"
         | "ends-input" => {
             args.is_empty()

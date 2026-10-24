@@ -445,7 +445,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch name {
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "preceding-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")

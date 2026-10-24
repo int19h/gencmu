@@ -1,0 +1,15 @@
+{
+  "description": "A recipe cannot read a preceding span. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%emits $ := $.preceding-tokens.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -266,6 +266,10 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 			if s.b > s.a {
 				s.a = s.b - 1
 			}
+		case "preceding-tokens":
+			s.aligned = nil
+			s.b = s.a
+			s.a = ev.run.inputStart
 		case "onward", "following-tokens":
 			// To the end of the input of the parse that evaluates the
 			// condition (§10).

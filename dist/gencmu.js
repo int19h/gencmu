@@ -3816,7 +3816,7 @@
   // Receiver-first method signatures (engine §10).
 
 
-  const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
+  const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const TARGET_METHODS = new Set(["matches", "begins", "followed-by", "preceded-by"]);
@@ -12268,6 +12268,13 @@
       if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.method);
       if (inner.exact) result.exact = exactPart(scope, inner.exact, span.method);
       return result;
+    }
+    if ("method" in span && span.method === "preceding-tokens") {
+      const argument = spanOf(context, span.receiver, scope);
+      const inner = projectedArgument(argument, scope, span.method);
+      const r = reconstructionOf(scope);
+      const start = inner.space === "raw" ? /** @type {ParseContext} */ (r).inputStart : context.inputStart;
+      return { start, end: inner.start, space: inner.space };
     }
     if ("method" in span && (span.method === "onward" || span.method === "following-tokens")) {
       const argument = spanOf(context, span.receiver, scope);

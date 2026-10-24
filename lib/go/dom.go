@@ -182,7 +182,7 @@ type domTerm struct {
 // isSpanFunction says whether a function gives a span (engine §10).
 func isSpanFunction(name string) bool {
 	switch name {
-	case "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except":
+	case "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except":
 		return true
 	}
 	return false

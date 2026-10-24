@@ -743,6 +743,8 @@ class Evaluator:
             return RestoredSpan(start, end, end, self.end, observation, family)
         if name == "onward":
             return replace(span, end=self.end) if isinstance(span, RestoredSpan) else (start, self.end, None)
+        if name == "preceding-tokens":
+            return self.base, start, None
         if name == "following-tokens":
             return end, self.end, None
         if start >= end:
@@ -858,7 +860,7 @@ class Evaluator:
                     span = span[0], span[1], (yield whole())
                 tags = self.span_tags(span)
                 return tags if name == "tags" else frozenset(tag for tag in tags if is_class(tag))
-            if name in ("first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"):
+            if name in ("first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"):
                 start, end, _ = yield self._span(dom, bound)
                 return self.input_value(start, end)
             raise _GrammarFault(f"unknown method .{name}")

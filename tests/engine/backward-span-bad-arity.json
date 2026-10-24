@@ -1,0 +1,15 @@
+{
+  "description": "A preceding span takes no arguments. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%conditions $.preceding-tokens(A).value = \"\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

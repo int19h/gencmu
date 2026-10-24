@@ -1,0 +1,15 @@
+{
+  "description": "An uncalled template still enforces the fixed arity of preceding-tokens. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%rule unused(@X) @X\n%conditions $.preceding-tokens(A).value = \"\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

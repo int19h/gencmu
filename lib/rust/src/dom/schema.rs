@@ -69,6 +69,7 @@ fn span(value: &Json) -> bool {
                     | "tokens-after-first"
                     | "onward"
                     | "following-tokens"
+                    | "preceding-tokens"
             )
         )
 }
@@ -578,6 +579,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                             | "tokens-after-first"
                             | "onward"
                             | "following-tokens"
+                            | "preceding-tokens"
                             | "classes"
                             | "tags",
                             [],
