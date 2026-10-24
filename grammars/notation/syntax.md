@@ -555,7 +555,17 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Guillemets enclose child items. An adjacent list attaches to the pattern atom. The reader keeps that list only on a rule name, emoji rule, template family, exact call, or compatible parameter. Whitespace or a comment separates a bare list from the preceding item.
+Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
+
+A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
+
+The syntax stage does not see layout, which consists of whitespace and comments. The helper rules test adjacency through source text. `pattern-adjacent-item` matches two tokens whose joined source text equals the source text of their span. That equality holds only when nothing lies between them.
+
+`pattern-exact-start` keeps `·` adjacent to its node test. `pattern-attached-start` detects a list directly after the complete atom. `pattern-node` tests this condition in both directions, so an adjacent list always attaches and a separated list never does.
+
+`pattern-item-opening` reads `«` or `·`. `child-item` rejects such an adjacent opening after its last token, except after `⋯` or `⋰`.
+
+A child set has at least one operator. A lone child path is therefore a one-item sequence, and never also a set.
 
 Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
@@ -580,9 +590,9 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 %rule pattern-node
   [$exact:"·"] $atom:pattern-atom [$list:pattern-children]
 %conditions
-  $exact ⟹ $exact.onward.begins(pattern-exact-start)
-  , $list ⟹ $atom.onward.begins(pattern-attached-start)
-  , ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
+  $exact ⟹ $exact.onward.begins(pattern-exact-start),
+  $list ⟹ $atom.onward.begins(pattern-attached-start),
+  ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
 
 %rule pattern-bare
   [$exact:"·"] pattern-children
@@ -647,9 +657,9 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
 %rule pattern-adjacent-item
   $left:_ $right:pattern-item-opening
 %conditions
-  $left.value ≠ "⋯"
-  , $left.value ≠ "⋰"
-  , $.source-text = $left.source-text ++ $right.source-text
+  $left.value ≠ "⋯",
+  $left.value ≠ "⋰",
+  $.source-text = $left.source-text ++ $right.source-text
 ```
 
 <details><summary>Railroad diagrams of the 24 rules from <code>pattern-literal</code> to <code>pattern-adjacent-item</code></summary>
@@ -689,7 +699,7 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 
 `%include` takes exactly one quoted path. Its first operand uses literal path decoding. An include path cannot serve as a method receiver.
 
-`%names` takes one quoted path and stands before every other statement. The loader inherits its extra names file through nested includes. Returning from an include restores the parent selection.
+`%names` takes one quoted path and stands before every other statement. Its names apply to the document and to the documents that it includes. A names file that an included document declares does not apply after that include ends.
 
 ```jbogenbau
 %rule directive
