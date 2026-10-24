@@ -1264,8 +1264,8 @@ mod tests {
             assert_eq!(internal.value, token.value);
             assert_eq!(internal.image, token.image);
         }
-        assert!(public[0].tags.contains("_Ll"));
-        assert!(public[1].tags.contains("_Mn"));
+        assert!(public[0].tags.contains("_General_Category_Lowercase_Letter"));
+        assert!(public[1].tags.contains("_General_Category_Nonspacing_Mark"));
         assert!(public[3].tags.contains("_White_Space"));
         let sources = crate::tree::Sources::new(&internal);
         assert_eq!(sources.of(1, 3), (0, 2));

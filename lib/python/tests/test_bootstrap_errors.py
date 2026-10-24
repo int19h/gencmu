@@ -49,6 +49,7 @@ class BootstrapErrors(unittest.TestCase):
             root = Path(temporary)
             (root / "notation").mkdir()
             (root / "unicode.txt").write_bytes((REPOSITORY / "grammars/unicode.txt").read_bytes())
+            (root / "unicode-properties.txt").write_bytes((REPOSITORY / "grammars/unicode-properties.txt").read_bytes())
             for failure in ("missing", "directory", "invalid UTF-8"):
                 with self.subTest(failure=failure):
                     file = root / "notation/bootstrap.json"
