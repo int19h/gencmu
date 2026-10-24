@@ -6400,11 +6400,6 @@
     return null;
   }
 
-  /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
-  function knownDomMembers(dom) {
-    return {...dom, directives:dom.directives.map(({name,args,at,conditions}) => ({name,args,at,...(conditions === undefined ? {} : {conditions})}))};
-  }
-
   // ---- logical.js
   // Logical helper boundaries beside physical capture expansions (engine §3.2).
   /** @import { GrammarSymbol } from "./types.js" */
@@ -20380,6 +20375,11 @@
       at++;
     }
     return null;
+  }
+
+  /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
+  function knownDomMembers(dom) {
+    return {...dom, directives:dom.directives.map(({name,args,at,conditions}) => ({name,args,at,...(conditions === undefined ? {} : {conditions})}))};
   }
 
   // ---- index.js
