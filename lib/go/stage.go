@@ -45,6 +45,8 @@ type parseState struct {
 	// The first run consumes this pair only for that exact token slice.
 	initialTokens  []Token
 	initialTagsets []*tagset
+	// Public tag lists occupy separate ranges of these bounded blocks.
+	tagStorage []string
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
@@ -96,10 +98,29 @@ func (ps *parseState) characterTokens() []Token {
 		if ps.text[origin] != c {
 			text = string(ps.text[origin])
 		}
-		toks[i] = Token{Text: text, Value: value, Image: value, Tags: tags.list(), Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
+		toks[i] = Token{Text: text, Value: value, Image: value, Tags: ps.publicTags(tags), Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
 	}
 	ps.initialTokens, ps.initialTagsets = toks, tagsets
 	return toks
+}
+
+// publicTags copies every member into a distinct range. Capacity ends at
+// its last member, so appending cannot change another public tag list.
+// Size each block for up to 64 copies of this list and at most 4096
+// members. A larger list gets one block.
+func (ps *parseState) publicTags(tags *tagset) []string {
+	size := len(tags.names)
+	if size == 0 {
+		return []string{}
+	}
+	if len(ps.tagStorage) < size {
+		count := max(1, min(len(ps.text), 64, 4096/size))
+		ps.tagStorage = make([]string, count*size)
+	}
+	out := ps.tagStorage[:size:size]
+	copy(out, tags.names)
+	ps.tagStorage = ps.tagStorage[size:]
+	return out
 }
 
 type stageRun struct {
@@ -233,7 +254,7 @@ func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *
 	run.tagsets = make([]*tagset, len(toks))
 	for i := range toks {
 		run.tagsets[i] = ps.in.fromList(toks[i].Tags)
-		toks[i].Tags = run.tagsets[i].list()
+		toks[i].Tags = ps.publicTags(run.tagsets[i])
 	}
 	return run
 }
