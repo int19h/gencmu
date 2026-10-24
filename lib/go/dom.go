@@ -716,7 +716,21 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 }
 func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
 	if node, err := templateFromJSON(raw); err == nil {
-		for _, part := range templateNodes(node) {
+		// Unknown directive members carry no grammar nodes.
+		for _, directive := range templateList(templateObj(node)["directives"]) {
+			for key := range templateObj(directive) {
+				switch key {
+				case "name", "args", "conditions", "at":
+				default:
+					delete(templateObj(directive), key)
+				}
+			}
+		}
+		var roots []any
+		for _, key := range []string{"rules", "directives", "constants", "classifiers", "implications"} {
+			roots = append(roots, templateObj(node)[key])
+		}
+		for _, part := range templateNodes(roots) {
 			for _, field := range []string{"ref", "tag", "terminal"} {
 				if name, ok := part[field].(string); ok && strings.HasPrefix(name, "_") && uni.canonicalTag(name) != name {
 					return nil, fmt.Errorf("unknown, unavailable, or noncanonical engine tag")

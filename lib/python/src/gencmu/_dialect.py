@@ -23,7 +23,7 @@ from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
 from ._unicode import UnicodeTable
-from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
+from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
 from ._names import NO_NAMES, NamesDom, NamesScope, selected_names, names_registry
 from ._string_escapes import DocumentStrings
 
@@ -203,7 +203,7 @@ class NotationReader:
                 problem = dom_problem(document.get("dom"), unicode)
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
-                pairs.append((document["path"], document["dom"]))
+                pairs.append((document["path"], known_dom_members(document["dom"])))
             inputs.append((stage["name"], pairs))
         for name, pairs in inputs:
             if not any(dom["rules"] for _, dom in pairs):
@@ -383,7 +383,8 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
-                    index[entry["hash"]] = NamesDom(entry["dom"], entry["names"]) if "names" in entry else entry["dom"]
+                    dom = known_dom_members(entry["dom"])
+                    index[entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
         # An unreadable compiled.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.

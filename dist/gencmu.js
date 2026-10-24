@@ -6379,6 +6379,11 @@
     return null;
   }
 
+  /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
+  function knownDomMembers(dom) {
+    return {...dom, directives:dom.directives.map(({name,args,at,conditions}) => ({name,args,at,...(conditions === undefined ? {} : {conditions})}))};
+  }
+
   // ---- logical.js
   // Logical helper boundaries beside physical capture expansions (engine §3.2).
   /** @import { GrammarSymbol } from "./types.js" */
@@ -19811,7 +19816,7 @@
         || !data.documents || typeof data.documents !== "object") return;
       this.bundledNames = namesRegistry(data.bundledNames);
       for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
-        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
+        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, {...entry, dom:knownDomMembers(entry.dom)});
       }
     }
 
@@ -20303,6 +20308,7 @@
       for (const document of stage.documents) {
         const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
         if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json", ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
+        document.dom = knownDomMembers(document.dom);
       }
     }
     for (const stage of stages) {
@@ -20411,6 +20417,11 @@
     const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
     return new Loader((path) => map.get(path), path => map.has(path));
   }
+
+  // ---- result-context.js
+  // Rendering context stays outside the public result and its JSON.
+  /** @type {WeakMap<object, import("./unicode.js").UnicodeTable>} */
+  const resultCores = new WeakMap();
 
   // ---- types.js
   // The shapes of the values the library passes around, as JSDoc type

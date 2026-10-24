@@ -1832,6 +1832,12 @@
         "_Script_Latin"
       ],
       "concurrent": true
+    },
+    {
+      "description": "Unknown directive members contain no grammar nodes, including engine tags and unresolved calls.",
+      "find": "\"args\":[\"greedy\"]",
+      "replace": "\"args\":[\"greedy\"],\"tag\":\"_Lu\",\"extra\":{\"ref\":\"_Lu\",\"terminal\":\"_Lu\",\"param\":\"X\",\"call\":\"absent\",\"args\":[]}",
+      "cached": true
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

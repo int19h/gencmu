@@ -144,12 +144,22 @@ def _contains_engine(root: Any) -> bool:
     return False
 
 
+def known_dom_members(dom):
+    if isinstance(dom, dict) and isinstance(dom.get("directives"), list):
+        return {**dom, "directives": [
+            {key: value for key, value in directive.items() if key in ("name", "args", "conditions", "at")}
+            if isinstance(directive, dict) else directive for directive in dom["directives"]
+        ]}
+    return dom
+
+
 def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
     try:
+        dom = known_dom_members(dom)
         problem = _dom_problem(dom, unicode, defer_emission)
         if problem is not None:
             return problem
-        pending = [dom]
+        pending = [dom[key] for key in ("rules", "directives", "constants", "classifiers", "implications")]
         while pending:
             node = pending.pop()
             if isinstance(node, list):

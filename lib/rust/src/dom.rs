@@ -4,7 +4,10 @@
 
 pub(crate) mod schema;
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
-    for part in crate::parameters::nodes(dom) {
+    let cleaned = known_dom_members(dom);
+    let dom = cleaned.as_ref().unwrap_or(dom);
+    let roots = ["rules", "directives", "constants", "classifiers", "implications"];
+    for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
             if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
                 if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
@@ -17,6 +20,36 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
         crate::parameters::problem(dom, unicode)
     } else {
         schema::problem(dom, unicode)
+    }
+}
+
+fn known_dom_members(dom: &Json) -> Option<Json> {
+    // Unknown directive members carry no grammar nodes.
+    let mut cleaned;
+    if dom.get("directives").and_then(crate::json::Json::as_array).is_some_and(|items| {
+        items.iter().any(|item| {
+            item.as_object().is_some_and(|fields| {
+                fields.iter().any(|(key, _)| !["name", "args", "conditions", "at"].contains(&key.as_str()))
+            })
+        })
+    }) {
+        cleaned = dom.clone();
+        if let crate::json::Json::Obj(fields) = &mut cleaned {
+            for (key, value) in fields {
+                if key == "directives" {
+                    if let crate::json::Json::Arr(items) = value {
+                        for item in items {
+                            if let crate::json::Json::Obj(fields) = item {
+                                fields.retain(|(key, _)| ["name", "args", "conditions", "at"].contains(&key.as_str()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Some(cleaned)
+    } else {
+        None
     }
 }
 
@@ -329,6 +362,8 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
     dom_from_json_mode(value, unicode, false)
 }
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
+    let cleaned = known_dom_members(value);
+    let value = cleaned.as_ref().unwrap_or(value);
     if crate::parameters::unresolved(value) {
         return crate::parameters::decode(value, unicode, defer);
     }
