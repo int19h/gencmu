@@ -43,17 +43,13 @@ The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE AC
 
 latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
-The left neighbor needs a test of the whole run because the notation has no backward token-span query. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
+`quote-letter` reads a letter that is neither ignored nor a script period. `misplaced-quote` tests the tokens before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A combining mark after an ignored character belongs to no letter and fails this test.
 
-- The mark has only ignored characters and marks before it in the run.
-- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark and punctuation are no letters here.
-- A mark stands between an ignored character and the quotation mark, so the mark belongs to no letter.
-
-`letters`, `capital-run` and `non-lojban-char-run` refuse a run that matches it. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks.
+`letters`, `capital-run` and `non-lojban-char-run` reject runs that match `misplaced-quote`. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks.
 
 A letter is a character of category L that is neither ignored nor a script period. The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
-Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `matches`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
+Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `ends`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
 ```jbogenbau
 %redefine-rule apostrophe
@@ -99,32 +95,27 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   | chars-with-non-lojban-char inner-quote-mark run-char
 
 %rule misplaced-quote
-  | [{mark-or-ignored}] quote-mark [{_}]
-  | [{_}] $b:_ [{mark-or-ignored}] quote-mark [{_}]
-  | [{_}] ignored [{mark-or-ignored}] combining-mark [{mark-or-ignored}] quote-mark [{_}]
+  [{_}] $q:quote-mark [{_}]
 %conditions
-  (¬$b.matches(alpha-char) ∨ $b.matches(period-char)),
-  ¬$b.matches(mark-or-ignored)
+  ¬$q.preceding-tokens.ends(letter-final)
+
+%rule quote-letter
+  $a:alpha-char
+%conditions
+  ¬$a.matches(ignored | period-char)
 
 %rule letter-after-ignored
-  [{ignored}] $a:_
-%conditions
-  $a.matches(alpha-char),
-  ¬$a.matches(ignored),
-  ¬$a.matches(period-char)
+  [{ignored}] quote-letter
 
 %rule ignored
   $c:_
 %conditions
   $c.matches(comma)
 
-%rule mark-or-ignored
-  combining-mark | ignored
-
 %redefine-rule run
   $r:any-run
 %conditions
-  ¬$r.matches(letter-final) ∨ ¬$r.following-tokens.begins(quote-after-ignored)
+  ¬$r.ends(letter-final) ∨ ¬$r.following-tokens.begins(quote-after-ignored)
 
 %rule quote-after-ignored
   [{ignored}] inner-quote-mark
@@ -133,11 +124,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   ordinary-run | non-lojban-char-run | capital-run
 
 %rule letter-final
-  [{_}] $b:_ [{combining-mark}] [{ignored}]
-%conditions
-  $b.matches(alpha-char),
-  ¬$b.matches(ignored),
-  ¬$b.matches(period-char)
+  quote-letter [{combining-mark}] [{ignored}]
 ```
 
 <details><summary>Railroad diagrams of the 18 rules from <code>apostrophe</code> to <code>letter-final</code></summary>
@@ -152,9 +139,9 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/misplaced-quote.svg" alt="Railroad diagram of the rule misplaced-quote"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-experimental/quote-letter.svg" alt="Railroad diagram of the rule quote-letter"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/letter-after-ignored.svg" alt="Railroad diagram of the rule letter-after-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/ignored.svg" alt="Railroad diagram of the rule ignored"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-experimental/mark-or-ignored.svg" alt="Railroad diagram of the rule mark-or-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/run.svg" alt="Railroad diagram of the rule run"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/quote-after-ignored.svg" alt="Railroad diagram of the rule quote-after-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/any-run.svg" alt="Railroad diagram of the rule any-run"></p>
