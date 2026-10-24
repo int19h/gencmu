@@ -422,7 +422,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	}
 	if arguments := one(selector, "arguments"); arguments != nil {
 		for _, p := range parts(arguments) {
-			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins"] {
+			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"] {
 				b.fail(arguments, "invalid method argument separator")
 			}
 		}
@@ -442,6 +442,9 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
 	fail := func() { b.fail(n, "invalid receiver or arguments for .%s", name) }
+	if name == "ends" && restoredTerm(receiver) {
+		b.fail(n, "ends requires an ordinary span, not a restored span")
+	}
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch name {
@@ -470,7 +473,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			}
 			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal) && !engineTag(a.Str)
 		}
-	case "matches", "begins":
+	case "matches", "begins", "ends":
 		valid = span && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
@@ -496,7 +499,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	if b.closedFor != "" && name != "split" && name != "ngrams" {
 		b.fail(n, "%s requires a closed term", b.closedFor)
 	}
-	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins"
+	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
 	if isPredicate != predicate {
 		b.fail(n, ".%s has the wrong result type here", name)
 	}

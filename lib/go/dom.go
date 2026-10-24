@@ -194,6 +194,7 @@ const (
 	cdCompare  = "compare"
 	cdMatches  = "matches"
 	cdBegins   = "begins"
+	cdEnds     = "ends"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
 	cdBoundary = "boundary"
@@ -594,7 +595,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins, cdInitial, cdEnd, cdBoundary:
+	case cdMatches, cdBegins, cdEnds, cdInitial, cdEnd, cdBoundary:
 		name := c.Kind
 		if name == cdInitial {
 			name = "starts-input"
@@ -1341,7 +1342,7 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 		if t.Str == "starts-input" && len(t.Items) == 1 {
 			return &domCond{Kind: cdInitial, Span: t.Items[0]}, nil
 		}
-		if (t.Str == "matches" || t.Str == "begins") && len(t.Items) >= 2 {
+		if (t.Str == "matches" || t.Str == "begins" || t.Str == "ends") && len(t.Items) >= 2 {
 			return &domCond{Kind: t.Str, Span: t.Items[0], Targets: t.Items[1:]}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")

@@ -531,7 +531,7 @@ func (b *domBuilder) templateMethod(n *Node) templateObject {
 					if name == "classify" && arg["rule"] != nil {
 						arg = templateObject{"classifier": arg["rule"]}
 					}
-					if (name == "matches" || name == "begins" || boundaryMethod(name)) && arg["tag"] != nil && !engineTag(templateText(arg["tag"])) {
+					if (name == "matches" || name == "begins" || name == "ends" || boundaryMethod(name)) && arg["tag"] != nil && !engineTag(templateText(arg["tag"])) {
 						arg = templateObject{"terminal": arg["tag"]}
 					}
 					templateLocate(arg, b.at(p))
@@ -539,7 +539,7 @@ func (b *domBuilder) templateMethod(n *Node) templateObject {
 				}
 			}
 			for _, p := range parts(a) {
-				if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins"] {
+				if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"] {
 					b.fail(a, "invalid method argument separator")
 				}
 			}

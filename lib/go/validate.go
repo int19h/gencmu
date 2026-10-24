@@ -1201,7 +1201,11 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
-	case cdMatches, cdBegins:
+	case cdMatches, cdBegins, cdEnds:
+		if d.Kind == cdEnds && restoredTerm(d.Span) {
+			c.fail("ends requires an ordinary span, not a restored span")
+			return
+		}
 		for _, t := range d.queryTargets() {
 			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed query target")

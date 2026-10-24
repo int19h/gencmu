@@ -15,6 +15,8 @@ type parseState struct {
 	lineStarts []int
 	// nested holds the answers of nested parses, and inProgress those now
 	// running (terms.go).
+	suffixes   map[suffixKey]*suffixState
+	suffixDeps map[suffixTarget]bool
 	nested     map[nestedKey]*nestedResult
 	inProgress map[spanKey]bool
 	// contents numbers the contents of the short spans that keys of nested

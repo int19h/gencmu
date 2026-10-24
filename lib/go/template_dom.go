@@ -375,7 +375,7 @@ func templateClosedProblem(root any) string {
 	return ""
 }
 func templateQuery(name string) bool {
-	return strings.Contains("|matches|begins|starts-input|ends-input|followed-by|preceded-by|", "|"+name+"|")
+	return strings.Contains("|matches|begins|ends|starts-input|ends-input|followed-by|preceded-by|", "|"+name+"|")
 }
 func templateBareCapture(n templateObject) bool {
 	name, ok := n["capture"].(string)
@@ -396,6 +396,19 @@ func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) str
 	name := templateText(n["method"])
 	args := templateList(n["args"])
 	receiver := templateObj(n["receiver"])
+	if name == "ends" {
+		span := receiver
+		for depth := 0; depth <= maxDOMDepth; depth++ {
+			method := templateText(span["method"])
+			if method == "without-elision" || method == "without-elision-except" {
+				return "ends requires an ordinary span, not a restored span"
+			}
+			if method != "onward" {
+				break
+			}
+			span = templateObj(span["receiver"])
+		}
+	}
 	if receiver == nil {
 		return "a malformed method receiver"
 	}
@@ -430,7 +443,7 @@ func templateMethodProblem(n templateObject, recipe bool, uni *unicodeTable) str
 		valid = len(args) == 1 && templateOnly(templateObj(args[0]), "classifier") && classifierName.MatchString(templateText(templateObj(args[0])["classifier"]))
 	case "tags":
 		valid = span && (len(args) == 0 || len(args) == 1 && rule(args[0]))
-	case "matches", "begins":
+	case "matches", "begins", "ends":
 		valid = span && targets()
 	case "followed-by", "preceded-by":
 		valid = bare && targets()
@@ -820,13 +833,13 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		for _, a := range templateList(n["args"]) {
 			arg := templateObj(a)
 			if arg["rule"] != nil {
-				if !templateOnly(arg, "rule") || !templateNamed(arg["rule"], uni) || !strings.Contains("|tags|matches|begins|without-elision-except|followed-by|preceded-by|", "|"+name+"|") {
+				if !templateOnly(arg, "rule") || !templateNamed(arg["rule"], uni) || !strings.Contains("|tags|matches|begins|ends|without-elision-except|followed-by|preceded-by|", "|"+name+"|") {
 					return "a malformed rule argument"
 				}
 				continue
 			}
 			if arg["terminal"] != nil {
-				if !templateOnly(arg, "terminal") || !className.MatchString(templateText(arg["terminal"])) || !strings.Contains("|matches|begins|followed-by|preceded-by|", "|"+name+"|") {
+				if !templateOnly(arg, "terminal") || !className.MatchString(templateText(arg["terminal"])) || !strings.Contains("|matches|begins|ends|followed-by|preceded-by|", "|"+name+"|") {
 					return "a malformed target argument"
 				}
 				continue

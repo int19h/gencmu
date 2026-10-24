@@ -569,7 +569,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			w.endCond(subset(setValue(l, ev.in()), setValue(r, ev.in())) == (c.Op == "⊆"))
 			return nil
 		}
-	case cdMatches, cdBegins:
+	case cdMatches, cdBegins, cdEnds:
 		// The span is read once. A halt keeps it for the answer.
 		if f.at == 0 {
 			f.s, f.at = w.span(ev, c.Span), 1
@@ -720,12 +720,25 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		k.aligned, k.observation, k.fixedEnd = true, s.aligned.observation, s.aligned.end
 		k.family = s.aligned.family
 		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd
-	} else if s.b-s.a <= contentKeyLimit {
+	} else if kind != cdEnds && s.b-s.a <= contentKeyLimit {
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
 	}
 	at := spanKey{g: g, rule: start, a: s.a, b: contextEnd}
 	if ps.inProgress[at] {
 		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
+	}
+	var suffix *suffixState
+	if kind == cdEnds {
+		suffix = run.suffixState(g, start, s.a, s.b)
+		if suffix.fault != nil && s.b >= suffix.errorAt {
+			panic(suffix.fault)
+		}
+		if answer, known := suffix.answers[s.b]; known {
+			return answer, nil, nil
+		}
+		if suffix.active {
+			suffix = &suffixState{answers: map[int]bool{}}
+		}
 	}
 	// Only aligned proof summaries depend on the active cycle context.
 	if s.aligned != nil {
@@ -754,7 +767,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 			return res.holds, res.tags, nil
 		}
 	}
-	q := &nestedQuery{g: g, name: rule, start: start, key: k, at: at, aligned: s.aligned, matchEnd: s.b, parentContext: ps.queryContext}
+	q := &nestedQuery{g: g, name: rule, start: start, key: k, at: at, aligned: s.aligned, matchEnd: s.b, parentContext: ps.queryContext, suffix: suffix}
 	if q.aligned != nil {
 		if proofs, ok := run.qualifiedQueries[q.qualifiedKey()]; ok {
 			answer := run.alignedAnswer(q, proofs)
@@ -768,6 +781,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 // nestedQuery is a nested parse that an evaluation needs: the span at as
 // the rule named name, for the query that key remembers.
 type nestedQuery struct {
+	suffix        *suffixState
 	g             *lowered
 	name          string
 	start         int32
@@ -860,11 +874,21 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 	if q.aligned != nil && alignedQueryHook != nil {
 		alignedQueryHook(1)
 	}
-	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk()}
+	if q.suffix != nil {
+		q.suffix.active = true
+		if r := q.suffix.rec; r != nil {
+			r.query, r.n, r.lo, r.hi = q, b-a, a, b
+			return r
+		}
+	}
+	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk(), suffix: q.suffix}
 	if q.aligned != nil && q.aligned.family != "" {
 		r.family = newFamilyArena(q.aligned.arena, q.aligned.observation, a, q.aligned.end, q.g.stage.families[q.aligned.family])
 	}
 	r.begin(q.start)
+	if q.suffix != nil {
+		q.suffix.rec = r
+	}
 	return r
 }
 
@@ -881,8 +905,15 @@ func (run *stageRun) drive(root *recognizer) {
 	}
 	frames := []*recognizer{root}
 	defer func() {
+		failure := recover()
 		// A parse that failed frees its place, as one that finished does.
 		for _, r := range frames {
+			if r.suffix != nil {
+				r.suffix.active = false
+				if failure != nil {
+					r.suffix.fault = failure
+				}
+			}
 			if r.query != nil {
 				delete(run.ps.inProgress, r.query.at)
 				if r.query.aligned != nil {
@@ -895,6 +926,9 @@ func (run *stageRun) drive(root *recognizer) {
 		}
 		run.inputStart, run.inputEnd = outerStart, outerEnd
 		run.ps.queryContext = outerContext
+		if failure != nil {
+			panic(failure)
+		}
 	}()
 	for len(frames) > 0 {
 		r := frames[len(frames)-1]
@@ -917,9 +951,13 @@ func (run *stageRun) drive(root *recognizer) {
 			run.settle(r)
 			// A nested recognition is done with its walk, which the next
 			// can reuse.
-			run.walks = append(run.walks, r.w)
-			r.w = walk{}
-			run.recycle(r)
+			if r.suffix == nil {
+				run.walks = append(run.walks, r.w)
+				r.w = walk{}
+				run.recycle(r)
+			} else {
+				r.suffix.active = false
+			}
 		}
 	}
 }
@@ -968,7 +1006,9 @@ func (run *stageRun) settle(rec *recognizer) {
 		ps.nested[q.key] = res
 		return
 	}
-	if q.key.kind == cdBegins {
+	if q.key.kind == cdEnds {
+		res.holds = q.suffix.answers[q.at.b]
+	} else if q.key.kind == cdBegins {
 		res.holds = rec.begun(start)
 	} else {
 		// One search of eligibility over the items of every tag set, and

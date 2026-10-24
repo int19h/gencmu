@@ -434,7 +434,7 @@ func demandedCloses(g *lowered) map[int32]bool {
 			scan := func(n clausePart) bool {
 				var span *domTerm
 				var target string
-				if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins) {
+				if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins || n.c.Kind == cdEnds) {
 					span = n.c.Span
 					for _, t := range n.c.queryTargets() {
 						if id, ok := g.byName[queryName(t)]; ok {
@@ -524,7 +524,7 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 	}
 	d := closeDemand{positions: map[int]bool{}, queries: map[int]map[int32]bool{}}
 	scan := func(n clausePart) bool {
-		if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins) {
+		if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins || n.c.Kind == cdEnds) {
 			span := n.c.Span
 			if span != nil && span.Kind == tmCall && span.Str == "onward" {
 				span = span.Items[0]

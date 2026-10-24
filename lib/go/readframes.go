@@ -728,6 +728,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	kind := cdMatches
 	if t.Str == "begins" {
 		kind = cdBegins
+	} else if t.Str == "ends" {
+		kind = cdEnds
 	}
 	return give(&domCond{Kind: kind, Span: t.Items[0], Targets: t.Items[1:]})
 }
