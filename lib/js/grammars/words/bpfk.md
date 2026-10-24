@@ -847,39 +847,39 @@ The `consonant-letter` template takes the character and its forbidden targets. E
 %conditions
   ¬$c.following-tokens.begins(letter-ban | @B)
 
-%rule l = consonant-letter("l", l)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
+%rule l = consonant-letter("l", l)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
 
-%rule m = consonant-letter("m", m | z)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids z. *)
+%rule m = consonant-letter("m", m | z)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
 
-%rule n = consonant-letter("n", n | affricate)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids an affricate. *)
+%rule n = consonant-letter("n", n | affricate)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
 
-%rule r = consonant-letter("r", r)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
+%rule r = consonant-letter("r", r)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
 
-%rule b = consonant-letter("b", b | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule b = consonant-letter("b", b | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule d = consonant-letter("d", d | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule d = consonant-letter("d", d | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule g = consonant-letter("g", g | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule g = consonant-letter("g", g | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule v = consonant-letter("v", v | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
+%rule v = consonant-letter("v", v | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
+%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
 
-%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
+%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
 
-%rule s = consonant-letter("s", s | c | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
+%rule s = consonant-letter("s", s | c | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
 
-%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
+%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
 
-%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
+%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
 
-%rule k = consonant-letter("k", k | x | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
+%rule k = consonant-letter("k", k | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
 
-%rule f = consonant-letter("f", f | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
+%rule f = consonant-letter("f", f | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
 
-%rule p = consonant-letter("p", p | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
+%rule p = consonant-letter("p", p | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
 
-%rule t = consonant-letter("t", t | voiced)  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
+%rule t = consonant-letter("t", t | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>
