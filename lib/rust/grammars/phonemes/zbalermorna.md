@@ -45,18 +45,18 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
   $
 
 %extend-rule apostrophe
-  "‹ZBALERMORNA HUMBERT SYMBOL FOR YHY›" | "‹ZBALERMORNA UCSUR SYMBOL FOR YHY›"
+  ("‹ZBALERMORNA HUMBERT SYMBOL FOR YHY›" | "‹ZBALERMORNA UCSUR SYMBOL FOR YHY›")
 %emits
   $ :: ∅ := "'"
 
 %extend-rule core-char
-  "‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›"
+  ("‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›")
 
 %extend-rule comma
-  "‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›"
-    | "‹ZBALERMORNA HUMBERT COMBINING PA TONGA›" | "‹ZBALERMORNA UCSUR COMBINING PA TONGA›"
-    | "‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›"
-    | "‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›"
+  ("‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›")
+    | ("‹ZBALERMORNA HUMBERT COMBINING PA TONGA›" | "‹ZBALERMORNA UCSUR COMBINING PA TONGA›")
+    | ("‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›")
+    | ("‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›")
 ```
 
 <details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
@@ -137,7 +137,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
-  "‹ZBALERMORNA HUMBERT COMBINING BAHEBU›" | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›"
+  ("‹ZBALERMORNA HUMBERT COMBINING BAHEBU›" | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›")
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
@@ -196,7 +196,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
-  "‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›"
+  ("‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›")
 ```
 
 <details><summary>Railroad diagrams of the 23 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
