@@ -539,12 +539,12 @@ impl Dialect {
                 run.error = Some(error);
                 return Ok(());
             }
-            if let Err(error) = self.stage(index, shared, run, features, elision) {
+            if let Err(error) = self.stage(index, shared, run, features, elision, index == to) {
                 run.error = Some(*error);
                 return Ok(());
             }
             if index == 0 {
-                inspect(&run.public_input)?;
+                inspect(run.stages.last().unwrap().output.as_ref().unwrap())?;
             }
         }
         Ok(())
@@ -588,6 +588,7 @@ impl Dialect {
         run: &mut Run,
         features: &BTreeSet<String>,
         elision: Option<bool>,
+        last: bool,
     ) -> Result<(), Box<ParseError>> {
         let grammar = &self.stages[index];
         let input = std::mem::take(&mut run.input);
@@ -757,7 +758,7 @@ impl Dialect {
                 }
             }
         }
-        stage.output = Some(public.clone());
+        stage.output = Some(public);
         run.stages.push(stage);
         // A stage ambiguous under `elision-only` chose its derivation: it
         // keeps its output, and the run ends with the error (§7).
@@ -765,7 +766,7 @@ impl Dialect {
             return Err(Box::new(error));
         }
         run.input = next;
-        run.public_input = public;
+        run.public_input = if last { Vec::new() } else { run.stages.last().unwrap().output.as_ref().unwrap().clone() };
         run.tree = Some(tree);
         Ok(())
     }
