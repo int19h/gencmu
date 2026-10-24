@@ -120,9 +120,14 @@ fn compiled_doms_match_a_fresh_reading() {
 
 fn bundled_sources(compiled: Option<&str>) -> BTreeMap<String, String> {
     let mut sources = BTreeMap::new();
-    for path in
-        ["unicode.txt", "notation/bootstrap.json", "notation/lexical.md", "notation/syntax.md", "dialects/notation.md"]
-    {
+    for path in [
+        "unicode.txt",
+        "unicode-properties.txt",
+        "notation/bootstrap.json",
+        "notation/lexical.md",
+        "notation/syntax.md",
+        "dialects/notation.md",
+    ] {
         sources.insert(path.to_string(), read(path));
     }
     sources.insert("compiled.json".to_string(), compiled.map_or_else(|| read("compiled.json"), str::to_string));

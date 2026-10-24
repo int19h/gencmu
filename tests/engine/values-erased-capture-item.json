@@ -13,6 +13,7 @@
               "value": "x",
               "image": "x",
               "tags": [
+                "_ASCII_Hex_Digit",
                 "_Age_V1_1",
                 "_Alphabetic",
                 "_Bidi_Class_Left_To_Right",
@@ -30,6 +31,7 @@
                 "_Grapheme_Base",
                 "_Grapheme_Cluster_Break_Other",
                 "_Hangul_Syllable_Type_Not_Applicable",
+                "_Hex_Digit",
                 "_ID_Continue",
                 "_ID_Start",
                 "_Indic_Conjunct_Break_None",
