@@ -34,5 +34,39 @@
       "p.md",
       "g\t.md"
     ]
+  },
+  {
+    "description": "Repeated documents retain each inherited names scope in the editor.",
+    "sources": {
+      "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"left.md\"\n%include \"right.md\"\n```\n",
+      "left.md": "```jbogenbau\n%names \"left.txt\"\n%include \"shared.md\"\n```\n",
+      "right.md": "```jbogenbau\n%names \"right.txt\"\n%include \"shared.md\"\n```\n",
+      "shared.md": "```jbogenbau\n%include \"‹LOCAL PATH›.md\"\n```\n",
+      "left.txt": "unicode-names 15.1.0\nname E000 LOCAL PATH\n",
+      "right.txt": "unicode-names 15.1.0\nname E001 LOCAL PATH\n",
+      ".md": "```jbogenbau\n%rule text \"a\"\n```\n",
+      ".md": "```jbogenbau\n%extend-rule text \"b\"\n```\n"
+    },
+    "documents": [
+      "p.md",
+      "left.md",
+      "shared.md",
+      ".md",
+      "right.md",
+      ".md"
+    ],
+    "stages": [
+      {
+        "name": "main",
+        "documents": [
+          "left.md",
+          "shared.md",
+          ".md",
+          "right.md",
+          "shared.md",
+          ".md"
+        ]
+      }
+    ]
   }
 ]

@@ -115,6 +115,7 @@
       if (["%stage", "%extend-stage", "%redefine-stage"].includes(token.value) && next.kind === "name")
         found.push({ stage: next.value, kind: token.value });
       if (token.value === "%include" && next.kind === "string" && !next.value.includes("‹")) found.push({ include: next.value });
+      if (token.value === "%names" && next.kind === "string" && !next.value.includes("‹")) found.push({ names: next.value });
     });
     return found;
   }
@@ -125,17 +126,27 @@
   // document's Markdown, or undefined when it does not exist.
   function pipelineStages(path, textOf, directivesOf = () => undefined) {
     const scans = new Map();
-    const scan = (documentPath) => {
-      if (!scans.has(documentPath)) {
+    const scan = (documentPath, inherited) => {
+      const key = JSON.stringify([documentPath, inherited]);
+      if (!scans.has(key)) {
         const markdown = textOf(documentPath);
-        const parsed = directivesOf(documentPath);
+        const parsed = directivesOf(documentPath, inherited);
         const decoded = parsed?.flatMap(directive => {
           if (["stage", "extend-stage", "redefine-stage"].includes(directive.name)) return [{stage:directive.args[0], kind:"%"+directive.name}];
-          return directive.name === "include" ? [{include:directive.args[0]}] : [];
+          return directive.name === "include" ? [{include:directive.args[0]}] : directive.name === "names" ? [{names:directive.args[0]}] : [];
         });
-        scans.set(documentPath, decoded ?? (markdown === undefined ? [] : directives(grammarText(markdown))));
+        const list = decoded ?? (markdown === undefined ? [] : directives(grammarText(markdown)));
+        const names = [...new Set([...inherited, ...list.filter(item => item.names !== undefined).map(item => resolvePath(documentPath, item.names))])].sort((a,b) => {
+          const left = [...a], right = [...b];
+          for (let i = 0; i < Math.min(left.length, right.length); i++) {
+            const difference = left[i].codePointAt(0) - right[i].codePointAt(0);
+            if (difference) return difference;
+          }
+          return left.length - right.length;
+        });
+        scans.set(key, {directives:list, names});
       }
-      return scans.get(documentPath);
+      return scans.get(key);
     };
     const before = [];
     const stages = [];
@@ -147,7 +158,7 @@
     // stack of frames, each with its directives and the next one to read,
     // since a chain of includes can be longer than the call stack is deep.
     // A set of their paths finds a cycle with one lookup.
-    const frames = [{ path, directives: scan(path), next: 0 }];
+    const frames = [{ path, ...scan(path, []), next: 0 }];
     const including = new Set([path]);
     while (frames.length > 0) {
       const frame = frames[frames.length - 1];
@@ -169,12 +180,13 @@
         }
         continue;
       }
+      if (directive.names !== undefined) continue;
       const target = resolvePath(frame.path, directive.include);
       (selected ? selected.documents : before).push(target);
       reached.add(target);
       if (including.has(target)) continue;
       including.add(target);
-      frames.push({ path: target, directives: scan(target), next: 0 });
+      frames.push({ path: target, ...scan(target, frame.names), next: 0 });
     }
     return { before, stages, documents: [...reached] };
   }

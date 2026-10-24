@@ -86,7 +86,7 @@
       const document = loader.documentDom.bind(loader);
       loader.documentDom = (path, inherited) => {
         const dom = document(path, inherited);
-        post({ kind: "directives", id: runId, path, directives: dom.directives });
+        post({ kind: "directives", id: runId, path, inherited: inherited || [], directives: dom.directives });
         return dom;
       };
       dialects.clear();
@@ -426,7 +426,7 @@
             ...(message.names === undefined ? {} : { names: message.names }), dom: message.dom });
         } else if (message.kind === "directives") {
           if (message.id === this.runId && this.unsent.size === 0) {
-            this.documentDirectives.set(message.path, message.directives);
+            this.documentDirectives.set(JSON.stringify([message.path, message.inherited]), message.directives);
             this.listener({kind:"documents"});
           }
         }

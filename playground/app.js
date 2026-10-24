@@ -40,7 +40,7 @@
   }
 
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
-  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), document => client.documentDirectives.get(document));
+  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
   const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
