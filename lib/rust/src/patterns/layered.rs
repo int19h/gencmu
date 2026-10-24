@@ -166,7 +166,6 @@ fn write(out: &mut String, root: Write<'_>) {
             Write::Raw(text) => out.push_str(&text),
             Write::Pattern(pattern) => match pattern {
                 Pattern::Node(node, exact, children) => tasks.push(Write::Atom(node, *exact, children.as_ref())),
-                Pattern::Children(children) => tasks.push(Write::Atom(&Pattern::Any, false, Some(children))),
                 Pattern::Path(path, inner) => {
                     out.push_str("{\"path\":");
                     write_str(out, path);

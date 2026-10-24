@@ -1035,7 +1035,6 @@ impl Constants<'_> {
                             pending.push(Part::Pattern(node));
                             pending.extend(children.as_ref().map(Part::Children));
                         }
-                        Pattern::Children(children) => pending.push(Part::Children(children)),
                         _ => {}
                     },
                     Part::Children(children) => match children {

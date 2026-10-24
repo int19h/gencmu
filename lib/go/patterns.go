@@ -22,15 +22,6 @@ type domPattern struct {
 	Attached     []*domPattern
 }
 
-func patternNode(c *domPattern) *domPattern {
-	if c.Kind == "node" {
-		return c.Items[0]
-	}
-	return &domPattern{Kind: "children", Items: []*domPattern{c}}
-}
-func patternChildren(p *domPattern) *domPattern {
-	return &domPattern{Kind: "node", Items: []*domPattern{p}}
-}
 func walkPattern(p *domPattern, visit func(*domPattern)) {
 	stack := []*domPattern{p}
 	for len(stack) > 0 {

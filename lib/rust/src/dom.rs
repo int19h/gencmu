@@ -1695,7 +1695,6 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.extend(children.as_ref().map(|c| (Nested::PatternItems(c), below)));
                     }
                     Pattern::Any => {}
-                    Pattern::Children(children) => stack.push((Nested::Children(children), below)),
                     Pattern::Path(_, inner) => stack.push((Nested::Pattern(inner), below)),
                     Pattern::Union(items) | Pattern::Intersection(items) => {
                         stack.extend(items.iter().map(|item| (Nested::Pattern(item), below)));

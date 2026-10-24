@@ -14,7 +14,6 @@ pub(crate) enum Pattern {
     Wildcard((usize, usize)),
     Constant(String, (usize, usize)),
     Test(String, Term, Box<Pattern>),
-    Children(Children),
     Node(Box<Pattern>, bool, Option<Children>),
     Any,
     Path(String, Box<Pattern>),
@@ -113,7 +112,6 @@ impl Pattern {
                     children.constants(out);
                 }
             }
-            Self::Children(c) => c.constants(out),
             Self::Path(_, p) => p.constants(out),
             Self::Union(xs) | Self::Intersection(xs) => {
                 for p in xs {
@@ -158,7 +156,6 @@ impl Pattern {
                         pending.push(Part::Pattern(node));
                         pending.extend(children.as_ref().map(Part::Children));
                     }
-                    Pattern::Children(children) => pending.push(Part::Children(children)),
                     _ => {}
                 },
                 Part::Children(children) => match children {
@@ -227,7 +224,6 @@ impl Pattern {
                 }
                 node.type_fault(constants).or_else(|| children.as_ref().and_then(|c| c.type_fault(constants)))
             }
-            Self::Children(c) => c.type_fault(constants),
             Self::Path(_, p) => p.type_fault(constants),
             Self::Union(xs) | Self::Intersection(xs) => xs.iter().find_map(|p| p.type_fault(constants)),
             Self::Difference(a, b) => a.type_fault(constants).or_else(|| b.type_fault(constants)),
@@ -290,7 +286,6 @@ impl Pattern {
                 *exact,
                 children.as_ref().map(|c| c.map_values(constant, value)).transpose()?,
             ),
-            Self::Children(c) => Self::Children(c.map_values(constant, value)?),
             Self::Path(p, n) => Self::Path(p.clone(), Box::new(n.map_values(constant, value)?)),
             Self::Union(xs) => Self::Union(
                 xs.iter()
@@ -411,7 +406,6 @@ fn pattern_key(p: &Pattern) -> String {
                 Pattern::Node(Box::new(plain(node)), *exact, attached.as_ref().map(children))
             }
             Pattern::Any => Pattern::Any,
-            Pattern::Children(c) => Pattern::Children(children(c)),
             Pattern::Path(s, n) => Pattern::Path(s.clone(), Box::new(plain(n))),
             Pattern::Union(xs) => Pattern::Union(xs.iter().map(plain).collect()),
             Pattern::Intersection(xs) => Pattern::Intersection(xs.iter().map(plain).collect()),
@@ -500,11 +494,6 @@ impl Machine {
                 }
                 let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
                 Predicate::Node { test: NodeTest::Test(tests, terminal.clone()), exact: false, children: None }
-            }
-            Pattern::Children(c) => {
-                let items = self.pattern_items(c);
-                let id = self.sequence(&items);
-                Predicate::Node { test: NodeTest::Any, exact: false, children: Some(id) }
             }
             Pattern::Path(path, p) => Predicate::Path(path.clone(), self.compile(p)),
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
@@ -910,10 +899,11 @@ mod tests {
     use super::*;
     #[test]
     fn long_lists_reuse_finite_states() {
-        let p = Pattern::Children(Children::Repeat(
-            Box::new(Children::Node(Box::new(Pattern::Terminal("A".into(), (1, 1))))),
-            None,
-        ));
+        let p = Pattern::Node(
+            Box::new(Pattern::Any),
+            false,
+            Some(Children::Repeat(Box::new(Children::Node(Box::new(Pattern::Terminal("A".into(), (1, 1))))), None)),
+        );
         let mut m = Machine::new(std::slice::from_ref(&p));
         let tags = vec!["A".into()];
         let a = m.node(None, m.empty, Some(("A", "a", &tags)));
@@ -932,9 +922,13 @@ mod tests {
         let tags = vec!["T149".into()];
         let a = m.node(None, m.empty, Some(("T149", "a", &tags)));
         assert!(m.matches(a, &p));
-        let p = Pattern::Children(Children::Sequence(
-            (0..100).map(|_| Children::Node(Box::new(Pattern::Terminal("A".into(), (1, 1))))).collect(),
-        ));
+        let p = Pattern::Node(
+            Box::new(Pattern::Any),
+            false,
+            Some(Children::Sequence(
+                (0..100).map(|_| Children::Node(Box::new(Pattern::Terminal("A".into(), (1, 1))))).collect(),
+            )),
+        );
         let mut m = Machine::new(std::slice::from_ref(&p));
         let tags = vec!["A".into()];
         let a = m.node(None, m.empty, Some(("A", "a", &tags)));

@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+func patternChildren(p *domPattern) *domPattern {
+	return &domPattern{Kind: "node", Items: []*domPattern{p}}
+}
+
 // A shared source DOM must resolve independently in each stage, including
 // when a matching cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {
