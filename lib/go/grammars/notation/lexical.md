@@ -53,7 +53,7 @@ An emoji name contains one scalar with `Emoji_Presentation` and without `Emoji_C
 
 An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
-An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
+An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
 ```jbogenbau
 %rule emoji-name
@@ -249,7 +249,7 @@ Straight double quotes enclose a string. Ordinary string characters exclude only
 
 Dollar signs are ordinary characters.
 
-Backslashes and dollar signs remain ordinary characters.
+Backslashes are ordinary characters.
 
 The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
 

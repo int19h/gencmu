@@ -555,11 +555,11 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Guillemets enclose child items. An adjacent list attaches to a rule test. Whitespace or a comment separates a bare list from the preceding item.
+Guillemets enclose child items. An adjacent list attaches to the pattern atom. The reader keeps that list only on a rule name, emoji rule, template family, exact call, or compatible parameter. Whitespace or a comment separates a bare list from the preceding item.
 
 Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
-Recognition admits repeated or reversed terminal tests. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
+Recognition admits repeated or reversed tests on names, terminals, and constants. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
 
 ```jbogenbau
 %rule pattern-literal
