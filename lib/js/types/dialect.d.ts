@@ -1,6 +1,7 @@
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
+export { fnv1a64 } from "./hash.js";
 import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultNode } from "./types.js";
 export type CompiledEntry = {
     hash: string;
@@ -145,8 +146,3 @@ export declare class Dialect {
  * @returns {GrammarDom}
  */
 export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
-/**
- * @param {string} text
- * @returns {string}
- */
-export declare function fnv1a64(text: string): string;

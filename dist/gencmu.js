@@ -19289,10 +19289,118 @@
     }
   }
 
+  // ---- string-escapes.js
+
+
+
+
+  const ESCAPE_STATEMENTS = new Set(["%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"]);
+
+  /** @import { UnicodeTable } from "./unicode.js" */
+  /** @import { NamesScope } from "./unicode-names.js" */
+  /** @import { Token } from "./tokens.js" */
+  /** @import { Position } from "./types.js" */
+
+  class DocumentStrings {
+    /**
+     * @param {string} path
+     * @param {UnicodeTable} unicode
+     * @param {NamesScope} names
+     * @param {(offset:number)=>Position} position
+     */
+    constructor(path, unicode, names, position) {
+      this.path = path;
+      this.unicode = unicode;
+      this.names = names;
+      this.position = position;
+      /** @type {Set<number>} */
+      this.namesPaths = new Set();
+    }
+
+    /** @param {Token[]} tokens */
+    inspect(tokens) {
+      const quoted = (/** @type {Token | undefined} */ token) => token !== undefined && (token.tags.has("String") || token.tags.has("Include-Path"));
+      for (let index = 0; index < tokens.length; index++) {
+        if (tokens[index].value === "%names" && quoted(tokens[index + 1])) this.namesPaths.add(tokens[index + 1].source[0]);
+      }
+      let index = 0;
+      const extras = new Set(this.names.extras);
+      while (tokens[index]?.value === "%names") {
+        let end = index + 1;
+        while (end < tokens.length && !ESCAPE_STATEMENTS.has(tokens[end].value)) end++;
+        if (end !== index + 2 || !quoted(tokens[index + 1])) {
+          const [line, column] = this.position(tokens[index].source[0]);
+          throw new GencmuError("grammar", `${this.path}:${line}:${column}: %names takes one quoted path`, {document:this.path, line, column});
+        }
+        extras.add(resolvePath(this.path, this.decode(tokens[index + 1], true)));
+        index = end;
+      }
+      this.names.extras = [...extras].sort(compareCodePoints);
+      for (const token of tokens) {
+        if (token.tags.has("String") || token.tags.has("Include-Path")) this.decode(token, token.tags.has("Include-Path"));
+      }
+    }
+
+    /** @param {Token} token @param {boolean} [path] @returns {string} */
+    decode(token, path = false) {
+      const source = [...token.text];
+      let result = "", literal = "";
+      const flush = () => {
+        result += path ? literal : this.unicode.decompose(literal);
+        literal = "";
+      };
+      for (let index = 1; index < source.length - 1; index++) {
+        const character = source[index];
+        if (character !== "‹") { literal += character; continue; }
+        flush();
+        const opening = index;
+        const fail = () => {
+          const [line, column] = this.position(token.source[0] + opening);
+          throw new GencmuError("grammar", `${this.path}:${line}:${column}: an invalid or unknown string escape`, {document:this.path, line, column});
+        };
+        let name = "";
+        while (++index < source.length - 1 && source[index] !== "›") {
+          if (["\"", "\n", "\r"].includes(source[index])) fail();
+          name += source[index];
+        }
+        if (source[index] !== "›" || name === "") fail();
+        let code;
+        if (name.startsWith("U+")) {
+          if (!/^U\+[0-9A-Fa-f]{4,6}$/.test(name)) fail();
+          code = Number.parseInt(name.slice(2), 16);
+          if (code > 0x10ffff || code >= 0xd800 && code <= 0xdfff) fail();
+        } else code = this.names.lookup(name, this.namesPaths.has(token.source[0]));
+        if (code === undefined) fail();
+        result += String.fromCodePoint(/** @type {number} */ (code));
+      }
+      flush();
+      return result;
+    }
+  }
+
+  // ---- hash.js
+  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
+  // the hash that keys the precompiled DOMs in every library.
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function fnv1a64(text) {
+    let hash = 0xcbf29ce484222325n;
+    const prime = 0x100000001b3n;
+    for (const byte of new TextEncoder().encode(text)) {
+      hash ^= BigInt(byte);
+      hash = (hash * prime) & 0xffffffffffffffffn;
+    }
+    return hash.toString(16).padStart(16, "0");
+  }
+
   // ---- pipeline.js
   // A pipeline: the items of a pipeline document, with each %include replaced
   // by the items of the document it names, assigned to the selected stage
   // (engine §13).
+
+
 
 
 
@@ -19470,10 +19578,10 @@
 
   /**
    * A dialect's pipeline as one jbogenbau text: its features in one %features,
-   * then every item of the spliced stream but %include and %features, each as
-   * its author wrote it, with a comment naming the document of each run of
-   * items as a string (docs/design.md, "Pipelines").
-   * @param {{path: string, declared: string[], loader: {read: (path: string) => string | undefined, documentDom: (path: string) => GrammarDom}}} dialect
+   * then every item of the spliced stream but %include, %names and global
+   * %features. Strings use their canonical spelling. Other source text stays
+   * as written, with a comment naming each document run (docs/notation.md).
+   * @param {{path: string, declared: string[], loader: import("./dialect.js").Loader}} dialect
    * @returns {string}
    */
   function stitchText(dialect) {
@@ -19486,15 +19594,38 @@
     // The documents being walked, outermost first, each with the next item
     // to write. An explicit stack, since a chain of includes can be longer
     // than the call stack is deep.
-    /** @type {{path: string, chars: string[], index: Map<string, number>, items: Item[], next: number}[]} */
+    /** @type {{path: string, chars: string[], index: Map<string, number>, items: Item[], next: number, names:string[], strings:Map<number,{end:number, text:string}>}[]} */
     const frames = [];
-    /** @param {string} documentPath */
-    const enter = (documentPath) => {
+    /** @param {string} documentPath @param {string[]} inherited */
+    const enter = (documentPath, inherited) => {
       const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
       const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
-      frames.push({ path: documentPath, chars: [...text], index, items: itemsInOrder(loader.documentDom(documentPath)), next: 0 });
+      const dom = loader.documentDom(documentPath, inherited);
+      const items = itemsInOrder(dom), chars = [...text];
+      /** @type {Map<number,{end:number, text:string}>} */
+      const strings = new Map();
+      // Includes and names paths disappear from the export. Documents that
+      // contain only those paths need no second lexical reading.
+      const hasStrings = items.some((item, i) => {
+        if ("directive" in item && ["include", "names"].includes(item.directive.name)) return false;
+        const start = /** @type {number} */ (index.get(itemAt(item).join(":")));
+        const end = i + 1 < items.length ? /** @type {number} */ (index.get(itemAt(items[i + 1]).join(":"))) : chars.length;
+        return chars.slice(start, end).includes('"');
+      });
+      if (hasStrings) {
+        const lexical = loader.notation.parse(text, {until:"lexical"});
+        if (!lexical.ok) throw new GencmuError("grammar", `${documentPath}: cannot read strings for textual stitching`, {document:documentPath});
+        const names = new NamesScope(key => loader.needNames(key), loader.unicode, fnv1a64, inherited);
+        const decoder = new DocumentStrings(documentPath, loader.unicode, names, offset => positions[offset] ?? [1,1]);
+        const tokens = /** @type {import("./tokens.js").Token[]} */ (lexical.stages[0].output);
+        decoder.inspect(tokens);
+        for (const token of tokens) if (token.tags.has("String")) {
+          strings.set(token.source[0], {end:token.source[1], text:stringName(decoder.decode(token), loader.unicode)});
+        }
+      }
+      frames.push({ path: documentPath, chars, index, items, next: 0, names:selectedNames(documentPath, dom, inherited), strings });
     };
-    enter(dialect.path);
+    enter(dialect.path, []);
     while (frames.length > 0) {
       const frame = frames[frames.length - 1];
       const { path: documentPath, chars, index, items } = frame;
@@ -19507,9 +19638,10 @@
       const start = /** @type {number} */ (index.get(`${itemAt(item)[0]}:${itemAt(item)[1]}`));
       const end = i + 1 < items.length ? /** @type {number} */ (index.get(`${itemAt(items[i + 1])[0]}:${itemAt(items[i + 1])[1]}`)) : chars.length;
       if ("directive" in item && item.directive.name === "include") {
-        enter(resolvePath(documentPath, item.directive.args[0]));
+        enter(resolvePath(documentPath, item.directive.args[0]), frame.names);
         continue;
       }
+      if ("directive" in item && item.directive.name === "names") continue;
 
       if ("directive" in item && ["stage", "extend-stage", "redefine-stage"].includes(item.directive.name)) selected = true;
       if ("directive" in item && item.directive.name === "features" && !selected) continue;
@@ -19518,8 +19650,16 @@
         out.push(`(* ${commentLabel(documentPath)} *)`);
         last = documentPath;
       }
+      const pieces = [];
+      for (let offset = start; offset < end;) {
+        const string = frame.strings.get(offset);
+        if (string) {
+          pieces.push(string.text);
+          offset = string.end;
+        } else pieces.push(chars[offset++]);
+      }
       // trimEnd, since /\s+$/ tries each space of a long inner run in turn.
-      out.push(chars.slice(start, end).join("").trimEnd());
+      out.push(pieces.join("").trimEnd());
     }
     return out.join("\n") + "\n";
   }
@@ -19546,95 +19686,6 @@
     return item.directive.at;
   }
 
-  // ---- string-escapes.js
-
-
-
-
-  const ESCAPE_STATEMENTS = new Set(["%names", "%rule", "%redefine-rule", "%extend-rule", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%ambiguity-resolution", "%const", "%redefine-const", "%classifier", "%implies"]);
-
-  /** @import { UnicodeTable } from "./unicode.js" */
-  /** @import { NamesScope } from "./unicode-names.js" */
-  /** @import { Token } from "./tokens.js" */
-  /** @import { Position } from "./types.js" */
-
-  class DocumentStrings {
-    /**
-     * @param {string} path
-     * @param {UnicodeTable} unicode
-     * @param {NamesScope} names
-     * @param {(offset:number)=>Position} position
-     */
-    constructor(path, unicode, names, position) {
-      this.path = path;
-      this.unicode = unicode;
-      this.names = names;
-      this.position = position;
-      /** @type {Set<number>} */
-      this.namesPaths = new Set();
-    }
-
-    /** @param {Token[]} tokens */
-    inspect(tokens) {
-      const quoted = (/** @type {Token | undefined} */ token) => token !== undefined && (token.tags.has("String") || token.tags.has("Include-Path"));
-      for (let index = 0; index < tokens.length; index++) {
-        if (tokens[index].value === "%names" && quoted(tokens[index + 1])) this.namesPaths.add(tokens[index + 1].source[0]);
-      }
-      let index = 0;
-      const extras = new Set(this.names.extras);
-      while (tokens[index]?.value === "%names") {
-        let end = index + 1;
-        while (end < tokens.length && !ESCAPE_STATEMENTS.has(tokens[end].value)) end++;
-        if (end !== index + 2 || !quoted(tokens[index + 1])) {
-          const [line, column] = this.position(tokens[index].source[0]);
-          throw new GencmuError("grammar", `${this.path}:${line}:${column}: %names takes one quoted path`, {document:this.path, line, column});
-        }
-        extras.add(resolvePath(this.path, this.decode(tokens[index + 1], true)));
-        index = end;
-      }
-      this.names.extras = [...extras].sort(compareCodePoints);
-      for (const token of tokens) {
-        if (token.tags.has("String") || token.tags.has("Include-Path")) this.decode(token, token.tags.has("Include-Path"));
-      }
-    }
-
-    /** @param {Token} token @param {boolean} [path] @returns {string} */
-    decode(token, path = false) {
-      const source = [...token.text];
-      let result = "", literal = "";
-      const flush = () => {
-        result += path ? literal : this.unicode.decompose(literal);
-        literal = "";
-      };
-      for (let index = 1; index < source.length - 1; index++) {
-        const character = source[index];
-        if (character !== "‹") { literal += character; continue; }
-        flush();
-        const opening = index;
-        const fail = () => {
-          const [line, column] = this.position(token.source[0] + opening);
-          throw new GencmuError("grammar", `${this.path}:${line}:${column}: an invalid or unknown string escape`, {document:this.path, line, column});
-        };
-        let name = "";
-        while (++index < source.length - 1 && source[index] !== "›") {
-          if (["\"", "\n", "\r"].includes(source[index])) fail();
-          name += source[index];
-        }
-        if (source[index] !== "›" || name === "") fail();
-        let code;
-        if (name.startsWith("U+")) {
-          if (!/^U\+[0-9A-Fa-f]{4,6}$/.test(name)) fail();
-          code = Number.parseInt(name.slice(2), 16);
-          if (code > 0x10ffff || code >= 0xd800 && code <= 0xdfff) fail();
-        } else code = this.names.lookup(name, this.namesPaths.has(token.source[0]));
-        if (code === undefined) fail();
-        result += String.fromCodePoint(/** @type {number} */ (code));
-      }
-      flush();
-      return result;
-    }
-  }
-
   // ---- dialect.js
 
 
@@ -19642,6 +19693,8 @@
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
+
+
 
 
 
@@ -20272,22 +20325,6 @@
       }
     }
     return { ...error, line, column };
-  }
-
-  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
-  // the hash that keys the precompiled DOMs in every library.
-  /**
-   * @param {string} text
-   * @returns {string}
-   */
-  function fnv1a64(text) {
-    let hash = 0xcbf29ce484222325n;
-    const prime = 0x100000001b3n;
-    for (const byte of new TextEncoder().encode(text)) {
-      hash ^= BigInt(byte);
-      hash = (hash * prime) & 0xffffffffffffffffn;
-    }
-    return hash.toString(16).padStart(16, "0");
   }
 
   /**
