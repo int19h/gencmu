@@ -1,0 +1,29 @@
+{
+  "description": "A later written blocker does not change a retained earlier answer. (Engine \u00a74.4.)",
+  "grammar": "%rule text $p:pair T\n%conditions $.ends(tail) \u2227 $p.ends(tail)\n%rule tail A unit [+T]\n%rule unit B\n%rule pair A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "An ordinary nested target reads its own end boundary. (Engine \u00a74.4.)",
+  "grammar": "%rule text A B\n%conditions $.ends(tail)\n%rule tail B\n%conditions $.matches(inner)\n%rule inner B\n%conditions $.ends-input",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

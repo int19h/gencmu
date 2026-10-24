@@ -1,0 +1,29 @@
+{
+  "description": "A readable written terminator blocks an omitted proof even if the target then cannot complete. (Engine \u00a74.4.)",
+  "grammar": "%rule text A B T\n%conditions \u00ac$.ends(tail)\n%rule tail A unit [+T] T\n%rule unit B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

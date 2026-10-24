@@ -1,0 +1,23 @@
+{
+  "description": "A terminal target tests the last token and makes its tag buildable. (Engine \u00a74.4.)",
+  "grammar": "%rule text _ _\n%conditions $.ends(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

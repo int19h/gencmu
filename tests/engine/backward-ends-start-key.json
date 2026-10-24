@@ -1,0 +1,23 @@
+{
+  "description": "Suffix windows with different starts retain different preceding contexts. (Engine \u00a74.4.)",
+  "grammar": "%rule text A B\n%conditions $.ends(tail), \u00ac$.last-token.ends(tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "An uncalled template still rejects a restored suffix receiver. (Engine \u00a74.4.)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  },
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text {_}\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%rule unused(@X) @X\n%conditions $.without-elision.ends(text)\n```\n"
+  },
+  "pipeline": "p.md",
+  "options": {
+    "until": "first"
+  }
+}

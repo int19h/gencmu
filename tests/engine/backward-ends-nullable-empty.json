@@ -1,0 +1,10 @@
+{
+  "description": "A nullable target accepts an empty receiver. (Engine \u00a74.4.)",
+  "grammar": "%rule text \u03b5\n%conditions $.ends(nothing)\n%rule nothing \u03b5",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

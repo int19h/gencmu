@@ -1,0 +1,15 @@
+{
+  "description": "Changing query direction cannot hide a recursive query over the same target and window. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%conditions $.ends(tail)\n%rule tail A\n%conditions $.matches(tail)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

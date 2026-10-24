@@ -241,7 +241,7 @@
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
-          const query = ["matches","begins","tags"].includes(part?.method);
+          const query = ["matches","begins","ends","tags"].includes(part?.method);
           if (query) for (const arg of part.args) {
             if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
           }
@@ -254,7 +254,7 @@
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
-        const query = ["matches","begins","tags"].includes(part?.method);
+        const query = ["matches","begins","ends","tags"].includes(part?.method);
         if (query) for (const arg of part.args) {
           if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
         }
@@ -3587,7 +3587,7 @@
           const node = /** @type {any} */ (stack.pop());
           if (!node || typeof node !== "object" || seen.has(node)) continue;
           seen.add(node);
-          if (["matches","begins","tags"].includes(node.method) ) for (const arg of node.args ?? []) {
+          if (["matches","begins","ends","tags"].includes(node.method) ) for (const arg of node.args ?? []) {
             const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null);
             if (!name) continue;
             pending.push(name);
@@ -3646,7 +3646,7 @@
       const node = /** @type {any} */ (stack.pop());
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
-      const value = ["matches","begins","tags"].includes(node.method) ? node.receiver : undefined;
+      const value = ["matches","begins","ends","tags"].includes(node.method) ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
       const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null)).filter((/** @type {any} */ name) => typeof name === "string");
       if (["without-elision", "without-elision-except"].includes(aligned?.method) && queryRules.length) {
@@ -3817,9 +3817,9 @@
 
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except"]);
-  const QUERY_METHODS = new Set(["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"]);
+  const QUERY_METHODS = new Set(["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
-  const TARGET_METHODS = new Set(["matches", "begins", "followed-by", "preceded-by"]);
+  const TARGET_METHODS = new Set(["matches", "begins", "ends", "followed-by", "preceded-by"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -3840,12 +3840,13 @@
     const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
     const rule = (/** @type {any} */ arg) => named(arg,"rule") || object(arg) && ("param" in arg || "call" in arg);
     const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal", "integer"].some(key => key in arg);
+    if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     let valid;
     if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
     else if (name === "split") valid = args.length === 1 && term(args[0]) && !(hasUnresolved([receiver,args]) && args[0].string === "");
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
     else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && rule(args[0]));
-    else if (name === "matches" || name === "begins") valid = span && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
+    else if (name === "matches" || name === "begins" || name === "ends") valid = span && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => rule(arg) || named(arg, "terminal"));
     else if (name === "without-elision-except") valid = bare && args.length === 1 && rule(args[0]);
     else if (name === "without-elision") valid = bare && args.length === 0;
@@ -3865,6 +3866,7 @@
    */
   function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
     if (!METHODS.has(name)) return `unknown method ${name}`;
+    if (name === "ends" && restored(receiver)) return "ends requires an ordinary span, not a restored span";
     const span = type === "span";
     const string = type === "string" || type === "any" || span;
     const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
@@ -3879,7 +3881,7 @@
       if (args.length !== 1 || !rule(0)) return "without-elision-except requires one rule name";
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return `${name} requires a span and no arguments`;
-    } else if (name === "matches" || name === "begins") {
+    } else if (name === "matches" || name === "begins" || name === "ends") {
       if (!span || !args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return `${name} requires a span and rule names or tag terminals`;
     } else if (name === "followed-by" || name === "preceded-by") {
       if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return `${name} requires a bare capture`;
@@ -3915,6 +3917,17 @@
     if (name === "split" || name === "ngrams") return "strings";
     if (name === "tags" || name === "classes" || name === "classify") return "tags";
     return "string";
+  }
+
+  /** @param {any} receiver @returns {boolean} */
+  function restored(receiver) {
+    const seen = new Set();
+    while (receiver?.method === "onward") {
+      if (seen.has(receiver)) return false;
+      seen.add(receiver);
+      receiver = receiver.receiver;
+    }
+    return receiver?.method === "without-elision" || receiver?.method === "without-elision-except";
   }
 
   // ---- trampoline.js
@@ -4797,7 +4810,7 @@
           push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "ends", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !ruleName(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
@@ -5014,7 +5027,7 @@
     // Down the chain of guards, in a loop.
     let current = node;
     while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
-      (typeof current.method === "string" && ["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
+      (typeof current.method === "string" && ["matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
       if (!("if" in current)) return false;
       current = current.then;
     }
@@ -9381,7 +9394,7 @@
         const part = pending.pop();
         if (!part || typeof part !== "object" || seen.has(part)) continue;
         seen.add(part);
-        if (["matches", "begins"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
+        if (["matches", "begins", "ends"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
         for (const child of clauseChildren(part)) pending.push(child);
       }
       for (const terminal of terminals) {
@@ -10641,7 +10654,7 @@
   class Pending {
     /**
      * @param {ParseContext} context
-     * @param {"matches" | "begins" | "tags"} kind
+     * @param {"matches" | "begins" | "ends" | "tags"} kind
      * @param {string} rule
      * @param {number} start
      * @param {number} end
@@ -10808,6 +10821,12 @@
         if (run.query !== null) answer = settle(run.query, chart);
         if (runs.length === 0) return chart;
       }
+    } catch (error) {
+      for (const run of runs) {
+        const state = run.query && suffixRequests.get(run.query);
+        if (state) state.error = {at:state.errorAt,error};
+      }
+      throw error;
     } finally {
       // A parse that failed frees its place and its bounds, as one that
       // finished does, the innermost first.
@@ -10828,18 +10847,40 @@
     // The recursion that fault F25 lets through ends at a bound, not in
     // running out of memory.
     if (unseen && unseenDepth >= UNSEEN_DEPTH) throw new Error("F25: the queries of the check recurse without end");
+    const circular = requireInactive(context,rule,start,end);
+    if (!unseen) context.inProgress.add(circular);
+    else unseenDepth++;
+    if (query.aligned) sharingOf(context).alignedActive++;
+    if (query.aligned && hooks.alignedQuery) hooks.alignedQuery(1);
+    if (context.trace) context.trace.depth++;
+    const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
+    if (suffix) {
+      suffix.active = true;
+      if (suffix.run) {
+        const run = suffix.run;
+        run.outerStart = context.inputStart;
+        run.outerEnd = context.inputEnd;
+        run.query = query;
+        context.inputStart = start;
+        context.inputEnd = end;
+        /** @type {(end:number)=>void} */ (suffix.extend)(end);
+        return run;
+      }
+    }
+    const run = startRun(context, rule, start, end, query);
+    if (suffix) suffix.run = run;
+    return run;
+  }
+
+  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @returns {string} */
+  function requireInactive(context, rule, start, end) {
     const circular = "parse\u0001" + rule + "\u0001" + start + "\u0001" + end;
     if (context.inProgress.has(circular)) {
       throw new GencmuError("grammar",
         `a condition asks whether ${JSON.stringify(textOf(context, start, end))} parses as ${rule} from inside the parse of that span as ${rule}: ` +
         `the grammar defines ${rule} in terms of itself over the same text`, { rule });
     }
-    if (!unseen) context.inProgress.add(circular);
-    else unseenDepth++;
-    if (query.aligned) sharingOf(context).alignedActive++;
-    if (query.aligned && hooks.alignedQuery) hooks.alignedQuery(1);
-    if (context.trace) context.trace.depth++;
-    return startRun(context, rule, start, end, query);
+    return circular;
   }
 
   /**
@@ -10852,6 +10893,8 @@
     context.inputStart = run.outerStart;
     context.inputEnd = run.outerEnd;
     if (query === null) return;
+    const suffix = query.kind === "ends" ? suffixRequests.get(query) : undefined;
+    if (suffix) suffix.active = false;
     if (!query.unseen) context.inProgress.delete("parse\u0001" + query.rule + "\u0001" + query.start + "\u0001" + query.end);
     else unseenDepth--;
     if (query.aligned) sharingOf(context).alignedActive--;
@@ -10897,6 +10940,8 @@
         for (const item of aligned) tags.add(context.interner.get(item.tagId));
         answer = tags.result();
       } else answer = aligned.length !== 0;
+    } else if (kind === "ends") {
+      answer = /** @type {SuffixState} */ (suffixRequests.get(query)).answers.get(query.end) ?? false;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
@@ -10955,6 +11000,7 @@
    * @returns {Run}
    */
   function startRun(context, rule, start, end, query) {
+    const suffix = query?.kind === "ends" ? suffixRequests.get(query) : undefined;
     const outerStart = context.inputStart;
     const outerEnd = context.inputEnd;
     context.inputStart = start;
@@ -10971,7 +11017,7 @@
     /** @type {(position: number) => ChartSet} */
     const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
-    const width = end - start + 1;
+    const width = (suffix ? tokens.length : end) - start + 1;
     const members = query?.aligned?.family ? lowered.families.get(query.aligned.family) : null;
     const family = members && query?.aligned && context.closes
       ? new FamilySummaries(context.closes, query.aligned.observation, start, query.aligned.candidateEnd) : null;
@@ -11252,6 +11298,7 @@
     /** @type {() => void | Halt} */
     const predictRest = () => {
       const set = predictSet;
+      if (suffix) suffix.errorAt = set.position;
       const strict = predictStrict;
       const productions = lowered.byLhs.get(predictName) || [];
       const next = set.position < end ? tokens[set.position] : null;
@@ -11328,6 +11375,7 @@
     // saves a frame that does the rest, through advanceFrom.
     /** @type {(item: Item, from: number, to: number, child: Item | null) => Advanced | null | Halt} */
     const advance = (item, from, to, child) => {
+      if (suffix) suffix.errorAt = to;
       const production = item.production;
       // A tested symbol's test must hold of its own span and tags, which is
       // checked before any condition the advance makes ready (engine §4).
@@ -11419,6 +11467,35 @@
     let strict = false;
     /** @type {Pending | null} */
     let halted = null;
+    let stopped = false;
+    /** @type {Item[]} */
+    let scans = suffix ? [] : NO_SUFFIX_SCANS;
+    let scanIndex = 0;
+    if (suffix) suffix.extend = newEnd => {
+      end = newEnd;
+      if (!stopped) return;
+      stopped = false;
+      const set = setAt(position);
+      set.predicted.clear();
+      // The old end had no following token. Revisit unfinished items once
+      // so predictions and scans can read the newly available token.
+      for (const item of set.items) if (item.production.rhs[item.dot] && !item.production.rhs[item.dot].terminal) {
+        item.queued = true;
+        set.queue.push(item);
+      }
+      beginPredict(set,rule,false,null,false);
+      step = PREDICT;
+      item = null;
+    };
+    /** @type {((set:ChartSet) => void)|null} */
+    const retainSuffix = suffix ? set => {
+      if (suffix.answers.has(set.position)) return;
+      /** @type {Chart} */
+      const chart = {sets,start,end:set.position,setAt:position => sets[position-start] || new ChartSet(position),
+        furthest,context,closeRequested:false,family:null,familyTrace:null,boundaryFailures};
+      const witnesses = set.items.filter(item => item.complete && item.production.lhs === rule && !item.production.closeRequested);
+      suffix.answers.set(set.position,eligibleWitnesses(chart,boundaryWitnesses(chart,witnesses)).length !== 0);
+    } : null;
     beginPredict(setAt(start), rule,false,null,!!query?.aligned);
 
     /** @type {Run} */
@@ -11466,7 +11543,7 @@
               if (!entered) {
                 if (at > end) break;
                 set = setAt(at);
-                if (at > start && set.items.length === 0) break;
+                if (!suffix && at > start && set.items.length === 0) break;
                 furthest = at;
                 if (boundaryFailures.length) boundaryFailures = boundaryFailures.filter(failure => failure.end >= at);
                 if (at > start) {
@@ -11485,45 +11562,74 @@
                   for (const [name, list] of done.waiting) if (list.length > 1) done.waiting.set(name, list.slice());
                 }
                 entered = true;
+                if (suffix) { scans = []; scanIndex = 0; }
+                if (suffix && at > start && beginPredict(set,rule,false,null,false)) {
+                  entry = null;
+                  kind = PREDICT;
+                  continue;
+                }
               }
               if (set.head >= set.queue.length) {
-                position = ++at;
-                entered = false;
-                continue;
-              }
-              const taken = set.queue[set.head++];
-              taken.queued = false;
-              entry = taken;
-              const symbol = taken.production.rhs[taken.dot];
-              if (!symbol) {
-                waiting = setAt(taken.origin).waiting.get(completionKey(taken.production)) || [];
-                next = 0;
-                kind = WAITERS;
-              } else if (!symbol.terminal) {
-                // A strict item predicts its next symbol strictly where no
-                // symbol after it can read (engine §7.4).
-                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null,requestChild(taken)) ? PREDICT : EMPTIES;
-                if (kind === EMPTIES) next = -1;
-              } else if (at < end && reads(context, symbol, tokens[at])) {
-                // The written routes of an elidable optional (engine §7.4):
-                // from an original token, or from a synthetic one, after
-                // which the rest of the optional must read, so the item after
-                // it is strict.
-                strictly = false;
-                if (mode === "reconstruction" && taken.dot === 0 && taken.production.helper && taken.production.elided !== null) {
-                  const fromSynthetic = /** @type {boolean[]} */ (synthetic)[at];
-                  if (fromSynthetic && fault("F14")) continue;
-                  if (!fromSynthetic && fault("F24")) continue;
-                  // A fault makes the item after T ordinary where a strict
-                  // item read T (F31).
-                  strictly = fromSynthetic && !fault("F15") && !(fault("F31") && taken.strict);
-                  // An optional whose content is T alone would complete here,
-                  // which a strict item never does: drop the item before
-                  // evaluating its test or its tags (engine §7.4).
-                  if (strictly && taken.dot + 1 === taken.production.rhs.length) continue;
+                if (retainSuffix) retainSuffix(set);
+                if (suffix && at === end) {
+                  position = at;
+                  stopped = true;
+                  break;
                 }
-                kind = TERMINAL;
-              } else continue;
+                let scan = null;
+                if (suffix) while (scanIndex < scans.length) {
+                  const candidate = scans[scanIndex++];
+                  if (reads(context,candidate.production.rhs[candidate.dot],tokens[at])) { scan = candidate; break; }
+                }
+                if (scan) {
+                  entry = scan;
+                  kind = TERMINAL;
+                  strictly = false;
+                } else {
+                  position = ++at;
+                  entered = false;
+                  continue;
+                }
+              }
+              if (kind === NEXT) {
+                const taken = set.queue[set.head++];
+                taken.queued = false;
+                entry = taken;
+                const symbol = taken.production.rhs[taken.dot];
+                if (!symbol) {
+                  waiting = setAt(taken.origin).waiting.get(completionKey(taken.production)) || [];
+                  next = 0;
+                  kind = WAITERS;
+                } else if (!symbol.terminal) {
+                  // A strict item predicts its next symbol strictly where no
+                  // symbol after it can read (engine §7.4).
+                  kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null,requestChild(taken)) ? PREDICT : EMPTIES;
+                  if (kind === EMPTIES) next = -1;
+                } else if (suffix) {
+                  // Finish this boundary before any condition can read the next.
+                  scans.push(taken);
+                  continue;
+                } else if (at < end && reads(context, symbol, tokens[at])) {
+                  // The written routes of an elidable optional (engine §7.4):
+                  // from an original token, or from a synthetic one, after
+                  // which the rest of the optional must read, so the item after
+                  // it is strict.
+                  strictly = false;
+                  if (mode === "reconstruction" && taken.dot === 0 && taken.production.helper && taken.production.elided !== null) {
+                    const fromSynthetic = /** @type {boolean[]} */ (synthetic)[at];
+                    if (fromSynthetic && fault("F14")) continue;
+                    if (!fromSynthetic && fault("F24")) continue;
+                    // A fault makes the item after T ordinary where a strict
+                    // item read T (F31).
+                    strictly = fromSynthetic && !fault("F15") && !(fault("F31") && taken.strict);
+                    // An optional whose content is T alone would complete here,
+                    // which a strict item never does: drop the item before
+                    // evaluating its test or its tags (engine §7.4).
+                    if (strictly && taken.dot + 1 === taken.production.rhs.length) continue;
+                  }
+                  kind = TERMINAL;
+                } else continue;
+              }
             }
             const current = /** @type {Item} */ (entry);
             switch (kind) {
@@ -12845,6 +12951,7 @@
       const target = queryTarget(context, span, scope);
       const argument = condition.args[0];
       const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
+      if (condition.method === "ends") return /** @type {boolean | Halt} */ (nested(target.context, "ends", rule, target.start, target.end, target));
       if (condition.method === "matches") return nestedMatches(target.context, rule, target.start, target.end, target);
       return nestedBegins(target.context, rule, target.start, target.end, target);
     }
@@ -12988,7 +13095,7 @@
    * Pending in `halting`, and the recognizer runs the nested parse on its own
    * stack.
    * @param {ParseContext} context
-   * @param {"matches" | "begins" | "tags"} kind
+   * @param {"matches" | "begins" | "ends" | "tags"} kind
    * @param {string} rule
    * @param {number} start
    * @param {number} end
@@ -13002,10 +13109,16 @@
     const sharing = sharingOf(context);
     if (aligned) sharing.asked++;
     if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
-    const key = aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
+    const key = kind === "ends" ? JSON.stringify(["suffix",rule,start,end]) : aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", kind, rule, at[0], at[1]])
         : nestedKey(context, kind, rule, start, end);
+    if (kind === "ends") {
+      requireInactive(context,rule,start,end);
+      const state = suffixState(context, rule, start, end);
+      if (state.error && end >= state.error.at) throw state.error.error;
+      if (state.answers.has(end)) return /** @type {boolean} */ (state.answers.get(end));
+    }
     const known = context.nested.get(key);
     if (known !== undefined) {
       if (sharing.tainted.has(key)) sharing.asked++;
@@ -13030,7 +13143,89 @@
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
     halting.aligned = aligned ?? null;
     halting.asked = sharing.asked;
+    if (kind === "ends") {
+      const state = suffixState(context, rule, start, end);
+      // An unfinished boundary needs its own active-window identity.
+      suffixRequests.set(halting, state.active ? freshSuffix() : state);
+    }
     return HALT;
+  }
+
+  /**
+   * @typedef {object} SuffixState
+   * @property {Map<number,boolean>} answers
+   * @property {Run|null} run
+   * @property {boolean} active
+   * @property {number} errorAt
+   * @property {{at:number,error:unknown}|null} error
+   * @property {((end:number) => void)|null} extend
+   */
+  /** @returns {SuffixState} */
+  function freshSuffix() {
+    return {answers:new Map(),run:null,active:false,errorAt:0,error:null,extend:null};
+  }
+  /** @type {WeakMap<ParseContext,Map<string,SuffixState>>} */
+  const suffixStates = new WeakMap();
+  /** @type {Item[]} */
+  const NO_SUFFIX_SCANS = [];
+  /** @type {WeakMap<Pending,SuffixState>} */
+  const suffixRequests = new WeakMap();
+  /** @type {WeakMap<LoweredGrammar,Map<string,boolean>>} */
+  const suffixDependencies = new WeakMap();
+
+  /**
+   * End observations flow through body references. Ordinary nested targets
+   * have their own windows. Restored queries retain an outer dependency.
+   * @param {LoweredGrammar} lowered
+   * @param {string} rule
+   * @returns {boolean}
+   */
+  function suffixReadsEnd(lowered, rule) {
+    let memo = suffixDependencies.get(lowered);
+    if (!memo) suffixDependencies.set(lowered, memo = new Map());
+    const known = memo.get(rule);
+    if (known !== undefined) return known;
+    const pending = [{rule, nested:false}], seen = new Set();
+    while (pending.length) {
+      const here = /** @type {{rule:string,nested:boolean}} */ (pending.pop());
+      const key = JSON.stringify([here.rule,here.nested]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      for (const production of lowered.byLhs.get(here.rule) ?? []) {
+        for (const symbol of production.rhs) if (!symbol.terminal) pending.push({rule:symbol.name,nested:here.nested});
+        /** @type {unknown[]} */
+        const clauses = [production.conditions,production.tags,production.parentTags,production.rankedDeferred];
+        const visited = new Set();
+        while (clauses.length) {
+          const node = /** @type {any} */ (clauses.pop());
+          if (!node || typeof node !== "object" || visited.has(node)) continue;
+          visited.add(node);
+          if (!here.nested && ["onward","following-tokens","ends-input","followed-by"].includes(node.method)) {
+            memo.set(rule,true); return true;
+          }
+          if (["matches","begins","ends","tags"].includes(node.method) && node.args.length) {
+            let receiver = node.receiver;
+            while (receiver.method === "onward") receiver = receiver.receiver;
+            if (["without-elision","without-elision-except"].includes(receiver.method)) {
+              memo.set(rule,true); return true;
+            }
+            for (const arg of node.args) if (arg.rule) pending.push({rule:arg.rule,nested:true});
+          }
+          for (const child of clauseChildren(node)) clauses.push(child);
+        }
+      }
+    }
+    memo.set(rule,false); return false;
+  }
+
+  /** @param {ParseContext} context @param {string} rule @param {number} start @param {number} end @returns {SuffixState} */
+  function suffixState(context, rule, start, end) {
+    let states = suffixStates.get(context);
+    if (!states) suffixStates.set(context,states=new Map());
+    const key = JSON.stringify(suffixReadsEnd(context.lowered,rule) ? [rule,start,end] : [rule,start]);
+    let state = states.get(key);
+    if (!state) states.set(key,state=freshSuffix());
+    return state;
   }
 
   /**
@@ -13806,7 +14001,7 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
     if ("concat" in term) return {parts: term.concat.map(asTerm), combine: texts => texts.join(" ++ ")};
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);

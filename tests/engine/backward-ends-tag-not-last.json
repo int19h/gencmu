@@ -1,0 +1,23 @@
+{
+  "description": "A terminal target cannot accept an earlier token. (Engine \u00a74.4.)",
+  "grammar": "%rule text A B\n%conditions \u00ac$.ends(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "Requests with one target and window start retain an answer for each prefix end. (Engine \u00a74.4.)",
+  "grammar": "%rule text {unit}\n%rule unit A\n%conditions $.preceding-tokens.ends(nothing)\n%rule nothing \u03b5",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,6 +1,5 @@
 {
   "description": "An uncalled template still enforces the fixed arity of preceding-tokens. (Engine \u00a74.4.)",
-  "grammar": "%rule text A\n%rule unused(@X) @X\n%conditions $.preceding-tokens(A).value = \"\"",
   "tokens": [
     {
       "text": "a",
@@ -11,5 +10,12 @@
   ],
   "expect": {
     "error": "grammar"
+  },
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text {_}\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%rule unused(@X) @X\n%conditions $.preceding-tokens(A).value = \"\"\n```\n"
+  },
+  "pipeline": "p.md",
+  "options": {
+    "until": "first"
   }
 }

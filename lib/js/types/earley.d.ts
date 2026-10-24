@@ -316,7 +316,7 @@ export declare class ChartSet {
  */
 declare class Pending {
     context: ParseContext;
-    kind: "begins" | "matches" | "tags";
+    kind: "begins" | "ends" | "matches" | "tags";
     rule: string;
     start: number;
     end: number;
@@ -336,7 +336,7 @@ declare class Pending {
     frames: ((value: any) => any)[];
     /**
      * @param {ParseContext} context
-     * @param {"matches" | "begins" | "tags"} kind
+     * @param {"matches" | "begins" | "ends" | "tags"} kind
      * @param {string} rule
      * @param {number} start
      * @param {number} end
@@ -346,7 +346,7 @@ declare class Pending {
      * @param {boolean} unseen whether fault F25 hides the parse from the
      *   check for parses already running
      */
-    constructor(context: ParseContext, kind: "matches" | "begins" | "tags", rule: string, start: number, end: number, at: [number, number] | null, key: string, unseen: boolean);
+    constructor(context: ParseContext, kind: "matches" | "begins" | "ends" | "tags", rule: string, start: number, end: number, at: [number, number] | null, key: string, unseen: boolean);
 }
 /**
  * What an evaluation returns where it halts for a nested parse. It is a
@@ -534,6 +534,17 @@ export declare function holds(context: ParseContext, condition: Condition, scope
 export type Comparison = Extract<Condition, {
     op: unknown;
 }>;
+export type SuffixState = {
+    answers: Map<number, boolean>;
+    run: Run | null;
+    active: boolean;
+    errorAt: number;
+    error: {
+        at: number;
+        error: unknown;
+    } | null;
+    extend: ((end: number) => void) | null;
+};
 /**
  * @param {Chart} chart
  * @returns {{position: number, expected: Expectation[], boundary?:any}}
