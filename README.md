@@ -6,6 +6,8 @@ A stage is one step of a parse, with its own grammar. A pipeline runs stages in 
 
 A phoneme is a unit of sound. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values while keeping the spelling that images show. The forms stage classifies words from phonemes. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
 
+Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has a lowercase value and an uppercase image.
+
 Rule names can use one eligible emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table.
 
 A free modifier is a word or phrase that can stand almost anywhere. `🆓` names the rule for free modifiers. A tree pattern describes the shape of a parse tree. `#` starts a tree pattern, and `@` is an error.
