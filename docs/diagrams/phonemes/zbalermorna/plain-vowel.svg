@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="510" viewBox="0 0 220 510" role="img" aria-label="Railroad diagram of the rule plain-vowel">
+<svg xmlns="http://www.w3.org/2000/svg" width="229" height="986" viewBox="0 0 229 986" role="img" aria-label="Railroad diagram of the rule plain-vowel">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">plain-vowel</text>
@@ -6,56 +6,98 @@
 <path d="M20 46h20"/>
 <path d="M40 46h20"/>
 <g class="terminal"><rect x="60" y="34" width="100" height="24" rx="12"/><text x="110" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA0›&quot;</text></g>
-<path d="M160 46H180"/>
+<path d="M160 46H189"/>
 <path d="M40 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="68" width="100" height="24" rx="12"/><text x="110" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB0›&quot;</text></g>
-<path d="M160 80H160a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M180 46H200"/>
-<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<path d="M40 114h20"/>
-<g class="terminal"><rect x="60" y="102" width="100" height="24" rx="12"/><text x="110" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA1›&quot;</text></g>
-<path d="M160 114H180"/>
-<path d="M40 114a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="136" width="100" height="24" rx="12"/><text x="110" y="153" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB1›&quot;</text></g>
-<path d="M160 148H160a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10"/>
-<path d="M180 114H180a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="68" width="109" height="24" rx="12"/><text x="114.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C0›&quot;</text></g>
+<path d="M169 80H169a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="102" width="100" height="24" rx="12"/><text x="110" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB0›&quot;</text></g>
+<path d="M160 114H169a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="136" width="109" height="24" rx="12"/><text x="114.5" y="153" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D0›&quot;</text></g>
+<path d="M169 148H169a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M189 46H209"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <path d="M40 182h20"/>
-<g class="terminal"><rect x="60" y="170" width="100" height="24" rx="12"/><text x="110" y="187" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA2›&quot;</text></g>
-<path d="M160 182H180"/>
+<g class="terminal"><rect x="60" y="170" width="100" height="24" rx="12"/><text x="110" y="187" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA1›&quot;</text></g>
+<path d="M160 182H189"/>
 <path d="M40 182a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="204" width="100" height="24" rx="12"/><text x="110" y="221" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB2›&quot;</text></g>
-<path d="M160 216H160a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="60" y="204" width="109" height="24" rx="12"/><text x="114.5" y="221" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C1›&quot;</text></g>
+<path d="M169 216H169a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
 <path d="M40 182a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="238" width="100" height="24" rx="12"/><text x="110" y="255" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDAA›&quot;</text></g>
-<path d="M160 250H160a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
-<path d="M180 182H180a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
-<path d="M40 284h20"/>
-<g class="terminal"><rect x="60" y="272" width="100" height="24" rx="12"/><text x="110" y="289" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA3›&quot;</text></g>
-<path d="M160 284H180"/>
-<path d="M40 284a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="306" width="100" height="24" rx="12"/><text x="110" y="323" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB3›&quot;</text></g>
-<path d="M160 318H160a10 10 0 0 0 10 -10V294a10 10 0 0 1 10 -10"/>
-<path d="M180 284H180a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
-<path d="M40 352h20"/>
-<g class="terminal"><rect x="60" y="340" width="100" height="24" rx="12"/><text x="110" y="357" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA4›&quot;</text></g>
-<path d="M160 352H180"/>
-<path d="M40 352a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="374" width="100" height="24" rx="12"/><text x="110" y="391" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB4›&quot;</text></g>
-<path d="M160 386H160a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
-<path d="M40 352a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="408" width="100" height="24" rx="12"/><text x="110" y="425" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDAB›&quot;</text></g>
-<path d="M160 420H160a10 10 0 0 0 10 -10V362a10 10 0 0 1 10 -10"/>
-<path d="M180 352H180a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
-<path d="M40 454h20"/>
-<g class="terminal"><rect x="60" y="442" width="100" height="24" rx="12"/><text x="110" y="459" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA5›&quot;</text></g>
-<path d="M160 454H180"/>
-<path d="M40 454a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="476" width="100" height="24" rx="12"/><text x="110" y="493" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB5›&quot;</text></g>
-<path d="M160 488H160a10 10 0 0 0 10 -10V464a10 10 0 0 1 10 -10"/>
-<path d="M180 454H180a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M200 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="60" y="238" width="100" height="24" rx="12"/><text x="110" y="255" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB1›&quot;</text></g>
+<path d="M160 250H169a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<path d="M40 182a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="272" width="109" height="24" rx="12"/><text x="114.5" y="289" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D1›&quot;</text></g>
+<path d="M169 284H169a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<path d="M189 182H189a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
+<path d="M40 318h20"/>
+<g class="terminal"><rect x="60" y="306" width="100" height="24" rx="12"/><text x="110" y="323" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA2›&quot;</text></g>
+<path d="M160 318H189"/>
+<path d="M40 318a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="340" width="109" height="24" rx="12"/><text x="114.5" y="357" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C2›&quot;</text></g>
+<path d="M169 352H169a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M40 318a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="374" width="100" height="24" rx="12"/><text x="110" y="391" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB2›&quot;</text></g>
+<path d="M160 386H169a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M40 318a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="408" width="109" height="24" rx="12"/><text x="114.5" y="425" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D2›&quot;</text></g>
+<path d="M169 420H169a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M40 318a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="442" width="100" height="24" rx="12"/><text x="110" y="459" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDAA›&quot;</text></g>
+<path d="M160 454H169a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M40 318a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="476" width="109" height="24" rx="12"/><text x="114.5" y="493" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28CA›&quot;</text></g>
+<path d="M169 488H169a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M189 318H189a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<path d="M40 522h20"/>
+<g class="terminal"><rect x="60" y="510" width="100" height="24" rx="12"/><text x="110" y="527" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA3›&quot;</text></g>
+<path d="M160 522H189"/>
+<path d="M40 522a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="544" width="109" height="24" rx="12"/><text x="114.5" y="561" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C3›&quot;</text></g>
+<path d="M169 556H169a10 10 0 0 0 10 -10V532a10 10 0 0 1 10 -10"/>
+<path d="M40 522a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="578" width="100" height="24" rx="12"/><text x="110" y="595" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB3›&quot;</text></g>
+<path d="M160 590H169a10 10 0 0 0 10 -10V532a10 10 0 0 1 10 -10"/>
+<path d="M40 522a10 10 0 0 1 10 10V614a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="612" width="109" height="24" rx="12"/><text x="114.5" y="629" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D3›&quot;</text></g>
+<path d="M169 624H169a10 10 0 0 0 10 -10V532a10 10 0 0 1 10 -10"/>
+<path d="M189 522H189a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V648a10 10 0 0 0 10 10"/>
+<path d="M40 658h20"/>
+<g class="terminal"><rect x="60" y="646" width="100" height="24" rx="12"/><text x="110" y="663" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA4›&quot;</text></g>
+<path d="M160 658H189"/>
+<path d="M40 658a10 10 0 0 1 10 10V682a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="680" width="109" height="24" rx="12"/><text x="114.5" y="697" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C4›&quot;</text></g>
+<path d="M169 692H169a10 10 0 0 0 10 -10V668a10 10 0 0 1 10 -10"/>
+<path d="M40 658a10 10 0 0 1 10 10V716a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="714" width="100" height="24" rx="12"/><text x="110" y="731" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB4›&quot;</text></g>
+<path d="M160 726H169a10 10 0 0 0 10 -10V668a10 10 0 0 1 10 -10"/>
+<path d="M40 658a10 10 0 0 1 10 10V750a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="748" width="109" height="24" rx="12"/><text x="114.5" y="765" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D4›&quot;</text></g>
+<path d="M169 760H169a10 10 0 0 0 10 -10V668a10 10 0 0 1 10 -10"/>
+<path d="M40 658a10 10 0 0 1 10 10V784a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="782" width="100" height="24" rx="12"/><text x="110" y="799" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDAB›&quot;</text></g>
+<path d="M160 794H169a10 10 0 0 0 10 -10V668a10 10 0 0 1 10 -10"/>
+<path d="M40 658a10 10 0 0 1 10 10V818a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="816" width="109" height="24" rx="12"/><text x="114.5" y="833" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28CB›&quot;</text></g>
+<path d="M169 828H169a10 10 0 0 0 10 -10V668a10 10 0 0 1 10 -10"/>
+<path d="M189 658H189a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V852a10 10 0 0 0 10 10"/>
+<path d="M40 862h20"/>
+<g class="terminal"><rect x="60" y="850" width="100" height="24" rx="12"/><text x="110" y="867" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDA5›&quot;</text></g>
+<path d="M160 862H189"/>
+<path d="M40 862a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="884" width="109" height="24" rx="12"/><text x="114.5" y="901" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28C5›&quot;</text></g>
+<path d="M169 896H169a10 10 0 0 0 10 -10V872a10 10 0 0 1 10 -10"/>
+<path d="M40 862a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="918" width="100" height="24" rx="12"/><text x="110" y="935" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+EDB5›&quot;</text></g>
+<path d="M160 930H169a10 10 0 0 0 10 -10V872a10 10 0 0 1 10 -10"/>
+<path d="M40 862a10 10 0 0 1 10 10V954a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="952" width="109" height="24" rx="12"/><text x="114.5" y="969" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;‹U+F28D5›&quot;</text></g>
+<path d="M169 964H169a10 10 0 0 0 10 -10V872a10 10 0 0 1 10 -10"/>
+<path d="M189 862H189a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M209 46h6m0 -8v16m4 -16v16"/>
 </svg>

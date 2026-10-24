@@ -21,37 +21,42 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. It applies the `Stressed` tag to the first output.
 
 ```jbogenbau
+%names "zbalermorna-names.txt"
+
 %extend-rule consonant :: ∅
-  | "‹U+ED80›" := "p"
-  | "‹U+ED81›" := "t"
-  | "‹U+ED82›" := "k"
-  | "‹U+ED83›" := "f"
-  | "‹U+ED90›" := "b"
-  | "‹U+ED91›" := "d"
-  | "‹U+ED92›" := "g"
-  | "‹U+ED93›" := "v"
-  | "‹U+ED84›" := "l"
-  | "‹U+ED85›" := "s"
-  | "‹U+ED86›" := "c"
-  | "‹U+ED87›" := "m"
-  | "‹U+ED94›" := "r"
-  | "‹U+ED95›" := "z"
-  | "‹U+ED96›" := "j"
-  | "‹U+ED97›" := "n"
-  | "‹U+ED88›" := "x"
+  | ("‹ZBALERMORNA HUMBERT LETTER PY›" | "‹ZBALERMORNA UCSUR LETTER PY›") := "p"
+  | ("‹ZBALERMORNA HUMBERT LETTER TY›" | "‹ZBALERMORNA UCSUR LETTER TY›") := "t"
+  | ("‹ZBALERMORNA HUMBERT LETTER KY›" | "‹ZBALERMORNA UCSUR LETTER KY›") := "k"
+  | ("‹ZBALERMORNA HUMBERT LETTER FY›" | "‹ZBALERMORNA UCSUR LETTER FY›") := "f"
+  | ("‹ZBALERMORNA HUMBERT LETTER BY›" | "‹ZBALERMORNA UCSUR LETTER BY›") := "b"
+  | ("‹ZBALERMORNA HUMBERT LETTER DY›" | "‹ZBALERMORNA UCSUR LETTER DY›") := "d"
+  | ("‹ZBALERMORNA HUMBERT LETTER GY›" | "‹ZBALERMORNA UCSUR LETTER GY›") := "g"
+  | ("‹ZBALERMORNA HUMBERT LETTER VY›" | "‹ZBALERMORNA UCSUR LETTER VY›") := "v"
+  | ("‹ZBALERMORNA HUMBERT LETTER LY›" | "‹ZBALERMORNA UCSUR LETTER LY›") := "l"
+  | ("‹ZBALERMORNA HUMBERT LETTER SY›" | "‹ZBALERMORNA UCSUR LETTER SY›") := "s"
+  | ("‹ZBALERMORNA HUMBERT LETTER CY›" | "‹ZBALERMORNA UCSUR LETTER CY›") := "c"
+  | ("‹ZBALERMORNA HUMBERT LETTER MY›" | "‹ZBALERMORNA UCSUR LETTER MY›") := "m"
+  | ("‹ZBALERMORNA HUMBERT LETTER RY›" | "‹ZBALERMORNA UCSUR LETTER RY›") := "r"
+  | ("‹ZBALERMORNA HUMBERT LETTER ZY›" | "‹ZBALERMORNA UCSUR LETTER ZY›") := "z"
+  | ("‹ZBALERMORNA HUMBERT LETTER JY›" | "‹ZBALERMORNA UCSUR LETTER JY›") := "j"
+  | ("‹ZBALERMORNA HUMBERT LETTER NY›" | "‹ZBALERMORNA UCSUR LETTER NY›") := "n"
+  | ("‹ZBALERMORNA HUMBERT LETTER XY›" | "‹ZBALERMORNA UCSUR LETTER XY›") := "x"
 %emits
   $
 
 %extend-rule apostrophe
-  "‹U+ED8A›"
+  "‹ZBALERMORNA HUMBERT SYMBOL FOR YHY›" | "‹ZBALERMORNA UCSUR SYMBOL FOR YHY›"
 %emits
   $ :: ∅ := "'"
 
 %extend-rule core-char
-  "‹U+ED89›"
+  "‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›"
 
 %extend-rule comma
-  "‹U+ED9A›" | "‹U+ED8C›" | "‹U+ED99›" | "‹U+ED9B›"
+  "‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›"
+    | "‹ZBALERMORNA HUMBERT COMBINING PA TONGA›" | "‹ZBALERMORNA UCSUR COMBINING PA TONGA›"
+    | "‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›"
+    | "‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›"
 ```
 
 <details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
@@ -73,27 +78,51 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
-  | ("‹U+EDA0›" | "‹U+EDB0›") := "a"
-  | ("‹U+EDA1›" | "‹U+EDB1›") := "e"
-  | ("‹U+EDA2›" | "‹U+EDB2›" | "‹U+EDAA›") := "i"
-  | ("‹U+EDA3›" | "‹U+EDB3›") := "o"
-  | ("‹U+EDA4›" | "‹U+EDB4›" | "‹U+EDAB›") := "u"
-  | ("‹U+EDA5›" | "‹U+EDB5›") := "y"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›" | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") := "a"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›" | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") := "e"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›" | "‹ZBALERMORNA UCSUR LETTER FULL IBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY›"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›") := "i"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›" | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") := "o"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›" | "‹ZBALERMORNA UCSUR LETTER FULL UBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY›"
+    | "‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›") := "u"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›" | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") := "y"
 %emits
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("‹U+EDA0›" | "‹U+EDB0›") zbalermorna-stress := "A"
-  | ("‹U+EDA1›" | "‹U+EDB1›") zbalermorna-stress := "E"
-  | ("‹U+EDA2›" | "‹U+EDB2›") zbalermorna-stress := "I"
-  | ("‹U+EDA3›" | "‹U+EDB3›") zbalermorna-stress := "O"
-  | ("‹U+EDA4›" | "‹U+EDB4›") zbalermorna-stress := "U"
-  | ("‹U+EDA5›" | "‹U+EDB5›") zbalermorna-stress := "Y"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "A"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "E"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "I"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "O"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "U"
+  | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
+    | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
+    | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "Y"
 %emits
   $
 
 %rule zbalermorna-stress
-  "‹U+ED98›" | zbalermorna-stress "‹U+ED98›"
+  ("‹ZBALERMORNA HUMBERT COMBINING BAHEBU›" | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›")
+    | zbalermorna-stress ("‹ZBALERMORNA HUMBERT COMBINING BAHEBU›"
+    | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›")
 
 %extend-rule vowel
   zbalermorna-diphthong | zbalermorna-stressed-diphthong
@@ -108,18 +137,26 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
-  "‹U+ED98›"
+  "‹ZBALERMORNA HUMBERT COMBINING BAHEBU›" | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›"
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
-%rule zbalermorna-ai = two-phonemes("‹U+EDA6›", "a", "i")
+%rule zbalermorna-ai = two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
+  "a", "i")
 
-%rule zbalermorna-ei = two-phonemes("‹U+EDA7›", "e", "i")
+%rule zbalermorna-ei = two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
+  "e", "i")
 
-%rule zbalermorna-oi = two-phonemes("‹U+EDA8›", "o", "i")
+%rule zbalermorna-oi = two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
+  "o", "i")
 
-%rule zbalermorna-au = two-phonemes("‹U+EDA9›", "a", "u")
+%rule zbalermorna-au = two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
+  "a", "u")
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
@@ -130,13 +167,21 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %emits
   $ :: Stressed := @A, ε :: ∅ := @B
 
-%rule zbalermorna-stressed-ai = stressed-two-phonemes("‹U+EDA6›", "A", "i")
+%rule zbalermorna-stressed-ai = stressed-two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
+  "A", "i")
 
-%rule zbalermorna-stressed-ei = stressed-two-phonemes("‹U+EDA7›", "E", "i")
+%rule zbalermorna-stressed-ei = stressed-two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
+  "E", "i")
 
-%rule zbalermorna-stressed-oi = stressed-two-phonemes("‹U+EDA8›", "O", "i")
+%rule zbalermorna-stressed-oi = stressed-two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
+  "O", "i")
 
-%rule zbalermorna-stressed-au = stressed-two-phonemes("‹U+EDA9›", "A", "u")
+%rule zbalermorna-stressed-au = stressed-two-phonemes(
+  ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
+  "A", "u")
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
@@ -151,7 +196,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
-  "‹U+ED8B›"
+  "‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›"
 ```
 
 <details><summary>Railroad diagrams of the 23 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>
