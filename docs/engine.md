@@ -1388,7 +1388,7 @@ A shared key holds what the content key of one parse holds, with each token's ta
 
 Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags.
 
-An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each target. A terminal target of `matches`, `begins`, or `ends` keeps the entry of its helper (§3.10). Suffix recognition retains that answer for the parse (§4.4).
+An entry for `begins` holds whether a prefix is accepted. An entry for `ends` holds whether a suffix is accepted. A choice of targets (§10) keeps one entry for each rule target. A terminal target of `matches` or `begins` keeps the shared entry of its helper (§3.10). A terminal target of `ends` keeps the suffix answer of its helper for the parse (§4.4).
 
 A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
 
