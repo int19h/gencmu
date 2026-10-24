@@ -25,7 +25,6 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
 
 fn known_dom_members(dom: &Json) -> Option<Json> {
     // Unknown directive members carry no grammar nodes.
-    let mut cleaned;
     if dom.get("directives").and_then(crate::json::Json::as_array).is_some_and(|items| {
         items.iter().any(|item| {
             item.as_object().is_some_and(|fields| {
@@ -33,7 +32,7 @@ fn known_dom_members(dom: &Json) -> Option<Json> {
             })
         })
     }) {
-        cleaned = dom.clone();
+        let mut cleaned = dom.clone();
         if let crate::json::Json::Obj(fields) = &mut cleaned {
             for (key, value) in fields {
                 if key == "directives" {
