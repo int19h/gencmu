@@ -16,7 +16,6 @@
           "stages": [
             {},
             {},
-            {},
             {
               "name": "words",
               "verdict": "resolved",
@@ -64,7 +63,6 @@
         "result": {
           "ok": true,
           "stages": [
-            {},
             {},
             {},
             {

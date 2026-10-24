@@ -52,43 +52,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "n",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": [
-                    "Glide",
-                    "Onglide"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "g",
-                  "tags": []
-                },
-                {
-                  "value": "e",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -156,43 +119,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "n",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": [
-                    "Glide",
-                    "Onglide"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "g",
-                  "tags": []
-                },
-                {
-                  "value": "e",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -221,43 +147,6 @@
           "stages": [
             {
               "name": "phonemes",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "n",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": [
-                    "Glide",
-                    "Onglide"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "g",
-                  "tags": []
-                },
-                {
-                  "value": "e",
-                  "tags": []
-                }
-              ]
-            },
-            {
-              "name": "normalize",
               "verdict": "unique",
               "output": [
                 {

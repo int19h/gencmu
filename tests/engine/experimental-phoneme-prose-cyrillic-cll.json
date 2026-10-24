@@ -16,7 +16,6 @@
       "ok": true,
       "stages": [
         {},
-        {},
         {
           "name": "forms",
           "verdict": "unique",

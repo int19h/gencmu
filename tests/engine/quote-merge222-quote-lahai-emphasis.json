@@ -5,17 +5,13 @@
   },
   "pipeline": "pipeline.md",
   "input": "ba'e la'ai coi le'u cmavo",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

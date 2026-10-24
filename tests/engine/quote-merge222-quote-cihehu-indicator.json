@@ -5,17 +5,13 @@
   },
   "pipeline": "pipeline.md",
   "input": "ci'e'u 你好é~ ui cmavo",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

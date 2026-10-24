@@ -4,7 +4,7 @@ This document opens the phoneme stage for the Latin orthography of *The Complete
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
+The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md), [Zantufa](../dialects/zantufa.md), and [Kihei](../dialects/kihei.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). A feature is a named switch that the grammars test. The CLL dialect turns the `cll-cyrillic` feature on by default. The other dialects include that document but turn its feature off by default.
 
@@ -12,16 +12,16 @@ Those dialects also add the conventions of [latin.md](latin.md), such as digits 
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
-The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant values are lowercase. Stressed vowels carry uppercase values and `Stressed`, while unstressed vowels carry lowercase values. The following normalization stage lowers stressed values and keeps their images and tags.
+The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant and vowel values are lowercase. A stressed vowel carries `Stressed`, and its image shows the stress as a capital vowel. The forms stage receives these values, images, and tags directly.
 
 The phoneme values are the letters of CLL[^cll-c3]:
 
 - The consonants `"b"`, `"c"`, `"d"` and so on through `"z"`
-- The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with uppercase values when stressed
+- The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with `Stressed` when stressed
 - The apostrophe `"'"`
-- The syllable comma `","`, with tag `Syllable-Break`
+- The syllable comma, with empty value, image `","`, and tag `Syllable-Break`
 
-In cll-ebnf, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
+In cll-ebnf, a comma run emits one token with empty value, image `,`, and tag `Syllable-Break`. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
 
 In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
@@ -138,7 +138,7 @@ In cll-ebnf, a comma stands only between two letters of a run. Between two vowel
 %rule syllable-break
   commas
 %emits
-  $ :: Syllable-Break := ","
+  $ :: Syllable-Break := "" :- ","
 
 %rule vowel
   plain-vowel | stressed-vowel
@@ -236,7 +236,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 ## Letters
 
-The stage emits each consonant as its lowercase Latin letter. Each `:=` mapping sets the value and image to its Latin phoneme letter, for every script. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
+The stage emits each consonant as its lowercase Latin letter. Each consonant mapping sets its value and image to the same Latin phoneme letter. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed`, a lowercase value, and an uppercase image. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
 A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So in cll-ebnf, a capital `Y` cannot stand in a brivla. The other dialects ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
 
@@ -272,7 +272,12 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   $
 
 %rule stressed-vowel :: Stressed
-  | "A" | "E" | "I" | "O" | "U" | "Y"
+  | "A" := "a" :- "A"
+  | "E" := "e" :- "E"
+  | "I" := "i" :- "I"
+  | "O" := "o" :- "O"
+  | "U" := "u" :- "U"
+  | "Y" := "y" :- "Y"
 %emits
   $
 

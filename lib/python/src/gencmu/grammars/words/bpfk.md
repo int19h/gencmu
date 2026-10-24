@@ -34,7 +34,7 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 ## Words
 
-The phoneme stage supplies phoneme and pause tokens. Normalization gives stressed vowels lowercase values and keeps their `Stressed` tags. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains. A predicate word's final syllable excludes a following name, so it cannot take the front of one.
+The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains. A predicate word's final syllable excludes a following name, so it cannot take the front of one.
 
 The document [forms.md](forms.md) says how words join.
 

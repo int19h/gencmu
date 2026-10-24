@@ -4,7 +4,7 @@ This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see. A tag marks a token by an identifier.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. The dialect accepts a text that the repaired grammar admits, subject to ["Stage 6: syntax"](#stage-6-syntax). When ranking selects one of several parses, `elision-only` restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the grammar does not rank below that parse makes the original text an error.
+The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. The dialect accepts a text that the repaired grammar admits, subject to ["Stage 5: syntax"](#stage-5-syntax). When ranking selects one of several parses, `elision-only` restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the grammar does not rank below that parse makes the original text an error.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted.
 
@@ -33,20 +33,7 @@ The stage receives the text's characters and hands on one token per phoneme, wha
 
 The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL[^cll-s3-12]. With the feature off, the stage reads no Cyrillic.
 
-## Stage 2: normalize
-
-```jbogenbau
-%stage normalize
-```
-
-- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
-  ```jbogenbau
-  %include "../phonemes/normalize.md"
-  ```
-
-A stressed vowel keeps the tag `Stressed` and gets a lowercase value. A syllable comma keeps the tag `Syllable-Break` and gets an empty value. The stage preserves each phoneme image. Forms reads these tags to identify stress and syllable boundaries.
-
-## Stage 3: forms
+## Stage 2: forms
 
 ```jbogenbau
 %stage forms
@@ -73,7 +60,7 @@ The stage receives normalized phoneme values, images and tags. A run is a stretc
 
 If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 
-## Stage 4: words
+## Stage 3: words
 
 ```jbogenbau
 %stage words
@@ -92,7 +79,7 @@ The stage receives the source words and hands on the words of the text. It rejec
 
 The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The words stage enables it when any input token has class SA or SU.
 
-## Stage 5: indicators
+## Stage 4: indicators
 
 ```jbogenbau
 %stage indicators
@@ -107,7 +94,7 @@ The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. I
 
 Indicators after `lu` begin quoted content. Those after `to` and `to'i` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
 
-## Stage 6: syntax
+## Stage 5: syntax
 
 ```jbogenbau
 %stage syntax

@@ -67,58 +67,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "s",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE",
-                    "Period-Initial",
-                    "Period-Only"
-                  ]
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -231,58 +179,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "s",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE",
-                    "Period-Initial",
-                    "Period-Only"
-                  ]
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -341,58 +237,6 @@
           "stages": [
             {
               "name": "phonemes",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "s",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE",
-                    "Period-Initial",
-                    "Period-Only"
-                  ]
-                }
-              ]
-            },
-            {
-              "name": "normalize",
               "verdict": "unique",
               "output": [
                 {

@@ -68,7 +68,7 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
 
 A vowel diacritic and its full-vowel form are the same phoneme. BAHEBU (U+ED98) after either form or a diphthong diacritic makes it stressed. A repeated stress mark is one mark. SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) read as plain vowels `i` and `u`, even without a following vowel.
 
-A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
+A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. That token has a lowercase value and an uppercase image.
 
 CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
@@ -100,22 +100,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %extend-rule stressed-vowel :: Stressed
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN ABU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL ABU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "A"
+    | "‹ZBALERMORNA UCSUR LETTER FULL ABU›") zbalermorna-stress := "a" :- "A"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL EBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "E"
+    | "‹ZBALERMORNA UCSUR LETTER FULL EBU›") zbalermorna-stress := "e" :- "E"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN IBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL IBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "I"
+    | "‹ZBALERMORNA UCSUR LETTER FULL IBU›") zbalermorna-stress := "i" :- "I"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL OBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "O"
+    | "‹ZBALERMORNA UCSUR LETTER FULL OBU›") zbalermorna-stress := "o" :- "O"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN UBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL UBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "U"
+    | "‹ZBALERMORNA UCSUR LETTER FULL UBU›") zbalermorna-stress := "u" :- "U"
   | ("‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN YBU›"
     | "‹ZBALERMORNA HUMBERT LETTER FULL YBU›"
-    | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "Y"
+    | "‹ZBALERMORNA UCSUR LETTER FULL YBU›") zbalermorna-stress := "y" :- "Y"
 %emits
   $
 
@@ -160,26 +160,26 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
   | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
-%rule stressed-two-phonemes(@C, @A, @B)
+%rule stressed-two-phonemes(@C, @A, @B, @Image)
   @C zbalermorna-stress
 %emits
-  $ :: Stressed := @A, ε :: ∅ := @B
+  $ :: Stressed := @A :- @Image, ε :: ∅ := @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
-  "A", "i")
+  "a", "i", "A")
 
 %rule zbalermorna-stressed-ei = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
-  "E", "i")
+  "e", "i", "E")
 
 %rule zbalermorna-stressed-oi = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
-  "O", "i")
+  "o", "i", "O")
 
 %rule zbalermorna-stressed-au = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
-  "A", "u")
+  "a", "u", "A")
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel

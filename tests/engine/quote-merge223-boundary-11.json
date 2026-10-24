@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi na'e su'i pa moi zo coi",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -261,9 +260,6 @@
               "tags": []
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

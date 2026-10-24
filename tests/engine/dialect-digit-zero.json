@@ -1,12 +1,12 @@
 {
-  "description": "A digit emits a covering token and an inserted token that normalization covers (grammars/phonemes/latin.md and grammars/phonemes/normalize.md).",
+  "description": "A digit emits a covering token and an inserted token with empty source and text (grammars/phonemes/latin.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "0",
   "options": {
-    "until": "normalize"
+    "until": "phonemes"
   },
   "expect": {
     "result": {
@@ -44,40 +44,6 @@
                 1
               ],
               "insertedBy": "digit-0"
-            }
-          ]
-        },
-        {
-          "name": "normalize",
-          "verdict": "unique",
-          "output": [
-            {
-              "text": "0",
-              "value": "n",
-              "image": "n",
-              "tags": [],
-              "span": [
-                0,
-                1
-              ],
-              "source": [
-                0,
-                1
-              ]
-            },
-            {
-              "text": "",
-              "value": "o",
-              "image": "o",
-              "tags": [],
-              "span": [
-                1,
-                2
-              ],
-              "source": [
-                1,
-                1
-              ]
             }
           ]
         }

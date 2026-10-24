@@ -15,7 +15,6 @@
           "ok": true,
           "stages": [
             {},
-            {},
             {
               "name": "forms",
               "output": [
@@ -46,7 +45,6 @@
         "result": {
           "ok": true,
           "stages": [
-            {},
             {},
             {
               "name": "forms",

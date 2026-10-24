@@ -17,9 +17,6 @@
           "name": "phonemes"
         },
         {
-          "name": "normalize"
-        },
-        {
           "name": "forms",
           "verdict": "unique",
           "output": [

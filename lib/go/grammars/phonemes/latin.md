@@ -259,12 +259,12 @@ An accent on a capital still marks stress there, and the other capitals fold. So
   | "O" := "o"
   | "U" [glide-mark] := "u"
   | "Y" := "y"
-  | "A" stress-mark :: Stressed := "A"
-  | "E" stress-mark :: Stressed := "E"
-  | "I" stress-mark :: Stressed := "I"
-  | "O" stress-mark :: Stressed := "O"
-  | "U" stress-mark :: Stressed := "U"
-  | "Y" stress-mark :: Stressed := "Y"
+  | "A" stress-mark :: Stressed := "a" :- "A"
+  | "E" stress-mark :: Stressed := "e" :- "E"
+  | "I" stress-mark :: Stressed := "i" :- "I"
+  | "O" stress-mark :: Stressed := "o" :- "O"
+  | "U" stress-mark :: Stressed := "u" :- "U"
+  | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
 ```
@@ -299,12 +299,12 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("a" | "A") stress-mark := "A"
-  | ("e" | "E") stress-mark := "E"
-  | ("i" | "I") stress-mark := "I"
-  | ("o" | "O") stress-mark := "O"
-  | ("u" | "U") stress-mark := "U"
-  | ("y" | "Y") stress-mark := "Y"
+  | ("a" | "A") stress-mark := "a" :- "A"
+  | ("e" | "E") stress-mark := "e" :- "E"
+  | ("i" | "I") stress-mark := "i" :- "I"
+  | ("o" | "O") stress-mark := "o" :- "O"
+  | ("u" | "U") stress-mark := "u" :- "U"
+  | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
 
@@ -324,7 +324,7 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 ## Digits
 
-Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images spell the number word.
+Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
 
 The `two-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 

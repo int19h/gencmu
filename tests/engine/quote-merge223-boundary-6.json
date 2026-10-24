@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "li pa boi zo by",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -158,9 +157,6 @@
               "tags": []
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

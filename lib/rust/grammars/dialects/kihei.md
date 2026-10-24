@@ -4,7 +4,7 @@ This dialect is a small example of extending the grammar of *The Complete Lojban
 
 The proposal uses the material after `ki'ei` as the context or world for following utterances. Another `ki'ei` phrase resets that context.
 
-The dialect includes CLL, with its phoneme normalization stage, and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
+The dialect includes CLL and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
 
 - [The CLL dialect](cll-ebnf.md)
   ```jbogenbau

@@ -2,7 +2,7 @@
 
 This document supplies the forms-stage lexicon for the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. BPFK is the Lojban language planning committee.
 
-A lexicon is a list of words, each with its classes. The forms stage follows normalization. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+A lexicon is a list of words, each with its classes. The forms stage follows phonemes. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

@@ -41,32 +41,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "b",
-                  "tags": []
-                },
-                {
-                  "value": "r",
-                  "tags": []
-                },
-                {
-                  "value": "o",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -126,32 +100,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "b",
-                  "tags": []
-                },
-                {
-                  "value": "r",
-                  "tags": []
-                },
-                {
-                  "value": "o",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -183,32 +131,6 @@
           "stages": [
             {
               "name": "phonemes",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "b",
-                  "tags": []
-                },
-                {
-                  "value": "r",
-                  "tags": []
-                },
-                {
-                  "value": "o",
-                  "tags": []
-                },
-                {
-                  "value": "d",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
-              "name": "normalize",
               "verdict": "unique",
               "output": [
                 {

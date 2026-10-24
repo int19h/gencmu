@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "zo la´o",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,
@@ -55,9 +54,6 @@
               ]
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

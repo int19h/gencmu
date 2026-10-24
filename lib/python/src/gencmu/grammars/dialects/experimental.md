@@ -53,22 +53,7 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: normalize
-
-```jbogenbau
-%stage normalize
-```
-
-- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
-  ```jbogenbau
-  %include "../phonemes/normalize.md"
-  ```
-
-A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
-
-The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
-
-## Stage 3: forms
+## Stage 2: forms
 
 ```jbogenbau
 %stage forms
@@ -91,7 +76,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../words/lexicon-experimental.md"
   ```
 
-## Stage 4: words
+## Stage 3: words
 
 ```jbogenbau
 %stage words
@@ -110,7 +95,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../words/lohai.md"
   ```
 
-## Stage 5: indicators
+## Stage 4: indicators
 
 ```jbogenbau
 %stage indicators
@@ -125,7 +110,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../indicators/experimental.md"
   ```
 
-## Stage 6: syntax
+## Stage 5: syntax
 
 ```jbogenbau
 %stage syntax
