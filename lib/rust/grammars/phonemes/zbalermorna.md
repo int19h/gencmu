@@ -14,9 +14,9 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 - An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
 - Glide radicals for `i` and `u`, which read as plain vowels without a following vowel
 
-The phoneme explanations use Humbert code points. The mapping in [Two encodings](#two-encodings) gives their UCSUR counterparts. This document writes each code point as an escape, so that a reader can read the rule without the font.
+The phoneme explanations use Humbert code points. The mapping in [Two encodings](#two-encodings) gives their UCSUR counterparts. This document writes each character as a named escape, so that a reader can read the rule without the font. The names come from [zbalermorna-names.txt](zbalermorna-names.txt).
 
-The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
+The first rules below read the consonant radicals. DENPA BU (U+ED89) is the radical for the period, and YHY (U+ED8A) is the apostrophe. SLAKA BU (U+ED9A) is the comma. PA TONGA (U+ED8C), SMAJI BU (U+ED99), and TCENA BU (U+ED9B) also map to a comma.
 
 The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. It applies the `Stressed` tag to the first output.
 
@@ -53,10 +53,10 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
   ("‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›")
 
 %extend-rule comma
-  ("‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›")
-    | ("‹ZBALERMORNA HUMBERT COMBINING PA TONGA›" | "‹ZBALERMORNA UCSUR COMBINING PA TONGA›")
-    | ("‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›")
-    | ("‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›")
+  | ("‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›")
+  | ("‹ZBALERMORNA HUMBERT COMBINING PA TONGA›" | "‹ZBALERMORNA UCSUR COMBINING PA TONGA›")
+  | ("‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›" | "‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›")
+  | ("‹ZBALERMORNA HUMBERT COMBINING TCENA BU›" | "‹ZBALERMORNA UCSUR COMBINING TCENA BU›")
 ```
 
 <details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
@@ -66,11 +66,11 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
 </details>
 
-A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB read as the plain vowel letters `i` and `u`, even without a following vowel.
+A vowel diacritic and its full-vowel form are the same phoneme. BAHEBU (U+ED98) after either form or a diphthong diacritic makes it stressed. A repeated stress mark is one mark. SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) read as plain vowels `i` and `u`, even without a following vowel.
 
 A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
 
-The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
+CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
 The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-marked-vowel` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
 
@@ -120,9 +120,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   $
 
 %rule zbalermorna-stress
-  ("‹ZBALERMORNA HUMBERT COMBINING BAHEBU›" | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›")
-    | zbalermorna-stress ("‹ZBALERMORNA HUMBERT COMBINING BAHEBU›"
-    | "‹ZBALERMORNA UCSUR COMBINING BAHEBU›")
+  {zbalermorna-stress-mark}
 
 %extend-rule vowel
   zbalermorna-diphthong | zbalermorna-stressed-diphthong
@@ -316,11 +314,13 @@ Cases preserve the shared pause and foreign readings for the seven No explicit r
 
 CLL 1.1 describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect follows that edition and omits zbalermorna.
 
-jbotci, another Lojban parser, ignores U+ED8C, U+ED99 and U+ED9B. This document treats them as commas.
+jbotci, another Lojban parser, ignores PA TONGA (U+ED8C), SMAJI BU (U+ED99), and TCENA BU (U+ED9B). This document treats them as commas.
 
-After the shorthand U+ED8B, jbotci accepts the diphthong diacritics U+EDA6 to U+EDA9, which make the run foreign here. This document instead accepts Latin and Cyrillic vowels and the glide radicals U+EDAA and U+EDAB there, which jbotci rejects.
+After CNIMAHO BU (U+ED8B), jbotci accepts the diphthong diacritics AIBU, EIBU, OIBU, and AUBU (U+EDA6 to U+EDA9). Those diacritics make the run foreign here. This document accepts Latin and Cyrillic vowels and the glide radicals SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) there. jbotci rejects them.
 
-In BPFK and Zantufa, this document reads U+EDAC, U+ED8D, U+ED9C and U+EDB6 as pauses. The experimental dialect reads them as foreign material. jbotci rejects them as invalid characters. A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
+In BPFK and Zantufa, RE TONGA (U+ED8D) and FULL AIBU (U+EDB6) read as pauses. The unnamed slots U+EDAC and U+ED9C also read as pauses. The experimental dialect reads all four scalars as foreign material. jbotci rejects them as invalid characters.
+
+A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
 
 jbotci rejects the UCSUR encoding as invalid characters. This document reads it.
 
