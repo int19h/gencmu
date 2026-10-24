@@ -16138,7 +16138,7 @@
       }
       const old = map.get(raw);
       if (old) return old;
-      const item = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {slotOriginal:raw, slotScope:scope});
+      const item = Object.setPrototypeOf({...raw, slotOriginal:raw, slotScope:scope}, Object.getPrototypeOf(raw));
       Object.defineProperty(item, "edges", {value:[], writable:true});
       map.set(raw, item);
       sets[raw.end].items.push(item);
