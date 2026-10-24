@@ -18,7 +18,7 @@ The phoneme explanations use Humbert code points. The mapping in [Two encodings]
 
 The first rules below read the consonant radicals. DENPA BU (U+ED89) is the radical for the period, and YHY (U+ED8A) is the apostrophe. SLAKA BU (U+ED9A) is the comma. PA TONGA (U+ED8C), SMAJI BU (U+ED99), and TCENA BU (U+ED9B) also map to a comma.
 
-The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. It applies the `Stressed` tag to the first output.
+The diphthong instances use `two-phonemes` for their two output strings. The `stressed-two-phonemes` template also reads the stress mark. Its second and third arguments are the value and the image of the first output, and that output carries `Stressed`. The fourth argument is the second output.
 
 ```jbogenbau
 %names "zbalermorna-names.txt"
@@ -160,26 +160,26 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
   | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
-%rule stressed-two-phonemes(@C, @A, @B, @Image)
+%rule stressed-two-phonemes(@C, @A, @Image, @B)
   @C zbalermorna-stress
 %emits
   $ :: Stressed := @A :- @Image, ε :: ∅ := @B
 
 %rule zbalermorna-stressed-ai = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›"),
-  "a", "i", "A")
+  "a", "A", "i")
 
 %rule zbalermorna-stressed-ei = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›"),
-  "e", "i", "E")
+  "e", "E", "i")
 
 %rule zbalermorna-stressed-oi = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›"),
-  "o", "i", "O")
+  "o", "O", "i")
 
 %rule zbalermorna-stressed-au = stressed-two-phonemes(
   ("‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›" | "‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›"),
-  "a", "u", "A")
+  "a", "A", "u")
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
