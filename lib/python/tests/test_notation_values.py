@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import unittest
 from typing import Any
+from gencmu import GencmuError
 
 from gencmu._dialect import _Resources, _resources, bundled_text, read_document
 
@@ -39,6 +40,13 @@ class NotationValues(unittest.TestCase):
         name = case["id"] + ".md"
         bootstrap = value_notation(case["aliases"])
         sources = {"notation/bootstrap.json": bootstrap}
+        if "error" in case["expect"]:
+            with self.assertRaises(GencmuError) as caught:
+                read_document(case["document"], name, sources=sources)
+            expected = case["expect"]["error"]
+            self.assertEqual((caught.exception.line, caught.exception.column),
+                             (expected["line"], expected["column"]))
+            return
         dom = read_document(case["document"], name, sources=sources)
         problem = mismatch(case["expect"], {"dom": dom})
         self.assertIsNone(problem, f"{name}: {problem}\n{write_json(dom)[:2000]}")

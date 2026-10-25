@@ -499,7 +499,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                 match part {
                     Part::C(c) => match c {
                         Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
-                        Cond::Matches(_, r) | Cond::Begins(_, r) => roots.extend(r.iter().cloned()),
+                        Cond::Matches(_, r) | Cond::Begins(_, r) | Cond::Ends(_, r) => roots.extend(r.iter().cloned()),
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
                         Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),

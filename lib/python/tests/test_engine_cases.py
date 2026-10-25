@@ -121,7 +121,7 @@ class EngineCases(unittest.TestCase):
                 self.assertEqual(error.kind, "grammar", f"{label}: expect.where is only for a grammar error")
                 self.assertEqual(
                     {"document": error.document, "line": error.line, "column": error.column},
-                    expect["where"],
+                    {"line": None, "column": None, **expect["where"]},
                     f"{label}: {error.message}",
                 )
             return

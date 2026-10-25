@@ -1,0 +1,45 @@
+{
+  "description": "Every Regional_Indicator value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Regional_Indicator<_Regional_Indicator>\n%conditions $x ≅ #_Regional_Indicator<_Regional_Indicator>, _Regional_Indicator ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Regional_Indicator",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_RI",
+        "_Regional_Indicator"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Regional_Indicator"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Regional_Indicator"
+              }
+            ],
+            "tags": [
+              "_Regional_Indicator"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

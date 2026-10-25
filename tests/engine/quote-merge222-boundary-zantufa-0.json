@@ -5,17 +5,13 @@
   },
   "pipeline": "pipeline.md",
   "input": "zo pa re mai",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

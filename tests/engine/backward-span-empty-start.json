@@ -1,0 +1,23 @@
+{
+  "description": "A capture at the context start has an empty preceding span. (Engine \u00a74.4.)",
+  "grammar": "%rule text $x:A B\n%conditions $x.preceding-tokens.value = \"\", $x.preceding-tokens.last-token.value = \"\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

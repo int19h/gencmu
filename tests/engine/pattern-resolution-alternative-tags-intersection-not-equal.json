@@ -1,6 +1,6 @@
 {
-  "description": "An alternative tag clause resolves (@(A) ∩ (@(A) ∪ @(B))) before ≇ and assigns no tags. The intersection pattern matches A under engine §§2 and 10.",
-  "grammar": "%rule text A :: ($ ≇ (@(A) ∩ (@(A) ∪ @(B))) ⟹ X)",
+  "description": "An alternative tag clause resolves (#A ∩ (#A ∪ #B)) before ≇ and assigns no tags. The intersection pattern matches A under engine §§2 and 10.",
+  "grammar": "%rule text A :: ($ ≇ (#A ∩ (#A ∪ #B)) ⟹ X)",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

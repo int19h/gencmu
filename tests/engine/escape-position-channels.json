@@ -1,0 +1,28 @@
+{
+  "description": "Value and image recipes decode source escapes.",
+  "grammar": "%rule text _ := \"‹U+00E9›\" :- \"‹U+00C9›\" %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "value": "a",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "é",
+              "image": "É"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "description": "A core abbreviation resolves without names data.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹ZWJ›\"\n```"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "‍",
+      "value": "‍",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

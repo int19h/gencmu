@@ -1,0 +1,4005 @@
+{
+  "description": "Both zbalermorna encodings use the same explicit phoneme recipes in experimental. Mixed stress marks and shorthand preserve written source ownership.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": " 󲢠  󲢡  󲢢  󲢣  󲢤  󲢥  󲢦  󲢧  󲢨  󲢰  󲢱  󲢲  󲢳  󲢴  󲢵  󲢶  󲢷  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸    󲢸  󲢸  󲢸  󲢸 aa pt pt pt pt a 󲣀󲢸 󲣀 󲣀󲢸 󲣁 󲣁󲢸 󲣂 󲣂󲢸 󲣃 󲣃󲢸 󲣄 󲣄󲢸 󲣅 󲣅󲢸 󲣐 󲣐󲢸 󲣑 󲣑󲢸 󲣒 󲣒󲢸 󲣓 󲣓󲢸 󲣔 󲣔󲢸 󲣕 󲣕󲢸 󲣊 󲣋 󲣆 󲣆󲢸 󲣇 󲣇󲢸 󲣈 󲣈󲢸 󲣉 󲣉󲢸 a󲢪a p󲢬t p󲢹t p󲢺t p󲢻t 󲢫a 󲢫󲢸",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "󲢠",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "text": "",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                4,
+                5
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                5,
+                6
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "text": "󲢡",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                6,
+                7
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                7,
+                8
+              ],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "text": "",
+              "value": "k",
+              "image": "k",
+              "tags": [],
+              "span": [
+                8,
+                9
+              ],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                9,
+                10
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "text": "󲢢",
+              "value": "k",
+              "image": "k",
+              "tags": [],
+              "span": [
+                10,
+                11
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                11,
+                12
+              ],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "text": "",
+              "value": "f",
+              "image": "f",
+              "tags": [],
+              "span": [
+                12,
+                13
+              ],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                13,
+                14
+              ],
+              "source": [
+                13,
+                14
+              ]
+            },
+            {
+              "text": "󲢣",
+              "value": "f",
+              "image": "f",
+              "tags": [],
+              "span": [
+                14,
+                15
+              ],
+              "source": [
+                14,
+                15
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                15,
+                16
+              ],
+              "source": [
+                15,
+                16
+              ]
+            },
+            {
+              "text": "",
+              "value": "l",
+              "image": "l",
+              "tags": [],
+              "span": [
+                16,
+                17
+              ],
+              "source": [
+                16,
+                17
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                17,
+                18
+              ],
+              "source": [
+                17,
+                18
+              ]
+            },
+            {
+              "text": "󲢤",
+              "value": "l",
+              "image": "l",
+              "tags": [],
+              "span": [
+                18,
+                19
+              ],
+              "source": [
+                18,
+                19
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                19,
+                20
+              ],
+              "source": [
+                19,
+                20
+              ]
+            },
+            {
+              "text": "",
+              "value": "s",
+              "image": "s",
+              "tags": [],
+              "span": [
+                20,
+                21
+              ],
+              "source": [
+                20,
+                21
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                21,
+                22
+              ],
+              "source": [
+                21,
+                22
+              ]
+            },
+            {
+              "text": "󲢥",
+              "value": "s",
+              "image": "s",
+              "tags": [],
+              "span": [
+                22,
+                23
+              ],
+              "source": [
+                22,
+                23
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                23,
+                24
+              ],
+              "source": [
+                23,
+                24
+              ]
+            },
+            {
+              "text": "",
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "span": [
+                24,
+                25
+              ],
+              "source": [
+                24,
+                25
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                25,
+                26
+              ],
+              "source": [
+                25,
+                26
+              ]
+            },
+            {
+              "text": "󲢦",
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "span": [
+                26,
+                27
+              ],
+              "source": [
+                26,
+                27
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                27,
+                28
+              ],
+              "source": [
+                27,
+                28
+              ]
+            },
+            {
+              "text": "",
+              "value": "m",
+              "image": "m",
+              "tags": [],
+              "span": [
+                28,
+                29
+              ],
+              "source": [
+                28,
+                29
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                29,
+                30
+              ],
+              "source": [
+                29,
+                30
+              ]
+            },
+            {
+              "text": "󲢧",
+              "value": "m",
+              "image": "m",
+              "tags": [],
+              "span": [
+                30,
+                31
+              ],
+              "source": [
+                30,
+                31
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                31,
+                32
+              ],
+              "source": [
+                31,
+                32
+              ]
+            },
+            {
+              "text": "",
+              "value": "x",
+              "image": "x",
+              "tags": [],
+              "span": [
+                32,
+                33
+              ],
+              "source": [
+                32,
+                33
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                33,
+                34
+              ],
+              "source": [
+                33,
+                34
+              ]
+            },
+            {
+              "text": "󲢨",
+              "value": "x",
+              "image": "x",
+              "tags": [],
+              "span": [
+                34,
+                35
+              ],
+              "source": [
+                34,
+                35
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                35,
+                36
+              ],
+              "source": [
+                35,
+                36
+              ]
+            },
+            {
+              "text": "",
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "span": [
+                36,
+                37
+              ],
+              "source": [
+                36,
+                37
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                37,
+                38
+              ],
+              "source": [
+                37,
+                38
+              ]
+            },
+            {
+              "text": "󲢰",
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "span": [
+                38,
+                39
+              ],
+              "source": [
+                38,
+                39
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                39,
+                40
+              ],
+              "source": [
+                39,
+                40
+              ]
+            },
+            {
+              "text": "",
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "span": [
+                40,
+                41
+              ],
+              "source": [
+                40,
+                41
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                41,
+                42
+              ],
+              "source": [
+                41,
+                42
+              ]
+            },
+            {
+              "text": "󲢱",
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "span": [
+                42,
+                43
+              ],
+              "source": [
+                42,
+                43
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                43,
+                44
+              ],
+              "source": [
+                43,
+                44
+              ]
+            },
+            {
+              "text": "",
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "span": [
+                44,
+                45
+              ],
+              "source": [
+                44,
+                45
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                45,
+                46
+              ],
+              "source": [
+                45,
+                46
+              ]
+            },
+            {
+              "text": "󲢲",
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "span": [
+                46,
+                47
+              ],
+              "source": [
+                46,
+                47
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                47,
+                48
+              ],
+              "source": [
+                47,
+                48
+              ]
+            },
+            {
+              "text": "",
+              "value": "v",
+              "image": "v",
+              "tags": [],
+              "span": [
+                48,
+                49
+              ],
+              "source": [
+                48,
+                49
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                49,
+                50
+              ],
+              "source": [
+                49,
+                50
+              ]
+            },
+            {
+              "text": "󲢳",
+              "value": "v",
+              "image": "v",
+              "tags": [],
+              "span": [
+                50,
+                51
+              ],
+              "source": [
+                50,
+                51
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                51,
+                52
+              ],
+              "source": [
+                51,
+                52
+              ]
+            },
+            {
+              "text": "",
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "span": [
+                52,
+                53
+              ],
+              "source": [
+                52,
+                53
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                53,
+                54
+              ],
+              "source": [
+                53,
+                54
+              ]
+            },
+            {
+              "text": "󲢴",
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "span": [
+                54,
+                55
+              ],
+              "source": [
+                54,
+                55
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                55,
+                56
+              ],
+              "source": [
+                55,
+                56
+              ]
+            },
+            {
+              "text": "",
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "span": [
+                56,
+                57
+              ],
+              "source": [
+                56,
+                57
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                57,
+                58
+              ],
+              "source": [
+                57,
+                58
+              ]
+            },
+            {
+              "text": "󲢵",
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "span": [
+                58,
+                59
+              ],
+              "source": [
+                58,
+                59
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                59,
+                60
+              ],
+              "source": [
+                59,
+                60
+              ]
+            },
+            {
+              "text": "",
+              "value": "j",
+              "image": "j",
+              "tags": [],
+              "span": [
+                60,
+                61
+              ],
+              "source": [
+                60,
+                61
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                61,
+                62
+              ],
+              "source": [
+                61,
+                62
+              ]
+            },
+            {
+              "text": "󲢶",
+              "value": "j",
+              "image": "j",
+              "tags": [],
+              "span": [
+                62,
+                63
+              ],
+              "source": [
+                62,
+                63
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                63,
+                64
+              ],
+              "source": [
+                63,
+                64
+              ]
+            },
+            {
+              "text": "",
+              "value": "n",
+              "image": "n",
+              "tags": [],
+              "span": [
+                64,
+                65
+              ],
+              "source": [
+                64,
+                65
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                65,
+                66
+              ],
+              "source": [
+                65,
+                66
+              ]
+            },
+            {
+              "text": "󲢷",
+              "value": "n",
+              "image": "n",
+              "tags": [],
+              "span": [
+                66,
+                67
+              ],
+              "source": [
+                66,
+                67
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                67,
+                68
+              ],
+              "source": [
+                67,
+                68
+              ]
+            },
+            {
+              "text": "",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                68,
+                69
+              ],
+              "source": [
+                68,
+                69
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                69,
+                70
+              ],
+              "source": [
+                69,
+                70
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                70,
+                73
+              ],
+              "source": [
+                70,
+                73
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                73,
+                74
+              ],
+              "source": [
+                73,
+                74
+              ]
+            },
+            {
+              "text": "",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                74,
+                75
+              ],
+              "source": [
+                74,
+                75
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                75,
+                76
+              ],
+              "source": [
+                75,
+                76
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                76,
+                79
+              ],
+              "source": [
+                76,
+                79
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                79,
+                80
+              ],
+              "source": [
+                79,
+                80
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                80,
+                81
+              ],
+              "source": [
+                80,
+                81
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                81,
+                82
+              ],
+              "source": [
+                81,
+                82
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "i",
+              "image": "I",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                82,
+                85
+              ],
+              "source": [
+                82,
+                85
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                85,
+                86
+              ],
+              "source": [
+                85,
+                86
+              ]
+            },
+            {
+              "text": "",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                86,
+                87
+              ],
+              "source": [
+                86,
+                87
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                87,
+                88
+              ],
+              "source": [
+                87,
+                88
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                88,
+                91
+              ],
+              "source": [
+                88,
+                91
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                91,
+                92
+              ],
+              "source": [
+                91,
+                92
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                92,
+                93
+              ],
+              "source": [
+                92,
+                93
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                93,
+                94
+              ],
+              "source": [
+                93,
+                94
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "u",
+              "image": "U",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                94,
+                97
+              ],
+              "source": [
+                94,
+                97
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                97,
+                98
+              ],
+              "source": [
+                97,
+                98
+              ]
+            },
+            {
+              "text": "",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                98,
+                99
+              ],
+              "source": [
+                98,
+                99
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                99,
+                100
+              ],
+              "source": [
+                99,
+                100
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "y",
+              "image": "Y",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                100,
+                103
+              ],
+              "source": [
+                100,
+                103
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                103,
+                104
+              ],
+              "source": [
+                103,
+                104
+              ]
+            },
+            {
+              "text": "",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                104,
+                105
+              ],
+              "source": [
+                104,
+                105
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                105,
+                106
+              ],
+              "source": [
+                105,
+                106
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                106,
+                109
+              ],
+              "source": [
+                106,
+                109
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                109,
+                110
+              ],
+              "source": [
+                109,
+                110
+              ]
+            },
+            {
+              "text": "",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                110,
+                111
+              ],
+              "source": [
+                110,
+                111
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                111,
+                112
+              ],
+              "source": [
+                111,
+                112
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                112,
+                115
+              ],
+              "source": [
+                112,
+                115
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                115,
+                116
+              ],
+              "source": [
+                115,
+                116
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                116,
+                117
+              ],
+              "source": [
+                116,
+                117
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                117,
+                118
+              ],
+              "source": [
+                117,
+                118
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "i",
+              "image": "I",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                118,
+                121
+              ],
+              "source": [
+                118,
+                121
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                121,
+                122
+              ],
+              "source": [
+                121,
+                122
+              ]
+            },
+            {
+              "text": "",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                122,
+                123
+              ],
+              "source": [
+                122,
+                123
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                123,
+                124
+              ],
+              "source": [
+                123,
+                124
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                124,
+                127
+              ],
+              "source": [
+                124,
+                127
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                127,
+                128
+              ],
+              "source": [
+                127,
+                128
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                128,
+                129
+              ],
+              "source": [
+                128,
+                129
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                129,
+                130
+              ],
+              "source": [
+                129,
+                130
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "u",
+              "image": "U",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                130,
+                133
+              ],
+              "source": [
+                130,
+                133
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                133,
+                134
+              ],
+              "source": [
+                133,
+                134
+              ]
+            },
+            {
+              "text": "",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                134,
+                135
+              ],
+              "source": [
+                134,
+                135
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                135,
+                136
+              ],
+              "source": [
+                135,
+                136
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "y",
+              "image": "Y",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                136,
+                139
+              ],
+              "source": [
+                136,
+                139
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                139,
+                140
+              ],
+              "source": [
+                139,
+                140
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                140,
+                141
+              ],
+              "source": [
+                140,
+                141
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                141,
+                142
+              ],
+              "source": [
+                141,
+                142
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                142,
+                143
+              ],
+              "source": [
+                142,
+                143
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                143,
+                144
+              ],
+              "source": [
+                143,
+                144
+              ]
+            },
+            {
+              "text": "",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                144,
+                145
+              ],
+              "source": [
+                144,
+                145
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                145,
+                145
+              ],
+              "source": [
+                145,
+                145
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                145,
+                146
+              ],
+              "source": [
+                145,
+                146
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                146,
+                149
+              ],
+              "source": [
+                146,
+                149
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                149,
+                149
+              ],
+              "source": [
+                149,
+                149
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                149,
+                150
+              ],
+              "source": [
+                149,
+                150
+              ]
+            },
+            {
+              "text": "",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                150,
+                151
+              ],
+              "source": [
+                150,
+                151
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                151,
+                151
+              ],
+              "source": [
+                151,
+                151
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                151,
+                152
+              ],
+              "source": [
+                151,
+                152
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                152,
+                155
+              ],
+              "source": [
+                152,
+                155
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                155,
+                155
+              ],
+              "source": [
+                155,
+                155
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                155,
+                156
+              ],
+              "source": [
+                155,
+                156
+              ]
+            },
+            {
+              "text": "",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                156,
+                157
+              ],
+              "source": [
+                156,
+                157
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                157,
+                157
+              ],
+              "source": [
+                157,
+                157
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                157,
+                158
+              ],
+              "source": [
+                157,
+                158
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                158,
+                161
+              ],
+              "source": [
+                158,
+                161
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                161,
+                161
+              ],
+              "source": [
+                161,
+                161
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                161,
+                162
+              ],
+              "source": [
+                161,
+                162
+              ]
+            },
+            {
+              "text": "",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                162,
+                163
+              ],
+              "source": [
+                162,
+                163
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                163,
+                163
+              ],
+              "source": [
+                163,
+                163
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                163,
+                164
+              ],
+              "source": [
+                163,
+                164
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                164,
+                167
+              ],
+              "source": [
+                164,
+                167
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                167,
+                167
+              ],
+              "source": [
+                167,
+                167
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                167,
+                168
+              ],
+              "source": [
+                167,
+                168
+              ]
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                168,
+                169
+              ],
+              "source": [
+                168,
+                169
+              ]
+            },
+            {
+              "text": "",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                169,
+                170
+              ],
+              "source": [
+                169,
+                170
+              ]
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                170,
+                171
+              ],
+              "source": [
+                170,
+                171
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                171,
+                172
+              ],
+              "source": [
+                171,
+                172
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                172,
+                173
+              ],
+              "source": [
+                172,
+                173
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                174,
+                175
+              ],
+              "source": [
+                174,
+                175
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                175,
+                176
+              ],
+              "source": [
+                175,
+                176
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                176,
+                177
+              ],
+              "source": [
+                176,
+                177
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                178,
+                179
+              ],
+              "source": [
+                178,
+                179
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                179,
+                180
+              ],
+              "source": [
+                179,
+                180
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                180,
+                181
+              ],
+              "source": [
+                180,
+                181
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                182,
+                183
+              ],
+              "source": [
+                182,
+                183
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                183,
+                184
+              ],
+              "source": [
+                183,
+                184
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                184,
+                185
+              ],
+              "source": [
+                184,
+                185
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                186,
+                187
+              ],
+              "source": [
+                186,
+                187
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                187,
+                188
+              ],
+              "source": [
+                187,
+                188
+              ]
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                188,
+                190
+              ],
+              "source": [
+                188,
+                190
+              ]
+            },
+            {
+              "text": "",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                190,
+                190
+              ],
+              "source": [
+                190,
+                190
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                190,
+                191
+              ],
+              "source": [
+                190,
+                191
+              ]
+            },
+            {
+              "text": "󲣀󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                191,
+                195
+              ],
+              "source": [
+                191,
+                195
+              ]
+            },
+            {
+              "text": "",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                195,
+                195
+              ],
+              "source": [
+                195,
+                195
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                195,
+                196
+              ],
+              "source": [
+                195,
+                196
+              ]
+            },
+            {
+              "text": "󲣀",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                196,
+                197
+              ],
+              "source": [
+                196,
+                197
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                197,
+                198
+              ],
+              "source": [
+                197,
+                198
+              ]
+            },
+            {
+              "text": "󲣀󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                198,
+                201
+              ],
+              "source": [
+                198,
+                201
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                201,
+                202
+              ],
+              "source": [
+                201,
+                202
+              ]
+            },
+            {
+              "text": "󲣁",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                202,
+                203
+              ],
+              "source": [
+                202,
+                203
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                203,
+                204
+              ],
+              "source": [
+                203,
+                204
+              ]
+            },
+            {
+              "text": "󲣁󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                204,
+                207
+              ],
+              "source": [
+                204,
+                207
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                207,
+                208
+              ],
+              "source": [
+                207,
+                208
+              ]
+            },
+            {
+              "text": "󲣂",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                208,
+                209
+              ],
+              "source": [
+                208,
+                209
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                209,
+                210
+              ],
+              "source": [
+                209,
+                210
+              ]
+            },
+            {
+              "text": "󲣂󲢸",
+              "value": "i",
+              "image": "I",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                210,
+                213
+              ],
+              "source": [
+                210,
+                213
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                213,
+                214
+              ],
+              "source": [
+                213,
+                214
+              ]
+            },
+            {
+              "text": "󲣃",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                214,
+                215
+              ],
+              "source": [
+                214,
+                215
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                215,
+                216
+              ],
+              "source": [
+                215,
+                216
+              ]
+            },
+            {
+              "text": "󲣃󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                216,
+                219
+              ],
+              "source": [
+                216,
+                219
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                219,
+                220
+              ],
+              "source": [
+                219,
+                220
+              ]
+            },
+            {
+              "text": "󲣄",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                220,
+                221
+              ],
+              "source": [
+                220,
+                221
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                221,
+                222
+              ],
+              "source": [
+                221,
+                222
+              ]
+            },
+            {
+              "text": "󲣄󲢸",
+              "value": "u",
+              "image": "U",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                222,
+                225
+              ],
+              "source": [
+                222,
+                225
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                225,
+                226
+              ],
+              "source": [
+                225,
+                226
+              ]
+            },
+            {
+              "text": "󲣅",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                226,
+                227
+              ],
+              "source": [
+                226,
+                227
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                227,
+                228
+              ],
+              "source": [
+                227,
+                228
+              ]
+            },
+            {
+              "text": "󲣅󲢸",
+              "value": "y",
+              "image": "Y",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                228,
+                231
+              ],
+              "source": [
+                228,
+                231
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                231,
+                232
+              ],
+              "source": [
+                231,
+                232
+              ]
+            },
+            {
+              "text": "󲣐",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                232,
+                233
+              ],
+              "source": [
+                232,
+                233
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                233,
+                234
+              ],
+              "source": [
+                233,
+                234
+              ]
+            },
+            {
+              "text": "󲣐󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                234,
+                237
+              ],
+              "source": [
+                234,
+                237
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                237,
+                238
+              ],
+              "source": [
+                237,
+                238
+              ]
+            },
+            {
+              "text": "󲣑",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                238,
+                239
+              ],
+              "source": [
+                238,
+                239
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                239,
+                240
+              ],
+              "source": [
+                239,
+                240
+              ]
+            },
+            {
+              "text": "󲣑󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                240,
+                243
+              ],
+              "source": [
+                240,
+                243
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                243,
+                244
+              ],
+              "source": [
+                243,
+                244
+              ]
+            },
+            {
+              "text": "󲣒",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                244,
+                245
+              ],
+              "source": [
+                244,
+                245
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                245,
+                246
+              ],
+              "source": [
+                245,
+                246
+              ]
+            },
+            {
+              "text": "󲣒󲢸",
+              "value": "i",
+              "image": "I",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                246,
+                249
+              ],
+              "source": [
+                246,
+                249
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                249,
+                250
+              ],
+              "source": [
+                249,
+                250
+              ]
+            },
+            {
+              "text": "󲣓",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                250,
+                251
+              ],
+              "source": [
+                250,
+                251
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                251,
+                252
+              ],
+              "source": [
+                251,
+                252
+              ]
+            },
+            {
+              "text": "󲣓󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                252,
+                255
+              ],
+              "source": [
+                252,
+                255
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                255,
+                256
+              ],
+              "source": [
+                255,
+                256
+              ]
+            },
+            {
+              "text": "󲣔",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                256,
+                257
+              ],
+              "source": [
+                256,
+                257
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                257,
+                258
+              ],
+              "source": [
+                257,
+                258
+              ]
+            },
+            {
+              "text": "󲣔󲢸",
+              "value": "u",
+              "image": "U",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                258,
+                261
+              ],
+              "source": [
+                258,
+                261
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                261,
+                262
+              ],
+              "source": [
+                261,
+                262
+              ]
+            },
+            {
+              "text": "󲣕",
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "span": [
+                262,
+                263
+              ],
+              "source": [
+                262,
+                263
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                263,
+                264
+              ],
+              "source": [
+                263,
+                264
+              ]
+            },
+            {
+              "text": "󲣕󲢸",
+              "value": "y",
+              "image": "Y",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                264,
+                267
+              ],
+              "source": [
+                264,
+                267
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                267,
+                268
+              ],
+              "source": [
+                267,
+                268
+              ]
+            },
+            {
+              "text": "󲣊",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                268,
+                269
+              ],
+              "source": [
+                268,
+                269
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                269,
+                270
+              ],
+              "source": [
+                269,
+                270
+              ]
+            },
+            {
+              "text": "󲣋",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                270,
+                271
+              ],
+              "source": [
+                270,
+                271
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                271,
+                272
+              ],
+              "source": [
+                271,
+                272
+              ]
+            },
+            {
+              "text": "󲣆",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                272,
+                273
+              ],
+              "source": [
+                272,
+                273
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                273,
+                273
+              ],
+              "source": [
+                273,
+                273
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                273,
+                274
+              ],
+              "source": [
+                273,
+                274
+              ]
+            },
+            {
+              "text": "󲣆󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                274,
+                277
+              ],
+              "source": [
+                274,
+                277
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                277,
+                277
+              ],
+              "source": [
+                277,
+                277
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                277,
+                278
+              ],
+              "source": [
+                277,
+                278
+              ]
+            },
+            {
+              "text": "󲣇",
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "span": [
+                278,
+                279
+              ],
+              "source": [
+                278,
+                279
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                279,
+                279
+              ],
+              "source": [
+                279,
+                279
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                279,
+                280
+              ],
+              "source": [
+                279,
+                280
+              ]
+            },
+            {
+              "text": "󲣇󲢸",
+              "value": "e",
+              "image": "E",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                280,
+                283
+              ],
+              "source": [
+                280,
+                283
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                283,
+                283
+              ],
+              "source": [
+                283,
+                283
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                283,
+                284
+              ],
+              "source": [
+                283,
+                284
+              ]
+            },
+            {
+              "text": "󲣈",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                284,
+                285
+              ],
+              "source": [
+                284,
+                285
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                285,
+                285
+              ],
+              "source": [
+                285,
+                285
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                285,
+                286
+              ],
+              "source": [
+                285,
+                286
+              ]
+            },
+            {
+              "text": "󲣈󲢸",
+              "value": "o",
+              "image": "O",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                286,
+                289
+              ],
+              "source": [
+                286,
+                289
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                289,
+                289
+              ],
+              "source": [
+                289,
+                289
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                289,
+                290
+              ],
+              "source": [
+                289,
+                290
+              ]
+            },
+            {
+              "text": "󲣉",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                290,
+                291
+              ],
+              "source": [
+                290,
+                291
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                291,
+                291
+              ],
+              "source": [
+                291,
+                291
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                291,
+                292
+              ],
+              "source": [
+                291,
+                292
+              ]
+            },
+            {
+              "text": "󲣉󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                292,
+                295
+              ],
+              "source": [
+                292,
+                295
+              ]
+            },
+            {
+              "text": "",
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "span": [
+                295,
+                295
+              ],
+              "source": [
+                295,
+                295
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                295,
+                296
+              ],
+              "source": [
+                295,
+                296
+              ]
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                296,
+                297
+              ],
+              "source": [
+                296,
+                297
+              ]
+            },
+            {
+              "text": "󲢪",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                297,
+                298
+              ],
+              "source": [
+                297,
+                298
+              ]
+            },
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                298,
+                299
+              ],
+              "source": [
+                298,
+                299
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                299,
+                300
+              ],
+              "source": [
+                299,
+                300
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                300,
+                301
+              ],
+              "source": [
+                300,
+                301
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                302,
+                303
+              ],
+              "source": [
+                302,
+                303
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                303,
+                304
+              ],
+              "source": [
+                303,
+                304
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                304,
+                305
+              ],
+              "source": [
+                304,
+                305
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                306,
+                307
+              ],
+              "source": [
+                306,
+                307
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                307,
+                308
+              ],
+              "source": [
+                307,
+                308
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                308,
+                309
+              ],
+              "source": [
+                308,
+                309
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                310,
+                311
+              ],
+              "source": [
+                310,
+                311
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                311,
+                312
+              ],
+              "source": [
+                311,
+                312
+              ]
+            },
+            {
+              "text": "p",
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "span": [
+                312,
+                313
+              ],
+              "source": [
+                312,
+                313
+              ]
+            },
+            {
+              "text": "t",
+              "value": "t",
+              "image": "t",
+              "tags": [],
+              "span": [
+                314,
+                315
+              ],
+              "source": [
+                314,
+                315
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                315,
+                316
+              ],
+              "source": [
+                315,
+                316
+              ]
+            },
+            {
+              "text": "󲢫a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                316,
+                318
+              ],
+              "source": [
+                316,
+                318
+              ]
+            },
+            {
+              "text": "",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                318,
+                318
+              ],
+              "source": [
+                318,
+                318
+              ]
+            },
+            {
+              "text": " ",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "span": [
+                318,
+                319
+              ],
+              "source": [
+                318,
+                319
+              ]
+            },
+            {
+              "text": "󲢫󲢸",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                319,
+                323
+              ],
+              "source": [
+                319,
+                323
+              ]
+            },
+            {
+              "text": "",
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "span": [
+                323,
+                323
+              ],
+              "source": [
+                323,
+                323
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

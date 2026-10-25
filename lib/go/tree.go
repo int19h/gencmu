@@ -118,7 +118,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 	g := rec.g
 	newRule := func(n *dn) *treeFrame {
 		a, b := base+int(n.start), base+int(n.end)
-		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: n.tags.list(), Children: []*Node{}}
+		node := &Node{Kind: KindRule, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b), Tags: run.ps.publicTags(n.tags), Children: []*Node{}}
 		return &treeFrame{node: node, pending: pushKids(nil, n)}
 	}
 	root := newRule(d)

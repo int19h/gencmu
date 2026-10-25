@@ -1,6 +1,6 @@
 {
   "description": "Default token images concatenate decomposed Lojban letters without restoring original spelling.",
-  "grammar": "%rule text \"a\" $_0301\n%emits $",
+  "grammar": "%rule text \"a\" \"‹U+0301›\"\n%emits $",
   "input": "á",
   "expect": {
     "result": {

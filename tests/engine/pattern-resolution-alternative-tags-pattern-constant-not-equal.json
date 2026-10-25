@@ -1,6 +1,6 @@
 {
   "description": "An alternative tag clause resolves $PATTERN before ≇ and assigns no tags. The pattern-constant pattern matches A under engine §§2 and 10.",
-  "grammar": "%const $PATTERN @(Z)\n%rule text A :: ($ ≇ $PATTERN ⟹ X)\n%redefine-const $PATTERN (@(A) ∪ @(B))",
+  "grammar": "%const $PATTERN #Z\n%rule text A :: ($ ≇ $PATTERN ⟹ X)\n%redefine-const $PATTERN (#A ∪ #B)",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

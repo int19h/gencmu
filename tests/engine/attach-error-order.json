@@ -8,7 +8,7 @@
   "input": "b,b1",
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": false,
       "stages": [
         {

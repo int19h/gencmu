@@ -6,11 +6,11 @@
 <path d="M20 56h20"/>
 <g class="rule"><rect x="40" y="44" width="117" height="24" rx="0"/><text x="98.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">tanru-unit-1</text></g>
 <path d="M157 56H177"/>
-<path d="M157 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H137"/>
-<g class="terminal"><rect x="95" y="78" width="42" height="24" rx="12"/><text x="116" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">CEI</text></g>
-<path d="M95 90h-10"/>
-<g class="rule"><rect x="60" y="78" width="25" height="24" rx="0"/><text x="72.5" y="95" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M60 90H40a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M157 56a10 10 0 0 1 10 10V80a10 10 0 0 1 -10 10H141"/>
+<g class="terminal"><rect x="99" y="78" width="42" height="24" rx="12"/><text x="120" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">CEI</text></g>
+<path d="M99 90h-10"/>
+<g class="rule"><rect x="56" y="78" width="33" height="24" rx="0"/><text x="72.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M56 90H40a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
 <path d="M177 56h10"/>
 <path d="M187 56h20"/>
 <g class="rule"><rect x="207" y="44" width="210" height="24" rx="0"/><text x="312" y="61" textLength="193.2" lengthAdjust="spacingAndGlyphs">selbri-relative-clauses</text></g>

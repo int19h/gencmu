@@ -4,7 +4,7 @@
   "input": "a",
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {
@@ -13,8 +13,46 @@
               "value": "v",
               "image": "i",
               "tags": [
-                "_L",
-                "_Ll"
+                "_ASCII_Hex_Digit",
+                "_Age_V1_1",
+                "_Alphabetic",
+                "_Bidi_Class_Left_To_Right",
+                "_Bidi_Paired_Bracket_Type_None",
+                "_Block_Basic_Latin",
+                "_Canonical_Combining_Class_Not_Reordered",
+                "_Cased",
+                "_Changes_When_Casemapped",
+                "_Changes_When_Titlecased",
+                "_Changes_When_Uppercased",
+                "_Decomposition_Type_None",
+                "_East_Asian_Width_Narrow",
+                "_General_Category_Letter",
+                "_General_Category_Lowercase_Letter",
+                "_Grapheme_Base",
+                "_Grapheme_Cluster_Break_Other",
+                "_Hangul_Syllable_Type_Not_Applicable",
+                "_Hex_Digit",
+                "_ID_Continue",
+                "_ID_Start",
+                "_Indic_Conjunct_Break_None",
+                "_Indic_Positional_Category_NA",
+                "_Indic_Syllabic_Category_Other",
+                "_Joining_Group_No_Joining_Group",
+                "_Joining_Type_Non_Joining",
+                "_Line_Break_Alphabetic",
+                "_Lowercase",
+                "_NFC_Quick_Check_Yes",
+                "_NFD_Quick_Check_Yes",
+                "_NFKC_Quick_Check_Yes",
+                "_NFKD_Quick_Check_Yes",
+                "_Numeric_Type_None",
+                "_Script_Extensions_Latin",
+                "_Script_Latin",
+                "_Sentence_Break_Lower",
+                "_Vertical_Orientation_Rotated",
+                "_Word_Break_ALetter",
+                "_XID_Continue",
+                "_XID_Start"
               ]
             }
           ]

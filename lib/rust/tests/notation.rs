@@ -7,7 +7,7 @@ use common::{case_files, matches, parse_json, Value};
 fn run(case: &Value) -> Result<(), String> {
     let document = case.get("document").and_then(Value::str).ok_or("a case without a document")?;
     let expect = case.get("expect").ok_or("a case without expect")?;
-    match (gencmu::tools::read_grammar_document(document), expect.get("dom"), expect.get("error")) {
+    match (gencmu::tools::read_grammar_document(document, ""), expect.get("dom"), expect.get("error")) {
         (Ok(json), Some(pattern), _) => {
             let dom = parse_json(&json).map_err(|error| format!("the DOM is not JSON: {error}"))?;
             matches(pattern, &dom, "dom").map_err(|problem| format!("{problem}\ndom: {json}"))
@@ -52,13 +52,13 @@ fn run_shared_case(name: &str) {
 }
 
 /// The reader reads every form of a test in a body, with spaces inside it
-/// or not, and refuses a test after anything but a reference other than
-/// `#` or a terminal, a second test, and an operand of the wrong type
+/// or not, and accepts tests on references, terminals, ranges and properties.
+/// It refuses other targets, a second test, and an operand of the wrong type
 /// (engine §9). Exact strings preserve case and punctuation.
 #[test]
 fn tests_in_a_body_are_read_and_refused() {
-    let document = "```jbogenbau\n%const $C Tag-c\n%rule text $l:LE=\"la\" {UI=\"ui\" / A=\"a\"} [KU = \"ku\"] word≠\"\" A<B> word<¬$C> A<¬B ¬Tag-c> _L<B> _L<> B (C)\n```\n";
-    let json = gencmu::tools::read_grammar_document(document).expect("a document with tests");
+    let document = "```jbogenbau\n%const $C Tag-c\n%rule text $l:LE=\"la\" {UI=\"ui\" / A=\"a\"} [KU = \"ku\"] word≠\"\" A<B> word<¬$C> A<¬B ¬Tag-c> _General_Category_Letter<B> _General_Category_Letter<> B (C)\n```\n";
+    let json = gencmu::tools::read_grammar_document(document, "").expect("a document with tests");
     let dom = parse_json(&json).expect("a DOM");
     let tests: Vec<String> = json
         .match_indices("\"test\":\"")
@@ -67,13 +67,20 @@ fn tests_in_a_body_are_read_and_refused() {
     assert_eq!(tests, ["=", "=", "=", "=", "≠", "tags", "tags", "tags", "tags", "tags"], "{json}");
     assert!(dom.get("rules").is_some());
     // The new value tests accept capitalization and tested capture targets.
-    for accepted in ["%rule text A=\"A\"", "%rule text A=\"b,c\"", "%rule text $x:A=\"a\""] {
-        assert!(gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{accepted}\n```\n")).is_ok());
+    for accepted in [
+        "%rule text A=\"A\"",
+        "%rule text A=\"b,c\"",
+        "%rule text $x:A=\"a\"",
+        "%rule text 🆓=\"a\"",
+        "%rule text $x:🆓<B>=\"a\"",
+    ] {
+        assert!(gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{accepted}\n```\n"), "").is_ok());
     }
     for refused in [
         "%rule text (A)=\"a\"",
         "%rule text A=\"a\"=\"b\"",
-        "%rule text #=\"a\"",
+        "%rule text 🆓=\"a\"<B>",
+        "%rule text (🆓)=\"a\"",
         "%rule text A=\"a\"<B>",
         "%rule text A⊇\"a\"",
         "%rule text A=B",
@@ -83,7 +90,7 @@ fn tests_in_a_body_are_read_and_refused() {
         "%rule text ε=\"\"",
         "%rule text A⊇($x.tags)",
     ] {
-        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{refused}\n```\n"));
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{refused}\n```\n"), "");
         assert!(error.is_err(), "{refused} was read");
     }
 }
@@ -98,6 +105,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     // block ends without the line break of its last line.
     let notation = read_grammar_document(
         "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p \"a\"\n%rule q \"a\"\n```\n",
+        "",
     )
     .expect("the notation's document");
     let bootstrap = format!(
@@ -106,11 +114,12 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     // The pipeline comes from the cache, so that only t.md is read with
     // that notation.
     let pipeline = "```jbogenbau\n%stage main\n%include \"t.md\"\n```\n";
-    let dom = read_grammar_document(pipeline).expect("the pipeline's document");
+    let dom = read_grammar_document(pipeline, "").expect("the pipeline's document");
     let compiled = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         fnv1a64(&bootstrap),
         fnv1a64(include_str!("../grammars/unicode.txt")),
+        fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         fnv1a64(pipeline)
     );
     let sources = [
@@ -131,7 +140,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
 /// A marker makes an optional elidable (engine §3.8, §9).
 #[test]
 fn an_optional_is_marked_elidable_in_place() {
-    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
+    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"), "");
     let expr = |text: &str| {
         let json = read(text).expect(text);
         let dom = parse_json(&json).expect("a DOM");
@@ -139,8 +148,8 @@ fn an_optional_is_marked_elidable_in_place() {
     };
     let expect = |json: &str| parse_json(json).unwrap();
     assert_eq!(
-        expr("%rule text A [+KU #]"),
-        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}]}"##)
+        expr("%rule text A [+KU 🆓]"),
+        expect(r##"{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}]}"##)
     );
     assert_eq!(expr("%rule text [+TOI]"), expect(r#"{"optional":{"ref":"TOI"},"elidable":true}"#));
     assert_eq!(expr("%rule text [KU]"), expect(r#"{"optional":{"ref":"KU"}}"#));
@@ -150,7 +159,7 @@ fn an_optional_is_marked_elidable_in_place() {
 /// the reader refuses every misplaced form of them (engine §9).
 #[test]
 fn braces_are_read_and_their_misplaced_forms_refused() {
-    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
+    let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"), "");
     let json = read(
         "%rule text $a:A {B} [{C / D | E}] {{F} / [G] {H}} {| I | J / | K}\n%rule l {... L / M}\n%rule r {N | O ...}",
     )
@@ -179,7 +188,7 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text ({... A})",
         "%rule text (({A ...}))",
         "%rule text [+KU $c:A]",
-        "%rule text [+(KU) #]",
+        "%rule text [+(KU) 🆓]",
         "%rule text [+KU | VAU]",
         "%rule text [$x:A] $x:B",
     ] {
@@ -190,11 +199,11 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
 #[test]
 fn pattern_test_order_precedes_invalid_bases() {
     for body in [
-        r#"%rule text $c:A %conditions $c ≅ @(_Bogus<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @($_D800<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #(_Bogus<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #("‹U+0061›"<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ #("‹U+0061›"=UI<A>)"#,
     ] {
-        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n"), "").unwrap_err();
         let column = body[..body.find("<A>").unwrap()].chars().count() + 1;
         assert_eq!((error.line, error.column), (Some(2), Some(column)), "{body}: {error}");
     }
@@ -216,7 +225,8 @@ fn every_recipe_position_instructs_the_author_to_use_concat() {
                     .replace("@RECIPE@", source);
                 let marker =
                     body.find(source).unwrap() + source.find(recipe.get("at").and_then(Value::str).unwrap()).unwrap();
-                let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```")).unwrap_err();
+                let error =
+                    gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```"), "").unwrap_err();
                 assert!(error.message.to_lowercase().contains("use ++"), "{body}: {error}");
                 assert_eq!(
                     (error.line, error.column),
@@ -228,7 +238,7 @@ fn every_recipe_position_instructs_the_author_to_use_concat() {
     }
     for body in cases.get("ordinary").unwrap().array() {
         let body = body.str().unwrap();
-        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```")).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```"), "").unwrap_err();
         assert!(error.message.contains("++"), "{body}: {error}");
         assert!(!error.message.to_lowercase().contains("use ++"), "{body}: {error}");
     }

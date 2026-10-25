@@ -1,0 +1,45 @@
+{
+  "description": "Every Case_Ignorable value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Case_Ignorable<_Case_Ignorable>\n%conditions $x ≅ #_Case_Ignorable<_Case_Ignorable>, _Case_Ignorable ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Case_Ignorable",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_CI",
+        "_Case_Ignorable"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Case_Ignorable"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Case_Ignorable"
+              }
+            ],
+            "tags": [
+              "_Case_Ignorable"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

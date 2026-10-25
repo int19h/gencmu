@@ -1,0 +1,10 @@
+{
+  "description": "_Age_15_1 is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _Age_15_1\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

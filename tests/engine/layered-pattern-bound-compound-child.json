@@ -1,0 +1,23 @@
+{
+  "description": "Bound constants preserve compound child in a public pattern.",
+  "grammar": "%const $S \"x\"\n%const $T Accent\n%const $Low \"a\"\n%const $High \"z\"\n%const $P #·a« A »\n%const $R #(a ∪ b)\n%const $Q #«»\n%rule text $x:root\n%conditions $x ≅ #root« $R B »\n%rule a A\n%rule b B\n%rule root a B\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

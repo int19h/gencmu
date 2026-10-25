@@ -1,0 +1,2061 @@
+{
+  "description": "Every Canonical_Combining_Class value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 3 of 3.",
+  "grammar": "%rule text r170 r171 r172 r173 r174 r175 r176 r177 r178 r179 r180 r181 r182 r183 r184 r185 r186 r187 r188 r189 r190 r191 r192 r193 r194 r195 r196 r197 r198 r199 r200 r201 r202 r203 r204 r205 r206 r207 r208 r209 r210 r211 r212 r213 r214 r215 r216 r217 r218 r219 r220 r221 r222 r223 r224 r225 r226 r227 r228 r229 r230 r231 r232 r233 r234 r235 r236 r237 r238 r239 r240 r241 r242 r243 r244 r245 r246 r247 r248 r249 r250 r251 r252 r253 r254\n%rule r170 $x:_Canonical_Combining_Class_71<_ccc_71>\n%conditions $x ≅ #_ccc_71<_ccc_71>, _ccc_71 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_71\n%rule r171 $x:_Canonical_Combining_Class_72<_ccc_72>\n%conditions $x ≅ #_ccc_72<_ccc_72>, _ccc_72 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_72\n%rule r172 $x:_Canonical_Combining_Class_73<_ccc_73>\n%conditions $x ≅ #_ccc_73<_ccc_73>, _ccc_73 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_73\n%rule r173 $x:_Canonical_Combining_Class_74<_ccc_74>\n%conditions $x ≅ #_ccc_74<_ccc_74>, _ccc_74 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_74\n%rule r174 $x:_Canonical_Combining_Class_75<_ccc_75>\n%conditions $x ≅ #_ccc_75<_ccc_75>, _ccc_75 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_75\n%rule r175 $x:_Canonical_Combining_Class_76<_ccc_76>\n%conditions $x ≅ #_ccc_76<_ccc_76>, _ccc_76 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_76\n%rule r176 $x:_Canonical_Combining_Class_77<_ccc_77>\n%conditions $x ≅ #_ccc_77<_ccc_77>, _ccc_77 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_77\n%rule r177 $x:_Canonical_Combining_Class_78<_ccc_78>\n%conditions $x ≅ #_ccc_78<_ccc_78>, _ccc_78 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_78\n%rule r178 $x:_Canonical_Combining_Class_79<_ccc_79>\n%conditions $x ≅ #_ccc_79<_ccc_79>, _ccc_79 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_79\n%rule r179 $x:_Canonical_Combining_Class_80<_ccc_80>\n%conditions $x ≅ #_ccc_80<_ccc_80>, _ccc_80 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_80\n%rule r180 $x:_Canonical_Combining_Class_81<_ccc_81>\n%conditions $x ≅ #_ccc_81<_ccc_81>, _ccc_81 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_81\n%rule r181 $x:_Canonical_Combining_Class_82<_ccc_82>\n%conditions $x ≅ #_ccc_82<_ccc_82>, _ccc_82 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_82\n%rule r182 $x:_Canonical_Combining_Class_83<_ccc_83>\n%conditions $x ≅ #_ccc_83<_ccc_83>, _ccc_83 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_83\n%rule r183 $x:_Canonical_Combining_Class_85<_ccc_85>\n%conditions $x ≅ #_ccc_85<_ccc_85>, _ccc_85 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_85\n%rule r184 $x:_Canonical_Combining_Class_86<_ccc_86>\n%conditions $x ≅ #_ccc_86<_ccc_86>, _ccc_86 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_86\n%rule r185 $x:_Canonical_Combining_Class_87<_ccc_87>\n%conditions $x ≅ #_ccc_87<_ccc_87>, _ccc_87 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_87\n%rule r186 $x:_Canonical_Combining_Class_88<_ccc_88>\n%conditions $x ≅ #_ccc_88<_ccc_88>, _ccc_88 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_88\n%rule r187 $x:_Canonical_Combining_Class_89<_ccc_89>\n%conditions $x ≅ #_ccc_89<_ccc_89>, _ccc_89 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_89\n%rule r188 $x:_Canonical_Combining_Class_90<_ccc_90>\n%conditions $x ≅ #_ccc_90<_ccc_90>, _ccc_90 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_90\n%rule r189 $x:_Canonical_Combining_Class_92<_ccc_92>\n%conditions $x ≅ #_ccc_92<_ccc_92>, _ccc_92 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_92\n%rule r190 $x:_Canonical_Combining_Class_93<_ccc_93>\n%conditions $x ≅ #_ccc_93<_ccc_93>, _ccc_93 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_93\n%rule r191 $x:_Canonical_Combining_Class_94<_ccc_94>\n%conditions $x ≅ #_ccc_94<_ccc_94>, _ccc_94 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_94\n%rule r192 $x:_Canonical_Combining_Class_95<_ccc_95>\n%conditions $x ≅ #_ccc_95<_ccc_95>, _ccc_95 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_95\n%rule r193 $x:_Canonical_Combining_Class_96<_ccc_96>\n%conditions $x ≅ #_ccc_96<_ccc_96>, _ccc_96 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_96\n%rule r194 $x:_Canonical_Combining_Class_97<_ccc_97>\n%conditions $x ≅ #_ccc_97<_ccc_97>, _ccc_97 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_97\n%rule r195 $x:_Canonical_Combining_Class_98<_ccc_98>\n%conditions $x ≅ #_ccc_98<_ccc_98>, _ccc_98 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_98\n%rule r196 $x:_Canonical_Combining_Class_99<_ccc_99>\n%conditions $x ≅ #_ccc_99<_ccc_99>, _ccc_99 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_99\n%rule r197 $x:_Canonical_Combining_Class_Above<_ccc_A>\n%conditions $x ≅ #_ccc_A<_ccc_A>, _ccc_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_A\n%rule r198 $x:_Canonical_Combining_Class_Above_Left<_ccc_AL>\n%conditions $x ≅ #_ccc_AL<_ccc_AL>, _ccc_AL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_AL\n%rule r199 $x:_Canonical_Combining_Class_Above_Right<_ccc_AR>\n%conditions $x ≅ #_ccc_AR<_ccc_AR>, _ccc_AR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_AR\n%rule r200 $x:_Canonical_Combining_Class_Attached_Above<_ccc_ATA>\n%conditions $x ≅ #_ccc_ATA<_ccc_ATA>, _ccc_ATA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_ATA\n%rule r201 $x:_Canonical_Combining_Class_Attached_Above_Right<_ccc_ATAR>\n%conditions $x ≅ #_ccc_ATAR<_ccc_ATAR>, _ccc_ATAR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_ATAR\n%rule r202 $x:_Canonical_Combining_Class_Attached_Below<_ccc_ATB>\n%conditions $x ≅ #_ccc_ATB<_ccc_ATB>, _ccc_ATB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_ATB\n%rule r203 $x:_Canonical_Combining_Class_Attached_Below_Left<_ccc_ATBL>\n%conditions $x ≅ #_ccc_ATBL<_ccc_ATBL>, _ccc_ATBL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_ATBL\n%rule r204 $x:_Canonical_Combining_Class_Below<_ccc_B>\n%conditions $x ≅ #_ccc_B<_ccc_B>, _ccc_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_B\n%rule r205 $x:_Canonical_Combining_Class_Below_Left<_ccc_BL>\n%conditions $x ≅ #_ccc_BL<_ccc_BL>, _ccc_BL ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_BL\n%rule r206 $x:_Canonical_Combining_Class_Below_Right<_ccc_BR>\n%conditions $x ≅ #_ccc_BR<_ccc_BR>, _ccc_BR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_BR\n%rule r207 $x:_Canonical_Combining_Class_CCC10<_ccc_CCC10>\n%conditions $x ≅ #_ccc_CCC10<_ccc_CCC10>, _ccc_CCC10 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC10\n%rule r208 $x:_Canonical_Combining_Class_CCC103<_ccc_CCC103>\n%conditions $x ≅ #_ccc_CCC103<_ccc_CCC103>, _ccc_CCC103 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC103\n%rule r209 $x:_Canonical_Combining_Class_CCC107<_ccc_CCC107>\n%conditions $x ≅ #_ccc_CCC107<_ccc_CCC107>, _ccc_CCC107 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC107\n%rule r210 $x:_Canonical_Combining_Class_CCC11<_ccc_CCC11>\n%conditions $x ≅ #_ccc_CCC11<_ccc_CCC11>, _ccc_CCC11 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC11\n%rule r211 $x:_Canonical_Combining_Class_CCC118<_ccc_CCC118>\n%conditions $x ≅ #_ccc_CCC118<_ccc_CCC118>, _ccc_CCC118 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC118\n%rule r212 $x:_Canonical_Combining_Class_CCC12<_ccc_CCC12>\n%conditions $x ≅ #_ccc_CCC12<_ccc_CCC12>, _ccc_CCC12 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC12\n%rule r213 $x:_Canonical_Combining_Class_CCC122<_ccc_CCC122>\n%conditions $x ≅ #_ccc_CCC122<_ccc_CCC122>, _ccc_CCC122 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC122\n%rule r214 $x:_Canonical_Combining_Class_CCC129<_ccc_CCC129>\n%conditions $x ≅ #_ccc_CCC129<_ccc_CCC129>, _ccc_CCC129 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC129\n%rule r215 $x:_Canonical_Combining_Class_CCC13<_ccc_CCC13>\n%conditions $x ≅ #_ccc_CCC13<_ccc_CCC13>, _ccc_CCC13 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC13\n%rule r216 $x:_Canonical_Combining_Class_CCC130<_ccc_CCC130>\n%conditions $x ≅ #_ccc_CCC130<_ccc_CCC130>, _ccc_CCC130 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC130\n%rule r217 $x:_Canonical_Combining_Class_CCC132<_ccc_CCC132>\n%conditions $x ≅ #_ccc_CCC132<_ccc_CCC132>, _ccc_CCC132 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC132\n%rule r218 $x:_Canonical_Combining_Class_CCC133<_ccc_CCC133>\n%conditions $x ≅ #_ccc_CCC133<_ccc_CCC133>, _ccc_CCC133 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC133\n%rule r219 $x:_Canonical_Combining_Class_CCC14<_ccc_CCC14>\n%conditions $x ≅ #_ccc_CCC14<_ccc_CCC14>, _ccc_CCC14 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC14\n%rule r220 $x:_Canonical_Combining_Class_CCC15<_ccc_CCC15>\n%conditions $x ≅ #_ccc_CCC15<_ccc_CCC15>, _ccc_CCC15 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC15\n%rule r221 $x:_Canonical_Combining_Class_CCC16<_ccc_CCC16>\n%conditions $x ≅ #_ccc_CCC16<_ccc_CCC16>, _ccc_CCC16 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC16\n%rule r222 $x:_Canonical_Combining_Class_CCC17<_ccc_CCC17>\n%conditions $x ≅ #_ccc_CCC17<_ccc_CCC17>, _ccc_CCC17 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC17\n%rule r223 $x:_Canonical_Combining_Class_CCC18<_ccc_CCC18>\n%conditions $x ≅ #_ccc_CCC18<_ccc_CCC18>, _ccc_CCC18 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC18\n%rule r224 $x:_Canonical_Combining_Class_CCC19<_ccc_CCC19>\n%conditions $x ≅ #_ccc_CCC19<_ccc_CCC19>, _ccc_CCC19 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC19\n%rule r225 $x:_Canonical_Combining_Class_CCC20<_ccc_CCC20>\n%conditions $x ≅ #_ccc_CCC20<_ccc_CCC20>, _ccc_CCC20 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC20\n%rule r226 $x:_Canonical_Combining_Class_CCC21<_ccc_CCC21>\n%conditions $x ≅ #_ccc_CCC21<_ccc_CCC21>, _ccc_CCC21 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC21\n%rule r227 $x:_Canonical_Combining_Class_CCC22<_ccc_CCC22>\n%conditions $x ≅ #_ccc_CCC22<_ccc_CCC22>, _ccc_CCC22 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC22\n%rule r228 $x:_Canonical_Combining_Class_CCC23<_ccc_CCC23>\n%conditions $x ≅ #_ccc_CCC23<_ccc_CCC23>, _ccc_CCC23 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC23\n%rule r229 $x:_Canonical_Combining_Class_CCC24<_ccc_CCC24>\n%conditions $x ≅ #_ccc_CCC24<_ccc_CCC24>, _ccc_CCC24 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC24\n%rule r230 $x:_Canonical_Combining_Class_CCC25<_ccc_CCC25>\n%conditions $x ≅ #_ccc_CCC25<_ccc_CCC25>, _ccc_CCC25 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC25\n%rule r231 $x:_Canonical_Combining_Class_CCC26<_ccc_CCC26>\n%conditions $x ≅ #_ccc_CCC26<_ccc_CCC26>, _ccc_CCC26 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC26\n%rule r232 $x:_Canonical_Combining_Class_CCC27<_ccc_CCC27>\n%conditions $x ≅ #_ccc_CCC27<_ccc_CCC27>, _ccc_CCC27 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC27\n%rule r233 $x:_Canonical_Combining_Class_CCC28<_ccc_CCC28>\n%conditions $x ≅ #_ccc_CCC28<_ccc_CCC28>, _ccc_CCC28 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC28\n%rule r234 $x:_Canonical_Combining_Class_CCC29<_ccc_CCC29>\n%conditions $x ≅ #_ccc_CCC29<_ccc_CCC29>, _ccc_CCC29 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC29\n%rule r235 $x:_Canonical_Combining_Class_CCC30<_ccc_CCC30>\n%conditions $x ≅ #_ccc_CCC30<_ccc_CCC30>, _ccc_CCC30 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC30\n%rule r236 $x:_Canonical_Combining_Class_CCC31<_ccc_CCC31>\n%conditions $x ≅ #_ccc_CCC31<_ccc_CCC31>, _ccc_CCC31 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC31\n%rule r237 $x:_Canonical_Combining_Class_CCC32<_ccc_CCC32>\n%conditions $x ≅ #_ccc_CCC32<_ccc_CCC32>, _ccc_CCC32 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC32\n%rule r238 $x:_Canonical_Combining_Class_CCC33<_ccc_CCC33>\n%conditions $x ≅ #_ccc_CCC33<_ccc_CCC33>, _ccc_CCC33 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC33\n%rule r239 $x:_Canonical_Combining_Class_CCC34<_ccc_CCC34>\n%conditions $x ≅ #_ccc_CCC34<_ccc_CCC34>, _ccc_CCC34 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC34\n%rule r240 $x:_Canonical_Combining_Class_CCC35<_ccc_CCC35>\n%conditions $x ≅ #_ccc_CCC35<_ccc_CCC35>, _ccc_CCC35 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC35\n%rule r241 $x:_Canonical_Combining_Class_CCC36<_ccc_CCC36>\n%conditions $x ≅ #_ccc_CCC36<_ccc_CCC36>, _ccc_CCC36 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC36\n%rule r242 $x:_Canonical_Combining_Class_CCC84<_ccc_CCC84>\n%conditions $x ≅ #_ccc_CCC84<_ccc_CCC84>, _ccc_CCC84 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC84\n%rule r243 $x:_Canonical_Combining_Class_CCC91<_ccc_CCC91>\n%conditions $x ≅ #_ccc_CCC91<_ccc_CCC91>, _ccc_CCC91 ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_CCC91\n%rule r244 $x:_Canonical_Combining_Class_Double_Above<_ccc_DA>\n%conditions $x ≅ #_ccc_DA<_ccc_DA>, _ccc_DA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_DA\n%rule r245 $x:_Canonical_Combining_Class_Double_Below<_ccc_DB>\n%conditions $x ≅ #_ccc_DB<_ccc_DB>, _ccc_DB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_DB\n%rule r246 $x:_Canonical_Combining_Class_Han_Reading<_ccc_HANR>\n%conditions $x ≅ #_ccc_HANR<_ccc_HANR>, _ccc_HANR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_HANR\n%rule r247 $x:_Canonical_Combining_Class_Iota_Subscript<_ccc_IS>\n%conditions $x ≅ #_ccc_IS<_ccc_IS>, _ccc_IS ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_IS\n%rule r248 $x:_Canonical_Combining_Class_Kana_Voicing<_ccc_KV>\n%conditions $x ≅ #_ccc_KV<_ccc_KV>, _ccc_KV ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_KV\n%rule r249 $x:_Canonical_Combining_Class_Left<_ccc_L>\n%conditions $x ≅ #_ccc_L<_ccc_L>, _ccc_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_L\n%rule r250 $x:_Canonical_Combining_Class_Not_Reordered<_ccc_NR>\n%conditions $x ≅ #_ccc_NR<_ccc_NR>, _ccc_NR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_NR\n%rule r251 $x:_Canonical_Combining_Class_Nukta<_ccc_NK>\n%conditions $x ≅ #_ccc_NK<_ccc_NK>, _ccc_NK ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_NK\n%rule r252 $x:_Canonical_Combining_Class_Overlay<_ccc_OV>\n%conditions $x ≅ #_ccc_OV<_ccc_OV>, _ccc_OV ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_OV\n%rule r253 $x:_Canonical_Combining_Class_Right<_ccc_R>\n%conditions $x ≅ #_ccc_R<_ccc_R>, _ccc_R ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_R\n%rule r254 $x:_Canonical_Combining_Class_Virama<_ccc_VR>\n%conditions $x ≅ #_ccc_VR<_ccc_VR>, _ccc_VR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ccc_VR",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_71",
+        "_ccc_71"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_72",
+        "_ccc_72"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_73",
+        "_ccc_73"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_74",
+        "_ccc_74"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_75",
+        "_ccc_75"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_76",
+        "_ccc_76"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_77",
+        "_ccc_77"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_78",
+        "_ccc_78"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_79",
+        "_ccc_79"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_80",
+        "_ccc_80"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_81",
+        "_ccc_81"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_82",
+        "_ccc_82"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_83",
+        "_ccc_83"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_85",
+        "_ccc_85"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_86",
+        "_ccc_86"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_87",
+        "_ccc_87"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_88",
+        "_ccc_88"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_89",
+        "_ccc_89"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_90",
+        "_ccc_90"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_92",
+        "_ccc_92"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_93",
+        "_ccc_93"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_94",
+        "_ccc_94"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_95",
+        "_ccc_95"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_96",
+        "_ccc_96"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_97",
+        "_ccc_97"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_98",
+        "_ccc_98"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_99",
+        "_ccc_99"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Above",
+        "_ccc_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Above_Left",
+        "_ccc_AL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Above_Right",
+        "_ccc_AR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Attached_Above",
+        "_ccc_ATA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Attached_Above_Right",
+        "_ccc_ATAR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Attached_Below",
+        "_ccc_ATB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Attached_Below_Left",
+        "_ccc_ATBL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Below",
+        "_ccc_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Below_Left",
+        "_ccc_BL"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Below_Right",
+        "_ccc_BR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC10",
+        "_ccc_CCC10"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC103",
+        "_ccc_CCC103"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC107",
+        "_ccc_CCC107"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC11",
+        "_ccc_CCC11"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC118",
+        "_ccc_CCC118"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC12",
+        "_ccc_CCC12"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC122",
+        "_ccc_CCC122"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC129",
+        "_ccc_CCC129"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC13",
+        "_ccc_CCC13"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC130",
+        "_ccc_CCC130"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC132",
+        "_ccc_CCC132"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC133",
+        "_ccc_CCC133"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC14",
+        "_ccc_CCC14"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC15",
+        "_ccc_CCC15"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC16",
+        "_ccc_CCC16"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC17",
+        "_ccc_CCC17"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC18",
+        "_ccc_CCC18"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC19",
+        "_ccc_CCC19"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC20",
+        "_ccc_CCC20"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC21",
+        "_ccc_CCC21"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC22",
+        "_ccc_CCC22"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC23",
+        "_ccc_CCC23"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC24",
+        "_ccc_CCC24"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC25",
+        "_ccc_CCC25"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC26",
+        "_ccc_CCC26"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC27",
+        "_ccc_CCC27"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC28",
+        "_ccc_CCC28"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC29",
+        "_ccc_CCC29"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC30",
+        "_ccc_CCC30"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC31",
+        "_ccc_CCC31"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC32",
+        "_ccc_CCC32"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC33",
+        "_ccc_CCC33"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC34",
+        "_ccc_CCC34"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC35",
+        "_ccc_CCC35"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC36",
+        "_ccc_CCC36"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC84",
+        "_ccc_CCC84"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_CCC91",
+        "_ccc_CCC91"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Double_Above",
+        "_ccc_DA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Double_Below",
+        "_ccc_DB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Han_Reading",
+        "_ccc_HANR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Iota_Subscript",
+        "_ccc_IS"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Kana_Voicing",
+        "_ccc_KV"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Left",
+        "_ccc_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Not_Reordered",
+        "_ccc_NR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Nukta",
+        "_ccc_NK"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Overlay",
+        "_ccc_OV"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Right",
+        "_ccc_R"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Canonical_Combining_Class_Virama",
+        "_ccc_VR"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Canonical_Combining_Class_71"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_72"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_73"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_74"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_75"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_76"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_77"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_78"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_79"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_80"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_81"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_82"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_83"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_85"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_86"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_87"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_88"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_89"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_90"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_92"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_93"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_94"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_95"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_96"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_97"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_98"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_99"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Above"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Above_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Above_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Attached_Above"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Attached_Above_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Attached_Below"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Attached_Below_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Below"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Below_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Below_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC10"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC103"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC107"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC11"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC118"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC12"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC122"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC129"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC13"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC130"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC132"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC133"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC14"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC15"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC16"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC17"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC18"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC19"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC20"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC21"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC22"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC23"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC24"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC25"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC26"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC27"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC28"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC29"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC30"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC31"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC32"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC33"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC34"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC35"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC36"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC84"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_CCC91"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Double_Above"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Double_Below"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Han_Reading"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Iota_Subscript"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Kana_Voicing"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Not_Reordered"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Nukta"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Overlay"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Canonical_Combining_Class_Virama"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r170",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_71"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_71"
+            ]
+          },
+          {
+            "rule": "r171",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_72"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_72"
+            ]
+          },
+          {
+            "rule": "r172",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_73"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_73"
+            ]
+          },
+          {
+            "rule": "r173",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_74"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_74"
+            ]
+          },
+          {
+            "rule": "r174",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_75"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_75"
+            ]
+          },
+          {
+            "rule": "r175",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_76"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_76"
+            ]
+          },
+          {
+            "rule": "r176",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_77"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_77"
+            ]
+          },
+          {
+            "rule": "r177",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_78"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_78"
+            ]
+          },
+          {
+            "rule": "r178",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_79"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_79"
+            ]
+          },
+          {
+            "rule": "r179",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_80"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_80"
+            ]
+          },
+          {
+            "rule": "r180",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_81"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_81"
+            ]
+          },
+          {
+            "rule": "r181",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_82"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_82"
+            ]
+          },
+          {
+            "rule": "r182",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_83"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_83"
+            ]
+          },
+          {
+            "rule": "r183",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_85"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_85"
+            ]
+          },
+          {
+            "rule": "r184",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_86"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_86"
+            ]
+          },
+          {
+            "rule": "r185",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_87"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_87"
+            ]
+          },
+          {
+            "rule": "r186",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_88"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_88"
+            ]
+          },
+          {
+            "rule": "r187",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_89"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_89"
+            ]
+          },
+          {
+            "rule": "r188",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_90"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_90"
+            ]
+          },
+          {
+            "rule": "r189",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_92"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_92"
+            ]
+          },
+          {
+            "rule": "r190",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_93"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_93"
+            ]
+          },
+          {
+            "rule": "r191",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_94"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_94"
+            ]
+          },
+          {
+            "rule": "r192",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_95"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_95"
+            ]
+          },
+          {
+            "rule": "r193",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_96"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_96"
+            ]
+          },
+          {
+            "rule": "r194",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_97"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_97"
+            ]
+          },
+          {
+            "rule": "r195",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_98"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_98"
+            ]
+          },
+          {
+            "rule": "r196",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_99"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_99"
+            ]
+          },
+          {
+            "rule": "r197",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Above"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Above"
+            ]
+          },
+          {
+            "rule": "r198",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Above_Left"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Above_Left"
+            ]
+          },
+          {
+            "rule": "r199",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Above_Right"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Above_Right"
+            ]
+          },
+          {
+            "rule": "r200",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Attached_Above"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Attached_Above"
+            ]
+          },
+          {
+            "rule": "r201",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Attached_Above_Right"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Attached_Above_Right"
+            ]
+          },
+          {
+            "rule": "r202",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Attached_Below"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Attached_Below"
+            ]
+          },
+          {
+            "rule": "r203",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Attached_Below_Left"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Attached_Below_Left"
+            ]
+          },
+          {
+            "rule": "r204",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Below"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Below"
+            ]
+          },
+          {
+            "rule": "r205",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Below_Left"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Below_Left"
+            ]
+          },
+          {
+            "rule": "r206",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Below_Right"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Below_Right"
+            ]
+          },
+          {
+            "rule": "r207",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC10"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC10"
+            ]
+          },
+          {
+            "rule": "r208",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC103"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC103"
+            ]
+          },
+          {
+            "rule": "r209",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC107"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC107"
+            ]
+          },
+          {
+            "rule": "r210",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC11"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC11"
+            ]
+          },
+          {
+            "rule": "r211",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC118"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC118"
+            ]
+          },
+          {
+            "rule": "r212",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC12"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC12"
+            ]
+          },
+          {
+            "rule": "r213",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC122"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC122"
+            ]
+          },
+          {
+            "rule": "r214",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC129"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC129"
+            ]
+          },
+          {
+            "rule": "r215",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC13"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC13"
+            ]
+          },
+          {
+            "rule": "r216",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC130"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC130"
+            ]
+          },
+          {
+            "rule": "r217",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC132"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC132"
+            ]
+          },
+          {
+            "rule": "r218",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC133"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC133"
+            ]
+          },
+          {
+            "rule": "r219",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC14"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC14"
+            ]
+          },
+          {
+            "rule": "r220",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC15"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC15"
+            ]
+          },
+          {
+            "rule": "r221",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC16"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC16"
+            ]
+          },
+          {
+            "rule": "r222",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC17"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC17"
+            ]
+          },
+          {
+            "rule": "r223",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC18"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC18"
+            ]
+          },
+          {
+            "rule": "r224",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC19"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC19"
+            ]
+          },
+          {
+            "rule": "r225",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC20"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC20"
+            ]
+          },
+          {
+            "rule": "r226",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC21"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC21"
+            ]
+          },
+          {
+            "rule": "r227",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC22"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC22"
+            ]
+          },
+          {
+            "rule": "r228",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC23"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC23"
+            ]
+          },
+          {
+            "rule": "r229",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC24"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC24"
+            ]
+          },
+          {
+            "rule": "r230",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC25"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC25"
+            ]
+          },
+          {
+            "rule": "r231",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC26"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC26"
+            ]
+          },
+          {
+            "rule": "r232",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC27"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC27"
+            ]
+          },
+          {
+            "rule": "r233",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC28"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC28"
+            ]
+          },
+          {
+            "rule": "r234",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC29"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC29"
+            ]
+          },
+          {
+            "rule": "r235",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC30"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC30"
+            ]
+          },
+          {
+            "rule": "r236",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC31"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC31"
+            ]
+          },
+          {
+            "rule": "r237",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC32"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC32"
+            ]
+          },
+          {
+            "rule": "r238",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC33"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC33"
+            ]
+          },
+          {
+            "rule": "r239",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC34"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC34"
+            ]
+          },
+          {
+            "rule": "r240",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC35"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC35"
+            ]
+          },
+          {
+            "rule": "r241",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC36"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC36"
+            ]
+          },
+          {
+            "rule": "r242",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC84"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC84"
+            ]
+          },
+          {
+            "rule": "r243",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_CCC91"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_CCC91"
+            ]
+          },
+          {
+            "rule": "r244",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Double_Above"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Double_Above"
+            ]
+          },
+          {
+            "rule": "r245",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Double_Below"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Double_Below"
+            ]
+          },
+          {
+            "rule": "r246",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Han_Reading"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Han_Reading"
+            ]
+          },
+          {
+            "rule": "r247",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Iota_Subscript"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Iota_Subscript"
+            ]
+          },
+          {
+            "rule": "r248",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Kana_Voicing"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Kana_Voicing"
+            ]
+          },
+          {
+            "rule": "r249",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Left"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Left"
+            ]
+          },
+          {
+            "rule": "r250",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Not_Reordered"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Not_Reordered"
+            ]
+          },
+          {
+            "rule": "r251",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Nukta"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Nukta"
+            ]
+          },
+          {
+            "rule": "r252",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Overlay"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Overlay"
+            ]
+          },
+          {
+            "rule": "r253",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Right"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Right"
+            ]
+          },
+          {
+            "rule": "r254",
+            "children": [
+              {
+                "terminal": "_Canonical_Combining_Class_Virama"
+              }
+            ],
+            "tags": [
+              "_Canonical_Combining_Class_Virama"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

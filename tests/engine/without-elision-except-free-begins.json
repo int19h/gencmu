@@ -1,0 +1,24 @@
+{
+  "description": "The 🆓 family permits its interior close under begins (engine §2.2, §4.1, and §10).",
+  "grammar": "%rule text $c:c %conditions $c.without-elision-except(🆓).begins(rival)\n%rule c X B\n%rule rival 🆓 B :: Rival\n%rule 🆓 X [+U]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "(x b)"
+  }
+}

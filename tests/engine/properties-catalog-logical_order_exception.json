@@ -1,0 +1,45 @@
+{
+  "description": "Every Logical_Order_Exception value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Logical_Order_Exception<_Logical_Order_Exception>\n%conditions $x ≅ #_Logical_Order_Exception<_Logical_Order_Exception>, _Logical_Order_Exception ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Logical_Order_Exception",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_LOE",
+        "_Logical_Order_Exception"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Logical_Order_Exception"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Logical_Order_Exception"
+              }
+            ],
+            "tags": [
+              "_Logical_Order_Exception"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

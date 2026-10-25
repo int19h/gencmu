@@ -1,6 +1,6 @@
 # Experimental word forms
 
-This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage follows normalization. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
+This document is part of the forms stage in the [experimental](../dialects/experimental.md) dialect. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. The loader stitches this document into the stage after [bpfk.md](bpfk.md).
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [bpfk.md](bpfk.md). A lookahead tests input without reading it.
 
@@ -44,10 +44,7 @@ A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel
 The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
-  $c:"m"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | m)
+%redefine-rule m = consonant-letter("m", m)              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
@@ -116,6 +113,7 @@ The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The sp
 
 %redefine-rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe but can precede a glide. *)
   h
+
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>cmevla-shape</code> to <code>letter-ban</code></summary>

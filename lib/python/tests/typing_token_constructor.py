@@ -7,10 +7,10 @@ import gencmu
 
 def construct_tokens() -> tuple[gencmu.Token, gencmu.Token]:
     defaults = gencmu.Token(
-        text="A", value=None, image=None, tags=frozenset({"_Lu", "_L"}), span=(0, 1), source=(0, 1)
+        text="A", value=None, image=None, tags=frozenset({"_General_Category_Uppercase_Letter", "_General_Category_Letter"}), span=(0, 1), source=(0, 1)
     )
     api_example = gencmu.Token(
-        text="A", value="a", image="A", tags={"_Lu", "_L"}, span=(0, 1), source=(0, 1)
+        text="A", value="a", image="A", tags={"_General_Category_Uppercase_Letter", "_General_Category_Letter"}, span=(0, 1), source=(0, 1)
     )
     assert_type(defaults.value, str)
     assert_type(defaults.image, str)

@@ -361,58 +361,78 @@ impl Dialect {
     }
 
     pub(crate) fn parse_chars(&self, chars: Vec<char>, options: &ParseOptions) -> Result<ParseResult, Error> {
+        self.parse_chars_inspected(chars, options, |_| Ok(()))
+    }
+
+    pub(crate) fn parse_chars_inspected(
+        &self,
+        chars: Vec<char>,
+        options: &ParseOptions,
+        inspect: impl FnMut(&[Token]) -> Result<(), Error>,
+    ) -> Result<ParseResult, Error> {
         let unicode = self.unicode.clone();
-        self.run(chars, options, move |tags, chars| character_tokens(&unicode, tags, chars))
+        self.run(chars, options, move |tags, chars| character_tokens(&unicode, tags, chars), inspect)
     }
 
     /// Parses a sequence of tokens given directly to the first stage, for
     /// tests and tools (see [`InputToken`]).
     pub fn parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error> {
         for token in tokens {
-            if let Some(tag) =
-                token.tags.iter().find(|tag| !crate::dom::is_constant_name(tag) && !crate::dom::is_engine_tag(tag))
+            if let Some(tag) = token
+                .tags
+                .iter()
+                .find(|tag| !crate::dom::is_constant_name(tag) && self.unicode.canonical_tag(tag).is_none())
             {
                 return Err(Error::usage(format!("{tag:?} is not a valid stored tag")));
             }
         }
         let joined: Vec<&str> = tokens.iter().map(|token| token.text.as_str()).collect();
         let chars: Vec<char> = joined.join(" ").chars().collect();
-        let tokens = tokens.to_vec();
-        self.run(chars, options, move |tags, _| {
-            let mut input = Vec::with_capacity(tokens.len());
-            let mut public = Vec::with_capacity(tokens.len());
-            let mut at = 0;
-            for (index, token) in tokens.iter().enumerate() {
-                let length = token.text.chars().count();
-                let set = tags.set_of(token.tags.iter().map(String::as_str));
-                // A caller token defaults its image to its text only when
-                // `image` is `None` (§5).
-                public.push(Token {
-                    text: token.text.clone(),
-                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
-                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
-                    tags: tags.to_set(set),
-                    span: index..index + 1,
-                    source: at..at + length,
-                    inserted_by: None,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-                input.push(Tok {
-                    text: token.text.clone(),
-                    tags: set,
-                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
-                    source: (at, at + length),
-                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
-                    sound: Default::default(),
-                    quiet: 0,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-                at += length + 1;
-            }
-            (input, public)
-        })
+        let mut tokens = tokens.to_vec();
+        for token in &mut tokens {
+            token.tags =
+                token.tags.iter().map(|tag| self.unicode.canonical_tag(tag).unwrap_or(tag).to_string()).collect();
+        }
+        self.run(
+            chars,
+            options,
+            move |tags, _| {
+                let mut input = Vec::with_capacity(tokens.len());
+                let mut public = Vec::with_capacity(tokens.len());
+                let mut at = 0;
+                for (index, token) in tokens.iter().enumerate() {
+                    let length = token.text.chars().count();
+                    let set = tags.set_of(token.tags.iter().map(String::as_str));
+                    // A caller token defaults its image to its text only when
+                    // `image` is `None` (§5).
+                    public.push(Token {
+                        text: token.text.clone(),
+                        value: token.value.clone().unwrap_or_else(|| token.text.clone()),
+                        image: token.image.clone().unwrap_or_else(|| token.text.clone()),
+                        tags: tags.to_set(set),
+                        span: index..index + 1,
+                        source: at..at + length,
+                        inserted_by: None,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                    });
+                    input.push(Tok {
+                        text: token.text.clone(),
+                        tags: set,
+                        value: token.value.clone().unwrap_or_else(|| token.text.clone()),
+                        source: (at, at + length),
+                        image: token.image.clone().unwrap_or_else(|| token.text.clone()),
+                        sound: Default::default(),
+                        quiet: 0,
+                        before: Vec::new(),
+                        after: Vec::new(),
+                    });
+                    at += length + 1;
+                }
+                (input, public)
+            },
+            |_| Ok(()),
+        )
     }
 
     fn run(
@@ -420,6 +440,7 @@ impl Dialect {
         chars: Vec<char>,
         options: &ParseOptions,
         first: impl FnOnce(&mut crate::tags::Tags, &[char]) -> (Vec<Tok>, Vec<Token>),
+        mut inspect: impl FnMut(&[Token]) -> Result<(), Error>,
     ) -> Result<ParseResult, Error> {
         // The features on are the pipeline's, with the caller's added and
         // those the caller turns off removed (engine §13).
@@ -442,7 +463,7 @@ impl Dialect {
         crate::earley::mark_quiet(&mut input, &self.unicode);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
         let mut run = fresh;
-        self.stages_between(&mut shared, &mut run, &mut features, off, last, options.elision_only);
+        self.stages_between(&mut shared, &mut run, &mut features, (off, last, options.elision_only), &mut inspect)?;
         let ok = run.error.is_none();
         Ok(ParseResult {
             ok,
@@ -459,10 +480,10 @@ impl Dialect {
         shared: &mut Shared,
         run: &mut Run,
         features: &mut BTreeSet<String>,
-        off: &[String],
-        to: usize,
-        elision: Option<bool>,
-    ) {
+        selection: (&[String], usize, Option<bool>),
+        inspect: &mut dyn FnMut(&[Token]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let (off, to, elision) = selection;
         for index in 0..=to {
             shared.next_stage();
             let mut failure = None;
@@ -516,13 +537,17 @@ impl Dialect {
                     witness: None,
                 });
                 run.error = Some(error);
-                return;
+                return Ok(());
             }
-            if let Err(error) = self.stage(index, shared, run, features, elision) {
+            if let Err(error) = self.stage(index, shared, run, features, elision, index == to) {
                 run.error = Some(*error);
-                return;
+                return Ok(());
+            }
+            if index == 0 {
+                inspect(run.stages.last().unwrap().output.as_ref().unwrap())?;
             }
         }
+        Ok(())
     }
 
     /// A defect of a grammar found while parsing: its stage and a message,
@@ -563,6 +588,7 @@ impl Dialect {
         run: &mut Run,
         features: &BTreeSet<String>,
         elision: Option<bool>,
+        last: bool,
     ) -> Result<(), Box<ParseError>> {
         let grammar = &self.stages[index];
         let input = std::mem::take(&mut run.input);
@@ -732,7 +758,7 @@ impl Dialect {
                 }
             }
         }
-        stage.output = Some(public.clone());
+        stage.output = Some(public);
         run.stages.push(stage);
         // A stage ambiguous under `elision-only` chose its derivation: it
         // keeps its output, and the run ends with the error (§7).
@@ -740,7 +766,7 @@ impl Dialect {
             return Err(Box::new(error));
         }
         run.input = next;
-        run.public_input = public;
+        run.public_input = if last { Vec::new() } else { run.stages.last().unwrap().output.as_ref().unwrap().clone() };
         run.tree = Some(tree);
         Ok(())
     }
@@ -1150,6 +1176,7 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
     crate::work::count(crate::work::Work::StageZero, 1);
     let decomposed = unicode.decompose_with_origins(chars);
     let mut input = Vec::with_capacity(decomposed.len());
+    let mut profiles = crate::fxhash::FxMap::default();
     let mut public = Vec::with_capacity(decomposed.len());
     for (index, scalar) in decomposed.iter().enumerate() {
         let c = scalar.character;
@@ -1157,12 +1184,10 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
         // Its character tag and nothing else (§1).
         let value = c.to_string();
         let text = chars[origin].to_string();
-        let category = unicode.category(c as u32);
-        let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
-        if unicode.is_white_space(c as u32) {
-            names.push("_White_Space".into());
-        }
-        let set = tags.set_of(names.iter().map(String::as_str));
+        let set = *profiles.entry(c).or_insert_with(|| {
+            let names = unicode.profile(c as u32);
+            tags.set_of(names.iter().map(String::as_str))
+        });
         // A character token shows its decomposed scalar (§1).
         public.push(Token {
             text: text.clone(),
@@ -1239,8 +1264,8 @@ mod tests {
             assert_eq!(internal.value, token.value);
             assert_eq!(internal.image, token.image);
         }
-        assert!(public[0].tags.contains("_Ll"));
-        assert!(public[1].tags.contains("_Mn"));
+        assert!(public[0].tags.contains("_General_Category_Lowercase_Letter"));
+        assert!(public[1].tags.contains("_General_Category_Nonspacing_Mark"));
         assert!(public[3].tags.contains("_White_Space"));
         let sources = crate::tree::Sources::new(&internal);
         assert_eq!(sources.of(1, 3), (0, 2));

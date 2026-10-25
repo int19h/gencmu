@@ -488,7 +488,7 @@ fn skipped_source_cases_have_stage_equivalents() {
         let bodies = if name == "rejection-empty-supplied-slice" {
             vec!["%rule text _ %erased".to_string()]
         } else if name == "rejection-supplied-slice-before-text-end" {
-            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" $_000A \"b\"".to_string()]
+            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"‹U+000A›\" \"b\"".to_string()]
         } else if name == "rejection-supplied-slice-last-source" {
             // Empty generated tokens can reverse their source points. This
             // reaches the same EOF assertion as the reversed caller slice.
@@ -573,7 +573,13 @@ fn skipped_source_cases_have_stage_equivalents() {
                 assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
                 assert_eq!(
                     generated.tags,
-                    supplied.get("tags").unwrap().array().iter().map(|t| t.str().unwrap().to_string()).collect(),
+                    supplied
+                        .get("tags")
+                        .unwrap()
+                        .array()
+                        .iter()
+                        .map(|t| t.str().unwrap().to_string())
+                        .collect::<gencmu::Tags>(),
                     "{name}"
                 );
             }
@@ -670,7 +676,7 @@ fn inserted_tags_simplify_constants_before_capture_validation() {
 #[test]
 fn inserted_patterns_test_names_without_parsing_them() {
     for (comparison, tags) in [("≅", "[]"), ("≇", r#"["X"]"#)] {
-        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} @missing ⟹ X)");
+        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} #missing ⟹ X)");
         let case = format!(
             r#"{{"grammar":{},"tokens":[{{"text":"a","tags":["A"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":{tags},"insertedBy":"text"}}]}}]}}}}}}"#,
             common::Value::String(grammar).to_text()

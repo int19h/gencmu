@@ -1,9 +1,9 @@
 {
-  "description": "An engine scalar constant supplies a backslash terminal, and constant reference supplies a backslash inside a string. Ordinary brace strings and the stored _L terminal keep their distinct DOM forms (engine §9.1, docs/output.md).",
-  "document": "```jbogenbau\n%rule a ($x:$_005C \"{\" _L \"}\") %conditions $x.source-text = (\"a\" ++ $_005C ++ \"b\")\n\n```\n",
+  "description": "A numeric escape supplies a backslash terminal. Dollar signs and braces in other strings remain literal.",
+  "document": "```jbogenbau\n%rule a ($x:\"‹U+005C›\" \"{\" _L \"}\") %conditions $x.source-text = (\"a\" ++ \"‹U+005C›\" ++ \"b\")\n\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 40,
       "rules": [
         {
           "name": "a",
@@ -18,11 +18,7 @@
                     "capture": "x",
                     "expr": {
                       "literal": {
-                        "const": "_005C",
-                        "at": [
-                          2,
-                          13
-                        ]
+                        "string": "\\"
                       }
                     }
                   },
@@ -32,7 +28,7 @@
                     }
                   },
                   {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   },
                   {
                     "literal": {
@@ -59,11 +55,7 @@
                     "string": "a"
                   },
                   {
-                    "const": "_005C",
-                    "at": [
-                      2,
-                      69
-                    ]
+                    "string": "\\"
                   },
                   {
                     "string": "b"

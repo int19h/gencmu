@@ -1,0 +1,10 @@
+{
+  "description": "Emission tags can read their constituent after template expansion.",
+  "grammar": "%rule emit(@X) @X :: A\n%emits $ :: $.tags\n%rule text emit(\"a\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

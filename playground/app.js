@@ -7,10 +7,20 @@
 // for what it already has costs little. At most one run is in flight; a
 // change while one runs waits for it, unless the run has gone on long
 // enough to be worth stopping, in which case the worker is replaced.
-(function () {
+(async function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const bundled = self.gencmuGrammars;
+  const status = $("status");
+  try {
+    const url = new URL("grammars/unicode-properties.txt", document.baseURI);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    bundled["unicode-properties.txt"] = new TextDecoder("utf-8", {fatal:true, ignoreBOM:true}).decode(await response.arrayBuffer());
+  } catch (error) {
+    setStatus("error", `unicode-properties.txt did not load: ${error.message}`);
+    return;
+  }
 
   // How long a run whose answer is no longer wanted may go on before its
   // worker is replaced. Most parses take tens of milliseconds, and a new
@@ -30,7 +40,7 @@
   }
 
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
-  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document));
+  const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
   const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
   const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
@@ -64,7 +74,7 @@
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
     { label: "A rule with tree tests (notation)", dialect: "notation", tab: "tree",
-      text: "%rule text $x:pair\n%conditions\n  $x ≅ @(A ⋯ B),\n  $x ≇ @(⋮ C),\n  $x ≅ @(A ⋰),\n  $x ≅ @(⋱ B)",
+      text: "%rule text $x:pair\n%conditions\n  $x ≅ #« A ⋯ B »,\n  $x ≇ #(⋮ C),\n  $x ≅ #(A ⋰),\n  $x ≅ #(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
 
@@ -133,7 +143,6 @@
 
   // ---- Status -----------------------------------------------------------------
 
-  const status = $("status");
   function setStatus(kind, text) {
     status.dataset.state = kind;
     $("status-text").textContent = text;
@@ -275,6 +284,9 @@
   function onWorkerMessage(message) {
     const running = job.running;
     switch (message.kind) {
+      case "documents":
+        renderDocuments();
+        break;
       case "ready":
         workerReady = true;
         timings.workerReady = performance.now() - client.startedAt;

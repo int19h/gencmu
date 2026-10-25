@@ -107,7 +107,8 @@ fn compiled_doms_match_a_fresh_reading() {
                     Some(gencmu::tools::fnv1a64(&text).as_str()),
                     "{path}"
                 );
-                let fresh = parse_json(&gencmu::tools::read_grammar_document(&text).expect("a DOM")).expect("JSON");
+                let fresh =
+                    parse_json(&gencmu::tools::read_grammar_document(&text, &path).expect("a DOM")).expect("JSON");
                 same(entry.get("dom").expect("a DOM"), &fresh, &path)
                     .unwrap_or_else(|problem| panic!("{path} differs from its compiled DOM: {problem}"));
             })
@@ -120,9 +121,14 @@ fn compiled_doms_match_a_fresh_reading() {
 
 fn bundled_sources(compiled: Option<&str>) -> BTreeMap<String, String> {
     let mut sources = BTreeMap::new();
-    for path in
-        ["unicode.txt", "notation/bootstrap.json", "notation/lexical.md", "notation/syntax.md", "dialects/notation.md"]
-    {
+    for path in [
+        "unicode.txt",
+        "unicode-properties.txt",
+        "notation/bootstrap.json",
+        "notation/lexical.md",
+        "notation/syntax.md",
+        "dialects/notation.md",
+    ] {
         sources.insert(path.to_string(), read(path));
     }
     sources.insert("compiled.json".to_string(), compiled.map_or_else(|| read("compiled.json"), str::to_string));
@@ -144,7 +150,7 @@ fn parsing_with_and_without_the_cache() {
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
     for (text, accepted) in [
-        ("%rule text [{piece}] {... A / B} [+KU #] %rule piece word | \"x\" :: Sound-x %emits $", true),
+        ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
         ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
         ("%rule broken", false),
     ] {
@@ -171,7 +177,7 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
   ¬g? "do" ∉ KOhA
 %implies A ∩ B ⟹ C ∖ D
 %rule text :: U ∪ ($x ∧ $x.source-text.classify(lex) ⊆ V ⟹ W)
-  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU #] [+KEI (A | B)] (F & G) "a".."z" _L Sound-a H UI<¬B> :: T ∪ $K
+  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU 🆓] [+KEI (A | B)] (F & G) "a".."z" _General_Category_Letter Sound-a H UI<¬B> :: T ∪ $K
   | g? text-tail
   %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.matches(text) ∧ $y, $x.tokens-after-first.begins(text), $y.source-text ∈ "a.b".split(".")
   %emits $x ($y) :: $x.tags, ε :: Y
@@ -181,10 +187,10 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 %rule chain
   {... A / B}
 %redefine-rule text-tail
-  #
+  🆓
 %extend-rule text-tail
   "b"
-%rule #
+%rule 🆓
   "c"
 ```
 "#;

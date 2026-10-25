@@ -1,0 +1,10 @@
+{
+  "description": "Stage zero gives U+20E3 the `_Emoji_Component` tag.",
+  "grammar": "%rule text _Emoji_Component",
+  "input": "⃣",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

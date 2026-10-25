@@ -63,54 +63,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "m",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "t",
-                  "tags": []
-                },
-                {
-                  "value": "k",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -210,54 +162,6 @@
               ]
             },
             {
-              "name": "normalize",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "m",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "t",
-                  "tags": []
-                },
-                {
-                  "value": "k",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
               "name": "forms",
               "verdict": "unique",
               "output": [
@@ -307,54 +211,6 @@
           "stages": [
             {
               "name": "phonemes",
-              "verdict": "unique",
-              "output": [
-                {
-                  "value": "m",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": " ",
-                  "tags": [
-                    "PAUSE"
-                  ]
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                },
-                {
-                  "value": "t",
-                  "tags": []
-                },
-                {
-                  "value": "k",
-                  "tags": []
-                },
-                {
-                  "value": "u",
-                  "tags": []
-                },
-                {
-                  "value": "i",
-                  "tags": []
-                },
-                {
-                  "value": "l",
-                  "tags": []
-                },
-                {
-                  "value": "a",
-                  "tags": []
-                }
-              ]
-            },
-            {
-              "name": "normalize",
               "verdict": "unique",
               "output": [
                 {

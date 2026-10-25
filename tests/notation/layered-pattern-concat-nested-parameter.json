@@ -1,0 +1,10 @@
+{
+  "description": "A known pattern operand cannot enter a string concatenation inside an uncalled template.",
+  "document": "```jbogenbau\n%rule use(@P) _ %conditions $ ≅ (#A ∩ @P) ++ \"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 33
+    }
+  }
+}

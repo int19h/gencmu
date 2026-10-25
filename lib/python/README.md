@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 34 and writes result format 14. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. A document object model (DOM) stores parsed grammar rules. The library reads DOM format 40 and writes result format 15. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -24,9 +24,13 @@ A pipeline document and the grammar documents that it includes define a dialect.
 - `load_dialect_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
 - `load_dialect_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
-The loader reads a grammar document through the notation (the grammar of grammar documents) only when `compiled.json` has no matching entry. `compiled.json` holds the precompiled DOMs, the parsed forms of the grammar documents. An entry matches when it is for the same text, under the same bootstrap, Unicode table fingerprint, and DOM format. The fingerprint is the 64-bit FNV-1a hash of the table text. Reading a large grammar through the notation is slow in pure Python. So the bundled grammars all have an entry.
+The loader reads a grammar document through the notation only when `compiled.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
 
 Each loader takes `use_cache=False` to read every document afresh.
+
+Parameterized rules use declarations such as `%rule pair(@Left,@Right) @Left @Right`. The call `pair("a","b")` supplies two arguments. The loader substitutes parsed nodes before ordinary grammar validation. `%rule text = pair("a","b")` names the concrete instance `text` and adds no wrapper node.
+
+Templates and instances accept source-ordered edits. A template flag becomes the flag of each instance. A pattern that names a template matches every instance. Recognition queries name one instance. The loader rejects parameter flows that can create unbounded instance growth.
 
 An entry holds a document's constants (`%const` and `%redefine-const`), classifiers (`%classifier`) and implications (`%implies`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). A stage resolves each classifier for the features of a parse, and keeps the result for each set of features. So a document that several stages or dialects include takes the values of each, and one entry serves them all.
 
@@ -79,7 +83,7 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 Stage zero canonically decomposes the input with the shared Unicode table. Each token stores one decomposed scalar as its value and image. Its source and text refer to its original scalar. Its span counts decomposed scalars. Caller-supplied tokens skip decomposition.
 
-A stage-zero token's tags include the configured general category, its major category, and `_White_Space` where applicable. For example, `A` carries `_Lu` and `_L`. Later stages read stored tags and exact values.
+Each stage-zero token stores every available Unicode property membership from the configured character resources. For example, `A` carries `_General_Category_Uppercase_Letter` and `_General_Category_Letter`, alongside its other properties. Later stages read those stored tags without reclassifying changed values.
 
 A `Token` has `text`, `value`, `image`, `tags`, `span`, and `source`. Only an inserted `ε` item sets `inserted_by`. Recipes supply strings, and tags never assign strings. A constituent without a channel recipe concatenates its children on that channel. `%erased` excludes its contribution. A verbatim recipe preserves original text and follows the gap-claim rules of engine §11.
 

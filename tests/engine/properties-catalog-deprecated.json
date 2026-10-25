@@ -1,0 +1,45 @@
+{
+  "description": "Every Deprecated value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Deprecated<_Deprecated>\n%conditions $x ≅ #_Deprecated<_Deprecated>, _Deprecated ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Deprecated",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Dep",
+        "_Deprecated"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Deprecated"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Deprecated"
+              }
+            ],
+            "tags": [
+              "_Deprecated"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

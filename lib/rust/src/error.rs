@@ -185,12 +185,19 @@ impl fmt::Display for Error {
         }
         if let Some(document) = &self.document {
             write!(f, "{document}")?;
-            if let (Some(line), Some(column)) = (self.line, self.column) {
-                write!(f, ":{line}:{column}")?;
+            if let Some(line) = self.line {
+                write!(f, ":{line}")?;
+                if let Some(column) = self.column {
+                    write!(f, ":{column}")?;
+                }
             }
             write!(f, ": ")?;
-        } else if let (Some(line), Some(column)) = (self.line, self.column) {
-            write!(f, "{line}:{column}: ")?;
+        } else if let Some(line) = self.line {
+            write!(f, "{line}")?;
+            if let Some(column) = self.column {
+                write!(f, ":{column}")?;
+            }
+            write!(f, ": ")?;
         }
         if let Some(stage) = &self.stage {
             write!(f, "stage {stage}: ")?;

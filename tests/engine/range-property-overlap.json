@@ -18,7 +18,7 @@
             {
               "read": {
                 "token": 0,
-                "terminal": "_Ll"
+                "terminal": "_General_Category_Lowercase_Letter"
               }
             }
           ]
@@ -46,7 +46,7 @@
             "children": [
               {
                 "kind": "token",
-                "terminal": "_Ll"
+                "terminal": "_General_Category_Lowercase_Letter"
               }
             ]
           }

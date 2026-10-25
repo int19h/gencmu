@@ -1,0 +1,20 @@
+{
+  "description": "Caller tags require valid and available property support.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _\n```",
+    "unicode-properties.txt": "unicode-properties 15.1.0\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "_Script_Latin"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

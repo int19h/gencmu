@@ -1,0 +1,6 @@
+[
+  "extra#one-names.txt",
+  "custom/extra?two-names.txt",
+  "extra%23three-names.txt",
+  "extra\\four-names.txt"
+]

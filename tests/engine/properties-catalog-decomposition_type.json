@@ -1,0 +1,453 @@
+{
+  "description": "Every Decomposition_Type value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17\n%rule r0 $x:_Decomposition_Type_Canonical<_dt_Can>\n%conditions $x ≅ #_dt_Can<_dt_Can>, _dt_Can ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Can\n%rule r1 $x:_Decomposition_Type_Circle<_dt_Enc>\n%conditions $x ≅ #_dt_Enc<_dt_Enc>, _dt_Enc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Enc\n%rule r2 $x:_Decomposition_Type_Compat<_dt_Com>\n%conditions $x ≅ #_dt_Com<_dt_Com>, _dt_Com ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Com\n%rule r3 $x:_Decomposition_Type_Final<_dt_Fin>\n%conditions $x ≅ #_dt_Fin<_dt_Fin>, _dt_Fin ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Fin\n%rule r4 $x:_Decomposition_Type_Font<_dt_Font>\n%conditions $x ≅ #_dt_Font<_dt_Font>, _dt_Font ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Font\n%rule r5 $x:_Decomposition_Type_Fraction<_dt_Fra>\n%conditions $x ≅ #_dt_Fra<_dt_Fra>, _dt_Fra ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Fra\n%rule r6 $x:_Decomposition_Type_Initial<_dt_Init>\n%conditions $x ≅ #_dt_Init<_dt_Init>, _dt_Init ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Init\n%rule r7 $x:_Decomposition_Type_Isolated<_dt_Iso>\n%conditions $x ≅ #_dt_Iso<_dt_Iso>, _dt_Iso ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Iso\n%rule r8 $x:_Decomposition_Type_Medial<_dt_Med>\n%conditions $x ≅ #_dt_Med<_dt_Med>, _dt_Med ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Med\n%rule r9 $x:_Decomposition_Type_Narrow<_dt_Nar>\n%conditions $x ≅ #_dt_Nar<_dt_Nar>, _dt_Nar ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Nar\n%rule r10 $x:_Decomposition_Type_Nobreak<_dt_Nb>\n%conditions $x ≅ #_dt_Nb<_dt_Nb>, _dt_Nb ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Nb\n%rule r11 $x:_Decomposition_Type_None<_dt_None>\n%conditions $x ≅ #_dt_None<_dt_None>, _dt_None ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_None\n%rule r12 $x:_Decomposition_Type_Small<_dt_Sml>\n%conditions $x ≅ #_dt_Sml<_dt_Sml>, _dt_Sml ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Sml\n%rule r13 $x:_Decomposition_Type_Square<_dt_Sqr>\n%conditions $x ≅ #_dt_Sqr<_dt_Sqr>, _dt_Sqr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Sqr\n%rule r14 $x:_Decomposition_Type_Sub<_dt_Sub>\n%conditions $x ≅ #_dt_Sub<_dt_Sub>, _dt_Sub ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Sub\n%rule r15 $x:_Decomposition_Type_Super<_dt_Sup>\n%conditions $x ≅ #_dt_Sup<_dt_Sup>, _dt_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Sup\n%rule r16 $x:_Decomposition_Type_Vertical<_dt_Vert>\n%conditions $x ≅ #_dt_Vert<_dt_Vert>, _dt_Vert ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Vert\n%rule r17 $x:_Decomposition_Type_Wide<_dt_Wide>\n%conditions $x ≅ #_dt_Wide<_dt_Wide>, _dt_Wide ⊆ $x.tags\n%emits $x :: $x.tags ∩ _dt_Wide",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Canonical",
+        "_dt_Can"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Circle",
+        "_dt_Enc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Compat",
+        "_dt_Com"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Final",
+        "_dt_Fin"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Font",
+        "_dt_Font"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Fraction",
+        "_dt_Fra"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Initial",
+        "_dt_Init"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Isolated",
+        "_dt_Iso"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Medial",
+        "_dt_Med"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Narrow",
+        "_dt_Nar"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Nobreak",
+        "_dt_Nb"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_None",
+        "_dt_None"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Small",
+        "_dt_Sml"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Square",
+        "_dt_Sqr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Sub",
+        "_dt_Sub"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Super",
+        "_dt_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Vertical",
+        "_dt_Vert"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Decomposition_Type_Wide",
+        "_dt_Wide"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Decomposition_Type_Canonical"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Circle"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Compat"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Final"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Font"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Fraction"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Initial"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Isolated"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Medial"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Narrow"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Nobreak"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_None"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Small"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Square"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Sub"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Super"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Vertical"
+              ]
+            },
+            {
+              "tags": [
+                "_Decomposition_Type_Wide"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Canonical"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Canonical"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Circle"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Circle"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Compat"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Compat"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Final"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Final"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Font"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Font"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Fraction"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Fraction"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Initial"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Initial"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Isolated"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Isolated"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Medial"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Medial"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Narrow"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Narrow"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Nobreak"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Nobreak"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_None"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_None"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Small"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Small"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Square"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Square"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Sub"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Sub"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Super"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Super"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Vertical"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Vertical"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Decomposition_Type_Wide"
+              }
+            ],
+            "tags": [
+              "_Decomposition_Type_Wide"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

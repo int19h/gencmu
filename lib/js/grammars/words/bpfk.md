@@ -34,7 +34,7 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 ## Words
 
-The phoneme stage supplies phoneme and pause tokens. Normalization gives stressed vowels lowercase values and keeps their `Stressed` tags. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains. A predicate word's final syllable excludes a following name, so it cannot take the front of one.
+The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains. A predicate word's final syllable excludes a following name, so it cannot take the front of one.
 
 The document [forms.md](forms.md) says how words join.
 
@@ -544,41 +544,31 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   ¬$n.following-tokens.begins(cmevla),
   $n.following-tokens.begins(post-word)
 
-%rule stressed-syllable  (* A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:syllable
+%rule stressed-unit(@U)
+  $s:@U
 %conditions
   $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
 
-%rule stressed-diphthong  (* A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:diphthong
-%conditions
-  $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
-
-%rule stressed-vowel  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
-  $s:vowel
-%conditions
-  $s.onward.begins(stressed) ∨ $s.following-tokens.begins(stress)
-
-%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
-  unstressed-plain-syllable | consonantal-syllable
-
-%rule unstressed-plain-syllable  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
-  $s:syllable
+%rule unstressed-unit(@U)
+  $s:@U
 %conditions
   ¬$s.onward.begins(stressed),
   ¬$s.following-tokens.begins(stress)
 
-%rule unstressed-diphthong  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
-  $d:diphthong
-%conditions
-  ¬$d.onward.begins(stressed),
-  ¬$d.following-tokens.begins(stress)
+%rule stressed-syllable = stressed-unit(syllable)  (* A syllable is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
 
-%rule unstressed-vowel  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
-  $v:vowel
-%conditions
-  ¬$v.onward.begins(stressed),
-  ¬$v.following-tokens.begins(stress)
+%rule stressed-diphthong = stressed-unit(diphthong)  (* A diphthong is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+
+%rule stressed-vowel = stressed-unit(vowel)  (* A vowel is stressed by a written mark or its position before the final syllable. One constituent covers both cases. *)
+
+%rule unstressed-syllable  (* An unstressed vowel-bearing syllable has a nucleus. A consonantal syllable has none. Only one kind can complete at a syllable boundary. *)
+  unstressed-plain-syllable | consonantal-syllable
+
+%rule unstressed-plain-syllable = unstressed-unit(syllable)  (* An unstressed syllable has neither a written stress mark nor positional stress. *)
+
+%rule unstressed-diphthong = unstressed-unit(diphthong)  (* An unstressed diphthong has neither a written stress mark nor positional stress. *)
+
+%rule unstressed-vowel = unstressed-unit(vowel)  (* An unstressed vowel has neither a written stress mark nor positional stress. *)
 
 %rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does. *)
   [{consonant | glide}] [h] [y] $s:syllable
@@ -592,8 +582,10 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
+<p><img src="../../docs/diagrams/words/bpfk/stressed-unit.svg" alt="Railroad diagram of the rule stressed-unit"></p>
+<p><img src="../../docs/diagrams/words/bpfk/unstressed-unit.svg" alt="Railroad diagram of the rule unstressed-unit"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-syllable.svg" alt="Railroad diagram of the rule stressed-syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-diphthong.svg" alt="Railroad diagram of the rule stressed-diphthong"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
@@ -844,98 +836,55 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 
 The `letter-ban` hook reads a following syllable-initial apostrophe or glide. Each consonant letter refuses what it reads and the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
+The `consonant-letter` template takes the character and its forbidden targets. Each letter keeps its reference name through a named instance.
+
 ```jbogenbau
 %rule letter-ban  (* Consonant letters cannot precede a syllable-initial apostrophe or glide. *)
   h | glide
 
-%rule l  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
-  $c:"l"
+%rule consonant-letter(@S, @B)
+  $c:@S
 %conditions
-  ¬$c.following-tokens.begins(letter-ban | l)
+  ¬$c.following-tokens.begins(letter-ban | @B)
 
-%rule m  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
-  $c:"m"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | m | z)
+%rule l = consonant-letter("l", l)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
 
-%rule n  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
-  $c:"n"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | n | affricate)
+%rule m = consonant-letter("m", m | z)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids z. *)
 
-%rule r  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
-  $c:"r"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | r)
+%rule n = consonant-letter("n", n | affricate)  (* This consonant applies the shared letter ban and forbids a repeated letter. It forbids an affricate. *)
 
-%rule b  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"b"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | b | unvoiced)
+%rule r = consonant-letter("r", r)  (* This consonant applies the shared letter ban and forbids a repeated letter. *)
 
-%rule d  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"d"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | d | unvoiced)
+%rule b = consonant-letter("b", b | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule g  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"g"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | g | unvoiced)
+%rule d = consonant-letter("d", d | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule v  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
-  $c:"v"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | v | unvoiced)
+%rule g = consonant-letter("g", g | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule j  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
-  $c:"j"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | j | z | unvoiced)
+%rule v = consonant-letter("v", v | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. *)
 
-%rule z  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
-  $c:"z"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | z | j | unvoiced)
+%rule j = consonant-letter("j", j | z | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
 
-%rule s  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
-  $c:"s"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | s | c | voiced)
+%rule z = consonant-letter("z", z | j | unvoiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
 
-%rule c  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
-  $c:"c"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | c | s | x | voiced)
+%rule s = consonant-letter("s", s | c | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c. *)
 
-%rule x  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
-  $c:"x"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | x | c | k | voiced)
+%rule c = consonant-letter("c", c | s | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
 
-%rule k  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
-  $c:"k"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | k | x | voiced)
+%rule x = consonant-letter("x", x | c | k | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
 
-%rule f  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
-  $c:"f"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | f | voiced)
+%rule k = consonant-letter("k", k | x | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. It forbids x. *)
 
-%rule p  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
-  $c:"p"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | p | voiced)
+%rule f = consonant-letter("f", f | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
 
-%rule t  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
-  $c:"t"
-%conditions
-  ¬$c.following-tokens.begins(letter-ban | t | voiced)
+%rule p = consonant-letter("p", p | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
+
+%rule t = consonant-letter("t", t | voiced)  (* This consonant applies the shared letter ban and forbids a repeated letter. It also forbids a voiced consonant. *)
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>letter-ban</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>letter-ban</code> to <code>t</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/letter-ban.svg" alt="Railroad diagram of the rule letter-ban"></p>
+<p><img src="../../docs/diagrams/words/bpfk/consonant-letter.svg" alt="Railroad diagram of the rule consonant-letter"></p>
 <p><img src="../../docs/diagrams/words/bpfk/l.svg" alt="Railroad diagram of the rule l"></p>
 <p><img src="../../docs/diagrams/words/bpfk/m.svg" alt="Railroad diagram of the rule m"></p>
 <p><img src="../../docs/diagrams/words/bpfk/n.svg" alt="Railroad diagram of the rule n"></p>

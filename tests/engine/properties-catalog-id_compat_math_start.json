@@ -1,0 +1,44 @@
+{
+  "description": "Every ID_Compat_Math_Start value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_ID_Compat_Math_Start<_ID_Compat_Math_Start>\n%conditions $x ≅ #_ID_Compat_Math_Start<_ID_Compat_Math_Start>, _ID_Compat_Math_Start ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ID_Compat_Math_Start",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_ID_Compat_Math_Start"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_ID_Compat_Math_Start"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_ID_Compat_Math_Start"
+              }
+            ],
+            "tags": [
+              "_ID_Compat_Math_Start"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

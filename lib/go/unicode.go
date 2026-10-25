@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,11 +14,19 @@ import (
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
-	categories     []categoryRange
-	whiteSpace     [][2]rune
-	decompositions map[rune][]rune
-	combining      []combiningRange
-	hash           string
+	categories             []categoryRange
+	whiteSpace             [][2]rune
+	emojiPresentation      [][2]rune
+	emojiComponent         [][2]rune
+	decompositions         map[rune][]rune
+	combining              []combiningRange
+	abbreviations          map[string]rune
+	canonicalAbbreviations map[rune]string
+	hash                   string
+	propertiesHash         string
+	version                string
+	versionCount           int
+	properties             map[string]*propertyData
 }
 
 type combiningRange struct {
@@ -41,7 +50,7 @@ var categoryNames = []string{
 // General_Category values in their short form, their one-letter groups,
 // White_Space and Any.
 var propertyNames = func() map[string]bool {
-	m := map[string]bool{"L": true, "M": true, "N": true, "P": true, "S": true, "Z": true, "C": true, "White_Space": true, "Any": true}
+	m := map[string]bool{"L": true, "M": true, "N": true, "P": true, "S": true, "Z": true, "C": true, "White_Space": true, "Any": true, "Emoji_Presentation": true, "Emoji_Component": true}
 	for _, c := range categoryNames {
 		m[c] = true
 	}
@@ -49,24 +58,68 @@ var propertyNames = func() map[string]bool {
 }()
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
-	t := &unicodeTable{decompositions: map[rune][]rune{}, hash: fnv1a64(text)}
+	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
 	hex := func(s string) (rune, error) {
-		v, err := strconv.ParseUint(s, 16, 32)
+		for _, c := range s {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+				return 0, fmt.Errorf("bad hexadecimal field %q", s)
+			}
+		}
+		digits := strings.TrimLeft(s, "0")
+		if len(digits) > 6 {
+			return 0, fmt.Errorf("bad code point %q", s)
+		}
+		if digits == "" {
+			digits = "0"
+		}
+		v, err := strconv.ParseUint(digits, 16, 32)
+		if v > 0x10ffff {
+			return 0, fmt.Errorf("bad code point %q", s)
+		}
 		return rune(v), err
 	}
-	for n, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+	lines := strings.Split(text, "\n")
+	for n, line := range lines {
+		if n < len(lines)-1 {
+			line = strings.TrimSuffix(line, "\r")
+		}
+		f := strings.FieldsFunc(line, func(c rune) bool { return c == ' ' || c == '\t' })
+		if len(f) == 0 {
 			continue
 		}
-		f := strings.Fields(line)
 		want := 3
 		switch f[0] {
 		case "unicode":
+			if len(f) != 2 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected 2 fields", n+1)
+			}
+			t.version = f[1]
+			t.versionCount++
+			continue
+		case "abbreviation":
+			if len(f) != 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected 3 fields", n+1)
+			}
+			code, err := hex(f[1])
+			alias := f[2]
+			valid := len(alias) > 0 && alias[0] >= 'A' && alias[0] <= 'Z'
+			for _, c := range alias {
+				valid = valid && (c >= 'A' && c <= 'Z' || c >= '0' && c <= '9')
+			}
+			_, duplicate := t.abbreviations[alias]
+			pinned, standard := pinnedCoreNames[alias]
+			if err != nil || code >= 0xd800 && code <= 0xdfff || !valid || duplicate || standard && pinned != code {
+				return nil, fmt.Errorf("unicode.txt line %d: an invalid abbreviation", n+1)
+			}
+			t.abbreviations[alias] = code
+			earlier, found := t.canonicalAbbreviations[code]
+			if !found || len(alias) < len(earlier) || len(alias) == len(earlier) && alias < earlier {
+				t.canonicalAbbreviations[code] = alias
+			}
 			continue
 		case "decompose":
-			if len(f) < 3 || len(f) > 6 {
-				return nil, fmt.Errorf("unicode.txt line %d: expected 3 to 6 fields", n+1)
+			if len(f) < 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: expected at least 3 fields", n+1)
 			}
 			scalars := make([]rune, len(f)-1)
 			for i, field := range f[1:] {
@@ -80,7 +133,7 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			continue
 		case "category", "combining":
 			want = 4
-		case "white-space":
+		case "white-space", "emoji-presentation", "emoji-component":
 		default:
 			return nil, fmt.Errorf("unicode.txt line %d: unknown entry %q", n+1, f[0])
 		}
@@ -89,22 +142,40 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		}
 		a, err1 := hex(f[want-2])
 		b, err2 := hex(f[want-1])
-		if err1 != nil || err2 != nil {
+		if err1 != nil || err2 != nil || a > b {
 			return nil, fmt.Errorf("unicode.txt line %d: bad code point", n+1)
 		}
 		switch f[0] {
 		case "category":
+			if !slices.Contains(categoryNames, f[1]) {
+				return nil, fmt.Errorf("unicode.txt line %d: bad category", n+1)
+			}
 			t.categories = append(t.categories, categoryRange{a, b, f[1]})
 		case "combining":
-			class, err := strconv.Atoi(f[1])
+			for _, c := range f[1] {
+				if c < '0' || c > '9' {
+					return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+				}
+			}
+			digits := strings.TrimLeft(f[1], "0")
+			if len(digits) > 3 {
+				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+			}
+			class, err := strconv.Atoi(digits)
 			if err != nil || class < 1 || class > 254 {
 				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
 			}
 			t.combining = append(t.combining, combiningRange{a, b, class})
+		case "emoji-presentation":
+			t.emojiPresentation = append(t.emojiPresentation, [2]rune{a, b})
+		case "emoji-component":
+			t.emojiComponent = append(t.emojiComponent, [2]rune{a, b})
 		case "white-space":
 			t.whiteSpace = append(t.whiteSpace, [2]rune{a, b})
 		}
 	}
+	t.emojiPresentation = unionUnicodeRanges(t.emojiPresentation)
+	t.emojiComponent = unionUnicodeRanges(t.emojiComponent)
 	sort.Slice(t.categories, func(i, j int) bool { return t.categories[i].start < t.categories[j].start })
 	sort.Slice(t.whiteSpace, func(i, j int) bool { return t.whiteSpace[i][0] < t.whiteSpace[j][0] })
 	sort.Slice(t.combining, func(i, j int) bool { return t.combining[i].start < t.combining[j].start })
@@ -143,6 +214,10 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	switch {
 	case name == "Any":
 		return true
+	case name == "Emoji_Presentation":
+		return inUnicodeRanges(t.emojiPresentation, c)
+	case name == "Emoji_Component":
+		return inUnicodeRanges(t.emojiComponent, c)
 	case name == "White_Space":
 		return t.isWhiteSpace(c)
 	case len(name) == 1:
@@ -227,4 +302,28 @@ func (t *unicodeTable) decompose(text string) string {
 func (t *unicodeTable) changesInDocument(c rune) bool {
 	_, mapped := t.decompositions[c]
 	return mapped || c >= 0xac00 && c <= 0xd7a3 || t.combiningClass(c) != 0
+}
+
+func inUnicodeRanges(ranges [][2]rune, c rune) bool {
+	i := sort.Search(len(ranges), func(i int) bool { return ranges[i][1] >= c })
+	return i < len(ranges) && ranges[i][0] <= c
+}
+func (t *unicodeTable) isEmojiName(name string) bool {
+	chars := []rune(name)
+	return name != "#" && name != "@" && len(chars) == 1 && t.hasProperty("Emoji_Presentation", chars[0]) && !t.hasProperty("Emoji_Component", chars[0])
+}
+
+// unionUnicodeRanges merges overlapping and adjacent property records.
+func unionUnicodeRanges(ranges [][2]rune) [][2]rune {
+	sort.Slice(ranges, func(i, j int) bool { return ranges[i][0] < ranges[j][0] })
+	union := ranges[:0]
+	for _, interval := range ranges {
+		last := len(union) - 1
+		if last >= 0 && interval[0] <= union[last][1]+1 {
+			union[last][1] = max(union[last][1], interval[1])
+		} else {
+			union = append(union, interval)
+		}
+	}
+	return union
 }

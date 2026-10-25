@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="654" height="814" viewBox="0 0 654 814" role="img" aria-label="Railroad diagram of the rule sumti-6">
+<svg xmlns="http://www.w3.org/2000/svg" width="670" height="814" viewBox="0 0 670 814" role="img" aria-label="Railroad diagram of the rule sumti-6">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">sumti-6</text>
@@ -8,155 +8,155 @@
 <path d="M40 72h20"/>
 <g class="terminal"><rect x="60" y="60" width="50" height="24" rx="12"/><text x="85" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">LAhE</text></g>
 <path d="M110 72h10"/>
-<g class="rule"><rect x="120" y="60" width="25" height="24" rx="0"/><text x="132.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M145 72H208"/>
+<g class="rule"><rect x="120" y="60" width="33" height="24" rx="0"/><text x="136.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M153 72H216"/>
 <path d="M40 72a10 10 0 0 1 10 10V96a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="94" width="50" height="24" rx="12"/><text x="85" y="111" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M110 106h10"/>
 <g class="terminal"><rect x="120" y="94" width="33" height="24" rx="12"/><text x="136.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M153 106h10"/>
-<g class="rule"><rect x="163" y="94" width="25" height="24" rx="0"/><text x="175.5" y="111" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M188 106H188a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="163" y="94" width="33" height="24" rx="0"/><text x="179.5" y="111" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M196 106H196a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M40 72a10 10 0 0 1 10 10V130a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="128" width="50" height="24" rx="12"/><text x="85" y="145" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M110 140h10"/>
-<g class="rule"><rect x="120" y="128" width="25" height="24" rx="0"/><text x="132.5" y="145" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M145 140H188a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
-<path d="M208 72h10"/>
-<path d="M218 72h20"/>
-<g class="rule"><rect x="238" y="60" width="151" height="24" rx="0"/><text x="313.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
-<path d="M389 72H409"/>
-<path d="M218 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H389a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<path d="M409 72h10"/>
-<g class="rule"><rect x="419" y="60" width="58" height="24" rx="0"/><text x="448" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
-<path d="M477 72h10"/>
-<path d="M487 72h20"/>
-<g class="terminal"><rect x="507" y="60" width="50" height="24" rx="12"/><text x="532" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
-<path d="M557 72H579"/>
-<path d="M487 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H559a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<text class="label" x="511" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M579 72h10"/>
-<g class="rule"><rect x="589" y="60" width="25" height="24" rx="0"/><text x="601.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M614 72H634"/>
+<g class="rule"><rect x="120" y="128" width="33" height="24" rx="0"/><text x="136.5" y="145" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M153 140H196a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M216 72h10"/>
+<path d="M226 72h20"/>
+<g class="rule"><rect x="246" y="60" width="151" height="24" rx="0"/><text x="321.5" y="77" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
+<path d="M397 72H417"/>
+<path d="M226 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H397a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<path d="M417 72h10"/>
+<g class="rule"><rect x="427" y="60" width="58" height="24" rx="0"/><text x="456" y="77" textLength="42" lengthAdjust="spacingAndGlyphs">sumti</text></g>
+<path d="M485 72h10"/>
+<path d="M495 72h20"/>
+<g class="terminal"><rect x="515" y="60" width="50" height="24" rx="12"/><text x="540" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
+<path d="M565 72H587"/>
+<path d="M495 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H567a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="519" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M587 72h10"/>
+<g class="rule"><rect x="597" y="60" width="33" height="24" rx="0"/><text x="613.5" y="77" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M630 72H650"/>
 <path d="M20 72a10 10 0 0 1 10 10V190a10 10 0 0 0 10 10"/>
 <path d="M40 200h20"/>
 <g class="terminal"><rect x="60" y="188" width="50" height="24" rx="12"/><text x="85" y="205" textLength="33.6" lengthAdjust="spacingAndGlyphs">LAhE</text></g>
 <path d="M110 200h10"/>
-<g class="rule"><rect x="120" y="188" width="25" height="24" rx="0"/><text x="132.5" y="205" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M145 200H208"/>
+<g class="rule"><rect x="120" y="188" width="33" height="24" rx="0"/><text x="136.5" y="205" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M153 200H216"/>
 <path d="M40 200a10 10 0 0 1 10 10V224a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="222" width="50" height="24" rx="12"/><text x="85" y="239" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M110 234h10"/>
 <g class="terminal"><rect x="120" y="222" width="33" height="24" rx="12"/><text x="136.5" y="239" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M153 234h10"/>
-<g class="rule"><rect x="163" y="222" width="25" height="24" rx="0"/><text x="175.5" y="239" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M188 234H188a10 10 0 0 0 10 -10V210a10 10 0 0 1 10 -10"/>
-<path d="M208 200h10"/>
-<g class="rule"><rect x="218" y="188" width="50" height="24" rx="0"/><text x="243" y="205" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
-<path d="M268 200h10"/>
-<path d="M278 200h20"/>
-<g class="terminal"><rect x="298" y="188" width="50" height="24" rx="12"/><text x="323" y="205" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
-<path d="M348 200H370"/>
-<path d="M278 200a10 10 0 0 0 10 -10V188a10 10 0 0 1 10 -10H350a10 10 0 0 1 10 10V190a10 10 0 0 0 10 10"/>
-<text class="label" x="302" y="173" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M370 200h10"/>
-<g class="rule"><rect x="380" y="188" width="25" height="24" rx="0"/><text x="392.5" y="205" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M405 200H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="163" y="222" width="33" height="24" rx="0"/><text x="179.5" y="239" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M196 234H196a10 10 0 0 0 10 -10V210a10 10 0 0 1 10 -10"/>
+<path d="M216 200h10"/>
+<g class="rule"><rect x="226" y="188" width="50" height="24" rx="0"/><text x="251" y="205" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
+<path d="M276 200h10"/>
+<path d="M286 200h20"/>
+<g class="terminal"><rect x="306" y="188" width="50" height="24" rx="12"/><text x="331" y="205" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
+<path d="M356 200H378"/>
+<path d="M286 200a10 10 0 0 0 10 -10V188a10 10 0 0 1 10 -10H358a10 10 0 0 1 10 10V190a10 10 0 0 0 10 10"/>
+<text class="label" x="310" y="173" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M378 200h10"/>
+<g class="rule"><rect x="388" y="188" width="33" height="24" rx="0"/><text x="404.5" y="205" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M421 200H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V284a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="282" width="50" height="24" rx="12"/><text x="65" y="299" textLength="33.6" lengthAdjust="spacingAndGlyphs">NAhE</text></g>
 <path d="M90 294h10"/>
-<g class="rule"><rect x="100" y="282" width="25" height="24" rx="0"/><text x="112.5" y="299" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 294h10"/>
-<g class="rule"><rect x="135" y="282" width="50" height="24" rx="0"/><text x="160" y="299" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
-<path d="M185 294h10"/>
-<path d="M195 294h20"/>
-<g class="terminal"><rect x="215" y="282" width="50" height="24" rx="12"/><text x="240" y="299" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
-<path d="M265 294H287"/>
-<path d="M195 294a10 10 0 0 0 10 -10V282a10 10 0 0 1 10 -10H267a10 10 0 0 1 10 10V284a10 10 0 0 0 10 10"/>
-<text class="label" x="219" y="267" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M287 294h10"/>
-<g class="rule"><rect x="297" y="282" width="25" height="24" rx="0"/><text x="309.5" y="299" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M322 294H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="100" y="282" width="33" height="24" rx="0"/><text x="116.5" y="299" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 294h10"/>
+<g class="rule"><rect x="143" y="282" width="50" height="24" rx="0"/><text x="168" y="299" textLength="33.6" lengthAdjust="spacingAndGlyphs">term</text></g>
+<path d="M193 294h10"/>
+<path d="M203 294h20"/>
+<g class="terminal"><rect x="223" y="282" width="50" height="24" rx="12"/><text x="248" y="299" textLength="33.6" lengthAdjust="spacingAndGlyphs">LUhU</text></g>
+<path d="M273 294H295"/>
+<path d="M203 294a10 10 0 0 0 10 -10V282a10 10 0 0 1 10 -10H275a10 10 0 0 1 10 10V284a10 10 0 0 0 10 10"/>
+<text class="label" x="227" y="267" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M295 294h10"/>
+<g class="rule"><rect x="305" y="282" width="33" height="24" rx="0"/><text x="321.5" y="299" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M338 294H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V318a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="316" width="50" height="24" rx="12"/><text x="65" y="333" textLength="33.6" lengthAdjust="spacingAndGlyphs">KOhA</text></g>
 <path d="M90 328h10"/>
-<g class="rule"><rect x="100" y="316" width="25" height="24" rx="0"/><text x="112.5" y="333" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 328H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="100" y="316" width="33" height="24" rx="0"/><text x="116.5" y="333" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 328H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V352a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="350" width="117" height="24" rx="0"/><text x="98.5" y="367" textLength="100.8" lengthAdjust="spacingAndGlyphs">lerfu-string</text></g>
 <path d="M157 362h10"/>
 <g class="rule"><rect x="167" y="350" width="210" height="24" rx="0"/><text x="272" y="367" textLength="193.2" lengthAdjust="spacingAndGlyphs">free-after-lerfu-string</text></g>
-<path d="M377 362H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M377 362H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V396a10 10 0 0 0 10 10"/>
 <path d="M40 406h44"/>
 <text class="label" x="44" y="401" textLength="36" lengthAdjust="spacingAndGlyphs">¬cbm?</text>
 <path d="M84 406h10"/>
 <g class="rule"><rect x="94" y="394" width="109" height="24" rx="0"/><text x="148.5" y="411" textLength="92.4" lengthAdjust="spacingAndGlyphs">name-marker</text></g>
 <path d="M203 406h10"/>
-<g class="rule"><rect x="213" y="394" width="25" height="24" rx="0"/><text x="225.5" y="411" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M238 406h10"/>
-<path d="M248 406h20"/>
-<g class="rule"><rect x="268" y="394" width="151" height="24" rx="0"/><text x="343.5" y="411" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
-<path d="M419 406H439"/>
-<path d="M248 406a10 10 0 0 0 10 -10V394a10 10 0 0 1 10 -10H419a10 10 0 0 1 10 10V396a10 10 0 0 0 10 10"/>
-<path d="M439 406h10"/>
-<path d="M449 406h20"/>
-<g class="terminal"><rect x="469" y="394" width="67" height="24" rx="12"/><text x="502.5" y="411" textLength="50.4" lengthAdjust="spacingAndGlyphs">CMEVLA</text></g>
-<path d="M536 406H556"/>
-<path d="M536 406a10 10 0 0 1 10 10V418a10 10 0 0 1 -10 10H469a10 10 0 0 1 -10 -10V416a10 10 0 0 1 10 -10"/>
-<path d="M556 406h10"/>
-<g class="rule"><rect x="566" y="394" width="25" height="24" rx="0"/><text x="578.5" y="411" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M591 406H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="213" y="394" width="33" height="24" rx="0"/><text x="229.5" y="411" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M246 406h10"/>
+<path d="M256 406h20"/>
+<g class="rule"><rect x="276" y="394" width="151" height="24" rx="0"/><text x="351.5" y="411" textLength="134.4" lengthAdjust="spacingAndGlyphs">relative-clauses</text></g>
+<path d="M427 406H447"/>
+<path d="M256 406a10 10 0 0 0 10 -10V394a10 10 0 0 1 10 -10H427a10 10 0 0 1 10 10V396a10 10 0 0 0 10 10"/>
+<path d="M447 406h10"/>
+<path d="M457 406h20"/>
+<g class="terminal"><rect x="477" y="394" width="67" height="24" rx="12"/><text x="510.5" y="411" textLength="50.4" lengthAdjust="spacingAndGlyphs">CMEVLA</text></g>
+<path d="M544 406H564"/>
+<path d="M544 406a10 10 0 0 1 10 10V418a10 10 0 0 1 -10 10H477a10 10 0 0 1 -10 -10V416a10 10 0 0 1 10 -10"/>
+<path d="M564 406h10"/>
+<g class="rule"><rect x="574" y="394" width="33" height="24" rx="0"/><text x="590.5" y="411" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M607 406H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V466a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="464" width="33" height="24" rx="12"/><text x="56.5" y="481" textLength="16.8" lengthAdjust="spacingAndGlyphs">LE</text></g>
 <path d="M73 476h10"/>
-<g class="rule"><rect x="83" y="464" width="25" height="24" rx="0"/><text x="95.5" y="481" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M108 476h10"/>
-<g class="rule"><rect x="118" y="464" width="100" height="24" rx="0"/><text x="168" y="481" textLength="84" lengthAdjust="spacingAndGlyphs">sumti-tail</text></g>
-<path d="M218 476h10"/>
-<path d="M228 476h20"/>
-<g class="terminal"><rect x="248" y="464" width="33" height="24" rx="12"/><text x="264.5" y="481" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
-<path d="M281 476H320"/>
-<path d="M228 476a10 10 0 0 0 10 -10V464a10 10 0 0 1 10 -10H300a10 10 0 0 1 10 10V466a10 10 0 0 0 10 10"/>
-<text class="label" x="252" y="449" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M320 476h10"/>
-<g class="rule"><rect x="330" y="464" width="25" height="24" rx="0"/><text x="342.5" y="481" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M355 476H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="83" y="464" width="33" height="24" rx="0"/><text x="99.5" y="481" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 476h10"/>
+<g class="rule"><rect x="126" y="464" width="100" height="24" rx="0"/><text x="176" y="481" textLength="84" lengthAdjust="spacingAndGlyphs">sumti-tail</text></g>
+<path d="M226 476h10"/>
+<path d="M236 476h20"/>
+<g class="terminal"><rect x="256" y="464" width="33" height="24" rx="12"/><text x="272.5" y="481" textLength="16.8" lengthAdjust="spacingAndGlyphs">KU</text></g>
+<path d="M289 476H328"/>
+<path d="M236 476a10 10 0 0 0 10 -10V464a10 10 0 0 1 10 -10H308a10 10 0 0 1 10 10V466a10 10 0 0 0 10 10"/>
+<text class="label" x="260" y="449" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M328 476h10"/>
+<g class="rule"><rect x="338" y="464" width="33" height="24" rx="0"/><text x="354.5" y="481" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M371 476H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V526a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="524" width="58" height="24" rx="12"/><text x="69" y="541" textLength="42" lengthAdjust="spacingAndGlyphs">LOhOI</text></g>
 <path d="M98 536h10"/>
-<g class="rule"><rect x="108" y="524" width="25" height="24" rx="0"/><text x="120.5" y="541" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M133 536h10"/>
-<g class="rule"><rect x="143" y="524" width="109" height="24" rx="0"/><text x="197.5" y="541" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
-<path d="M252 536h10"/>
-<path d="M262 536h20"/>
-<g class="terminal"><rect x="282" y="524" width="58" height="24" rx="12"/><text x="311" y="541" textLength="42" lengthAdjust="spacingAndGlyphs">KUhAU</text></g>
-<path d="M340 536H360"/>
-<path d="M262 536a10 10 0 0 0 10 -10V524a10 10 0 0 1 10 -10H340a10 10 0 0 1 10 10V526a10 10 0 0 0 10 10"/>
-<text class="label" x="286" y="509" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M360 536h10"/>
-<g class="rule"><rect x="370" y="524" width="25" height="24" rx="0"/><text x="382.5" y="541" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M395 536H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="108" y="524" width="33" height="24" rx="0"/><text x="124.5" y="541" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M141 536h10"/>
+<g class="rule"><rect x="151" y="524" width="109" height="24" rx="0"/><text x="205.5" y="541" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
+<path d="M260 536h10"/>
+<path d="M270 536h20"/>
+<g class="terminal"><rect x="290" y="524" width="58" height="24" rx="12"/><text x="319" y="541" textLength="42" lengthAdjust="spacingAndGlyphs">KUhAU</text></g>
+<path d="M348 536H368"/>
+<path d="M270 536a10 10 0 0 0 10 -10V524a10 10 0 0 1 10 -10H348a10 10 0 0 1 10 10V526a10 10 0 0 0 10 10"/>
+<text class="label" x="294" y="509" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M368 536h10"/>
+<g class="rule"><rect x="378" y="524" width="33" height="24" rx="0"/><text x="394.5" y="541" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M411 536H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V586a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="584" width="33" height="24" rx="12"/><text x="56.5" y="601" textLength="16.8" lengthAdjust="spacingAndGlyphs">LI</text></g>
 <path d="M73 596h10"/>
-<g class="rule"><rect x="83" y="584" width="25" height="24" rx="0"/><text x="95.5" y="601" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M108 596h10"/>
-<g class="rule"><rect x="118" y="584" width="42" height="24" rx="0"/><text x="139" y="601" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
-<path d="M160 596h10"/>
-<path d="M170 596h20"/>
-<g class="terminal"><rect x="190" y="584" width="50" height="24" rx="12"/><text x="215" y="601" textLength="33.6" lengthAdjust="spacingAndGlyphs">LOhO</text></g>
-<path d="M240 596H262"/>
-<path d="M170 596a10 10 0 0 0 10 -10V584a10 10 0 0 1 10 -10H242a10 10 0 0 1 10 10V586a10 10 0 0 0 10 10"/>
-<text class="label" x="194" y="569" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M262 596h10"/>
-<g class="rule"><rect x="272" y="584" width="25" height="24" rx="0"/><text x="284.5" y="601" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M297 596H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="83" y="584" width="33" height="24" rx="0"/><text x="99.5" y="601" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 596h10"/>
+<g class="rule"><rect x="126" y="584" width="42" height="24" rx="0"/><text x="147" y="601" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
+<path d="M168 596h10"/>
+<path d="M178 596h20"/>
+<g class="terminal"><rect x="198" y="584" width="50" height="24" rx="12"/><text x="223" y="601" textLength="33.6" lengthAdjust="spacingAndGlyphs">LOhO</text></g>
+<path d="M248 596H270"/>
+<path d="M178 596a10 10 0 0 0 10 -10V584a10 10 0 0 1 10 -10H250a10 10 0 0 1 10 10V586a10 10 0 0 0 10 10"/>
+<text class="label" x="202" y="569" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M270 596h10"/>
+<g class="rule"><rect x="280" y="584" width="33" height="24" rx="0"/><text x="296.5" y="601" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M313 596H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V620a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="618" width="33" height="24" rx="12"/><text x="56.5" y="635" textLength="16.8" lengthAdjust="spacingAndGlyphs">ZO</text></g>
 <path d="M73 630h10"/>
-<g class="rule"><rect x="83" y="618" width="25" height="24" rx="0"/><text x="95.5" y="635" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M108 630H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="83" y="618" width="33" height="24" rx="0"/><text x="99.5" y="635" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 630H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V680a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="678" width="33" height="24" rx="12"/><text x="56.5" y="695" textLength="16.8" lengthAdjust="spacingAndGlyphs">LU</text></g>
 <path d="M73 690h10"/>
@@ -168,22 +168,22 @@
 <path d="M143 690a10 10 0 0 0 10 -10V678a10 10 0 0 1 10 -10H215a10 10 0 0 1 10 10V680a10 10 0 0 0 10 10"/>
 <text class="label" x="167" y="663" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
 <path d="M235 690h10"/>
-<g class="rule"><rect x="245" y="678" width="25" height="24" rx="0"/><text x="257.5" y="695" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M270 690H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="245" y="678" width="33" height="24" rx="0"/><text x="261.5" y="695" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M278 690H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V714a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="712" width="50" height="24" rx="12"/><text x="65" y="729" textLength="33.6" lengthAdjust="spacingAndGlyphs">LOhU</text></g>
 <path d="M90 724h10"/>
-<g class="rule"><rect x="100" y="712" width="25" height="24" rx="0"/><text x="112.5" y="729" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M125 724H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="100" y="712" width="33" height="24" rx="0"/><text x="116.5" y="729" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M133 724H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V748a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="746" width="42" height="24" rx="12"/><text x="61" y="763" textLength="25.2" lengthAdjust="spacingAndGlyphs">ZOI</text></g>
 <path d="M82 758h10"/>
-<g class="rule"><rect x="92" y="746" width="25" height="24" rx="0"/><text x="104.5" y="763" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M117 758H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="92" y="746" width="33" height="24" rx="0"/><text x="108.5" y="763" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M125 758H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V782a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="780" width="58" height="24" rx="12"/><text x="69" y="797" textLength="42" lengthAdjust="spacingAndGlyphs">ZOhOI</text></g>
 <path d="M98 792h10"/>
-<g class="rule"><rect x="108" y="780" width="25" height="24" rx="0"/><text x="120.5" y="797" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M133 792H614a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
-<path d="M634 72h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="108" y="780" width="33" height="24" rx="0"/><text x="124.5" y="797" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M141 792H630a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M650 72h6m0 -8v16m4 -16v16"/>
 </svg>

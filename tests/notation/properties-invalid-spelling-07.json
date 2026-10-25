@@ -1,0 +1,10 @@
+{
+  "description": "_LC is outside the designated alias columns.",
+  "document": "```jbogenbau\n%rule text _LC\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

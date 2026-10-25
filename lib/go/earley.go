@@ -224,6 +224,9 @@ const (
 )
 
 type recognizer struct {
+	suffix                                *suffixState
+	scans                                 []*item
+	scanIndex                             int
 	boundarySeen                          map[*boundaryRecord]bool
 	boundaryTagActive, boundaryTagInvalid bool
 	nextBoundaryTags                      *tagset
@@ -473,16 +476,37 @@ func (r *recognizer) resume() *nestedQuery {
 // nextEntry takes the next entry of the queue, from the next set once one
 // is done, and readies its step: false when the recognition is over.
 func (r *recognizer) nextEntry() bool {
-	for r.at <= r.n && r.at < len(r.sets) {
+	for r.at <= r.n && (r.suffix != nil || r.at < len(r.sets)) {
 		k := r.at
-		s := r.sets[k]
+		s := r.set(k)
 		if !r.entered {
 			if len(s.items) > 0 {
 				r.furthest = k
 			}
 			r.entered = true
+			if r.suffix != nil {
+				r.scans, r.scanIndex = nil, 0
+				r.suffix.errorAt = r.base + k
+				if r.beginPredict(s, r.startRule, false, false) {
+					r.step = step{kind: stepPredict, rule: r.startRule, k: k}
+					return true
+				}
+			}
 		}
 		if s.head == len(s.queue) {
+			if r.suffix != nil {
+				r.retainSuffix(k)
+				if k == r.n {
+					return false
+				}
+				for r.scanIndex < len(r.scans) {
+					it := r.scans[r.scanIndex]
+					r.scanIndex++
+					if r.scan(k, it) {
+						return true
+					}
+				}
+			}
 			s.queue, s.head = nil, 0
 			r.at, r.entered = k+1, false
 			continue
@@ -556,6 +580,9 @@ func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, requested bo
 // goes on in its conditions when the step does.
 func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	k, strict := st.k, st.strict
+	if r.suffix != nil {
+		r.suffix.errorAt = r.base + k
+	}
 	var reading *readingSets
 	if r.recon != nil {
 		reading = r.recon.reading
@@ -574,7 +601,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 			if strict && reading.last[baseProduction(p)] < 0 {
 				continue
 			}
-			if len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+			if r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
 				continue
 			}
 		}
@@ -844,27 +871,13 @@ func (r *recognizer) process(k int, it *item) bool {
 	if int(it.dot) < len(p.rhs) {
 		sym := p.rhs[it.dot]
 		if sym.term {
-			// Strictness never holds back a read, so an item processed
-			// again has read already.
-			if k < r.n && !again {
-				ts := r.tokenTags(k)
-				if r.reads(k, sym.id) {
-					// In the check, a terminal that reads a synthetic token
-					// captures no tags (§7.5). The written route of an
-					// elidable optional from a synthetic token makes the item
-					// after T strict (§7.4).
-					tags, strict := ts.id, false
-					if r.recon != nil && r.recon.synthetic[k] {
-						tags = r.run.ps.in.empty().id
-						strict = it.dot == 0 && r.recon.reading.elidable[p.lhs] && !r.run.ps.fault("route3")
-					}
-					st := &r.step
-					st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
-					st.cv, st.l = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(p, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id])}, link{prev: it, tok: int32(k), term: sym.id}
-					return true
+			if r.suffix != nil {
+				if !again {
+					r.scans = append(r.scans, it)
 				}
+				return false
 			}
-			return false
+			return !again && r.scan(k, it)
 		}
 		lexical := r.rankedEntry(it, sym.id)
 		requested := r.requestsChild(p, int(it.dot), k)
@@ -900,6 +913,9 @@ func (r *recognizer) process(k int, it *item) bool {
 // a nested parse, before the step records anything. Called again, it goes
 // on with them from where they halted.
 func (r *recognizer) complete(k int, it *item) *nestedQuery {
+	if r.suffix != nil {
+		r.suffix.errorAt = r.base + k
+	}
 	p := it.prod
 	s := r.sets[k]
 	in := r.run.ps.in
@@ -969,6 +985,9 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 // query and keeps its place in r.adv. Called again with the same
 // arguments, it goes on from that condition, in the walk that halted.
 func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *nestedQuery {
+	if r.suffix != nil {
+		r.suffix.errorAt = r.base + k
+	}
 	p := it.prod
 	var key itemKey
 	var whole *lazyTags

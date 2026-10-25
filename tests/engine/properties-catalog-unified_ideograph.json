@@ -1,0 +1,45 @@
+{
+  "description": "Every Unified_Ideograph value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Unified_Ideograph<_Unified_Ideograph>\n%conditions $x ≅ #_Unified_Ideograph<_Unified_Ideograph>, _Unified_Ideograph ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Unified_Ideograph",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_UIdeo",
+        "_Unified_Ideograph"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Unified_Ideograph"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Unified_Ideograph"
+              }
+            ],
+            "tags": [
+              "_Unified_Ideograph"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

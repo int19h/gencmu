@@ -12,11 +12,11 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := bundled.sources["compiled.json"]
-	if len(readCompiled(text, bundled.reader.hash, bundled.uni.hash)) == 0 {
+	if len(readCompiled(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) == 0 {
 		t.Fatal("bundled cache missed")
 	}
 	for _, hash := range []string{"", "0000000000000000"} {
-		if len(readCompiled(text, bundled.reader.hash, hash)) != 0 {
+		if len(readCompiled(text, bundled.reader.hash, hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) != 0 {
 			t.Fatalf("used cache under Unicode hash %q", hash)
 		}
 	}
@@ -29,7 +29,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(readCompiled(string(old), bundled.reader.hash, bundled.uni.hash)) != 0 {
+	if len(readCompiled(string(old), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) != 0 {
 		t.Fatal("used cache without Unicode identity")
 	}
 
@@ -39,7 +39,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 		t.Fatal(failure)
 	}
 	cache, err := json.Marshal(map[string]any{
-		"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash,
+		"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["unicode-properties.txt"]),
 		"documents": map[string]any{"g.md": map[string]any{"hash": fnv1a64(sources["g.md"]), "dom": json.RawMessage(dom.json())}},
 	})
 	if err != nil {
@@ -61,7 +61,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 
 func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	t.Parallel()
-	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"e\" $_0301")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"e\" \"‹U+0301›\"")
 	sources["p.md"] = strings.ReplaceAll(sources["p.md"], "g.md", "café.md")
 	sources["café.md"] = sources["g.md"]
 	delete(sources, "g.md")
@@ -72,14 +72,14 @@ func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	doc := "```jbogenbau\n%const $S \"é$é\" ++ $_0301 ++ \"é\" ++ $_0323\n%rule text $S\n```"
+	doc := "```jbogenbau\n%const $S \"é$é\" ++ \"‹U+0301›\" ++ \"é\" ++ \"‹U+0323›\"\n%rule text $S\n```"
 	dom, failure := bundled.reader.read(doc, "g.md")
 	if failure != nil {
 		t.Fatal(failure)
 	}
 	parts := dom.Constants[0].Value.Items
-	if parts[1].At != [2]int{2, 20} || parts[3].At != [2]int{2, 37} {
-		t.Fatalf("constant locations: %#v %#v", parts[1], parts[3])
+	if dom.Constants[0].At != [2]int{2, 1} || parts[1].Kind != tmString || parts[1].Str != "\u0301" || parts[3].Str != "\u0323" || parts[1].At != [2]int{} || parts[3].At != [2]int{} {
+		t.Fatalf("decoded strings and definition location: %#v %#v", parts[1], parts[3])
 	}
 }
 

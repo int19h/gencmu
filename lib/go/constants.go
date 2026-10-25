@@ -26,9 +26,6 @@ type constUser struct {
 // constantTypes gives the type of each constant of the stage now.
 func (g *stageGrammar) constantTypes() constTypes {
 	return func(name string) termType {
-		if _, ok := engineScalar(name); ok {
-			return tyString
-		}
 		return g.constants[name].value.ty
 	}
 }
@@ -255,9 +252,6 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 		}
 		return &constValue{ty: tyString, s: b.String()}, nil
 	case tmConst:
-		if s, ok := engineScalar(t.Str); ok {
-			return &constValue{ty: tyString, s: s}, nil
-		}
 		v := *g.constants[t.Str].value
 		return &v, nil
 	case tmUnion, tmIntersection, tmDifference:
@@ -273,7 +267,11 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 				if v.ty == tySet {
 					p = emptyPattern()
 				}
-				patterns = append(patterns, p)
+				if t.Kind != tmDifference && p.Kind == t.Kind {
+					patterns = append(patterns, p.Items...)
+				} else {
+					patterns = append(patterns, p)
+				}
 			}
 			return &constValue{ty: tyPattern, pattern: &domPattern{Kind: t.Kind, Items: patterns}}, nil
 		}
@@ -352,7 +350,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 			continue
 		}
 		for _, ref := range constRefs(directive.Conditions) {
-			if _, scalar := engineScalar(ref.Str); !scalar && g.constants[ref.Str] == nil {
+			if g.constants[ref.Str] == nil {
 				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}
@@ -374,7 +372,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 	}
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {
-			if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
+			if g.constants[ref.Str] == nil {
 				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}
@@ -604,11 +602,7 @@ func (r *resolver) term(t *domTerm) *domTerm {
 	}
 	copied := *t
 	if t.Kind == tmConst {
-		if scalar, ok := engineScalar(t.Str); ok {
-			copied.value = &constValue{ty: tyString, s: scalar}
-		} else {
-			copied.value = r.constants[t.Str].value
-		}
+		copied.value = r.constants[t.Str].value
 		if copied.value.ty == tyPattern {
 			copied.Kind = tmPattern
 			copied.Pattern = copied.value.pattern

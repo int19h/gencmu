@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="539" height="190" viewBox="0 0 539 190" role="img" aria-label="Railroad diagram of the rule closed-gek">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">closed-gek</text>
+<text class="label" x="114" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="42" height="24" rx="0"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">gek</text></g>
+<path d="M82 46h10"/>
+<g class="rule"><rect x="92" y="34" width="109" height="24" rx="0"/><text x="146.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
+<path d="M201 46h10"/>
+<g class="rule"><rect x="211" y="34" width="42" height="24" rx="0"/><text x="232" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">gik</text></g>
+<path d="M253 46h10"/>
+<g class="rule"><rect x="263" y="34" width="109" height="24" rx="0"/><text x="317.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">subsentence</text></g>
+<path d="M372 46h10"/>
+<g class="rule"><rect x="382" y="34" width="117" height="24" rx="0"/><text x="440.5" y="51" textLength="100.8" lengthAdjust="spacingAndGlyphs">written-tail</text></g>
+<path d="M499 46H519"/>
+<path d="M20 46a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<path d="M40 90h20"/>
+<g class="rule"><rect x="60" y="78" width="42" height="24" rx="0"/><text x="81" y="95" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M102 90H122"/>
+<path d="M40 90a10 10 0 0 0 10 -10V78a10 10 0 0 1 10 -10H102a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<path d="M122 90h10"/>
+<g class="terminal"><rect x="132" y="78" width="33" height="24" rx="12"/><text x="148.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M165 90h10"/>
+<g class="rule"><rect x="175" y="78" width="33" height="24" rx="0"/><text x="191.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M208 90h10"/>
+<g class="rule"><rect x="218" y="78" width="117" height="24" rx="0"/><text x="276.5" y="95" textLength="100.8" lengthAdjust="spacingAndGlyphs">gek-sentence</text></g>
+<path d="M335 90h10"/>
+<g class="terminal"><rect x="345" y="78" width="50" height="24" rx="12"/><text x="370" y="95" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M395 90h10"/>
+<g class="rule"><rect x="405" y="78" width="33" height="24" rx="0"/><text x="421.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M438 90H499a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
+<path d="M40 134h20"/>
+<g class="rule"><rect x="60" y="122" width="42" height="24" rx="0"/><text x="81" y="139" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
+<path d="M102 134H122"/>
+<path d="M40 134a10 10 0 0 0 10 -10V122a10 10 0 0 1 10 -10H102a10 10 0 0 1 10 10V124a10 10 0 0 0 10 10"/>
+<path d="M122 134h10"/>
+<g class="terminal"><rect x="132" y="122" width="33" height="24" rx="12"/><text x="148.5" y="139" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M165 134h10"/>
+<g class="rule"><rect x="175" y="122" width="33" height="24" rx="0"/><text x="191.5" y="139" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M208 134h10"/>
+<g class="rule"><rect x="218" y="122" width="100" height="24" rx="0"/><text x="268" y="139" textLength="84" lengthAdjust="spacingAndGlyphs">closed-gek</text></g>
+<path d="M318 134h10"/>
+<g class="rule"><rect x="328" y="122" width="117" height="24" rx="0"/><text x="386.5" y="139" textLength="100.8" lengthAdjust="spacingAndGlyphs">omitted-kehe</text></g>
+<path d="M445 134h10"/>
+<g class="rule"><rect x="455" y="122" width="33" height="24" rx="0"/><text x="471.5" y="139" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M488 134H499a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V158a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="156" width="33" height="24" rx="12"/><text x="56.5" y="173" textLength="16.8" lengthAdjust="spacingAndGlyphs">NA</text></g>
+<path d="M73 168h10"/>
+<g class="rule"><rect x="83" y="156" width="33" height="24" rx="0"/><text x="99.5" y="173" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 168h10"/>
+<g class="rule"><rect x="126" y="156" width="100" height="24" rx="0"/><text x="176" y="173" textLength="84" lengthAdjust="spacingAndGlyphs">closed-gek</text></g>
+<path d="M226 168H499a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M519 46h6m0 -8v16m4 -16v16"/>
+</svg>

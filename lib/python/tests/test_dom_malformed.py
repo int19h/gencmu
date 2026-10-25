@@ -46,7 +46,8 @@ class DomMalformed(unittest.TestCase):
                 # The directive alone in an otherwise empty DOM of the
                 # current format, checked as a precompiled one is.
                 dom = {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
-                problem = dom_problem(dom, unicode)
+                table = _unicode_table(case["unicode"]) if "unicode" in case else unicode
+                problem = dom_problem(dom, table)
                 self.assertEqual(problem is not None, case["malformed"], str(problem))
 
 

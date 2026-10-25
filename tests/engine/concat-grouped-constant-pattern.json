@@ -1,6 +1,6 @@
 {
   "description": "Parentheses around a pattern constant preserve its predicate meaning (engine §10).",
-  "grammar": "%const $P @(A)\n%rule text $x:A %conditions $x ≅ @(($P)) %emits",
+  "grammar": "%const $P #A\n%rule text $x:A %conditions $x ≅ #$P %emits",
   "tokens": [
     {
       "text": "x",

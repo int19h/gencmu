@@ -369,7 +369,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn uses(s: &Span) -> bool {
         match s {
             Span::WithoutElision(_, _) => true,
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => uses(s),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => uses(s),
             _ => false,
         }
     }
@@ -388,7 +388,9 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                     w.insert(p.rule);
                 }
             }
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span(s, p, w),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                span(s, p, w)
+            }
             _ => {}
         }
     }
@@ -427,7 +429,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     }
     fn cond(c: &LCond, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match c {
-            LCond::Matches(s, r) | LCond::Begins(s, r) => query(s, *r, p, w, todo),
+            LCond::Matches(s, r) | LCond::Begins(s, r) | LCond::Ends(s, r) => query(s, *r, p, w, todo),
             LCond::Initial(s) | LCond::Final(s) | LCond::Boundary(_, s, _, _, _) | LCond::Tree(s, _, _) => {
                 span(s, p, w)
             }
@@ -736,7 +738,9 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 }
                 _ => {}
             },
-            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span(s, out),
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                span(s, out)
+            }
             _ => {}
         }
     }
@@ -768,7 +772,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     }
     fn cond(c: &LCond, out: &mut LocalDemand) {
         match c {
-            LCond::Matches(s, rule) | LCond::Begins(s, rule) => {
+            LCond::Matches(s, rule) | LCond::Begins(s, rule) | LCond::Ends(s, rule) => {
                 let aligned = if let Span::From(inner) = s { &**inner } else { s };
                 if let Span::WithoutElision(inner, _) = aligned {
                     if let Span::Cap(c) = &**inner {

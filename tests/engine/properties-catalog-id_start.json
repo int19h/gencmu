@@ -1,0 +1,45 @@
+{
+  "description": "Every ID_Start value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_ID_Start<_ID_Start>\n%conditions $x ≅ #_ID_Start<_ID_Start>, _ID_Start ⊆ $x.tags\n%emits $x :: $x.tags ∩ _ID_Start",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_IDS",
+        "_ID_Start"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_ID_Start"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_ID_Start"
+              }
+            ],
+            "tags": [
+              "_ID_Start"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "A preceding span removes restoration before a suffix query. (Engine \u00a74.4.)",
+  "grammar": "%rule text A $x:unit\n%conditions $x.without-elision.preceding-tokens.ends(A)\n%rule unit B [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -6,10 +6,10 @@
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="58" height="24" rx="0"/><text x="69" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">gihek</text></g>
 <path d="M98 46h10"/>
-<g class="rule"><rect x="108" y="34" width="25" height="24" rx="0"/><text x="120.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M133 46H160"/>
+<g class="rule"><rect x="108" y="34" width="33" height="24" rx="0"/><text x="124.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M141 46H161"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="100" height="24" rx="0"/><text x="90" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
-<path d="M140 80H140a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M160 46h6m0 -8v16m4 -16v16"/>
+<path d="M140 80H141a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M161 46h6m0 -8v16m4 -16v16"/>
 </svg>

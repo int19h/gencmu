@@ -19,12 +19,18 @@ import (
 var bundledFS embed.FS
 
 var bundled struct {
-	once     sync.Once
-	sources  map[string]string
-	uni      *unicodeTable
-	reader   *notationReader
-	compiled map[domCacheKey]json.RawMessage
-	err      error
+	once                    sync.Once
+	sources                 map[string]string
+	uni                     *unicodeTable
+	reader                  *notationReader
+	err                     error
+	propertiesOnce          sync.Once
+	propertiesUni           *unicodeTable
+	propertiesReader        *notationReader
+	propertiesCompiled      map[domCacheKey]json.RawMessage
+	propertiesCompiledNames map[domCacheKey]json.RawMessage
+	propertiesBundledNames  map[string]string
+	propertiesErr           error
 }
 
 func loadBundled() error {
@@ -33,6 +39,9 @@ func loadBundled() error {
 		err := fs.WalkDir(bundledFS, "grammars", func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
+			}
+			if strings.HasSuffix(p, "-names.txt") {
+				return nil
 			}
 			data, err := bundledFS.ReadFile(p)
 			if err != nil {
@@ -53,36 +62,59 @@ func loadBundled() error {
 			bundled.err = err
 			return
 		}
-		bundled.compiled = readCompiled(bundled.sources["compiled.json"], bundled.reader.hash, bundled.uni.hash)
 	})
 	return bundled.err
 }
 
 // domCacheKey includes every input that determines a document DOM (engine §8).
 type domCacheKey struct {
-	document, bootstrap, unicode string
-	format                       int
+	document, bootstrap, unicode, properties string
+	format                                   int
 }
 
 // readCompiled admits an envelope only under the complete loader identity.
-func readCompiled(text, bootstrapHash, unicodeHash string) map[domCacheKey]json.RawMessage {
+func readCompiled(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
+	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash)
+	return doms
+}
+
+func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
-		Format    int    `json:"format"`
-		Bootstrap string `json:"bootstrap"`
-		Unicode   string `json:"unicode"`
-		Documents map[string]struct {
-			Hash string          `json:"hash"`
-			Dom  json.RawMessage `json:"dom"`
+		Format       int             `json:"format"`
+		Bootstrap    string          `json:"bootstrap"`
+		Unicode      string          `json:"unicode"`
+		Properties   json.RawMessage `json:"properties"`
+		BundledNames json.RawMessage `json:"bundledNames"`
+		Documents    map[string]struct {
+			Hash  string          `json:"hash"`
+			Dom   json.RawMessage `json:"dom"`
+			Names json.RawMessage `json:"names"`
 		} `json:"documents"`
 	}
 	out := map[domCacheKey]json.RawMessage{}
+	names := map[domCacheKey]json.RawMessage{}
 	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
-		return out
+		return out, names, nil
+	}
+	// An absent fingerprint differs from explicit null for a core-only table.
+	var properties *string
+	if len(c.Properties) == 0 || unmarshalJSON(c.Properties, &properties) != nil {
+		return out, names, nil
+	}
+	if properties == nil {
+		if propertiesHash != "" {
+			return out, names, nil
+		}
+	} else if propertiesHash == "" || *properties != propertiesHash {
+		return out, names, nil
 	}
 	for _, d := range c.Documents {
-		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Dom
+		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
+		if len(d.Names) > 0 {
+			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
+		}
 	}
-	return out
+	return out, names, readNamesRegistry(c.BundledNames)
 }
 
 // loader reads a pipeline and its documents from one source of files.
@@ -92,6 +124,9 @@ type loader struct {
 	reader             *notationReader
 	bootstrapHash      string
 	compiled           map[domCacheKey]json.RawMessage
+	compiledNames      map[domCacheKey]json.RawMessage
+	bundledNames       map[string]string
+	namesOverride      func(string) bool
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
@@ -102,7 +137,11 @@ type loader struct {
 	fromDisk bool
 }
 
-func (l *loader) document(p string) (*domDoc, *Error) {
+func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
+	var inherited []string
+	if len(selected) > 0 {
+		inherited = selected[0]
+	}
 	text, ok := l.read(p)
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
@@ -116,29 +155,61 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 		}
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
+	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
-		if raw, ok := l.compiled[domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, domFormat}]; ok {
+		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
+		if raw, ok := l.compiled[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
+				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
+				match, err := candidate.matches(l.compiledNames[key], l.bundledNames, l.namesOverride)
+				if err != nil {
+					return nil, err
+				}
+				if !match {
+					return l.readSource(p, text, names)
+				}
+				dom.namesDependencies = candidate.dependencies
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
 				}
 				if p == l.boundaryDocument {
-					if source, e := l.reader.readMode(text, p, true); e == nil {
+					if source, e := l.reader.readMode(text, p, true, names); e == nil {
 						restoreBoundaryLocations(dom, source)
 					}
 				}
 				if p == l.recipeDocument {
-					l.reader.restoreRecipeLocations(text, p, dom)
+					l.reader.restoreRecipeLocations(text, p, dom, names)
 				}
 				return dom, nil
 			}
 		}
 	}
-	dom, err := l.reader.readMode(text, p, true)
+	return l.readSource(p, text, names)
+}
+
+func (l *loader) readSource(p, text string, names *namesScope) (*domDoc, *Error) {
+	dom, err := l.reader.readMode(text, p, true, names)
 	if err == nil && p == l.diagnosticDocument {
 		l.reader.restoreLocations(text, dom)
 	}
 	return dom, err
+}
+
+func bundledNamesText(p string) (string, bool) {
+	if p == "unicode-names-reference.txt" {
+		p = "unicode-names.txt"
+	}
+	data, err := bundledFS.ReadFile("grammars/" + p)
+	return string(data), err == nil
+}
+func (l *loader) namesText(p string) (string, bool) {
+	if l.fromDisk && p == "unicode-names-reference.txt" {
+		return bundledNamesText(p)
+	}
+	if text, ok := l.read(p); ok {
+		return text, true
+	}
+	return bundledNamesText(p)
 }
 
 // utf8Problem says why a string is not valid UTF-8, which engine §1 makes
@@ -220,18 +291,20 @@ func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 // (engine §13). A document included more than once is read once.
 func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
-	return splicePipeline(pipelinePath, func(p string) (*domDoc, *Error) {
-		if dom, ok := doms[p]; ok {
+	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
+		encoded, _ := json.Marshal(names)
+		key := p + "\x00" + string(encoded)
+		if dom, ok := doms[key]; ok {
 			return dom, nil
 		}
 		if _, ok := l.read(p); !ok {
 			return nil, nil
 		}
-		dom, err := l.document(p)
+		dom, err := l.document(p, names)
 		if err != nil {
 			return nil, err
 		}
-		doms[p] = dom
+		doms[key] = dom
 		return dom, nil
 	})
 }
@@ -341,15 +414,57 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 }
 
 func bundledLoader() (*loader, error) {
+	return loaderForBundled(true)
+}
+
+func loaderForBundled(withProperties bool) (*loader, error) {
 	if err := loadBundled(); err != nil {
 		return nil, err
 	}
+	uni, reader := bundled.uni, bundled.reader
+	var compiled, compiledNames map[domCacheKey]json.RawMessage
+	var bundledNames map[string]string
+	if withProperties {
+		bundled.propertiesOnce.Do(func() {
+			text, ok := bundled.sources["unicode-properties.txt"]
+			if !ok {
+				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Message: "the bundled properties file is missing"}
+				return
+			}
+			copy := *bundled.uni
+			var err error
+			if copy.properties, err = parseProperties(text, &copy); err != nil {
+				bundled.propertiesErr = err
+				return
+			}
+			copy.propertiesHash = fnv1a64(text)
+			bundled.propertiesUni = &copy
+			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["notation/bootstrap.json"], &copy)
+			if bundled.propertiesErr == nil {
+				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
+			}
+		})
+		if bundled.propertiesErr != nil {
+			return nil, bundled.propertiesErr
+		}
+		uni, reader = bundled.propertiesUni, bundled.propertiesReader
+		compiled, compiledNames, bundledNames = bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames
+	}
 	return &loader{
-		read:          func(p string) (string, bool) { s, ok := bundled.sources[p]; return s, ok },
-		uni:           bundled.uni,
-		reader:        bundled.reader,
-		bootstrapHash: bundled.reader.hash,
-		compiled:      bundled.compiled,
+		read: func(p string) (string, bool) {
+			if text, ok := bundled.sources[p]; ok {
+				return text, true
+			}
+			data, err := bundledFS.ReadFile("grammars/" + p)
+			return string(data), err == nil
+		},
+		uni:           uni,
+		reader:        reader,
+		bootstrapHash: reader.hash,
+		compiled:      compiled,
+		compiledNames: compiledNames,
+		bundledNames:  bundledNames,
+		namesOverride: func(string) bool { return false },
 	}, nil
 }
 
@@ -380,6 +495,10 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		return string(data), err == nil
 	}
 	l.fromDisk = true
+	l.namesOverride = func(p string) bool {
+		_, err := os.Stat(filepath.FromSlash(p))
+		return !os.IsNotExist(err)
+	}
 	return l.dialect(filepath.ToSlash(abs))
 }
 
@@ -393,35 +512,51 @@ func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, e
 
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Dialect, err error) {
 	defer guard(ErrorGrammar, &err)
-	l, lerr := bundledLoader()
-	if lerr != nil {
-		return nil, lerr
-	}
 	norm := make(map[string]string, len(sources))
 	for p, t := range sources {
 		norm[path.Clean(p)] = t
 	}
+	_, customCore := norm["unicode.txt"]
+	_, customProperties := norm["unicode-properties.txt"]
+	_, customBootstrap := norm["notation/bootstrap.json"]
+	l, lerr := loaderForBundled(!customCore && !customProperties)
+	if lerr != nil {
+		return nil, lerr
+	}
 	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
 	l.noCache = noCache
+	l.namesOverride = func(p string) bool { _, ok := norm[p]; return ok }
 	if t, ok := norm["unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
-			return nil, &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
+			problem := &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
+			_, _ = fmt.Sscanf(err.Error(), "unicode.txt line %d:", &problem.Line)
+			return nil, problem
 		}
+	}
+	if text, ok := norm["unicode-properties.txt"]; ok {
+		copy := *l.uni
+		l.uni = &copy
+		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
+			return nil, err
+		}
+	}
+	if customProperties {
+		l.uni.propertiesHash = fnv1a64(norm["unicode-properties.txt"])
 	}
 	if t, ok := norm["notation/bootstrap.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
-	} else if l.uni != bundled.uni {
-		r := *bundled.reader
-		r.uni = l.uni
-		l.reader = &r
+	} else if l.uni != l.reader.uni {
+		if l.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], l.uni); err != nil {
+			return nil, err
+		}
 	}
 	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["compiled.json"]; ok {
-		l.compiled = readCompiled(t, l.bootstrapHash, l.uni.hash)
-	} else if l.bootstrapHash != bundled.reader.hash || l.uni.hash != bundled.uni.hash {
-		l.compiled = nil
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+	} else if customCore || customProperties || customBootstrap {
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	}
 	return l.dialect(path.Clean(pipeline))
 }
@@ -569,12 +704,22 @@ func (d *Dialect) ParseTokens(text string, tokens []InputToken, options ParseOpt
 				return fail("a string is not valid UTF-8")
 			}
 		}
+		canonical := make([]string, 0, len(t.Tags))
+		seen := map[string]bool{}
 		for _, tag := range t.Tags {
-			if !isTag(tag, d.uni) {
+			name := tag
+			if strings.HasPrefix(tag, "_") {
+				name = d.uni.canonicalTag(tag)
+			}
+			if !isTag(name, d.uni) {
 				return fail("invalid stored tag " + tag)
 			}
+			if !seen[name] {
+				canonical = append(canonical, name)
+				seen[name] = true
+			}
 		}
-		own[i] = Token{Text: t.Text, Value: value, Image: image, Tags: append([]string(nil), t.Tags...), Span: t.Span, Source: t.Source}
+		own[i] = Token{Text: t.Text, Value: value, Image: image, Tags: canonical, Span: t.Span, Source: t.Source}
 	}
 	return d.parse(runes, own, options)
 }

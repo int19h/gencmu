@@ -1,0 +1,15 @@
+{
+  "description": "The configured Unicode table alone controls emoji properties and names.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _Emoji_Presentation<_Emoji_Component>\n```",
+    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 1F600 1F600\nemoji-component 1F600 1F600\n"
+  },
+  "pipeline": "p.md",
+  "input": "😀",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

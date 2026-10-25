@@ -1,0 +1,1989 @@
+{
+  "description": "Every Block value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 3 of 4.",
+  "grammar": "%rule text r164 r165 r166 r167 r168 r169 r170 r171 r172 r173 r174 r175 r176 r177 r178 r179 r180 r181 r182 r183 r184 r185 r186 r187 r188 r189 r190 r191 r192 r193 r194 r195 r196 r197 r198 r199 r200 r201 r202 r203 r204 r205 r206 r207 r208 r209 r210 r211 r212 r213 r214 r215 r216 r217 r218 r219 r220 r221 r222 r223 r224 r225 r226 r227 r228 r229 r230 r231 r232 r233 r234 r235 r236 r237 r238 r239 r240 r241 r242 r243 r244 r245\n%rule r164 $x:_Block_Latin_Extended_Additional<_blk_Latin_Ext_Additional>\n%conditions $x ≅ #_blk_Latin_Ext_Additional<_blk_Latin_Ext_Additional>, _blk_Latin_Ext_Additional ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_Additional\n%rule r165 $x:_Block_Latin_Extended_B<_blk_Latin_Ext_B>\n%conditions $x ≅ #_blk_Latin_Ext_B<_blk_Latin_Ext_B>, _blk_Latin_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_B\n%rule r166 $x:_Block_Latin_Extended_C<_blk_Latin_Ext_C>\n%conditions $x ≅ #_blk_Latin_Ext_C<_blk_Latin_Ext_C>, _blk_Latin_Ext_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_C\n%rule r167 $x:_Block_Latin_Extended_D<_blk_Latin_Ext_D>\n%conditions $x ≅ #_blk_Latin_Ext_D<_blk_Latin_Ext_D>, _blk_Latin_Ext_D ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_D\n%rule r168 $x:_Block_Latin_Extended_E<_blk_Latin_Ext_E>\n%conditions $x ≅ #_blk_Latin_Ext_E<_blk_Latin_Ext_E>, _blk_Latin_Ext_E ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_E\n%rule r169 $x:_Block_Latin_Extended_F<_blk_Latin_Ext_F>\n%conditions $x ≅ #_blk_Latin_Ext_F<_blk_Latin_Ext_F>, _blk_Latin_Ext_F ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_F\n%rule r170 $x:_Block_Latin_Extended_G<_blk_Latin_Ext_G>\n%conditions $x ≅ #_blk_Latin_Ext_G<_blk_Latin_Ext_G>, _blk_Latin_Ext_G ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_G\n%rule r171 $x:_Block_Lepcha<_blk_Lepcha>\n%conditions $x ≅ #_blk_Lepcha<_blk_Lepcha>, _blk_Lepcha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lepcha\n%rule r172 $x:_Block_Letterlike_Symbols<_blk_Letterlike_Symbols>\n%conditions $x ≅ #_blk_Letterlike_Symbols<_blk_Letterlike_Symbols>, _blk_Letterlike_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Letterlike_Symbols\n%rule r173 $x:_Block_Limbu<_blk_Limbu>\n%conditions $x ≅ #_blk_Limbu<_blk_Limbu>, _blk_Limbu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Limbu\n%rule r174 $x:_Block_Linear_A<_blk_Linear_A>\n%conditions $x ≅ #_blk_Linear_A<_blk_Linear_A>, _blk_Linear_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Linear_A\n%rule r175 $x:_Block_Linear_B_Ideograms<_blk_Linear_B_Ideograms>\n%conditions $x ≅ #_blk_Linear_B_Ideograms<_blk_Linear_B_Ideograms>, _blk_Linear_B_Ideograms ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Linear_B_Ideograms\n%rule r176 $x:_Block_Linear_B_Syllabary<_blk_Linear_B_Syllabary>\n%conditions $x ≅ #_blk_Linear_B_Syllabary<_blk_Linear_B_Syllabary>, _blk_Linear_B_Syllabary ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Linear_B_Syllabary\n%rule r177 $x:_Block_Lisu<_blk_Lisu>\n%conditions $x ≅ #_blk_Lisu<_blk_Lisu>, _blk_Lisu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lisu\n%rule r178 $x:_Block_Lisu_Supplement<_blk_Lisu_Sup>\n%conditions $x ≅ #_blk_Lisu_Sup<_blk_Lisu_Sup>, _blk_Lisu_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lisu_Sup\n%rule r179 $x:_Block_Low_Surrogates<_blk_Low_Surrogates>\n%conditions $x ≅ #_blk_Low_Surrogates<_blk_Low_Surrogates>, _blk_Low_Surrogates ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Low_Surrogates\n%rule r180 $x:_Block_Lycian<_blk_Lycian>\n%conditions $x ≅ #_blk_Lycian<_blk_Lycian>, _blk_Lycian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lycian\n%rule r181 $x:_Block_Lydian<_blk_Lydian>\n%conditions $x ≅ #_blk_Lydian<_blk_Lydian>, _blk_Lydian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lydian\n%rule r182 $x:_Block_Mahajani<_blk_Mahajani>\n%conditions $x ≅ #_blk_Mahajani<_blk_Mahajani>, _blk_Mahajani ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mahajani\n%rule r183 $x:_Block_Mahjong_Tiles<_blk_Mahjong>\n%conditions $x ≅ #_blk_Mahjong<_blk_Mahjong>, _blk_Mahjong ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mahjong\n%rule r184 $x:_Block_Makasar<_blk_Makasar>\n%conditions $x ≅ #_blk_Makasar<_blk_Makasar>, _blk_Makasar ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Makasar\n%rule r185 $x:_Block_Malayalam<_blk_Malayalam>\n%conditions $x ≅ #_blk_Malayalam<_blk_Malayalam>, _blk_Malayalam ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Malayalam\n%rule r186 $x:_Block_Mandaic<_blk_Mandaic>\n%conditions $x ≅ #_blk_Mandaic<_blk_Mandaic>, _blk_Mandaic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mandaic\n%rule r187 $x:_Block_Manichaean<_blk_Manichaean>\n%conditions $x ≅ #_blk_Manichaean<_blk_Manichaean>, _blk_Manichaean ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Manichaean\n%rule r188 $x:_Block_Marchen<_blk_Marchen>\n%conditions $x ≅ #_blk_Marchen<_blk_Marchen>, _blk_Marchen ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Marchen\n%rule r189 $x:_Block_Masaram_Gondi<_blk_Masaram_Gondi>\n%conditions $x ≅ #_blk_Masaram_Gondi<_blk_Masaram_Gondi>, _blk_Masaram_Gondi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Masaram_Gondi\n%rule r190 $x:_Block_Mathematical_Alphanumeric_Symbols<_blk_Math_Alphanum>\n%conditions $x ≅ #_blk_Math_Alphanum<_blk_Math_Alphanum>, _blk_Math_Alphanum ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Math_Alphanum\n%rule r191 $x:_Block_Mathematical_Operators<_blk_Math_Operators>\n%conditions $x ≅ #_blk_Math_Operators<_blk_Math_Operators>, _blk_Math_Operators ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Math_Operators\n%rule r192 $x:_Block_Mayan_Numerals<_blk_Mayan_Numerals>\n%conditions $x ≅ #_blk_Mayan_Numerals<_blk_Mayan_Numerals>, _blk_Mayan_Numerals ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mayan_Numerals\n%rule r193 $x:_Block_Medefaidrin<_blk_Medefaidrin>\n%conditions $x ≅ #_blk_Medefaidrin<_blk_Medefaidrin>, _blk_Medefaidrin ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Medefaidrin\n%rule r194 $x:_Block_Meetei_Mayek<_blk_Meetei_Mayek>\n%conditions $x ≅ #_blk_Meetei_Mayek<_blk_Meetei_Mayek>, _blk_Meetei_Mayek ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Meetei_Mayek\n%rule r195 $x:_Block_Meetei_Mayek_Extensions<_blk_Meetei_Mayek_Ext>\n%conditions $x ≅ #_blk_Meetei_Mayek_Ext<_blk_Meetei_Mayek_Ext>, _blk_Meetei_Mayek_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Meetei_Mayek_Ext\n%rule r196 $x:_Block_Mende_Kikakui<_blk_Mende_Kikakui>\n%conditions $x ≅ #_blk_Mende_Kikakui<_blk_Mende_Kikakui>, _blk_Mende_Kikakui ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mende_Kikakui\n%rule r197 $x:_Block_Meroitic_Cursive<_blk_Meroitic_Cursive>\n%conditions $x ≅ #_blk_Meroitic_Cursive<_blk_Meroitic_Cursive>, _blk_Meroitic_Cursive ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Meroitic_Cursive\n%rule r198 $x:_Block_Meroitic_Hieroglyphs<_blk_Meroitic_Hieroglyphs>\n%conditions $x ≅ #_blk_Meroitic_Hieroglyphs<_blk_Meroitic_Hieroglyphs>, _blk_Meroitic_Hieroglyphs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Meroitic_Hieroglyphs\n%rule r199 $x:_Block_Miao<_blk_Miao>\n%conditions $x ≅ #_blk_Miao<_blk_Miao>, _blk_Miao ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Miao\n%rule r200 $x:_Block_Miscellaneous_Mathematical_Symbols_A<_blk_Misc_Math_Symbols_A>\n%conditions $x ≅ #_blk_Misc_Math_Symbols_A<_blk_Misc_Math_Symbols_A>, _blk_Misc_Math_Symbols_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Math_Symbols_A\n%rule r201 $x:_Block_Miscellaneous_Mathematical_Symbols_B<_blk_Misc_Math_Symbols_B>\n%conditions $x ≅ #_blk_Misc_Math_Symbols_B<_blk_Misc_Math_Symbols_B>, _blk_Misc_Math_Symbols_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Math_Symbols_B\n%rule r202 $x:_Block_Miscellaneous_Symbols<_blk_Misc_Symbols>\n%conditions $x ≅ #_blk_Misc_Symbols<_blk_Misc_Symbols>, _blk_Misc_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Symbols\n%rule r203 $x:_Block_Miscellaneous_Symbols_And_Arrows<_blk_Misc_Arrows>\n%conditions $x ≅ #_blk_Misc_Arrows<_blk_Misc_Arrows>, _blk_Misc_Arrows ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Arrows\n%rule r204 $x:_Block_Miscellaneous_Symbols_And_Pictographs<_blk_Misc_Pictographs>\n%conditions $x ≅ #_blk_Misc_Pictographs<_blk_Misc_Pictographs>, _blk_Misc_Pictographs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Pictographs\n%rule r205 $x:_Block_Miscellaneous_Technical<_blk_Misc_Technical>\n%conditions $x ≅ #_blk_Misc_Technical<_blk_Misc_Technical>, _blk_Misc_Technical ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Misc_Technical\n%rule r206 $x:_Block_Modi<_blk_Modi>\n%conditions $x ≅ #_blk_Modi<_blk_Modi>, _blk_Modi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Modi\n%rule r207 $x:_Block_Modifier_Tone_Letters<_blk_Modifier_Tone_Letters>\n%conditions $x ≅ #_blk_Modifier_Tone_Letters<_blk_Modifier_Tone_Letters>, _blk_Modifier_Tone_Letters ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Modifier_Tone_Letters\n%rule r208 $x:_Block_Mongolian<_blk_Mongolian>\n%conditions $x ≅ #_blk_Mongolian<_blk_Mongolian>, _blk_Mongolian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mongolian\n%rule r209 $x:_Block_Mongolian_Supplement<_blk_Mongolian_Sup>\n%conditions $x ≅ #_blk_Mongolian_Sup<_blk_Mongolian_Sup>, _blk_Mongolian_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mongolian_Sup\n%rule r210 $x:_Block_Mro<_blk_Mro>\n%conditions $x ≅ #_blk_Mro<_blk_Mro>, _blk_Mro ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Mro\n%rule r211 $x:_Block_Multani<_blk_Multani>\n%conditions $x ≅ #_blk_Multani<_blk_Multani>, _blk_Multani ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Multani\n%rule r212 $x:_Block_Musical_Symbols<_blk_Music>\n%conditions $x ≅ #_blk_Music<_blk_Music>, _blk_Music ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Music\n%rule r213 $x:_Block_Myanmar<_blk_Myanmar>\n%conditions $x ≅ #_blk_Myanmar<_blk_Myanmar>, _blk_Myanmar ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Myanmar\n%rule r214 $x:_Block_Myanmar_Extended_A<_blk_Myanmar_Ext_A>\n%conditions $x ≅ #_blk_Myanmar_Ext_A<_blk_Myanmar_Ext_A>, _blk_Myanmar_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Myanmar_Ext_A\n%rule r215 $x:_Block_Myanmar_Extended_B<_blk_Myanmar_Ext_B>\n%conditions $x ≅ #_blk_Myanmar_Ext_B<_blk_Myanmar_Ext_B>, _blk_Myanmar_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Myanmar_Ext_B\n%rule r216 $x:_Block_NKo<_blk_NKo>\n%conditions $x ≅ #_blk_NKo<_blk_NKo>, _blk_NKo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_NKo\n%rule r217 $x:_Block_Nabataean<_blk_Nabataean>\n%conditions $x ≅ #_blk_Nabataean<_blk_Nabataean>, _blk_Nabataean ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Nabataean\n%rule r218 $x:_Block_Nag_Mundari<_blk_Nag_Mundari>\n%conditions $x ≅ #_blk_Nag_Mundari<_blk_Nag_Mundari>, _blk_Nag_Mundari ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Nag_Mundari\n%rule r219 $x:_Block_Nandinagari<_blk_Nandinagari>\n%conditions $x ≅ #_blk_Nandinagari<_blk_Nandinagari>, _blk_Nandinagari ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Nandinagari\n%rule r220 $x:_Block_New_Tai_Lue<_blk_New_Tai_Lue>\n%conditions $x ≅ #_blk_New_Tai_Lue<_blk_New_Tai_Lue>, _blk_New_Tai_Lue ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_New_Tai_Lue\n%rule r221 $x:_Block_Newa<_blk_Newa>\n%conditions $x ≅ #_blk_Newa<_blk_Newa>, _blk_Newa ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Newa\n%rule r222 $x:_Block_No_Block<_blk_NB>\n%conditions $x ≅ #_blk_NB<_blk_NB>, _blk_NB ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_NB\n%rule r223 $x:_Block_Number_Forms<_blk_Number_Forms>\n%conditions $x ≅ #_blk_Number_Forms<_blk_Number_Forms>, _blk_Number_Forms ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Number_Forms\n%rule r224 $x:_Block_Nushu<_blk_Nushu>\n%conditions $x ≅ #_blk_Nushu<_blk_Nushu>, _blk_Nushu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Nushu\n%rule r225 $x:_Block_Nyiakeng_Puachue_Hmong<_blk_Nyiakeng_Puachue_Hmong>\n%conditions $x ≅ #_blk_Nyiakeng_Puachue_Hmong<_blk_Nyiakeng_Puachue_Hmong>, _blk_Nyiakeng_Puachue_Hmong ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Nyiakeng_Puachue_Hmong\n%rule r226 $x:_Block_Ogham<_blk_Ogham>\n%conditions $x ≅ #_blk_Ogham<_blk_Ogham>, _blk_Ogham ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ogham\n%rule r227 $x:_Block_Ol_Chiki<_blk_Ol_Chiki>\n%conditions $x ≅ #_blk_Ol_Chiki<_blk_Ol_Chiki>, _blk_Ol_Chiki ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ol_Chiki\n%rule r228 $x:_Block_Old_Hungarian<_blk_Old_Hungarian>\n%conditions $x ≅ #_blk_Old_Hungarian<_blk_Old_Hungarian>, _blk_Old_Hungarian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Hungarian\n%rule r229 $x:_Block_Old_Italic<_blk_Old_Italic>\n%conditions $x ≅ #_blk_Old_Italic<_blk_Old_Italic>, _blk_Old_Italic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Italic\n%rule r230 $x:_Block_Old_North_Arabian<_blk_Old_North_Arabian>\n%conditions $x ≅ #_blk_Old_North_Arabian<_blk_Old_North_Arabian>, _blk_Old_North_Arabian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_North_Arabian\n%rule r231 $x:_Block_Old_Permic<_blk_Old_Permic>\n%conditions $x ≅ #_blk_Old_Permic<_blk_Old_Permic>, _blk_Old_Permic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Permic\n%rule r232 $x:_Block_Old_Persian<_blk_Old_Persian>\n%conditions $x ≅ #_blk_Old_Persian<_blk_Old_Persian>, _blk_Old_Persian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Persian\n%rule r233 $x:_Block_Old_Sogdian<_blk_Old_Sogdian>\n%conditions $x ≅ #_blk_Old_Sogdian<_blk_Old_Sogdian>, _blk_Old_Sogdian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Sogdian\n%rule r234 $x:_Block_Old_South_Arabian<_blk_Old_South_Arabian>\n%conditions $x ≅ #_blk_Old_South_Arabian<_blk_Old_South_Arabian>, _blk_Old_South_Arabian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_South_Arabian\n%rule r235 $x:_Block_Old_Turkic<_blk_Old_Turkic>\n%conditions $x ≅ #_blk_Old_Turkic<_blk_Old_Turkic>, _blk_Old_Turkic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Turkic\n%rule r236 $x:_Block_Old_Uyghur<_blk_Old_Uyghur>\n%conditions $x ≅ #_blk_Old_Uyghur<_blk_Old_Uyghur>, _blk_Old_Uyghur ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Old_Uyghur\n%rule r237 $x:_Block_Optical_Character_Recognition<_blk_OCR>\n%conditions $x ≅ #_blk_OCR<_blk_OCR>, _blk_OCR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_OCR\n%rule r238 $x:_Block_Oriya<_blk_Oriya>\n%conditions $x ≅ #_blk_Oriya<_blk_Oriya>, _blk_Oriya ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Oriya\n%rule r239 $x:_Block_Ornamental_Dingbats<_blk_Ornamental_Dingbats>\n%conditions $x ≅ #_blk_Ornamental_Dingbats<_blk_Ornamental_Dingbats>, _blk_Ornamental_Dingbats ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ornamental_Dingbats\n%rule r240 $x:_Block_Osage<_blk_Osage>\n%conditions $x ≅ #_blk_Osage<_blk_Osage>, _blk_Osage ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Osage\n%rule r241 $x:_Block_Osmanya<_blk_Osmanya>\n%conditions $x ≅ #_blk_Osmanya<_blk_Osmanya>, _blk_Osmanya ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Osmanya\n%rule r242 $x:_Block_Ottoman_Siyaq_Numbers<_blk_Ottoman_Siyaq_Numbers>\n%conditions $x ≅ #_blk_Ottoman_Siyaq_Numbers<_blk_Ottoman_Siyaq_Numbers>, _blk_Ottoman_Siyaq_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ottoman_Siyaq_Numbers\n%rule r243 $x:_Block_Pahawh_Hmong<_blk_Pahawh_Hmong>\n%conditions $x ≅ #_blk_Pahawh_Hmong<_blk_Pahawh_Hmong>, _blk_Pahawh_Hmong ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Pahawh_Hmong\n%rule r244 $x:_Block_Palmyrene<_blk_Palmyrene>\n%conditions $x ≅ #_blk_Palmyrene<_blk_Palmyrene>, _blk_Palmyrene ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Palmyrene\n%rule r245 $x:_Block_Pau_Cin_Hau<_blk_Pau_Cin_Hau>\n%conditions $x ≅ #_blk_Pau_Cin_Hau<_blk_Pau_Cin_Hau>, _blk_Pau_Cin_Hau ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Pau_Cin_Hau",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_Additional",
+        "_blk_Latin_Ext_Additional"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_B",
+        "_blk_Latin_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_C",
+        "_blk_Latin_Ext_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_D",
+        "_blk_Latin_Ext_D"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_E",
+        "_blk_Latin_Ext_E"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_F",
+        "_blk_Latin_Ext_F"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_G",
+        "_blk_Latin_Ext_G"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lepcha",
+        "_blk_Lepcha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Letterlike_Symbols",
+        "_blk_Letterlike_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Limbu",
+        "_blk_Limbu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Linear_A",
+        "_blk_Linear_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Linear_B_Ideograms",
+        "_blk_Linear_B_Ideograms"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Linear_B_Syllabary",
+        "_blk_Linear_B_Syllabary"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lisu",
+        "_blk_Lisu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lisu_Supplement",
+        "_blk_Lisu_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Low_Surrogates",
+        "_blk_Low_Surrogates"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lycian",
+        "_blk_Lycian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lydian",
+        "_blk_Lydian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mahajani",
+        "_blk_Mahajani"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mahjong_Tiles",
+        "_blk_Mahjong"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Makasar",
+        "_blk_Makasar"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Malayalam",
+        "_blk_Malayalam"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mandaic",
+        "_blk_Mandaic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Manichaean",
+        "_blk_Manichaean"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Marchen",
+        "_blk_Marchen"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Masaram_Gondi",
+        "_blk_Masaram_Gondi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mathematical_Alphanumeric_Symbols",
+        "_blk_Math_Alphanum"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mathematical_Operators",
+        "_blk_Math_Operators"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mayan_Numerals",
+        "_blk_Mayan_Numerals"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Medefaidrin",
+        "_blk_Medefaidrin"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Meetei_Mayek",
+        "_blk_Meetei_Mayek"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Meetei_Mayek_Extensions",
+        "_blk_Meetei_Mayek_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mende_Kikakui",
+        "_blk_Mende_Kikakui"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Meroitic_Cursive",
+        "_blk_Meroitic_Cursive"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Meroitic_Hieroglyphs",
+        "_blk_Meroitic_Hieroglyphs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miao",
+        "_blk_Miao"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Mathematical_Symbols_A",
+        "_blk_Misc_Math_Symbols_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Mathematical_Symbols_B",
+        "_blk_Misc_Math_Symbols_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Symbols",
+        "_blk_Misc_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Symbols_And_Arrows",
+        "_blk_Misc_Arrows"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Symbols_And_Pictographs",
+        "_blk_Misc_Pictographs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Miscellaneous_Technical",
+        "_blk_Misc_Technical"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Modi",
+        "_blk_Modi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Modifier_Tone_Letters",
+        "_blk_Modifier_Tone_Letters"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mongolian",
+        "_blk_Mongolian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mongolian_Supplement",
+        "_blk_Mongolian_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Mro",
+        "_blk_Mro"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Multani",
+        "_blk_Multani"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Musical_Symbols",
+        "_blk_Music"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Myanmar",
+        "_blk_Myanmar"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Myanmar_Extended_A",
+        "_blk_Myanmar_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Myanmar_Extended_B",
+        "_blk_Myanmar_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_NKo",
+        "_blk_NKo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Nabataean",
+        "_blk_Nabataean"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Nag_Mundari",
+        "_blk_Nag_Mundari"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Nandinagari",
+        "_blk_Nandinagari"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_New_Tai_Lue",
+        "_blk_New_Tai_Lue"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Newa",
+        "_blk_Newa"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_No_Block",
+        "_blk_NB"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Number_Forms",
+        "_blk_Number_Forms"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Nushu",
+        "_blk_Nushu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Nyiakeng_Puachue_Hmong",
+        "_blk_Nyiakeng_Puachue_Hmong"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ogham",
+        "_blk_Ogham"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ol_Chiki",
+        "_blk_Ol_Chiki"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Hungarian",
+        "_blk_Old_Hungarian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Italic",
+        "_blk_Old_Italic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_North_Arabian",
+        "_blk_Old_North_Arabian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Permic",
+        "_blk_Old_Permic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Persian",
+        "_blk_Old_Persian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Sogdian",
+        "_blk_Old_Sogdian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_South_Arabian",
+        "_blk_Old_South_Arabian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Turkic",
+        "_blk_Old_Turkic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Old_Uyghur",
+        "_blk_Old_Uyghur"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Optical_Character_Recognition",
+        "_blk_OCR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Oriya",
+        "_blk_Oriya"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ornamental_Dingbats",
+        "_blk_Ornamental_Dingbats"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Osage",
+        "_blk_Osage"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Osmanya",
+        "_blk_Osmanya"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ottoman_Siyaq_Numbers",
+        "_blk_Ottoman_Siyaq_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Pahawh_Hmong",
+        "_blk_Pahawh_Hmong"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Palmyrene",
+        "_blk_Palmyrene"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Pau_Cin_Hau",
+        "_blk_Pau_Cin_Hau"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Block_Latin_Extended_Additional"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_C"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_D"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_E"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_F"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_G"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lepcha"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Letterlike_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Limbu"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Linear_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Linear_B_Ideograms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Linear_B_Syllabary"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lisu"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lisu_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Low_Surrogates"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lycian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lydian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mahajani"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mahjong_Tiles"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Makasar"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Malayalam"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mandaic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Manichaean"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Marchen"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Masaram_Gondi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mathematical_Alphanumeric_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mathematical_Operators"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mayan_Numerals"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Medefaidrin"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Meetei_Mayek"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Meetei_Mayek_Extensions"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mende_Kikakui"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Meroitic_Cursive"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Meroitic_Hieroglyphs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miao"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Mathematical_Symbols_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Mathematical_Symbols_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Symbols_And_Arrows"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Symbols_And_Pictographs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Miscellaneous_Technical"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Modi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Modifier_Tone_Letters"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mongolian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mongolian_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Mro"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Multani"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Musical_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Myanmar"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Myanmar_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Myanmar_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_NKo"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Nabataean"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Nag_Mundari"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Nandinagari"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_New_Tai_Lue"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Newa"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_No_Block"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Number_Forms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Nushu"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Nyiakeng_Puachue_Hmong"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ogham"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ol_Chiki"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Hungarian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Italic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_North_Arabian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Permic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Persian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Sogdian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_South_Arabian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Turkic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Old_Uyghur"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Optical_Character_Recognition"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Oriya"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ornamental_Dingbats"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Osage"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Osmanya"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ottoman_Siyaq_Numbers"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Pahawh_Hmong"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Palmyrene"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Pau_Cin_Hau"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r164",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_Additional"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_Additional"
+            ]
+          },
+          {
+            "rule": "r165",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_B"
+            ]
+          },
+          {
+            "rule": "r166",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_C"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_C"
+            ]
+          },
+          {
+            "rule": "r167",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_D"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_D"
+            ]
+          },
+          {
+            "rule": "r168",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_E"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_E"
+            ]
+          },
+          {
+            "rule": "r169",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_F"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_F"
+            ]
+          },
+          {
+            "rule": "r170",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_G"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_G"
+            ]
+          },
+          {
+            "rule": "r171",
+            "children": [
+              {
+                "terminal": "_Block_Lepcha"
+              }
+            ],
+            "tags": [
+              "_Block_Lepcha"
+            ]
+          },
+          {
+            "rule": "r172",
+            "children": [
+              {
+                "terminal": "_Block_Letterlike_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Letterlike_Symbols"
+            ]
+          },
+          {
+            "rule": "r173",
+            "children": [
+              {
+                "terminal": "_Block_Limbu"
+              }
+            ],
+            "tags": [
+              "_Block_Limbu"
+            ]
+          },
+          {
+            "rule": "r174",
+            "children": [
+              {
+                "terminal": "_Block_Linear_A"
+              }
+            ],
+            "tags": [
+              "_Block_Linear_A"
+            ]
+          },
+          {
+            "rule": "r175",
+            "children": [
+              {
+                "terminal": "_Block_Linear_B_Ideograms"
+              }
+            ],
+            "tags": [
+              "_Block_Linear_B_Ideograms"
+            ]
+          },
+          {
+            "rule": "r176",
+            "children": [
+              {
+                "terminal": "_Block_Linear_B_Syllabary"
+              }
+            ],
+            "tags": [
+              "_Block_Linear_B_Syllabary"
+            ]
+          },
+          {
+            "rule": "r177",
+            "children": [
+              {
+                "terminal": "_Block_Lisu"
+              }
+            ],
+            "tags": [
+              "_Block_Lisu"
+            ]
+          },
+          {
+            "rule": "r178",
+            "children": [
+              {
+                "terminal": "_Block_Lisu_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Lisu_Supplement"
+            ]
+          },
+          {
+            "rule": "r179",
+            "children": [
+              {
+                "terminal": "_Block_Low_Surrogates"
+              }
+            ],
+            "tags": [
+              "_Block_Low_Surrogates"
+            ]
+          },
+          {
+            "rule": "r180",
+            "children": [
+              {
+                "terminal": "_Block_Lycian"
+              }
+            ],
+            "tags": [
+              "_Block_Lycian"
+            ]
+          },
+          {
+            "rule": "r181",
+            "children": [
+              {
+                "terminal": "_Block_Lydian"
+              }
+            ],
+            "tags": [
+              "_Block_Lydian"
+            ]
+          },
+          {
+            "rule": "r182",
+            "children": [
+              {
+                "terminal": "_Block_Mahajani"
+              }
+            ],
+            "tags": [
+              "_Block_Mahajani"
+            ]
+          },
+          {
+            "rule": "r183",
+            "children": [
+              {
+                "terminal": "_Block_Mahjong_Tiles"
+              }
+            ],
+            "tags": [
+              "_Block_Mahjong_Tiles"
+            ]
+          },
+          {
+            "rule": "r184",
+            "children": [
+              {
+                "terminal": "_Block_Makasar"
+              }
+            ],
+            "tags": [
+              "_Block_Makasar"
+            ]
+          },
+          {
+            "rule": "r185",
+            "children": [
+              {
+                "terminal": "_Block_Malayalam"
+              }
+            ],
+            "tags": [
+              "_Block_Malayalam"
+            ]
+          },
+          {
+            "rule": "r186",
+            "children": [
+              {
+                "terminal": "_Block_Mandaic"
+              }
+            ],
+            "tags": [
+              "_Block_Mandaic"
+            ]
+          },
+          {
+            "rule": "r187",
+            "children": [
+              {
+                "terminal": "_Block_Manichaean"
+              }
+            ],
+            "tags": [
+              "_Block_Manichaean"
+            ]
+          },
+          {
+            "rule": "r188",
+            "children": [
+              {
+                "terminal": "_Block_Marchen"
+              }
+            ],
+            "tags": [
+              "_Block_Marchen"
+            ]
+          },
+          {
+            "rule": "r189",
+            "children": [
+              {
+                "terminal": "_Block_Masaram_Gondi"
+              }
+            ],
+            "tags": [
+              "_Block_Masaram_Gondi"
+            ]
+          },
+          {
+            "rule": "r190",
+            "children": [
+              {
+                "terminal": "_Block_Mathematical_Alphanumeric_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Mathematical_Alphanumeric_Symbols"
+            ]
+          },
+          {
+            "rule": "r191",
+            "children": [
+              {
+                "terminal": "_Block_Mathematical_Operators"
+              }
+            ],
+            "tags": [
+              "_Block_Mathematical_Operators"
+            ]
+          },
+          {
+            "rule": "r192",
+            "children": [
+              {
+                "terminal": "_Block_Mayan_Numerals"
+              }
+            ],
+            "tags": [
+              "_Block_Mayan_Numerals"
+            ]
+          },
+          {
+            "rule": "r193",
+            "children": [
+              {
+                "terminal": "_Block_Medefaidrin"
+              }
+            ],
+            "tags": [
+              "_Block_Medefaidrin"
+            ]
+          },
+          {
+            "rule": "r194",
+            "children": [
+              {
+                "terminal": "_Block_Meetei_Mayek"
+              }
+            ],
+            "tags": [
+              "_Block_Meetei_Mayek"
+            ]
+          },
+          {
+            "rule": "r195",
+            "children": [
+              {
+                "terminal": "_Block_Meetei_Mayek_Extensions"
+              }
+            ],
+            "tags": [
+              "_Block_Meetei_Mayek_Extensions"
+            ]
+          },
+          {
+            "rule": "r196",
+            "children": [
+              {
+                "terminal": "_Block_Mende_Kikakui"
+              }
+            ],
+            "tags": [
+              "_Block_Mende_Kikakui"
+            ]
+          },
+          {
+            "rule": "r197",
+            "children": [
+              {
+                "terminal": "_Block_Meroitic_Cursive"
+              }
+            ],
+            "tags": [
+              "_Block_Meroitic_Cursive"
+            ]
+          },
+          {
+            "rule": "r198",
+            "children": [
+              {
+                "terminal": "_Block_Meroitic_Hieroglyphs"
+              }
+            ],
+            "tags": [
+              "_Block_Meroitic_Hieroglyphs"
+            ]
+          },
+          {
+            "rule": "r199",
+            "children": [
+              {
+                "terminal": "_Block_Miao"
+              }
+            ],
+            "tags": [
+              "_Block_Miao"
+            ]
+          },
+          {
+            "rule": "r200",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Mathematical_Symbols_A"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Mathematical_Symbols_A"
+            ]
+          },
+          {
+            "rule": "r201",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Mathematical_Symbols_B"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Mathematical_Symbols_B"
+            ]
+          },
+          {
+            "rule": "r202",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Symbols"
+            ]
+          },
+          {
+            "rule": "r203",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Symbols_And_Arrows"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Symbols_And_Arrows"
+            ]
+          },
+          {
+            "rule": "r204",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Symbols_And_Pictographs"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Symbols_And_Pictographs"
+            ]
+          },
+          {
+            "rule": "r205",
+            "children": [
+              {
+                "terminal": "_Block_Miscellaneous_Technical"
+              }
+            ],
+            "tags": [
+              "_Block_Miscellaneous_Technical"
+            ]
+          },
+          {
+            "rule": "r206",
+            "children": [
+              {
+                "terminal": "_Block_Modi"
+              }
+            ],
+            "tags": [
+              "_Block_Modi"
+            ]
+          },
+          {
+            "rule": "r207",
+            "children": [
+              {
+                "terminal": "_Block_Modifier_Tone_Letters"
+              }
+            ],
+            "tags": [
+              "_Block_Modifier_Tone_Letters"
+            ]
+          },
+          {
+            "rule": "r208",
+            "children": [
+              {
+                "terminal": "_Block_Mongolian"
+              }
+            ],
+            "tags": [
+              "_Block_Mongolian"
+            ]
+          },
+          {
+            "rule": "r209",
+            "children": [
+              {
+                "terminal": "_Block_Mongolian_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Mongolian_Supplement"
+            ]
+          },
+          {
+            "rule": "r210",
+            "children": [
+              {
+                "terminal": "_Block_Mro"
+              }
+            ],
+            "tags": [
+              "_Block_Mro"
+            ]
+          },
+          {
+            "rule": "r211",
+            "children": [
+              {
+                "terminal": "_Block_Multani"
+              }
+            ],
+            "tags": [
+              "_Block_Multani"
+            ]
+          },
+          {
+            "rule": "r212",
+            "children": [
+              {
+                "terminal": "_Block_Musical_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Musical_Symbols"
+            ]
+          },
+          {
+            "rule": "r213",
+            "children": [
+              {
+                "terminal": "_Block_Myanmar"
+              }
+            ],
+            "tags": [
+              "_Block_Myanmar"
+            ]
+          },
+          {
+            "rule": "r214",
+            "children": [
+              {
+                "terminal": "_Block_Myanmar_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Myanmar_Extended_A"
+            ]
+          },
+          {
+            "rule": "r215",
+            "children": [
+              {
+                "terminal": "_Block_Myanmar_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Myanmar_Extended_B"
+            ]
+          },
+          {
+            "rule": "r216",
+            "children": [
+              {
+                "terminal": "_Block_NKo"
+              }
+            ],
+            "tags": [
+              "_Block_NKo"
+            ]
+          },
+          {
+            "rule": "r217",
+            "children": [
+              {
+                "terminal": "_Block_Nabataean"
+              }
+            ],
+            "tags": [
+              "_Block_Nabataean"
+            ]
+          },
+          {
+            "rule": "r218",
+            "children": [
+              {
+                "terminal": "_Block_Nag_Mundari"
+              }
+            ],
+            "tags": [
+              "_Block_Nag_Mundari"
+            ]
+          },
+          {
+            "rule": "r219",
+            "children": [
+              {
+                "terminal": "_Block_Nandinagari"
+              }
+            ],
+            "tags": [
+              "_Block_Nandinagari"
+            ]
+          },
+          {
+            "rule": "r220",
+            "children": [
+              {
+                "terminal": "_Block_New_Tai_Lue"
+              }
+            ],
+            "tags": [
+              "_Block_New_Tai_Lue"
+            ]
+          },
+          {
+            "rule": "r221",
+            "children": [
+              {
+                "terminal": "_Block_Newa"
+              }
+            ],
+            "tags": [
+              "_Block_Newa"
+            ]
+          },
+          {
+            "rule": "r222",
+            "children": [
+              {
+                "terminal": "_Block_No_Block"
+              }
+            ],
+            "tags": [
+              "_Block_No_Block"
+            ]
+          },
+          {
+            "rule": "r223",
+            "children": [
+              {
+                "terminal": "_Block_Number_Forms"
+              }
+            ],
+            "tags": [
+              "_Block_Number_Forms"
+            ]
+          },
+          {
+            "rule": "r224",
+            "children": [
+              {
+                "terminal": "_Block_Nushu"
+              }
+            ],
+            "tags": [
+              "_Block_Nushu"
+            ]
+          },
+          {
+            "rule": "r225",
+            "children": [
+              {
+                "terminal": "_Block_Nyiakeng_Puachue_Hmong"
+              }
+            ],
+            "tags": [
+              "_Block_Nyiakeng_Puachue_Hmong"
+            ]
+          },
+          {
+            "rule": "r226",
+            "children": [
+              {
+                "terminal": "_Block_Ogham"
+              }
+            ],
+            "tags": [
+              "_Block_Ogham"
+            ]
+          },
+          {
+            "rule": "r227",
+            "children": [
+              {
+                "terminal": "_Block_Ol_Chiki"
+              }
+            ],
+            "tags": [
+              "_Block_Ol_Chiki"
+            ]
+          },
+          {
+            "rule": "r228",
+            "children": [
+              {
+                "terminal": "_Block_Old_Hungarian"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Hungarian"
+            ]
+          },
+          {
+            "rule": "r229",
+            "children": [
+              {
+                "terminal": "_Block_Old_Italic"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Italic"
+            ]
+          },
+          {
+            "rule": "r230",
+            "children": [
+              {
+                "terminal": "_Block_Old_North_Arabian"
+              }
+            ],
+            "tags": [
+              "_Block_Old_North_Arabian"
+            ]
+          },
+          {
+            "rule": "r231",
+            "children": [
+              {
+                "terminal": "_Block_Old_Permic"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Permic"
+            ]
+          },
+          {
+            "rule": "r232",
+            "children": [
+              {
+                "terminal": "_Block_Old_Persian"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Persian"
+            ]
+          },
+          {
+            "rule": "r233",
+            "children": [
+              {
+                "terminal": "_Block_Old_Sogdian"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Sogdian"
+            ]
+          },
+          {
+            "rule": "r234",
+            "children": [
+              {
+                "terminal": "_Block_Old_South_Arabian"
+              }
+            ],
+            "tags": [
+              "_Block_Old_South_Arabian"
+            ]
+          },
+          {
+            "rule": "r235",
+            "children": [
+              {
+                "terminal": "_Block_Old_Turkic"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Turkic"
+            ]
+          },
+          {
+            "rule": "r236",
+            "children": [
+              {
+                "terminal": "_Block_Old_Uyghur"
+              }
+            ],
+            "tags": [
+              "_Block_Old_Uyghur"
+            ]
+          },
+          {
+            "rule": "r237",
+            "children": [
+              {
+                "terminal": "_Block_Optical_Character_Recognition"
+              }
+            ],
+            "tags": [
+              "_Block_Optical_Character_Recognition"
+            ]
+          },
+          {
+            "rule": "r238",
+            "children": [
+              {
+                "terminal": "_Block_Oriya"
+              }
+            ],
+            "tags": [
+              "_Block_Oriya"
+            ]
+          },
+          {
+            "rule": "r239",
+            "children": [
+              {
+                "terminal": "_Block_Ornamental_Dingbats"
+              }
+            ],
+            "tags": [
+              "_Block_Ornamental_Dingbats"
+            ]
+          },
+          {
+            "rule": "r240",
+            "children": [
+              {
+                "terminal": "_Block_Osage"
+              }
+            ],
+            "tags": [
+              "_Block_Osage"
+            ]
+          },
+          {
+            "rule": "r241",
+            "children": [
+              {
+                "terminal": "_Block_Osmanya"
+              }
+            ],
+            "tags": [
+              "_Block_Osmanya"
+            ]
+          },
+          {
+            "rule": "r242",
+            "children": [
+              {
+                "terminal": "_Block_Ottoman_Siyaq_Numbers"
+              }
+            ],
+            "tags": [
+              "_Block_Ottoman_Siyaq_Numbers"
+            ]
+          },
+          {
+            "rule": "r243",
+            "children": [
+              {
+                "terminal": "_Block_Pahawh_Hmong"
+              }
+            ],
+            "tags": [
+              "_Block_Pahawh_Hmong"
+            ]
+          },
+          {
+            "rule": "r244",
+            "children": [
+              {
+                "terminal": "_Block_Palmyrene"
+              }
+            ],
+            "tags": [
+              "_Block_Palmyrene"
+            ]
+          },
+          {
+            "rule": "r245",
+            "children": [
+              {
+                "terminal": "_Block_Pau_Cin_Hau"
+              }
+            ],
+            "tags": [
+              "_Block_Pau_Cin_Hau"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

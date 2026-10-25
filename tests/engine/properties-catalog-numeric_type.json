@@ -1,0 +1,117 @@
+{
+  "description": "Every Numeric_Type value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3\n%rule r0 $x:_Numeric_Type_Decimal<_nt_De>\n%conditions $x ≅ #_nt_De<_nt_De>, _nt_De ⊆ $x.tags\n%emits $x :: $x.tags ∩ _nt_De\n%rule r1 $x:_Numeric_Type_Digit<_nt_Di>\n%conditions $x ≅ #_nt_Di<_nt_Di>, _nt_Di ⊆ $x.tags\n%emits $x :: $x.tags ∩ _nt_Di\n%rule r2 $x:_Numeric_Type_None<_nt_None>\n%conditions $x ≅ #_nt_None<_nt_None>, _nt_None ⊆ $x.tags\n%emits $x :: $x.tags ∩ _nt_None\n%rule r3 $x:_Numeric_Type_Numeric<_nt_Nu>\n%conditions $x ≅ #_nt_Nu<_nt_Nu>, _nt_Nu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _nt_Nu",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Numeric_Type_Decimal",
+        "_nt_De"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Numeric_Type_Digit",
+        "_nt_Di"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Numeric_Type_None",
+        "_nt_None"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Numeric_Type_Numeric",
+        "_nt_Nu"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Numeric_Type_Decimal"
+              ]
+            },
+            {
+              "tags": [
+                "_Numeric_Type_Digit"
+              ]
+            },
+            {
+              "tags": [
+                "_Numeric_Type_None"
+              ]
+            },
+            {
+              "tags": [
+                "_Numeric_Type_Numeric"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Numeric_Type_Decimal"
+              }
+            ],
+            "tags": [
+              "_Numeric_Type_Decimal"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Numeric_Type_Digit"
+              }
+            ],
+            "tags": [
+              "_Numeric_Type_Digit"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Numeric_Type_None"
+              }
+            ],
+            "tags": [
+              "_Numeric_Type_None"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Numeric_Type_Numeric"
+              }
+            ],
+            "tags": [
+              "_Numeric_Type_Numeric"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -14,8 +14,12 @@
 // The rules and their lines come from the Markdown extraction of the engine
 // and the DOM's positions. From a rule's position, a small scanner finds
 // where each alternative begins, and stops at the next keyword.
+import fs from "node:fs";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { extractGrammarText, splitLines } from "../lib/js/src/markdown.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
+
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
 export const LINE_LIMIT = 100;
 
@@ -25,7 +29,7 @@ export const LINE_LIMIT = 100;
  * @returns {boolean}
  */
 export function isSingleSymbol(expr) {
-  return typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
+  return !!expr.call || !!expr.param || typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
 }
 
 /**
@@ -55,7 +59,7 @@ export function eligibleRules(markdown, dom, path) {
   /** @type {EligibleRule[]} */
   const result = [];
   for (const rule of dom.rules) {
-    const alternatives = rule.alternatives;
+    const alternatives = rule.alternatives??[];
     if (alternatives.length < 2) continue;
     if (!alternatives.every((/** @type {any} */ alternative) => alternative.guards.length === 0 && alternative.tags === undefined && isSingleSymbol(alternative.expr))) continue;
     const start = indexOf.get(`${rule.at[0]}:${rule.at[1]}`);
@@ -100,10 +104,20 @@ function scanBody(chars, start) {
       at += 2;
     }
   };
-  // The rule's name, a name or #.
+  // The rule's name is an identifier or one eligible emoji.
   i = skipLayout(i);
-  if (chars[i] === "#") i++;
+  if (chars[i] !== undefined && unicode.isEmojiName(chars[i])) i++;
   else while (isNameChar(chars[i])) i++;
+  if (chars[i] === "(" && chars[i+1] !== "*") {
+    let depth=1;
+    for (i++;i<chars.length && depth;i++) {
+      i=skipLayout(i);
+      if(i>=chars.length) break;
+      if(chars[i] === '"') {for(i++;i<chars.length && chars[i] !== '"';i++);}
+      else if(chars[i] === "(") depth++;
+      else if(chars[i] === ")") depth--;
+    }
+  }
   i = skipLayout(i);
   // A header clause precedes the bar that starts the ordinary body.
   if (chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])) {

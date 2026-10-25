@@ -1,13 +1,15 @@
 package gencmu
 
 import (
-	"encoding/json"
-	"os"
+	"reflect"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 )
+
+func patternChildren(p *domPattern) *domPattern {
+	return &domPattern{Kind: "node", Items: []*domPattern{p}}
+}
 
 // A shared source DOM must resolve independently in each stage, including
 // when a matching cache supplies that DOM (engine §§2, 8, and 10).
@@ -19,12 +21,12 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 	for _, c := range []struct {
 		name, body, pattern, before, after string
 	}{
-		{"compound", "A", `(($P ∪ @(B)) ∩ @(A) ∖ ∅)`, `@(A)`, `@(C)`},
-		{"contextual empty", "A", `($P ∪ ∅)`, `@(A)`, `@(B)`},
-		{"signed constants", "A", `($P ∩ @(A<$GOOD ¬$BAD>))`, `@(A)`, `@(B)`},
-		{"literal identity", `"a"`, `$P`, `@("a")`, `@("b")`},
-		{"range identity", `"a".."z"`, `$P`, `@("a".."z")`, `@("a".."m")`},
-		{"wildcard identity", `_`, `$P`, `@(_)`, `@(A)`},
+		{"compound", "A", `(($P ∪ #B) ∩ #A ∖ ∅)`, `#A`, `#C`},
+		{"contextual empty", "A", `($P ∪ ∅)`, `#A`, `#B`},
+		{"signed constants", "A", `($P ∩ #A<$GOOD ¬$BAD>)`, `#A`, `#B`},
+		{"literal identity", `"a"`, `$P`, `#"a"`, `#"b"`},
+		{"range identity", `"a".."z"`, `$P`, `#"a".."z"`, `#"a".."m"`},
+		{"wildcard identity", `_`, `$P`, `#_`, `#A`},
 	} {
 		for _, comparator := range []string{"≅", "≇"} {
 			t.Run(c.name+comparator, func(t *testing.T) {
@@ -85,58 +87,6 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 	}
 }
 
-func TestPatternDOM(t *testing.T) {
-	t.Parallel()
-	if err := loadBundled(); err != nil {
-		t.Fatal(err)
-	}
-	raw, err := os.ReadFile("../../tests/pattern-dom.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var cases []struct {
-		Description string
-		Pattern     json.RawMessage
-		Expr        json.RawMessage
-		Condition   json.RawMessage
-		Malformed   bool
-	}
-	if err := json.Unmarshal(raw, &cases); err != nil {
-		t.Fatal(err)
-	}
-	for _, c := range cases {
-		t.Run(c.Description, func(t *testing.T) {
-
-			constants, rules := "[]", "[]"
-			if len(c.Pattern) > 0 {
-				constants = `[{"name":"P","op":"define","at":[1,1],"value":{"pattern":` + string(c.Pattern) + `}}]`
-			}
-			if len(c.Expr) > 0 {
-				rules = `[{"name":"text","op":"define","at":[1,1],"flags":[],"alternatives":[{"guards":[],"expr":` + string(c.Expr) + `}],"conditions":[]}]`
-			} else if len(c.Condition) > 0 {
-				rules = `[{"name":"text","op":"define","at":[1,1],"flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + string(c.Condition) + `]}]`
-			}
-			dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":` + rules + `,"directives":[],"constants":` + constants + `,"classifiers":[],"implications":[]}`
-			_, err := decodeDOM(json.RawMessage(dom), bundled.uni)
-			if (err != nil) != c.Malformed {
-				t.Fatalf("malformed %t, got %v", c.Malformed, err)
-			}
-		})
-	}
-}
-func TestPatternDepth(t *testing.T) {
-	t.Parallel()
-	if err := loadBundled(); err != nil {
-		t.Fatal(err)
-	}
-	for _, n := range []int{250, 3000} {
-		document := "```jbogenbau\n%const $P @(" + strings.Repeat("⋮(", n) + "A" + strings.Repeat(")", n) + ")\n```"
-		_, err := bundled.reader.read(document, "case.md")
-		if (err != nil) != (n > 256) {
-			t.Fatalf("depth %d: %v", n, err)
-		}
-	}
-}
 func TestPatternStateGrowth(t *testing.T) {
 	t.Parallel()
 	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
@@ -176,5 +126,39 @@ func TestPatternMachineBeyondWordSize(t *testing.T) {
 	root := m.node("text", prefix, "", "", nil)
 	if !m.matches(root, sequence) {
 		t.Fatal("automaton past state 64 was lost")
+	}
+}
+
+func TestLayeredPatternWalkKeepsChildOrder(t *testing.T) {
+	t.Parallel()
+	p := &domPattern{Kind: "name", Name: "root", Attached: []*domPattern{
+		{Kind: "node", Items: []*domPattern{{Kind: "name", Name: "a"}}},
+		{Kind: "node", Items: []*domPattern{{Kind: "name", Name: "b"}}},
+	}}
+	var names []string
+	walkPattern(p, func(n *domPattern) {
+		if n.Kind == "name" {
+			names = append(names, n.Name)
+		}
+	})
+	if len(names) != 3 || names[0] != "root" || names[1] != "a" || names[2] != "b" {
+		t.Fatalf("walk order = %v", names)
+	}
+}
+
+func TestLayeredTypedDOM(t *testing.T) {
+	input := templateObject{"name": "a", "exact": true, "at": []any{float64(1), float64(1)}, "children": []any{templateObject{"choice": []any{[]any{templateObject{"child": templateObject{"terminal": "A", "at": []any{float64(1), float64(2)}}}}, []any{templateObject{"siblings": true}}}}}}
+	p, err := decodeLayeredPattern(templateJSON(input), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &jsonWriter{}
+	writeLayeredPattern(w, p)
+	actual, err := decodeJSON(w.buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(actual, input) {
+		t.Fatalf("got %s, expected %s", w.buf, templateJSON(input))
 	}
 }

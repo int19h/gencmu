@@ -60,6 +60,7 @@ mod markdown;
 mod nat;
 mod notation;
 mod output;
+mod parameters;
 mod patterns;
 mod pipeline;
 mod rank;
@@ -68,10 +69,13 @@ mod recent;
 mod restoration;
 mod result;
 mod slot_stats;
+mod string_escapes;
 mod strings;
 mod tags;
 mod tree;
 mod unicode;
+mod unicode_names;
+mod unicode_properties;
 mod witness;
 mod work;
 
@@ -93,7 +97,9 @@ pub use result::{
 pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
-    pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
+    pub use crate::loader::{
+        bootstrap_hash, check_dom, check_dom_with_unicode, read_grammar_document, splice_bundled_pipeline,
+    };
     #[doc(hidden)]
     pub use crate::restoration::family::with_family_conformance;
     pub use crate::slot_stats::{with_slot_statistics, BoundarySplit, SlotStatistics};

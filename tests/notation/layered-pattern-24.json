@@ -1,0 +1,66 @@
+{
+  "description": "both sides of a repeat accept whole choices",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« {a | b / c | d} »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "repeat": [
+                        {
+                          "choice": [
+                            [
+                              {
+                                "child": {
+                                  "name": "a"
+                                }
+                              }
+                            ],
+                            [
+                              {
+                                "child": {
+                                  "name": "b"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      ],
+                      "separator": [
+                        {
+                          "choice": [
+                            [
+                              {
+                                "child": {
+                                  "name": "c"
+                                }
+                              }
+                            ],
+                            [
+                              {
+                                "child": {
+                                  "name": "d"
+                                }
+                              }
+                            ]
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

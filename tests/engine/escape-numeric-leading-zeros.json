@@ -1,0 +1,20 @@
+{
+  "description": "Numeric escapes accept leading zeros within six digits.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹U+000041›\"\n```"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "A",
+      "value": "A",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

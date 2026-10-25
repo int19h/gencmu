@@ -1,6 +1,6 @@
 {
   "description": "A constant that joins e and U+0301 reads one token (engine §2, §10).",
-  "grammar": "%const $JOIN-1 \"e\" ++ $_0301\n%rule text $JOIN-1",
+  "grammar": "%const $JOIN-1 \"e\" ++ \"‹U+0301›\"\n%rule text $JOIN-1",
   "expect": {
     "result": {
       "ok": true

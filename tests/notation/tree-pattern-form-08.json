@@ -1,6 +1,6 @@
 {
   "description": "The reader accepts this pattern form. The notation stage constructs one reading.",
-  "document": "```jbogenbau\n%const $P @([A] [#])\n```\n",
+  "document": "```jbogenbau\n%const $P #« [A] [🆓] »\n```\n",
   "expect": {
     "dom": {
       "constants": [
@@ -8,24 +8,27 @@
           "name": "P",
           "value": {
             "pattern": {
-              "children": {
-                "sequence": [
-                  {
-                    "optional": {
-                      "node": {
+              "children": [
+                {
+                  "optional": [
+                    {
+                      "child": {
                         "terminal": "A"
                       }
                     }
-                  },
-                  {
-                    "optional": {
-                      "node": {
-                        "name": "#"
+                  ]
+                },
+                {
+                  "optional": [
+                    {
+                      "child": {
+                        "name": "🆓"
                       }
                     }
-                  }
-                ]
-              }
+                  ]
+                }
+              ],
+              "any": true
             }
           }
         }

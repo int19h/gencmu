@@ -71,7 +71,7 @@
             },
             {
               "image": "O",
-              "value": "O",
+              "value": "o",
               "source": [
                 6,
                 7
@@ -81,9 +81,6 @@
               ]
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

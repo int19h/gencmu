@@ -6,7 +6,7 @@
 mod common;
 
 use common::{parse_json, repository, Value};
-use gencmu::tools::{check_dom, DOM_FORMAT};
+use gencmu::tools::{check_dom, check_dom_with_unicode, DOM_FORMAT};
 
 #[test]
 fn dom_malformed_cases() {
@@ -24,7 +24,11 @@ fn dom_malformed_cases() {
         let dom = format!(
             r#"{{"format":{DOM_FORMAT},"rules":{rules},"directives":{directives},"constants":[],"classifiers":[],"implications":[]}}"#
         );
-        let problem = check_dom(&dom).expect("the bundled context");
+        let problem = match case.get("unicode").and_then(Value::str) {
+            Some(table) => check_dom_with_unicode(&dom, table),
+            None => check_dom(&dom),
+        }
+        .expect("the Unicode context");
         if problem.is_some() != malformed {
             failures.push(format!("{description}: malformed {malformed}, problem {problem:?}\n{dom}"));
         }

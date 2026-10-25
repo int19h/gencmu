@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="88" viewBox="0 0 680 88" role="img" aria-label="Railroad diagram of the rule bridi-tail-2">
+<svg xmlns="http://www.w3.org/2000/svg" width="688" height="88" viewBox="0 0 688 88" role="img" aria-label="Railroad diagram of the rule bridi-tail-2">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="100.8" lengthAdjust="spacingAndGlyphs">bridi-tail-2</text>
@@ -15,12 +15,12 @@
 <path d="M325 66h10"/>
 <g class="terminal"><rect x="335" y="54" width="33" height="24" rx="12"/><text x="351.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
 <path d="M368 66h10"/>
-<g class="rule"><rect x="378" y="54" width="25" height="24" rx="0"/><text x="390.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M403 66h10"/>
-<g class="rule"><rect x="413" y="54" width="117" height="24" rx="0"/><text x="471.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">bridi-tail-2</text></g>
-<path d="M530 66h10"/>
-<g class="rule"><rect x="540" y="54" width="100" height="24" rx="0"/><text x="590" y="71" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
-<path d="M640 66H660"/>
-<path d="M147 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H640a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
-<path d="M660 66h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="378" y="54" width="33" height="24" rx="0"/><text x="394.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M411 66h10"/>
+<g class="rule"><rect x="421" y="54" width="117" height="24" rx="0"/><text x="479.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">bridi-tail-2</text></g>
+<path d="M538 66h10"/>
+<g class="rule"><rect x="548" y="54" width="100" height="24" rx="0"/><text x="598" y="71" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
+<path d="M648 66H668"/>
+<path d="M147 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H648a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M668 66h6m0 -8v16m4 -16v16"/>
 </svg>

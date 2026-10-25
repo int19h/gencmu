@@ -60,17 +60,18 @@ def check_notation_cache_paths(
     test: unittest.TestCase, name: str, document: str, expected: dict, resources: _Resources | None = None
 ) -> None:
     resources = _resources() if resources is None else resources
-    cold = _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, None), use_cache=False)
+    cold = _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, None, resources.properties), use_cache=False)
     test.assertEqual(cold.dom(name), expected)
     envelope = {
         "format": DOM_FORMAT,
         "bootstrap": cold.reader.hash,
         "unicode": cold.unicode.fingerprint,
+        "properties": cold.unicode.properties_fingerprint,
         "documents": {name: {"hash": fnv1a64(document), "dom": expected}},
     }
 
     def loader(compiled):
-        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(compiled)))
+        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(compiled), resources.properties))
 
     cached = loader(envelope)
     test.assertIn(fnv1a64(document), cached.compiled)

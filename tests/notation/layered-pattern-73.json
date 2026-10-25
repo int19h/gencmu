@@ -1,0 +1,10 @@
+{
+  "description": "reader refuses #A<B><C>",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #A<B><C>\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 22
+    }
+  }
+}

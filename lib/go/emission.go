@@ -500,7 +500,7 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 				}
 				own = toSet(run.evaluate(ev, it.Tags))
 			}
-			token := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: run.implied(own).list(), Span: [2]int{a, b}, Source: src}
+			token := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: run.ps.publicTags(run.implied(own)), Span: [2]int{a, b}, Source: src}
 			if it.IsInsert {
 				token.InsertedBy = p.ruleName
 			}

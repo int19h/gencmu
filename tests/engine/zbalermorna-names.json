@@ -1,0 +1,1627 @@
+{
+  "description": "The bundled zbalermorna resource decodes all 100 qualified names. Canonical names retain numeric escapes for both encodings.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+    "g.md": "```jbogenbau\n%names \"zbalermorna-names.txt\"\n%ambiguity-resolution greedy\n%rule one(@X) @X\n%emits $\n%rule text one(\"‹ZBALERMORNA HUMBERT LETTER PY›\") one(\"‹ZBALERMORNA HUMBERT LETTER TY›\") one(\"‹ZBALERMORNA HUMBERT LETTER KY›\") one(\"‹ZBALERMORNA HUMBERT LETTER FY›\") one(\"‹ZBALERMORNA HUMBERT LETTER LY›\") one(\"‹ZBALERMORNA HUMBERT LETTER SY›\") one(\"‹ZBALERMORNA HUMBERT LETTER CY›\") one(\"‹ZBALERMORNA HUMBERT LETTER MY›\") one(\"‹ZBALERMORNA HUMBERT LETTER XY›\") one(\"‹ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU›\") one(\"‹ZBALERMORNA HUMBERT SYMBOL FOR YHY›\") one(\"‹ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU›\") one(\"‹ZBALERMORNA HUMBERT COMBINING PA TONGA›\") one(\"‹ZBALERMORNA HUMBERT COMBINING RE TONGA›\") one(\"‹ZBALERMORNA HUMBERT COMBINING CI TONGA›\") one(\"‹ZBALERMORNA HUMBERT COMBINING VO TONGA›\") one(\"‹ZBALERMORNA HUMBERT LETTER BY›\") one(\"‹ZBALERMORNA HUMBERT LETTER DY›\") one(\"‹ZBALERMORNA HUMBERT LETTER GY›\") one(\"‹ZBALERMORNA HUMBERT LETTER VY›\") one(\"‹ZBALERMORNA HUMBERT LETTER RY›\") one(\"‹ZBALERMORNA HUMBERT LETTER ZY›\") one(\"‹ZBALERMORNA HUMBERT LETTER JY›\") one(\"‹ZBALERMORNA HUMBERT LETTER NY›\") one(\"‹ZBALERMORNA HUMBERT COMBINING BAHEBU›\") one(\"‹ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU›\") one(\"‹ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU›\") one(\"‹ZBALERMORNA HUMBERT COMBINING TCENA BU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN ABU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN EBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN IBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN OBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN UBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN YBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN AIBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN EIBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN OIBU›\") one(\"‹ZBALERMORNA HUMBERT VOWEL SIGN AUBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY›\") one(\"‹ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL ABU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL EBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL IBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL OBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL UBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL YBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL AIBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL EIBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL OIBU›\") one(\"‹ZBALERMORNA HUMBERT LETTER FULL AUBU›\") one(\"‹ZBALERMORNA UCSUR LETTER PY›\") one(\"‹ZBALERMORNA UCSUR LETTER TY›\") one(\"‹ZBALERMORNA UCSUR LETTER KY›\") one(\"‹ZBALERMORNA UCSUR LETTER FY›\") one(\"‹ZBALERMORNA UCSUR LETTER LY›\") one(\"‹ZBALERMORNA UCSUR LETTER SY›\") one(\"‹ZBALERMORNA UCSUR LETTER CY›\") one(\"‹ZBALERMORNA UCSUR LETTER MY›\") one(\"‹ZBALERMORNA UCSUR LETTER XY›\") one(\"‹ZBALERMORNA UCSUR SYMBOL FOR DENPA BU›\") one(\"‹ZBALERMORNA UCSUR SYMBOL FOR YHY›\") one(\"‹ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU›\") one(\"‹ZBALERMORNA UCSUR COMBINING PA TONGA›\") one(\"‹ZBALERMORNA UCSUR COMBINING RE TONGA›\") one(\"‹ZBALERMORNA UCSUR COMBINING CI TONGA›\") one(\"‹ZBALERMORNA UCSUR COMBINING VO TONGA›\") one(\"‹ZBALERMORNA UCSUR LETTER BY›\") one(\"‹ZBALERMORNA UCSUR LETTER DY›\") one(\"‹ZBALERMORNA UCSUR LETTER GY›\") one(\"‹ZBALERMORNA UCSUR LETTER VY›\") one(\"‹ZBALERMORNA UCSUR LETTER RY›\") one(\"‹ZBALERMORNA UCSUR LETTER ZY›\") one(\"‹ZBALERMORNA UCSUR LETTER JY›\") one(\"‹ZBALERMORNA UCSUR LETTER NY›\") one(\"‹ZBALERMORNA UCSUR COMBINING BAHEBU›\") one(\"‹ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU›\") one(\"‹ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU›\") one(\"‹ZBALERMORNA UCSUR COMBINING TCENA BU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN ABU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN EBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN IBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN OBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN UBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN YBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN AIBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN EIBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN OIBU›\") one(\"‹ZBALERMORNA UCSUR VOWEL SIGN AUBU›\") one(\"‹ZBALERMORNA UCSUR LETTER SEMIVOWEL IY›\") one(\"‹ZBALERMORNA UCSUR LETTER SEMIVOWEL UY›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL ABU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL EBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL IBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL OBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL UBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL YBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL AIBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL EIBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL OIBU›\") one(\"‹ZBALERMORNA UCSUR LETTER FULL AUBU›\")\n```\n",
+    "zbalermorna-names.txt": "unicode-names 15.1.0\nname ED80 ZBALERMORNA HUMBERT LETTER PY\nname ED81 ZBALERMORNA HUMBERT LETTER TY\nname ED82 ZBALERMORNA HUMBERT LETTER KY\nname ED83 ZBALERMORNA HUMBERT LETTER FY\nname ED84 ZBALERMORNA HUMBERT LETTER LY\nname ED85 ZBALERMORNA HUMBERT LETTER SY\nname ED86 ZBALERMORNA HUMBERT LETTER CY\nname ED87 ZBALERMORNA HUMBERT LETTER MY\nname ED88 ZBALERMORNA HUMBERT LETTER XY\nname ED89 ZBALERMORNA HUMBERT SYMBOL FOR DENPA BU\nname ED8A ZBALERMORNA HUMBERT SYMBOL FOR YHY\nname ED8B ZBALERMORNA HUMBERT SYMBOL FOR CNIMAHO BU\nname ED8C ZBALERMORNA HUMBERT COMBINING PA TONGA\nname ED8D ZBALERMORNA HUMBERT COMBINING RE TONGA\nname ED8E ZBALERMORNA HUMBERT COMBINING CI TONGA\nname ED8F ZBALERMORNA HUMBERT COMBINING VO TONGA\nname ED90 ZBALERMORNA HUMBERT LETTER BY\nname ED91 ZBALERMORNA HUMBERT LETTER DY\nname ED92 ZBALERMORNA HUMBERT LETTER GY\nname ED93 ZBALERMORNA HUMBERT LETTER VY\nname ED94 ZBALERMORNA HUMBERT LETTER RY\nname ED95 ZBALERMORNA HUMBERT LETTER ZY\nname ED96 ZBALERMORNA HUMBERT LETTER JY\nname ED97 ZBALERMORNA HUMBERT LETTER NY\nname ED98 ZBALERMORNA HUMBERT COMBINING BAHEBU\nname ED99 ZBALERMORNA HUMBERT SYMBOL FOR SMAJI BU\nname ED9A ZBALERMORNA HUMBERT SYMBOL FOR SLAKA BU\nname ED9B ZBALERMORNA HUMBERT COMBINING TCENA BU\nname EDA0 ZBALERMORNA HUMBERT VOWEL SIGN ABU\nname EDA1 ZBALERMORNA HUMBERT VOWEL SIGN EBU\nname EDA2 ZBALERMORNA HUMBERT VOWEL SIGN IBU\nname EDA3 ZBALERMORNA HUMBERT VOWEL SIGN OBU\nname EDA4 ZBALERMORNA HUMBERT VOWEL SIGN UBU\nname EDA5 ZBALERMORNA HUMBERT VOWEL SIGN YBU\nname EDA6 ZBALERMORNA HUMBERT VOWEL SIGN AIBU\nname EDA7 ZBALERMORNA HUMBERT VOWEL SIGN EIBU\nname EDA8 ZBALERMORNA HUMBERT VOWEL SIGN OIBU\nname EDA9 ZBALERMORNA HUMBERT VOWEL SIGN AUBU\nname EDAA ZBALERMORNA HUMBERT LETTER SEMIVOWEL IY\nname EDAB ZBALERMORNA HUMBERT LETTER SEMIVOWEL UY\nname EDB0 ZBALERMORNA HUMBERT LETTER FULL ABU\nname EDB1 ZBALERMORNA HUMBERT LETTER FULL EBU\nname EDB2 ZBALERMORNA HUMBERT LETTER FULL IBU\nname EDB3 ZBALERMORNA HUMBERT LETTER FULL OBU\nname EDB4 ZBALERMORNA HUMBERT LETTER FULL UBU\nname EDB5 ZBALERMORNA HUMBERT LETTER FULL YBU\nname EDB6 ZBALERMORNA HUMBERT LETTER FULL AIBU\nname EDB7 ZBALERMORNA HUMBERT LETTER FULL EIBU\nname EDB8 ZBALERMORNA HUMBERT LETTER FULL OIBU\nname EDB9 ZBALERMORNA HUMBERT LETTER FULL AUBU\nname F28A0 ZBALERMORNA UCSUR LETTER PY\nname F28A1 ZBALERMORNA UCSUR LETTER TY\nname F28A2 ZBALERMORNA UCSUR LETTER KY\nname F28A3 ZBALERMORNA UCSUR LETTER FY\nname F28A4 ZBALERMORNA UCSUR LETTER LY\nname F28A5 ZBALERMORNA UCSUR LETTER SY\nname F28A6 ZBALERMORNA UCSUR LETTER CY\nname F28A7 ZBALERMORNA UCSUR LETTER MY\nname F28A8 ZBALERMORNA UCSUR LETTER XY\nname F28A9 ZBALERMORNA UCSUR SYMBOL FOR DENPA BU\nname F28AA ZBALERMORNA UCSUR SYMBOL FOR YHY\nname F28AB ZBALERMORNA UCSUR SYMBOL FOR CNIMAHO BU\nname F28AC ZBALERMORNA UCSUR COMBINING PA TONGA\nname F28AD ZBALERMORNA UCSUR COMBINING RE TONGA\nname F28AE ZBALERMORNA UCSUR COMBINING CI TONGA\nname F28AF ZBALERMORNA UCSUR COMBINING VO TONGA\nname F28B0 ZBALERMORNA UCSUR LETTER BY\nname F28B1 ZBALERMORNA UCSUR LETTER DY\nname F28B2 ZBALERMORNA UCSUR LETTER GY\nname F28B3 ZBALERMORNA UCSUR LETTER VY\nname F28B4 ZBALERMORNA UCSUR LETTER RY\nname F28B5 ZBALERMORNA UCSUR LETTER ZY\nname F28B6 ZBALERMORNA UCSUR LETTER JY\nname F28B7 ZBALERMORNA UCSUR LETTER NY\nname F28B8 ZBALERMORNA UCSUR COMBINING BAHEBU\nname F28B9 ZBALERMORNA UCSUR SYMBOL FOR SMAJI BU\nname F28BA ZBALERMORNA UCSUR SYMBOL FOR SLAKA BU\nname F28BB ZBALERMORNA UCSUR COMBINING TCENA BU\nname F28C0 ZBALERMORNA UCSUR VOWEL SIGN ABU\nname F28C1 ZBALERMORNA UCSUR VOWEL SIGN EBU\nname F28C2 ZBALERMORNA UCSUR VOWEL SIGN IBU\nname F28C3 ZBALERMORNA UCSUR VOWEL SIGN OBU\nname F28C4 ZBALERMORNA UCSUR VOWEL SIGN UBU\nname F28C5 ZBALERMORNA UCSUR VOWEL SIGN YBU\nname F28C6 ZBALERMORNA UCSUR VOWEL SIGN AIBU\nname F28C7 ZBALERMORNA UCSUR VOWEL SIGN EIBU\nname F28C8 ZBALERMORNA UCSUR VOWEL SIGN OIBU\nname F28C9 ZBALERMORNA UCSUR VOWEL SIGN AUBU\nname F28CA ZBALERMORNA UCSUR LETTER SEMIVOWEL IY\nname F28CB ZBALERMORNA UCSUR LETTER SEMIVOWEL UY\nname F28D0 ZBALERMORNA UCSUR LETTER FULL ABU\nname F28D1 ZBALERMORNA UCSUR LETTER FULL EBU\nname F28D2 ZBALERMORNA UCSUR LETTER FULL IBU\nname F28D3 ZBALERMORNA UCSUR LETTER FULL OBU\nname F28D4 ZBALERMORNA UCSUR LETTER FULL UBU\nname F28D5 ZBALERMORNA UCSUR LETTER FULL YBU\nname F28D6 ZBALERMORNA UCSUR LETTER FULL AIBU\nname F28D7 ZBALERMORNA UCSUR LETTER FULL EIBU\nname F28D8 ZBALERMORNA UCSUR LETTER FULL OIBU\nname F28D9 ZBALERMORNA UCSUR LETTER FULL AUBU\n"
+  },
+  "pipeline": "p.md",
+  "input": "󲢠󲢡󲢢󲢣󲢤󲢥󲢦󲢧󲢨󲢩󲢪󲢫󲢬󲢭󲢮󲢯󲢰󲢱󲢲󲢳󲢴󲢵󲢶󲢷󲢸󲢹󲢺󲢻󲣀󲣁󲣂󲣃󲣄󲣅󲣆󲣇󲣈󲣉󲣊󲣋󲣐󲣑󲣒󲣓󲣔󲣕󲣖󲣗󲣘󲣙",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                4,
+                5
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                5,
+                6
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                6,
+                7
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                7,
+                8
+              ],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                8,
+                9
+              ],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                9,
+                10
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                10,
+                11
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                11,
+                12
+              ],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                12,
+                13
+              ],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                13,
+                14
+              ],
+              "source": [
+                13,
+                14
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                14,
+                15
+              ],
+              "source": [
+                14,
+                15
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                15,
+                16
+              ],
+              "source": [
+                15,
+                16
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                16,
+                17
+              ],
+              "source": [
+                16,
+                17
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                17,
+                18
+              ],
+              "source": [
+                17,
+                18
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                18,
+                19
+              ],
+              "source": [
+                18,
+                19
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                19,
+                20
+              ],
+              "source": [
+                19,
+                20
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                20,
+                21
+              ],
+              "source": [
+                20,
+                21
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                21,
+                22
+              ],
+              "source": [
+                21,
+                22
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                22,
+                23
+              ],
+              "source": [
+                22,
+                23
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                23,
+                24
+              ],
+              "source": [
+                23,
+                24
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                24,
+                25
+              ],
+              "source": [
+                24,
+                25
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                25,
+                26
+              ],
+              "source": [
+                25,
+                26
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                26,
+                27
+              ],
+              "source": [
+                26,
+                27
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                27,
+                28
+              ],
+              "source": [
+                27,
+                28
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                28,
+                29
+              ],
+              "source": [
+                28,
+                29
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                29,
+                30
+              ],
+              "source": [
+                29,
+                30
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                30,
+                31
+              ],
+              "source": [
+                30,
+                31
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                31,
+                32
+              ],
+              "source": [
+                31,
+                32
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                32,
+                33
+              ],
+              "source": [
+                32,
+                33
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                33,
+                34
+              ],
+              "source": [
+                33,
+                34
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                34,
+                35
+              ],
+              "source": [
+                34,
+                35
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                35,
+                36
+              ],
+              "source": [
+                35,
+                36
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                36,
+                37
+              ],
+              "source": [
+                36,
+                37
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                37,
+                38
+              ],
+              "source": [
+                37,
+                38
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                38,
+                39
+              ],
+              "source": [
+                38,
+                39
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                39,
+                40
+              ],
+              "source": [
+                39,
+                40
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                40,
+                41
+              ],
+              "source": [
+                40,
+                41
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                41,
+                42
+              ],
+              "source": [
+                41,
+                42
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                42,
+                43
+              ],
+              "source": [
+                42,
+                43
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                43,
+                44
+              ],
+              "source": [
+                43,
+                44
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                44,
+                45
+              ],
+              "source": [
+                44,
+                45
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                45,
+                46
+              ],
+              "source": [
+                45,
+                46
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                46,
+                47
+              ],
+              "source": [
+                46,
+                47
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                47,
+                48
+              ],
+              "source": [
+                47,
+                48
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                48,
+                49
+              ],
+              "source": [
+                48,
+                49
+              ]
+            },
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "span": [
+                49,
+                50
+              ],
+              "source": [
+                49,
+                50
+              ]
+            },
+            {
+              "text": "󲢠",
+              "value": "󲢠",
+              "image": "󲢠",
+              "span": [
+                50,
+                51
+              ],
+              "source": [
+                50,
+                51
+              ]
+            },
+            {
+              "text": "󲢡",
+              "value": "󲢡",
+              "image": "󲢡",
+              "span": [
+                51,
+                52
+              ],
+              "source": [
+                51,
+                52
+              ]
+            },
+            {
+              "text": "󲢢",
+              "value": "󲢢",
+              "image": "󲢢",
+              "span": [
+                52,
+                53
+              ],
+              "source": [
+                52,
+                53
+              ]
+            },
+            {
+              "text": "󲢣",
+              "value": "󲢣",
+              "image": "󲢣",
+              "span": [
+                53,
+                54
+              ],
+              "source": [
+                53,
+                54
+              ]
+            },
+            {
+              "text": "󲢤",
+              "value": "󲢤",
+              "image": "󲢤",
+              "span": [
+                54,
+                55
+              ],
+              "source": [
+                54,
+                55
+              ]
+            },
+            {
+              "text": "󲢥",
+              "value": "󲢥",
+              "image": "󲢥",
+              "span": [
+                55,
+                56
+              ],
+              "source": [
+                55,
+                56
+              ]
+            },
+            {
+              "text": "󲢦",
+              "value": "󲢦",
+              "image": "󲢦",
+              "span": [
+                56,
+                57
+              ],
+              "source": [
+                56,
+                57
+              ]
+            },
+            {
+              "text": "󲢧",
+              "value": "󲢧",
+              "image": "󲢧",
+              "span": [
+                57,
+                58
+              ],
+              "source": [
+                57,
+                58
+              ]
+            },
+            {
+              "text": "󲢨",
+              "value": "󲢨",
+              "image": "󲢨",
+              "span": [
+                58,
+                59
+              ],
+              "source": [
+                58,
+                59
+              ]
+            },
+            {
+              "text": "󲢩",
+              "value": "󲢩",
+              "image": "󲢩",
+              "span": [
+                59,
+                60
+              ],
+              "source": [
+                59,
+                60
+              ]
+            },
+            {
+              "text": "󲢪",
+              "value": "󲢪",
+              "image": "󲢪",
+              "span": [
+                60,
+                61
+              ],
+              "source": [
+                60,
+                61
+              ]
+            },
+            {
+              "text": "󲢫",
+              "value": "󲢫",
+              "image": "󲢫",
+              "span": [
+                61,
+                62
+              ],
+              "source": [
+                61,
+                62
+              ]
+            },
+            {
+              "text": "󲢬",
+              "value": "󲢬",
+              "image": "󲢬",
+              "span": [
+                62,
+                63
+              ],
+              "source": [
+                62,
+                63
+              ]
+            },
+            {
+              "text": "󲢭",
+              "value": "󲢭",
+              "image": "󲢭",
+              "span": [
+                63,
+                64
+              ],
+              "source": [
+                63,
+                64
+              ]
+            },
+            {
+              "text": "󲢮",
+              "value": "󲢮",
+              "image": "󲢮",
+              "span": [
+                64,
+                65
+              ],
+              "source": [
+                64,
+                65
+              ]
+            },
+            {
+              "text": "󲢯",
+              "value": "󲢯",
+              "image": "󲢯",
+              "span": [
+                65,
+                66
+              ],
+              "source": [
+                65,
+                66
+              ]
+            },
+            {
+              "text": "󲢰",
+              "value": "󲢰",
+              "image": "󲢰",
+              "span": [
+                66,
+                67
+              ],
+              "source": [
+                66,
+                67
+              ]
+            },
+            {
+              "text": "󲢱",
+              "value": "󲢱",
+              "image": "󲢱",
+              "span": [
+                67,
+                68
+              ],
+              "source": [
+                67,
+                68
+              ]
+            },
+            {
+              "text": "󲢲",
+              "value": "󲢲",
+              "image": "󲢲",
+              "span": [
+                68,
+                69
+              ],
+              "source": [
+                68,
+                69
+              ]
+            },
+            {
+              "text": "󲢳",
+              "value": "󲢳",
+              "image": "󲢳",
+              "span": [
+                69,
+                70
+              ],
+              "source": [
+                69,
+                70
+              ]
+            },
+            {
+              "text": "󲢴",
+              "value": "󲢴",
+              "image": "󲢴",
+              "span": [
+                70,
+                71
+              ],
+              "source": [
+                70,
+                71
+              ]
+            },
+            {
+              "text": "󲢵",
+              "value": "󲢵",
+              "image": "󲢵",
+              "span": [
+                71,
+                72
+              ],
+              "source": [
+                71,
+                72
+              ]
+            },
+            {
+              "text": "󲢶",
+              "value": "󲢶",
+              "image": "󲢶",
+              "span": [
+                72,
+                73
+              ],
+              "source": [
+                72,
+                73
+              ]
+            },
+            {
+              "text": "󲢷",
+              "value": "󲢷",
+              "image": "󲢷",
+              "span": [
+                73,
+                74
+              ],
+              "source": [
+                73,
+                74
+              ]
+            },
+            {
+              "text": "󲢸",
+              "value": "󲢸",
+              "image": "󲢸",
+              "span": [
+                74,
+                75
+              ],
+              "source": [
+                74,
+                75
+              ]
+            },
+            {
+              "text": "󲢹",
+              "value": "󲢹",
+              "image": "󲢹",
+              "span": [
+                75,
+                76
+              ],
+              "source": [
+                75,
+                76
+              ]
+            },
+            {
+              "text": "󲢺",
+              "value": "󲢺",
+              "image": "󲢺",
+              "span": [
+                76,
+                77
+              ],
+              "source": [
+                76,
+                77
+              ]
+            },
+            {
+              "text": "󲢻",
+              "value": "󲢻",
+              "image": "󲢻",
+              "span": [
+                77,
+                78
+              ],
+              "source": [
+                77,
+                78
+              ]
+            },
+            {
+              "text": "󲣀",
+              "value": "󲣀",
+              "image": "󲣀",
+              "span": [
+                78,
+                79
+              ],
+              "source": [
+                78,
+                79
+              ]
+            },
+            {
+              "text": "󲣁",
+              "value": "󲣁",
+              "image": "󲣁",
+              "span": [
+                79,
+                80
+              ],
+              "source": [
+                79,
+                80
+              ]
+            },
+            {
+              "text": "󲣂",
+              "value": "󲣂",
+              "image": "󲣂",
+              "span": [
+                80,
+                81
+              ],
+              "source": [
+                80,
+                81
+              ]
+            },
+            {
+              "text": "󲣃",
+              "value": "󲣃",
+              "image": "󲣃",
+              "span": [
+                81,
+                82
+              ],
+              "source": [
+                81,
+                82
+              ]
+            },
+            {
+              "text": "󲣄",
+              "value": "󲣄",
+              "image": "󲣄",
+              "span": [
+                82,
+                83
+              ],
+              "source": [
+                82,
+                83
+              ]
+            },
+            {
+              "text": "󲣅",
+              "value": "󲣅",
+              "image": "󲣅",
+              "span": [
+                83,
+                84
+              ],
+              "source": [
+                83,
+                84
+              ]
+            },
+            {
+              "text": "󲣆",
+              "value": "󲣆",
+              "image": "󲣆",
+              "span": [
+                84,
+                85
+              ],
+              "source": [
+                84,
+                85
+              ]
+            },
+            {
+              "text": "󲣇",
+              "value": "󲣇",
+              "image": "󲣇",
+              "span": [
+                85,
+                86
+              ],
+              "source": [
+                85,
+                86
+              ]
+            },
+            {
+              "text": "󲣈",
+              "value": "󲣈",
+              "image": "󲣈",
+              "span": [
+                86,
+                87
+              ],
+              "source": [
+                86,
+                87
+              ]
+            },
+            {
+              "text": "󲣉",
+              "value": "󲣉",
+              "image": "󲣉",
+              "span": [
+                87,
+                88
+              ],
+              "source": [
+                87,
+                88
+              ]
+            },
+            {
+              "text": "󲣊",
+              "value": "󲣊",
+              "image": "󲣊",
+              "span": [
+                88,
+                89
+              ],
+              "source": [
+                88,
+                89
+              ]
+            },
+            {
+              "text": "󲣋",
+              "value": "󲣋",
+              "image": "󲣋",
+              "span": [
+                89,
+                90
+              ],
+              "source": [
+                89,
+                90
+              ]
+            },
+            {
+              "text": "󲣐",
+              "value": "󲣐",
+              "image": "󲣐",
+              "span": [
+                90,
+                91
+              ],
+              "source": [
+                90,
+                91
+              ]
+            },
+            {
+              "text": "󲣑",
+              "value": "󲣑",
+              "image": "󲣑",
+              "span": [
+                91,
+                92
+              ],
+              "source": [
+                91,
+                92
+              ]
+            },
+            {
+              "text": "󲣒",
+              "value": "󲣒",
+              "image": "󲣒",
+              "span": [
+                92,
+                93
+              ],
+              "source": [
+                92,
+                93
+              ]
+            },
+            {
+              "text": "󲣓",
+              "value": "󲣓",
+              "image": "󲣓",
+              "span": [
+                93,
+                94
+              ],
+              "source": [
+                93,
+                94
+              ]
+            },
+            {
+              "text": "󲣔",
+              "value": "󲣔",
+              "image": "󲣔",
+              "span": [
+                94,
+                95
+              ],
+              "source": [
+                94,
+                95
+              ]
+            },
+            {
+              "text": "󲣕",
+              "value": "󲣕",
+              "image": "󲣕",
+              "span": [
+                95,
+                96
+              ],
+              "source": [
+                95,
+                96
+              ]
+            },
+            {
+              "text": "󲣖",
+              "value": "󲣖",
+              "image": "󲣖",
+              "span": [
+                96,
+                97
+              ],
+              "source": [
+                96,
+                97
+              ]
+            },
+            {
+              "text": "󲣗",
+              "value": "󲣗",
+              "image": "󲣗",
+              "span": [
+                97,
+                98
+              ],
+              "source": [
+                97,
+                98
+              ]
+            },
+            {
+              "text": "󲣘",
+              "value": "󲣘",
+              "image": "󲣘",
+              "span": [
+                98,
+                99
+              ],
+              "source": [
+                98,
+                99
+              ]
+            },
+            {
+              "text": "󲣙",
+              "value": "󲣙",
+              "image": "󲣙",
+              "span": [
+                99,
+                100
+              ],
+              "source": [
+                99,
+                100
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "one(\"‹U+ED80›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED81›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED82›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED83›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED84›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED85›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED86›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED87›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED88›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED89›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8A›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8B›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8C›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8D›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8E›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED8F›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED90›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED91›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED92›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED93›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED94›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED95›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED96›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED97›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED98›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED99›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED9A›\")"
+          },
+          {
+            "rule": "one(\"‹U+ED9B›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA0›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA1›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA2›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA3›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA4›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA5›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA6›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA7›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA8›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDA9›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDAA›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDAB›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB0›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB1›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB2›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB3›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB4›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB5›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB6›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB7›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB8›\")"
+          },
+          {
+            "rule": "one(\"‹U+EDB9›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A0›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A1›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A2›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A3›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A4›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A5›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A6›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A7›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A8›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28A9›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AA›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AB›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AC›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AD›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AE›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28AF›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B0›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B1›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B2›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B3›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B4›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B5›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B6›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B7›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B8›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28B9›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28BA›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28BB›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C0›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C1›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C2›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C3›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C4›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C5›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C6›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C7›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C8›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28C9›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28CA›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28CB›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D0›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D1›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D2›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D3›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D4›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D5›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D6›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D7›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D8›\")"
+          },
+          {
+            "rule": "one(\"‹U+F28D9›\")"
+          }
+        ]
+      }
+    },
+    "warnings": []
+  }
+}

@@ -1,9 +1,9 @@
 {
-  "description": "A range holds two unresolved scalar-string endpoints, and a capture can wrap it. The DOM preserves literal strings or engine scalar references until stage binding (engine §9.3, docs/output.md).",
+  "description": "A range holds two scalar-string endpoints, and a capture can wrap it. The DOM preserves decoded strings and user constant references.",
   "document": "```jbogenbau\n%rule a (\"a\"..\"z\" \"a\"..\"z\" $c:\"̀\"..\"ͯ\")\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 40,
       "rules": [
         {
           "alternatives": [

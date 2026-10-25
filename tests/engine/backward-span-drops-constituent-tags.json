@@ -1,0 +1,23 @@
+{
+  "description": "A preceding span observes input tags rather than constituent tags. (Engine \u00a74.4.)",
+  "grammar": "%rule text $a:unit $x:B\n%conditions Whole \u2288 $x.preceding-tokens.tags, A \u2286 $x.preceding-tokens.tags\n%rule unit A :: Whole",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

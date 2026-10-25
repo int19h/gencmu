@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "lo'u ni'o le'u ni'o coi do .i mi klama",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -364,9 +363,6 @@
               "tags": []
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

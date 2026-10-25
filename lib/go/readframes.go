@@ -514,13 +514,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		}
 		f.parts, f.ops = ps, []string{"∩"}
 		return ask(&valueFrame{n: ps[0]})
-	case "pattern-literal":
-		part := one(n, "pattern-union")
-		if part == nil {
-			part = b.only(n, "pattern-atom")
-		}
-		c := b.readPattern(part)
-		return give(&domTerm{Kind: tmPattern, Pattern: patternNode(c)})
 	case "string":
 		return give(b.stringTerm(b.token(n)))
 	case "tag":
@@ -541,7 +534,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		case f.argument:
 			return give(&domTerm{Kind: tmRule, Str: name})
 		}
-		b.fail(n, "%s names a rule, which is not a value; ~%s is the tag", name, name)
+		b.fail(n, "%s names a rule, which is not a value", name)
 	case "empty-set":
 		return give(&domTerm{Kind: tmEmptySet})
 	case "constant-reference":
@@ -671,9 +664,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
-			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
-				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.tokenValue(b.token(name)), b.tokenValue(b.token(name)))
-			}
+			b.patternOperand(right)
 			return ask(&valueFrame{n: right})
 		case "comparison":
 			ps := b.some(n, "union", 2)
@@ -737,6 +728,19 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	kind := cdMatches
 	if t.Str == "begins" {
 		kind = cdBegins
+	} else if t.Str == "ends" {
+		kind = cdEnds
 	}
 	return give(&domCond{Kind: kind, Span: t.Items[0], Targets: t.Items[1:]})
+}
+
+func (b *domBuilder) patternOperand(right *Node) {
+	name := firstOfRule(right, "name")
+	if name == nil {
+		name = firstOfRule(right, "tag")
+	}
+	if name != nil && right.Span[1]-right.Span[0] == 1 {
+		text := b.tokenValue(b.token(name))
+		b.fail(name, "tree comparison requires a pattern; write #%s, not %s", text, text)
+	}
 }

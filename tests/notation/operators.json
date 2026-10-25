@@ -1,6 +1,6 @@
 {
-  "description": "Optional, braces, an optional list, grouping, and/or, # as a rule and ε (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (([A] {B} [{C}] (D | E) F) & (G # ε))\n```\n",
+  "description": "The reader accepts optionals, braces, lists, groups, conjunctions, 🆓 references and ε (engine §9).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (([A] {B} [{C}] (D | E) F) & (G 🆓 ε))\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -49,7 +49,7 @@
                         "ref": "G"
                       },
                       {
-                        "ref": "#"
+                        "ref": "🆓"
                       },
                       {
                         "empty": true

@@ -18,17 +18,10 @@ type domPattern struct {
 	Op           string
 	Requirements []tagRequirement
 	Ends         [2]*domTerm
+	Exact        bool
+	Attached     []*domPattern
 }
 
-func patternNode(c *domPattern) *domPattern {
-	if c.Kind == "node" {
-		return c.Items[0]
-	}
-	return &domPattern{Kind: "children", Items: []*domPattern{c}}
-}
-func patternChildren(p *domPattern) *domPattern {
-	return &domPattern{Kind: "node", Items: []*domPattern{p}}
-}
 func walkPattern(p *domPattern, visit func(*domPattern)) {
 	stack := []*domPattern{p}
 	for len(stack) > 0 {
@@ -38,300 +31,86 @@ func walkPattern(p *domPattern, visit func(*domPattern)) {
 			continue
 		}
 		visit(n)
+		for i := len(n.Attached) - 1; i >= 0; i-- {
+			stack = append(stack, n.Attached[i])
+		}
 		for i := len(n.Items) - 1; i >= 0; i-- {
 			stack = append(stack, n.Items[i])
 		}
 	}
 }
-func patternConsumes(p *domPattern) bool {
-	result := false
-	walkPattern(p, func(n *domPattern) {
-		if n.Kind == "node" || n.Kind == "siblings" {
-			result = true
-		}
-	})
-	return result
-}
 func patternProblem(root *domPattern, depth int, check func(*domPattern, int) string) string {
 	type entry struct {
-		p                  *domPattern
-		depth              int
-		children, repeated bool
+		p     *domPattern
+		depth int
+		item  bool
 	}
-	stack := []entry{{root, depth, false, false}}
+	stack := []entry{{root, depth, false}}
 	for len(stack) > 0 {
 		e := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		p := e.p
-		if e.depth > maxDOMDepth {
-			return "nested too deeply"
-		}
 		if p == nil {
 			return "a malformed pattern"
 		}
-		push := func(n *domPattern, c, r bool) { stack = append(stack, entry{n, e.depth + 1, c, r}) }
-		if e.children {
+		if e.item && p.Kind == "sequence" {
+			for _, v := range p.Items {
+				stack = append(stack, entry{v, e.depth, true})
+			}
+			continue
+		}
+		if e.depth > maxDOMDepth {
+			return "nested too deeply"
+		}
+		push := func(v *domPattern, item bool) { stack = append(stack, entry{v, e.depth + 1, item}) }
+		if e.item {
 			switch p.Kind {
 			case "node":
-				if len(p.Items) != 1 {
-					return "a malformed pattern node"
+				push(p.Items[0], false)
+			case "choice", "optional", "repeat":
+				for _, v := range p.Items {
+					push(v, true)
 				}
-				push(p.Items[0], false, e.repeated)
 			case "siblings":
-				if e.repeated {
-					return "a sibling ellipsis cannot be a repeat item or separator"
-				}
-			case "sequence":
-				if len(p.Items) < 2 {
-					return "a malformed pattern sequence"
-				}
-				for _, n := range p.Items {
-					push(n, true, e.repeated)
-				}
-			case "optional":
-				if len(p.Items) != 1 {
-					return "a malformed pattern optional"
-				}
-				push(p.Items[0], true, e.repeated)
-			case "repeat":
-				if len(p.Items) < 1 || len(p.Items) > 2 {
-					return "a malformed pattern repeat"
-				}
-				if !patternConsumes(p.Items[0]) {
-					return "a pattern repeat cannot match only empty sequences"
-				}
-				for _, n := range p.Items {
-					push(n, true, true)
-				}
 			default:
-				return "a malformed pattern children expression"
+				return "a malformed pattern item"
 			}
-		} else {
-			switch p.Kind {
-			case "name":
-				if p.Name != "#" && !classifierName.MatchString(p.Name) {
-					return "a malformed pattern rule name"
-				}
-			case "terminal", "constant":
-				if !(constName.MatchString(p.Name) || p.Kind == "terminal" && engineTag(p.Name)) {
-					return "a malformed pattern terminal or constant"
-				}
-			case "literal", "range", "wildcard":
-				if check != nil {
-					if msg := check(p, e.depth); msg != "" {
-						return msg
-					}
-				}
-			case "test":
-				if len(p.Items) != 1 || !patternTestTarget(p) || !(testOps[p.Op] || p.Op == "tags") || p.Op != "tags" && p.Value == nil {
-					return "a pattern test requires one terminal atom"
-				}
-				if check != nil {
-					if msg := check(p, e.depth); msg != "" {
-						return msg
-					}
-				}
-				push(p.Items[0], false, e.repeated)
-			case "children":
-				if len(p.Items) != 1 {
-					return "a malformed pattern"
-				}
-				push(p.Items[0], true, e.repeated)
-			case "path":
-				if len(p.Items) != 1 || (p.Name != "descendant" && p.Name != "first" && p.Name != "last") {
-					return "a malformed pattern path"
-				}
-				push(p.Items[0], false, e.repeated)
-			case tmUnion, tmIntersection, tmDifference:
-				if len(p.Items) < 2 || (p.Kind == tmDifference && len(p.Items) != 2) {
-					return "a malformed pattern"
-				}
-				for _, n := range p.Items {
-					push(n, false, e.repeated)
-				}
-			default:
-				return "a malformed pattern"
+			continue
+		}
+		if check != nil && (p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
+			if problem := check(p, e.depth); problem != "" {
+				return problem
 			}
+		}
+		switch p.Kind {
+		case "path", "test":
+			push(p.Items[0], false)
+		case tmUnion, tmIntersection, tmDifference:
+			for _, v := range p.Items {
+				push(v, false)
+			}
+		case "children":
+			push(p.Items[0], true)
+		case "name", "terminal", "constant", "literal", "range", "wildcard", "any":
+		default:
+			return "a malformed pattern"
+		}
+		for _, v := range p.Attached {
+			push(v, true)
 		}
 	}
 	return ""
 }
 func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, error) {
-	if depth > maxDOMDepth {
-		return nil, errTooDeep
-	}
-	o, err := decodeObj(raw)
-	if err != nil {
-		return nil, err
-	}
-	forms := [][]string{{"name", "at"}, {"terminal", "at"}, {"constant", "at"}, {"literal", "at"}, {"range", "at"}, {"wildcard", "at"}, {"test", "expr", "value?", "requirements?"}, {"children"}, {"path", "pattern"}, {tmUnion}, {tmIntersection}, {tmDifference}}
 	if children {
-		forms = [][]string{{"node"}, {"siblings"}, {"sequence"}, {"optional"}, {"repeat", "separator?"}}
+		return nil, fmt.Errorf("a pattern child must be an item in an array")
 	}
-	if !hasOneForm(o, forms) {
-		return nil, fmt.Errorf("a malformed pattern")
-	}
-	p := &domPattern{}
-	for _, kind := range []string{"literal", "range", "wildcard"} {
-		if raw, ok := o[kind]; ok {
-			p.Kind = kind
-			p.At, err = decodePosition(o["at"])
-			if err != nil {
-				return nil, err
-			}
-			switch kind {
-			case "literal":
-				p.Value, err = decodeTermAt(raw, depth)
-			case "range":
-				p.Ends, err = decodeStringRange(raw, depth)
-			case "wildcard":
-				if !isTrue(raw) {
-					err = fmt.Errorf("wildcard must be true")
-				}
-			}
-			return p, err
-		}
-	}
-	for _, k := range []string{"name", "terminal", "constant"} {
-		if v, ok := o[k]; ok {
-			p.Kind = k
-			p.Name, err = decodeString(v)
-			if err != nil {
-				return nil, err
-			}
-			p.At, err = decodePosition(o["at"])
-			return p, err
-		}
-	}
-	for _, k := range []string{tmUnion, tmIntersection, tmDifference, "sequence"} {
-		if v, ok := o[k]; ok {
-			p.Kind = k
-			p.Items, err = decodeList(v, func(r json.RawMessage) (*domPattern, error) { return decodePattern(r, k == "sequence", depth+1) })
-			return p, err
-		}
-	}
-	if v, ok := o["siblings"]; ok {
-		if !isTrue(v) {
-			return nil, fmt.Errorf("a malformed sibling ellipsis")
-		}
-		p.Kind = "siblings"
-		return p, nil
-	}
-	if v, ok := o["test"]; ok {
-		p.Kind = "test"
-		p.Op, err = decodeString(v)
-		if err != nil {
-			return nil, err
-		}
-		if p.Op == "tags" {
-			p.Requirements, err = decodeRequirements(o["requirements"], depth+1)
-		} else {
-			p.Value, err = decodeTermAt(o["value"], depth+1)
-		}
-		if err != nil {
-			return nil, err
-		}
-		n, err := decodePattern(o["expr"], false, depth+1)
-		p.Items = []*domPattern{n}
-		return p, err
-	}
-	if v, ok := o["path"]; ok {
-		p.Kind = "path"
-		p.Name, err = decodeString(v)
-		if err != nil {
-			return nil, err
-		}
-		n, err := decodePattern(o["pattern"], false, depth+1)
-		p.Items = []*domPattern{n}
-		return p, err
-	}
-	for _, k := range []string{"children", "node", "optional", "repeat"} {
-		if v, ok := o[k]; ok {
-			p.Kind = k
-			n, e := decodePattern(v, k != "node", depth+1)
-			if e != nil {
-				return nil, e
-			}
-			p.Items = []*domPattern{n}
-			if s, ok := o["separator"]; ok {
-				n, e = decodePattern(s, true, depth+1)
-				if e != nil {
-					return nil, e
-				}
-				p.Items = append(p.Items, n)
-			}
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf("a malformed pattern")
+	return decodeLayeredPattern(raw, depth)
 }
-func (w *jsonWriter) pattern(p *domPattern) {
-	w.raw(`{"` + p.Kind + `":`)
-	switch p.Kind {
-	case "name", "terminal", "constant":
-		w.str(p.Name)
-		w.raw(`,"at":`)
-		w.pair(p.At)
-	case "siblings":
-		w.raw("true")
-	case "literal":
-		p.Value.writeJSON(w)
-		w.raw(`,"at":`)
-		w.pair(p.At)
-	case "range":
-		w.raw("[")
-		p.Ends[0].writeJSON(w)
-		w.raw(",")
-		p.Ends[1].writeJSON(w)
-		w.raw("]")
-		w.raw(`,"at":`)
-		w.pair(p.At)
-	case "wildcard":
-		w.raw("true")
-		w.raw(`,"at":`)
-		w.pair(p.At)
-	case "test":
-		w.str(p.Op)
-		if p.Op == "tags" {
-			w.raw(`,"requirements":`)
-			writeRequirements(w, p.Requirements)
-		} else {
-			w.raw(`,"value":`)
-			p.Value.writeJSON(w)
-		}
-		w.raw(`,"expr":`)
-		w.pattern(p.Items[0])
-	case "path":
-		w.str(p.Name)
-		w.raw(`,"pattern":`)
-		w.pattern(p.Items[0])
-	case tmUnion, tmIntersection, tmDifference, "sequence":
-		w.raw("[")
-		for i, n := range p.Items {
-			if i > 0 {
-				w.raw(",")
-			}
-			w.pattern(n)
-		}
-		w.raw("]")
-	default:
-		w.pattern(p.Items[0])
-		if p.Kind == "repeat" && len(p.Items) == 2 {
-			w.raw(`,"separator":`)
-			w.pattern(p.Items[1])
-		}
-	}
-	w.raw("}")
-}
+func (w *jsonWriter) pattern(p *domPattern) { writeLayeredPattern(w, p) }
 func patternKey(p *domPattern) string {
-	copy := *p
-	copy.At = [2]int{}
-	copy.Items = make([]*domPattern, len(p.Items))
-	for i, n := range p.Items {
-		copy.Items[i] = patternKeyCopy(n)
-	}
 	var w jsonWriter
-	w.pattern(&copy)
+	w.pattern(patternKeyCopy(p))
 	return string(w.buf)
 }
 func patternKeyCopy(p *domPattern) *domPattern {
@@ -340,6 +119,12 @@ func patternKeyCopy(p *domPattern) *domPattern {
 	n.Items = make([]*domPattern, len(p.Items))
 	for i, c := range p.Items {
 		n.Items[i] = patternKeyCopy(c)
+	}
+	if p.Attached != nil {
+		n.Attached = make([]*domPattern, len(p.Attached))
+		for i, c := range p.Attached {
+			n.Attached[i] = patternKeyCopy(c)
+		}
 	}
 	return &n
 }
@@ -401,8 +186,13 @@ func (m *patternMachine) compile(p *domPattern) int {
 		for _, n := range p.Items {
 			pred.operands = append(pred.operands, m.compile(n))
 		}
-	case "children":
-		n := m.sequence(p.Items[0])
+	}
+	if p.Kind == "children" || p.Attached != nil {
+		items := &domPattern{Kind: "sequence", Items: p.Attached}
+		if p.Kind == "children" {
+			items = p.Items[0]
+		}
+		n := m.sequence(items)
 		pred.machine = len(m.machines)
 		m.machines = append(m.machines, n)
 	}
@@ -425,6 +215,9 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 			edge(a, b, -2)
 			edge(a, a, -1)
 		case "sequence":
+			if len(p.Items) == 0 {
+				edge(a, b, -2)
+			}
 			for i, c := range p.Items {
 				t := b
 				if i < len(p.Items)-1 {
@@ -432,6 +225,10 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 				}
 				build(c, a, t)
 				a = t
+			}
+		case "choice":
+			for _, arm := range p.Items {
+				build(arm, a, b)
 			}
 		case "optional":
 			edge(a, b, -2)
@@ -575,8 +372,9 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case "test":
 			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
 		case "children":
-			n := m.machines[pr.machine]
-			holds = s.relations[pr.machine][n.start].Bit(n.end) != 0
+			holds = true
+		case "any":
+			holds = name != "" || tags != nil
 		case "path":
 			holds = bits.Bit(pr.operands[0]) != 0
 			child := s.any
@@ -598,7 +396,11 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case tmDifference:
 			holds = bits.Bit(pr.operands[0]) != 0 && bits.Bit(pr.operands[1]) == 0
 		}
-		if (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children") && s.count == 1 {
+		if pr.machine >= 0 {
+			n := m.machines[pr.machine]
+			holds = holds && s.relations[pr.machine][n.start].Bit(n.end) != 0
+		}
+		if !p.Exact && (p.Kind == "name" || p.Kind == "terminal" || p.Kind == "test" || p.Kind == "children" || p.Kind == "any") && s.count == 1 {
 			holds = holds || s.first.Bit(i) != 0
 		}
 		if holds {
@@ -643,150 +445,6 @@ func ruleHasPattern(r *domRule) bool {
 	return found
 }
 
-// readPattern uses postorder frames so syntax wrappers do not consume the
-// semantic nesting bound or the Go call stack.
-func (b *domBuilder) readPattern(root *Node) *domPattern {
-	type pending struct {
-		n     *Node
-		ready bool
-	}
-	stack := []pending{{root, false}}
-	values := map[*Node]*domPattern{}
-	for len(stack) > 0 {
-		e := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		n := e.n
-		var children []*Node
-		switch n.Rule {
-		case "pattern-union":
-			children = ofRule(n, "pattern-intersection")
-		case "pattern-intersection":
-			children = ofRule(n, "pattern-sequence")
-		case "pattern-sequence":
-			children = ofRule(n, "pattern-item")
-		case "pattern-item":
-			for _, c := range parts(n) {
-				if c.Kind != KindToken {
-					children = append(children, c)
-				}
-			}
-		case "pattern-brackets", "pattern-repeat":
-			children = ofRule(n, "pattern-union")
-		case "pattern-path":
-			children = ofRule(n, "pattern-atom")
-		case "pattern-atom":
-			xs := parts(n)
-			if len(xs) == 0 {
-				b.fail(n, "a malformed pattern atom")
-			}
-			first := xs[0]
-			// Groups and nested literals cannot take tests. Reject those tests
-			// before scheduling their contents for conversion (engine §9.3).
-			if first.Kind == KindToken && b.tokenValue(first) == "(" || first.Rule == "pattern-literal" {
-				for _, part := range ruleParts(n) {
-					if part.Rule == "tag-test" || part.Rule == "value-test" {
-						b.fail(part, "invalid pattern test target or order")
-					}
-				}
-			}
-			if first.Kind == KindToken && b.tokenValue(first) == "(" {
-				children = ofRule(n, "pattern-union")
-			} else if first.Rule == "pattern-literal" {
-				children = ofRule(first, "pattern-union")
-				if len(children) == 0 {
-					children = b.some(first, "pattern-atom", 1)
-				}
-			}
-		default:
-			b.fail(n, "unexpected %s in a pattern", n.Rule)
-		}
-		if !e.ready {
-			stack = append(stack, pending{n, true})
-			for i := len(children) - 1; i >= 0; i-- {
-				stack = append(stack, pending{children[i], false})
-			}
-			continue
-		}
-		xs := make([]*domPattern, len(children))
-		for i, c := range children {
-			xs[i] = values[c]
-			delete(values, c)
-		}
-		var result *domPattern
-		switch n.Rule {
-		case "pattern-union", "pattern-intersection":
-			if len(xs) == 1 {
-				result = xs[0]
-			} else {
-				p := patternNode(xs[0])
-				var ops []string
-				for _, t := range parts(n) {
-					if t.Kind == KindToken {
-						ops = append(ops, b.tokenValue(t))
-					}
-				}
-				for i, x := range xs[1:] {
-					kind := tmUnion
-					if n.Rule == "pattern-intersection" {
-						kind = tmIntersection
-					} else if i < len(ops) && ops[i] == "∖" {
-						kind = tmDifference
-					}
-					p = joinedPattern(kind, p, patternNode(x))
-					if msg := patternProblem(p, 0, nil); msg != "" {
-						b.fail(n, "%s", msg)
-					}
-				}
-				result = patternChildren(p)
-			}
-		case "pattern-sequence":
-			var flat []*domPattern
-			for _, c := range xs {
-				if c.Kind == "sequence" {
-					flat = append(flat, c.Items...)
-				} else {
-					flat = append(flat, c)
-				}
-			}
-			if len(flat) == 1 {
-				result = flat[0]
-			} else {
-				result = &domPattern{Kind: "sequence", Items: flat}
-			}
-		case "pattern-item":
-			if len(xs) == 0 {
-				result = &domPattern{Kind: "siblings"}
-			} else {
-				result = xs[0]
-			}
-		case "pattern-atom":
-			first := parts(n)[0]
-			if len(xs) > 0 {
-				result = xs[0]
-				if first.Rule == "pattern-literal" {
-					result = patternChildren(patternNode(result))
-				}
-			} else {
-				result = patternChildren(b.patternAtom(n, first))
-			}
-		case "pattern-brackets":
-			result = &domPattern{Kind: "optional", Items: xs}
-		case "pattern-repeat":
-			result = &domPattern{Kind: "repeat", Items: xs}
-		case "pattern-path":
-			// The direct operator token can follow the named atom.
-			operator := b.tokenValue(b.token(n))
-			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[operator]
-			result = patternChildren(&domPattern{Kind: "path", Name: name, Items: []*domPattern{patternNode(xs[0])}})
-		}
-		if msg := patternProblem(patternNode(result), 0, nil); msg != "" {
-			b.fail(n, "%s", msg)
-		}
-		values[n] = result
-	}
-	return values[root]
-}
-
 func emptyPattern() *domPattern {
 	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "siblings"}}}
 	return &domPattern{Kind: tmDifference, Items: []*domPattern{p, p}}
@@ -820,10 +478,13 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 	if p.Kind == "constant" {
 		v := g.constants[p.Name].value
 		if v.ty == tyPattern {
+			if p.Exact || p.Attached != nil {
+				return nil, g.constError(doc, p.At, "a pattern-valued constant cannot carry node decorations")
+			}
 			return v.pattern, nil
 		}
 		if v.ty == tyString {
-			return &domPattern{Kind: "terminal", Name: stringTerminal(v.s, g.uni), At: p.At}, nil
+			return &domPattern{Kind: "terminal", Name: stringTerminal(v.s, g.uni), At: p.At, Exact: p.Exact}, nil
 		}
 		return nil, g.constError(doc, p.At, "a pattern atom requires a string or pattern")
 	}
@@ -836,6 +497,28 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		}
 		n.Items[i] = v
 	}
+	if n.Kind == tmUnion || n.Kind == tmIntersection {
+		flat := []*domPattern{}
+		for _, item := range n.Items {
+			if item.Kind == n.Kind {
+				flat = append(flat, item.Items...)
+			} else {
+				flat = append(flat, item)
+			}
+		}
+		n.Items = flat
+	}
+	if p.Attached != nil {
+		n.Attached = make([]*domPattern, len(p.Attached))
+		for i, child := range p.Attached {
+			value, err := g.resolvePatternValue(doc, child, at)
+			if err != nil {
+				return nil, err
+			}
+			n.Attached[i] = value
+		}
+	}
+
 	if p.Kind == "literal" {
 		v, err := g.evaluateClosed(doc, p.Value, at)
 		if err != nil {
@@ -847,15 +530,25 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		n.Kind, n.Name = "terminal", "_"
 	}
 	if p.Kind == "range" {
-		var ends [2]string
-		for i, t := range p.Ends {
-			v, err := g.evaluateClosed(doc, t, at)
+		var ends [2][]rune
+		for i, term := range p.Ends {
+			value, err := g.evaluateClosed(doc, term, at)
 			if err != nil {
 				return nil, err
 			}
-			ends[i] = v.s
+			ends[i] = []rune(value.s)
+			if value.ty != tyString || len(ends[i]) != 1 {
+				return nil, g.faultError(doc, term, p.At, "a range endpoint is one scalar")
+			}
 		}
-		n.Kind, n.Name = "terminal", stringTerminal(ends[0], g.uni)+".."+stringTerminal(ends[1], g.uni)
+		if ends[0][0] > ends[1][0] {
+			where := p.At
+			if references := constRefs(p.Ends[0], p.Ends[1]); len(references) > 0 {
+				where = references[0].At
+			}
+			return nil, g.constError(doc, where, "a range starts above its end")
+		}
+		n.Kind, n.Name = "terminal", stringTerminal(string(ends[0]), g.uni)+".."+stringTerminal(string(ends[1]), g.uni)
 	}
 	if p.Kind == "test" && p.Op == "tags" {
 		n.Requirements = nil
@@ -888,6 +581,17 @@ func (r *resolver) patternValue(t *domTerm) *domPattern {
 		xs := make([]*domPattern, len(t.Items))
 		for i, n := range t.Items {
 			xs[i] = r.patternValue(n)
+		}
+		if t.Kind == tmUnion || t.Kind == tmIntersection {
+			flat := []*domPattern{}
+			for _, item := range xs {
+				if item.Kind == t.Kind {
+					flat = append(flat, item.Items...)
+				} else {
+					flat = append(flat, item)
+				}
+			}
+			xs = flat
 		}
 		return &domPattern{Kind: t.Kind, Items: xs}
 	}
@@ -1045,9 +749,6 @@ func resolverHasPattern(r *resolver, t *domTerm) bool {
 		return true
 	}
 	if t.Kind == tmConst {
-		if _, scalar := engineScalar(t.Str); scalar {
-			return false
-		}
 		return r.constants[t.Str].value.ty == tyPattern
 	}
 	for _, n := range t.Items {

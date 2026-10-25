@@ -1,6 +1,6 @@
 {
   "description": "Engine §11.3 concatenates explicit string atoms with ++ in a header image recipe.",
-  "grammar": "%const $S \"b\"\n%rule text :- \"a\" ++ $S ++ $_0063\n  | $a:\"x\"\n%emits",
+  "grammar": "%const $S \"b\"\n%rule text :- \"a\" ++ $S ++ \"‹U+0063›\"\n  | $a:\"x\"\n%emits",
   "input": "x",
   "expect": {
     "result": {

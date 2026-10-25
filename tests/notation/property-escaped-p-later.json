@@ -1,10 +1,21 @@
 {
-  "description": "A backslash after an ordinary character is still a lexical error (engine §9.1).",
+  "description": "A backslash and braces remain literal string characters (engine §9.1).",
   "document": "```jbogenbau\n%rule a \"a\\p{L}\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 11
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "literal": {
+                  "string": "a\\p{L}"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

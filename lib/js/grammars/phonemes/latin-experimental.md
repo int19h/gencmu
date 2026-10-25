@@ -25,7 +25,8 @@ latin.md reads a format character as nothing, as a comma, with two exceptions. T
 
 ```jbogenbau
 %extend-rule non-punctuation-char
-  _N | _Cc | _Co | _Cn
+  _General_Category_Number | _General_Category_Control
+  | _General_Category_Private_Use | _General_Category_Unassigned
 ```
 
 <details><summary>Railroad diagram of <code>non-punctuation-char</code></summary>
@@ -42,19 +43,13 @@ The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE AC
 
 latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
-The left neighbor needs a test of the whole run because the notation has no backward token-span query. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
+A letter is a character of category L that is neither ignored nor a script period. `quote-letter` reads one letter. `misplaced-quote` tests the tokens of the run before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A mark at the start of a run has no such suffix. A combining mark after an ignored character belongs to no letter and fails this test.
 
-- The mark has only ignored characters and marks before it in the run.
-- The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark and punctuation are no letters here.
-- A mark stands between an ignored character and the quotation mark, so the mark belongs to no letter.
-
-`letters`, `capital-run` and `non-lojban-char-run` refuse a run that matches it. On the left, the test skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. On both sides it skips ignored characters, which are commas, format characters and silent marks.
-
-`quote-letter` reads a character of category L that is neither ignored nor a script period. `letter-after-ignored` reads it after ignored characters. `letter-final` reads it at the end, before any combining marks and ignored characters. `misplaced-quote` excludes it and `mark-or-ignored` from its nonletter case.
+`letters`, `capital-run` and `non-lojban-char-run` reject runs that match `misplaced-quote`. On the left, `letter-final` skips the combining marks of a letter, so a marked letter counts: `lé'i` keeps its apostrophe. `letter-final` on the left and `letter-after-ignored` on the right both skip ignored characters. These are commas, format characters and silent marks.
 
 The silent-mark rules ignore `ー`, although its Lm category is a letter category. A zbalermorna letter has private use and fails the category test. zbalermorna writes its own apostrophe.
 
-Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `matches`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
+Between two letters, a mark has two readings: in one run, or as a pause between two runs. The redefined `run` refuses the second. A run that ends in a letter, with its marks and any ignored characters, cannot stop before an inner quotation mark. `letter-final` tests the run's own end with `ends`, and `quote-after-ignored` looks ahead with `following-tokens`. So the reading with the mark inside the run is the only one, and the phoneme stage stays `unique`.
 
 ```jbogenbau
 %redefine-rule apostrophe
@@ -100,11 +95,9 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   | chars-with-non-lojban-char inner-quote-mark run-char
 
 %rule misplaced-quote
-  | [{mark-or-ignored}] quote-mark [{_}]
-  | [{_}] $b:_ [{mark-or-ignored}] quote-mark [{_}]
-  | [{_}] ignored [{mark-or-ignored}] combining-mark [{mark-or-ignored}] quote-mark [{_}]
+  [{_}] $q:quote-mark [{_}]
 %conditions
-  ¬$b.matches(quote-letter | mark-or-ignored)
+  ¬$q.preceding-tokens.ends(letter-final)
 
 %rule quote-letter
   $a:alpha-char
@@ -119,13 +112,10 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 %conditions
   $c.matches(comma)
 
-%rule mark-or-ignored
-  combining-mark | ignored
-
 %redefine-rule run
   $r:any-run
 %conditions
-  ¬$r.matches(letter-final) ∨ ¬$r.following-tokens.begins(quote-after-ignored)
+  ¬$r.ends(letter-final) ∨ ¬$r.following-tokens.begins(quote-after-ignored)
 
 %rule quote-after-ignored
   [{ignored}] inner-quote-mark
@@ -134,10 +124,10 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   ordinary-run | non-lojban-char-run | capital-run
 
 %rule letter-final
-  [{_}] quote-letter [{combining-mark}] [{ignored}]
+  quote-letter [{combining-mark}] [{ignored}]
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>apostrophe</code> to <code>letter-final</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>apostrophe</code> to <code>letter-final</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/quote-mark.svg" alt="Railroad diagram of the rule quote-mark"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/inner-quote-mark.svg" alt="Railroad diagram of the rule inner-quote-mark"></p>
@@ -152,7 +142,6 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/quote-letter.svg" alt="Railroad diagram of the rule quote-letter"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/letter-after-ignored.svg" alt="Railroad diagram of the rule letter-after-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/ignored.svg" alt="Railroad diagram of the rule ignored"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-experimental/mark-or-ignored.svg" alt="Railroad diagram of the rule mark-or-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/run.svg" alt="Railroad diagram of the rule run"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/quote-after-ignored.svg" alt="Railroad diagram of the rule quote-after-ignored"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-experimental/any-run.svg" alt="Railroad diagram of the rule any-run"></p>
@@ -240,9 +229,9 @@ A letter rule tests only the marks that mean something on its letter. Any other 
 %rule named-mark
   | stress-mark :: Accent
   | glide-mark :: Breve
-  | $_0308 :: Dieresis
-  | $_0328 :: Ogonek
-  | $_030C :: Caron
+  | "‹U+0308›" :: Dieresis
+  | "‹U+0328›" :: Ogonek
+  | "‹U+030C›" :: Caron
 ```
 
 <details><summary>Railroad diagrams of <code>letter-marks</code>, <code>letter-mark</code> and <code>named-mark</code></summary>
@@ -301,34 +290,34 @@ A breve on `i` or `u` makes a glide letter, which the next section reads. The vo
 ```jbogenbau
 %rule latin-vowel :: ($m ⟹ $m.tags ∩ Dieresis)
   | "a" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] := "a"
-  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed := "A"
-  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented := "A"
-  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital := "A"
+  | "a" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed := "a" :- "A"
+  | "A" $m:letter-marks<Accent ¬Ogonek ¬Caron> :: Stressed Capital Accented := "a" :- "A"
+  | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Stressed Capital := "a" :- "A"
   | "A" [$m:letter-marks<¬Accent ¬Ogonek ¬Caron>] :: Folded Capital := "a"
   | "e" [$m:letter-marks<¬Accent ¬Ogonek>] := "e"
-  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "E"
-  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "E"
-  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "E"
+  | "e" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "e" :- "E"
+  | "E" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "e" :- "E"
+  | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "e" :- "E"
   | "E" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "e"
   | "i" [$m:letter-marks<¬Accent ¬Breve>] := "i"
-  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed := "I"
-  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "I"
-  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "I"
+  | "i" $m:letter-marks<Accent ¬Breve> :: Stressed := "i" :- "I"
+  | "I" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "i" :- "I"
+  | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "i" :- "I"
   | "I" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "i"
   | "o" [$m:letter-marks<¬Accent ¬Ogonek>] := "o"
-  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "O"
-  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "O"
-  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "O"
+  | "o" $m:letter-marks<Accent ¬Ogonek> :: Stressed := "o" :- "O"
+  | "O" $m:letter-marks<Accent ¬Ogonek> :: Stressed Capital Accented := "o" :- "O"
+  | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Stressed Capital := "o" :- "O"
   | "O" [$m:letter-marks<¬Accent ¬Ogonek>] :: Folded Capital := "o"
   | "u" [$m:letter-marks<¬Accent ¬Breve>] := "u"
-  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed := "U"
-  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "U"
-  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "U"
+  | "u" $m:letter-marks<Accent ¬Breve> :: Stressed := "u" :- "U"
+  | "U" $m:letter-marks<Accent ¬Breve> :: Stressed Capital Accented := "u" :- "U"
+  | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Stressed Capital := "u" :- "U"
   | "U" [$m:letter-marks<¬Accent ¬Breve>] :: Folded Capital := "u"
   | "y" [$m:letter-marks<¬Accent>] := "y"
-  | "y" $m:letter-marks<Accent> :: Stressed := "Y"
-  | "Y" $m:letter-marks<Accent> :: Stressed Capital Accented := "Y"
-  | "Y" [$m:letter-marks<¬Accent>] :: Stressed Capital := "Y"
+  | "y" $m:letter-marks<Accent> :: Stressed := "y" :- "Y"
+  | "Y" $m:letter-marks<Accent> :: Stressed Capital Accented := "y" :- "Y"
+  | "Y" [$m:letter-marks<¬Accent>] :: Stressed Capital := "y" :- "Y"
   | "Y" [$m:letter-marks<¬Accent>] :: Folded Capital := "y"
   | $g:glide-letter :: $g.tags
 %emits
@@ -387,40 +376,42 @@ A capital glide letter is plain. A glide is never stressed, so an accent on a gl
 
 krulermorna writes a diphthong with one letter: `ą` for ai, `ę` for ei, `ǫ` for oi, and `ǎ` for au. Its vlipa variant writes au as `ꜷ` U+A737, with the capital `Ꜷ` U+A736. Stage zero gives `ą` as `a` and an ogonek, and `ǎ` as `a` and a caron. `ꜷ` has no decomposition.
 
-A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text. An accent stresses the first vowel, so `ą́` is `Ai`, and a capital does the same outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
+A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text.
+
+An accent stresses the first vowel, so `ą́` has image `Ai`. A capital marks stress outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
 
 An ogonek and a caron together on `a` give no reading, so the run is foreign. On `e` and `o`, the ogonek forms the diphthong and the caron is ignored.
 
 ```jbogenbau
 %rule latin-diphthong-i :: ($m ⟹ $m.tags ∩ Dieresis)
   | "a" $m:letter-marks<Ogonek ¬Accent ¬Caron> := "a"
-  | "a" $m:letter-marks<Ogonek Accent ¬Caron> :: Stressed := "A"
-  | "A" $m:letter-marks<Ogonek Accent ¬Caron> :: Stressed Capital Accented := "A"
-  | "A" $m:letter-marks<Ogonek ¬Accent ¬Caron> :: Stressed Capital := "A"
+  | "a" $m:letter-marks<Ogonek Accent ¬Caron> :: Stressed := "a" :- "A"
+  | "A" $m:letter-marks<Ogonek Accent ¬Caron> :: Stressed Capital Accented := "a" :- "A"
+  | "A" $m:letter-marks<Ogonek ¬Accent ¬Caron> :: Stressed Capital := "a" :- "A"
   | "A" $m:letter-marks<Ogonek ¬Accent ¬Caron> :: Folded Capital := "a"
   | "e" $m:letter-marks<Ogonek ¬Accent> := "e"
-  | "e" $m:letter-marks<Ogonek Accent> :: Stressed := "E"
-  | "E" $m:letter-marks<Ogonek Accent> :: Stressed Capital Accented := "E"
-  | "E" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "E"
+  | "e" $m:letter-marks<Ogonek Accent> :: Stressed := "e" :- "E"
+  | "E" $m:letter-marks<Ogonek Accent> :: Stressed Capital Accented := "e" :- "E"
+  | "E" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "e" :- "E"
   | "E" $m:letter-marks<Ogonek ¬Accent> :: Folded Capital := "e"
   | "o" $m:letter-marks<Ogonek ¬Accent> := "o"
-  | "o" $m:letter-marks<Ogonek Accent> :: Stressed := "O"
-  | "O" $m:letter-marks<Ogonek Accent> :: Stressed Capital Accented := "O"
-  | "O" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "O"
+  | "o" $m:letter-marks<Ogonek Accent> :: Stressed := "o" :- "O"
+  | "O" $m:letter-marks<Ogonek Accent> :: Stressed Capital Accented := "o" :- "O"
+  | "O" $m:letter-marks<Ogonek ¬Accent> :: Stressed Capital := "o" :- "O"
   | "O" $m:letter-marks<Ogonek ¬Accent> :: Folded Capital := "o"
 %emits
   $ :: $.tags ∩ Stressed, ε :: ∅ := "i"
 
 %rule latin-diphthong-u :: ($m ⟹ $m.tags ∩ Dieresis)
   | "a" $m:letter-marks<Caron ¬Accent ¬Ogonek> := "a"
-  | "a" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed := "A"
-  | "A" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed Capital Accented := "A"
-  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Stressed Capital := "A"
+  | "a" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed := "a" :- "A"
+  | "A" $m:letter-marks<Caron Accent ¬Ogonek> :: Stressed Capital Accented := "a" :- "A"
+  | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Stressed Capital := "a" :- "A"
   | "A" $m:letter-marks<Caron ¬Accent ¬Ogonek> :: Folded Capital := "a"
   | "ꜷ" [$m:letter-marks<¬Accent>] := "a"
-  | "ꜷ" $m:letter-marks<Accent> :: Stressed := "A"
-  | "Ꜷ" $m:letter-marks<Accent> :: Stressed Capital Accented := "A"
-  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital := "A"
+  | "ꜷ" $m:letter-marks<Accent> :: Stressed := "a" :- "A"
+  | "Ꜷ" $m:letter-marks<Accent> :: Stressed Capital Accented := "a" :- "A"
+  | "Ꜷ" [$m:letter-marks<¬Accent>] :: Stressed Capital := "a" :- "A"
   | "Ꜷ" [$m:letter-marks<¬Accent>] :: Folded Capital := "a"
 %emits
   $ :: $.tags ∩ Stressed, ε :: ∅ := "u"

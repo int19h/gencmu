@@ -78,12 +78,13 @@ struct Frame {
     dom: Arc<Dom>,
     order: Vec<Place>,
     next: usize,
+    names: Vec<String>,
 }
 
 impl Frame {
-    fn new(path: Arc<str>, dom: Arc<Dom>) -> Frame {
+    fn new(path: Arc<str>, dom: Arc<Dom>, names: Vec<String>) -> Frame {
         let order = places_in_order(&dom);
-        Frame { path, dom, order, next: 0 }
+        Frame { path, dom, order, next: 0, names }
     }
 }
 
@@ -110,6 +111,9 @@ pub(crate) struct Spliced {
 pub(crate) trait Documents {
     /// The DOM of the document at `path`, or `None` when it does not exist.
     fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error>;
+    fn dom_with_names(&mut self, path: &str, _inherited: &[String]) -> Result<Option<Arc<Dom>>, Error> {
+        self.dom(path)
+    }
     /// `target` resolved against the document `base`, or `None` when it
     /// leads out of the documents a loader may read.
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
@@ -145,7 +149,10 @@ impl Splicer<'_> {
     /// include is a frame on a stack of the splice's own, not a call, so
     /// that a long chain of includes costs heap and not the call stack.
     fn splice(&mut self, path: Arc<str>, dom: Arc<Dom>) -> Result<(), Error> {
-        let mut frames = vec![Frame::new(path, dom)];
+        let names = crate::unicode_names::selected_names(&path, &dom, &[], &|base, target| {
+            self.documents.resolve(base, target)
+        })?;
+        let mut frames = vec![Frame::new(path, dom, names)];
         // The documents whose includes are being spliced, outermost first.
         let mut chain: Vec<Arc<str>> = Vec::new();
         while let Some(frame) = frames.last_mut() {
@@ -173,7 +180,9 @@ impl Splicer<'_> {
                 None => error,
             };
             match item {
+                Item::Directive(directive) if directive.name == "names" => {}
                 Item::Directive(directive) if directive.name == "include" => {
+                    let inherited = frame.names.clone();
                     let target_text = directive.args.first().map_or("", String::as_str);
                     let Some(target) = self.documents.resolve(path, target_text) else {
                         return Err(in_stage(here(format!("the document path {target_text} leaves the grammars"))));
@@ -191,11 +200,15 @@ impl Splicer<'_> {
                     if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
-                    let Some(included) = self.documents.dom(&target).map_err(in_stage)? else {
+                    let Some(included) = self.documents.dom_with_names(&target, &inherited).map_err(in_stage)? else {
                         return Err(in_stage(here(format!("{target} was not found ({})", through()))));
                     };
                     self.open_run = false;
-                    frames.push(Frame::new(Arc::from(target.as_str()), included));
+                    let names =
+                        crate::unicode_names::selected_names(&target, &included, &inherited, &|base, target| {
+                            self.documents.resolve(base, target)
+                        })?;
+                    frames.push(Frame::new(Arc::from(target.as_str()), included, names));
                 }
                 Item::Directive(directive) if directive.name == "features" && self.selected.is_none() => {
                     if directive.conditions.is_some() {
@@ -268,6 +281,9 @@ impl Splicer<'_> {
                         self.open_run = true;
                     }
                     let (_, run) = stage.documents.last_mut().expect("a run");
+                    if let Some(raw) = dom.unresolved.get(&item.at()) {
+                        run.unresolved.insert(item.at(), raw.clone());
+                    }
                     match item {
                         Item::Rule(rule) => run.rules.push(rule.clone()),
                         Item::Constant(constant) => run.constants.push(constant.clone()),

@@ -1,6 +1,6 @@
 {
-  "description": "A condition resolves @(\"a\"..\"z\") before ≅ and accepts the reading. The range pattern matches \"a\"..\"z\" under engine §§2 and 10.",
-  "grammar": "%rule text \"a\"..\"z\"\n%conditions $ ≅ @(\"a\"..\"z\")",
+  "description": "A condition resolves #\"a\"..\"z\" before ≅ and accepts the reading. The range pattern matches \"a\"..\"z\" under engine §§2 and 10.",
+  "grammar": "%rule text \"a\"..\"z\"\n%conditions $ ≅ #\"a\"..\"z\"",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

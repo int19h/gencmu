@@ -18,7 +18,6 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
-from ._strings import scalar
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -60,12 +59,12 @@ def type_name(kind: TermType) -> str:
 
 
 def _unknown_constants(name: str) -> TermType:
-    return "string" if scalar(name) is not None else "any"
+    return "any"
 
 
-_SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}
+_SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"}
+_PREDICATES = {"matches", "begins", "ends", "starts-input", "ends-input", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
 _METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
@@ -76,30 +75,36 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
         return "unknown method name"
     if not isinstance(receiver, dict) or not isinstance(args, list):
         return "a malformed method"
-    bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str)
+    if name == "ends" and _restored_shape(receiver):
+        return "ends requires an ordinary span, not a restored span"
+    from ._template_nodes import has_unresolved
+    bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str) or bool({"param", "call"} & receiver.keys())
     receiver_method = receiver.get("method")
     span = bare or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
 
     def named(arg, key):
         return isinstance(arg, dict) and set(arg) == {key} and isinstance(arg[key], str)
 
+    def rule(arg):
+        return named(arg, "rule") or isinstance(arg, dict) and bool({"param", "call"} & arg.keys())
+
     def term(arg):
-        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal"} & arg.keys())
+        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal", "integer"} & arg.keys())
 
     if name == "ngrams":
         valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
     elif name == "split":
-        valid = len(args) == 1 and term(args[0])
+        valid = len(args) == 1 and term(args[0]) and not (has_unresolved([receiver, args]) and args[0].get("string") == "")
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
-        valid = span and (not args or len(args) == 1 and named(args[0], "rule"))
-    elif name in ("matches", "begins"):
-        valid = span and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
+        valid = span and (not args or len(args) == 1 and rule(args[0]))
+    elif name in ("matches", "begins", "ends"):
+        valid = span and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
-        valid = bare and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
+        valid = bare and bool(args) and all(rule(arg) or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
-        valid = bare and len(args) == 1 and named(args[0], "rule")
+        valid = bare and len(args) == 1 and rule(args[0])
     elif name == "without-elision":
         valid = bare and not args
     elif name in ("verbatim-text", "emitted"):
@@ -111,6 +116,8 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
     """Select a method on its actual receiver before string conversion."""
+    if name == "ends" and receiver == "restored":
+        return None, "ends requires an ordinary span, not a restored span"
     spans = {"capture", "span", "restored"}
     if name in _STRING_METHODS:
         valid = receiver in spans or (recipe and receiver == "emitted" and name in ("value", "image"))
@@ -134,7 +141,7 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name in ("followed-by", "preceded-by"):
         valid = bare and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
-    elif name in ("matches", "begins"):
+    elif name in ("matches", "begins", "ends"):
         valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
     elif name in _PREDICATES:
@@ -296,6 +303,8 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                     if id(node) in tested
                     else "a pattern atom requires a string or pattern constant"
                 )
+                if kind == "pattern" and (node.get("exact") or "children" in node):
+                    problem = "a pattern-valued constant cannot carry node decorations"
                 if problem is not None:
                     return None, (problem, {"const": node["constant"], "at": node["at"]})
             if "test" in node:
@@ -368,6 +377,8 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             if problem:
                 return None, (problem, term)
         return result, None
+    if "param" in term or "call" in term:
+        return "any", None
     return None, ("a malformed term", term)
 
 
@@ -595,3 +606,13 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
             else:
                 stack.extend(reversed(list(current.values())))
     return found
+
+
+def _restored_shape(receiver: Any) -> bool:
+    seen = set()
+    while isinstance(receiver, dict) and receiver.get("method") == "onward":
+        if id(receiver) in seen:
+            return False
+        seen.add(id(receiver))
+        receiver = receiver.get("receiver")
+    return isinstance(receiver, dict) and receiver.get("method") in ("without-elision", "without-elision-except")

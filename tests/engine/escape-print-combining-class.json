@@ -1,0 +1,18 @@
+{
+  "description": "A scalar with nonzero combining class requires an escape. The canonical call name reloads with the same instance key (engine §9.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+1B44›\")\n%extend-rule one(\"‹U+1B44›\") \"z\"",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "one(\"‹U+1B44›\")"
+          }
+        ]
+      }
+    }
+  }
+}

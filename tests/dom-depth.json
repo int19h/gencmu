@@ -165,11 +165,7 @@
     },
     "leaf": {
       "literal": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       }
     },
     "wrapper": {
@@ -205,11 +201,7 @@
     },
     "leaf": {
       "literal": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       }
     },
     "wrapper": {
@@ -287,11 +279,7 @@
     "leaf": {
       "range": [
         {
-          "const": "_0061",
-          "at": [
-            1,
-            1
-          ]
+          "string": "a"
         },
         {
           "string": "a"
@@ -766,11 +754,7 @@
     "leaf": {
       "test": "=",
       "value": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       },
       "expr": {
         "ref": "A"
@@ -1092,11 +1076,7 @@
     "leaf": {
       "op": "=",
       "left": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       },
       "right": {
         "string": "a"
@@ -1997,7 +1977,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2039,7 +2019,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2081,7 +2061,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2123,7 +2103,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2167,7 +2147,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2181,7 +2161,7 @@
     "atLimit": 255
   },
   {
-    "description": "Pattern scalar constant literal",
+    "description": "Pattern decoded scalar literal",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2203,11 +2183,7 @@
     },
     "leaf": {
       "literal": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       },
       "at": [
         1,
@@ -2215,7 +2191,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2264,7 +2240,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2278,7 +2254,7 @@
     "atLimit": 255
   },
   {
-    "description": "Pattern scalar constant range endpoint",
+    "description": "Pattern decoded scalar range endpoint",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2304,11 +2280,7 @@
           "string": "a"
         },
         {
-          "const": "_0061",
-          "at": [
-            1,
-            1
-          ]
+          "string": "a"
         }
       ],
       "at": [
@@ -2317,7 +2289,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2365,7 +2337,7 @@
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2418,7 +2390,7 @@
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2477,7 +2449,7 @@
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2491,7 +2463,7 @@
     "atLimit": 253
   },
   {
-    "description": "Pattern scalar constant test value",
+    "description": "Pattern decoded scalar test value",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2521,15 +2493,11 @@
         ]
       },
       "value": {
-        "const": "_0061",
-        "at": [
-          1,
-          1
-        ]
+        "string": "a"
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2574,7 +2542,7 @@
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2619,7 +2587,7 @@
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2664,7 +2632,7 @@
       }
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2699,18 +2667,21 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "node": {
-          "terminal": "A",
-          "at": [
-            1,
-            1
-          ]
+      "any": true,
+      "children": [
+        {
+          "child": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
         }
-      }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2745,12 +2716,15 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "siblings": true
-      }
+      "any": true,
+      "children": [
+        {
+          "siblings": true
+        }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2785,20 +2759,25 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "optional": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
+      "any": true,
+      "children": [
+        {
+          "optional": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
         }
-      }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2833,31 +2812,30 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "sequence": [
-          {
-            "node": {
-              "terminal": "A",
-              "at": [
-                1,
-                1
-              ]
-            }
-          },
-          {
-            "node": {
-              "terminal": "A",
-              "at": [
-                1,
-                1
-              ]
-            }
+      "any": true,
+      "children": [
+        {
+          "child": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
           }
-        ]
-      }
+        },
+        {
+          "child": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2868,7 +2846,7 @@
         }
       ]
     },
-    "atLimit": 252
+    "atLimit": 253
   },
   {
     "description": "Pattern children repeat item",
@@ -2892,20 +2870,25 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
+      "any": true,
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
         }
-      }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2940,29 +2923,36 @@
       "implications": []
     },
     "leaf": {
-      "children": {
-        "repeat": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
-        },
-        "separator": {
-          "node": {
-            "terminal": "A",
-            "at": [
-              1,
-              1
-            ]
-          }
+      "any": true,
+      "children": [
+        {
+          "repeat": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ],
+          "separator": [
+            {
+              "child": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          ]
         }
-      }
+      ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -2997,14 +2987,25 @@
       "implications": []
     },
     "leaf": {
-      "terminal": "A",
-      "at": [
-        1,
-        1
+      "union": [
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
       ]
     },
     "wrapper": {
-      "union": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -3015,7 +3016,7 @@
         }
       ]
     },
-    "atLimit": 255
+    "atLimit": 254
   },
   {
     "description": "Pattern intersection",
@@ -3039,14 +3040,25 @@
       "implications": []
     },
     "leaf": {
-      "terminal": "A",
-      "at": [
-        1,
-        1
+      "intersection": [
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "terminal": "B",
+          "at": [
+            1,
+            1
+          ]
+        }
       ]
     },
     "wrapper": {
-      "intersection": [
+      "difference": [
         "$inner",
         {
           "terminal": "A",
@@ -3057,7 +3069,7 @@
         }
       ]
     },
-    "atLimit": 255
+    "atLimit": 254
   },
   {
     "description": "Pattern difference",
@@ -3316,5 +3328,493 @@
       "receiver": "$inner"
     },
     "atLimit": 254
+  },
+  {
+    "description": "Template expression parameter",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "param": "X",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent body argument",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "call": "use",
+      "args": [
+        {
+          "body": "$inner"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent target choice",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "rule": "a"
+    },
+    "wrapper": {
+      "call": "use",
+      "args": [
+        {
+          "targets": [
+            "$inner",
+            {
+              "rule": "b"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Call with transparent requirements argument",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "call": "use",
+      "args": [
+        {
+          "requirements": [
+            {
+              "negated": false,
+              "value": {
+                "tag": "A"
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Call with tested symbol argument",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "param": "X",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "call": "use",
+      "args": [
+        {
+          "test": "tags",
+          "expr": {
+            "ref": "A"
+          },
+          "requirements": [
+            {
+              "negated": false,
+              "value": {
+                "tag": "B"
+              }
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Template literal keeps the string depth",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "param": "X",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Template range keeps the string depth",
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "use",
+          "params": [
+            "X"
+          ],
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "param": "X",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "string": "z"
+        }
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
   }
 ]

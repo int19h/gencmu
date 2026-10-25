@@ -1,0 +1,18 @@
+{
+  "description": "Canonical term names preserve grouping and operator precedence.",
+  "grammar": "%rule term(@X) \"a\"\n%rule text term((A ∖ B) ∖ C)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "term(A ∖ B ∖ C)"
+          }
+        ]
+      }
+    }
+  }
+}

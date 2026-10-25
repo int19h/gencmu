@@ -266,7 +266,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 			return false
 		}
 		visited[p] = true
-		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins) {
+		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins || p.c.Kind == cdEnds) {
 			for _, t := range p.c.queryTargets() {
 				if t.Kind == tmTerminal {
 					terminals[t.Str] = true

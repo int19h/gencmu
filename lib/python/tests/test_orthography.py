@@ -23,7 +23,7 @@ class StageZero(unittest.TestCase):
                 self.assertEqual([token.text for token in tokens], [text[i] for i in origins])
                 self.assertEqual([token.source for token in tokens], [(i, i + 1) for i in origins])
                 self.assertEqual([token.span for token in tokens], [(i, i + 1) for i in range(len(values))])
-        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_Mn", "_M"}))
+        self.assertEqual(character_tokens("á", table)[1].tags, frozenset({"_General_Category_Nonspacing_Mark", "_General_Category_Mark"}))
 
     def test_scalar_validation_precedes_decomposition(self) -> None:
         class UnusedTable(UnicodeTable):
@@ -54,7 +54,7 @@ class GrammarReading(unittest.TestCase):
         first = _Loader(texts.get, resources)
         dom = first.dom("g.md")
         self.assertEqual(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"})
-        cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table),
+        cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
         compiled = json.dumps(cache)
         self.assertTrue(_compiled_index(compiled, first.reader.hash, table))
@@ -99,10 +99,10 @@ class GrammarReading(unittest.TestCase):
                 dialect = gencmu.load_dialect_sources(texts, "p.md")
                 token = gencmu.Token("", frozenset(), (0, 1), (0, 0), value=value)
                 self.assertTrue(dialect.parse_tokens([token], "").ok)
-        texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text $_00E0..$_017A')
+        texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text "‹U+00E0›".."‹U+017A›"')
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         terminal = dialect.parse("").error.expected[0].terminal
-        self.assertEqual(terminal, '$_00E0..$_017A')
+        self.assertEqual(terminal, '"‹U+00E0›".."‹U+017A›"')
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text ' + terminal)
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         self.assertTrue(dialect.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)

@@ -1,9 +1,9 @@
 {
   "description": "A pattern DOM preserves separate references to the same constant in its terminal atom and value-test operand (engine §9.3).",
-  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $P @($JOIN-1=$JOIN-1)\n```\n",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $P #$JOIN-1=$JOIN-1\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 40,
       "rules": [],
       "directives": [],
       "constants": [
@@ -39,14 +39,14 @@
                 "const": "JOIN-1",
                 "at": [
                   3,
-                  21
+                  20
                 ]
               },
               "expr": {
                 "constant": "JOIN-1",
                 "at": [
                   3,
-                  13
+                  12
                 ]
               }
             }

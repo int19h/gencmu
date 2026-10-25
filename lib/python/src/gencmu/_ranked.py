@@ -297,18 +297,63 @@ class LocatedRule(dict):
 
 
 def has_ranked(dom):
-    pending = [alt['expr'] for rule in dom['rules'] for alt in rule['alternatives']]
+    from ._template_nodes import nodes
+    return any('ranked' in node for node in nodes(dom))
+
+
+class LocatedExpression(dict):
+    pass
+
+
+def expression_locations(expr):
+    locations, pending = {}, [(expr, '')]
     while pending:
-        expr = pending.pop()
-        if 'ranked' in expr:
-            return True
-        pending.extend(child for child, _ in children(expr))
-    return False
+        node, path = pending.pop()
+        if hasattr(node, 'ranked_at'):
+            locations[path] = node.ranked_at
+        pending.extend((child, path + component) for child, component in children(node))
+    return locations
+
+
+def restore_template_locations(dom, tokens, position):
+    from ._template_nodes import map_nodes
+    result = map_nodes(dom, lambda node: LocatedExpression(node) if isinstance(node, dict) and 'ranked' in node else node)
+    separators = [position(token.source[0]) for token in tokens if token.value == '≻']
+    roots = []
+    for rule in result['rules']:
+        roots.extend(rule.get('args', []))
+        roots.extend(rule.get(k) for k in ('instance', 'tags', 'value', 'image'))
+        for alt in rule.get('alternatives', []):
+            roots.extend(alt.get(k) for k in ('expr', 'tags', 'value', 'image'))
+        roots.extend(rule.get(k) for k in ('conditions', 'emit'))
+    index, locations = 0, []
+    pending = [(root, 0) for root in reversed(roots)]
+    while pending:
+        node, action = pending.pop()
+        if action == 1:
+            if index < len(separators):
+                locations.append((node, separators[index]))
+        elif action == 2:
+            index += 1
+        elif isinstance(node, dict) and 'ranked' in node:
+            for option in range(len(node['ranked']) - 1, 0, -1):
+                pending.extend(((node['ranked'][option], 0), (None, 2)))
+            pending.extend(((node, 1), (node['ranked'][0], 0)))
+        elif isinstance(node, (dict, list)):
+            values = [v for k, v in node.items() if k != 'at'] if isinstance(node, dict) else node
+            pending.extend((child, 0) for child in reversed(values))
+    if index == len(separators):
+        for node, at in locations:
+            node.ranked_at = at
+    return result
 
 
 def restore_locations(dom, tokens, position):
     if not has_ranked(dom):
         return dom
+    from ._template_nodes import has_unresolved
+    if has_unresolved(dom):
+        return restore_template_locations(dom, tokens, position)
     separators = [position(token.source[0]) for token in tokens if token.value == '≻']
     index = 0
     from ._dom import DeferredDom

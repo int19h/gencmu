@@ -129,11 +129,16 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 	return nr.readMode(text, docPath, false)
 }
-func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (dom *domDoc, err *Error) {
+func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
 	gt := extractGrammarText(text)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}
+	names := newNamesScope(bundledNamesText, nr.uni, nil)
+	if len(selected) > 0 {
+		names = selected[0]
+	}
+	strings := &documentStrings{path: docPath, uni: nr.uni, names: names, position: gt.at}
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
 	var out stageOutcome
@@ -165,8 +170,13 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		if out.err != nil {
 			e := &Error{Kind: ErrorGrammar, Document: docPath, Message: "the document does not parse as the notation"}
+			sourceOffset := 0
 			if out.err.Source != nil {
-				at := gt.at(out.err.Source[0])
+				sourceOffset = out.err.Source[0]
+				if g.name == "lexical" && sourceOffset > 0 && gt.text[sourceOffset-1] == '@' {
+					sourceOffset--
+				}
+				at := gt.at(sourceOffset)
 				e.Line, e.Column = at[0], at[1]
 			}
 			if out.err.Kind == ErrorRejected {
@@ -180,13 +190,21 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 			if g.name == "syntax" && out.err.Kind == ErrorRejected && out.err.Token != nil && rankedSyntaxFailure(toks, *out.err.Token) {
 				e.Code = "ranked-choice-syntax"
 			}
+			if g.name == "lexical" && sourceOffset < len(gt.text) && gt.text[sourceOffset] == '@' {
+				e.Message = "a parameter requires @ followed directly by an ASCII letter"
+			}
 			return nil, e
 		}
 		if i < len(nr.stages)-1 {
 			toks = out.stage.Output
+			if i == 0 {
+				if err := strings.inspect(toks); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
-	b := &domBuilder{deferEmission: deferEmission, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
+	b := &domBuilder{deferEmission: deferEmission, strings: strings, toks: toks, gt: gt, doc: docPath, uni: nr.uni, types: newTypeMemo()}
 	defer func() {
 		if x := recover(); x != nil {
 			if e, ok := x.(*Error); ok {
@@ -216,6 +234,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		}
 		return nil, e
 	}
+	dom.namesDependencies = names.dependencies
 	return dom, nil
 }
 
@@ -257,6 +276,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	strings        *documentStrings
 	hasBoundary    bool
 	deferEmission  bool
 	featureContext bool
@@ -283,6 +303,20 @@ type domBuilder struct {
 // §9). Every other rule is a wrapper, and the reader reads its parts in its
 // place.
 var domRules = map[string]bool{
+	"pattern-primary":    true,
+	"pattern-node":       true,
+	"pattern-bare":       true,
+	"pattern-children":   true,
+	"child-choice":       true,
+	"child-alternative":  true,
+	"child-set":          true,
+	"child-intersection": true,
+	"child-sequence":     true,
+	"child-item":         true,
+	"child-path":         true,
+	"child-primary":      true,
+
+	"call": true, "parameter": true, "call-argument": true, "requirement-argument": true, "target-argument": true, "body-argument": true, "symbol-argument": true,
 
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
@@ -292,7 +326,7 @@ var domRules = map[string]bool{
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
 	"emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
-	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
+	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true,
 	"presence": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "concatenation": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
@@ -496,7 +530,20 @@ func (b *domBuilder) operator(n *Node) string { return canonicalOperator(b.token
 
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
+	statementSeen := false
 	for _, c := range ruleParts(root) {
+		names := c.Rule == "directive" && b.tokenValue(b.token(c)) == "%names"
+		if names && statementSeen {
+			b.fail(c, "%%names must precede every other statement")
+		}
+		statementSeen = statementSeen || !names
+		if templateSyntax(c) {
+			raw := b.templateDeclaration(c)
+			if err := b.appendReadDeclaration(d, c.Rule, raw); err != nil {
+				b.fail(c, "%s", err)
+			}
+			continue
+		}
 		switch c.Rule {
 		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
 		default:
@@ -536,9 +583,17 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				case "argument-string":
 					// Include paths name exact files. Other operands use values.
 					operand := b.tokenValue(b.token(p))
-					if dir.Name == "include" && len(dir.Args) == 0 {
-						operand = b.sourceText(b.token(p))
-						dir.Args = append(dir.Args, operand[1:len(operand)-1])
+					if (dir.Name == "include" || dir.Name == "names") && len(dir.Args) == 0 {
+						if b.strings != nil {
+							decoded, err := b.strings.decode(b.toks[b.token(p).Token], true)
+							if err != nil {
+								panic(err)
+							}
+							dir.Args = append(dir.Args, decoded)
+						} else {
+							operand = b.sourceText(b.token(p))
+							dir.Args = append(dir.Args, operand[1:len(operand)-1])
+						}
 					} else {
 						dir.Args = append(dir.Args, operand)
 					}
@@ -584,8 +639,8 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	if b.tokenValue(definer) == "%redefine-const" {
 		k.Op = "redefine"
 	}
-	if _, scalar := engineScalar(k.Name); scalar || !constName.MatchString(k.Name) {
-		b.fail(reference, "an engine constant cannot be declared")
+	if !constName.MatchString(k.Name) {
+		b.fail(reference, "a constant requires a user name")
 	}
 	b.closedFor = "a constant's value"
 	k.Value = b.value(valueNode)
@@ -663,8 +718,8 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
 	r := &domRule{Name: b.tokenValue(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
-	if !classifierName.MatchString(r.Name) && r.Name != "#" {
-		b.fail(b.only(n, "rule-name"), "a rule name starts lowercase")
+	if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
+		b.fail(b.only(n, "rule-name"), "a rule name starts with a lowercase letter or uses one eligible emoji")
 	}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
@@ -866,6 +921,13 @@ func firstOfRule(n *Node, name string) *Node {
 
 func (b *domBuilder) tagOf(n *Node) string {
 	name := b.tokenValue(n)
+	if strings.HasPrefix(name, "_") {
+		canonical := b.uni.canonicalTag(name)
+		if canonical == "" {
+			b.fail(n, "unknown or unavailable engine tag %s", name)
+		}
+		return canonical
+	}
 	if !isTag(name, b.uni) {
 		b.fail(n, "%s is not a tag identifier", name)
 	}
@@ -1002,9 +1064,9 @@ func operandProblem(name string, kinds []string) string {
 		if len(kinds) != 1 || !names {
 			return "%" + name + " takes one name"
 		}
-	case "include":
+	case "include", "names":
 		if len(kinds) != 1 || kinds[0] != operandString {
-			return "%include takes one string"
+			return "%" + name + " takes one string"
 		}
 	case "features":
 		if len(kinds) == 0 || !names {

@@ -1,0 +1,10 @@
+{
+  "description": "An exact empty list accepts a directly captured empty rule.",
+  "grammar": "%rule text $x:blank\n%conditions $x ≅ #·«»\n%rule blank ε",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

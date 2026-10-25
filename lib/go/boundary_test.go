@@ -105,7 +105,7 @@ func TestBoundaryLoadCacheDiagnostics(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, cached := LoadDialectSources(sources, "p.md")
 	if !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("plain=%+v cached=%+v", plain, cached)

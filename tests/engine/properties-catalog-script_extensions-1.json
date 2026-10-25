@@ -1,0 +1,1989 @@
+{
+  "description": "Every Script_Extensions value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 1 of 2.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47 r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63 r64 r65 r66 r67 r68 r69 r70 r71 r72 r73 r74 r75 r76 r77 r78 r79 r80 r81\n%rule r0 $x:_Script_Extensions_Adlam<_scx_Adlm>\n%conditions $x ≅ #_scx_Adlm<_scx_Adlm>, _scx_Adlm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Adlm\n%rule r1 $x:_Script_Extensions_Ahom<_scx_Ahom>\n%conditions $x ≅ #_scx_Ahom<_scx_Ahom>, _scx_Ahom ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Ahom\n%rule r2 $x:_Script_Extensions_Anatolian_Hieroglyphs<_scx_Hluw>\n%conditions $x ≅ #_scx_Hluw<_scx_Hluw>, _scx_Hluw ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hluw\n%rule r3 $x:_Script_Extensions_Arabic<_scx_Arab>\n%conditions $x ≅ #_scx_Arab<_scx_Arab>, _scx_Arab ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Arab\n%rule r4 $x:_Script_Extensions_Armenian<_scx_Armn>\n%conditions $x ≅ #_scx_Armn<_scx_Armn>, _scx_Armn ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Armn\n%rule r5 $x:_Script_Extensions_Avestan<_scx_Avst>\n%conditions $x ≅ #_scx_Avst<_scx_Avst>, _scx_Avst ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Avst\n%rule r6 $x:_Script_Extensions_Balinese<_scx_Bali>\n%conditions $x ≅ #_scx_Bali<_scx_Bali>, _scx_Bali ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bali\n%rule r7 $x:_Script_Extensions_Bamum<_scx_Bamu>\n%conditions $x ≅ #_scx_Bamu<_scx_Bamu>, _scx_Bamu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bamu\n%rule r8 $x:_Script_Extensions_Bassa_Vah<_scx_Bass>\n%conditions $x ≅ #_scx_Bass<_scx_Bass>, _scx_Bass ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bass\n%rule r9 $x:_Script_Extensions_Batak<_scx_Batk>\n%conditions $x ≅ #_scx_Batk<_scx_Batk>, _scx_Batk ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Batk\n%rule r10 $x:_Script_Extensions_Bengali<_scx_Beng>\n%conditions $x ≅ #_scx_Beng<_scx_Beng>, _scx_Beng ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Beng\n%rule r11 $x:_Script_Extensions_Bhaiksuki<_scx_Bhks>\n%conditions $x ≅ #_scx_Bhks<_scx_Bhks>, _scx_Bhks ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bhks\n%rule r12 $x:_Script_Extensions_Bopomofo<_scx_Bopo>\n%conditions $x ≅ #_scx_Bopo<_scx_Bopo>, _scx_Bopo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bopo\n%rule r13 $x:_Script_Extensions_Brahmi<_scx_Brah>\n%conditions $x ≅ #_scx_Brah<_scx_Brah>, _scx_Brah ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Brah\n%rule r14 $x:_Script_Extensions_Braille<_scx_Brai>\n%conditions $x ≅ #_scx_Brai<_scx_Brai>, _scx_Brai ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Brai\n%rule r15 $x:_Script_Extensions_Buginese<_scx_Bugi>\n%conditions $x ≅ #_scx_Bugi<_scx_Bugi>, _scx_Bugi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Bugi\n%rule r16 $x:_Script_Extensions_Buhid<_scx_Buhd>\n%conditions $x ≅ #_scx_Buhd<_scx_Buhd>, _scx_Buhd ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Buhd\n%rule r17 $x:_Script_Extensions_Canadian_Aboriginal<_scx_Cans>\n%conditions $x ≅ #_scx_Cans<_scx_Cans>, _scx_Cans ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cans\n%rule r18 $x:_Script_Extensions_Carian<_scx_Cari>\n%conditions $x ≅ #_scx_Cari<_scx_Cari>, _scx_Cari ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cari\n%rule r19 $x:_Script_Extensions_Caucasian_Albanian<_scx_Aghb>\n%conditions $x ≅ #_scx_Aghb<_scx_Aghb>, _scx_Aghb ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Aghb\n%rule r20 $x:_Script_Extensions_Chakma<_scx_Cakm>\n%conditions $x ≅ #_scx_Cakm<_scx_Cakm>, _scx_Cakm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cakm\n%rule r21 $x:_Script_Extensions_Cham<_scx_Cham>\n%conditions $x ≅ #_scx_Cham<_scx_Cham>, _scx_Cham ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cham\n%rule r22 $x:_Script_Extensions_Cherokee<_scx_Cher>\n%conditions $x ≅ #_scx_Cher<_scx_Cher>, _scx_Cher ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cher\n%rule r23 $x:_Script_Extensions_Chorasmian<_scx_Chrs>\n%conditions $x ≅ #_scx_Chrs<_scx_Chrs>, _scx_Chrs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Chrs\n%rule r24 $x:_Script_Extensions_Common<_scx_Zyyy>\n%conditions $x ≅ #_scx_Zyyy<_scx_Zyyy>, _scx_Zyyy ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Zyyy\n%rule r25 $x:_Script_Extensions_Coptic<_scx_Copt>\n%conditions $x ≅ #_scx_Copt<_scx_Copt>, _scx_Copt ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Copt\n%rule r26 $x:_Script_Extensions_Cuneiform<_scx_Xsux>\n%conditions $x ≅ #_scx_Xsux<_scx_Xsux>, _scx_Xsux ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Xsux\n%rule r27 $x:_Script_Extensions_Cypriot<_scx_Cprt>\n%conditions $x ≅ #_scx_Cprt<_scx_Cprt>, _scx_Cprt ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cprt\n%rule r28 $x:_Script_Extensions_Cypro_Minoan<_scx_Cpmn>\n%conditions $x ≅ #_scx_Cpmn<_scx_Cpmn>, _scx_Cpmn ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cpmn\n%rule r29 $x:_Script_Extensions_Cyrillic<_scx_Cyrl>\n%conditions $x ≅ #_scx_Cyrl<_scx_Cyrl>, _scx_Cyrl ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Cyrl\n%rule r30 $x:_Script_Extensions_Deseret<_scx_Dsrt>\n%conditions $x ≅ #_scx_Dsrt<_scx_Dsrt>, _scx_Dsrt ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Dsrt\n%rule r31 $x:_Script_Extensions_Devanagari<_scx_Deva>\n%conditions $x ≅ #_scx_Deva<_scx_Deva>, _scx_Deva ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Deva\n%rule r32 $x:_Script_Extensions_Dives_Akuru<_scx_Diak>\n%conditions $x ≅ #_scx_Diak<_scx_Diak>, _scx_Diak ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Diak\n%rule r33 $x:_Script_Extensions_Dogra<_scx_Dogr>\n%conditions $x ≅ #_scx_Dogr<_scx_Dogr>, _scx_Dogr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Dogr\n%rule r34 $x:_Script_Extensions_Duployan<_scx_Dupl>\n%conditions $x ≅ #_scx_Dupl<_scx_Dupl>, _scx_Dupl ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Dupl\n%rule r35 $x:_Script_Extensions_Egyptian_Hieroglyphs<_scx_Egyp>\n%conditions $x ≅ #_scx_Egyp<_scx_Egyp>, _scx_Egyp ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Egyp\n%rule r36 $x:_Script_Extensions_Elbasan<_scx_Elba>\n%conditions $x ≅ #_scx_Elba<_scx_Elba>, _scx_Elba ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Elba\n%rule r37 $x:_Script_Extensions_Elymaic<_scx_Elym>\n%conditions $x ≅ #_scx_Elym<_scx_Elym>, _scx_Elym ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Elym\n%rule r38 $x:_Script_Extensions_Ethiopic<_scx_Ethi>\n%conditions $x ≅ #_scx_Ethi<_scx_Ethi>, _scx_Ethi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Ethi\n%rule r39 $x:_Script_Extensions_Georgian<_scx_Geor>\n%conditions $x ≅ #_scx_Geor<_scx_Geor>, _scx_Geor ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Geor\n%rule r40 $x:_Script_Extensions_Glagolitic<_scx_Glag>\n%conditions $x ≅ #_scx_Glag<_scx_Glag>, _scx_Glag ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Glag\n%rule r41 $x:_Script_Extensions_Gothic<_scx_Goth>\n%conditions $x ≅ #_scx_Goth<_scx_Goth>, _scx_Goth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Goth\n%rule r42 $x:_Script_Extensions_Grantha<_scx_Gran>\n%conditions $x ≅ #_scx_Gran<_scx_Gran>, _scx_Gran ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Gran\n%rule r43 $x:_Script_Extensions_Greek<_scx_Grek>\n%conditions $x ≅ #_scx_Grek<_scx_Grek>, _scx_Grek ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Grek\n%rule r44 $x:_Script_Extensions_Gujarati<_scx_Gujr>\n%conditions $x ≅ #_scx_Gujr<_scx_Gujr>, _scx_Gujr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Gujr\n%rule r45 $x:_Script_Extensions_Gunjala_Gondi<_scx_Gong>\n%conditions $x ≅ #_scx_Gong<_scx_Gong>, _scx_Gong ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Gong\n%rule r46 $x:_Script_Extensions_Gurmukhi<_scx_Guru>\n%conditions $x ≅ #_scx_Guru<_scx_Guru>, _scx_Guru ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Guru\n%rule r47 $x:_Script_Extensions_Han<_scx_Hani>\n%conditions $x ≅ #_scx_Hani<_scx_Hani>, _scx_Hani ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hani\n%rule r48 $x:_Script_Extensions_Hangul<_scx_Hang>\n%conditions $x ≅ #_scx_Hang<_scx_Hang>, _scx_Hang ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hang\n%rule r49 $x:_Script_Extensions_Hanifi_Rohingya<_scx_Rohg>\n%conditions $x ≅ #_scx_Rohg<_scx_Rohg>, _scx_Rohg ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Rohg\n%rule r50 $x:_Script_Extensions_Hanunoo<_scx_Hano>\n%conditions $x ≅ #_scx_Hano<_scx_Hano>, _scx_Hano ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hano\n%rule r51 $x:_Script_Extensions_Hatran<_scx_Hatr>\n%conditions $x ≅ #_scx_Hatr<_scx_Hatr>, _scx_Hatr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hatr\n%rule r52 $x:_Script_Extensions_Hebrew<_scx_Hebr>\n%conditions $x ≅ #_scx_Hebr<_scx_Hebr>, _scx_Hebr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hebr\n%rule r53 $x:_Script_Extensions_Hiragana<_scx_Hira>\n%conditions $x ≅ #_scx_Hira<_scx_Hira>, _scx_Hira ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hira\n%rule r54 $x:_Script_Extensions_Imperial_Aramaic<_scx_Armi>\n%conditions $x ≅ #_scx_Armi<_scx_Armi>, _scx_Armi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Armi\n%rule r55 $x:_Script_Extensions_Inherited<_scx_Zinh>\n%conditions $x ≅ #_scx_Zinh<_scx_Zinh>, _scx_Zinh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Zinh\n%rule r56 $x:_Script_Extensions_Inscriptional_Pahlavi<_scx_Phli>\n%conditions $x ≅ #_scx_Phli<_scx_Phli>, _scx_Phli ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Phli\n%rule r57 $x:_Script_Extensions_Inscriptional_Parthian<_scx_Prti>\n%conditions $x ≅ #_scx_Prti<_scx_Prti>, _scx_Prti ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Prti\n%rule r58 $x:_Script_Extensions_Javanese<_scx_Java>\n%conditions $x ≅ #_scx_Java<_scx_Java>, _scx_Java ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Java\n%rule r59 $x:_Script_Extensions_Kaithi<_scx_Kthi>\n%conditions $x ≅ #_scx_Kthi<_scx_Kthi>, _scx_Kthi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Kthi\n%rule r60 $x:_Script_Extensions_Kannada<_scx_Knda>\n%conditions $x ≅ #_scx_Knda<_scx_Knda>, _scx_Knda ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Knda\n%rule r61 $x:_Script_Extensions_Katakana<_scx_Kana>\n%conditions $x ≅ #_scx_Kana<_scx_Kana>, _scx_Kana ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Kana\n%rule r62 $x:_Script_Extensions_Katakana_Or_Hiragana<_scx_Hrkt>\n%conditions $x ≅ #_scx_Hrkt<_scx_Hrkt>, _scx_Hrkt ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Hrkt\n%rule r63 $x:_Script_Extensions_Kawi<_scx_Kawi>\n%conditions $x ≅ #_scx_Kawi<_scx_Kawi>, _scx_Kawi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Kawi\n%rule r64 $x:_Script_Extensions_Kayah_Li<_scx_Kali>\n%conditions $x ≅ #_scx_Kali<_scx_Kali>, _scx_Kali ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Kali\n%rule r65 $x:_Script_Extensions_Kharoshthi<_scx_Khar>\n%conditions $x ≅ #_scx_Khar<_scx_Khar>, _scx_Khar ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Khar\n%rule r66 $x:_Script_Extensions_Khitan_Small_Script<_scx_Kits>\n%conditions $x ≅ #_scx_Kits<_scx_Kits>, _scx_Kits ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Kits\n%rule r67 $x:_Script_Extensions_Khmer<_scx_Khmr>\n%conditions $x ≅ #_scx_Khmr<_scx_Khmr>, _scx_Khmr ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Khmr\n%rule r68 $x:_Script_Extensions_Khojki<_scx_Khoj>\n%conditions $x ≅ #_scx_Khoj<_scx_Khoj>, _scx_Khoj ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Khoj\n%rule r69 $x:_Script_Extensions_Khudawadi<_scx_Sind>\n%conditions $x ≅ #_scx_Sind<_scx_Sind>, _scx_Sind ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Sind\n%rule r70 $x:_Script_Extensions_Lao<_scx_Laoo>\n%conditions $x ≅ #_scx_Laoo<_scx_Laoo>, _scx_Laoo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Laoo\n%rule r71 $x:_Script_Extensions_Latin<_scx_Latn>\n%conditions $x ≅ #_scx_Latn<_scx_Latn>, _scx_Latn ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Latn\n%rule r72 $x:_Script_Extensions_Lepcha<_scx_Lepc>\n%conditions $x ≅ #_scx_Lepc<_scx_Lepc>, _scx_Lepc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Lepc\n%rule r73 $x:_Script_Extensions_Limbu<_scx_Limb>\n%conditions $x ≅ #_scx_Limb<_scx_Limb>, _scx_Limb ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Limb\n%rule r74 $x:_Script_Extensions_Linear_A<_scx_Lina>\n%conditions $x ≅ #_scx_Lina<_scx_Lina>, _scx_Lina ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Lina\n%rule r75 $x:_Script_Extensions_Linear_B<_scx_Linb>\n%conditions $x ≅ #_scx_Linb<_scx_Linb>, _scx_Linb ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Linb\n%rule r76 $x:_Script_Extensions_Lisu<_scx_Lisu>\n%conditions $x ≅ #_scx_Lisu<_scx_Lisu>, _scx_Lisu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Lisu\n%rule r77 $x:_Script_Extensions_Lycian<_scx_Lyci>\n%conditions $x ≅ #_scx_Lyci<_scx_Lyci>, _scx_Lyci ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Lyci\n%rule r78 $x:_Script_Extensions_Lydian<_scx_Lydi>\n%conditions $x ≅ #_scx_Lydi<_scx_Lydi>, _scx_Lydi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Lydi\n%rule r79 $x:_Script_Extensions_Mahajani<_scx_Mahj>\n%conditions $x ≅ #_scx_Mahj<_scx_Mahj>, _scx_Mahj ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Mahj\n%rule r80 $x:_Script_Extensions_Makasar<_scx_Maka>\n%conditions $x ≅ #_scx_Maka<_scx_Maka>, _scx_Maka ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Maka\n%rule r81 $x:_Script_Extensions_Malayalam<_scx_Mlym>\n%conditions $x ≅ #_scx_Mlym<_scx_Mlym>, _scx_Mlym ⊆ $x.tags\n%emits $x :: $x.tags ∩ _scx_Mlym",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Adlam",
+        "_scx_Adlm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Ahom",
+        "_scx_Ahom"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Anatolian_Hieroglyphs",
+        "_scx_Hluw"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Arabic",
+        "_scx_Arab"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Armenian",
+        "_scx_Armn"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Avestan",
+        "_scx_Avst"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Balinese",
+        "_scx_Bali"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Bamum",
+        "_scx_Bamu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Bassa_Vah",
+        "_scx_Bass"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Batak",
+        "_scx_Batk"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Bengali",
+        "_scx_Beng"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Bhaiksuki",
+        "_scx_Bhks"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Bopomofo",
+        "_scx_Bopo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Brahmi",
+        "_scx_Brah"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Braille",
+        "_scx_Brai"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Buginese",
+        "_scx_Bugi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Buhid",
+        "_scx_Buhd"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Canadian_Aboriginal",
+        "_scx_Cans"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Carian",
+        "_scx_Cari"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Caucasian_Albanian",
+        "_scx_Aghb"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Chakma",
+        "_scx_Cakm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cham",
+        "_scx_Cham"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cherokee",
+        "_scx_Cher"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Chorasmian",
+        "_scx_Chrs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Common",
+        "_scx_Zyyy"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Coptic",
+        "_scx_Copt"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cuneiform",
+        "_scx_Xsux"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cypriot",
+        "_scx_Cprt"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cypro_Minoan",
+        "_scx_Cpmn"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Cyrillic",
+        "_scx_Cyrl"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Deseret",
+        "_scx_Dsrt"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Devanagari",
+        "_scx_Deva"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Dives_Akuru",
+        "_scx_Diak"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Dogra",
+        "_scx_Dogr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Duployan",
+        "_scx_Dupl"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Egyptian_Hieroglyphs",
+        "_scx_Egyp"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Elbasan",
+        "_scx_Elba"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Elymaic",
+        "_scx_Elym"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Ethiopic",
+        "_scx_Ethi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Georgian",
+        "_scx_Geor"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Glagolitic",
+        "_scx_Glag"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Gothic",
+        "_scx_Goth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Grantha",
+        "_scx_Gran"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Greek",
+        "_scx_Grek"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Gujarati",
+        "_scx_Gujr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Gunjala_Gondi",
+        "_scx_Gong"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Gurmukhi",
+        "_scx_Guru"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Han",
+        "_scx_Hani"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hangul",
+        "_scx_Hang"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hanifi_Rohingya",
+        "_scx_Rohg"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hanunoo",
+        "_scx_Hano"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hatran",
+        "_scx_Hatr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hebrew",
+        "_scx_Hebr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Hiragana",
+        "_scx_Hira"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Imperial_Aramaic",
+        "_scx_Armi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Inherited",
+        "_scx_Zinh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Inscriptional_Pahlavi",
+        "_scx_Phli"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Inscriptional_Parthian",
+        "_scx_Prti"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Javanese",
+        "_scx_Java"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Kaithi",
+        "_scx_Kthi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Kannada",
+        "_scx_Knda"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Katakana",
+        "_scx_Kana"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Katakana_Or_Hiragana",
+        "_scx_Hrkt"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Kawi",
+        "_scx_Kawi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Kayah_Li",
+        "_scx_Kali"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Kharoshthi",
+        "_scx_Khar"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Khitan_Small_Script",
+        "_scx_Kits"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Khmer",
+        "_scx_Khmr"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Khojki",
+        "_scx_Khoj"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Khudawadi",
+        "_scx_Sind"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Lao",
+        "_scx_Laoo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Latin",
+        "_scx_Latn"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Lepcha",
+        "_scx_Lepc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Limbu",
+        "_scx_Limb"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Linear_A",
+        "_scx_Lina"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Linear_B",
+        "_scx_Linb"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Lisu",
+        "_scx_Lisu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Lycian",
+        "_scx_Lyci"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Lydian",
+        "_scx_Lydi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Mahajani",
+        "_scx_Mahj"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Makasar",
+        "_scx_Maka"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Script_Extensions_Malayalam",
+        "_scx_Mlym"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Script_Extensions_Adlam"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Ahom"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Anatolian_Hieroglyphs"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Arabic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Armenian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Avestan"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Balinese"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Bamum"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Bassa_Vah"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Batak"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Bengali"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Bhaiksuki"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Bopomofo"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Brahmi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Braille"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Buginese"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Buhid"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Canadian_Aboriginal"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Carian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Caucasian_Albanian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Chakma"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cham"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cherokee"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Chorasmian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Common"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Coptic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cuneiform"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cypriot"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cypro_Minoan"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Cyrillic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Deseret"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Devanagari"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Dives_Akuru"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Dogra"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Duployan"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Egyptian_Hieroglyphs"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Elbasan"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Elymaic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Ethiopic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Georgian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Glagolitic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Gothic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Grantha"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Greek"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Gujarati"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Gunjala_Gondi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Gurmukhi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Han"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hangul"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hanifi_Rohingya"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hanunoo"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hatran"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hebrew"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Hiragana"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Imperial_Aramaic"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Inherited"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Inscriptional_Pahlavi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Inscriptional_Parthian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Javanese"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Kaithi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Kannada"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Katakana"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Katakana_Or_Hiragana"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Kawi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Kayah_Li"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Kharoshthi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Khitan_Small_Script"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Khmer"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Khojki"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Khudawadi"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Lao"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Latin"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Lepcha"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Limbu"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Linear_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Linear_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Lisu"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Lycian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Lydian"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Mahajani"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Makasar"
+              ]
+            },
+            {
+              "tags": [
+                "_Script_Extensions_Malayalam"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Adlam"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Adlam"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Ahom"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Ahom"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Anatolian_Hieroglyphs"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Anatolian_Hieroglyphs"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Arabic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Arabic"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Armenian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Armenian"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Avestan"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Avestan"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Balinese"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Balinese"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Bamum"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Bamum"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Bassa_Vah"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Bassa_Vah"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Batak"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Batak"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Bengali"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Bengali"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Bhaiksuki"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Bhaiksuki"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Bopomofo"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Bopomofo"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Brahmi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Brahmi"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Braille"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Braille"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Buginese"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Buginese"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Buhid"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Buhid"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Canadian_Aboriginal"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Canadian_Aboriginal"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Carian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Carian"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Caucasian_Albanian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Caucasian_Albanian"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Chakma"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Chakma"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cham"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cham"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cherokee"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cherokee"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Chorasmian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Chorasmian"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Common"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Common"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Coptic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Coptic"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cuneiform"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cuneiform"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cypriot"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cypriot"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cypro_Minoan"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cypro_Minoan"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Cyrillic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Cyrillic"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Deseret"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Deseret"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Devanagari"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Devanagari"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Dives_Akuru"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Dives_Akuru"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Dogra"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Dogra"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Duployan"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Duployan"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Egyptian_Hieroglyphs"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Egyptian_Hieroglyphs"
+            ]
+          },
+          {
+            "rule": "r36",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Elbasan"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Elbasan"
+            ]
+          },
+          {
+            "rule": "r37",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Elymaic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Elymaic"
+            ]
+          },
+          {
+            "rule": "r38",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Ethiopic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Ethiopic"
+            ]
+          },
+          {
+            "rule": "r39",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Georgian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Georgian"
+            ]
+          },
+          {
+            "rule": "r40",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Glagolitic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Glagolitic"
+            ]
+          },
+          {
+            "rule": "r41",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Gothic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Gothic"
+            ]
+          },
+          {
+            "rule": "r42",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Grantha"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Grantha"
+            ]
+          },
+          {
+            "rule": "r43",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Greek"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Greek"
+            ]
+          },
+          {
+            "rule": "r44",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Gujarati"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Gujarati"
+            ]
+          },
+          {
+            "rule": "r45",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Gunjala_Gondi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Gunjala_Gondi"
+            ]
+          },
+          {
+            "rule": "r46",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Gurmukhi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Gurmukhi"
+            ]
+          },
+          {
+            "rule": "r47",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Han"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Han"
+            ]
+          },
+          {
+            "rule": "r48",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hangul"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hangul"
+            ]
+          },
+          {
+            "rule": "r49",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hanifi_Rohingya"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hanifi_Rohingya"
+            ]
+          },
+          {
+            "rule": "r50",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hanunoo"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hanunoo"
+            ]
+          },
+          {
+            "rule": "r51",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hatran"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hatran"
+            ]
+          },
+          {
+            "rule": "r52",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hebrew"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hebrew"
+            ]
+          },
+          {
+            "rule": "r53",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Hiragana"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Hiragana"
+            ]
+          },
+          {
+            "rule": "r54",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Imperial_Aramaic"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Imperial_Aramaic"
+            ]
+          },
+          {
+            "rule": "r55",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Inherited"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Inherited"
+            ]
+          },
+          {
+            "rule": "r56",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Inscriptional_Pahlavi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Inscriptional_Pahlavi"
+            ]
+          },
+          {
+            "rule": "r57",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Inscriptional_Parthian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Inscriptional_Parthian"
+            ]
+          },
+          {
+            "rule": "r58",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Javanese"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Javanese"
+            ]
+          },
+          {
+            "rule": "r59",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Kaithi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Kaithi"
+            ]
+          },
+          {
+            "rule": "r60",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Kannada"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Kannada"
+            ]
+          },
+          {
+            "rule": "r61",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Katakana"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Katakana"
+            ]
+          },
+          {
+            "rule": "r62",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Katakana_Or_Hiragana"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Katakana_Or_Hiragana"
+            ]
+          },
+          {
+            "rule": "r63",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Kawi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Kawi"
+            ]
+          },
+          {
+            "rule": "r64",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Kayah_Li"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Kayah_Li"
+            ]
+          },
+          {
+            "rule": "r65",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Kharoshthi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Kharoshthi"
+            ]
+          },
+          {
+            "rule": "r66",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Khitan_Small_Script"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Khitan_Small_Script"
+            ]
+          },
+          {
+            "rule": "r67",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Khmer"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Khmer"
+            ]
+          },
+          {
+            "rule": "r68",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Khojki"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Khojki"
+            ]
+          },
+          {
+            "rule": "r69",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Khudawadi"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Khudawadi"
+            ]
+          },
+          {
+            "rule": "r70",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Lao"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Lao"
+            ]
+          },
+          {
+            "rule": "r71",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Latin"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Latin"
+            ]
+          },
+          {
+            "rule": "r72",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Lepcha"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Lepcha"
+            ]
+          },
+          {
+            "rule": "r73",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Limbu"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Limbu"
+            ]
+          },
+          {
+            "rule": "r74",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Linear_A"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Linear_A"
+            ]
+          },
+          {
+            "rule": "r75",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Linear_B"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Linear_B"
+            ]
+          },
+          {
+            "rule": "r76",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Lisu"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Lisu"
+            ]
+          },
+          {
+            "rule": "r77",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Lycian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Lycian"
+            ]
+          },
+          {
+            "rule": "r78",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Lydian"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Lydian"
+            ]
+          },
+          {
+            "rule": "r79",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Mahajani"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Mahajani"
+            ]
+          },
+          {
+            "rule": "r80",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Makasar"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Makasar"
+            ]
+          },
+          {
+            "rule": "r81",
+            "children": [
+              {
+                "terminal": "_Script_Extensions_Malayalam"
+              }
+            ],
+            "tags": [
+              "_Script_Extensions_Malayalam"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

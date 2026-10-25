@@ -1,0 +1,17 @@
+{
+  "description": "Parentheses around one target preserve that target. (Engine \u00a74.4.)",
+  "grammar": "%rule text A\n%conditions $.ends((A))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

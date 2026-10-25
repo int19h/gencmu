@@ -1,9 +1,9 @@
 {
   "description": "Canonical diagnostic spellings name exact scalars through constant reference.",
-  "document": "```jbogenbau\n%const $JOIN-1 $_302E ++ $_1B44\n%rule text $_00E9 $_00E0..$_017A $JOIN-1\n```",
+  "document": "```jbogenbau\n%const $JOIN-1 \"‹U+302E›\" ++ \"‹U+1B44›\"\n%rule text \"‹U+00E9›\" \"‹U+00E0›\"..\"‹U+017A›\" $JOIN-1\n```",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 40,
       "rules": [
         {
           "name": "text",
@@ -16,28 +16,16 @@
                 "seq": [
                   {
                     "literal": {
-                      "const": "_00E9",
-                      "at": [
-                        3,
-                        12
-                      ]
+                      "string": "é"
                     }
                   },
                   {
                     "range": [
                       {
-                        "const": "_00E0",
-                        "at": [
-                          3,
-                          19
-                        ]
+                        "string": "à"
                       },
                       {
-                        "const": "_017A",
-                        "at": [
-                          3,
-                          27
-                        ]
+                        "string": "ź"
                       }
                     ]
                   },
@@ -46,7 +34,7 @@
                       "const": "JOIN-1",
                       "at": [
                         3,
-                        34
+                        46
                       ]
                     }
                   }
@@ -69,18 +57,10 @@
           "value": {
             "concat": [
               {
-                "const": "_302E",
-                "at": [
-                  2,
-                  16
-                ]
+                "string": "〮"
               },
               {
-                "const": "_1B44",
-                "at": [
-                  2,
-                  26
-                ]
+                "string": "᭄"
               }
             ]
           },

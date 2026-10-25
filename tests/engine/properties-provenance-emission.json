@@ -1,0 +1,17 @@
+{
+  "description": "An emission tag clause rejects retained literals at their source occurrence. Engine §1 defines the provenance rule.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%rule unused(@X) $x:@X\n%emits $x :: _Lu\n%rule text \"a\"\n```"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 3,
+      "column": 14
+    }
+  }
+}

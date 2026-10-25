@@ -1,0 +1,10 @@
+{
+  "description": "An attached name and child list test the same node.",
+  "grammar": "%rule text $x:pair\n%conditions $x ≅ #pair« \"a\" \"b\" »\n%rule pair \"a\" \"b\"",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

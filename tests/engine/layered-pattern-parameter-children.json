@@ -1,0 +1,10 @@
+{
+  "description": "A child list keeps an argument exact prefix.",
+  "grammar": "%rule use(@P) $x:atom\n%conditions $x ≅ #@P« \"a\" »\n%rule atom \"a\"\n%rule text use(#·atom)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "description": "Compact, short, and long categories share one canonical instance identity.",
+  "grammar": "%rule text keep(_Lu) keep(_gc_Lu) keep(_General_Category_Uppercase_Letter)\n%rule keep(@X) @X",
+  "input": "AAA",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "keep(_General_Category_Uppercase_Letter)",
+            "children": [
+              {
+                "terminal": "_General_Category_Uppercase_Letter"
+              }
+            ]
+          },
+          {
+            "rule": "keep(_General_Category_Uppercase_Letter)",
+            "children": [
+              {
+                "terminal": "_General_Category_Uppercase_Letter"
+              }
+            ]
+          },
+          {
+            "rule": "keep(_General_Category_Uppercase_Letter)",
+            "children": [
+              {
+                "terminal": "_General_Category_Uppercase_Letter"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -93,7 +93,8 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	name := b.tokenValue(first)
-	terminal := first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
+	named := first.Rule == "name" || first.Rule == "reference" || first.Kind == KindToken && (first.Terminal == "Lowercase-Name" || first.Terminal == "Emoji-Name")
+	terminal := !named && (first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name)))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
 		if !terminal || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
@@ -106,6 +107,13 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	p := &domPattern{At: b.at(first)}
+	if named {
+		if !b.uni.isEmojiName(name) && !classifierName.MatchString(name) {
+			b.fail(first, "a malformed pattern rule name")
+		}
+		p.Kind, p.Name = "name", name
+		return p
+	}
 	switch first.Rule {
 	case "tag":
 		p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
@@ -120,16 +128,18 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		p.Kind, p.Ends = "range", b.stringRange(first)
 	case "constant-reference":
 		t := b.constantRef(first)
-		if _, scalar := engineScalar(t.Str); scalar {
-			p.Kind, p.Value = "literal", t
-		} else {
-			p.Kind, p.Name = "constant", t.Str
-		}
+		p.Kind, p.Name = "constant", t.Str
 	default:
 		p.Kind, p.Name = "name", name
 		if terminal {
 			p.Kind = "terminal"
 		}
+	}
+	if p.Kind == "literal" && p.Value.Kind == tmConst {
+		p.Kind, p.Name, p.Value = "constant", p.Value.Str, nil
+	}
+	if p.Kind == "name" && !b.uni.isEmojiName(p.Name) && !classifierName.MatchString(p.Name) {
+		b.fail(first, "a malformed pattern rule name")
 	}
 	for _, test := range tests {
 		next := &domPattern{Kind: "test", Items: []*domPattern{p}}
@@ -182,14 +192,23 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 	token := b.token(n)
 	name := strings.TrimPrefix(b.tokenValue(token), "$")
 	if !constName.MatchString(name) {
-		if _, ok := engineScalar(name); !ok {
-			b.fail(token, "invalid scalar constant %s", name)
-		}
+		b.fail(token, "a user constant begins with a capital")
 	}
 	return &domTerm{Kind: tmConst, Str: name, At: b.at(token)}
 }
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
+	if b.strings != nil {
+		token := n
+		if token.Kind != KindToken {
+			token = b.token(n)
+		}
+		value, err := b.strings.decode(b.toks[token.Token], false)
+		if err != nil {
+			panic(err)
+		}
+		return &domTerm{Kind: tmString, Str: value}
+	}
 	rs := []rune(b.tokenValue(n))
 	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
 		b.fail(n, "a string uses double quotes")
@@ -256,7 +275,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 		b.lacks(n, "test")
 	}
 	base := b.testBase(n)
-	valid := capturedRules[base.Rule] && base.Rule != "tested" && !(base.Rule == "reference" && b.tokenValue(b.token(base)) == "#")
+	valid := capturedRules[base.Rule] && base.Rule != "tested"
 	seenTags, seenValue := false, false
 	for _, test := range tests {
 		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
@@ -403,7 +422,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	}
 	if arguments := one(selector, "arguments"); arguments != nil {
 		for _, p := range parts(arguments) {
-			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins"] {
+			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"] {
 				b.fail(arguments, "invalid method argument separator")
 			}
 		}
@@ -423,10 +442,13 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
 	fail := func() { b.fail(n, "invalid receiver or arguments for .%s", name) }
+	if name == "ends" && restoredTerm(receiver) {
+		b.fail(n, "ends requires an ordinary span, not a restored span")
+	}
 	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch name {
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "preceding-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
@@ -451,7 +473,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			}
 			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal) && !engineTag(a.Str)
 		}
-	case "matches", "begins":
+	case "matches", "begins", "ends":
 		valid = span && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
@@ -477,7 +499,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	if b.closedFor != "" && name != "split" && name != "ngrams" {
 		b.fail(n, "%s requires a closed term", b.closedFor)
 	}
-	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins"
+	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
 	if isPredicate != predicate {
 		b.fail(n, ".%s has the wrong result type here", name)
 	}

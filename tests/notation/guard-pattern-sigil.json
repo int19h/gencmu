@@ -1,0 +1,10 @@
+{
+  "description": "The pattern sigil # cannot precede a guard. The reader reports a syntax error at # (engine §9.3).",
+  "document": "```jbogenbau\n%rule a # cbm? A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

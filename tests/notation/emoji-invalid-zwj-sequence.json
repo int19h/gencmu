@@ -1,0 +1,10 @@
+{
+  "description": "A sequence with a zero-width joiner cannot name one rule.",
+  "document": "```jbogenbau\n%rule 👩‍💻 A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 8
+    }
+  }
+}

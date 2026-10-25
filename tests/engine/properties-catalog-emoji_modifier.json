@@ -1,0 +1,45 @@
+{
+  "description": "Every Emoji_Modifier value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Emoji_Modifier<_Emoji_Modifier>\n%conditions $x ≅ #_Emoji_Modifier<_Emoji_Modifier>, _Emoji_Modifier ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Emoji_Modifier",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_EMod",
+        "_Emoji_Modifier"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Emoji_Modifier"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Emoji_Modifier"
+              }
+            ],
+            "tags": [
+              "_Emoji_Modifier"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

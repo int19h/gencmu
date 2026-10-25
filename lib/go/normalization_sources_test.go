@@ -2,6 +2,8 @@ package gencmu
 
 import (
 	"reflect"
+	"sort"
+	"strconv"
 	"testing"
 )
 
@@ -22,7 +24,8 @@ func TestNormalizationStageZeroSources(t *testing.T) {
 					t.Fatalf("token %d: %#v", i, token)
 				}
 				category := table.category(scalar.character)
-				wantTags := []string{"_" + category, "_" + category[:1]}
+				wantTags := []string{table.canonicalTag("_" + category), table.canonicalTag("_" + category[:1]), propertyInventory.Combining[strconv.Itoa(table.combiningClass(scalar.character))]}
+				sort.Strings(wantTags)
 				if !reflect.DeepEqual(token.Tags, wantTags) {
 					t.Fatalf("tags: %v, want %v", token.Tags, wantTags)
 				}

@@ -1,6 +1,6 @@
 {
   "description": "Ranked admission keeps physical spans and written sites separate, and requires every higher gate to pass (engine §2.1 and §6.1).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text ($s:slot Z) %conditions $s ≇ @([X] [Y])\n\n%rule slot ((X Y) ≻ b)\n%rule b (X Y)",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text ($s:slot Z) %conditions $s ≇ #« [X] [Y] »\n\n%rule slot ((X Y) ≻ b)\n%rule b (X Y)",
   "tokens": [
     {
       "text": "x",

@@ -1,0 +1,10 @@
+{
+  "description": "Emission tags can read their constituent after template expansion.",
+  "grammar": "%rule atom(@X) @X\n%rule text atom(\"a\") :: A\n%emits $ :: $.tags",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

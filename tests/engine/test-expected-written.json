@@ -1,6 +1,6 @@
 {
   "description": "Expected terminals expand constants, sort signed requirements, remove duplicate requirements, and use canonical scalar strings (docs/output.md) (engine §4).",
-  "grammar": "%const $JOIN-1 \"a\" ++ $_0022 ++ \"b\" ++ $_005C\n%const $AB (B ∪ Tag-a ∪ A)\n%rule text X<$AB> | X<B> | X≠$JOIN-1 | X<> | X<¬W> | X<A A>",
+  "grammar": "%const $JOIN-1 \"a\" ++ \"‹U+0022›\" ++ \"b\" ++ \"‹U+005C›\"\n%const $AB (B ∪ Tag-a ∪ A)\n%rule text X<$AB> | X<B> | X≠$JOIN-1 | X<> | X<¬W> | X<A A>",
   "tokens": [
     {
       "text": "y",
@@ -47,7 +47,7 @@
             ]
           },
           {
-            "terminal": "X≠\"a\" ++ $_0022 ++ \"b\" ++ $_005C",
+            "terminal": "X≠\"a‹U+0022›b\\\"",
             "rules": [
               "text"
             ]

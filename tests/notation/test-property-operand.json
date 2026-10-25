@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a A <_L>\n```\n",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 40,
       "rules": [
         {
           "name": "a",
@@ -18,7 +18,7 @@
                   {
                     "negated": false,
                     "value": {
-                      "tag": "_L"
+                      "tag": "_General_Category_Letter"
                     }
                   }
                 ],

@@ -1,3 +1,4 @@
+import { canonicalArgument, hasUnresolved } from "../lib/js/src/templates.js";
 // Railroad diagrams of the grammar documents' rules (docs/design.md,
 // "Railroad diagrams"). tools/sync.js writes one SVG file for each rule of
 // each grammar document under docs/diagrams/, and shows each one in the
@@ -12,6 +13,8 @@
 // it has one. A sequence too wide for MAX_WIDTH continues on the next row.
 // The SVG is plain text with fixed sizes and no fonts to measure, so the
 // same DOM always gives the same file.
+import fs from "node:fs";
+import { UnicodeTable } from "../lib/js/src/unicode.js";
 import { formatTerm } from "../lib/js/src/diagnostics.js";
 import { leafTest } from "../lib/js/src/patterns.js";
 import { Grammar } from "../lib/js/src/grammar.js";
@@ -44,8 +47,10 @@ const TITLE_HEIGHT = 24;
 
 /** @param {string} text */
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 /** @param {string} text */
-const length = (text) => [...text].length;
+const length = (text) => [...text].reduce((width, scalar) =>
+  width + (unicode.hasEmoji("Emoji_Presentation", scalar.codePointAt(0)) ? 2 : 1), 0);
 /** @param {number} n */
 const n = (n) => String(Math.round(n * 10) / 10);
 // A text drawn at the width its characters are given, whatever the font
@@ -395,14 +400,18 @@ export function repeat(item, separator, note) {
  * @param {any} expr
  * @returns {string}
  */
+function diagramTermText(term) {
+  return hasUnresolved(term) ? canonicalArgument(term,unicode) : formatTerm(term);
+}
+
 function symbolText(expr) {
+  if (expr.param || expr.call) return canonicalArgument(expr,unicode);
   if (expr.test) return symbolText(expr.expr) + testText(expr);
-  if (expr.test) return symbolText(expr.expr) + testText(expr);
-  if (expr.literal) return formatTerm(expr.literal);
+  if (expr.literal) return diagramTermText(expr.literal);
   if (expr.wildcard) return "_";
   if (typeof expr.ref === "string") return expr.ref;
   if ("terminal" in expr) return /^[a-z]/.test(expr.terminal) ? `~${expr.terminal}` : expr.terminal;
-  if ("range" in expr) return expr.range.map(formatTerm).join("..");
+  if ("range" in expr) return expr.range.map(diagramTermText).join("..");
   if ("property" in expr) return `'\\p{${expr.property}}'`;
   throw new Error(`not a symbol: ${JSON.stringify(expr)}`);
 }
@@ -422,8 +431,8 @@ const isTerminal = (expr) => expr.test ? isTerminal(expr.expr) : typeof expr.ref
  * @returns {string}
  */
 export function testText(expr) {
-  if (expr.test === "tags") return "<" + expr.requirements.map(requirement => (requirement.negated ? "¬" : "") + formatTerm(requirement.value)).join(" ") + ">";
-  const value = formatTerm(expr.value);
+  if (expr.test === "tags") return "<" + expr.requirements.map(requirement => (requirement.negated ? "¬" : "") + diagramTermText(requirement.value)).join(" ") + ">";
+  const value = diagramTermText(expr.value);
   const set = ["union", "intersection", "difference", "if"].some((key) => key in expr.value) ? `(${value})` : value;
   if (expr.test === "∩=∅" || expr.test === "∩≠∅") return `∩${set}${expr.test.slice(1)}`;
   if (expr.test === "=" || expr.test === "≠") return `${expr.test}${value}`;
@@ -453,7 +462,7 @@ export function testedElisions(rule) {
     }
     for (const key of ["seq", "choice", "ranked", "and", "optional", "repeat", "separator", "expr"]) if (key in expr) visit(expr[key]);
   };
-  for (const alternative of rule.alternatives) visit(alternative.expr);
+  for (const alternative of rule.alternatives??[]) visit(alternative.expr);
   return found;
 }
 
@@ -509,6 +518,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
           const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
+            if (hasUnresolved(first)) return;
             const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             let base = first;
@@ -632,6 +642,7 @@ export function guardText(guards) {
  */
 export function rulePiece(rule, omission = unknownOmission) {
   // With several alternatives, the choice's frame takes its room.
+  if (rule.instance) return expressionPiece(rule.instance,MAX_WIDTH,omission);
   const limit = rule.alternatives.length > 1 ? MAX_WIDTH - 4 * RADIUS : MAX_WIDTH;
   return choice(rule.alternatives.map((/** @type {any} */ alternative) => {
     if (!alternative.guards.length) return expressionPiece(alternative.expr, limit, omission);
@@ -656,7 +667,7 @@ export const RANKED_NOTE = "A qualified higher proof removes a lower proof only 
 
 /** @param {any} rule */
 function hasRankedChoice(rule) {
-  const pending = rule.alternatives.map((/** @type {any} */ alternative) => alternative.expr);
+  const pending = (rule.alternatives??[]).map((/** @type {any} */ alternative) => alternative.expr);
   while (pending.length) {
     const expression = pending.pop();
     if (Array.isArray(expression)) {for (const child of expression) pending.push(child);continue;}
@@ -677,9 +688,10 @@ function hasRankedChoice(rule) {
  * @returns {string}
  */
 export function ruleSvg(rule, omission = unknownOmission) {
+  const title=rule.name+(rule.params ? "("+rule.params.map(name=>"@"+name).join(", ")+")" : rule.args ? "("+rule.args.map(arg=>canonicalArgument(arg,unicode)).join(", ")+")" : "");
   const body = rulePiece(rule, omission);
   const mark = 10;
-  const titleWidth = length(rule.name) * CHAR_WIDTH;
+  const titleWidth = length(title) * CHAR_WIDTH;
   const conditioned = rule.conditions.length > 0;
   const ranked = hasRankedChoice(rule);
   const heading = titleWidth + (conditioned ? 2 * GAP + length(CONDITIONS_NOTE) * LABEL_CHAR_WIDTH : 0);
@@ -689,7 +701,7 @@ export function ruleSvg(rule, omission = unknownOmission) {
   const height = Math.ceil(bottom + MARGIN + (ranked ? GAP + LABEL_HEIGHT : 0));
   /** @type {string[]} */
   const out = [];
-  out.push(`<text class="title" x="${MARGIN}" y="${MARGIN + FONT_SIZE}"${fit(rule.name, CHAR_WIDTH)}>${escape(rule.name)}</text>`);
+  out.push(`<text class="title" x="${MARGIN}" y="${MARGIN + FONT_SIZE}"${fit(title, CHAR_WIDTH)}>${escape(title)}</text>`);
   if (conditioned) out.push(`<text class="label" x="${n(MARGIN + titleWidth + 2 * GAP)}" y="${MARGIN + FONT_SIZE}"${fit(CONDITIONS_NOTE, LABEL_CHAR_WIDTH)}>${CONDITIONS_NOTE}</text>`);
   // The start and end marks: a double bar, as most railroad diagrams draw
   // them.
@@ -769,7 +781,7 @@ export function diagramElement(diagrams) {
 
 /**
  * The file name of each rule's diagram, in the order of the rules. A name
- * is the rule's own, and `#` is `_hash`. A rule that a document states more
+ * is the rule's own. An emoji uses `_u` and lowercase hexadecimal. A rule that a document states more
  * than once, such as one defined and then extended, takes .2, .3 and so on.
  * Names that differ only in case also do, for file systems that ignore
  * case. No rule name has a period or begins with `_`, so no two rules share
@@ -781,7 +793,7 @@ export function diagramNames(rules) {
   /** @type {Map<string, number>} */
   const seen = new Map();
   return rules.map((rule) => {
-    const base = rule.name === "#" ? "_hash" : rule.name;
+    const base = /^[a-z]/.test(rule.name) ? rule.name : `_u${rule.name.codePointAt(0).toString(16)}`;
     const count = (seen.get(base.toLowerCase()) ?? 0) + 1;
     seen.set(base.toLowerCase(), count);
     return count > 1 ? `${base}.${count}` : base;

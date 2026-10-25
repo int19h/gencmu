@@ -8,16 +8,17 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 34
+const domFormat = 40
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
 type domDoc struct {
-	Rules        []*domRule
-	Directives   []*domDirective
-	Constants    []*domConst
-	Classifiers  []*domClassifier
-	Implications []*domImplication
+	namesDependencies map[string]string
+	Rules             []*domRule
+	Directives        []*domDirective
+	Constants         []*domConst
+	Classifiers       []*domClassifier
+	Implications      []*domImplication
 }
 
 // domClassifier is a %classifier item (engine §2): its name, which begins
@@ -45,21 +46,24 @@ type domEntry struct {
 // domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
 // whose type is a tag set.
 type domImplication struct {
-	If, Then *domTerm
-	At       [2]int
+	rawTemplate templateObject
+	If, Then    *domTerm
+	At          [2]int
 }
 
 // domConst is a constant's definition (engine §2): %const, "define", or
 // %redefine-const, "redefine", its name without $, and its value, a closed
 // term. The DOM never holds the value the loader gives the constant.
 type domConst struct {
-	Name  string
-	Op    string
-	Value *domTerm
-	At    [2]int
+	rawTemplate templateObject
+	Name        string
+	Op          string
+	Value       *domTerm
+	At          [2]int
 }
 
 type domRule struct {
+	rawTemplate      templateObject
 	deferredEmission string
 	Name             string
 	Flags            []string
@@ -178,7 +182,7 @@ type domTerm struct {
 // isSpanFunction says whether a function gives a span (engine §10).
 func isSpanFunction(name string) bool {
 	switch name {
-	case "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except":
+	case "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens", "without-elision", "without-elision-except":
 		return true
 	}
 	return false
@@ -190,6 +194,7 @@ const (
 	cdCompare  = "compare"
 	cdMatches  = "matches"
 	cdBegins   = "begins"
+	cdEnds     = "ends"
 	cdInitial  = "initial"
 	cdEnd      = "ends-input"
 	cdBoundary = "boundary"
@@ -255,10 +260,11 @@ func (e *domEmit) nothing() bool {
 }
 
 type domDirective struct {
-	Conditions []*domCond
-	Name       string
-	Args       []string
-	At         [2]int
+	rawTemplate templateObject
+	Conditions  []*domCond
+	Name        string
+	Args        []string
+	At          [2]int
 }
 
 // ---- writing
@@ -277,6 +283,10 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, dir := range d.Directives {
 		if i > 0 {
 			w.raw(",")
+		}
+		if dir.rawTemplate != nil {
+			writeTemplateJSON(w, dir.rawTemplate)
+			continue
 		}
 		w.raw(`{"name":`)
 		w.str(dir.Name)
@@ -306,6 +316,10 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, k := range d.Constants {
 		if i > 0 {
 			w.raw(",")
+		}
+		if k.rawTemplate != nil {
+			writeTemplateJSON(w, k.rawTemplate)
+			continue
 		}
 		w.raw(`{"name":`)
 		w.str(k.Name)
@@ -355,6 +369,10 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		if i > 0 {
 			w.raw(",")
 		}
+		if m.rawTemplate != nil {
+			writeTemplateJSON(w, m.rawTemplate)
+			continue
+		}
 		w.raw(`{"if":`)
 		m.If.writeJSON(w)
 		w.raw(`,"then":`)
@@ -386,6 +404,10 @@ func writeGuards(w *jsonWriter, guards []domGuard) {
 }
 
 func (r *domRule) writeJSON(w *jsonWriter) {
+	if r.rawTemplate != nil {
+		writeTemplateJSON(w, r.rawTemplate)
+		return
+	}
 	w.raw(`{"name":`)
 	w.str(r.Name)
 	w.raw(`,"op":`)
@@ -573,7 +595,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins, cdInitial, cdEnd, cdBoundary:
+	case cdMatches, cdBegins, cdEnds, cdInitial, cdEnd, cdBoundary:
 		name := c.Kind
 		if name == cdInitial {
 			name = "starts-input"
@@ -691,6 +713,35 @@ func decodeObj(raw json.RawMessage) (jobj, error) {
 // validates it; uni supplies the configured Unicode data for its string
 // tests are checked against (engine §9).
 func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
+	return decodeDOMMode(raw, uni, false)
+}
+func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
+	if node, err := templateFromJSON(raw); err == nil {
+		// Unknown directive members carry no grammar nodes.
+		for _, directive := range templateList(templateObj(node)["directives"]) {
+			for key := range templateObj(directive) {
+				switch key {
+				case "name", "args", "conditions", "at":
+				default:
+					delete(templateObj(directive), key)
+				}
+			}
+		}
+		var roots []any
+		for _, key := range []string{"rules", "directives", "constants", "classifiers", "implications"} {
+			roots = append(roots, templateObj(node)[key])
+		}
+		for _, part := range templateNodes(roots) {
+			for _, field := range []string{"ref", "tag", "terminal"} {
+				if name, ok := part[field].(string); ok && strings.HasPrefix(name, "_") && uni.canonicalTag(name) != name {
+					return nil, fmt.Errorf("unknown, unavailable, or noncanonical engine tag")
+				}
+			}
+		}
+		if !expanded && templateUnresolved(node) {
+			return decodeTemplateDOM(node, uni)
+		}
+	}
 	o, err := decodeObj(raw)
 	if err != nil {
 		return nil, err
@@ -765,8 +816,10 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		}
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})
 	}
-	if err := validateDOM(d, uni); err != nil {
-		return nil, err
+	if !expanded {
+		if err := validateDOM(d, uni); err != nil {
+			return nil, err
+		}
 	}
 	return d, nil
 }
@@ -1289,7 +1342,7 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 		if t.Str == "starts-input" && len(t.Items) == 1 {
 			return &domCond{Kind: cdInitial, Span: t.Items[0]}, nil
 		}
-		if (t.Str == "matches" || t.Str == "begins") && len(t.Items) >= 2 {
+		if (t.Str == "matches" || t.Str == "begins" || t.Str == "ends") && len(t.Items) >= 2 {
 			return &domCond{Kind: t.Str, Span: t.Items[0], Targets: t.Items[1:]}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")

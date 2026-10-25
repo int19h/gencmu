@@ -1,5 +1,5 @@
 {
-  "description": "The forms tree preserves named closes, stored tags, and source spans. Normalization changes values and preserves images (grammars/phonemes/normalize.md).",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The phoneme stage supplies comparison values and preserves stress in images (grammars/phonemes/latin-strict.md).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -10,68 +10,11 @@
   },
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize",
-          "output": [
-            {},
-            {
-              "tags": [],
-              "value": "o",
-              "span": [
-                1,
-                2
-              ],
-              "source": [
-                1,
-                2
-              ]
-            },
-            {},
-            {
-              "tags": [],
-              "value": "i",
-              "span": [
-                3,
-                4
-              ],
-              "source": [
-                3,
-                4
-              ]
-            },
-            {},
-            {},
-            {
-              "tags": [],
-              "value": "a",
-              "span": [
-                6,
-                7
-              ],
-              "source": [
-                6,
-                7
-              ]
-            },
-            {
-              "tags": [],
-              "value": "i",
-              "span": [
-                7,
-                8
-              ],
-              "source": [
-                7,
-                8
-              ]
-            }
-          ]
         },
         {
           "name": "forms",

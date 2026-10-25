@@ -8,8 +8,7 @@
 // bracket rendering as one; that a failure for another run does not end
 // the current one; and that a link to the Trace tab traces its text, or
 // shows its error once. With no URL the page is opened from
-// file://, as someone who cloned the repository would; given a URL, that URL
-// is checked instead, which is how a GitHub Pages deployment is tested.
+// a loopback HTTP server. A supplied URL tests an existing deployment.
 // Every preset also runs through its selector. Grammar edits expose ties
 // and Reset restores the bundled result.
 //
@@ -26,11 +25,11 @@ const path = require("node:path");
 const fs = require("node:fs");
 const assert = require("node:assert/strict");
 const { execFileSync } = require("node:child_process");
-const { pathToFileURL } = require("node:url");
+const http = require("node:http");
 
 const args = process.argv.slice(2);
 let browser = "chromium";
-let target = pathToFileURL(path.join(__dirname, "..", "index.html")).href;
+let target = null;
 for (let index = 0; index < args.length; index++) {
   if (args[index] === "--browser") browser = args[++index];
   else target = args[index];
@@ -55,7 +54,22 @@ async function main() {
   const engine = engines[browser];
   if (!engine) throw new Error(`unknown browser ${browser}`);
   const instance = await engine.launch({ headless: true });
+  let server;
   try {
+    if (!target) {
+      server = http.createServer((request,response) => {
+        try {
+          const pathname = decodeURIComponent(new URL(request.url,"http://localhost").pathname);
+          const file = path.resolve(repository,"." + pathname + (pathname.endsWith("/") ? "index.html" : ""));
+          if (!file.startsWith(repository + path.sep)) { response.writeHead(403).end(); return; }
+          const types = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".svg":"image/svg+xml" };
+          const text = fs.readFileSync(file);
+          response.writeHead(200,{ "Content-Type":types[path.extname(file)] || "text/plain" }).end(text);
+        } catch { response.writeHead(404).end(); }
+      });
+      await new Promise(resolve => server.listen(0,"127.0.0.1",resolve));
+      target = `http://127.0.0.1:${server.address().port}/index.html`;
+    }
     let page = await instance.newPage();
     /** Runs a function in the page and returns its value. */
     const run = (script, arg) => page.evaluate(script, arg);
@@ -214,6 +228,107 @@ async function main() {
       throw new Error(`the heading does not link gencmu to the repository: ${JSON.stringify(heading)}`);
     }
 
+    const parameterProof = await run(() => {
+      const g=self.gencmu;
+      const source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
+      const sources={...self.gencmuGrammars,"smoke-parameters.md":source};
+      const dialect=g.loadDialectSources(sources,"smoke-parameters.md");
+      const result=dialect.parse("ab");
+      const audit=g.audit(dialect)[0];
+      return {ok:result.ok,rule:result.tree.rule,children:result.tree.children.map(child=>child.kind),
+        templates:audit.templates.map(item=>item.template),instances:audit.instances.map(item=>item.name)};
+    });
+    assert.deepEqual(parameterProof,{ok:true,rule:"text",children:["token","token"],templates:["pair"],instances:["text"]});
+    console.log(`parameterized rules work in ${browser}`);
+
+    const includeCases = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-includes.json"),"utf8"));
+    const includeDocuments = await run(async cases => {
+      const results = [];
+      for (const item of cases) {
+        results.push(await new Promise((resolve,reject) => {
+          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources},message => {
+            if (message.kind === "ready") client.run(1,{dialect:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
+            if (message.kind === "result") {
+              const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),(path, names) => client.documentDirectives.get(JSON.stringify([path, names])));
+              client.stop();
+              if (message.loadError || !message.parse?.ok) reject(new Error(JSON.stringify(message)));
+              else resolve(editor.documents);
+            }
+          });
+          client.start();
+        }));
+      }
+      return results;
+    },includeCases);
+    assert.deepEqual(includeDocuments,includeCases.map(item => item.documents));
+    console.log(`decoded include paths match the editor in ${browser}`);
+
+    const namesFetches = [];
+    const namesPaths = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-names-paths.json"),"utf8"));
+    await page.route("**/grammars/**", route => {
+      const resource = decodeURIComponent(new URL(route.request().url()).pathname.split("/grammars/")[1]);
+      namesFetches.push(resource);
+      if (resource === "unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"grammars/unicode-names.txt"),"utf8") });
+      if (namesPaths.includes(resource)) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
+      if (resource === "smoke-extra-names.txt") return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
+      return route.fulfill({ status:404, body:"missing" });
+    });
+    const namesProof = await run(async () => {
+      const g = self.gencmu;
+      const block = text => "```jbogenbau\n" + text + "\n```\n";
+      const source = block('%names "smoke-extra-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"');
+      const cache = JSON.parse(self.gencmuGrammars["compiled.json"]);
+      cache.bundledNames["smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
+      const dependencies = { "unicode-names.txt":cache.bundledNames["unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
+      cache.documents["smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
+        rules:[{name:"text",op:"define",flags:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
+        directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
+          {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
+      const proof = (documents,text) => new Promise((resolve,reject) => {
+        const client = new self.ParserWorker({...self.gencmuGrammars,...documents},message => {
+          if (message.kind === "ready") client.run(1,{dialect:"smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
+          if (message.kind === "result") { client.stop(); resolve({ok:!!message.parse?.ok,error:message.loadError?.document || null}); }
+        });
+        client.start();
+      });
+      const cached = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"b");
+      cache.documents["smoke-names.md"].names["smoke-extra-names.txt"] = "0000000000000000";
+      const missed = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"\uE000");
+      const custom = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
+        "unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
+      const numeric = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
+      const core = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
+      const missing = await proof({"smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
+      return {cached,missed,custom,numeric,core,missing};
+    });
+    assert.deepEqual(namesProof,{cached:{ok:true,error:null},missed:{ok:true,error:null},custom:{ok:true,error:null},
+      numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:"missing-names.txt"}});
+    assert.deepEqual(namesFetches,["unicode-names.txt","smoke-extra-names.txt","unicode-names.txt","unicode-names.txt","missing-names.txt"]);
+    const pathProof = await run(async paths => {
+      const results = [];
+      for (const path of paths) {
+        results.push(await new Promise((resolve,reject) => {
+          const source = '```jbogenbau\n%names "' + path + '"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"\n```';
+          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source},message => {
+            if (message.kind === "ready") client.run(1,{dialect:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
+            if (message.kind === "result") {
+              client.stop();
+              resolve({ok:!!message.parse?.ok,stored:client.namesResources.has(path),error:message.loadError?.message || null});
+            }
+          });
+          client.start();
+        }));
+      }
+      return results;
+    },namesPaths);
+    assert.deepEqual(pathProof,namesPaths.map(() => ({ok:true,stored:true,error:null})));
+    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["unicode-names.txt",path]));
+    await page.unroute("**/grammars/**");
+    console.log(`lazy names fetching works in ${browser}`);
+
     // From here on, every answer the page shows as ready must be for the text
     // and dialect its controls hold at that moment: an answer that arrives
     // after they changed is out of date and must not be shown.
@@ -246,10 +361,10 @@ async function main() {
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
         document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
-        edit: ["(mex MOI #\n     ≻ SE # $w:tanru-unit-1\n     ≻ NAhE # $v:tanru-unit-1)", "(mex MOI #\n     | SE # $w:tanru-unit-1\n     | NAhE # $v:tanru-unit-1)"], tie: true },
+        edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
         document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
-        edit: ["(NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)", "(NAhE # tanru-unit-2 | mex MOI # | SE # tanru-unit-2)"], tie: true },
+        edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
         document: "syntax/experimental.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
@@ -262,7 +377,7 @@ async function main() {
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
       { label: "A rule with tree tests (notation)", output: /tree-comparison/,
         // Stage-zero images use NFD, including the negated comparator.
-        parts: [/tree-comparator · ≅$/m, /tree-comparator · \u2245\u0338$/m, /pattern-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
+        parts: [/tree-comparator · ≅$/m, /tree-comparator · \u2245\u0338$/m, /child-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
     ];
     const presets = await run(() => [...document.querySelectorAll("#examples option")]
       .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
@@ -350,7 +465,7 @@ async function main() {
       console.log(`example works in ${browser}: ${check.label}`);
     }
 
-    // Format 14 separates original text, normalized values and images.
+    // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
     await choose("dialects/cll-ebnf.md");
     const tokenText = "ba'e m,I ui nai klAma";
@@ -371,7 +486,7 @@ async function main() {
     assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
       ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
       ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 14 fields and recursive attachments");
+    ]}, "the token table must show format 15 fields and recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -391,13 +506,13 @@ async function main() {
       "display JSON must render images and nested attachments");
     await page.locator("#tab-canonical").click();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
-    assert.equal(canonical.format, 14);
+    assert.equal(canonical.format, 15);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
-    console.log(`format 14 token and tree views work in ${browser}`);
+    console.log(`format 15 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
     const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
     const navigationText = "mi se su'i pa re moi";
@@ -702,6 +817,7 @@ async function main() {
     console.log(`playground works in ${browser} at ${target}, ${version}`);
   } finally {
     await instance.close();
+    if (server) await new Promise(resolve => server.close(resolve));
   }
 }
 

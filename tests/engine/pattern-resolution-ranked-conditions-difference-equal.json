@@ -1,6 +1,6 @@
 {
-  "description": "A private ranked condition resolves (@(A) ∖ @(B)) before ≅ and accepts the reading. The difference pattern matches A under engine §§2 and 10 and §2.1.",
-  "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ (@(A) ∖ @(B)))\n%rule never Z",
+  "description": "A private ranked condition resolves (#A ∖ #B) before ≅ and accepts the reading. The difference pattern matches A under engine §§2 and 10 and §2.1.",
+  "grammar": "%rule text ($x:A ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ (#A ∖ #B))\n%rule never Z",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

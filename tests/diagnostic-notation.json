@@ -1,0 +1,79 @@
+[
+  {
+    "description": "Pattern diagnostics escape a literal quote.",
+    "grammar": "%rule text A",
+    "term": {
+      "pattern": {
+        "literal": {
+          "string": "\""
+        },
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "text": "#\"‹U+0022›\""
+  },
+  {
+    "description": "Pattern diagnostics escape a literal escape opener.",
+    "grammar": "%rule text A",
+    "term": {
+      "pattern": {
+        "literal": {
+          "string": "‹"
+        },
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "text": "#\"‹U+2039›\""
+  },
+  {
+    "description": "Pattern diagnostics use configured abbreviations.",
+    "grammar": "%rule text A",
+    "abbreviation": "abbreviation 0022 QMARK\n",
+    "term": {
+      "pattern": {
+        "literal": {
+          "string": "\""
+        },
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "text": "#\"‹QMARK›\""
+  },
+  {
+    "description": "Pattern diagnostics print unresolved calls and escaped arguments.",
+    "grammar": "%rule text A",
+    "term": {
+      "pattern": {
+        "call": "atom",
+        "args": [
+          {
+            "string": "‹"
+          }
+        ],
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "text": "#atom(\"‹U+2039›\")"
+  },
+  {
+    "description": "Ordinary string diagnostics use configured abbreviations.",
+    "grammar": "%rule text A",
+    "abbreviation": "abbreviation 0022 QMARK\n",
+    "term": {
+      "string": "\""
+    },
+    "text": "\"‹QMARK›\""
+  }
+]

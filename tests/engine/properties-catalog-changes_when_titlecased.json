@@ -1,0 +1,45 @@
+{
+  "description": "Every Changes_When_Titlecased value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Changes_When_Titlecased<_Changes_When_Titlecased>\n%conditions $x ≅ #_Changes_When_Titlecased<_Changes_When_Titlecased>, _Changes_When_Titlecased ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Changes_When_Titlecased",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_CWT",
+        "_Changes_When_Titlecased"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Changes_When_Titlecased"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Changes_When_Titlecased"
+              }
+            ],
+            "tags": [
+              "_Changes_When_Titlecased"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

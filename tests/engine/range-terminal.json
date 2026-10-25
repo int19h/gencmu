@@ -20,7 +20,7 @@
           },
           {
             "kind": "token",
-            "terminal": "_Lu"
+            "terminal": "_General_Category_Uppercase_Letter"
           },
           {
             "kind": "token",
@@ -28,7 +28,7 @@
           },
           {
             "kind": "token",
-            "terminal": "_L"
+            "terminal": "_General_Category_Letter"
           }
         ]
       }

@@ -1,0 +1,1989 @@
+{
+  "description": "Every Block value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 2 of 4.",
+  "grammar": "%rule text r82 r83 r84 r85 r86 r87 r88 r89 r90 r91 r92 r93 r94 r95 r96 r97 r98 r99 r100 r101 r102 r103 r104 r105 r106 r107 r108 r109 r110 r111 r112 r113 r114 r115 r116 r117 r118 r119 r120 r121 r122 r123 r124 r125 r126 r127 r128 r129 r130 r131 r132 r133 r134 r135 r136 r137 r138 r139 r140 r141 r142 r143 r144 r145 r146 r147 r148 r149 r150 r151 r152 r153 r154 r155 r156 r157 r158 r159 r160 r161 r162 r163\n%rule r82 $x:_Block_Cyrillic_Supplement<_blk_Cyrillic_Sup>\n%conditions $x ≅ #_blk_Cyrillic_Sup<_blk_Cyrillic_Sup>, _blk_Cyrillic_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic_Sup\n%rule r83 $x:_Block_Deseret<_blk_Deseret>\n%conditions $x ≅ #_blk_Deseret<_blk_Deseret>, _blk_Deseret ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Deseret\n%rule r84 $x:_Block_Devanagari<_blk_Devanagari>\n%conditions $x ≅ #_blk_Devanagari<_blk_Devanagari>, _blk_Devanagari ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Devanagari\n%rule r85 $x:_Block_Devanagari_Extended<_blk_Devanagari_Ext>\n%conditions $x ≅ #_blk_Devanagari_Ext<_blk_Devanagari_Ext>, _blk_Devanagari_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Devanagari_Ext\n%rule r86 $x:_Block_Devanagari_Extended_A<_blk_Devanagari_Ext_A>\n%conditions $x ≅ #_blk_Devanagari_Ext_A<_blk_Devanagari_Ext_A>, _blk_Devanagari_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Devanagari_Ext_A\n%rule r87 $x:_Block_Dingbats<_blk_Dingbats>\n%conditions $x ≅ #_blk_Dingbats<_blk_Dingbats>, _blk_Dingbats ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Dingbats\n%rule r88 $x:_Block_Dives_Akuru<_blk_Dives_Akuru>\n%conditions $x ≅ #_blk_Dives_Akuru<_blk_Dives_Akuru>, _blk_Dives_Akuru ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Dives_Akuru\n%rule r89 $x:_Block_Dogra<_blk_Dogra>\n%conditions $x ≅ #_blk_Dogra<_blk_Dogra>, _blk_Dogra ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Dogra\n%rule r90 $x:_Block_Domino_Tiles<_blk_Domino>\n%conditions $x ≅ #_blk_Domino<_blk_Domino>, _blk_Domino ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Domino\n%rule r91 $x:_Block_Duployan<_blk_Duployan>\n%conditions $x ≅ #_blk_Duployan<_blk_Duployan>, _blk_Duployan ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Duployan\n%rule r92 $x:_Block_Early_Dynastic_Cuneiform<_blk_Early_Dynastic_Cuneiform>\n%conditions $x ≅ #_blk_Early_Dynastic_Cuneiform<_blk_Early_Dynastic_Cuneiform>, _blk_Early_Dynastic_Cuneiform ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Early_Dynastic_Cuneiform\n%rule r93 $x:_Block_Egyptian_Hieroglyph_Format_Controls<_blk_Egyptian_Hieroglyph_Format_Controls>\n%conditions $x ≅ #_blk_Egyptian_Hieroglyph_Format_Controls<_blk_Egyptian_Hieroglyph_Format_Controls>, _blk_Egyptian_Hieroglyph_Format_Controls ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Egyptian_Hieroglyph_Format_Controls\n%rule r94 $x:_Block_Egyptian_Hieroglyphs<_blk_Egyptian_Hieroglyphs>\n%conditions $x ≅ #_blk_Egyptian_Hieroglyphs<_blk_Egyptian_Hieroglyphs>, _blk_Egyptian_Hieroglyphs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Egyptian_Hieroglyphs\n%rule r95 $x:_Block_Elbasan<_blk_Elbasan>\n%conditions $x ≅ #_blk_Elbasan<_blk_Elbasan>, _blk_Elbasan ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Elbasan\n%rule r96 $x:_Block_Elymaic<_blk_Elymaic>\n%conditions $x ≅ #_blk_Elymaic<_blk_Elymaic>, _blk_Elymaic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Elymaic\n%rule r97 $x:_Block_Emoticons<_blk_Emoticons>\n%conditions $x ≅ #_blk_Emoticons<_blk_Emoticons>, _blk_Emoticons ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Emoticons\n%rule r98 $x:_Block_Enclosed_Alphanumeric_Supplement<_blk_Enclosed_Alphanum_Sup>\n%conditions $x ≅ #_blk_Enclosed_Alphanum_Sup<_blk_Enclosed_Alphanum_Sup>, _blk_Enclosed_Alphanum_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Enclosed_Alphanum_Sup\n%rule r99 $x:_Block_Enclosed_Alphanumerics<_blk_Enclosed_Alphanum>\n%conditions $x ≅ #_blk_Enclosed_Alphanum<_blk_Enclosed_Alphanum>, _blk_Enclosed_Alphanum ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Enclosed_Alphanum\n%rule r100 $x:_Block_Enclosed_CJK_Letters_And_Months<_blk_Enclosed_CJK>\n%conditions $x ≅ #_blk_Enclosed_CJK<_blk_Enclosed_CJK>, _blk_Enclosed_CJK ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Enclosed_CJK\n%rule r101 $x:_Block_Enclosed_Ideographic_Supplement<_blk_Enclosed_Ideographic_Sup>\n%conditions $x ≅ #_blk_Enclosed_Ideographic_Sup<_blk_Enclosed_Ideographic_Sup>, _blk_Enclosed_Ideographic_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Enclosed_Ideographic_Sup\n%rule r102 $x:_Block_Ethiopic<_blk_Ethiopic>\n%conditions $x ≅ #_blk_Ethiopic<_blk_Ethiopic>, _blk_Ethiopic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ethiopic\n%rule r103 $x:_Block_Ethiopic_Extended<_blk_Ethiopic_Ext>\n%conditions $x ≅ #_blk_Ethiopic_Ext<_blk_Ethiopic_Ext>, _blk_Ethiopic_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ethiopic_Ext\n%rule r104 $x:_Block_Ethiopic_Extended_A<_blk_Ethiopic_Ext_A>\n%conditions $x ≅ #_blk_Ethiopic_Ext_A<_blk_Ethiopic_Ext_A>, _blk_Ethiopic_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ethiopic_Ext_A\n%rule r105 $x:_Block_Ethiopic_Extended_B<_blk_Ethiopic_Ext_B>\n%conditions $x ≅ #_blk_Ethiopic_Ext_B<_blk_Ethiopic_Ext_B>, _blk_Ethiopic_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ethiopic_Ext_B\n%rule r106 $x:_Block_Ethiopic_Supplement<_blk_Ethiopic_Sup>\n%conditions $x ≅ #_blk_Ethiopic_Sup<_blk_Ethiopic_Sup>, _blk_Ethiopic_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ethiopic_Sup\n%rule r107 $x:_Block_General_Punctuation<_blk_Punctuation>\n%conditions $x ≅ #_blk_Punctuation<_blk_Punctuation>, _blk_Punctuation ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Punctuation\n%rule r108 $x:_Block_Geometric_Shapes<_blk_Geometric_Shapes>\n%conditions $x ≅ #_blk_Geometric_Shapes<_blk_Geometric_Shapes>, _blk_Geometric_Shapes ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Geometric_Shapes\n%rule r109 $x:_Block_Geometric_Shapes_Extended<_blk_Geometric_Shapes_Ext>\n%conditions $x ≅ #_blk_Geometric_Shapes_Ext<_blk_Geometric_Shapes_Ext>, _blk_Geometric_Shapes_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Geometric_Shapes_Ext\n%rule r110 $x:_Block_Georgian<_blk_Georgian>\n%conditions $x ≅ #_blk_Georgian<_blk_Georgian>, _blk_Georgian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Georgian\n%rule r111 $x:_Block_Georgian_Extended<_blk_Georgian_Ext>\n%conditions $x ≅ #_blk_Georgian_Ext<_blk_Georgian_Ext>, _blk_Georgian_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Georgian_Ext\n%rule r112 $x:_Block_Georgian_Supplement<_blk_Georgian_Sup>\n%conditions $x ≅ #_blk_Georgian_Sup<_blk_Georgian_Sup>, _blk_Georgian_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Georgian_Sup\n%rule r113 $x:_Block_Glagolitic<_blk_Glagolitic>\n%conditions $x ≅ #_blk_Glagolitic<_blk_Glagolitic>, _blk_Glagolitic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Glagolitic\n%rule r114 $x:_Block_Glagolitic_Supplement<_blk_Glagolitic_Sup>\n%conditions $x ≅ #_blk_Glagolitic_Sup<_blk_Glagolitic_Sup>, _blk_Glagolitic_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Glagolitic_Sup\n%rule r115 $x:_Block_Gothic<_blk_Gothic>\n%conditions $x ≅ #_blk_Gothic<_blk_Gothic>, _blk_Gothic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Gothic\n%rule r116 $x:_Block_Grantha<_blk_Grantha>\n%conditions $x ≅ #_blk_Grantha<_blk_Grantha>, _blk_Grantha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Grantha\n%rule r117 $x:_Block_Greek_And_Coptic<_blk_Greek>\n%conditions $x ≅ #_blk_Greek<_blk_Greek>, _blk_Greek ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Greek\n%rule r118 $x:_Block_Greek_Extended<_blk_Greek_Ext>\n%conditions $x ≅ #_blk_Greek_Ext<_blk_Greek_Ext>, _blk_Greek_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Greek_Ext\n%rule r119 $x:_Block_Gujarati<_blk_Gujarati>\n%conditions $x ≅ #_blk_Gujarati<_blk_Gujarati>, _blk_Gujarati ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Gujarati\n%rule r120 $x:_Block_Gunjala_Gondi<_blk_Gunjala_Gondi>\n%conditions $x ≅ #_blk_Gunjala_Gondi<_blk_Gunjala_Gondi>, _blk_Gunjala_Gondi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Gunjala_Gondi\n%rule r121 $x:_Block_Gurmukhi<_blk_Gurmukhi>\n%conditions $x ≅ #_blk_Gurmukhi<_blk_Gurmukhi>, _blk_Gurmukhi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Gurmukhi\n%rule r122 $x:_Block_Halfwidth_And_Fullwidth_Forms<_blk_Half_And_Full_Forms>\n%conditions $x ≅ #_blk_Half_And_Full_Forms<_blk_Half_And_Full_Forms>, _blk_Half_And_Full_Forms ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Half_And_Full_Forms\n%rule r123 $x:_Block_Hangul_Compatibility_Jamo<_blk_Compat_Jamo>\n%conditions $x ≅ #_blk_Compat_Jamo<_blk_Compat_Jamo>, _blk_Compat_Jamo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Compat_Jamo\n%rule r124 $x:_Block_Hangul_Jamo<_blk_Jamo>\n%conditions $x ≅ #_blk_Jamo<_blk_Jamo>, _blk_Jamo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Jamo\n%rule r125 $x:_Block_Hangul_Jamo_Extended_A<_blk_Jamo_Ext_A>\n%conditions $x ≅ #_blk_Jamo_Ext_A<_blk_Jamo_Ext_A>, _blk_Jamo_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Jamo_Ext_A\n%rule r126 $x:_Block_Hangul_Jamo_Extended_B<_blk_Jamo_Ext_B>\n%conditions $x ≅ #_blk_Jamo_Ext_B<_blk_Jamo_Ext_B>, _blk_Jamo_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Jamo_Ext_B\n%rule r127 $x:_Block_Hangul_Syllables<_blk_Hangul>\n%conditions $x ≅ #_blk_Hangul<_blk_Hangul>, _blk_Hangul ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hangul\n%rule r128 $x:_Block_Hanifi_Rohingya<_blk_Hanifi_Rohingya>\n%conditions $x ≅ #_blk_Hanifi_Rohingya<_blk_Hanifi_Rohingya>, _blk_Hanifi_Rohingya ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hanifi_Rohingya\n%rule r129 $x:_Block_Hanunoo<_blk_Hanunoo>\n%conditions $x ≅ #_blk_Hanunoo<_blk_Hanunoo>, _blk_Hanunoo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hanunoo\n%rule r130 $x:_Block_Hatran<_blk_Hatran>\n%conditions $x ≅ #_blk_Hatran<_blk_Hatran>, _blk_Hatran ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hatran\n%rule r131 $x:_Block_Hebrew<_blk_Hebrew>\n%conditions $x ≅ #_blk_Hebrew<_blk_Hebrew>, _blk_Hebrew ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hebrew\n%rule r132 $x:_Block_High_Private_Use_Surrogates<_blk_High_PU_Surrogates>\n%conditions $x ≅ #_blk_High_PU_Surrogates<_blk_High_PU_Surrogates>, _blk_High_PU_Surrogates ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_High_PU_Surrogates\n%rule r133 $x:_Block_High_Surrogates<_blk_High_Surrogates>\n%conditions $x ≅ #_blk_High_Surrogates<_blk_High_Surrogates>, _blk_High_Surrogates ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_High_Surrogates\n%rule r134 $x:_Block_Hiragana<_blk_Hiragana>\n%conditions $x ≅ #_blk_Hiragana<_blk_Hiragana>, _blk_Hiragana ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Hiragana\n%rule r135 $x:_Block_IPA_Extensions<_blk_IPA_Ext>\n%conditions $x ≅ #_blk_IPA_Ext<_blk_IPA_Ext>, _blk_IPA_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_IPA_Ext\n%rule r136 $x:_Block_Ideographic_Description_Characters<_blk_IDC>\n%conditions $x ≅ #_blk_IDC<_blk_IDC>, _blk_IDC ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_IDC\n%rule r137 $x:_Block_Ideographic_Symbols_And_Punctuation<_blk_Ideographic_Symbols>\n%conditions $x ≅ #_blk_Ideographic_Symbols<_blk_Ideographic_Symbols>, _blk_Ideographic_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ideographic_Symbols\n%rule r138 $x:_Block_Imperial_Aramaic<_blk_Imperial_Aramaic>\n%conditions $x ≅ #_blk_Imperial_Aramaic<_blk_Imperial_Aramaic>, _blk_Imperial_Aramaic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Imperial_Aramaic\n%rule r139 $x:_Block_Indic_Siyaq_Numbers<_blk_Indic_Siyaq_Numbers>\n%conditions $x ≅ #_blk_Indic_Siyaq_Numbers<_blk_Indic_Siyaq_Numbers>, _blk_Indic_Siyaq_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Indic_Siyaq_Numbers\n%rule r140 $x:_Block_Inscriptional_Pahlavi<_blk_Inscriptional_Pahlavi>\n%conditions $x ≅ #_blk_Inscriptional_Pahlavi<_blk_Inscriptional_Pahlavi>, _blk_Inscriptional_Pahlavi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Inscriptional_Pahlavi\n%rule r141 $x:_Block_Inscriptional_Parthian<_blk_Inscriptional_Parthian>\n%conditions $x ≅ #_blk_Inscriptional_Parthian<_blk_Inscriptional_Parthian>, _blk_Inscriptional_Parthian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Inscriptional_Parthian\n%rule r142 $x:_Block_Javanese<_blk_Javanese>\n%conditions $x ≅ #_blk_Javanese<_blk_Javanese>, _blk_Javanese ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Javanese\n%rule r143 $x:_Block_Kaithi<_blk_Kaithi>\n%conditions $x ≅ #_blk_Kaithi<_blk_Kaithi>, _blk_Kaithi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kaithi\n%rule r144 $x:_Block_Kaktovik_Numerals<_blk_Kaktovik_Numerals>\n%conditions $x ≅ #_blk_Kaktovik_Numerals<_blk_Kaktovik_Numerals>, _blk_Kaktovik_Numerals ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kaktovik_Numerals\n%rule r145 $x:_Block_Kana_Extended_A<_blk_Kana_Ext_A>\n%conditions $x ≅ #_blk_Kana_Ext_A<_blk_Kana_Ext_A>, _blk_Kana_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kana_Ext_A\n%rule r146 $x:_Block_Kana_Extended_B<_blk_Kana_Ext_B>\n%conditions $x ≅ #_blk_Kana_Ext_B<_blk_Kana_Ext_B>, _blk_Kana_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kana_Ext_B\n%rule r147 $x:_Block_Kana_Supplement<_blk_Kana_Sup>\n%conditions $x ≅ #_blk_Kana_Sup<_blk_Kana_Sup>, _blk_Kana_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kana_Sup\n%rule r148 $x:_Block_Kanbun<_blk_Kanbun>\n%conditions $x ≅ #_blk_Kanbun<_blk_Kanbun>, _blk_Kanbun ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kanbun\n%rule r149 $x:_Block_Kangxi_Radicals<_blk_Kangxi>\n%conditions $x ≅ #_blk_Kangxi<_blk_Kangxi>, _blk_Kangxi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kangxi\n%rule r150 $x:_Block_Kannada<_blk_Kannada>\n%conditions $x ≅ #_blk_Kannada<_blk_Kannada>, _blk_Kannada ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kannada\n%rule r151 $x:_Block_Katakana<_blk_Katakana>\n%conditions $x ≅ #_blk_Katakana<_blk_Katakana>, _blk_Katakana ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Katakana\n%rule r152 $x:_Block_Katakana_Phonetic_Extensions<_blk_Katakana_Ext>\n%conditions $x ≅ #_blk_Katakana_Ext<_blk_Katakana_Ext>, _blk_Katakana_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Katakana_Ext\n%rule r153 $x:_Block_Kawi<_blk_Kawi>\n%conditions $x ≅ #_blk_Kawi<_blk_Kawi>, _blk_Kawi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kawi\n%rule r154 $x:_Block_Kayah_Li<_blk_Kayah_Li>\n%conditions $x ≅ #_blk_Kayah_Li<_blk_Kayah_Li>, _blk_Kayah_Li ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kayah_Li\n%rule r155 $x:_Block_Kharoshthi<_blk_Kharoshthi>\n%conditions $x ≅ #_blk_Kharoshthi<_blk_Kharoshthi>, _blk_Kharoshthi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Kharoshthi\n%rule r156 $x:_Block_Khitan_Small_Script<_blk_Khitan_Small_Script>\n%conditions $x ≅ #_blk_Khitan_Small_Script<_blk_Khitan_Small_Script>, _blk_Khitan_Small_Script ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Khitan_Small_Script\n%rule r157 $x:_Block_Khmer<_blk_Khmer>\n%conditions $x ≅ #_blk_Khmer<_blk_Khmer>, _blk_Khmer ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Khmer\n%rule r158 $x:_Block_Khmer_Symbols<_blk_Khmer_Symbols>\n%conditions $x ≅ #_blk_Khmer_Symbols<_blk_Khmer_Symbols>, _blk_Khmer_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Khmer_Symbols\n%rule r159 $x:_Block_Khojki<_blk_Khojki>\n%conditions $x ≅ #_blk_Khojki<_blk_Khojki>, _blk_Khojki ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Khojki\n%rule r160 $x:_Block_Khudawadi<_blk_Khudawadi>\n%conditions $x ≅ #_blk_Khudawadi<_blk_Khudawadi>, _blk_Khudawadi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Khudawadi\n%rule r161 $x:_Block_Lao<_blk_Lao>\n%conditions $x ≅ #_blk_Lao<_blk_Lao>, _blk_Lao ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Lao\n%rule r162 $x:_Block_Latin_1_Supplement<_blk_Latin_1_Sup>\n%conditions $x ≅ #_blk_Latin_1_Sup<_blk_Latin_1_Sup>, _blk_Latin_1_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_1_Sup\n%rule r163 $x:_Block_Latin_Extended_A<_blk_Latin_Ext_A>\n%conditions $x ≅ #_blk_Latin_Ext_A<_blk_Latin_Ext_A>, _blk_Latin_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Latin_Ext_A",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic_Supplement",
+        "_blk_Cyrillic_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Deseret",
+        "_blk_Deseret"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Devanagari",
+        "_blk_Devanagari"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Devanagari_Extended",
+        "_blk_Devanagari_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Devanagari_Extended_A",
+        "_blk_Devanagari_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Dingbats",
+        "_blk_Dingbats"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Dives_Akuru",
+        "_blk_Dives_Akuru"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Dogra",
+        "_blk_Dogra"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Domino_Tiles",
+        "_blk_Domino"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Duployan",
+        "_blk_Duployan"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Early_Dynastic_Cuneiform",
+        "_blk_Early_Dynastic_Cuneiform"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Egyptian_Hieroglyph_Format_Controls",
+        "_blk_Egyptian_Hieroglyph_Format_Controls"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Egyptian_Hieroglyphs",
+        "_blk_Egyptian_Hieroglyphs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Elbasan",
+        "_blk_Elbasan"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Elymaic",
+        "_blk_Elymaic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Emoticons",
+        "_blk_Emoticons"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Enclosed_Alphanumeric_Supplement",
+        "_blk_Enclosed_Alphanum_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Enclosed_Alphanumerics",
+        "_blk_Enclosed_Alphanum"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Enclosed_CJK_Letters_And_Months",
+        "_blk_Enclosed_CJK"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Enclosed_Ideographic_Supplement",
+        "_blk_Enclosed_Ideographic_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ethiopic",
+        "_blk_Ethiopic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ethiopic_Extended",
+        "_blk_Ethiopic_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ethiopic_Extended_A",
+        "_blk_Ethiopic_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ethiopic_Extended_B",
+        "_blk_Ethiopic_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ethiopic_Supplement",
+        "_blk_Ethiopic_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_General_Punctuation",
+        "_blk_Punctuation"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Geometric_Shapes",
+        "_blk_Geometric_Shapes"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Geometric_Shapes_Extended",
+        "_blk_Geometric_Shapes_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Georgian",
+        "_blk_Georgian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Georgian_Extended",
+        "_blk_Georgian_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Georgian_Supplement",
+        "_blk_Georgian_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Glagolitic",
+        "_blk_Glagolitic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Glagolitic_Supplement",
+        "_blk_Glagolitic_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Gothic",
+        "_blk_Gothic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Grantha",
+        "_blk_Grantha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Greek_And_Coptic",
+        "_blk_Greek"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Greek_Extended",
+        "_blk_Greek_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Gujarati",
+        "_blk_Gujarati"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Gunjala_Gondi",
+        "_blk_Gunjala_Gondi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Gurmukhi",
+        "_blk_Gurmukhi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Halfwidth_And_Fullwidth_Forms",
+        "_blk_Half_And_Full_Forms"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hangul_Compatibility_Jamo",
+        "_blk_Compat_Jamo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hangul_Jamo",
+        "_blk_Jamo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hangul_Jamo_Extended_A",
+        "_blk_Jamo_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hangul_Jamo_Extended_B",
+        "_blk_Jamo_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hangul_Syllables",
+        "_blk_Hangul"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hanifi_Rohingya",
+        "_blk_Hanifi_Rohingya"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hanunoo",
+        "_blk_Hanunoo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hatran",
+        "_blk_Hatran"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hebrew",
+        "_blk_Hebrew"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_High_Private_Use_Surrogates",
+        "_blk_High_PU_Surrogates"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_High_Surrogates",
+        "_blk_High_Surrogates"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Hiragana",
+        "_blk_Hiragana"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_IPA_Extensions",
+        "_blk_IPA_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ideographic_Description_Characters",
+        "_blk_IDC"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ideographic_Symbols_And_Punctuation",
+        "_blk_Ideographic_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Imperial_Aramaic",
+        "_blk_Imperial_Aramaic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Indic_Siyaq_Numbers",
+        "_blk_Indic_Siyaq_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Inscriptional_Pahlavi",
+        "_blk_Inscriptional_Pahlavi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Inscriptional_Parthian",
+        "_blk_Inscriptional_Parthian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Javanese",
+        "_blk_Javanese"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kaithi",
+        "_blk_Kaithi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kaktovik_Numerals",
+        "_blk_Kaktovik_Numerals"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kana_Extended_A",
+        "_blk_Kana_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kana_Extended_B",
+        "_blk_Kana_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kana_Supplement",
+        "_blk_Kana_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kanbun",
+        "_blk_Kanbun"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kangxi_Radicals",
+        "_blk_Kangxi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kannada",
+        "_blk_Kannada"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Katakana",
+        "_blk_Katakana"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Katakana_Phonetic_Extensions",
+        "_blk_Katakana_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kawi",
+        "_blk_Kawi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kayah_Li",
+        "_blk_Kayah_Li"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Kharoshthi",
+        "_blk_Kharoshthi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Khitan_Small_Script",
+        "_blk_Khitan_Small_Script"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Khmer",
+        "_blk_Khmer"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Khmer_Symbols",
+        "_blk_Khmer_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Khojki",
+        "_blk_Khojki"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Khudawadi",
+        "_blk_Khudawadi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Lao",
+        "_blk_Lao"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_1_Supplement",
+        "_blk_Latin_1_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Latin_Extended_A",
+        "_blk_Latin_Ext_A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Block_Cyrillic_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Deseret"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Devanagari"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Devanagari_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Devanagari_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Dingbats"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Dives_Akuru"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Dogra"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Domino_Tiles"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Duployan"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Early_Dynastic_Cuneiform"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Egyptian_Hieroglyph_Format_Controls"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Egyptian_Hieroglyphs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Elbasan"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Elymaic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Emoticons"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Enclosed_Alphanumeric_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Enclosed_Alphanumerics"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Enclosed_CJK_Letters_And_Months"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Enclosed_Ideographic_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ethiopic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ethiopic_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ethiopic_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ethiopic_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ethiopic_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_General_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Geometric_Shapes"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Geometric_Shapes_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Georgian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Georgian_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Georgian_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Glagolitic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Glagolitic_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Gothic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Grantha"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Greek_And_Coptic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Greek_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Gujarati"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Gunjala_Gondi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Gurmukhi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Halfwidth_And_Fullwidth_Forms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hangul_Compatibility_Jamo"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hangul_Jamo"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hangul_Jamo_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hangul_Jamo_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hangul_Syllables"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hanifi_Rohingya"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hanunoo"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hatran"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hebrew"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_High_Private_Use_Surrogates"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_High_Surrogates"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Hiragana"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_IPA_Extensions"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ideographic_Description_Characters"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ideographic_Symbols_And_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Imperial_Aramaic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Indic_Siyaq_Numbers"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Inscriptional_Pahlavi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Inscriptional_Parthian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Javanese"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kaithi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kaktovik_Numerals"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kana_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kana_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kana_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kanbun"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kangxi_Radicals"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kannada"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Katakana"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Katakana_Phonetic_Extensions"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kawi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kayah_Li"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Kharoshthi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Khitan_Small_Script"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Khmer"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Khmer_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Khojki"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Khudawadi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Lao"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_1_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Latin_Extended_A"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r82",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic_Supplement"
+            ]
+          },
+          {
+            "rule": "r83",
+            "children": [
+              {
+                "terminal": "_Block_Deseret"
+              }
+            ],
+            "tags": [
+              "_Block_Deseret"
+            ]
+          },
+          {
+            "rule": "r84",
+            "children": [
+              {
+                "terminal": "_Block_Devanagari"
+              }
+            ],
+            "tags": [
+              "_Block_Devanagari"
+            ]
+          },
+          {
+            "rule": "r85",
+            "children": [
+              {
+                "terminal": "_Block_Devanagari_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Devanagari_Extended"
+            ]
+          },
+          {
+            "rule": "r86",
+            "children": [
+              {
+                "terminal": "_Block_Devanagari_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Devanagari_Extended_A"
+            ]
+          },
+          {
+            "rule": "r87",
+            "children": [
+              {
+                "terminal": "_Block_Dingbats"
+              }
+            ],
+            "tags": [
+              "_Block_Dingbats"
+            ]
+          },
+          {
+            "rule": "r88",
+            "children": [
+              {
+                "terminal": "_Block_Dives_Akuru"
+              }
+            ],
+            "tags": [
+              "_Block_Dives_Akuru"
+            ]
+          },
+          {
+            "rule": "r89",
+            "children": [
+              {
+                "terminal": "_Block_Dogra"
+              }
+            ],
+            "tags": [
+              "_Block_Dogra"
+            ]
+          },
+          {
+            "rule": "r90",
+            "children": [
+              {
+                "terminal": "_Block_Domino_Tiles"
+              }
+            ],
+            "tags": [
+              "_Block_Domino_Tiles"
+            ]
+          },
+          {
+            "rule": "r91",
+            "children": [
+              {
+                "terminal": "_Block_Duployan"
+              }
+            ],
+            "tags": [
+              "_Block_Duployan"
+            ]
+          },
+          {
+            "rule": "r92",
+            "children": [
+              {
+                "terminal": "_Block_Early_Dynastic_Cuneiform"
+              }
+            ],
+            "tags": [
+              "_Block_Early_Dynastic_Cuneiform"
+            ]
+          },
+          {
+            "rule": "r93",
+            "children": [
+              {
+                "terminal": "_Block_Egyptian_Hieroglyph_Format_Controls"
+              }
+            ],
+            "tags": [
+              "_Block_Egyptian_Hieroglyph_Format_Controls"
+            ]
+          },
+          {
+            "rule": "r94",
+            "children": [
+              {
+                "terminal": "_Block_Egyptian_Hieroglyphs"
+              }
+            ],
+            "tags": [
+              "_Block_Egyptian_Hieroglyphs"
+            ]
+          },
+          {
+            "rule": "r95",
+            "children": [
+              {
+                "terminal": "_Block_Elbasan"
+              }
+            ],
+            "tags": [
+              "_Block_Elbasan"
+            ]
+          },
+          {
+            "rule": "r96",
+            "children": [
+              {
+                "terminal": "_Block_Elymaic"
+              }
+            ],
+            "tags": [
+              "_Block_Elymaic"
+            ]
+          },
+          {
+            "rule": "r97",
+            "children": [
+              {
+                "terminal": "_Block_Emoticons"
+              }
+            ],
+            "tags": [
+              "_Block_Emoticons"
+            ]
+          },
+          {
+            "rule": "r98",
+            "children": [
+              {
+                "terminal": "_Block_Enclosed_Alphanumeric_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Enclosed_Alphanumeric_Supplement"
+            ]
+          },
+          {
+            "rule": "r99",
+            "children": [
+              {
+                "terminal": "_Block_Enclosed_Alphanumerics"
+              }
+            ],
+            "tags": [
+              "_Block_Enclosed_Alphanumerics"
+            ]
+          },
+          {
+            "rule": "r100",
+            "children": [
+              {
+                "terminal": "_Block_Enclosed_CJK_Letters_And_Months"
+              }
+            ],
+            "tags": [
+              "_Block_Enclosed_CJK_Letters_And_Months"
+            ]
+          },
+          {
+            "rule": "r101",
+            "children": [
+              {
+                "terminal": "_Block_Enclosed_Ideographic_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Enclosed_Ideographic_Supplement"
+            ]
+          },
+          {
+            "rule": "r102",
+            "children": [
+              {
+                "terminal": "_Block_Ethiopic"
+              }
+            ],
+            "tags": [
+              "_Block_Ethiopic"
+            ]
+          },
+          {
+            "rule": "r103",
+            "children": [
+              {
+                "terminal": "_Block_Ethiopic_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Ethiopic_Extended"
+            ]
+          },
+          {
+            "rule": "r104",
+            "children": [
+              {
+                "terminal": "_Block_Ethiopic_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Ethiopic_Extended_A"
+            ]
+          },
+          {
+            "rule": "r105",
+            "children": [
+              {
+                "terminal": "_Block_Ethiopic_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Ethiopic_Extended_B"
+            ]
+          },
+          {
+            "rule": "r106",
+            "children": [
+              {
+                "terminal": "_Block_Ethiopic_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Ethiopic_Supplement"
+            ]
+          },
+          {
+            "rule": "r107",
+            "children": [
+              {
+                "terminal": "_Block_General_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Block_General_Punctuation"
+            ]
+          },
+          {
+            "rule": "r108",
+            "children": [
+              {
+                "terminal": "_Block_Geometric_Shapes"
+              }
+            ],
+            "tags": [
+              "_Block_Geometric_Shapes"
+            ]
+          },
+          {
+            "rule": "r109",
+            "children": [
+              {
+                "terminal": "_Block_Geometric_Shapes_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Geometric_Shapes_Extended"
+            ]
+          },
+          {
+            "rule": "r110",
+            "children": [
+              {
+                "terminal": "_Block_Georgian"
+              }
+            ],
+            "tags": [
+              "_Block_Georgian"
+            ]
+          },
+          {
+            "rule": "r111",
+            "children": [
+              {
+                "terminal": "_Block_Georgian_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Georgian_Extended"
+            ]
+          },
+          {
+            "rule": "r112",
+            "children": [
+              {
+                "terminal": "_Block_Georgian_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Georgian_Supplement"
+            ]
+          },
+          {
+            "rule": "r113",
+            "children": [
+              {
+                "terminal": "_Block_Glagolitic"
+              }
+            ],
+            "tags": [
+              "_Block_Glagolitic"
+            ]
+          },
+          {
+            "rule": "r114",
+            "children": [
+              {
+                "terminal": "_Block_Glagolitic_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Glagolitic_Supplement"
+            ]
+          },
+          {
+            "rule": "r115",
+            "children": [
+              {
+                "terminal": "_Block_Gothic"
+              }
+            ],
+            "tags": [
+              "_Block_Gothic"
+            ]
+          },
+          {
+            "rule": "r116",
+            "children": [
+              {
+                "terminal": "_Block_Grantha"
+              }
+            ],
+            "tags": [
+              "_Block_Grantha"
+            ]
+          },
+          {
+            "rule": "r117",
+            "children": [
+              {
+                "terminal": "_Block_Greek_And_Coptic"
+              }
+            ],
+            "tags": [
+              "_Block_Greek_And_Coptic"
+            ]
+          },
+          {
+            "rule": "r118",
+            "children": [
+              {
+                "terminal": "_Block_Greek_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Greek_Extended"
+            ]
+          },
+          {
+            "rule": "r119",
+            "children": [
+              {
+                "terminal": "_Block_Gujarati"
+              }
+            ],
+            "tags": [
+              "_Block_Gujarati"
+            ]
+          },
+          {
+            "rule": "r120",
+            "children": [
+              {
+                "terminal": "_Block_Gunjala_Gondi"
+              }
+            ],
+            "tags": [
+              "_Block_Gunjala_Gondi"
+            ]
+          },
+          {
+            "rule": "r121",
+            "children": [
+              {
+                "terminal": "_Block_Gurmukhi"
+              }
+            ],
+            "tags": [
+              "_Block_Gurmukhi"
+            ]
+          },
+          {
+            "rule": "r122",
+            "children": [
+              {
+                "terminal": "_Block_Halfwidth_And_Fullwidth_Forms"
+              }
+            ],
+            "tags": [
+              "_Block_Halfwidth_And_Fullwidth_Forms"
+            ]
+          },
+          {
+            "rule": "r123",
+            "children": [
+              {
+                "terminal": "_Block_Hangul_Compatibility_Jamo"
+              }
+            ],
+            "tags": [
+              "_Block_Hangul_Compatibility_Jamo"
+            ]
+          },
+          {
+            "rule": "r124",
+            "children": [
+              {
+                "terminal": "_Block_Hangul_Jamo"
+              }
+            ],
+            "tags": [
+              "_Block_Hangul_Jamo"
+            ]
+          },
+          {
+            "rule": "r125",
+            "children": [
+              {
+                "terminal": "_Block_Hangul_Jamo_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Hangul_Jamo_Extended_A"
+            ]
+          },
+          {
+            "rule": "r126",
+            "children": [
+              {
+                "terminal": "_Block_Hangul_Jamo_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Hangul_Jamo_Extended_B"
+            ]
+          },
+          {
+            "rule": "r127",
+            "children": [
+              {
+                "terminal": "_Block_Hangul_Syllables"
+              }
+            ],
+            "tags": [
+              "_Block_Hangul_Syllables"
+            ]
+          },
+          {
+            "rule": "r128",
+            "children": [
+              {
+                "terminal": "_Block_Hanifi_Rohingya"
+              }
+            ],
+            "tags": [
+              "_Block_Hanifi_Rohingya"
+            ]
+          },
+          {
+            "rule": "r129",
+            "children": [
+              {
+                "terminal": "_Block_Hanunoo"
+              }
+            ],
+            "tags": [
+              "_Block_Hanunoo"
+            ]
+          },
+          {
+            "rule": "r130",
+            "children": [
+              {
+                "terminal": "_Block_Hatran"
+              }
+            ],
+            "tags": [
+              "_Block_Hatran"
+            ]
+          },
+          {
+            "rule": "r131",
+            "children": [
+              {
+                "terminal": "_Block_Hebrew"
+              }
+            ],
+            "tags": [
+              "_Block_Hebrew"
+            ]
+          },
+          {
+            "rule": "r132",
+            "children": [
+              {
+                "terminal": "_Block_High_Private_Use_Surrogates"
+              }
+            ],
+            "tags": [
+              "_Block_High_Private_Use_Surrogates"
+            ]
+          },
+          {
+            "rule": "r133",
+            "children": [
+              {
+                "terminal": "_Block_High_Surrogates"
+              }
+            ],
+            "tags": [
+              "_Block_High_Surrogates"
+            ]
+          },
+          {
+            "rule": "r134",
+            "children": [
+              {
+                "terminal": "_Block_Hiragana"
+              }
+            ],
+            "tags": [
+              "_Block_Hiragana"
+            ]
+          },
+          {
+            "rule": "r135",
+            "children": [
+              {
+                "terminal": "_Block_IPA_Extensions"
+              }
+            ],
+            "tags": [
+              "_Block_IPA_Extensions"
+            ]
+          },
+          {
+            "rule": "r136",
+            "children": [
+              {
+                "terminal": "_Block_Ideographic_Description_Characters"
+              }
+            ],
+            "tags": [
+              "_Block_Ideographic_Description_Characters"
+            ]
+          },
+          {
+            "rule": "r137",
+            "children": [
+              {
+                "terminal": "_Block_Ideographic_Symbols_And_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Block_Ideographic_Symbols_And_Punctuation"
+            ]
+          },
+          {
+            "rule": "r138",
+            "children": [
+              {
+                "terminal": "_Block_Imperial_Aramaic"
+              }
+            ],
+            "tags": [
+              "_Block_Imperial_Aramaic"
+            ]
+          },
+          {
+            "rule": "r139",
+            "children": [
+              {
+                "terminal": "_Block_Indic_Siyaq_Numbers"
+              }
+            ],
+            "tags": [
+              "_Block_Indic_Siyaq_Numbers"
+            ]
+          },
+          {
+            "rule": "r140",
+            "children": [
+              {
+                "terminal": "_Block_Inscriptional_Pahlavi"
+              }
+            ],
+            "tags": [
+              "_Block_Inscriptional_Pahlavi"
+            ]
+          },
+          {
+            "rule": "r141",
+            "children": [
+              {
+                "terminal": "_Block_Inscriptional_Parthian"
+              }
+            ],
+            "tags": [
+              "_Block_Inscriptional_Parthian"
+            ]
+          },
+          {
+            "rule": "r142",
+            "children": [
+              {
+                "terminal": "_Block_Javanese"
+              }
+            ],
+            "tags": [
+              "_Block_Javanese"
+            ]
+          },
+          {
+            "rule": "r143",
+            "children": [
+              {
+                "terminal": "_Block_Kaithi"
+              }
+            ],
+            "tags": [
+              "_Block_Kaithi"
+            ]
+          },
+          {
+            "rule": "r144",
+            "children": [
+              {
+                "terminal": "_Block_Kaktovik_Numerals"
+              }
+            ],
+            "tags": [
+              "_Block_Kaktovik_Numerals"
+            ]
+          },
+          {
+            "rule": "r145",
+            "children": [
+              {
+                "terminal": "_Block_Kana_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Kana_Extended_A"
+            ]
+          },
+          {
+            "rule": "r146",
+            "children": [
+              {
+                "terminal": "_Block_Kana_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Kana_Extended_B"
+            ]
+          },
+          {
+            "rule": "r147",
+            "children": [
+              {
+                "terminal": "_Block_Kana_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Kana_Supplement"
+            ]
+          },
+          {
+            "rule": "r148",
+            "children": [
+              {
+                "terminal": "_Block_Kanbun"
+              }
+            ],
+            "tags": [
+              "_Block_Kanbun"
+            ]
+          },
+          {
+            "rule": "r149",
+            "children": [
+              {
+                "terminal": "_Block_Kangxi_Radicals"
+              }
+            ],
+            "tags": [
+              "_Block_Kangxi_Radicals"
+            ]
+          },
+          {
+            "rule": "r150",
+            "children": [
+              {
+                "terminal": "_Block_Kannada"
+              }
+            ],
+            "tags": [
+              "_Block_Kannada"
+            ]
+          },
+          {
+            "rule": "r151",
+            "children": [
+              {
+                "terminal": "_Block_Katakana"
+              }
+            ],
+            "tags": [
+              "_Block_Katakana"
+            ]
+          },
+          {
+            "rule": "r152",
+            "children": [
+              {
+                "terminal": "_Block_Katakana_Phonetic_Extensions"
+              }
+            ],
+            "tags": [
+              "_Block_Katakana_Phonetic_Extensions"
+            ]
+          },
+          {
+            "rule": "r153",
+            "children": [
+              {
+                "terminal": "_Block_Kawi"
+              }
+            ],
+            "tags": [
+              "_Block_Kawi"
+            ]
+          },
+          {
+            "rule": "r154",
+            "children": [
+              {
+                "terminal": "_Block_Kayah_Li"
+              }
+            ],
+            "tags": [
+              "_Block_Kayah_Li"
+            ]
+          },
+          {
+            "rule": "r155",
+            "children": [
+              {
+                "terminal": "_Block_Kharoshthi"
+              }
+            ],
+            "tags": [
+              "_Block_Kharoshthi"
+            ]
+          },
+          {
+            "rule": "r156",
+            "children": [
+              {
+                "terminal": "_Block_Khitan_Small_Script"
+              }
+            ],
+            "tags": [
+              "_Block_Khitan_Small_Script"
+            ]
+          },
+          {
+            "rule": "r157",
+            "children": [
+              {
+                "terminal": "_Block_Khmer"
+              }
+            ],
+            "tags": [
+              "_Block_Khmer"
+            ]
+          },
+          {
+            "rule": "r158",
+            "children": [
+              {
+                "terminal": "_Block_Khmer_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Khmer_Symbols"
+            ]
+          },
+          {
+            "rule": "r159",
+            "children": [
+              {
+                "terminal": "_Block_Khojki"
+              }
+            ],
+            "tags": [
+              "_Block_Khojki"
+            ]
+          },
+          {
+            "rule": "r160",
+            "children": [
+              {
+                "terminal": "_Block_Khudawadi"
+              }
+            ],
+            "tags": [
+              "_Block_Khudawadi"
+            ]
+          },
+          {
+            "rule": "r161",
+            "children": [
+              {
+                "terminal": "_Block_Lao"
+              }
+            ],
+            "tags": [
+              "_Block_Lao"
+            ]
+          },
+          {
+            "rule": "r162",
+            "children": [
+              {
+                "terminal": "_Block_Latin_1_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_1_Supplement"
+            ]
+          },
+          {
+            "rule": "r163",
+            "children": [
+              {
+                "terminal": "_Block_Latin_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Latin_Extended_A"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

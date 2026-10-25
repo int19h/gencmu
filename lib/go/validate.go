@@ -51,6 +51,15 @@ func validateDOM(d *domDoc, uni *unicodeTable) error {
 // checkDOM holds supplied and cached DOMs to engine §9.
 func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
+		if dir != nil && dir.rawTemplate != nil {
+			if dir.Args == nil || !directiveOperandsOK(dir) {
+				return &domProblem{message: "a malformed directive", at: dir.At}
+			}
+			if p := checkTemplateDeclaration(dir.rawTemplate, "directives", uni); p != nil {
+				return p
+			}
+			continue
+		}
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
@@ -113,6 +122,23 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		positions[m.At] = true
 	}
+	namesPositions := map[[2]int]bool{}
+	for _, dir := range d.Directives {
+		if dir.Name == "names" {
+			namesPositions[dir.At] = true
+		}
+	}
+	firstStatement := [2]int{}
+	for at := range positions {
+		if !namesPositions[at] && (firstStatement == [2]int{} || before(at, firstStatement)) {
+			firstStatement = at
+		}
+	}
+	for _, dir := range d.Directives {
+		if dir.Name == "names" && firstStatement != [2]int{} && before(firstStatement, dir.At) {
+			return &domProblem{message: "%names must precede every other statement", at: dir.At}
+		}
+	}
 	// A classifier: its name, and entries of gates, exact string keys, an
 	// operator and a class (engine §2, §9).
 	for _, c := range d.Classifiers {
@@ -128,7 +154,14 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, r := range d.Rules {
-		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r != nil && r.rawTemplate != nil {
+			if p := checkTemplateDeclaration(r.rawTemplate, "rules", uni); p != nil {
+				p.rule = r
+				return p
+			}
+			continue
+		}
+		if r == nil || !(domName.MatchString(r.Name) || uni.isEmojiName(r.Name)) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
@@ -195,6 +228,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// A constant's definition: its name, its op, and a value that is a
 	// closed term of a type that a constant can have (engine §2, §10).
 	for _, k := range d.Constants {
+		if k.rawTemplate != nil {
+			if p := checkTemplateDeclaration(k.rawTemplate, "constants", uni); p != nil {
+				p.constant = k
+				return p
+			}
+			continue
+		}
 		if !constName.MatchString(k.Name) || (k.Op != "define" && k.Op != "redefine") || k.Value == nil {
 			return &domProblem{message: "a malformed constant", constant: k}
 		}
@@ -215,6 +255,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	// An implication: two closed terms whose type is a tag set, checked
 	// once the nesting is bounded (engine §2, §9).
 	for _, m := range d.Implications {
+		if m.rawTemplate != nil {
+			if p := checkTemplateDeclaration(m.rawTemplate, "implications", uni); p != nil {
+				p.implication = m
+				return p
+			}
+			continue
+		}
 		c := &domChecker{implication: m, label: "an implication", uni: uni}
 		for _, side := range []*domTerm{m.If, m.Then} {
 			if side == nil {
@@ -309,7 +356,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
 	case "stage", "extend-stage", "redefine-stage":
 		return len(dir.Args) == 1 && classifierName.MatchString(dir.Args[0])
-	case "include":
+	case "include", "names":
 		return len(dir.Args) == 1
 	case "features":
 		if len(dir.Args) == 0 {
@@ -338,6 +385,20 @@ type domChecker struct {
 	uni         *unicodeTable
 	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem     *domProblem
+}
+
+func literalRangeProblem(ends [2]*domTerm) string {
+	var known [2]bool
+	for i, end := range ends {
+		known[i] = end != nil && end.Kind == tmString
+		if known[i] && utf8.RuneCountInString(end.Str) != 1 {
+			return "a range endpoint must be one scalar"
+		}
+	}
+	if known[0] && known[1] && ends[0].Str > ends[1].Str {
+		return "a range starts above its end"
+	}
+	return ""
 }
 
 func (c *domChecker) fail(format string, args ...any) {
@@ -443,7 +504,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			return
 		}
 		if !isTestable(e.Inner) && !(isValueTest(e.Op) && e.Inner != nil && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
-			c.fail("a test follows only a reference other than # or a terminal")
+			c.fail("a test follows only a reference, a terminal, a range or a property")
 			return
 		}
 		c.expr(e.Inner, depth+1, false, sealed)
@@ -464,8 +525,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		}
 	case exWildcard:
 	case exRef:
-		// A reference is a name or # (engine §9).
-		if e.Name != "#" && !domName.MatchString(e.Name) && !engineTag(e.Name) {
+		// A reference is an identifier or one eligible emoji (engine §9).
+		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}
 	case exTerminal:
@@ -864,14 +925,14 @@ func isCapturable(kind string) bool {
 }
 
 // isTestable says whether an expression can carry a test (engine §2): a
-// reference other than #, a terminal, a range or a property.
+// reference, a terminal, a range or a property.
 func isTestable(e *domExpr) bool {
 	if e == nil {
 		return false
 	}
 	switch e.Kind {
 	case exRef:
-		return e.Name != "#"
+		return true
 	case exTerminal, exRange, exLiteral, exWildcard:
 		return true
 	}
@@ -952,8 +1013,8 @@ func isSpanShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
-func isRuleName(name string) bool {
-	return name == "#" || classifierName.MatchString(name)
+func isRuleName(name string, uni *unicodeTable) bool {
+	return classifierName.MatchString(name) || uni.isEmojiName(name)
 }
 
 // term checks a term; argument says it is a function's argument, where a
@@ -978,6 +1039,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 	case tmPattern:
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
+			case "name":
+				if !isRuleName(p.Name, c.uni) {
+					return "a malformed pattern rule name"
+				}
+				return ""
 			case "literal":
 				if !stringTermShape(p.Value) {
 					return "a pattern literal requires a literal or constant string"
@@ -985,6 +1051,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 				c.term(p.Value, d, false)
 				return ""
 			case "range":
+				if problem := literalRangeProblem(p.Ends); problem != "" {
+					return problem
+				}
 				for _, end := range p.Ends {
 					if !stringTermShape(end) {
 						return "a pattern range requires literal or constant strings"
@@ -1024,7 +1093,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("%s", msg)
 		}
 	case tmConst:
-		if _, scalar := engineScalar(t.Str); !constName.MatchString(t.Str) && !scalar {
+		if !constName.MatchString(t.Str) {
 			c.fail("a malformed constant $%s", t.Str)
 		}
 	case tmTag:
@@ -1048,7 +1117,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// head, tail, last, from and after only where a span may stand, and
 		// matches, begins and initial never as terms.
 		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str) }
+		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str, c.uni) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
@@ -1061,7 +1130,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			ok = len(args) == 2 && args[0] != nil && args[0].Kind == tmCapture && isRule(args[1])
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
-		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
+		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "preceding-tokens":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
@@ -1132,9 +1201,13 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
-	case cdMatches, cdBegins:
+	case cdMatches, cdBegins, cdEnds:
+		if d.Kind == cdEnds && restoredTerm(d.Span) {
+			c.fail("ends requires an ordinary span, not a restored span")
+			return
+		}
 		for _, t := range d.queryTargets() {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed query target")
 				return
 			}
@@ -1153,7 +1226,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str, c.uni)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed boundary target")
 				return
 			}
@@ -1334,9 +1407,6 @@ const spanNotValue = "a span is not a value: tags($x) is the tag set of $x"
 type constTypes func(name string) termType
 
 func (ct constTypes) of(name string) termType {
-	if _, ok := engineScalar(name); ok {
-		return tyString
-	}
 	if ct == nil {
 		return tyAny
 	}

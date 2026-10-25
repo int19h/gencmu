@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -61,5 +62,53 @@ func TestDiskPathsFromAnotherWorkingDirectory(t *testing.T) {
 				t.Fatalf("%s: the error names %q, not %q: %v", given, e.Document, expected, e)
 			}
 		}
+	}
+}
+
+func TestSelectedDiskNames(t *testing.T) {
+	data, err := os.ReadFile("../../tests/disk-names.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		Description string
+		Files       map[string]string
+		Error       struct {
+			Document     string
+			Line, Column int
+		}
+	}
+	if err := json.Unmarshal(data, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		t.Run(c.Description, func(t *testing.T) {
+			root := t.TempDir()
+			for name, text := range c.Files {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			home, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(root); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := os.Chdir(home); err != nil {
+					t.Fatal(err)
+				}
+			})
+			_, err = LoadDialectFile(filepath.Join(root, "p.md"))
+			var e *Error
+			if !errors.As(err, &e) {
+				t.Fatalf("expected grammar error: %v", err)
+			}
+			if e.Kind != "grammar" || e.Document != filepath.ToSlash(filepath.Join(root, c.Error.Document)) || e.Line != c.Error.Line || e.Column != c.Error.Column {
+				t.Fatal(e)
+			}
+		})
 	}
 }

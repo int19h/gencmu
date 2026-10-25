@@ -1,0 +1,14 @@
+{
+  "description": "Include paths resolve decoded escapes.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"‹U+0067›.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

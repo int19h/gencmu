@@ -2,9 +2,15 @@
   "description": "The include directive takes one quoted path. Dollar signs remain literal in every string.",
   "document": "```jbogenbau\n%include \"../a b\\\\c.md\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 17
+    "dom": {
+      "directives": [
+        {
+          "name": "include",
+          "args": [
+            "../a b\\\\c.md"
+          ]
+        }
+      ]
     }
   }
 }

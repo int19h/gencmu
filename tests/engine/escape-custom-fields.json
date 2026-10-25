@@ -1,0 +1,21 @@
+{
+  "description": "Names records collapse ASCII field spaces and tabs.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "unicode-names.txt": "\r\n\tunicode-names\t15.1.0\r\nname\t000E000\tLOCAL  NAME"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

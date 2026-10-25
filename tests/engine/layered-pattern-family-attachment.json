@@ -1,0 +1,10 @@
+{
+  "description": "A template family keeps its exact prefix and child list.",
+  "grammar": "%rule atom(@X) @X\n%rule text $x:atom(\"a\")\n%conditions $x ≅ #·atom« \"a\" »",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

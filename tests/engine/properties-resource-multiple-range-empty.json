@@ -1,0 +1,17 @@
+{
+  "description": "A multiple range requires a nonempty replacement set.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
+    "unicode-properties.txt": "unicode-properties 15.1.0\nmultiple Script_Extensions Unknown\nvalue Script_Extensions Unknown\nrange Script_Extensions 0041 005A\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "unicode-properties.txt",
+      "line": 4
+    }
+  }
+}

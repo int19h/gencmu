@@ -1,0 +1,24 @@
+{
+  "description": "Ordinary escapes retain source order around a misplaced directive.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%rule text \"‹›\"\n%names \"‹LATIN SMALL LETTER E›xtra.txt\"\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 13
+    }
+  }
+}

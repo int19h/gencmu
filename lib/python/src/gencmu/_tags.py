@@ -80,9 +80,9 @@ def split_string(string: str, delimiter: str) -> Tags:
     return frozenset(piece for piece in string.split(delimiter) if piece)
 
 
-def is_tag(tag: object) -> bool:
+def is_tag(tag: object, unicode=None) -> bool:
     from ._strings import ENGINE_TAGS, USER_NAME
-    return isinstance(tag, str) and (USER_NAME.fullmatch(tag) is not None or tag in ENGINE_TAGS)
+    return isinstance(tag, str) and (USER_NAME.fullmatch(tag) is not None or (unicode.canonical_tag(tag) is not None if unicode is not None else tag in ENGINE_TAGS))
 
 
 def is_class(tag: str) -> bool:

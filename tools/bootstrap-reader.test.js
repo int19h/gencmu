@@ -36,12 +36,12 @@ test("an inserted token accepts an empty tag set and a string recipe", () => {
   });
 });
 
-test("scalar references retain their positions and dollars remain plain text", () => {
+test("numeric escapes decode exact scalars and dollars remain plain text", () => {
   assert.deepEqual(read('%rule r "a$(_0301)$$"').rules[0].alternatives[0].expr, {
     literal: { string: "a$(_0301)$$" },
   });
-  assert.deepEqual(read('%rule r $_0041').rules[0].alternatives[0].expr, {
-    literal: { const: "_0041", at: [2, 9] },
+  assert.deepEqual(read('%rule r "‹U+0041›"').rules[0].alternatives[0].expr, {
+    literal: { string: "A" },
   });
 });
 
@@ -56,7 +56,7 @@ test("the coordinator's error examples retain their columns", () => {
   for (const [source, column] of [
     ["%rule r $x:A<B><C>", 16], ["%stage $X", 1], ["%rule Foo A", 7],
     ["%rule r ¬cbm! A", 14], ["%rule r ¬ cbm? A", 9],
-    ['%const $_0041 "x"', 8], ['%rule r A := ∪ "a"', 14],
+    ['%const "‹U+0041›" "x"', 8], ['%rule r A := ∪ "a"', 14],
     ['%include "a.md" "b$c.md"', 1],
   ]) {
     assert.throws(() => read(source), (error) => {
@@ -99,10 +99,10 @@ test("the bootstrap and engine readers agree on the notation documents", () => {
 test("both readers admit written forms, including plain dollar text", () => {
   const loader = notationLoader();
   for (const source of [
-    '%rule r $x:A≠"x" %conditions $x.value ≠ "x", "a" ∉ "a b".split(" "), A ⊈ $x.tags, $x ≇ @A',
+    "%rule r $x:A≠\"x\" %conditions $x.value ≠ \"x\", \"a\" ∉ \"a b\".split(\" \"), A ⊈ $x.tags, $x ≇ #A",
     '%rule r "é$(_0301)"', '%rule r "a$(_0301)̣"', '%rule r "$(_00E9)"', '%include "café.md"',
     "%features Cbm Other", '%include "a$b.md"',
-    '%rule r "a"..$_007A', '%rule r _<¬_Lu>≠"x"',
+    '%rule r "a".."‹U+007A›"', '%rule r _<¬_General_Category_Uppercase_Letter>≠"x"',
     '%rule r := "v" :- "i" | "a" %emits',
     '%rule r := $.emitted.image :- "x" | _ %emits',
     '%rule r A %emits ε :: ∅ := "x"',
@@ -110,17 +110,17 @@ test("both readers admit written forms, including plain dollar text", () => {
     '%rule r $x:A %conditions $x.value = "X,Y", $x.image ≠ ""',
     '%rule r $l:A $r:B %conditions $l.value ++ $r.value ∈ "ab".split(" "), ($l.value ++ $r.value) = "ab"',
     '%rule r $x:A %conditions $x.without-elision.onward.begins(next)',
-    '%rule r $x:A %conditions $x ≅ @A<B>="x"',
-    '%rule r $x:A %conditions $x ≅ @(A B)',
-    '%rule r $x:A %conditions $x ≅ @(A @(B C))',
-    '%const $S "a" ++ $_0301 ++ "$"', '%const $S "x".split("y")',
+    "%rule r $x:A %conditions $x ≅ #A<B>=\"x\"",
+    "%rule r $x:A %conditions $x ≅ #« A B »",
+    "%rule r $x:A %conditions $x ≅ #« A « B C » »",
+    '%const $S "a" ++ "‹U+0301›" ++ "$"', '%const $S "x".split("y")',
     '%const $S "ab" "bc"', '%const $S ("ab" "bc") ∩ ("bc" ∪ "cd")',
     '%const $S "ab".ngrams(2)', '%const $S "ab".ngrams(99999999999999999999)',
     '%rule r A %conditions $.begins(B | r), $.matches(r | A)',
     '%rule r A %conditions $.begins(r | r | A | A), $.matches((r))',
     '%classifier words "a" "$(KEY)" ∈ AB', '%implies A B ⟹ C D',
-    '%rule r :: ($x ⟹ _Lu) ∩ $x.tags | $x:A',
-    '%rule r A %erased', '%rule r $x:#', '%rule r (A ≻ B) #',
+    '%rule r :: ($x ⟹ _General_Category_Uppercase_Letter) ∩ $x.tags | $x:A',
+    '%rule r A %erased', "%rule r $x:🆓", "%rule r (A ≻ B) 🆓",
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
     assert.deepEqual(loader.readDocument(document, "case.md"), readDocument(document, "case.md"), source);
@@ -130,20 +130,20 @@ test("both readers admit written forms, including plain dollar text", () => {
 test("both readers reject invalid forms at the same specified position", () => {
   const loader = notationLoader();
   for (const source of [
-    "%rule r $X:A", "%rule r $Foo:A", "%rule r $_0041:A", "%rule a $x:(B) %rule r $Foo:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
-    "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const $_0041 "x"',
+    "%rule r $X:A", "%rule r $Foo:A", "%rule r \"‹U+0041›\":A", "%rule a $x:(B) %rule r $Foo:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
+    "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const "‹U+0041›" "x"',
     '%rule r A := ∪ "a"', '%include "a.md" "b$c.md"',
-    '%rule r $x:A %conditions $x ≅ @(sumti="x")',
-    '%rule r $x:A %conditions $x ≅ @(sumti<B><C>)',
+    "%rule r $x:A %conditions $x ≅ #(sumti=\"x\")",
+    "%rule r $x:A %conditions $x ≅ #(sumti<B><C>)",
     '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
-    "%rule r A<$_0041>", "%rule r :: _Lu | A", "%rule r :: ∩ Word BY | A",
+    "%rule r A<\"‹U+0041›\">", "%rule r :: _General_Category_Uppercase_Letter | A", "%rule r :: ∩ Word BY | A",
     "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',
     "%rule r $x:(A) %rule s A %emits _", '%rule r $x:(A) %classifier c "a" ∈ _',
     '%include "a.md".x', '%rule r $x:(A) %include "a.md".x', '%include "a.md".."b"',
-    "%stage Cbm Su", "%stage Cbm Su.value", "%rule r $x:#<A>", '%rule r $x:#="a"', "%rule r $x:#<A><B>", "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
+    "%stage Cbm Su", "%stage Cbm Su.value", "%rule r $x:🆓<A><B>", "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
     '%include "a$b".value', '%rule r $x:A := ($x).value',
     '%rule r $x:A %conditions $x.unknown = "x"',
-    '%rule r "a\\b"', "%bad A %prefer r A",
+    '%rule r "a‹U+D800›"', "%bad A %prefer r A",
     "%rule r A ≻", "%rule r A ≻ B | C", "%rule r A | B ≻ C",
     '%const $S "a" "b".."c"', '%const $S ("a" "b".."c")',
     '%rule r A %conditions "a" ∈ ("a" "b".."c")',
@@ -152,9 +152,9 @@ test("both readers reject invalid forms at the same specified position", () => {
     '%rule r A %conditions $.begins()', '%rule r A %conditions $.matches()',
     '%rule r A %conditions $.begins((r | A))',
     '%rule r A %conditions $.matches(r, A)',
-    '%rule r A %conditions $.begins(_L)', '%rule r A %conditions $.matches(_L)',
-    '%rule r A %conditions $.followed-by(_L)', '%rule r A %conditions $.preceded-by(_L)',
-    '%rule r A=("a" "b")', '%rule r A %conditions $ ≅ @A=("a" "b")',
+    '%rule r A %conditions $.begins(_General_Category_Letter)', '%rule r A %conditions $.matches(_General_Category_Letter)',
+    '%rule r A %conditions $.followed-by(_General_Category_Letter)', '%rule r A %conditions $.preceded-by(_General_Category_Letter)',
+    '%rule r A=("a" "b")', "%rule r A %conditions $ ≅ #A=(\"a\" \"b\")",
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
     const errorOf = (reader) => {

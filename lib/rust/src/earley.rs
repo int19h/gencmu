@@ -2,11 +2,13 @@
 //! capture before the dot, the captured part's span and tag set; with the
 //! evaluation of terms and conditions (§10) and nested parses.
 
+mod suffix;
 use crate::patterns::{Machine, Pattern};
 use std::cell::{Cell, RefCell};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
+use suffix::{SuffixKey, SuffixState};
 
 use crate::eligible::Proofs;
 use crate::fxhash::{FxMap, FxSet};
@@ -34,7 +36,7 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .zip(&g.characters)
         .map(|(name, characters)| match characters {
             Some(characters) => Matcher::Characters(*characters),
-            None => match crate::tags::string_value(name) {
+            None => match crate::tags::string_value(name, &g.unicode) {
                 Some(value) => Matcher::Value(tags.tag(&value)),
                 None => Matcher::Tag(tags.tag(name)),
             },
@@ -334,6 +336,7 @@ pub(crate) struct Chart {
     boundary_root: Option<u32>,
     family: Option<(u32, u32)>,
     pub close_requested: bool,
+    suffix: bool,
     pub lexical: Vec<LexicalFrame>,
     lexical_index: FxMap<String, u32>,
     pub helper_entries: FxMap<(u32, Item), u32>,
@@ -795,6 +798,7 @@ enum NestedKey {
     Content(u32, u32),
     /// A long span: its place.
     Place(Place),
+    Suffix(Place),
     Aligned {
         place: Place,
         match_end: usize,
@@ -831,6 +835,9 @@ pub(crate) struct Shared<'a> {
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
+    suffix_keys: FxMap<SuffixKey, usize>,
+    suffixes: Vec<SuffixState>,
+    suffix_deps: FxMap<(usize, u32), bool>,
     /// Empty sets with room, kept from the charts of nested parses that
     /// finished, which later charts reuse.
     spare: Vec<ESet>,
@@ -855,6 +862,9 @@ impl<'a> Shared<'a> {
             qualified: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
+            suffix_keys: FxMap::default(),
+            suffixes: Vec::new(),
+            suffix_deps: FxMap::default(),
             spare: Vec::new(),
             lists: Vec::new(),
         }
@@ -890,6 +900,9 @@ impl<'a> Shared<'a> {
         self.qualified.clear();
         self.begins.clear();
         self.running.clear();
+        self.suffix_keys.clear();
+        self.suffixes.clear();
+        self.suffix_deps.clear();
     }
 
     /// Whether a terminal matches a token whose tags are `set` (§4). A
@@ -1039,6 +1052,7 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
         }
         Span::From(inner) => (span_bounds(inner, frame, input).0, input, Whose::Tokens),
         Span::After(inner) => (span_bounds(inner, frame, input).1, input, Whose::Tokens),
+        Span::Before(inner) => (0, span_bounds(inner, frame, input).0, Whose::Tokens),
     }
 }
 
@@ -1072,6 +1086,7 @@ pub(crate) struct Request<'t> {
     rule: u32,
     key: NestedKey,
     begins: bool,
+    suffix: Option<usize>,
     aligned: Option<Alignment>,
 }
 
@@ -1151,13 +1166,14 @@ fn took(last: &mut Option<Out>) -> Out {
 enum Query {
     Matches,
     Begins,
+    Ends,
     TagsRule,
 }
 
 impl Query {
     fn out(self, (holds, set): Answer, tags: &Tags) -> Out {
         match self {
-            Query::Matches | Query::Begins => Out::Bool(holds),
+            Query::Matches | Query::Begins | Query::Ends => Out::Bool(holds),
             Query::TagsRule => Out::Value(Value::Set(tags.shared(set))),
         }
     }
@@ -1413,6 +1429,8 @@ struct Run<'t, 'g> {
     /// and the room that evaluations reuse.
     evals: Evals<'g>,
     request: Option<Request<'t>>,
+    scans: Vec<(Item, u32)>,
+    scan_index: usize,
 }
 
 impl<'t, 'g> Run<'t, 'g> {
@@ -1439,7 +1457,20 @@ impl<'t, 'g> Run<'t, 'g> {
             next: 0,
             then: Then::Queue,
         };
-        Run { tokens, base, recon, chart, e: 0, head: 0, entered: false, step, evals: Evals::default(), request: None }
+        Run {
+            tokens,
+            base,
+            recon,
+            chart,
+            e: 0,
+            head: 0,
+            entered: false,
+            step,
+            evals: Evals::default(),
+            request: None,
+            scans: Vec::new(),
+            scan_index: 0,
+        }
     }
 
     /// The recognition that answers `request`: its span alone, with its
@@ -1448,6 +1479,10 @@ impl<'t, 'g> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
+        run.chart.suffix = request.suffix.is_some();
+        if run.chart.suffix {
+            run.chart.positions.set(FxMap::default()).expect("an empty positions cache");
+        }
         run.chart.close_requested = request.aligned.is_some();
         run.chart.family = request.aligned.and_then(|a| a.family);
         if let Step::Predict { requested, .. } = &mut run.step {
@@ -1812,11 +1847,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             self.recon = run.recon;
             match self.resume(run) {
                 Ok(()) => {
-                    let Run { request, chart, .. } = runs.pop().expect("a run");
-                    let answer = request.map(|request| {
+                    let mut finished = runs.pop().expect("a run");
+                    let suffix = finished.request.as_ref().and_then(|r| r.suffix);
+                    let answer = finished.request.take().map(|request| {
                         self.shared.running.remove(&request.place());
-                        self.settle(request, &chart)
+                        self.settle(request, &finished.chart)
                     });
+                    let chart = if let Some(id) = suffix {
+                        let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
+                        self.shared.suffixes[id].retained =
+                            Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
+                        self.shared.suffixes[id].active = false;
+                        Chart::default()
+                    } else {
+                        finished.chart
+                    };
                     match runs.last_mut() {
                         None => break Ok((chart, answer)),
                         Some(waiting) => {
@@ -1830,10 +1875,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
                     Ok(()) => {
-                        let first = self.shared.fresh_set();
-                        let mut run = Run::answering(*request, first);
-                        run.chart.machine = self.shared.machine.clone();
-                        run.chart.boundaries = self.shared.boundaries.clone();
+                        let run = self.answering(*request);
                         runs.push(run);
                     }
                     Err(error) => break Err(error),
@@ -1844,6 +1886,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         for run in &runs {
             if let Some(request) = &run.request {
                 self.shared.running.remove(&request.place());
+                if let Some(id) = request.suffix {
+                    let state = &mut self.shared.suffixes[id];
+                    state.active = false;
+                    if let Err(error) = &outcome {
+                        state.error = Some(error.clone());
+                    }
+                }
             }
         }
         self.recon = recon;
@@ -1873,10 +1922,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn answer(&mut self, request: Request) -> Result<Answer, EngineError> {
         self.start_query(&request)?;
         self.prepare_patterns();
-        let first = self.shared.fresh_set();
-        let mut run = Run::answering(request, first);
-        run.chart.machine = self.shared.machine.clone();
-        run.chart.boundaries = self.shared.boundaries.clone();
+        let run = self.answering(request);
         Ok(self.drive(run)?.1.expect("an answer"))
     }
 
@@ -1915,6 +1961,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         answer
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
+        if let Some(id) = request.suffix {
+            return (self.shared.suffixes[id].answers[&(request.base + request.end)], 0);
+        }
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
         let query_base = request.base + request.start;
@@ -2000,6 +2049,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     {
         let (tokens, base) = (run.tokens, run.base);
         loop {
+            if let Some(id) = run.request.as_ref().and_then(|r| r.suffix) {
+                let at = match &run.step {
+                    Step::Next => run.e,
+                    Step::Predict { e, .. }
+                    | Step::Empties { e, .. }
+                    | Step::Complete { e, .. }
+                    | Step::Waiters { e, .. } => *e,
+                    Step::Terminal { into, .. } => *into,
+                };
+                self.shared.suffixes[id].error_at = run.base + at;
+            }
             match &mut run.step {
                 Step::Next => {
                     if !self.next_entry(run) {
@@ -2084,29 +2144,63 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Takes the next entry of the queue, from the next set once one is
     /// done, and makes its step: false when the recognition is over.
     fn next_entry(&mut self, run: &mut Run) -> bool {
-        let chart = &mut run.chart;
         loop {
             let e = run.e;
+            if !run.entered && run.chart.suffix {
+                while run.chart.sets.len() <= e {
+                    run.chart.sets.push(self.shared.fresh_set());
+                }
+                run.chart.reached = e;
+                run.entered = true;
+                let rule = run.request.as_ref().unwrap().rule;
+                if let Some(before) = Self::begin_predict(&mut run.chart, rule, 0, false, e, false) {
+                    run.step = Step::Predict {
+                        rule,
+                        lexical: 0,
+                        requested: false,
+                        e,
+                        strict: false,
+                        before,
+                        next: 0,
+                        then: Then::Queue,
+                    };
+                    return true;
+                }
+            }
             if !run.entered {
-                if e >= chart.sets.len() || (e != 0 && chart.sets[e].items.is_empty()) {
+                if e >= run.chart.sets.len() || (e != 0 && run.chart.sets[e].items.is_empty()) {
                     return false;
                 }
-                chart.reached = e;
+                run.chart.reached = e;
                 run.entered = true;
             }
-            if run.head == chart.sets[e].queue.len() {
+            if run.head == run.chart.sets[e].queue.len() {
+                if run.chart.suffix {
+                    self.retain_suffix(run);
+                    if e == run.tokens.len() {
+                        return false;
+                    }
+                    while let Some(&(item, terminal)) = run.scans.get(run.scan_index) {
+                        run.scan_index += 1;
+                        if self.scan_terminal(run, item, terminal) {
+                            return true;
+                        }
+                    }
+                    run.scans.clear();
+                    run.scan_index = 0;
+                }
                 run.e += 1;
                 run.head = 0;
                 run.entered = false;
                 continue;
             }
-            let entry = chart.sets[e].queue[run.head];
+            let entry = run.chart.sets[e].queue[run.head];
             run.head += 1;
             let (k, again) = ((entry & !AGAIN) as usize, entry & AGAIN != 0);
-            if let Some(processed) = chart.sets[e].processed.get_mut(k) {
+            if let Some(processed) = run.chart.sets[e].processed.get_mut(k) {
                 *processed = true;
             }
-            let item = chart.sets[e].items[k];
+            let item = run.chart.sets[e].items[k];
             let g = self.g;
             let production = &g.prods[item.prod as usize];
             if item.dot as usize == production.syms.len() {
@@ -2115,42 +2209,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             match production.syms[item.dot as usize] {
                 Sym::T(terminal) => {
-                    let tokens = run.tokens;
-                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
-                        // A terminal that reads a synthetic token captures
-                        // no tags (§7.5).
-                        let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
-                        let tags = if synthetic { self.shared.tags.set(TagList::new()) } else { tokens[e].tags };
-                        // The written route of an elidable optional from a
-                        // synthetic token: the rest of the optional must
-                        // read, so the item after it is strict (§7.4).
-                        let rule = &g.rules[production.rule as usize];
-                        let strict = synthetic
-                            && item.dot == 0
-                            && rule.helper
-                            && rule.elided.is_some()
-                            && !witness::fault(Fault::Route3);
-                        let structure =
-                            self.terminal_structure(chart, item, e, terminal, &tokens[e], synthetic, run.base);
-                        let boundary = self
-                            .shared
-                            .boundaries
-                            .as_ref()
-                            .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[terminal as usize], synthetic));
-                        let cap = Cap {
-                            boundary,
-                            close_requested: false,
-                            start: e as u32,
-                            end: e as u32 + 1,
-                            tags,
-                            structure,
-                        };
-                        run.step = Step::Terminal { item, cap, into: e + 1, strict };
+                    if run.chart.suffix {
+                        run.scans.push((item, terminal));
+                    } else if self.scan_terminal(run, item, terminal) {
                         return true;
                     }
                 }
                 Sym::N(rule) => {
-                    let lexical = chart.enter_helper(
+                    let lexical = run.chart.enter_helper(
                         g,
                         item,
                         e as u32,
@@ -2161,22 +2227,22 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     let requested = self.requests_child(item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
                     if !again {
-                        chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
+                        run.chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
                     }
-                    let strict = chart.sets[e].is_strict(k);
+                    let strict = run.chart.sets[e].is_strict(k);
                     // A strict item predicts its next symbol strictly where
                     // no symbol after it can read, and it advances over an
                     // empty constituent only where one can (§7.4).
                     let later = self.reads_later(item);
                     let only = strict && !later;
                     let then = Then::Empties { item, rule: key, strict, skip: only };
-                    run.step = match Self::begin_predict(chart, rule, lexical, requested, e, only) {
+                    run.step = match Self::begin_predict(&mut run.chart, rule, lexical, requested, e, only) {
                         Some(before) => {
                             Step::Predict { rule, lexical, requested, e, strict: only, before, next: 0, then }
                         }
                         None if only => Step::Next,
                         None => {
-                            let empties = chart.sets[e].empty.get(&key).cloned().unwrap_or_default();
+                            let empties = run.chart.sets[e].empty.get(&key).cloned().unwrap_or_default();
                             Step::Empties { item, e, strict, empties, next: 0 }
                         }
                     };
@@ -2184,6 +2250,35 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             }
         }
+    }
+
+    fn scan_terminal(&mut self, run: &mut Run, item: Item, terminal: u32) -> bool {
+        let (tokens, e) = (run.tokens, run.e);
+        let chart = &mut run.chart;
+        let g = self.g;
+        let production = &g.prods[item.prod as usize];
+        if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
+            // A terminal that reads a synthetic token captures
+            // no tags (§7.5).
+            let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
+            let tags = if synthetic { self.shared.tags.set(TagList::new()) } else { tokens[e].tags };
+            // The written route of an elidable optional from a
+            // synthetic token: the rest of the optional must
+            // read, so the item after it is strict (§7.4).
+            let rule = &g.rules[production.rule as usize];
+            let strict =
+                synthetic && item.dot == 0 && rule.helper && rule.elided.is_some() && !witness::fault(Fault::Route3);
+            let structure = self.terminal_structure(chart, item, e, terminal, &tokens[e], synthetic, run.base);
+            let boundary = self
+                .shared
+                .boundaries
+                .as_ref()
+                .map_or(0, |m| m.borrow_mut().leaf(&g.terminals[terminal as usize], synthetic));
+            let cap = Cap { boundary, close_requested: false, start: e as u32, end: e as u32 + 1, tags, structure };
+            run.step = Step::Terminal { item, cap, into: e + 1, strict };
+            return true;
+        }
+        false
     }
 
     /// Whether a symbol after an item's next symbol can read in the
@@ -2514,6 +2609,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let index = target.items.len() as u32;
         target.index.insert(item, index);
         target.items.push(item);
+        if chart.suffix {
+            chart.positions.get_mut().expect("suffix positions").entry(item).or_default().push(set as u32);
+        }
         target.tagset.push(known);
         target.enqueue(index, recon, strict);
     }
@@ -2650,7 +2748,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), lowered.has_conds_at(0)) {
+        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), lowered.has_conds_at(0), chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
             if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
                 if before.is_none() {
@@ -3117,7 +3215,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     pending.push(inner);
                 }
-                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => pending.push(s),
+                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) | Span::Before(s) => {
+                    pending.push(s)
+                }
                 _ => {}
             }
         }
@@ -3172,6 +3272,38 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
+        if matches!(query, Query::Ends) {
+            let place = (rule, base + start, base + end);
+            let mut request = Request {
+                tokens,
+                base,
+                start,
+                end,
+                rule,
+                key: NestedKey::Suffix(place),
+                begins: false,
+                suffix: None,
+                aligned: None,
+            };
+            if self.shared.running.contains(&place) {
+                return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
+            }
+            let mut id = self.suffix_state(rule, base + start, base + end);
+            let state = &self.shared.suffixes[id];
+            if let Some(error) = state.error.as_ref().filter(|_| base + end >= state.error_at) {
+                return Err(Halt::Error(error.clone()));
+            }
+            if let Some(&holds) = state.answers.get(&(base + end)) {
+                return Ok(Out::Bool(holds));
+            }
+            if state.active {
+                id = self.shared.suffixes.len();
+                self.shared.suffixes.push(SuffixState::default());
+            }
+            request.suffix = Some(id);
+            eval.tasks.push(Task::Await(query));
+            return Err(Halt::Pending(Box::new(request)));
+        }
         let key = match aligned {
             Some(a) => NestedKey::Aligned {
                 active: {
@@ -3199,7 +3331,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let begins = matches!(query, Query::Begins);
         let place = (rule, base + start, base + end);
         if self.shared.running.contains(&place) {
-            let request = Request { tokens, base, start, end, rule, key, begins, aligned };
+            let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
         let known = if begins {
@@ -3210,7 +3342,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         match known {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
-                let request = Request { tokens, base, start, end, rule, key, begins, aligned };
+                let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
                 if aligned.is_some() {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
@@ -3343,6 +3475,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         LCond::Begins(span, rule) => {
                             self.query(eval, span, *rule, Query::Begins, frame, tokens, base)?
                         }
+                        LCond::Ends(span, rule) => self.query(eval, span, *rule, Query::Ends, frame, tokens, base)?,
                         // Where the input of the parse that reads the
                         // condition begins (§10). Positions count from the
                         // start of the tokens that parse reads, a nested

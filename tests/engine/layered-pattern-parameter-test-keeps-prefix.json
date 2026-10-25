@@ -1,0 +1,10 @@
+{
+  "description": "A terminal test keeps the exact prefix of its pattern argument.",
+  "grammar": "%rule use(@P) $x:\"a\"\n%conditions $x ≅ #@P<>\n%rule text use(#·\"a\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

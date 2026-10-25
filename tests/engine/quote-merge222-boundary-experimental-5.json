@@ -5,17 +5,13 @@
   },
   "pipeline": "pipeline.md",
   "input": "pu me'oi 你好",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

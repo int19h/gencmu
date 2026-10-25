@@ -1,0 +1,33 @@
+{
+  "description": "An emoji rule reference accepts an exact value test.",
+  "document": "```jbogenbau\n%rule text A 🆓 = \"a\"\n%rule 🆓 B\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "A"
+                  },
+                  {
+                    "test": "=",
+                    "expr": {
+                      "ref": "🆓"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "🆓"
+        }
+      ]
+    }
+  }
+}

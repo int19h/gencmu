@@ -68,9 +68,10 @@ fn document_was_read(dom: &str) -> bool {
 /// The same, with a `compiled.json` of the given format.
 fn document_was_read_from(format: i64, dom: &str) -> bool {
     let compiled = format!(
-        r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
@@ -110,7 +111,7 @@ fn a_well_formed_dom_is_used() {
     // `#` is a rule's name, and `$` may be read by a condition, and by a
     // tag term through another rule.
     let hash = with_rule(
-        r##"{"name":"#","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
+        r##"{"name":"🆓","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[4,1]}"##,
     );
     assert!(!document_was_read(&hash));
     // The pipeline directives with their operands (§9).
@@ -256,9 +257,11 @@ fn a_precompiled_range_or_property_is_checked() {
         expr(r#"{"ref":"_White_Space"}"#),
         // A range or a property is a terminal, and takes a test (§2).
         expr(r#"{"test":"=","value":{"string":"b"},"expr":{"range":[{"string":"b"},{"string":"z"}]}}"#),
-        expr(r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-b"}}],"expr":{"ref":"_L"}}"#),
         expr(
-            r#"{"seq":[{"capture":"c","expr":{"range":[{"string":"̀"},{"string":"ͯ"}]}},{"capture":"d","expr":{"ref":"_Cs"}}]}"#,
+            r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-b"}}],"expr":{"ref":"_General_Category_Letter"}}"#,
+        ),
+        expr(
+            r#"{"seq":[{"capture":"c","expr":{"range":[{"string":"̀"},{"string":"ͯ"}]}},{"capture":"d","expr":{"ref":"_General_Category_Surrogate"}}]}"#,
         ),
         with_tags(r#"{"union":[{"tag":"Character-a"},{"tag":"Character-x"}]}"#),
     ] {
@@ -272,13 +275,13 @@ fn a_precompiled_range_or_property_is_checked() {
         expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"A"}"#),
         expr(r#"{"property":"Letter"}"#),
         expr(r#"{"property":"lu"}"#),
-        expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"_L"}"#),
+        expr(r#"{"range":[{"string":"a"},{"string":"z"}],"ref":"_General_Category_Letter"}"#),
         expr(
             r#"{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Character-a"}}],"expr":{"range":[{"string":"z"},{"string":"a"}]}}"#,
         ),
         expr(r#"{"test":"=","value":{"string":"a"},"expr":{"property":"Letter"}}"#),
         expr(r#"{"capture":"c","expr":{"property":"Foo"}}"#),
-        with_tags(r#"{"ref":"_L"}"#),
+        with_tags(r#"{"ref":"_General_Category_Letter"}"#),
         with_tags(r#"{"range":[{"string":"z"},{"string":"a"}]}"#),
         with_emission(r#"{"items":[{"tags":{"tag":"'a'..'z'"},"insert":true}]}"#),
     ] {
@@ -287,8 +290,9 @@ fn a_precompiled_range_or_property_is_checked() {
     // A range or a property beside a sequence is checked before the
     // sequence is split, so no member of the node goes unread.
     for beside in MALFORMED_BESIDE_A_SEQUENCE {
-        let dom =
-            expr(&format!(r#"{{"seq":[{{"range":[{{"string":"b"}},{{"string":"z"}}]}},{{"ref":"_L"}}],{beside}}}"#));
+        let dom = expr(&format!(
+            r#"{{"seq":[{{"range":[{{"string":"b"}},{{"string":"z"}}]}},{{"ref":"_General_Category_Letter"}}],{beside}}}"#
+        ));
         assert!(document_was_read(&dom), "a malformed entry was used: {dom}");
     }
     assert!(document_was_read(&expr(r#"{"seq":[{"range":[{"string":"b"},{"string":"z"}]},{"property":"Bogus"}]}"#)));
@@ -318,16 +322,19 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     };
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
     // A bootstrap that is read, whose notation then fails on g.md.
-    assert_eq!(refusal(expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"ref":"_L"}]}"#)), None);
+    assert_eq!(
+        refusal(expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"ref":"_General_Category_Letter"}]}"#)),
+        None
+    );
     let mut refused = vec![
-        expr(r#"{"seq":[{"range":[{"string":"z"},{"string":"a"}]},{"ref":"_L"}]}"#),
-        expr(r#"{"seq":[{"range":[{"string":"aa"},{"string":"z"}]},{"ref":"_L"}]}"#),
+        expr(r#"{"seq":[{"range":[{"string":"z"},{"string":"a"}]},{"ref":"_General_Category_Letter"}]}"#),
+        expr(r#"{"seq":[{"range":[{"string":"aa"},{"string":"z"}]},{"ref":"_General_Category_Letter"}]}"#),
         expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"property":"Bogus"}]}"#),
-        with_tags(r#"{"ref":"_L"}"#),
+        with_tags(r#"{"ref":"_General_Category_Letter"}"#),
     ];
     for beside in MALFORMED_BESIDE_A_SEQUENCE {
         refused.push(expr(&format!(
-            r#"{{"seq":[{{"range":[{{"string":"a"}},{{"string":"z"}}]}},{{"ref":"_L"}}],{beside}}}"#
+            r#"{{"seq":[{{"range":[{{"string":"a"}},{{"string":"z"}}]}},{{"ref":"_General_Category_Letter"}}],{beside}}}"#
         )));
     }
     for dom in refused {
@@ -371,7 +378,6 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("an operand that is a capture", test("=", r#"{"capture":"x"}"#, b)),
         ("a guarded operand", test("⊇", r#"{"if":{"captured":"x"},"then":{"tag":"B"}}"#, b)),
         ("a malformed operand", test("⊇", r#"{"tag":"B","string":"b"}"#, b)),
-        ("a test of #", test("=", sound, r##"{"ref":"#"}"##)),
         ("a test of an optional", test("=", sound, r#"{"optional":{"literal":{"string":"b"}}}"#)),
         ("a test of a tested symbol", test("=", sound, &format!(r#"{{"test":"=","value":{sound},"expr":{b}}}"#))),
         ("a test of a capture", test("=", sound, r#"{"capture":"x","expr":{"literal":{"string":"b"}}}"#)),
@@ -397,7 +403,9 @@ fn every_malformed_dom_is_a_cache_miss() {
         ),
         (
             "a tested symbol that is also an optional",
-            tested(r##"{"optional":{"literal":{"string":"b"}},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}"##),
+            tested(
+                r##"{"optional":{"literal":{"string":"b"}},"test":"=","value":{"string":"b"},"expr":{"ref":"🆓"}}"##,
+            ),
         ),
         ("a tested symbol nested too deeply", tested(&tested_nested)),
         (
@@ -879,11 +887,11 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
 #[test]
 fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
     let ok = format!("```jbogenbau\n%rule a {}B{}\n```\n", "[".repeat(256), "]".repeat(256));
-    assert!(gencmu::tools::read_grammar_document(&ok).is_ok());
+    assert!(gencmu::tools::read_grammar_document(&ok, "").is_ok());
     let parentheses = format!("```jbogenbau\n%rule a {}B{}\n```\n", "(".repeat(1000), ")".repeat(1000));
-    assert!(gencmu::tools::read_grammar_document(&parentheses).is_ok(), "parentheses do not nest the DOM");
+    assert!(gencmu::tools::read_grammar_document(&parentheses, "").is_ok(), "parentheses do not nest the DOM");
     let deep = format!("```jbogenbau\n%rule a B\n%rule c {}B{}\n```\n", "[".repeat(257), "]".repeat(257));
-    let error = gencmu::tools::read_grammar_document(&deep).expect_err("nested more than 256 deep");
+    let error = gencmu::tools::read_grammar_document(&deep, "").expect_err("nested more than 256 deep");
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
 }
 
@@ -898,7 +906,7 @@ fn deeply_guarded_boundary_conditions_report_the_nesting_limit() {
                     let condition =
                         format!("{}{receiver}.followed-by(B){}", "((".repeat(depth), " ⟹ T) ≠ ∅)".repeat(depth));
                     let document = format!("```jbogenbau\n%rule text $x:A B\n%conditions {condition}\n```\n");
-                    let error = gencmu::tools::read_grammar_document(&document).expect_err("the nesting limit");
+                    let error = gencmu::tools::read_grammar_document(&document, "").expect_err("the nesting limit");
                     assert_eq!(error.message, "an expression, term or condition is nested more than 256 deep");
                     assert_eq!((error.line, error.column), (Some(2), Some(1)), "{error}");
                 }
@@ -1026,7 +1034,7 @@ fn a_precompiled_constant_is_checked() {
 #[test]
 fn a_precompiled_constant_serves_the_parse() {
     let document = "```jbogenbau\n%ambiguity-resolution greedy\n%const $K Tag-a ∪ B\n%rule text :: $K | \"a\"\n```\n";
-    let read = gencmu::tools::read_grammar_document(document).expect("the document");
+    let read = gencmu::tools::read_grammar_document(document, "").expect("the document");
     assert!(
         read.contains(
             r#""constants":[{"name":"K","op":"define","value":{"union":[{"tag":"Tag-a"},{"tag":"B"}]},"at":[3,1]}]"#
@@ -1041,9 +1049,10 @@ fn a_precompiled_constant_serves_the_parse() {
         ];
         if let Some(entry) = entry {
             let compiled = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+                gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
             sources.push(("compiled.json", compiled));
@@ -1149,9 +1158,10 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
         ];
         if let Some(entry) = entry {
             let compiled = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+                gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
             sources.push(("compiled.json", compiled));
@@ -1163,13 +1173,13 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
         Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
     };
     let empty = document("B", "$E ∖ B");
-    let read = gencmu::tools::read_grammar_document(&empty).expect("the document");
+    let read = gencmu::tools::read_grammar_document(&empty, "").expect("the document");
     assert_eq!(outcome(&empty, None), Ok(vec!["Y".to_string()]));
     assert_eq!(outcome(&empty, Some(&read)), Ok(vec!["Y".to_string()]));
     // A hit: the entry, changed, is the one the parse sees.
     assert_eq!(outcome(&empty, Some(&read.replace(r#"{"tag":"Y"}"#, r#"{"tag":"Z"}"#))), Ok(vec!["Z".to_string()]));
     let full = document("B ∖ B", "B");
-    let read = gencmu::tools::read_grammar_document(&full).expect("the document");
+    let read = gencmu::tools::read_grammar_document(&full, "").expect("the document");
     assert_eq!(outcome(&full, None), Err((4, 1)));
     assert_eq!(outcome(&full, Some(&read)), Err((4, 1)));
 }
@@ -1321,7 +1331,7 @@ fn a_classifier_name_stands_only_in_classify() {
     let classifier = r#"{"classifier":"lex"}"#;
     let refused = [
         with_condition(&format!(
-            r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}]}},"right":{{"tag":"Tag-a"}}}}"#
+            r#"{{"op":"⊆","left":{{"call":"tag","args":[{classifier}],"at":[3,1]}},"right":{{"tag":"Tag-a"}}}}"#
         )),
         split(classifier, r#"{"string":"."}"#),
         split(r#"{"string":"a.b"}"#, classifier),
@@ -1356,9 +1366,10 @@ fn a_gate_of_an_entry_names_a_feature() {
 /// document, each with its kind.
 fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
     let compiled = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
@@ -1522,7 +1533,7 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     let well_formed = [
         marked(ku, ""),
         marked(r#"{"ref":"KU"}"#, ""),
-        marked(&format!(r##"{{"seq":[{ku},{{"ref":"#"}}]}}"##), ""),
+        marked(&format!(r##"{{"seq":[{ku},{{"ref":"🆓"}}]}}"##), ""),
         marked(&format!(r#"{{"test":"=","value":{{"string":"ku"}},"expr":{ku}}}"#), ""),
         marked(&format!(r#"{{"seq":[{ku},{{"choice":[{{"ref":"A"}},{{"ref":"B"}}]}}]}}"#), ""),
         r#"{"optional":{"capture":"x","expr":{"ref":"A"}}}"#.to_string(),
@@ -1551,11 +1562,11 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         format!(r#"{{"choice":[{ku},{{"ref":"VAU"}}]}}"#),
         format!(r#"{{"and":[{ku},{{"ref":"A"}}]}}"#),
         r#"{"ref":"ku"}"#.to_string(),
-        r##"{"ref":"#"}"##.to_string(),
+        r##"{"ref":"🆓"}"##.to_string(),
         r#"{"ref":"/a/"}"#.to_string(),
         r#"{"literal":{"string":"a"}}"#.to_string(),
         r#"{"range":[{"string":"a"},{"string":"z"}]}"#.to_string(),
-        format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"#"}}]}},{{"ref":"A"}}]}}"##),
+        format!(r##"{{"seq":[{{"seq":[{ku},{{"ref":"🆓"}}]}},{{"ref":"A"}}]}}"##),
         format!(r#"{{"optional":{ku}}}"#),
         r#"{"empty":true}"#.to_string(),
     ];

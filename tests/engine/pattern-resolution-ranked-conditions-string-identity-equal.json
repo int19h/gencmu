@@ -1,6 +1,6 @@
 {
-  "description": "A private ranked condition resolves @(\"a\") before ≅ and rejects the reading. The string-identity pattern does not match _ under engine §§2 and 10 and §2.1.",
-  "grammar": "%rule text ($x:_ ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ @(\"a\"))\n%rule never Z",
+  "description": "A private ranked condition resolves #\"a\" before ≅ and rejects the reading. The string-identity pattern does not match _ under engine §§2 and 10 and §2.1.",
+  "grammar": "%rule text ($x:_ ≻ never) :: ∅\n%conditions ($x ⟹ $x ≅ #\"a\")\n%rule never Z",
   "tokens": [
     {
       "text": "a",

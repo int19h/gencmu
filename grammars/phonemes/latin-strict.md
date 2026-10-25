@@ -4,7 +4,7 @@ This document opens the phoneme stage for the Latin orthography of *The Complete
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
+The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). A feature is a named switch that the grammars test. The CLL dialect turns the `cll-cyrillic` feature on by default. The other dialects include that document but turn its feature off by default.
 
@@ -12,16 +12,16 @@ Those dialects also add the conventions of [latin.md](latin.md), such as digits 
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
-The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant values are lowercase. Stressed vowels carry uppercase values and `Stressed`, while unstressed vowels carry lowercase values. The following normalization stage lowers stressed values and keeps their images and tags.
+The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant and vowel values are lowercase. A stressed vowel carries `Stressed`, and its image shows the stress as a capital vowel. The forms stage receives these values, images, and tags directly.
 
 The phoneme values are the letters of CLL[^cll-c3]:
 
 - The consonants `"b"`, `"c"`, `"d"` and so on through `"z"`
-- The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with uppercase values when stressed
+- The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with `Stressed` when stressed
 - The apostrophe `"'"`
-- The syllable comma `","`, with tag `Syllable-Break`
+- The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
-In cll-ebnf, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
+In cll-ebnf, a comma run emits one token with empty value, image `,`, and tag `Syllable-Break`. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
 
 In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
@@ -111,7 +111,7 @@ An ordinary run is letters. A run of adjacent vowel letters is one vowel group, 
 
 A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [cyrillic.md](cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
-In cll-ebnf, a comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with value `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+In cll-ebnf, a comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with an empty value, image `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run
@@ -138,31 +138,36 @@ In cll-ebnf, a comma stands only between two letters of a run. Between two vowel
 %rule syllable-break
   commas
 %emits
-  $ :: Syllable-Break := ","
+  $ :: Syllable-Break := "" :- ","
 
 %rule vowel
   plain-vowel | stressed-vowel
 
-%rule vowel-group
-  vowel | vowel-group-plain | vowel-group-joined
+%rule vowel-group-with(@V)
+  @V | vowel-group-plain-with(@V) | vowel-group-joined-with(@V)
 
-%rule vowel-group-plain
-  | vowel-group<¬Syllabic> $v:vowel :: $v.tags
-  | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
+%rule vowel-group-plain-with(@V)
+  | vowel-group-with(@V)<¬Syllabic> $v:@V :: $v.tags
+  | vowel-group-with(@V)<Syllabic> $w:@V<¬Syllabic> :: $w.tags
 
-%rule vowel-group-joined
-  vowel-group<Syllabic> $v:joined-vowel<Syllabic> :: $v.tags
+%rule vowel-group-joined-with(@V)
+  vowel-group-with(@V)<Syllabic> $v:joined-vowel-with(@V)<Syllabic> :: $v.tags
 
-%rule joined-vowel
-  $v:vowel :: $v.tags
+%rule joined-vowel-with(@V)
+  $v:@V :: $v.tags
 %emits
   ε :: ∅ := "'", $v
+
+%rule vowel-group = vowel-group-with(vowel)
+%rule vowel-group-plain = vowel-group-plain-with(vowel)
+%rule vowel-group-joined = vowel-group-joined-with(vowel)
+%rule joined-vowel = joined-vowel-with(vowel)
 
 %rule any-lojban-char
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>ordinary-run</code> to <code>any-lojban-char</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>ordinary-run</code> to <code>any-lojban-char</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/ordinary-run.svg" alt="Railroad diagram of the rule ordinary-run"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/letters.svg" alt="Railroad diagram of the rule letters"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
@@ -171,6 +176,10 @@ In cll-ebnf, a comma stands only between two letters of a run. Between two vowel
 <p><img src="../../docs/diagrams/phonemes/latin-strict/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/syllable-break.svg" alt="Railroad diagram of the rule syllable-break"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-with.svg" alt="Railroad diagram of the rule vowel-group-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/joined-vowel-with.svg" alt="Railroad diagram of the rule joined-vowel-with"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group.svg" alt="Railroad diagram of the rule vowel-group"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
@@ -227,11 +236,13 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 ## Letters
 
-The stage emits each consonant as its lowercase Latin letter. Each `:=` mapping sets the value and image to its Latin phoneme letter, for every script. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
+The stage emits each consonant as its lowercase Latin letter. Each consonant mapping sets its value and image to the same Latin phoneme letter. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed`, a lowercase value, and an uppercase image. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
 A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So in cll-ebnf, a capital `Y` cannot stand in a brivla. The other dialects ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
+
+`stressed-vowel-with` gives each stressed vowel `Stressed`, a lowercase value and an uppercase image. Its six arguments are the patterns that read the six vowels in one script. Named instances keep each script's vowel rule in the phoneme tree.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
@@ -262,10 +273,17 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 %emits
   $
 
-%rule stressed-vowel :: Stressed
-  | "A" | "E" | "I" | "O" | "U" | "Y"
+%rule stressed-vowel-with(@A, @E, @I, @O, @U, @Y) :: Stressed
+  | @A := "a" :- "A"
+  | @E := "e" :- "E"
+  | @I := "i" :- "I"
+  | @O := "o" :- "O"
+  | @U := "u" :- "U"
+  | @Y := "y" :- "Y"
 %emits
   $
+
+%rule stressed-vowel = stressed-vowel-with("A", "E", "I", "O", "U", "Y")
 
 %rule apostrophe
   "'" | "’" | "‘" | "ʼ"
@@ -276,9 +294,10 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
   ","
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>consonant</code> to <code>comma</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>consonant</code> to <code>comma</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/plain-vowel.svg" alt="Railroad diagram of the rule plain-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel-with.svg" alt="Railroad diagram of the rule stressed-vowel-with"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/stressed-vowel.svg" alt="Railroad diagram of the rule stressed-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/apostrophe.svg" alt="Railroad diagram of the rule apostrophe"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/comma.svg" alt="Railroad diagram of the rule comma"></p>

@@ -57,7 +57,7 @@ type Node struct {
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
 	// has one, which elision-only gives the restored token as its value
-	// (engine §7, §12). Value exposes it in result format 14. tested says that the
+	// (engine §7, §12). Value exposes it in result format 15. tested says that the
 	// terminator has an = test, so that sound holds, even where it is "".
 	sound  string
 	tested bool

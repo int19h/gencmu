@@ -1,0 +1,38 @@
+{
+  "description": "a postfix path can precede an adjacent exact child",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« a⋰·b »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "child": {
+                        "path": "first",
+                        "pattern": {
+                          "name": "a"
+                        }
+                      }
+                    },
+                    {
+                      "child": {
+                        "name": "b",
+                        "exact": true
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

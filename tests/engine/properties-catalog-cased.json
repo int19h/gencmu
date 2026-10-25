@@ -1,0 +1,44 @@
+{
+  "description": "Every Cased value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Cased<_Cased>\n%conditions $x ≅ #_Cased<_Cased>, _Cased ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Cased",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Cased"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Cased"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Cased"
+              }
+            ],
+            "tags": [
+              "_Cased"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

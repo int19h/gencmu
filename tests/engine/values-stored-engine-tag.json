@@ -5,14 +5,14 @@
     {
       "text": "a",
       "tags": [
-        "_Lu"
+        "_General_Category_Uppercase_Letter"
       ],
       "value": "x"
     }
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {
@@ -21,7 +21,7 @@
               "value": "x",
               "image": "a",
               "tags": [
-                "_Lu"
+                "_General_Category_Uppercase_Letter"
               ]
             }
           ]

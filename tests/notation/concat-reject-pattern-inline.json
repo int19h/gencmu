@@ -1,6 +1,6 @@
 {
   "description": "A tree pattern rejects an inline join between its string terminals (engine §9.2, §10).",
-  "document": "```jbogenbau\n%const $P @(\"a\" ++ \"b\")\n```\n",
+  "document": "```jbogenbau\n%const $P #(\"a\" ++ \"b\")\n```\n",
   "expect": {
     "error": {
       "line": 2,

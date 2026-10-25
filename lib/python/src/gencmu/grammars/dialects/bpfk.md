@@ -57,22 +57,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: normalize
-
-```jbogenbau
-%stage normalize
-```
-
-- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
-  ```jbogenbau
-  %include "../phonemes/normalize.md"
-  ```
-
-A stressed vowel keeps the tag `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this tag to identify stress.
-
-The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
-
-## Stage 3: forms
+## Stage 2: forms
 
 ```jbogenbau
 %stage forms
@@ -91,7 +76,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../words/lexicon-cll.md"
   ```
 
-## Stage 4: words
+## Stage 3: words
 
 ```jbogenbau
 %stage words
@@ -102,7 +87,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../words/stream.md"
   ```
 
-## Stage 5: indicators
+## Stage 4: indicators
 
 ```jbogenbau
 %stage indicators
@@ -113,7 +98,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../indicators/cll.md"
   ```
 
-## Stage 6: syntax
+## Stage 5: syntax
 
 ```jbogenbau
 %stage syntax
@@ -124,7 +109,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../syntax/cll.md"
   ```
 
-The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-6-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
+The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-5-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only

@@ -1,0 +1,45 @@
+{
+  "description": "Every Alphabetic value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Alphabetic<_Alphabetic>\n%conditions $x ≅ #_Alphabetic<_Alphabetic>, _Alphabetic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Alphabetic",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Alpha",
+        "_Alphabetic"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Alphabetic"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Alphabetic"
+              }
+            ],
+            "tags": [
+              "_Alphabetic"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

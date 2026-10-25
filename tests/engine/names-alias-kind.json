@@ -1,0 +1,17 @@
+{
+  "description": "An alias requires a standard kind.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "unicode-names.txt": "unicode-names 15.1.0\nalias local E000 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "unicode-names.txt",
+      "line": 2
+    }
+  }
+}

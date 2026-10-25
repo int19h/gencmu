@@ -1,0 +1,18 @@
+{
+  "description": "A concatenation joins a literal and an exact escaped mark.",
+  "grammar": "%const $VALUE \"a\" ++ \"‹U+0301›\"\n%rule text $VALUE",
+  "tokens": [
+    {
+      "text": "á",
+      "value": "á",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

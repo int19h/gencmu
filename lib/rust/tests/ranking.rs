@@ -1021,15 +1021,16 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let dom = grammar_dom(&source);
     if seed % 50 == 0 {
         // The DOM given to the cache is the one the notation reads.
-        let read = gencmu::tools::read_grammar_document(&document).map_err(|error| format!("read: {error}"))?;
+        let read = gencmu::tools::read_grammar_document(&document, "").map_err(|error| format!("read: {error}"))?;
         if parse_json(&read) != parse_json(&dom) {
             return Err(format!("seed {seed}: the generated DOM differs from the notation's:\n{dom}\n{read}"));
         }
     }
     let compiled = format!(
-        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         gencmu::tools::fnv1a64(&document)
     );
     let sources = [

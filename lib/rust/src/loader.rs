@@ -2,7 +2,7 @@
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -15,7 +15,9 @@ use crate::markdown::{grammar_text, resolve};
 use crate::notation::Reader;
 use crate::pipeline::{splice, Documents, Spliced};
 use crate::result::ParseErrorKind;
+use crate::string_escapes::DocumentStrings;
 use crate::unicode::Unicode;
+use crate::unicode_names::{names_registry, NamesScope};
 
 mod bundled {
     include!(concat!(env!("OUT_DIR"), "/bundled.rs"));
@@ -31,8 +33,15 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 /// its depth.
 #[derive(Default)]
 struct Compiled {
-    by_path: HashMap<String, (String, Arc<Json>)>,
-    by_hash: HashMap<String, Arc<Json>>,
+    by_path: HashMap<String, (String, CompiledEntry)>,
+    by_hash: HashMap<String, CompiledEntry>,
+    bundled_names: Option<BTreeMap<String, String>>,
+}
+
+#[derive(Clone)]
+struct CompiledEntry {
+    dom: Arc<Json>,
+    names: Option<Arc<Json>>,
 }
 
 /// The members of an object, taken out of it, or none for another value.
@@ -49,7 +58,12 @@ fn take(value: Json, key: &str) -> Option<Json> {
 }
 
 impl Compiled {
-    fn parse(text: &str, bootstrap_hash: &str, unicode_hash: &str) -> Result<Compiled, Error> {
+    fn parse(
+        text: &str,
+        bootstrap_hash: &str,
+        unicode_hash: &str,
+        properties_hash: Option<&str>,
+    ) -> Result<Compiled, Error> {
         // A cache that does not parse, corrupt or malicious, is no cache:
         // every document is read through the notation instead.
         let Ok(value) = json::parse(text) else {
@@ -58,16 +72,30 @@ impl Compiled {
         let mut compiled = Compiled::default();
         let usable = value.get("format").and_then(Json::as_int) == Some(DOM_FORMAT)
             && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash)
-            && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash);
+            && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash)
+            && match (value.get("properties"), properties_hash) {
+                (Some(Json::Null), None) => true,
+                (Some(Json::Str(hash)), Some(expected)) => hash == expected,
+                _ => false,
+            };
         if !usable {
             return Ok(compiled);
         }
+        compiled.bundled_names = value.get("bundledNames").and_then(names_registry);
         for (path, entry) in take(value, "documents").map(members).unwrap_or_default() {
-            let hash = entry.get("hash").and_then(Json::as_str).map(str::to_string);
-            if let (Some(hash), Some(dom)) = (hash, take(entry, "dom")) {
-                let dom = Arc::new(dom);
-                compiled.by_path.insert(path, (hash.clone(), dom.clone()));
-                compiled.by_hash.insert(hash, dom);
+            let (mut hash, mut dom, mut names) = (None, None, None);
+            for (key, value) in members(entry) {
+                match key.as_str() {
+                    "hash" => hash = value.as_str().map(str::to_string),
+                    "dom" => dom = Some(Arc::new(value)),
+                    "names" => names = Some(Arc::new(value)),
+                    _ => {}
+                }
+            }
+            if let (Some(hash), Some(dom)) = (hash, dom) {
+                let entry = CompiledEntry { dom, names };
+                compiled.by_path.insert(path, (hash.clone(), entry.clone()));
+                compiled.by_hash.insert(hash, entry);
             }
         }
         Ok(compiled)
@@ -75,12 +103,23 @@ impl Compiled {
 
     // This cache belongs to one immutable context. Its format, bootstrap
     // and Unicode identity gate all entries before document-hash lookup.
-    fn lookup(&self, path: &str, hash: &str, unicode: &Unicode) -> Option<Dom> {
-        let dom = match self.by_path.get(path) {
-            Some((known, dom)) if known == hash => Some(dom),
+    fn lookup(&self, path: &str, hash: &str, unicode: &Unicode, names: &NamesScope<'_>) -> Result<Option<Dom>, Error> {
+        let entry = match self.by_path.get(path) {
+            Some((known, entry)) if known == hash => Some(entry),
             _ => self.by_hash.get(hash),
-        }?;
-        dom_from_json(dom, unicode).ok()
+        };
+        let Some(entry) = entry else {
+            return Ok(None);
+        };
+        let Ok(mut dom) = dom_from_json(&entry.dom, unicode) else {
+            return Ok(None);
+        };
+        let candidate = names.for_dom(&dom)?;
+        if !candidate.matches(entry.names.as_deref(), self.bundled_names.as_ref())? {
+            return Ok(None);
+        }
+        dom.names_dependencies = candidate.dependencies.borrow().clone();
+        Ok(Some(dom))
     }
 }
 
@@ -100,6 +139,13 @@ fn grammar_error(message: String) -> Error {
     } else {
         error
     }
+}
+
+fn unicode_error(message: String) -> Error {
+    let line = message.strip_prefix("unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
+    let mut error = Error::grammar(message).in_document("unicode.txt");
+    error.line = line;
+    error
 }
 
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
@@ -182,11 +228,27 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
 }
 
 impl Context {
+    #[cfg(test)]
     fn new(unicode: &str, bootstrap: &str, compiled: &str) -> Result<Context, Error> {
+        Self::with_properties(unicode, None, bootstrap, compiled)
+    }
+
+    fn with_properties(
+        unicode: &str,
+        properties: Option<&str>,
+        bootstrap: &str,
+        compiled: &str,
+    ) -> Result<Context, Error> {
         let unicode_hash = fnv1a64(unicode);
-        let unicode = Arc::new(Unicode::parse(unicode).map_err(grammar_error)?);
+        let mut unicode = Unicode::parse(unicode).map_err(unicode_error)?;
+        if let Some(properties) = properties {
+            unicode.properties = crate::unicode_properties::read_properties(properties, &unicode)?;
+            unicode.properties_fingerprint = Some(fnv1a64(properties));
+        }
+        let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
-        let compiled = Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash)?;
+        let compiled =
+            Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash, unicode.properties_fingerprint.as_deref())?;
         Ok(Context { unicode, notation, compiled })
     }
 
@@ -198,20 +260,31 @@ impl Context {
                     bundled(path)
                         .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
                 };
-                Context::new(file("unicode.txt")?, file("notation/bootstrap.json")?, file("compiled.json")?)
-                    .map(Arc::new)
+                Context::with_properties(
+                    file("unicode.txt")?,
+                    Some(file("unicode-properties.txt")?),
+                    file("notation/bootstrap.json")?,
+                    file("compiled.json")?,
+                )
+                .map(Arc::new)
             })
             .clone()
     }
 
+    #[cfg(test)]
     fn document(&self, path: &str, text: &str, diagnostic: bool) -> Result<Dom, Error> {
-        let mut dom = if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode) {
+        let names = NamesScope::new(&bundled_names, &self.unicode, []).in_document(path, &crate::markdown::resolve);
+        self.document_named(path, text, diagnostic, &names)
+    }
+
+    fn document_named(&self, path: &str, text: &str, diagnostic: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
+        let mut dom = if let Some(dom) = self.compiled.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
-            read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))?
+            read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
         };
         if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            return read_document_mode(&self.notation, text, true).map_err(|e| e.in_document(path));
+            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
         }
         if diagnostic {
             #[cfg(test)]
@@ -229,13 +302,23 @@ impl Context {
 }
 
 /// Reads a grammar document through the notation dialect (engine §8, §9).
-pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error> {
-    read_document_mode(notation, text, false)
+pub(crate) fn read_document(notation: &Dialect, text: &str, path: &str) -> Result<Dom, Error> {
+    let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
+    read_document_named(notation, text, false, &names)
 }
-fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
+
+fn bundled_names(path: &str) -> Result<Option<String>, Error> {
+    let path = if path == "unicode-names-reference.txt" { "unicode-names.txt" } else { path };
+    Ok(bundled(path).map(str::to_string))
+}
+
+fn read_document_named(notation: &Dialect, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
+    let position = |index: usize| grammar.position(index);
+    let strings =
+        DocumentStrings { unicode: &notation.unicode, names, position: &position, names_paths: Default::default() };
     let options = ParseOptions::default();
-    let result = notation.parse_chars(grammar.chars.clone(), &options)?;
+    let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
     if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
         let (line, column) = grammar.position(token.source.start);
@@ -250,14 +333,21 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
                 "the grammar text is ambiguous: the {stage} stage of the notation reads it in two ways"
             )));
         }
-        let at = error.source.as_ref().map_or(0, |source| source.start);
+        let mut at = error.source.as_ref().map_or(0, |source| source.start);
+        if error.stage.as_deref() == Some("lexical") && at > 0 && grammar.chars.get(at - 1) == Some(&'@') {
+            at -= 1;
+        }
         let (line, column) = grammar.position(at);
-        let message = match error.kind {
-            ParseErrorKind::Rejected => match error.stage.as_deref() {
-                Some("lexical") => "a character that cannot continue the grammar text".to_string(),
-                _ => "a syntax error: this cannot continue the grammar text".to_string(),
-            },
-            _ => error.message.clone(),
+        let message = if error.stage.as_deref() == Some("lexical") && grammar.chars.get(at) == Some(&'@') {
+            "a parameter requires @ followed directly by an ASCII letter".to_string()
+        } else {
+            match error.kind {
+                ParseErrorKind::Rejected => match error.stage.as_deref() {
+                    Some("lexical") => "a character that cannot continue the grammar text".to_string(),
+                    _ => "a syntax error: this cannot continue the grammar text".to_string(),
+                },
+                _ => error.message.clone(),
+            }
         };
         let mut failure = Error::grammar(message).at(line, column);
         if error.kind == ParseErrorKind::Rejected && error.stage.as_deref() == Some("syntax") {
@@ -276,11 +366,13 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     // The reader, its checks and the drop of what it reads walk the tree
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
-    let position = |index: usize| grammar.position(index);
     let reader = Reader {
+        parameter_state: Default::default(),
+        unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),
         tokens: &stage.input,
+        strings: &strings,
         captures: Default::default(),
         braces: Default::default(),
         marked: Default::default(),
@@ -288,8 +380,9 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         closed_for: Default::default(),
         in_recipe: Default::default(),
     };
-    let dom = reader.document(tree)?;
+    let mut dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
+    dom.names_dependencies = names.dependencies.borrow().clone();
     Ok(dom)
 }
 
@@ -302,15 +395,20 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     // stack, at the first item in the order of the document that breaks
     // it: a DOM just read is as deep as its document nests, and the checks
     // below walk it by recursion.
+    let raw_deep = |at: &(usize, usize), kind: &str| {
+        dom.unresolved
+            .get(at)
+            .is_some_and(|raw| crate::parameters::declaration_problem(raw, kind, unicode) == Some("nested too deeply"))
+    };
     let mut deep: Vec<(usize, usize)> = dom
         .rules
         .iter()
-        .filter(|rule| crate::dom::rule_too_deep(rule))
+        .filter(|rule| crate::dom::rule_too_deep(rule) || raw_deep(&rule.at, "rules"))
         .map(|rule| rule.at)
         .chain(
             dom.constants
                 .iter()
-                .filter(|constant| crate::dom::term_too_deep(&constant.value))
+                .filter(|constant| crate::dom::term_too_deep(&constant.value) || raw_deep(&constant.at, "constants"))
                 .map(|constant| constant.at),
         )
         .chain(
@@ -319,13 +417,17 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 .filter(|implication| {
                     crate::dom::term_too_deep(&implication.antecedent)
                         || crate::dom::term_too_deep(&implication.consequent)
+                        || raw_deep(&implication.at, "implications")
                 })
                 .map(|implication| implication.at),
         )
         .chain(
             dom.directives
                 .iter()
-                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
+                .filter(|directive| {
+                    directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep)
+                        || raw_deep(&directive.at, "directives")
+                })
                 .map(|directive| directive.at),
         )
         .chain(
@@ -387,7 +489,10 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
-    for (single, at) in singles {
+    for (mut single, at) in singles {
+        if let Some(raw) = dom.unresolved.get(&at) {
+            single.unresolved.insert(at, raw.clone());
+        }
         if let Some(problem) = problem_of(&single) {
             return Err(grammar_error(problem).at(at.0, at.1));
         }
@@ -400,6 +505,15 @@ trait Sources {
     /// The text of the document at `path`, or `None` when there is none.
     fn read(&self, path: &str) -> Result<Option<String>, Error>;
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
+    fn names_override(&self, _path: &str) -> bool {
+        true
+    }
+    fn names(&self, path: &str) -> Result<Option<String>, Error> {
+        match self.read(path)? {
+            Some(text) => Ok(Some(text)),
+            None => bundled_names(path),
+        }
+    }
 }
 
 struct MapSources {
@@ -407,12 +521,28 @@ struct MapSources {
 }
 
 impl Sources for MapSources {
+    fn names_override(&self, path: &str) -> bool {
+        self.map.contains_key(path)
+    }
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         Ok(self.map.get(path).cloned())
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
         resolve(base, target)
+    }
+}
+
+struct BundledSources;
+impl Sources for BundledSources {
+    fn read(&self, path: &str) -> Result<Option<String>, Error> {
+        Ok(bundled(path).map(str::to_string))
+    }
+    fn resolve(&self, base: &str, target: &str) -> Option<String> {
+        resolve(base, target)
+    }
+    fn names_override(&self, _path: &str) -> bool {
+        false
     }
 }
 
@@ -444,6 +574,18 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 impl Sources for DiskSources {
+    fn names_override(&self, path: &str) -> bool {
+        !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+    }
+    fn names(&self, path: &str) -> Result<Option<String>, Error> {
+        if path == "unicode-names-reference.txt" {
+            return bundled_names(path);
+        }
+        match self.read(path)? {
+            Some(text) => Ok(Some(text)),
+            None => bundled_names(path),
+        }
+    }
     /// A document's bytes as strict UTF-8, which keeps a byte order mark as
     /// the character U+FEFF. Bytes that do not decode are a grammar error of
     /// the document, found before anything hashes it or looks it up in
@@ -479,20 +621,31 @@ impl Sources for DiskSources {
 struct Reading<'a> {
     context: &'a Context,
     sources: &'a dyn Sources,
-    read: HashMap<String, Arc<Dom>>,
+    read: HashMap<(String, Vec<String>), Arc<Dom>>,
     diagnostic_document: Option<&'a str>,
 }
 
 impl Documents for Reading<'_> {
     fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
-        if let Some(dom) = self.read.get(path) {
+        self.dom_with_names(path, &[])
+    }
+
+    fn dom_with_names(&mut self, path: &str, inherited: &[String]) -> Result<Option<Arc<Dom>>, Error> {
+        let key = (path.to_string(), inherited.to_vec());
+        if let Some(dom) = self.read.get(&key) {
             return Ok(Some(dom.clone()));
         }
         let Some(text) = self.sources.read(path)? else {
             return Ok(None);
         };
-        let dom = Arc::new(self.context.document(path, &text, self.diagnostic_document == Some(path))?);
-        self.read.insert(path.to_string(), dom.clone());
+        let read_names = |name: &str| self.sources.names(name);
+        let names_override = |name: &str| self.sources.names_override(name);
+        let resolve = |base: &str, target: &str| self.sources.resolve(base, target);
+        let names = NamesScope::new(&read_names, &self.context.unicode, inherited.iter().cloned())
+            .in_document(path, &resolve)
+            .with_overrides(&names_override);
+        let dom = Arc::new(self.context.document_named(path, &text, self.diagnostic_document == Some(path), &names)?);
+        self.read.insert(key, dom.clone());
         Ok(Some(dom))
     }
 
@@ -554,8 +707,7 @@ pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
     if bundled(&pipeline).is_none() {
         return Err(Error::usage(format!("there is no bundled dialect named {name}")));
     }
-    let map = bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect();
-    load(&context, &MapSources { map }, &pipeline)
+    load(&context, &BundledSources, &pipeline)
 }
 
 /// Loads a dialect from a pipeline document on disk. Each document it
@@ -590,27 +742,41 @@ where
 {
     let map: HashMap<String, String> = sources.into_iter().map(|(path, text)| (path.into(), text.into())).collect();
     let own = |path: &str| map.get(path).map(String::as_str);
-    let context =
-        if own("unicode.txt").is_none() && own("notation/bootstrap.json").is_none() && own("compiled.json").is_none() {
-            Context::bundled()?
-        } else {
-            let pick = |path: &str| -> Result<String, Error> {
-                own(path)
-                    .or_else(|| bundled(path))
-                    .map(str::to_string)
-                    .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
-            };
-            Arc::new(Context::new(&pick("unicode.txt")?, &pick("notation/bootstrap.json")?, &pick("compiled.json")?)?)
+    let context = if own("unicode.txt").is_none()
+        && own("unicode-properties.txt").is_none()
+        && own("notation/bootstrap.json").is_none()
+        && own("compiled.json").is_none()
+    {
+        Context::bundled()?
+    } else {
+        let pick = |path: &str| -> Result<String, Error> {
+            own(path)
+                .or_else(|| bundled(path))
+                .map(str::to_string)
+                .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
         };
+        let properties = if own("unicode.txt").is_some() {
+            own("unicode-properties.txt").map(str::to_string)
+        } else {
+            Some(pick("unicode-properties.txt")?)
+        };
+        Arc::new(Context::with_properties(
+            &pick("unicode.txt")?,
+            properties.as_deref(),
+            &pick("notation/bootstrap.json")?,
+            &pick("compiled.json")?,
+        )?)
+    };
     load(&context, &MapSources { map }, pipeline)
 }
 
 /// Reads a grammar document through the bundled notation, bypassing the
 /// DOM cache, and returns its DOM as canonical JSON (`docs/output.md`,
-/// "A grammar DOM"). For tests and tools.
-pub fn read_grammar_document(text: &str) -> Result<String, Error> {
+/// "A grammar DOM"). The path supplies the base for relative names resources.
+/// An empty path selects the resource root. For tests and tools.
+pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
     let context = Context::bundled()?;
-    read_document(&context.notation, text).map(|dom| dom_to_json(&dom))
+    read_document(&context.notation, text, path).map(|dom| dom_to_json(&dom))
 }
 
 /// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
@@ -621,6 +787,14 @@ pub fn check_dom(json: &str) -> Result<Option<String>, Error> {
     let context = Context::bundled()?;
     let value = crate::json::parse(json).map_err(grammar_error)?;
     Ok(crate::dom::dom_problem(&value, &context.unicode).map(str::to_string))
+}
+
+/// Why a supplied DOM is malformed with a caller's Unicode table.
+/// This uses the same validation as the compiled cache. For tests and tools.
+pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>, Error> {
+    let unicode = Unicode::parse(table).map_err(unicode_error)?;
+    let value = crate::json::parse(json).map_err(grammar_error)?;
+    Ok(crate::dom::dom_problem(&value, &unicode).map(str::to_string))
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
@@ -642,8 +816,7 @@ pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error
         };
         &uncached
     };
-    let map = bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect();
-    let spliced = splice_pipeline(context, &MapSources { map }, path)?;
+    let spliced = splice_pipeline(context, &BundledSources, path)?;
     let mut out = format!("{{\"format\":{DOM_FORMAT},\"stages\":[");
     for (index, stage) in spliced.stages.iter().enumerate() {
         if index > 0 {
@@ -712,7 +885,7 @@ mod tests {
         }
         // An error is an outcome too. Its place is the notation cases'
         // concern.
-        let _ = read_grammar_document(text);
+        let _ = read_grammar_document(text, "");
         let counts = kinds.map(counted);
         // What reads next does so with no budget.
         reset();
@@ -772,7 +945,7 @@ mod tests {
             let arguments = vec!["$"; n].join(", ");
             format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: $.tags({arguments}) | \"a\"\n```\n")
         };
-        assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
+        assert!(read_grammar_document(&text(500), "").is_err(), "tags() of 500 arguments");
         let small = reading(&text(500), None);
         let large = reading(&text(2000), Some(five_times(small)));
         assert!(
@@ -801,7 +974,7 @@ mod tests {
         for (name, text) in cases {
             let text = move |n: usize| format!("```jbogenbau\n%ambiguity-resolution greedy\n{}\n```\n", text(n));
             // Once first, so that loading the notation counts in neither.
-            assert!(read_grammar_document(&text(250)).is_ok(), "{name}");
+            assert!(read_grammar_document(&text(250), "").is_ok(), "{name}");
             let small = reading(&text(250), None);
             let large = reading(&text(1000), Some(five_times(small)));
             assert!(
@@ -855,6 +1028,7 @@ mod ranked_location_tests {
             super::bundled("compiled.json").unwrap(),
             &bootstrap_hash(),
             &fnv1a64(super::bundled("unicode.txt").unwrap()),
+            bundled.unicode.properties_fingerprint.as_deref(),
         )
         .unwrap();
         let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
@@ -875,9 +1049,12 @@ mod ranked_location_tests {
         let sources = MapSources { map: [("p.md".into(), pipeline.into()), ("g.md".into(), grammar.into())].into() };
         let mut compiled = Compiled::default();
         for (path, text) in &sources.map {
-            let dom = read_document(&bundled.notation, text).unwrap();
+            let dom = read_document(&bundled.notation, text, "").unwrap();
             assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
-            compiled.by_path.insert(path.clone(), (fnv1a64(text), Arc::new(json::parse(&dom_to_json(&dom)).unwrap())));
+            compiled.by_path.insert(
+                path.clone(),
+                (fnv1a64(text), CompiledEntry { dom: Arc::new(json::parse(&dom_to_json(&dom)).unwrap()), names: None }),
+            );
         }
         // No notation stages can parse a document if the compiled cache is bypassed.
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
@@ -922,10 +1099,22 @@ mod notation_cache_tests {
             let hash = if mismatch == Some("document") { &stale_document } else { &document_hash };
             let format = if mismatch == Some("format") { DOM_FORMAT - 1 } else { DOM_FORMAT };
             let dom = if mismatch.is_some() { &poisoned } else { expected };
+            let properties = base
+                .unicode
+                .properties_fingerprint
+                .as_ref()
+                .map(|hash| format!("\"{hash}\""))
+                .unwrap_or_else(|| "null".to_string());
             let envelope = format!(
-                r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
+                r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","properties":{properties},"documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
             );
-            let compiled = Compiled::parse(&envelope, bootstrap_hash, &unicode_hash).unwrap();
+            let compiled = Compiled::parse(
+                &envelope,
+                bootstrap_hash,
+                &unicode_hash,
+                base.unicode.properties_fingerprint.as_deref(),
+            )
+            .unwrap();
             if mismatch.is_none() {
                 assert_eq!(compiled.by_path.len(), 1, "{path}: matching entry is admitted");
             }
@@ -962,7 +1151,7 @@ mod notation_cache_tests {
             cases += 1;
             let path = file.file_name().unwrap().to_str().unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
-            let expected = dom_to_json(&read_document(&bundled.notation, text).unwrap());
+            let expected = dom_to_json(&read_document(&bundled.notation, text, "").unwrap());
             assert_pattern(&case, &expected, path);
             cache_paths(&bundled, &bootstrap_hash(), path, text, &expected);
             eprintln!("notation cache paths: {path}");
@@ -1052,8 +1241,23 @@ mod notation_cache_tests {
             let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
             let context = Context::new(super::bundled("unicode.txt").unwrap(), &bootstrap, "null").unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
-            let expected =
-                dom_to_json(&read_document(&context.notation, text).unwrap_or_else(|error| panic!("{id}: {error}")));
+            if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
+                let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
+                assert_eq!(
+                    error.line,
+                    expected.get("line").and_then(Json::as_int).map(|n| n as usize),
+                    "{id}: {error}"
+                );
+                assert_eq!(
+                    error.column,
+                    expected.get("column").and_then(Json::as_int).map(|n| n as usize),
+                    "{id}: {error}"
+                );
+                continue;
+            }
+            let expected = dom_to_json(
+                &read_document(&context.notation, text, "").unwrap_or_else(|error| panic!("{id}: {error}")),
+            );
             assert_pattern(case, &expected, id);
             cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
             eprintln!("supplied notation values and cache paths: {id}");
@@ -1085,5 +1289,63 @@ mod classifier_constant_errors {
             assert!(error.message.contains(&format!("{key} is not defined")), "{error}");
             assert_eq!((error.line, error.column), (Some(3), Some(column)));
         }
+    }
+}
+
+#[cfg(test)]
+mod parameter_cache_tests {
+    use super::*;
+    #[test]
+    fn parameter_cache_validates_source_and_accepts_normalized_arguments() {
+        use crate::parameters::{get, list, obj, position, set, string};
+        let base = Context::bundled().unwrap();
+        let text = "```jbogenbau\n%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text = atom(\"a\")\n```\n";
+        let source = read_document(&base.notation, text, "").unwrap();
+        let original = dom_to_json(&source);
+        for valid in [true, false] {
+            let mut raw = json::parse(&original).unwrap();
+            let mut rules = list(get(&raw, "rules")).to_vec();
+            if valid {
+                let mut call = get(&rules[1], "instance").clone();
+                set(&mut call, "args", json::parse(r#"[{"body":{"literal":{"string":"a"}}}]"#).unwrap());
+                set(&mut rules[1], "instance", call);
+            } else {
+                let mut alts = list(get(&rules[0], "alternatives")).to_vec();
+                set(&mut alts[0], "expr", obj([("param", string("Other")), ("at", position((3, 16)))]));
+                set(&mut rules[0], "alternatives", Json::Arr(alts));
+            }
+            set(&mut raw, "rules", Json::Arr(rules));
+            let mut compiled = Compiled::default();
+            compiled
+                .by_path
+                .insert("g.md".into(), (fnv1a64(text), CompiledEntry { dom: Arc::new(raw.clone()), names: None }));
+            let notation = if valid {
+                Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
+            } else {
+                base.notation.clone()
+            };
+            let context = Context { unicode: base.unicode.clone(), notation, compiled };
+            let d = context.document("g.md", text, false).unwrap();
+            assert_eq!(dom_to_json(&d), if valid { raw.to_json() } else { original.clone() });
+        }
+    }
+}
+
+#[cfg(test)]
+mod parameter_query_locations {
+    use super::*;
+    #[test]
+    fn exact_call_targets_keep_their_written_positions() {
+        let base = Context::bundled().unwrap();
+        let line = "%rule text $x:atom(\"a\") %conditions $x.followed-by(atom(\"b\"))";
+        let source = format!("```jbogenbau\n%rule atom(@X) @X\n{line}\n```\n");
+        let dom = read_document(&base.notation, &source, "").unwrap();
+        let x = crate::parameters::expand(&[(Arc::from("query.md"), Arc::new(dom))], &base.unicode).unwrap().unwrap();
+        let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
+        let crate::dom::Cond::Boundary(_, _, _, location) = &r.conditions[0] else { panic!("a boundary condition") };
+        let method = line.find("$x.followed-by").unwrap() + 1;
+        let target = line.find("atom(\"b\")").unwrap() + 1;
+        assert_eq!(location.at, Some((3, method)));
+        assert_eq!(location.targets, [(3, target)]);
     }
 }

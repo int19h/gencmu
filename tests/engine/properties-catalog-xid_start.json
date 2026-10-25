@@ -1,0 +1,45 @@
+{
+  "description": "Every XID_Start value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_XID_Start<_XID_Start>\n%conditions $x ≅ #_XID_Start<_XID_Start>, _XID_Start ⊆ $x.tags\n%emits $x :: $x.tags ∩ _XID_Start",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_XIDS",
+        "_XID_Start"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_XID_Start"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_XID_Start"
+              }
+            ],
+            "tags": [
+              "_XID_Start"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

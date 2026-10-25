@@ -1,6 +1,6 @@
 {
   "description": "Canonical constant names bind across bare and concatenated references without decomposing their scalar values.",
-  "grammar": "%const $K $_00E9\n%rule text $K $K",
+  "grammar": "%const $K \"‹U+00E9›\"\n%rule text $K $K",
   "tokens": [
     {
       "text": "é",

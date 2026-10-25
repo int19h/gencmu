@@ -552,6 +552,9 @@ func containsRanked(expr *domExpr) bool {
 	return false
 }
 func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]int) {
+	if restoreTemplateRankedLocations(dom, tokens, position) {
+		return
+	}
 	separators := [][2]int{}
 	for _, token := range tokens {
 		if token.Value == "≻" {

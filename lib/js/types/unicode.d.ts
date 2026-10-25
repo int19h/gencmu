@@ -3,6 +3,11 @@ export declare const PROPERTY_NAMES: Set<string>;
 export declare class UnicodeTable {
     /** @type {string | null} */
     version: string | null;
+    versionCount: number;
+    /** @type {Map<string, number>} */
+    abbreviations: Map<string, number>;
+    /** @type {Map<number,string>} */
+    canonicalAbbreviations: Map<number, string>;
     /** @type {number[]} */
     starts: number[];
     /** @type {number[]} */
@@ -11,12 +16,22 @@ export declare class UnicodeTable {
     categories: string[];
     /** @type {[number, number][]} */
     whiteSpace: [number, number][];
+    /** @type {Map<string, [number, number][]>} */
+    emoji: Map<string, [number, number][]>;
     /** @type {Map<number, number[]>} */
     decompositions: Map<number, number[]>;
     /** @type {[number, number, number][]} */
     combining: [number, number, number][];
-    /** @param {string} text the contents of unicode.txt */
-    constructor(text: string);
+    /** @type {Map<string,import("./unicode-properties.js").PropertyData>} */
+    properties: Map<string, import("./unicode-properties.js").PropertyData>;
+    /** @type {Map<number, readonly string[]>} */
+    profiles: Map<number, readonly string[]>;
+    /** @param {string} text the contents of unicode.txt @param {string} [properties] */
+    constructor(text: string, properties?: string);
+    /** @param {string} spelling @returns {string | null} */
+    canonicalTag(spelling: string): string | null;
+    /** @param {number} code @returns {readonly string[]} */
+    profile(code: number): readonly string[];
     /**
      * The General_Category of a code point, in its short form (engine §1):
      * `Cs` for a surrogate, which a table does not list, and `Cn` for any
@@ -25,6 +40,10 @@ export declare class UnicodeTable {
      * @returns {string}
      */
     category(code: number): string;
+    /** @param {string} property @param {number} code @returns {boolean} */
+    hasEmoji(property: string, code: number): boolean;
+    /** @param {string} name @returns {boolean} */
+    isEmojiName(name: string): boolean;
     /** @param {number} code @returns {number} */
     combiningClass(code: number): number;
     /** @param {number} code @returns {boolean} */

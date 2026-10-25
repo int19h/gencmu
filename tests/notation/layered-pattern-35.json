@@ -1,0 +1,43 @@
+{
+  "description": "a nested child list has a separate repeated gap level",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« {« ⋯ » @X} »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "repeat": [
+                        {
+                          "child": {
+                            "any": true,
+                            "children": [
+                              {
+                                "siblings": true
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "child": {
+                            "param": "X"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

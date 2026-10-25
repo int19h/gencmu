@@ -1,0 +1,29 @@
+{
+  "description": "A preceding span projects original tokens and removes restored closes. (Engine \u00a74.4.)",
+  "grammar": "%rule text A $x:unit C\n%conditions $x.without-elision.preceding-tokens.value = \"a\"\n%rule unit B [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

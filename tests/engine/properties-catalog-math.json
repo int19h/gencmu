@@ -1,0 +1,44 @@
+{
+  "description": "Every Math value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Math<_Math>\n%conditions $x ≅ #_Math<_Math>, _Math ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Math",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Math"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Math"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Math"
+              }
+            ],
+            "tags": [
+              "_Math"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

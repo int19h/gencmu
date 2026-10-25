@@ -1,0 +1,45 @@
+{
+  "description": "Every Soft_Dotted value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Soft_Dotted<_Soft_Dotted>\n%conditions $x ≅ #_Soft_Dotted<_Soft_Dotted>, _Soft_Dotted ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Soft_Dotted",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SD",
+        "_Soft_Dotted"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Soft_Dotted"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Soft_Dotted"
+              }
+            ],
+            "tags": [
+              "_Soft_Dotted"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

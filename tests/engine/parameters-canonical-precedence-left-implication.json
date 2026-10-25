@@ -1,0 +1,18 @@
+{
+  "description": "Canonical guarded terms preserve implication grouping.",
+  "grammar": "%rule term(@X) \"a\"\n%rule text term(((A = B ⟹ C = D) ⟹ E))",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "term((A = B ⟹ C = D) ⟹ E)"
+          }
+        ]
+      }
+    }
+  }
+}

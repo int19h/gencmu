@@ -59,10 +59,7 @@ export type PendingHelper = {
 };
 export declare class Grammar {
     stageName: string;
-    unicode: {
-        isMark(code: number): boolean;
-        changesInDocument?(code: number): boolean;
-    };
+    unicode: import("./unicode.js").UnicodeTable;
     /** @type {Map<string, StageConstant>} */
     constants: Map<string, StageConstant>;
     /** @type {any[]} */ constantVersions: any[];
@@ -107,6 +104,8 @@ export declare class Grammar {
         path: string;
         directive: import("./types.js").DomDirective;
     }[];
+    templates: any;
+    instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */
     classifierKeys: WeakMap<DomEntry, string[]>;
     /** @type {StageImplication[]} */
@@ -175,17 +174,14 @@ export declare class Grammar {
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+     * @param {import("./unicode.js").UnicodeTable} unicode
      *   the loader's table, for the tags of a range in a constant's value and
      *   the canonical value of a string constant in a test
      */
     constructor(stageName: string, documents: {
         path: string;
         dom: GrammarDom;
-    }[], unicode: {
-        isMark(code: number): boolean;
-        changesInDocument?(code: number): boolean;
-    });
+    }[], unicode: import("./unicode.js").UnicodeTable);
     /**
      * @param {string} path
      * @param {GrammarDom} dom

@@ -1,5 +1,5 @@
 {
-  "description": "Supplied notation values cover names that cannot contain uppercase K in the bundled notation.",
+  "description": "Supplied notation values cover semantic names, canonical spellings and bad pattern names.",
   "cases": [
     {
       "id": "canonical-value-capture-ascii",
@@ -13,7 +13,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ #\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
       "expect": {
         "dom": {
           "rules": [
@@ -241,7 +241,7 @@
       "aliases": [
         {
           "spelling": "_engineK",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Engine-Tag"
           ]
@@ -255,7 +255,7 @@
               "alternatives": [
                 {
                   "expr": {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   }
                 }
               ]
@@ -266,7 +266,7 @@
     },
     {
       "id": "canonical-value-engine-scalar-ascii",
-      "description": "A supplied notation gives this semantic name its token value.",
+      "description": "A supplied Constant token cannot restore removed scalar references (engine §9.1).",
       "aliases": [
         {
           "spelling": "$_engineK",
@@ -278,20 +278,9 @@
       ],
       "document": "```jbogenbau\n%rule text $_engineK\n```",
       "expect": {
-        "dom": {
-          "rules": [
-            {
-              "alternatives": [
-                {
-                  "expr": {
-                    "literal": {
-                      "const": "_0041"
-                    }
-                  }
-                }
-              ]
-            }
-          ]
+        "error": {
+          "line": 2,
+          "column": 12
         }
       }
     },
@@ -307,7 +296,7 @@
           ]
         }
       ],
-      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ #\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
       "expect": {
         "dom": {
           "rules": [
@@ -535,7 +524,7 @@
       "aliases": [
         {
           "spelling": "_engineK",
-          "value": "_L",
+          "value": "_General_Category_Letter",
           "tags": [
             "Engine-Tag"
           ]
@@ -549,7 +538,7 @@
               "alternatives": [
                 {
                   "expr": {
-                    "ref": "_L"
+                    "ref": "_General_Category_Letter"
                   }
                 }
               ]
@@ -560,7 +549,7 @@
     },
     {
       "id": "canonical-value-engine-scalar-kelvin",
-      "description": "A supplied notation gives this semantic name its token value.",
+      "description": "A supplied Constant token cannot restore removed scalar references (engine §9.1).",
       "aliases": [
         {
           "spelling": "$_engineK",
@@ -572,20 +561,629 @@
       ],
       "document": "```jbogenbau\n%rule text $_engineK\n```",
       "expect": {
-        "dom": {
-          "rules": [
-            {
-              "alternatives": [
-                {
-                  "expr": {
-                    "literal": {
-                      "const": "_0041"
-                    }
-                  }
-                }
-              ]
-            }
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-at-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "@",
+          "tags": [
+            "Emoji-Name"
           ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-at-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "@",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-at-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "@",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-hash-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "#",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-hash-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "#",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-reserved-hash-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "#",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-digit-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "9",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-digit-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "9",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-digit-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "9",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-ineligible-scalar-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "界",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-ineligible-scalar-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "界",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-ineligible-scalar-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "界",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-component-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "🏽",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-component-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "🏽",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-component-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "🏽",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-multiple-scalars-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "😀😀",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-multiple-scalars-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "😀😀",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-multiple-scalars-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "😀😀",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-invalid-ascii-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "bad.name",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-invalid-ascii-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "bad.name",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-invalid-ascii-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "bad.name",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-non-ascii-identifier-constant",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "aK",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-non-ascii-identifier-nested",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "aK",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-non-ascii-identifier-condition",
+      "description": "A bad pattern rule name reports its own source position.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "aK",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-group-delimiter-condition",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "(",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-uppercase-value-constant",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "Foo",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-uppercase-value-nested",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "Foo",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-uppercase-value-condition",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "Foo",
+          "tags": [
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-engine-tag-value-constant",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "_General_Category_Letter",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #bad-name\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 12
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-engine-tag-value-nested",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "_General_Category_Letter",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%const $P #(child ∪ bad-name)\n%rule text \"a\"\n```",
+      "expect": {
+        "error": {
+          "line": 2,
+          "column": 21
+        }
+      }
+    },
+    {
+      "id": "pattern-bad-name-engine-tag-value-condition",
+      "description": "A supplied pattern rule name keeps its recognized role before validation.",
+      "aliases": [
+        {
+          "spelling": "bad-name",
+          "value": "_General_Category_Letter",
+          "tags": [
+            "Emoji-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text \"a\"\n%conditions $ ≅ #(child ∪ bad-name)\n```",
+      "expect": {
+        "error": {
+          "line": 3,
+          "column": 27
         }
       }
     }

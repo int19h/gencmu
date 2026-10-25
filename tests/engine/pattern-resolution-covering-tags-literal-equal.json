@@ -1,6 +1,6 @@
 {
-  "description": "A covering emission tag clause resolves @(A) before ≅ and assigns X. The literal pattern matches A under engine §§2 and 10 and §11.",
-  "grammar": "%rule text A\n%emits $ :: ($ ≅ @(A) ⟹ X)",
+  "description": "A covering emission tag clause resolves #A before ≅ and assigns X. The literal pattern matches A under engine §§2 and 10 and §11.",
+  "grammar": "%rule text A\n%emits $ :: ($ ≅ #A ⟹ X)",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

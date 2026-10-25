@@ -1,6 +1,6 @@
 {
   "description": "Canonical terminal spelling preserves exact scalar identity.",
-  "grammar": "%const $JOIN-1 $_302E ++ $_1B44\n%rule text $JOIN-1",
+  "grammar": "%const $JOIN-1 \"‹U+302E›\" ++ \"‹U+1B44›\"\n%rule text $JOIN-1",
   "tokens": [
     {
       "text": "᭄〮",
@@ -14,7 +14,7 @@
       "tree": {
         "children": [
           {
-            "terminal": "$_302E ++ $_1B44"
+            "terminal": "\"‹U+302E›‹U+1B44›\""
           }
         ]
       }

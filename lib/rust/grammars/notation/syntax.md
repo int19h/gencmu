@@ -53,8 +53,8 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 
 ```jbogenbau
 %rule rule
-  definer [rule-flags] rule-name (body | clauses headed-body)
-    [conditions-clause] [output]
+  definer [rule-flags] (rule-name | call) ("=" call | (body | clauses headed-body)
+    [conditions-clause] [output])
 
 %rule definer
   KW-RULE | KW-REDEFINE-RULE | KW-EXTEND-RULE
@@ -66,7 +66,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   Identifier
 
 %rule rule-name
-  Identifier | "#"
+  Identifier | Emoji-Name
 
 %rule clauses
   tags-clause [value-clause] [image-clause] | value-clause [image-clause] | image-clause
@@ -113,11 +113,54 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
 <p><img src="../../docs/diagrams/notation/syntax/alternative-tags.svg" alt="Railroad diagram of the rule alternative-tags"></p>
 </details>
 
+## Calls and arguments
+
+A call names a template and supplies one or more arguments. Ranked recognition selects the first argument category that reads the complete argument.
+
+A requirement list and a target choice retain their distinct categories. Parenthesized bodies preserve their grouping during substitution.
+
+```jbogenbau
+%rule call
+  Call-Name "(" {call-argument / ","} ")"
+
+%rule parameter
+  Parameter
+
+%rule call-argument
+  requirement-argument ≻ target-argument ≻ body-argument ≻ symbol-argument ≻ term :: ∅
+
+%rule requirement-argument
+  "<" [{tag-requirement}] ">"
+
+%rule target-argument
+  call-target "|" {call-target / "|"}
+
+%rule call-target
+  reference | tag | call | parameter
+
+%rule body-argument
+  group | optional | repetition | empty
+
+%rule symbol-argument
+  tested | range | wildcard
+```
+
+<details><summary>Railroad diagrams of the 8 rules from <code>call</code> to <code>symbol-argument</code></summary>
+<p><img src="../../docs/diagrams/notation/syntax/call.svg" alt="Railroad diagram of the rule call"></p>
+<p><img src="../../docs/diagrams/notation/syntax/parameter.svg" alt="Railroad diagram of the rule parameter"></p>
+<p><img src="../../docs/diagrams/notation/syntax/call-argument.svg" alt="Railroad diagram of the rule call-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/requirement-argument.svg" alt="Railroad diagram of the rule requirement-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/target-argument.svg" alt="Railroad diagram of the rule target-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/call-target.svg" alt="Railroad diagram of the rule call-target"></p>
+<p><img src="../../docs/diagrams/notation/syntax/body-argument.svg" alt="Railroad diagram of the rule body-argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/symbol-argument.svg" alt="Railroad diagram of the rule symbol-argument"></p>
+</details>
+
 ## Expressions and captures
 
 A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and each sequence contains one or more primaries.
 
-A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and `#` reference rules. Uppercase names and engine tags read tagged tokens.
+A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and eligible emoji names reference rules. Uppercase names and engine tags read tagged tokens.
 
 Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
 
@@ -146,10 +189,11 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   (Capture | Constant) ":" primary
 
 %rule untested-primary
-  reference | tag | string-terminal | range | wildcard | group | optional | repetition | empty
+  reference | call | parameter | tag | string-terminal | range | wildcard
+  | group | optional | repetition | empty
 
 %rule reference
-  Lowercase-Name | "#"
+  Lowercase-Name | Emoji-Name
 
 %rule tag
   Uppercase-Name | Engine-Tag≠"_"
@@ -222,7 +266,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   "=" | "≠"
 
 %rule operand-atom
-  string | constant-reference | name≠"#" | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  call | parameter | string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
   operand-atom | method
@@ -231,7 +275,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string-operand ".." string-operand
 
 %rule string-operand
-  string | constant-reference
+  string | constant-reference | parameter
 ```
 
 <details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
@@ -355,13 +399,13 @@ The reader groups repeated guards to the right. Flat lists retain their written 
 
 A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments.
 
-The methods `.begins`, `.matches`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
+The methods `.begins`, `.matches`, `.ends`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
 The reader folds selectors from left to right. It retains the receiver's actual type and applies the signature rules in engine §10.
 
 A name used as an argument can identify a rule or classifier where the method signature requires one. The reader rejects unknown methods, invalid receivers, and wrong arities.
 
-The rule name `#` is also a method argument. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
+An emoji rule name is also a method argument. A classifier name starts with a lowercase letter, so an emoji cannot name a classifier.
 
 ```jbogenbau
 %rule term
@@ -389,7 +433,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   plain-term-atom | method
 
 %rule plain-term-atom
-  tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  call | parameter | tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule method
   method-receiver {method-selector}
@@ -401,7 +445,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   "." method-name ["(" arguments ")"]
 
 %rule method-name
-  Identifier
+  Identifier | Call-Name
 
 %rule arguments
   {argument / ("," | "|")}
@@ -413,7 +457,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   Integer
 
 %rule name
-  Lowercase-Name | "#"
+  Lowercase-Name | Emoji-Name
 
 %rule empty-set
   "∅"
@@ -509,59 +553,140 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 ## Tree patterns
 
-A pattern literal starts with `@(` and ends with `)`. The shorthand `@A` reads one ungrouped atom. Its lookahead excludes a plain group from shorthand recognition.
+A pattern starts with `#` and one node test, bare child list, or grouped predicate. An exact prefix suppresses the node test's single-child search.
 
-Patterns combine with union, intersection, and difference. Sequences describe siblings, brackets make a sequence optional, and braces repeat it with an optional separator.
+Guillemets enclose child items. A list directly after a pattern atom attaches to that atom. The reader keeps an attached list only on a rule name, emoji rule, template family, exact call, or compatible parameter.
 
-`⋯` admits a sibling gap. `⋮` and `⋱` precede an atom for descendant and last-child paths. `⋰` follows an atom for a first-child path.
+A bare list or an exact prefix needs whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. Thus `« a «b» »` has two items, while `« a«b» »` attaches the list to `a`. `« (a)«b» »` is an error. After `⋯` or `⋰`, no space is necessary.
+
+The syntax stage does not see layout, which consists of whitespace and comments. The helper rules test adjacency through source text. `pattern-adjacent-item` matches two tokens whose joined source text equals the source text of their span. That equality holds only when nothing lies between them.
+
+`pattern-exact-start` keeps `·` adjacent to its node test. `pattern-attached-start` detects a list directly after the complete atom. `pattern-node` tests this condition in both directions, so an adjacent list always attaches and a separated list never does.
+
+`pattern-item-opening` reads `«` or `·`. `child-item` rejects such an adjacent opening after its last token, except after `⋯` or `⋰`.
+
+A child set has at least one operator. A lone child path is therefore a one-item sequence, and never also a set.
+
+Child lists contain sequences, choices, optional sequences, repeats, and sibling gaps. Paths and set operations combine whole predicates.
 
 Recognition admits repeated or reversed tests on names, terminals, and constants. The reader restricts tests to terminal identities or string constants, in tag-then-value order.
 
 ```jbogenbau
 %rule pattern-literal
-  "@" "(" pattern-union ")" | "@" $short:pattern-atom
-%conditions
-  $short ⟹ $short.first-token.value ≠ "("
+  "#" pattern-primary
 
 %rule pattern-union
   {pattern-intersection / ("∪" | "∖")}
 
 %rule pattern-intersection
-  {pattern-sequence / "∩"}
-
-%rule pattern-sequence
-  {pattern-item}
-
-%rule pattern-item
-  pattern-atom | pattern-brackets | pattern-repeat | pattern-path | "⋯"
-
-%rule pattern-atom
-  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}] | pattern-literal | "(" pattern-union ")"
-
-%rule pattern-name
-  Lowercase-Name | "#"
-
-%rule pattern-brackets
-  "[" pattern-union "]"
-
-%rule pattern-repeat
-  "{" pattern-union ["/" pattern-union] "}"
+  {pattern-path / "∩"}
 
 %rule pattern-path
-  ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
+  ("⋮" | "⋱") pattern-primary | pattern-primary ["⋰"]
+
+%rule pattern-primary
+  pattern-node | pattern-bare | "(" pattern-union ")"
+
+%rule pattern-node
+  [$exact:"·"] $atom:pattern-atom [$list:pattern-children]
+%conditions
+  $exact ⟹ $exact.onward.begins(pattern-exact-start),
+  $list ⟹ $atom.onward.begins(pattern-attached-start),
+  ¬$list ⟹ ¬$atom.onward.begins(pattern-attached-start)
+
+%rule pattern-bare
+  [$exact:"·"] pattern-children
+%conditions
+  $exact ⟹ $exact.onward.begins(pattern-exact-start)
+
+%rule pattern-atom
+  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}]
+
+%rule pattern-name
+  Lowercase-Name | Emoji-Name | call | parameter
+
+%rule pattern-children
+  "«" [child-choice] "»"
+
+%rule child-choice
+  {child-alternative / "|"}
+
+%rule child-alternative
+  child-sequence | child-set
+
+%rule child-sequence
+  {child-item}
+
+%rule child-set
+  child-intersection ("∪" | "∖") child-intersection [{("∪" | "∖") child-intersection}]
+  | child-path "∩" child-path [{"∩" child-path}]
+
+%rule child-intersection
+  {child-path / "∩"}
+
+%rule child-item
+  child-path | pattern-brackets | pattern-repeat | "⋯"
+%conditions
+  ¬$.last-token.onward.begins(pattern-adjacent-item)
+
+%rule child-path
+  ("⋮" | "⋱") child-primary | child-primary ["⋰"]
+
+%rule child-primary
+  pattern-node | pattern-bare | "(" child-choice ")"
+
+%rule pattern-brackets
+  "[" child-choice "]"
+
+%rule pattern-repeat
+  "{" child-choice ["/" child-choice] "}"
+
+%rule pattern-exact-start
+  $mark:"·" $next:_
+%conditions
+  $.source-text = $mark.source-text ++ $next.source-text
+
+%rule pattern-attached-start
+  $atom:pattern-atom $open:"«"
+%conditions
+  $.source-text = $atom.source-text ++ $open.source-text
+
+%rule pattern-item-opening
+  "«" | "·"
+
+%rule pattern-adjacent-item
+  $left:_ $right:pattern-item-opening
+%conditions
+  $left.value ≠ "⋯",
+  $left.value ≠ "⋰",
+  $.source-text = $left.source-text ++ $right.source-text
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>pattern-literal</code> to <code>pattern-path</code></summary>
+<details><summary>Railroad diagrams of the 24 rules from <code>pattern-literal</code> to <code>pattern-adjacent-item</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-literal.svg" alt="Railroad diagram of the rule pattern-literal"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-union.svg" alt="Railroad diagram of the rule pattern-union"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-intersection.svg" alt="Railroad diagram of the rule pattern-intersection"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-sequence.svg" alt="Railroad diagram of the rule pattern-sequence"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-item.svg" alt="Railroad diagram of the rule pattern-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-path.svg" alt="Railroad diagram of the rule pattern-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-primary.svg" alt="Railroad diagram of the rule pattern-primary"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-node.svg" alt="Railroad diagram of the rule pattern-node"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-bare.svg" alt="Railroad diagram of the rule pattern-bare"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-atom.svg" alt="Railroad diagram of the rule pattern-atom"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-name.svg" alt="Railroad diagram of the rule pattern-name"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-children.svg" alt="Railroad diagram of the rule pattern-children"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-choice.svg" alt="Railroad diagram of the rule child-choice"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-alternative.svg" alt="Railroad diagram of the rule child-alternative"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-sequence.svg" alt="Railroad diagram of the rule child-sequence"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-set.svg" alt="Railroad diagram of the rule child-set"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-intersection.svg" alt="Railroad diagram of the rule child-intersection"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-item.svg" alt="Railroad diagram of the rule child-item"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-path.svg" alt="Railroad diagram of the rule child-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/child-primary.svg" alt="Railroad diagram of the rule child-primary"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-brackets.svg" alt="Railroad diagram of the rule pattern-brackets"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-repeat.svg" alt="Railroad diagram of the rule pattern-repeat"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-path.svg" alt="Railroad diagram of the rule pattern-path"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-exact-start.svg" alt="Railroad diagram of the rule pattern-exact-start"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-attached-start.svg" alt="Railroad diagram of the rule pattern-attached-start"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-item-opening.svg" alt="Railroad diagram of the rule pattern-item-opening"></p>
+<p><img src="../../docs/diagrams/notation/syntax/pattern-adjacent-item.svg" alt="Railroad diagram of the rule pattern-adjacent-item"></p>
 </details>
 
 ## Directives
@@ -574,13 +699,15 @@ Recognition accepts wider operands than each directive permits. The reader rejec
 
 `%include` takes exactly one quoted path. Its first operand uses literal path decoding. An include path cannot serve as a method receiver.
 
+`%names` takes one quoted path and stands before every other statement. Its names apply to the document and to the documents that it includes. A names file that an included document declares does not apply after that include ends.
+
 ```jbogenbau
 %rule directive
   directive-name [{directive-argument}] [conditions-clause]
 
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE
-  | KW-INCLUDE | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
+  | KW-INCLUDE | KW-NAMES | KW-FEATURES | KW-AMBIGUITY-RESOLUTION
 
 %rule directive-argument
   argument-word | argument-string | argument-tag | argument-term
@@ -595,10 +722,10 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   Engine-Tag≠"_" | range
 
 %rule argument-term
-  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
+  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | Emoji-Name | "_"
 
 %rule directive-method
-  (tag | name≠"#" | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
+  (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 ```
 
 <details><summary>Railroad diagrams of the 8 rules from <code>directive</code> to <code>directive-method</code></summary>

@@ -1,10 +1,10 @@
 {
-  "description": "A surrogate engine constant is invalid (engine §9.1).",
-  "document": "```jbogenbau\n%rule a $_D800\n```\n",
+  "description": "Escape inspection rejects the invalid scalar before reader inspection (engine §9.1).",
+  "document": "```jbogenbau\n%rule a \"‹U+D800›\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 9
+      "column": 10
     }
   }
 }

@@ -1,0 +1,1989 @@
+{
+  "description": "Every Block value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 1 of 4.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47 r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63 r64 r65 r66 r67 r68 r69 r70 r71 r72 r73 r74 r75 r76 r77 r78 r79 r80 r81\n%rule r0 $x:_Block_Adlam<_blk_Adlam>\n%conditions $x ≅ #_blk_Adlam<_blk_Adlam>, _blk_Adlam ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Adlam\n%rule r1 $x:_Block_Aegean_Numbers<_blk_Aegean_Numbers>\n%conditions $x ≅ #_blk_Aegean_Numbers<_blk_Aegean_Numbers>, _blk_Aegean_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Aegean_Numbers\n%rule r2 $x:_Block_Ahom<_blk_Ahom>\n%conditions $x ≅ #_blk_Ahom<_blk_Ahom>, _blk_Ahom ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ahom\n%rule r3 $x:_Block_Alchemical_Symbols<_blk_Alchemical>\n%conditions $x ≅ #_blk_Alchemical<_blk_Alchemical>, _blk_Alchemical ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Alchemical\n%rule r4 $x:_Block_Alphabetic_Presentation_Forms<_blk_Alphabetic_PF>\n%conditions $x ≅ #_blk_Alphabetic_PF<_blk_Alphabetic_PF>, _blk_Alphabetic_PF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Alphabetic_PF\n%rule r5 $x:_Block_Anatolian_Hieroglyphs<_blk_Anatolian_Hieroglyphs>\n%conditions $x ≅ #_blk_Anatolian_Hieroglyphs<_blk_Anatolian_Hieroglyphs>, _blk_Anatolian_Hieroglyphs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Anatolian_Hieroglyphs\n%rule r6 $x:_Block_Ancient_Greek_Musical_Notation<_blk_Ancient_Greek_Music>\n%conditions $x ≅ #_blk_Ancient_Greek_Music<_blk_Ancient_Greek_Music>, _blk_Ancient_Greek_Music ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ancient_Greek_Music\n%rule r7 $x:_Block_Ancient_Greek_Numbers<_blk_Ancient_Greek_Numbers>\n%conditions $x ≅ #_blk_Ancient_Greek_Numbers<_blk_Ancient_Greek_Numbers>, _blk_Ancient_Greek_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ancient_Greek_Numbers\n%rule r8 $x:_Block_Ancient_Symbols<_blk_Ancient_Symbols>\n%conditions $x ≅ #_blk_Ancient_Symbols<_blk_Ancient_Symbols>, _blk_Ancient_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Ancient_Symbols\n%rule r9 $x:_Block_Arabic<_blk_Arabic>\n%conditions $x ≅ #_blk_Arabic<_blk_Arabic>, _blk_Arabic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic\n%rule r10 $x:_Block_Arabic_Extended_A<_blk_Arabic_Ext_A>\n%conditions $x ≅ #_blk_Arabic_Ext_A<_blk_Arabic_Ext_A>, _blk_Arabic_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_Ext_A\n%rule r11 $x:_Block_Arabic_Extended_B<_blk_Arabic_Ext_B>\n%conditions $x ≅ #_blk_Arabic_Ext_B<_blk_Arabic_Ext_B>, _blk_Arabic_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_Ext_B\n%rule r12 $x:_Block_Arabic_Extended_C<_blk_Arabic_Ext_C>\n%conditions $x ≅ #_blk_Arabic_Ext_C<_blk_Arabic_Ext_C>, _blk_Arabic_Ext_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_Ext_C\n%rule r13 $x:_Block_Arabic_Mathematical_Alphabetic_Symbols<_blk_Arabic_Math>\n%conditions $x ≅ #_blk_Arabic_Math<_blk_Arabic_Math>, _blk_Arabic_Math ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_Math\n%rule r14 $x:_Block_Arabic_Presentation_Forms_A<_blk_Arabic_PF_A>\n%conditions $x ≅ #_blk_Arabic_PF_A<_blk_Arabic_PF_A>, _blk_Arabic_PF_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_PF_A\n%rule r15 $x:_Block_Arabic_Presentation_Forms_B<_blk_Arabic_PF_B>\n%conditions $x ≅ #_blk_Arabic_PF_B<_blk_Arabic_PF_B>, _blk_Arabic_PF_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_PF_B\n%rule r16 $x:_Block_Arabic_Supplement<_blk_Arabic_Sup>\n%conditions $x ≅ #_blk_Arabic_Sup<_blk_Arabic_Sup>, _blk_Arabic_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arabic_Sup\n%rule r17 $x:_Block_Armenian<_blk_Armenian>\n%conditions $x ≅ #_blk_Armenian<_blk_Armenian>, _blk_Armenian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Armenian\n%rule r18 $x:_Block_Arrows<_blk_Arrows>\n%conditions $x ≅ #_blk_Arrows<_blk_Arrows>, _blk_Arrows ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Arrows\n%rule r19 $x:_Block_Avestan<_blk_Avestan>\n%conditions $x ≅ #_blk_Avestan<_blk_Avestan>, _blk_Avestan ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Avestan\n%rule r20 $x:_Block_Balinese<_blk_Balinese>\n%conditions $x ≅ #_blk_Balinese<_blk_Balinese>, _blk_Balinese ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Balinese\n%rule r21 $x:_Block_Bamum<_blk_Bamum>\n%conditions $x ≅ #_blk_Bamum<_blk_Bamum>, _blk_Bamum ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bamum\n%rule r22 $x:_Block_Bamum_Supplement<_blk_Bamum_Sup>\n%conditions $x ≅ #_blk_Bamum_Sup<_blk_Bamum_Sup>, _blk_Bamum_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bamum_Sup\n%rule r23 $x:_Block_Basic_Latin<_blk_ASCII>\n%conditions $x ≅ #_blk_ASCII<_blk_ASCII>, _blk_ASCII ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_ASCII\n%rule r24 $x:_Block_Bassa_Vah<_blk_Bassa_Vah>\n%conditions $x ≅ #_blk_Bassa_Vah<_blk_Bassa_Vah>, _blk_Bassa_Vah ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bassa_Vah\n%rule r25 $x:_Block_Batak<_blk_Batak>\n%conditions $x ≅ #_blk_Batak<_blk_Batak>, _blk_Batak ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Batak\n%rule r26 $x:_Block_Bengali<_blk_Bengali>\n%conditions $x ≅ #_blk_Bengali<_blk_Bengali>, _blk_Bengali ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bengali\n%rule r27 $x:_Block_Bhaiksuki<_blk_Bhaiksuki>\n%conditions $x ≅ #_blk_Bhaiksuki<_blk_Bhaiksuki>, _blk_Bhaiksuki ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bhaiksuki\n%rule r28 $x:_Block_Block_Elements<_blk_Block_Elements>\n%conditions $x ≅ #_blk_Block_Elements<_blk_Block_Elements>, _blk_Block_Elements ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Block_Elements\n%rule r29 $x:_Block_Bopomofo<_blk_Bopomofo>\n%conditions $x ≅ #_blk_Bopomofo<_blk_Bopomofo>, _blk_Bopomofo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bopomofo\n%rule r30 $x:_Block_Bopomofo_Extended<_blk_Bopomofo_Ext>\n%conditions $x ≅ #_blk_Bopomofo_Ext<_blk_Bopomofo_Ext>, _blk_Bopomofo_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Bopomofo_Ext\n%rule r31 $x:_Block_Box_Drawing<_blk_Box_Drawing>\n%conditions $x ≅ #_blk_Box_Drawing<_blk_Box_Drawing>, _blk_Box_Drawing ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Box_Drawing\n%rule r32 $x:_Block_Brahmi<_blk_Brahmi>\n%conditions $x ≅ #_blk_Brahmi<_blk_Brahmi>, _blk_Brahmi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Brahmi\n%rule r33 $x:_Block_Braille_Patterns<_blk_Braille>\n%conditions $x ≅ #_blk_Braille<_blk_Braille>, _blk_Braille ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Braille\n%rule r34 $x:_Block_Buginese<_blk_Buginese>\n%conditions $x ≅ #_blk_Buginese<_blk_Buginese>, _blk_Buginese ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Buginese\n%rule r35 $x:_Block_Buhid<_blk_Buhid>\n%conditions $x ≅ #_blk_Buhid<_blk_Buhid>, _blk_Buhid ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Buhid\n%rule r36 $x:_Block_Byzantine_Musical_Symbols<_blk_Byzantine_Music>\n%conditions $x ≅ #_blk_Byzantine_Music<_blk_Byzantine_Music>, _blk_Byzantine_Music ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Byzantine_Music\n%rule r37 $x:_Block_CJK_Compatibility<_blk_CJK_Compat>\n%conditions $x ≅ #_blk_CJK_Compat<_blk_CJK_Compat>, _blk_CJK_Compat ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Compat\n%rule r38 $x:_Block_CJK_Compatibility_Forms<_blk_CJK_Compat_Forms>\n%conditions $x ≅ #_blk_CJK_Compat_Forms<_blk_CJK_Compat_Forms>, _blk_CJK_Compat_Forms ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Compat_Forms\n%rule r39 $x:_Block_CJK_Compatibility_Ideographs<_blk_CJK_Compat_Ideographs>\n%conditions $x ≅ #_blk_CJK_Compat_Ideographs<_blk_CJK_Compat_Ideographs>, _blk_CJK_Compat_Ideographs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Compat_Ideographs\n%rule r40 $x:_Block_CJK_Compatibility_Ideographs_Supplement<_blk_CJK_Compat_Ideographs_Sup>\n%conditions $x ≅ #_blk_CJK_Compat_Ideographs_Sup<_blk_CJK_Compat_Ideographs_Sup>, _blk_CJK_Compat_Ideographs_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Compat_Ideographs_Sup\n%rule r41 $x:_Block_CJK_Radicals_Supplement<_blk_CJK_Radicals_Sup>\n%conditions $x ≅ #_blk_CJK_Radicals_Sup<_blk_CJK_Radicals_Sup>, _blk_CJK_Radicals_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Radicals_Sup\n%rule r42 $x:_Block_CJK_Strokes<_blk_CJK_Strokes>\n%conditions $x ≅ #_blk_CJK_Strokes<_blk_CJK_Strokes>, _blk_CJK_Strokes ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Strokes\n%rule r43 $x:_Block_CJK_Symbols_And_Punctuation<_blk_CJK_Symbols>\n%conditions $x ≅ #_blk_CJK_Symbols<_blk_CJK_Symbols>, _blk_CJK_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Symbols\n%rule r44 $x:_Block_CJK_Unified_Ideographs<_blk_CJK>\n%conditions $x ≅ #_blk_CJK<_blk_CJK>, _blk_CJK ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK\n%rule r45 $x:_Block_CJK_Unified_Ideographs_Extension_A<_blk_CJK_Ext_A>\n%conditions $x ≅ #_blk_CJK_Ext_A<_blk_CJK_Ext_A>, _blk_CJK_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_A\n%rule r46 $x:_Block_CJK_Unified_Ideographs_Extension_B<_blk_CJK_Ext_B>\n%conditions $x ≅ #_blk_CJK_Ext_B<_blk_CJK_Ext_B>, _blk_CJK_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_B\n%rule r47 $x:_Block_CJK_Unified_Ideographs_Extension_C<_blk_CJK_Ext_C>\n%conditions $x ≅ #_blk_CJK_Ext_C<_blk_CJK_Ext_C>, _blk_CJK_Ext_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_C\n%rule r48 $x:_Block_CJK_Unified_Ideographs_Extension_D<_blk_CJK_Ext_D>\n%conditions $x ≅ #_blk_CJK_Ext_D<_blk_CJK_Ext_D>, _blk_CJK_Ext_D ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_D\n%rule r49 $x:_Block_CJK_Unified_Ideographs_Extension_E<_blk_CJK_Ext_E>\n%conditions $x ≅ #_blk_CJK_Ext_E<_blk_CJK_Ext_E>, _blk_CJK_Ext_E ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_E\n%rule r50 $x:_Block_CJK_Unified_Ideographs_Extension_F<_blk_CJK_Ext_F>\n%conditions $x ≅ #_blk_CJK_Ext_F<_blk_CJK_Ext_F>, _blk_CJK_Ext_F ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_F\n%rule r51 $x:_Block_CJK_Unified_Ideographs_Extension_G<_blk_CJK_Ext_G>\n%conditions $x ≅ #_blk_CJK_Ext_G<_blk_CJK_Ext_G>, _blk_CJK_Ext_G ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_G\n%rule r52 $x:_Block_CJK_Unified_Ideographs_Extension_H<_blk_CJK_Ext_H>\n%conditions $x ≅ #_blk_CJK_Ext_H<_blk_CJK_Ext_H>, _blk_CJK_Ext_H ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_H\n%rule r53 $x:_Block_CJK_Unified_Ideographs_Extension_I<_blk_CJK_Ext_I>\n%conditions $x ≅ #_blk_CJK_Ext_I<_blk_CJK_Ext_I>, _blk_CJK_Ext_I ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_CJK_Ext_I\n%rule r54 $x:_Block_Carian<_blk_Carian>\n%conditions $x ≅ #_blk_Carian<_blk_Carian>, _blk_Carian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Carian\n%rule r55 $x:_Block_Caucasian_Albanian<_blk_Caucasian_Albanian>\n%conditions $x ≅ #_blk_Caucasian_Albanian<_blk_Caucasian_Albanian>, _blk_Caucasian_Albanian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Caucasian_Albanian\n%rule r56 $x:_Block_Chakma<_blk_Chakma>\n%conditions $x ≅ #_blk_Chakma<_blk_Chakma>, _blk_Chakma ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Chakma\n%rule r57 $x:_Block_Cham<_blk_Cham>\n%conditions $x ≅ #_blk_Cham<_blk_Cham>, _blk_Cham ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cham\n%rule r58 $x:_Block_Cherokee<_blk_Cherokee>\n%conditions $x ≅ #_blk_Cherokee<_blk_Cherokee>, _blk_Cherokee ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cherokee\n%rule r59 $x:_Block_Cherokee_Supplement<_blk_Cherokee_Sup>\n%conditions $x ≅ #_blk_Cherokee_Sup<_blk_Cherokee_Sup>, _blk_Cherokee_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cherokee_Sup\n%rule r60 $x:_Block_Chess_Symbols<_blk_Chess_Symbols>\n%conditions $x ≅ #_blk_Chess_Symbols<_blk_Chess_Symbols>, _blk_Chess_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Chess_Symbols\n%rule r61 $x:_Block_Chorasmian<_blk_Chorasmian>\n%conditions $x ≅ #_blk_Chorasmian<_blk_Chorasmian>, _blk_Chorasmian ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Chorasmian\n%rule r62 $x:_Block_Combining_Diacritical_Marks<_blk_Diacriticals>\n%conditions $x ≅ #_blk_Diacriticals<_blk_Diacriticals>, _blk_Diacriticals ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Diacriticals\n%rule r63 $x:_Block_Combining_Diacritical_Marks_Extended<_blk_Diacriticals_Ext>\n%conditions $x ≅ #_blk_Diacriticals_Ext<_blk_Diacriticals_Ext>, _blk_Diacriticals_Ext ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Diacriticals_Ext\n%rule r64 $x:_Block_Combining_Diacritical_Marks_For_Symbols<_blk_Diacriticals_For_Symbols>\n%conditions $x ≅ #_blk_Diacriticals_For_Symbols<_blk_Diacriticals_For_Symbols>, _blk_Diacriticals_For_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Diacriticals_For_Symbols\n%rule r65 $x:_Block_Combining_Diacritical_Marks_Supplement<_blk_Diacriticals_Sup>\n%conditions $x ≅ #_blk_Diacriticals_Sup<_blk_Diacriticals_Sup>, _blk_Diacriticals_Sup ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Diacriticals_Sup\n%rule r66 $x:_Block_Combining_Half_Marks<_blk_Half_Marks>\n%conditions $x ≅ #_blk_Half_Marks<_blk_Half_Marks>, _blk_Half_Marks ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Half_Marks\n%rule r67 $x:_Block_Common_Indic_Number_Forms<_blk_Indic_Number_Forms>\n%conditions $x ≅ #_blk_Indic_Number_Forms<_blk_Indic_Number_Forms>, _blk_Indic_Number_Forms ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Indic_Number_Forms\n%rule r68 $x:_Block_Control_Pictures<_blk_Control_Pictures>\n%conditions $x ≅ #_blk_Control_Pictures<_blk_Control_Pictures>, _blk_Control_Pictures ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Control_Pictures\n%rule r69 $x:_Block_Coptic<_blk_Coptic>\n%conditions $x ≅ #_blk_Coptic<_blk_Coptic>, _blk_Coptic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Coptic\n%rule r70 $x:_Block_Coptic_Epact_Numbers<_blk_Coptic_Epact_Numbers>\n%conditions $x ≅ #_blk_Coptic_Epact_Numbers<_blk_Coptic_Epact_Numbers>, _blk_Coptic_Epact_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Coptic_Epact_Numbers\n%rule r71 $x:_Block_Counting_Rod_Numerals<_blk_Counting_Rod>\n%conditions $x ≅ #_blk_Counting_Rod<_blk_Counting_Rod>, _blk_Counting_Rod ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Counting_Rod\n%rule r72 $x:_Block_Cuneiform<_blk_Cuneiform>\n%conditions $x ≅ #_blk_Cuneiform<_blk_Cuneiform>, _blk_Cuneiform ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cuneiform\n%rule r73 $x:_Block_Cuneiform_Numbers_And_Punctuation<_blk_Cuneiform_Numbers>\n%conditions $x ≅ #_blk_Cuneiform_Numbers<_blk_Cuneiform_Numbers>, _blk_Cuneiform_Numbers ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cuneiform_Numbers\n%rule r74 $x:_Block_Currency_Symbols<_blk_Currency_Symbols>\n%conditions $x ≅ #_blk_Currency_Symbols<_blk_Currency_Symbols>, _blk_Currency_Symbols ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Currency_Symbols\n%rule r75 $x:_Block_Cypriot_Syllabary<_blk_Cypriot_Syllabary>\n%conditions $x ≅ #_blk_Cypriot_Syllabary<_blk_Cypriot_Syllabary>, _blk_Cypriot_Syllabary ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cypriot_Syllabary\n%rule r76 $x:_Block_Cypro_Minoan<_blk_Cypro_Minoan>\n%conditions $x ≅ #_blk_Cypro_Minoan<_blk_Cypro_Minoan>, _blk_Cypro_Minoan ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cypro_Minoan\n%rule r77 $x:_Block_Cyrillic<_blk_Cyrillic>\n%conditions $x ≅ #_blk_Cyrillic<_blk_Cyrillic>, _blk_Cyrillic ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic\n%rule r78 $x:_Block_Cyrillic_Extended_A<_blk_Cyrillic_Ext_A>\n%conditions $x ≅ #_blk_Cyrillic_Ext_A<_blk_Cyrillic_Ext_A>, _blk_Cyrillic_Ext_A ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic_Ext_A\n%rule r79 $x:_Block_Cyrillic_Extended_B<_blk_Cyrillic_Ext_B>\n%conditions $x ≅ #_blk_Cyrillic_Ext_B<_blk_Cyrillic_Ext_B>, _blk_Cyrillic_Ext_B ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic_Ext_B\n%rule r80 $x:_Block_Cyrillic_Extended_C<_blk_Cyrillic_Ext_C>\n%conditions $x ≅ #_blk_Cyrillic_Ext_C<_blk_Cyrillic_Ext_C>, _blk_Cyrillic_Ext_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic_Ext_C\n%rule r81 $x:_Block_Cyrillic_Extended_D<_blk_Cyrillic_Ext_D>\n%conditions $x ≅ #_blk_Cyrillic_Ext_D<_blk_Cyrillic_Ext_D>, _blk_Cyrillic_Ext_D ⊆ $x.tags\n%emits $x :: $x.tags ∩ _blk_Cyrillic_Ext_D",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Adlam",
+        "_blk_Adlam"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Aegean_Numbers",
+        "_blk_Aegean_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ahom",
+        "_blk_Ahom"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Alchemical_Symbols",
+        "_blk_Alchemical"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Alphabetic_Presentation_Forms",
+        "_blk_Alphabetic_PF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Anatolian_Hieroglyphs",
+        "_blk_Anatolian_Hieroglyphs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ancient_Greek_Musical_Notation",
+        "_blk_Ancient_Greek_Music"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ancient_Greek_Numbers",
+        "_blk_Ancient_Greek_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Ancient_Symbols",
+        "_blk_Ancient_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic",
+        "_blk_Arabic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Extended_A",
+        "_blk_Arabic_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Extended_B",
+        "_blk_Arabic_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Extended_C",
+        "_blk_Arabic_Ext_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Mathematical_Alphabetic_Symbols",
+        "_blk_Arabic_Math"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Presentation_Forms_A",
+        "_blk_Arabic_PF_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Presentation_Forms_B",
+        "_blk_Arabic_PF_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arabic_Supplement",
+        "_blk_Arabic_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Armenian",
+        "_blk_Armenian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Arrows",
+        "_blk_Arrows"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Avestan",
+        "_blk_Avestan"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Balinese",
+        "_blk_Balinese"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bamum",
+        "_blk_Bamum"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bamum_Supplement",
+        "_blk_Bamum_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Basic_Latin",
+        "_blk_ASCII"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bassa_Vah",
+        "_blk_Bassa_Vah"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Batak",
+        "_blk_Batak"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bengali",
+        "_blk_Bengali"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bhaiksuki",
+        "_blk_Bhaiksuki"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Block_Elements",
+        "_blk_Block_Elements"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bopomofo",
+        "_blk_Bopomofo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Bopomofo_Extended",
+        "_blk_Bopomofo_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Box_Drawing",
+        "_blk_Box_Drawing"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Brahmi",
+        "_blk_Brahmi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Braille_Patterns",
+        "_blk_Braille"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Buginese",
+        "_blk_Buginese"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Buhid",
+        "_blk_Buhid"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Byzantine_Musical_Symbols",
+        "_blk_Byzantine_Music"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Compatibility",
+        "_blk_CJK_Compat"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Compatibility_Forms",
+        "_blk_CJK_Compat_Forms"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Compatibility_Ideographs",
+        "_blk_CJK_Compat_Ideographs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Compatibility_Ideographs_Supplement",
+        "_blk_CJK_Compat_Ideographs_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Radicals_Supplement",
+        "_blk_CJK_Radicals_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Strokes",
+        "_blk_CJK_Strokes"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Symbols_And_Punctuation",
+        "_blk_CJK_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs",
+        "_blk_CJK"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_A",
+        "_blk_CJK_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_B",
+        "_blk_CJK_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_C",
+        "_blk_CJK_Ext_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_D",
+        "_blk_CJK_Ext_D"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_E",
+        "_blk_CJK_Ext_E"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_F",
+        "_blk_CJK_Ext_F"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_G",
+        "_blk_CJK_Ext_G"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_H",
+        "_blk_CJK_Ext_H"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_CJK_Unified_Ideographs_Extension_I",
+        "_blk_CJK_Ext_I"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Carian",
+        "_blk_Carian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Caucasian_Albanian",
+        "_blk_Caucasian_Albanian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Chakma",
+        "_blk_Chakma"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cham",
+        "_blk_Cham"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cherokee",
+        "_blk_Cherokee"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cherokee_Supplement",
+        "_blk_Cherokee_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Chess_Symbols",
+        "_blk_Chess_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Chorasmian",
+        "_blk_Chorasmian"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Combining_Diacritical_Marks",
+        "_blk_Diacriticals"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Combining_Diacritical_Marks_Extended",
+        "_blk_Diacriticals_Ext"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Combining_Diacritical_Marks_For_Symbols",
+        "_blk_Diacriticals_For_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Combining_Diacritical_Marks_Supplement",
+        "_blk_Diacriticals_Sup"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Combining_Half_Marks",
+        "_blk_Half_Marks"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Common_Indic_Number_Forms",
+        "_blk_Indic_Number_Forms"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Control_Pictures",
+        "_blk_Control_Pictures"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Coptic",
+        "_blk_Coptic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Coptic_Epact_Numbers",
+        "_blk_Coptic_Epact_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Counting_Rod_Numerals",
+        "_blk_Counting_Rod"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cuneiform",
+        "_blk_Cuneiform"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cuneiform_Numbers_And_Punctuation",
+        "_blk_Cuneiform_Numbers"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Currency_Symbols",
+        "_blk_Currency_Symbols"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cypriot_Syllabary",
+        "_blk_Cypriot_Syllabary"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cypro_Minoan",
+        "_blk_Cypro_Minoan"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic",
+        "_blk_Cyrillic"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic_Extended_A",
+        "_blk_Cyrillic_Ext_A"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic_Extended_B",
+        "_blk_Cyrillic_Ext_B"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic_Extended_C",
+        "_blk_Cyrillic_Ext_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Block_Cyrillic_Extended_D",
+        "_blk_Cyrillic_Ext_D"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Block_Adlam"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Aegean_Numbers"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ahom"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Alchemical_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Alphabetic_Presentation_Forms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Anatolian_Hieroglyphs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ancient_Greek_Musical_Notation"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ancient_Greek_Numbers"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Ancient_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Extended_C"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Mathematical_Alphabetic_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Presentation_Forms_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Presentation_Forms_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arabic_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Armenian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Arrows"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Avestan"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Balinese"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bamum"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bamum_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Basic_Latin"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bassa_Vah"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Batak"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bengali"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bhaiksuki"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Block_Elements"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bopomofo"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Bopomofo_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Box_Drawing"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Brahmi"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Braille_Patterns"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Buginese"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Buhid"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Byzantine_Musical_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Compatibility"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Compatibility_Forms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Compatibility_Ideographs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Compatibility_Ideographs_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Radicals_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Strokes"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Symbols_And_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_C"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_D"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_E"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_F"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_G"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_H"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_CJK_Unified_Ideographs_Extension_I"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Carian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Caucasian_Albanian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Chakma"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cham"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cherokee"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cherokee_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Chess_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Chorasmian"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Combining_Diacritical_Marks"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Combining_Diacritical_Marks_Extended"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Combining_Diacritical_Marks_For_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Combining_Diacritical_Marks_Supplement"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Combining_Half_Marks"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Common_Indic_Number_Forms"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Control_Pictures"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Coptic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Coptic_Epact_Numbers"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Counting_Rod_Numerals"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cuneiform"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cuneiform_Numbers_And_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Currency_Symbols"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cypriot_Syllabary"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cypro_Minoan"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cyrillic"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cyrillic_Extended_A"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cyrillic_Extended_B"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cyrillic_Extended_C"
+              ]
+            },
+            {
+              "tags": [
+                "_Block_Cyrillic_Extended_D"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Block_Adlam"
+              }
+            ],
+            "tags": [
+              "_Block_Adlam"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Block_Aegean_Numbers"
+              }
+            ],
+            "tags": [
+              "_Block_Aegean_Numbers"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Block_Ahom"
+              }
+            ],
+            "tags": [
+              "_Block_Ahom"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Block_Alchemical_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Alchemical_Symbols"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Block_Alphabetic_Presentation_Forms"
+              }
+            ],
+            "tags": [
+              "_Block_Alphabetic_Presentation_Forms"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Block_Anatolian_Hieroglyphs"
+              }
+            ],
+            "tags": [
+              "_Block_Anatolian_Hieroglyphs"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Block_Ancient_Greek_Musical_Notation"
+              }
+            ],
+            "tags": [
+              "_Block_Ancient_Greek_Musical_Notation"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Block_Ancient_Greek_Numbers"
+              }
+            ],
+            "tags": [
+              "_Block_Ancient_Greek_Numbers"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Block_Ancient_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Ancient_Symbols"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Block_Arabic"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Extended_A"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Extended_B"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Extended_C"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Extended_C"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Mathematical_Alphabetic_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Mathematical_Alphabetic_Symbols"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Presentation_Forms_A"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Presentation_Forms_A"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Presentation_Forms_B"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Presentation_Forms_B"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Block_Arabic_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Arabic_Supplement"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Block_Armenian"
+              }
+            ],
+            "tags": [
+              "_Block_Armenian"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Block_Arrows"
+              }
+            ],
+            "tags": [
+              "_Block_Arrows"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Block_Avestan"
+              }
+            ],
+            "tags": [
+              "_Block_Avestan"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Block_Balinese"
+              }
+            ],
+            "tags": [
+              "_Block_Balinese"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Block_Bamum"
+              }
+            ],
+            "tags": [
+              "_Block_Bamum"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Block_Bamum_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Bamum_Supplement"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Block_Basic_Latin"
+              }
+            ],
+            "tags": [
+              "_Block_Basic_Latin"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Block_Bassa_Vah"
+              }
+            ],
+            "tags": [
+              "_Block_Bassa_Vah"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Block_Batak"
+              }
+            ],
+            "tags": [
+              "_Block_Batak"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Block_Bengali"
+              }
+            ],
+            "tags": [
+              "_Block_Bengali"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_Block_Bhaiksuki"
+              }
+            ],
+            "tags": [
+              "_Block_Bhaiksuki"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_Block_Block_Elements"
+              }
+            ],
+            "tags": [
+              "_Block_Block_Elements"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_Block_Bopomofo"
+              }
+            ],
+            "tags": [
+              "_Block_Bopomofo"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_Block_Bopomofo_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Bopomofo_Extended"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_Block_Box_Drawing"
+              }
+            ],
+            "tags": [
+              "_Block_Box_Drawing"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_Block_Brahmi"
+              }
+            ],
+            "tags": [
+              "_Block_Brahmi"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_Block_Braille_Patterns"
+              }
+            ],
+            "tags": [
+              "_Block_Braille_Patterns"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_Block_Buginese"
+              }
+            ],
+            "tags": [
+              "_Block_Buginese"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_Block_Buhid"
+              }
+            ],
+            "tags": [
+              "_Block_Buhid"
+            ]
+          },
+          {
+            "rule": "r36",
+            "children": [
+              {
+                "terminal": "_Block_Byzantine_Musical_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Byzantine_Musical_Symbols"
+            ]
+          },
+          {
+            "rule": "r37",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Compatibility"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Compatibility"
+            ]
+          },
+          {
+            "rule": "r38",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Compatibility_Forms"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Compatibility_Forms"
+            ]
+          },
+          {
+            "rule": "r39",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Compatibility_Ideographs"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Compatibility_Ideographs"
+            ]
+          },
+          {
+            "rule": "r40",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Compatibility_Ideographs_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Compatibility_Ideographs_Supplement"
+            ]
+          },
+          {
+            "rule": "r41",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Radicals_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Radicals_Supplement"
+            ]
+          },
+          {
+            "rule": "r42",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Strokes"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Strokes"
+            ]
+          },
+          {
+            "rule": "r43",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Symbols_And_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Symbols_And_Punctuation"
+            ]
+          },
+          {
+            "rule": "r44",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs"
+            ]
+          },
+          {
+            "rule": "r45",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_A"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_A"
+            ]
+          },
+          {
+            "rule": "r46",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_B"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_B"
+            ]
+          },
+          {
+            "rule": "r47",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_C"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_C"
+            ]
+          },
+          {
+            "rule": "r48",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_D"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_D"
+            ]
+          },
+          {
+            "rule": "r49",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_E"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_E"
+            ]
+          },
+          {
+            "rule": "r50",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_F"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_F"
+            ]
+          },
+          {
+            "rule": "r51",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_G"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_G"
+            ]
+          },
+          {
+            "rule": "r52",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_H"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_H"
+            ]
+          },
+          {
+            "rule": "r53",
+            "children": [
+              {
+                "terminal": "_Block_CJK_Unified_Ideographs_Extension_I"
+              }
+            ],
+            "tags": [
+              "_Block_CJK_Unified_Ideographs_Extension_I"
+            ]
+          },
+          {
+            "rule": "r54",
+            "children": [
+              {
+                "terminal": "_Block_Carian"
+              }
+            ],
+            "tags": [
+              "_Block_Carian"
+            ]
+          },
+          {
+            "rule": "r55",
+            "children": [
+              {
+                "terminal": "_Block_Caucasian_Albanian"
+              }
+            ],
+            "tags": [
+              "_Block_Caucasian_Albanian"
+            ]
+          },
+          {
+            "rule": "r56",
+            "children": [
+              {
+                "terminal": "_Block_Chakma"
+              }
+            ],
+            "tags": [
+              "_Block_Chakma"
+            ]
+          },
+          {
+            "rule": "r57",
+            "children": [
+              {
+                "terminal": "_Block_Cham"
+              }
+            ],
+            "tags": [
+              "_Block_Cham"
+            ]
+          },
+          {
+            "rule": "r58",
+            "children": [
+              {
+                "terminal": "_Block_Cherokee"
+              }
+            ],
+            "tags": [
+              "_Block_Cherokee"
+            ]
+          },
+          {
+            "rule": "r59",
+            "children": [
+              {
+                "terminal": "_Block_Cherokee_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Cherokee_Supplement"
+            ]
+          },
+          {
+            "rule": "r60",
+            "children": [
+              {
+                "terminal": "_Block_Chess_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Chess_Symbols"
+            ]
+          },
+          {
+            "rule": "r61",
+            "children": [
+              {
+                "terminal": "_Block_Chorasmian"
+              }
+            ],
+            "tags": [
+              "_Block_Chorasmian"
+            ]
+          },
+          {
+            "rule": "r62",
+            "children": [
+              {
+                "terminal": "_Block_Combining_Diacritical_Marks"
+              }
+            ],
+            "tags": [
+              "_Block_Combining_Diacritical_Marks"
+            ]
+          },
+          {
+            "rule": "r63",
+            "children": [
+              {
+                "terminal": "_Block_Combining_Diacritical_Marks_Extended"
+              }
+            ],
+            "tags": [
+              "_Block_Combining_Diacritical_Marks_Extended"
+            ]
+          },
+          {
+            "rule": "r64",
+            "children": [
+              {
+                "terminal": "_Block_Combining_Diacritical_Marks_For_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Combining_Diacritical_Marks_For_Symbols"
+            ]
+          },
+          {
+            "rule": "r65",
+            "children": [
+              {
+                "terminal": "_Block_Combining_Diacritical_Marks_Supplement"
+              }
+            ],
+            "tags": [
+              "_Block_Combining_Diacritical_Marks_Supplement"
+            ]
+          },
+          {
+            "rule": "r66",
+            "children": [
+              {
+                "terminal": "_Block_Combining_Half_Marks"
+              }
+            ],
+            "tags": [
+              "_Block_Combining_Half_Marks"
+            ]
+          },
+          {
+            "rule": "r67",
+            "children": [
+              {
+                "terminal": "_Block_Common_Indic_Number_Forms"
+              }
+            ],
+            "tags": [
+              "_Block_Common_Indic_Number_Forms"
+            ]
+          },
+          {
+            "rule": "r68",
+            "children": [
+              {
+                "terminal": "_Block_Control_Pictures"
+              }
+            ],
+            "tags": [
+              "_Block_Control_Pictures"
+            ]
+          },
+          {
+            "rule": "r69",
+            "children": [
+              {
+                "terminal": "_Block_Coptic"
+              }
+            ],
+            "tags": [
+              "_Block_Coptic"
+            ]
+          },
+          {
+            "rule": "r70",
+            "children": [
+              {
+                "terminal": "_Block_Coptic_Epact_Numbers"
+              }
+            ],
+            "tags": [
+              "_Block_Coptic_Epact_Numbers"
+            ]
+          },
+          {
+            "rule": "r71",
+            "children": [
+              {
+                "terminal": "_Block_Counting_Rod_Numerals"
+              }
+            ],
+            "tags": [
+              "_Block_Counting_Rod_Numerals"
+            ]
+          },
+          {
+            "rule": "r72",
+            "children": [
+              {
+                "terminal": "_Block_Cuneiform"
+              }
+            ],
+            "tags": [
+              "_Block_Cuneiform"
+            ]
+          },
+          {
+            "rule": "r73",
+            "children": [
+              {
+                "terminal": "_Block_Cuneiform_Numbers_And_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Block_Cuneiform_Numbers_And_Punctuation"
+            ]
+          },
+          {
+            "rule": "r74",
+            "children": [
+              {
+                "terminal": "_Block_Currency_Symbols"
+              }
+            ],
+            "tags": [
+              "_Block_Currency_Symbols"
+            ]
+          },
+          {
+            "rule": "r75",
+            "children": [
+              {
+                "terminal": "_Block_Cypriot_Syllabary"
+              }
+            ],
+            "tags": [
+              "_Block_Cypriot_Syllabary"
+            ]
+          },
+          {
+            "rule": "r76",
+            "children": [
+              {
+                "terminal": "_Block_Cypro_Minoan"
+              }
+            ],
+            "tags": [
+              "_Block_Cypro_Minoan"
+            ]
+          },
+          {
+            "rule": "r77",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic"
+            ]
+          },
+          {
+            "rule": "r78",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic_Extended_A"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic_Extended_A"
+            ]
+          },
+          {
+            "rule": "r79",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic_Extended_B"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic_Extended_B"
+            ]
+          },
+          {
+            "rule": "r80",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic_Extended_C"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic_Extended_C"
+            ]
+          },
+          {
+            "rule": "r81",
+            "children": [
+              {
+                "terminal": "_Block_Cyrillic_Extended_D"
+              }
+            ],
+            "tags": [
+              "_Block_Cyrillic_Extended_D"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

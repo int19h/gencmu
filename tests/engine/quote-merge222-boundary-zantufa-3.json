@@ -5,17 +5,13 @@
   },
   "pipeline": "pipeline.md",
   "input": "zoi pa. Hello .pa re mai",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

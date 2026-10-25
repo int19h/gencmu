@@ -1,0 +1,25 @@
+{
+  "description": "A names path cannot require names data.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%names \"‹LATIN SMALL LETTER E›xtra.txt\"\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "unicode-names.txt": "bad names"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 2,
+      "column": 9
+    }
+  }
+}

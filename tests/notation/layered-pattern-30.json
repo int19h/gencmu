@@ -1,0 +1,41 @@
+{
+  "description": "nested pattern arguments retain their own literals",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #pair(#a, #« b »)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "call": "pair",
+                  "args": [
+                    {
+                      "pattern": {
+                        "name": "a"
+                      }
+                    },
+                    {
+                      "pattern": {
+                        "any": true,
+                        "children": [
+                          {
+                            "child": {
+                              "name": "b"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

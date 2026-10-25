@@ -63,10 +63,33 @@ fn shared_json_keys() {
             ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
             (document.to_string(), text(&fixtures, "grammar").to_string()),
         ]);
+        sources.insert("unicode.txt".into(), include_str!("../grammars/unicode.txt").to_string());
         sources.insert("compiled.json".into(), cache);
         let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
-        let dialect = gencmu::load_dialect_sources(sources, "p.md")
-            .unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
+        if let Some(Value::Object(resources)) = case.get("sources") {
+            for (path, value) in resources {
+                let value = value.str().unwrap();
+                sources.insert(
+                    path.clone(),
+                    if value == "@bundled-names@" {
+                        include_str!("../grammars/unicode-names.txt").to_string()
+                    } else if value == "@unicode-16@" {
+                        include_str!("../grammars/unicode.txt").replace("unicode 15.1.0", "unicode 16.0.0")
+                    } else {
+                        value.to_string()
+                    },
+                );
+            }
+        }
+        let result = gencmu::load_dialect_sources(sources, "p.md");
+        if let Some(expected) = case.get("error") {
+            let error = result.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
+            assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+            assert_eq!(error.document.as_deref(), Some(text(expected, "document")));
+            assert_eq!(error.line, expected.get("line").map(|v| v.number().unwrap() as usize));
+            continue;
+        }
+        let dialect = result.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
         assert_eq!(dialect.parse("a", &Default::default()).unwrap().ok, !cached, "{}", text(case, "description"));
         assert_eq!(dialect.parse("b", &Default::default()).unwrap().ok, cached, "{}", text(case, "description"));
         if let Some(tags) = case.get("tags") {

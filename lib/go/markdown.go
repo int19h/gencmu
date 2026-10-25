@@ -37,7 +37,10 @@ func (e *Error) Error() string {
 	if e.Document != "" {
 		b.WriteString(e.Document)
 		if e.Line > 0 {
-			fmt.Fprintf(&b, ":%d:%d", e.Line, e.Column)
+			fmt.Fprintf(&b, ":%d", e.Line)
+			if e.Column > 0 {
+				fmt.Fprintf(&b, ":%d", e.Column)
+			}
 		}
 		b.WriteString(": ")
 	}

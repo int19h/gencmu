@@ -1,6 +1,6 @@
 {
   "description": "Pattern rule names use decomposed token values.",
-  "document": "```jbogenbau\n%rule text $x:rK\n%conditions $x ≅ @(rK)\n%rule rK \"a\"\n```",
+  "document": "```jbogenbau\n%rule text $x:rK\n%conditions $x ≅ #rK\n%rule rK \"a\"\n```",
   "expect": {
     "dom": {
       "rules": [

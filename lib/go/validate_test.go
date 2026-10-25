@@ -68,7 +68,7 @@ func TestDOMRules(t *testing.T) {
 	cases := []struct{ rule, dom string }{
 		{"format 3", strings.Replace(alt(good), format, `"format":3`, 1)},
 		{"a rule's name is a name", strings.Replace(alt(good), `"name":"text"`, `"name":"9x"`, 1)},
-		{"a rule's name is a name or #", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
+		{"a rule name is an identifier or one eligible emoji", strings.Replace(alt(good), `"name":"text"`, `"name":"##"`, 1)},
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
 		// A compared term has exactly the members of one form, in either
 		// order: read as the string, either would reject "ab".
@@ -130,11 +130,11 @@ func TestDOMRules(t *testing.T) {
 		{"an elidable optional begins with its terminal (choice)", alt(`{"optional":{"choice":[{"ref":"KU"},{"ref":"VAU"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (&)", alt(`{"optional":{"and":[{"ref":"KU"},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (rule)", alt(`{"optional":{"ref":"ku"},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (#)", alt(`{"optional":{"seq":[{"ref":"#"},{"ref":"KU"}]},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (🆓)", alt(`{"optional":{"seq":[{"ref":"🆓"},{"ref":"KU"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (phoneme)", alt(`{"optional":{"literal":{"string":"/a/"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (character)", alt(`{"optional":{"literal":{"string":"a"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (range)", alt(`{"optional":{"range":[{"string":"a"},{"string":"z"}]},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (seq)", alt(`{"optional":{"seq":[{"seq":[{"ref":"KU"},{"ref":"#"}]},{"ref":"A"}]},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (seq)", alt(`{"optional":{"seq":[{"seq":[{"ref":"KU"},{"ref":"🆓"}]},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (optional)", alt(`{"optional":{"optional":{"ref":"KU"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (ε)", alt(`{"optional":{"empty":true},"elidable":true}`)},
 		{"a capture wraps a reference or terminal", alt(`{"capture":"x","expr":{"optional":{"literal":{"string":"a"}}}}`)},
@@ -188,7 +188,6 @@ func TestDOMRules(t *testing.T) {
 		{"a test's value is closed (tags)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"⊇","value":{"method":"tags","receiver":{"capture":""},"args":[]},"expr":{"ref":"B"}}]}`)},
 		{"a test's value is closed (phonemes)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"method":"value","receiver":{"capture":""},"args":[]},"expr":{"ref":"B"}}]}`)},
 		{"a test's value is closed (a capture)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"capture":"x"},"expr":{"ref":"B"}}]}`)},
-		{"a test does not follow #", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
 		{"a test does not follow a group", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"seq":[{"ref":"B"},{"ref":"C"}]}}]}`)},
 		{"a test does not follow an optional", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"optional":{"ref":"B"}}}]}`)},
 		{"a test does not follow a test", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"test":"=","value":{"string":"b"},"expr":{"ref":"B"}}}]}`)},
@@ -200,7 +199,7 @@ func TestDOMRules(t *testing.T) {
 		{"a tested symbol has its symbol", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"ref":"B"}]}`)},
 		{"a tested symbol has its value", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","expr":{"ref":"B"}}]}`)},
 		{"a tested symbol is not also a capture", alt(`{"seq":[{"literal":{"string":"a"}},{"capture":"x","test":"=","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
-		{"a tested symbol is not also an optional", alt(`{"seq":[{"literal":{"string":"a"}},{"optional":{"ref":"B"},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
+		{"a tested symbol is not also an optional", alt(`{"seq":[{"literal":{"string":"a"}},{"optional":{"ref":"B"},"test":"=","value":{"string":"b"},"expr":{"ref":"🆓"}}]}`)},
 		{"a capture of a tested symbol is checked", alt(`{"seq":[{"literal":{"string":"a"}},{"capture":"x","expr":{"test":"=","value":{"string":"B"},"expr":{"ref":"B"}}}]}`)},
 		{"a tested symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 255) + `{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 255) + `,{"literal":{"string":"b"}}]}`)},
 		{"a test's value counts on from the test", alt(strings.Repeat(`{"optional":`, 255) + `{"test":"⊇","value":{"union":[{"tag":"A"},{"tag":"B"}]},"expr":{"ref":"LE"}}` + strings.Repeat(`}`, 255))},
@@ -318,7 +317,7 @@ func TestDOMRules(t *testing.T) {
 		{"a property has no other member", alt(`{"property":"L","range":[{"string":"a"},{"string":"z"}]}`)},
 		{"a tested range is checked", alt(`{"test":"⊇","value":{"tag":"'a'"},"expr":{"range":[{"string":"z"},{"string":"a"}]}}`)},
 		{"a tested property is checked", alt(`{"test":"=","value":{"string":"a"},"expr":{"ref":"_Letter"}}`)},
-		{"a property is not a term", tagged(`{"ref":"_L"}`)},
+		{"a property is not a term", tagged(`{"ref":"_General_Category_Letter"}`)},
 		{"a range in a term starts at or below its end", tagged(`{"range":[{"string":"z"},{"string":"a"}]}`)},
 		{"an inserted range is not one tag", emit(`{"items":[{"insert":"'a'..'z'"},{"capture":"x"}]}`)},
 		// Classifiers, implications and classify (engine §2, §9).
@@ -371,7 +370,7 @@ func TestDOMRules(t *testing.T) {
 	for _, ok := range []string{alt(good), alt(nested(255)),
 		// A range, a property, each captured, and a range in a term.
 		alt(`{"range":[{"string":"a"},{"string":"z"}]}`), alt(`{"ref":"_White_Space"}`),
-		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_Cs"}}]}`),
+		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_General_Category_Surrogate"}}]}`),
 		tagged(`{"union":[{"tag":"A"},{"tag":"X"}]}`),
 		// Classifiers, entries, implications and classify.
 		classified(`{"name":"lex","entries":[{"guards":[],"keys":[{"string":"mi"},{"string":"do"}],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":[{"string":"u'i"}],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
@@ -383,7 +382,8 @@ func TestDOMRules(t *testing.T) {
 		// Each at the bound: the deepest node below exactly 256 compound ones.
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"capture":"x","expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
 		tagged(unions(256)),
-		strings.Replace(alt(good), `"name":"text"`, `"name":"#"`, 1),
+		strings.Replace(alt(good), `"name":"text"`, `"name":"🆓"`, 1),
+		alt(`{"test":"=","value":{"string":"b"},"expr":{"ref":"🆓"}}`),
 		// The pipeline directives with their operands; an include's path
 		// is any string.
 		directive(`{"name":"stage","args":["a-1"],"at":[3,1]}`), directive(`{"name":"include","args":["../a b\\\"c.md"],"at":[3,1]}`),
@@ -395,7 +395,7 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"repeat":{"literal":{"string":"a"}},"chain":"left"}`), alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}},"chain":"right"}`),
 		alt(`{"seq":[{"capture":"a","expr":{"ref":"A"}},{"repeat":{"ref":"B"}}]}`),
 		alt(`{"optional":{"ref":"KU"},"elidable":true}`),
-		alt(`{"optional":{"ref":"KU"},"elidable":true}`), alt(`{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`),
+		alt(`{"optional":{"ref":"KU"},"elidable":true}`), alt(`{"optional":{"seq":[{"ref":"KU"},{"ref":"🆓"}]},"elidable":true}`),
 		alt(`{"optional":{"test":"=","value":{"string":"ku"},"expr":{"ref":"KU"}},"elidable":true}`),
 		alt(`{"optional":{"seq":[{"ref":"KU"},{"choice":[{"ref":"A"},{"ref":"B"}]}]},"elidable":true}`),
 		alt(`{"seq":[{"optional":{"capture":"x","expr":{"ref":"A"}}},{"ref":"B"}]}`), alt(`{"choice":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]}`),
@@ -437,7 +437,7 @@ func TestDOMRules(t *testing.T) {
 		// bound of the nesting.
 		alt(`{"seq":[{"capture":"x","expr":{"test":"=","value":{"string":"la'i"},"expr":{"ref":"LE"}}},{"test":"≠","value":{"string":"a"},"expr":{"literal":{"string":"/a/"}}}]}`),
 		alt(`{"seq":[{"test":"=","value":{"string":""},"expr":{"ref":"LE"}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"UI"}}],"expr":{"ref":"Cmavo"}}]}`),
-		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"tag":"UI"}},{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"C"}}],"expr":{"range":[{"string":"a"},{"string":"z"}]}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"X"}}],"expr":{"ref":"_L"}}]}`),
+		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"tag":"UI"}},{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"C"}}],"expr":{"range":[{"string":"a"},{"string":"z"}]}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"X"}}],"expr":{"ref":"_General_Category_Letter"}}]}`),
 		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"const":"A","at":[1,1]}}],"expr":{"ref":"LE"}},{"test":"=","value":{"const":"S","at":[1,2]},"expr":{"ref":"LE"}}]}`),
 		alt(`{"seq":[{"capture":"l","expr":{"test":"=","value":{"string":"la"},"expr":{"ref":"LE"}}},{"repeat":{"test":"=","value":{"string":"ui"},"expr":{"ref":"UI"}}}]}`),
 		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
@@ -494,7 +494,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)
@@ -612,7 +612,7 @@ func TestDeepConstant(t *testing.T) {
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
-	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 	d, err := LoadDialectSources(src, "p.md")
 	if err != nil {
 		t.Fatal(err)
@@ -653,7 +653,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 	outcome := func(g string, entry string) string {
 		src := oneStage(g)
 		if entry != "" {
-			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
 		}
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
@@ -720,7 +720,7 @@ func TestGuardFeatureName(t *testing.T) {
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s %s: %v", rules, classifiers, err)
@@ -764,7 +764,7 @@ func TestGuardFeatureName(t *testing.T) {
 }
 
 // An expression or a condition has exactly the members of one form, and a
-// reference is a name or # (docs/output.md, engine §9). A compiled.json
+// reference is an identifier or one eligible emoji (engine §9). A compiled.json
 // entry that breaks this is a miss, and the document is read instead. A
 // bootstrap that breaks it is an error of the grammar. The order of the
 // members varies, as the other libraries read JSON in order.
@@ -795,7 +795,7 @@ func TestMixedForms(t *testing.T) {
 			s[k] = v
 		}
 		if dom != "" {
-			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
+			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
 		}
 		d, err := LoadDialectSources(s, "p.md")
 		if err != nil {

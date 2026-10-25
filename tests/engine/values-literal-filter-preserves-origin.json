@@ -6,17 +6,17 @@
       "text": "x",
       "tags": [
         "X",
-        "_Lu"
+        "_General_Category_Uppercase_Letter"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "tree": {
         "tags": [
-          "_Lu"
+          "_General_Category_Uppercase_Letter"
         ]
       }
     }

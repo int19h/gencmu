@@ -1,0 +1,18 @@
+{
+  "description": "An exact empty list rejects a ranked seal.",
+  "grammar": "%rule text $x:ranked\n%conditions $x ≅ #ranked« ·«» »\n%rule ranked (A ≻ A) :: ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A variation selector cannot extend an emoji rule name.",
+  "document": "```jbogenbau\n%rule 🆓️ A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 8
+    }
+  }
+}

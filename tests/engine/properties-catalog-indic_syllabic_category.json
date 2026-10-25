@@ -1,0 +1,885 @@
+{
+  "description": "Every Indic_Syllabic_Category value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35\n%rule r0 $x:_Indic_Syllabic_Category_Avagraha<_Indic_Syllabic_Category_Avagraha>\n%conditions $x ≅ #_Indic_Syllabic_Category_Avagraha<_Indic_Syllabic_Category_Avagraha>, _Indic_Syllabic_Category_Avagraha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Avagraha\n%rule r1 $x:_Indic_Syllabic_Category_Bindu<_Indic_Syllabic_Category_Bindu>\n%conditions $x ≅ #_Indic_Syllabic_Category_Bindu<_Indic_Syllabic_Category_Bindu>, _Indic_Syllabic_Category_Bindu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Bindu\n%rule r2 $x:_Indic_Syllabic_Category_Brahmi_Joining_Number<_Indic_Syllabic_Category_Brahmi_Joining_Number>\n%conditions $x ≅ #_Indic_Syllabic_Category_Brahmi_Joining_Number<_Indic_Syllabic_Category_Brahmi_Joining_Number>, _Indic_Syllabic_Category_Brahmi_Joining_Number ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Brahmi_Joining_Number\n%rule r3 $x:_Indic_Syllabic_Category_Cantillation_Mark<_Indic_Syllabic_Category_Cantillation_Mark>\n%conditions $x ≅ #_Indic_Syllabic_Category_Cantillation_Mark<_Indic_Syllabic_Category_Cantillation_Mark>, _Indic_Syllabic_Category_Cantillation_Mark ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Cantillation_Mark\n%rule r4 $x:_Indic_Syllabic_Category_Consonant<_Indic_Syllabic_Category_Consonant>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant<_Indic_Syllabic_Category_Consonant>, _Indic_Syllabic_Category_Consonant ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant\n%rule r5 $x:_Indic_Syllabic_Category_Consonant_Dead<_Indic_Syllabic_Category_Consonant_Dead>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Dead<_Indic_Syllabic_Category_Consonant_Dead>, _Indic_Syllabic_Category_Consonant_Dead ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Dead\n%rule r6 $x:_Indic_Syllabic_Category_Consonant_Final<_Indic_Syllabic_Category_Consonant_Final>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Final<_Indic_Syllabic_Category_Consonant_Final>, _Indic_Syllabic_Category_Consonant_Final ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Final\n%rule r7 $x:_Indic_Syllabic_Category_Consonant_Head_Letter<_Indic_Syllabic_Category_Consonant_Head_Letter>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Head_Letter<_Indic_Syllabic_Category_Consonant_Head_Letter>, _Indic_Syllabic_Category_Consonant_Head_Letter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Head_Letter\n%rule r8 $x:_Indic_Syllabic_Category_Consonant_Initial_Postfixed<_Indic_Syllabic_Category_Consonant_Initial_Postfixed>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Initial_Postfixed<_Indic_Syllabic_Category_Consonant_Initial_Postfixed>, _Indic_Syllabic_Category_Consonant_Initial_Postfixed ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Initial_Postfixed\n%rule r9 $x:_Indic_Syllabic_Category_Consonant_Killer<_Indic_Syllabic_Category_Consonant_Killer>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Killer<_Indic_Syllabic_Category_Consonant_Killer>, _Indic_Syllabic_Category_Consonant_Killer ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Killer\n%rule r10 $x:_Indic_Syllabic_Category_Consonant_Medial<_Indic_Syllabic_Category_Consonant_Medial>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Medial<_Indic_Syllabic_Category_Consonant_Medial>, _Indic_Syllabic_Category_Consonant_Medial ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Medial\n%rule r11 $x:_Indic_Syllabic_Category_Consonant_Placeholder<_Indic_Syllabic_Category_Consonant_Placeholder>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Placeholder<_Indic_Syllabic_Category_Consonant_Placeholder>, _Indic_Syllabic_Category_Consonant_Placeholder ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Placeholder\n%rule r12 $x:_Indic_Syllabic_Category_Consonant_Preceding_Repha<_Indic_Syllabic_Category_Consonant_Preceding_Repha>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Preceding_Repha<_Indic_Syllabic_Category_Consonant_Preceding_Repha>, _Indic_Syllabic_Category_Consonant_Preceding_Repha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Preceding_Repha\n%rule r13 $x:_Indic_Syllabic_Category_Consonant_Prefixed<_Indic_Syllabic_Category_Consonant_Prefixed>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Prefixed<_Indic_Syllabic_Category_Consonant_Prefixed>, _Indic_Syllabic_Category_Consonant_Prefixed ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Prefixed\n%rule r14 $x:_Indic_Syllabic_Category_Consonant_Subjoined<_Indic_Syllabic_Category_Consonant_Subjoined>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Subjoined<_Indic_Syllabic_Category_Consonant_Subjoined>, _Indic_Syllabic_Category_Consonant_Subjoined ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Subjoined\n%rule r15 $x:_Indic_Syllabic_Category_Consonant_Succeeding_Repha<_Indic_Syllabic_Category_Consonant_Succeeding_Repha>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_Succeeding_Repha<_Indic_Syllabic_Category_Consonant_Succeeding_Repha>, _Indic_Syllabic_Category_Consonant_Succeeding_Repha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_Succeeding_Repha\n%rule r16 $x:_Indic_Syllabic_Category_Consonant_With_Stacker<_Indic_Syllabic_Category_Consonant_With_Stacker>\n%conditions $x ≅ #_Indic_Syllabic_Category_Consonant_With_Stacker<_Indic_Syllabic_Category_Consonant_With_Stacker>, _Indic_Syllabic_Category_Consonant_With_Stacker ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Consonant_With_Stacker\n%rule r17 $x:_Indic_Syllabic_Category_Gemination_Mark<_Indic_Syllabic_Category_Gemination_Mark>\n%conditions $x ≅ #_Indic_Syllabic_Category_Gemination_Mark<_Indic_Syllabic_Category_Gemination_Mark>, _Indic_Syllabic_Category_Gemination_Mark ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Gemination_Mark\n%rule r18 $x:_Indic_Syllabic_Category_Invisible_Stacker<_Indic_Syllabic_Category_Invisible_Stacker>\n%conditions $x ≅ #_Indic_Syllabic_Category_Invisible_Stacker<_Indic_Syllabic_Category_Invisible_Stacker>, _Indic_Syllabic_Category_Invisible_Stacker ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Invisible_Stacker\n%rule r19 $x:_Indic_Syllabic_Category_Joiner<_Indic_Syllabic_Category_Joiner>\n%conditions $x ≅ #_Indic_Syllabic_Category_Joiner<_Indic_Syllabic_Category_Joiner>, _Indic_Syllabic_Category_Joiner ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Joiner\n%rule r20 $x:_Indic_Syllabic_Category_Modifying_Letter<_Indic_Syllabic_Category_Modifying_Letter>\n%conditions $x ≅ #_Indic_Syllabic_Category_Modifying_Letter<_Indic_Syllabic_Category_Modifying_Letter>, _Indic_Syllabic_Category_Modifying_Letter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Modifying_Letter\n%rule r21 $x:_Indic_Syllabic_Category_Non_Joiner<_Indic_Syllabic_Category_Non_Joiner>\n%conditions $x ≅ #_Indic_Syllabic_Category_Non_Joiner<_Indic_Syllabic_Category_Non_Joiner>, _Indic_Syllabic_Category_Non_Joiner ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Non_Joiner\n%rule r22 $x:_Indic_Syllabic_Category_Nukta<_Indic_Syllabic_Category_Nukta>\n%conditions $x ≅ #_Indic_Syllabic_Category_Nukta<_Indic_Syllabic_Category_Nukta>, _Indic_Syllabic_Category_Nukta ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Nukta\n%rule r23 $x:_Indic_Syllabic_Category_Number<_Indic_Syllabic_Category_Number>\n%conditions $x ≅ #_Indic_Syllabic_Category_Number<_Indic_Syllabic_Category_Number>, _Indic_Syllabic_Category_Number ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Number\n%rule r24 $x:_Indic_Syllabic_Category_Number_Joiner<_Indic_Syllabic_Category_Number_Joiner>\n%conditions $x ≅ #_Indic_Syllabic_Category_Number_Joiner<_Indic_Syllabic_Category_Number_Joiner>, _Indic_Syllabic_Category_Number_Joiner ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Number_Joiner\n%rule r25 $x:_Indic_Syllabic_Category_Other<_Indic_Syllabic_Category_Other>\n%conditions $x ≅ #_Indic_Syllabic_Category_Other<_Indic_Syllabic_Category_Other>, _Indic_Syllabic_Category_Other ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Other\n%rule r26 $x:_Indic_Syllabic_Category_Pure_Killer<_Indic_Syllabic_Category_Pure_Killer>\n%conditions $x ≅ #_Indic_Syllabic_Category_Pure_Killer<_Indic_Syllabic_Category_Pure_Killer>, _Indic_Syllabic_Category_Pure_Killer ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Pure_Killer\n%rule r27 $x:_Indic_Syllabic_Category_Register_Shifter<_Indic_Syllabic_Category_Register_Shifter>\n%conditions $x ≅ #_Indic_Syllabic_Category_Register_Shifter<_Indic_Syllabic_Category_Register_Shifter>, _Indic_Syllabic_Category_Register_Shifter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Register_Shifter\n%rule r28 $x:_Indic_Syllabic_Category_Syllable_Modifier<_Indic_Syllabic_Category_Syllable_Modifier>\n%conditions $x ≅ #_Indic_Syllabic_Category_Syllable_Modifier<_Indic_Syllabic_Category_Syllable_Modifier>, _Indic_Syllabic_Category_Syllable_Modifier ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Syllable_Modifier\n%rule r29 $x:_Indic_Syllabic_Category_Tone_Letter<_Indic_Syllabic_Category_Tone_Letter>\n%conditions $x ≅ #_Indic_Syllabic_Category_Tone_Letter<_Indic_Syllabic_Category_Tone_Letter>, _Indic_Syllabic_Category_Tone_Letter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Tone_Letter\n%rule r30 $x:_Indic_Syllabic_Category_Tone_Mark<_Indic_Syllabic_Category_Tone_Mark>\n%conditions $x ≅ #_Indic_Syllabic_Category_Tone_Mark<_Indic_Syllabic_Category_Tone_Mark>, _Indic_Syllabic_Category_Tone_Mark ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Tone_Mark\n%rule r31 $x:_Indic_Syllabic_Category_Virama<_Indic_Syllabic_Category_Virama>\n%conditions $x ≅ #_Indic_Syllabic_Category_Virama<_Indic_Syllabic_Category_Virama>, _Indic_Syllabic_Category_Virama ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Virama\n%rule r32 $x:_Indic_Syllabic_Category_Visarga<_Indic_Syllabic_Category_Visarga>\n%conditions $x ≅ #_Indic_Syllabic_Category_Visarga<_Indic_Syllabic_Category_Visarga>, _Indic_Syllabic_Category_Visarga ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Visarga\n%rule r33 $x:_Indic_Syllabic_Category_Vowel<_Indic_Syllabic_Category_Vowel>\n%conditions $x ≅ #_Indic_Syllabic_Category_Vowel<_Indic_Syllabic_Category_Vowel>, _Indic_Syllabic_Category_Vowel ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Vowel\n%rule r34 $x:_Indic_Syllabic_Category_Vowel_Dependent<_Indic_Syllabic_Category_Vowel_Dependent>\n%conditions $x ≅ #_Indic_Syllabic_Category_Vowel_Dependent<_Indic_Syllabic_Category_Vowel_Dependent>, _Indic_Syllabic_Category_Vowel_Dependent ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Vowel_Dependent\n%rule r35 $x:_Indic_Syllabic_Category_Vowel_Independent<_Indic_Syllabic_Category_Vowel_Independent>\n%conditions $x ≅ #_Indic_Syllabic_Category_Vowel_Independent<_Indic_Syllabic_Category_Vowel_Independent>, _Indic_Syllabic_Category_Vowel_Independent ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Syllabic_Category_Vowel_Independent",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Avagraha",
+        "_Indic_Syllabic_Category_Avagraha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Bindu",
+        "_Indic_Syllabic_Category_Bindu"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Brahmi_Joining_Number",
+        "_Indic_Syllabic_Category_Brahmi_Joining_Number"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Cantillation_Mark",
+        "_Indic_Syllabic_Category_Cantillation_Mark"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant",
+        "_Indic_Syllabic_Category_Consonant"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Dead",
+        "_Indic_Syllabic_Category_Consonant_Dead"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Final",
+        "_Indic_Syllabic_Category_Consonant_Final"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Head_Letter",
+        "_Indic_Syllabic_Category_Consonant_Head_Letter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Initial_Postfixed",
+        "_Indic_Syllabic_Category_Consonant_Initial_Postfixed"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Killer",
+        "_Indic_Syllabic_Category_Consonant_Killer"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Medial",
+        "_Indic_Syllabic_Category_Consonant_Medial"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Placeholder",
+        "_Indic_Syllabic_Category_Consonant_Placeholder"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Preceding_Repha",
+        "_Indic_Syllabic_Category_Consonant_Preceding_Repha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Prefixed",
+        "_Indic_Syllabic_Category_Consonant_Prefixed"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Subjoined",
+        "_Indic_Syllabic_Category_Consonant_Subjoined"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_Succeeding_Repha",
+        "_Indic_Syllabic_Category_Consonant_Succeeding_Repha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Consonant_With_Stacker",
+        "_Indic_Syllabic_Category_Consonant_With_Stacker"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Gemination_Mark",
+        "_Indic_Syllabic_Category_Gemination_Mark"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Invisible_Stacker",
+        "_Indic_Syllabic_Category_Invisible_Stacker"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Joiner",
+        "_Indic_Syllabic_Category_Joiner"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Modifying_Letter",
+        "_Indic_Syllabic_Category_Modifying_Letter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Non_Joiner",
+        "_Indic_Syllabic_Category_Non_Joiner"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Nukta",
+        "_Indic_Syllabic_Category_Nukta"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Number",
+        "_Indic_Syllabic_Category_Number"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Number_Joiner",
+        "_Indic_Syllabic_Category_Number_Joiner"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Other",
+        "_Indic_Syllabic_Category_Other"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Pure_Killer",
+        "_Indic_Syllabic_Category_Pure_Killer"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Register_Shifter",
+        "_Indic_Syllabic_Category_Register_Shifter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Syllable_Modifier",
+        "_Indic_Syllabic_Category_Syllable_Modifier"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Tone_Letter",
+        "_Indic_Syllabic_Category_Tone_Letter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Tone_Mark",
+        "_Indic_Syllabic_Category_Tone_Mark"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Virama",
+        "_Indic_Syllabic_Category_Virama"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Visarga",
+        "_Indic_Syllabic_Category_Visarga"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Vowel",
+        "_Indic_Syllabic_Category_Vowel"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Vowel_Dependent",
+        "_Indic_Syllabic_Category_Vowel_Dependent"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InSC_Vowel_Independent",
+        "_Indic_Syllabic_Category_Vowel_Independent"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Avagraha"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Bindu"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Brahmi_Joining_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Cantillation_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Dead"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Final"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Head_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Initial_Postfixed"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Killer"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Medial"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Placeholder"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Preceding_Repha"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Prefixed"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Subjoined"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_Succeeding_Repha"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Consonant_With_Stacker"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Gemination_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Invisible_Stacker"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Joiner"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Modifying_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Non_Joiner"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Nukta"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Number_Joiner"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Other"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Pure_Killer"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Register_Shifter"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Syllable_Modifier"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Tone_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Tone_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Virama"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Visarga"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Vowel"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Vowel_Dependent"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Syllabic_Category_Vowel_Independent"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Avagraha"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Avagraha"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Bindu"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Bindu"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Brahmi_Joining_Number"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Brahmi_Joining_Number"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Cantillation_Mark"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Cantillation_Mark"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Dead"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Dead"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Final"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Final"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Head_Letter"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Head_Letter"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Initial_Postfixed"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Initial_Postfixed"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Killer"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Killer"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Medial"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Medial"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Placeholder"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Placeholder"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Preceding_Repha"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Preceding_Repha"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Prefixed"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Prefixed"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Subjoined"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Subjoined"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_Succeeding_Repha"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_Succeeding_Repha"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Consonant_With_Stacker"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Consonant_With_Stacker"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Gemination_Mark"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Gemination_Mark"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Invisible_Stacker"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Invisible_Stacker"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Joiner"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Joiner"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Modifying_Letter"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Modifying_Letter"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Non_Joiner"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Non_Joiner"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Nukta"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Nukta"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Number"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Number"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Number_Joiner"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Number_Joiner"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Other"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Other"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Pure_Killer"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Pure_Killer"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Register_Shifter"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Register_Shifter"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Syllable_Modifier"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Syllable_Modifier"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Tone_Letter"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Tone_Letter"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Tone_Mark"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Tone_Mark"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Virama"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Virama"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Visarga"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Visarga"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Vowel"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Vowel"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Vowel_Dependent"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Vowel_Dependent"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_Indic_Syllabic_Category_Vowel_Independent"
+              }
+            ],
+            "tags": [
+              "_Indic_Syllabic_Category_Vowel_Independent"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

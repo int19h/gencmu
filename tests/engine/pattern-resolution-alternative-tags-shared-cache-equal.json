@@ -1,6 +1,6 @@
 {
-  "description": "A second alternative resolves its own pattern despite shared definition clauses with no patterns. Engine §§2 and 10 assign X when A ≅ @(A).",
-  "grammar": "%rule text\n  | B\n  | A :: ($ ≅ @(A) ⟹ X)",
+  "description": "A second alternative resolves its own pattern despite shared definition clauses with no patterns. Engine §§2 and 10 assign X when A ≅ #A.",
+  "grammar": "%rule text\n  | B\n  | A :: ($ ≅ #A ⟹ X)",
   "tokens": [
     {
       "text": "a",

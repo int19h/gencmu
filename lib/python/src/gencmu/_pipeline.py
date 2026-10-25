@@ -10,6 +10,7 @@ from typing import Any, Callable
 from ._errors import GencmuError
 from ._dom import DeferredDom
 from ._markdown import resolve
+from ._names import selected_names
 
 Dom = dict[str, Any]
 
@@ -64,7 +65,7 @@ def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
     return items
 
 
-def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
+def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_of=None) -> Pipeline:
     """Splice the pipeline document at ``path``. ``dom_of`` gives a
     document's DOM, or ``None`` when the document does not exist."""
     stages: list[SplicedStage] = []
@@ -78,12 +79,15 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     # The documents being spliced, outermost first, each with its items and
     # the index of the next. A chain of includes is as long as its input
     # makes it, so the walk keeps its own stack, not Python's.
-    frames: list[tuple[str, Dom, list[tuple[str, Dom]], list[int]]] = []
+    frames: list[tuple[str, Dom, list[tuple[str, Dom]], list[int], list[str]]] = []
     # The documents of the frames, for the check of an include of itself.
     on_chain: set[str] = set()
 
-    def enter(document: str, dom: Dom) -> None:
-        frames.append((document, dom, items_in_order(dom), [0]))
+    def get_dom(document, inherited):
+        return scoped_dom_of(document, inherited) if scoped_dom_of else dom_of(document)
+
+    def enter(document: str, dom: Dom, inherited=()) -> None:
+        frames.append((document, dom, items_in_order(dom), [0], selected_names(document, dom, inherited)))
         on_chain.add(document)
 
     def chain_to(target: str) -> str:
@@ -94,7 +98,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     def splice() -> None:
         nonlocal run, selected
         while frames:
-            document, dom, items, next_at = frames[-1]
+            document, dom, items, next_at, names = frames[-1]
             if next_at[0] == len(items):
                 frames.pop()
                 on_chain.discard(document)
@@ -108,15 +112,17 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                 return GencmuError(message, document=document, line=line, column=column)
 
             name = item["name"] if kind == "directive" else None
+            if name == "names":
+                continue
             if name == "include":
                 target = resolve(document, item["args"][0])
                 if target in on_chain:
                     raise fail(f"{target} includes itself ({chain_to(target)})")
-                included = dom_of(target)
+                included = get_dom(target, names)
                 if included is None:
                     raise fail(f"{target} was not found ({chain_to(target)})")
                 run = None
-                enter(target, included)
+                enter(target, included, names)
             elif name == "features" and selected is None:
                 if "conditions" in item:
                     raise fail("global features cannot have conditions")
@@ -168,7 +174,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                         (rule, problem) for rule, problem in dom.deferred_emissions if rule is item
                     )
 
-    top = dom_of(path)
+    top = get_dom(path, ())
     if top is None:
         raise GencmuError(f"{path} was not found", document=path)
     enter(path, top)

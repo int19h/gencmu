@@ -1,0 +1,45 @@
+{
+  "description": "Every Lowercase value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Lowercase<_Lowercase>\n%conditions $x ≅ #_Lowercase<_Lowercase>, _Lowercase ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Lowercase",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Lower",
+        "_Lowercase"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Lowercase"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Lowercase"
+              }
+            ],
+            "tags": [
+              "_Lowercase"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

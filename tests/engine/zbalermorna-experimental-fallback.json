@@ -1,0 +1,41 @@
+{
+  "description": "All seven unclassified zbalermorna pairs keep the shared experimental reading and written channels.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "󲢭󲢮󲢯󲣖󲣗󲣘󲣙",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "󲢭󲢮󲢯󲣖󲣗󲣘󲣙",
+              "value": "󲢭󲢮󲢯󲣖󲣗󲣘󲣙",
+              "image": "󲢭󲢮󲢯󲣖󲣗󲣘󲣙",
+              "tags": [
+                "FOREIGN"
+              ],
+              "span": [
+                0,
+                14
+              ],
+              "source": [
+                0,
+                14
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

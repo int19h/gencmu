@@ -1,0 +1,23 @@
+{
+  "description": "One scalar cannot receive two formal names.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "unicode-names.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\nname E000 OTHER NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "unicode-names.txt",
+      "line": 3
+    }
+  }
+}

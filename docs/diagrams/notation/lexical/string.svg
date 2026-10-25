@@ -1,18 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="383" height="88" viewBox="0 0 383 88" role="img" aria-label="Railroad diagram of the rule string">
+<svg xmlns="http://www.w3.org/2000/svg" width="566" height="88" viewBox="0 0 566 88" role="img" aria-label="Railroad diagram of the rule string">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">string</text>
 <path d="M10 48v16m4 -16v16M14 56h6"/>
-<g class="terminal"><rect x="20" y="44" width="67" height="24" rx="12"/><text x="53.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_0022</text></g>
-<path d="M87 56h10"/>
-<path d="M97 56h20"/>
-<path d="M117 56h20"/>
-<g class="rule"><rect x="137" y="44" width="109" height="24" rx="0"/><text x="191.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">string-part</text></g>
-<path d="M246 56H266"/>
-<path d="M246 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H137a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
-<path d="M266 56H286"/>
-<path d="M97 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H266a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M286 56h10"/>
-<g class="terminal"><rect x="296" y="44" width="67" height="24" rx="12"/><text x="329.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">$_0022</text></g>
-<path d="M363 56h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="44" width="100" height="24" rx="12"/><text x="70" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+0022›&quot;</text></g>
+<path d="M120 56h10"/>
+<path d="M130 56h20"/>
+<path d="M150 56h20"/>
+<g class="rule"><rect x="170" y="44" width="226" height="24" rx="0"/><text x="283" y="61" textLength="210" lengthAdjust="spacingAndGlyphs">ordinary-string-character</text></g>
+<path d="M396 56H416"/>
+<path d="M396 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H170a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M416 56H436"/>
+<path d="M130 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H416a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M436 56h10"/>
+<g class="terminal"><rect x="446" y="44" width="100" height="24" rx="12"/><text x="496" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">&quot;‹U+0022›&quot;</text></g>
+<path d="M546 56h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -82,7 +82,7 @@ pub(crate) struct TreeContext<'a> {
     pub g: &'a Lowered,
     /// The stage's input.
     pub tokens: &'a [Tok],
-    pub tag_map: &'a dyn Fn(SetId) -> BTreeSet<String>,
+    pub tag_map: &'a dyn Fn(SetId) -> crate::result::Tags,
     /// For a reading of the check of `elision-only`, how the reconstructed
     /// input maps to the stage's input (§7.10).
     pub reading: Option<&'a ReadingMap<'a>>,
@@ -210,7 +210,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         token: None,
                         span: at..at,
                         source: record.source.clone(),
-                        tags: BTreeSet::new(),
+                        tags: crate::result::Tags::new(),
                         value: record.value.clone(),
                         children: Vec::new(),
                     },
@@ -221,7 +221,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         token: Some(at),
                         span: at..at + 1,
                         source: source_of(&originals, at, at + 1),
-                        tags: BTreeSet::new(),
+                        tags: crate::result::Tags::new(),
                         value: None,
                         children: Vec::new(),
                     },
@@ -255,7 +255,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             token: None,
                             span: start..start,
                             source: source_of(&originals, start, start),
-                            tags: BTreeSet::new(),
+                            tags: crate::result::Tags::new(),
                             value: rule.elided_test.and_then(|id| {
                                 let test = &context.g.tests[id as usize];
                                 (test.op == crate::lower::TestOp::Is).then(|| test.sound.clone()).flatten()

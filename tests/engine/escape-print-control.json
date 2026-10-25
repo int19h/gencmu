@@ -1,0 +1,18 @@
+{
+  "description": "A control uses its shortest core abbreviation. The canonical call name reloads with the same instance key (engine §9.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+000A›\")\n%extend-rule one(\"‹LF›\") \"z\"",
+  "input": "z",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "one(\"‹LF›\")"
+          }
+        ]
+      }
+    }
+  }
+}

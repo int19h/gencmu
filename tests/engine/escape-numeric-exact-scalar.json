@@ -1,0 +1,20 @@
+{
+  "description": "A decoded scalar receives no decomposition.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹U+00E9›\"\n```"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "é",
+      "value": "é",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "description": "Every XID_Continue value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_XID_Continue<_XID_Continue>\n%conditions $x ≅ #_XID_Continue<_XID_Continue>, _XID_Continue ⊆ $x.tags\n%emits $x :: $x.tags ∩ _XID_Continue",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_XIDC",
+        "_XID_Continue"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_XID_Continue"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_XID_Continue"
+              }
+            ],
+            "tags": [
+              "_XID_Continue"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

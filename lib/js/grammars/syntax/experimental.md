@@ -37,7 +37,7 @@ A stage is one step of a pipeline, with its own grammar. The pipeline is the seq
 
 The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental dialect turns both on. A caller, the program that requests parsing, can turn either off.
 
-A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] #`. So free modifiers can follow an elided terminator.
+A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] 🆓`. So free modifiers can follow an elided terminator.
 
 The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. Numbers continue with number parts or letter words. Letter strings continue with letter words or PA. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
@@ -107,7 +107,9 @@ So a reset belongs to one sentence. In `mi klama .i je do cadzu iau ti`, it clos
 
 While the main bridi is open, IhAU permits more terms, a written VAU and free modifiers. A plain `.i`, a statement connection or a sentence link can then follow, as after written terminators.
 
-The terms after IhAU stand after the whole bridi-tail of the sentence. Connected bridi-tails share them, as they share terms after the last connected tail. A bridi-tail connection cannot follow the reset. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. Thus `mi klama lo nu do cadzu iau do gi'e tavla` rejects. The written form `mi klama lo nu do cadzu vau kei ku do gi'e tavla` parses.
+Terms after IhAU join the outermost tail that remains open. In a nonfinal connected tail, they join that tail. In the final tail, they join the shared tail terms.
+
+A bridi-tail connection can follow a reset. Thus `mi klama lo nu do cadzu iau do gi'e tavla` parses. The reset closes the abstraction and description before the connected tail.
 
 IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama i'au ko danfu`. There it closes the constructions in those terms. That head reset needs a term before IhAU. A final CU directly before IhAU cannot combine with an initial CU directly after it. Other CU positions in the heads remain available.
 
@@ -128,10 +130,10 @@ A written VAU closes a simple main bridi. After connected tails, only a written 
 A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
 
 ```jbogenbau
-%const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
+%const $NEEDS-TEXT #(ek ⋰) ∪ #(VUhU ⋰)
 
 %redefine-rule text
-  | ¬cbm? [{NAI}] {CMEVLA} # (text-1 ≻ $c:connective $t:text-1)
+  | ¬cbm? [{NAI}] {CMEVLA} 🆓 (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
   $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token),
@@ -153,19 +155,19 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   paragraph [paragraph-break [paragraphs]]
 
 %rule paragraph-break
-  {{NIhO} / {free}} # [I # {{NIhO} / {free}} #] [leading-separators]
+  {{NIhO} / {free}} 🆓 [I 🆓 {{NIhO} / {free}} 🆓] [leading-separators]
 
 %rule leading-separators
-  {(I joik-jek-ek | lone-i) [[tag] BO] #}
+  {(I joik-jek-ek | lone-i) [[tag] BO] 🆓}
 
 %redefine-rule paragraph
-  paragraph-item [{lone-i # [paragraph-item]}]
+  paragraph-item [{lone-i 🆓 [paragraph-item]}]
 
 %rule paragraph-item
   statement | [reset-opening] fragment | reset-opening
 
 %rule reset-opening
-  $f:reset-free-prefix IhAU #
+  $f:reset-free-prefix IhAU 🆓
 %conditions
   ¬$f.preceded-by(free)
 
@@ -173,7 +175,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   {free}
 
 %rule reset-head
-  [CU #] {terms / CU #} [CU #]
+  [CU 🆓] {terms / CU 🆓} [CU 🆓]
 
 %rule lone-i
   (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
@@ -207,7 +209,7 @@ The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A sta
 
 A TUhE group is not a sentence, so `tu'e mi klama tu'u je .i do klama` fails, as in camxes-exp. Plain connections after `.i` stay in `statement-1` and group from the left. Connections with `bo` use `statement-2` and group from the right.
 
-A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
+A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA 🆓` alternative from `fragment`, because it duplicates that reading.
 
 ```jbogenbau
 %redefine-rule statement
@@ -218,16 +220,16 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   | statement-1 I connective [statement-2]
 
 %redefine-rule statement-2
-  statement-3 [I [joik-jek-ek] [stag] BO # [statement-2]]
+  statement-3 [I [joik-jek-ek] [stag] BO 🆓 [statement-2]]
 
 %redefine-rule statement-3
-  [reset-opening] (top-sentence | [tag] TUhE # text-1 [+TUhU] #)
+  [reset-opening] (top-sentence | [tag] TUhE 🆓 text-1 [+TUhU] 🆓)
 
 %redefine-rule fragment
-  ek # | gihek # | mekso-fragment | terms [+VAU] # | prenex | relative-clauses | links | linkargs
+  ek 🆓 | gihek 🆓 | mekso-fragment | terms [+VAU] 🆓 | prenex | relative-clauses | links | linkargs
 
 %redefine-rule prenex
-  [terms] ZOhU #
+  [terms] ZOhU 🆓
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>statement</code> to <code>prenex</code></summary>
@@ -255,32 +257,30 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
-The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each connected-tail rule takes this tag from the shared tail terms after its last connection. A simple tail takes it from its own tail terms. KE and NA wrappers retain the tag.
+A reader is a rule that supplies one part of the family. The templates take four readers:
 
-When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE permits whole-bridi negation of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
+- Final tail
+- Final forethought bridi
+- Nonfinal tail
+- Nonfinal forethought bridi
 
-An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
+The ordinary named instances use `tail-terms` and `gek-sentence`. The main named instances use `main-tail` and `main-gek`. A connected final branch leaves its resets to the shared tail terms.
 
-The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
+A KE group uses the ordinary reader inside its brackets. A reset closes that group before it reaches the shared tail terms.
 
-`reset-bridi` reads the main bridi and each later reset from left to right. A closed bridi takes only free modifiers after IhAU. So the parser rejects the first term or VAU after that reset at that word.
+When NA starts a forethought opener's joik, jek or ek before `gi`, NA belongs to that opener. This form has NA, optional SE, JOI, JA or A, then `gi`. Thus `na je gi broda gi brode` keeps NA inside its connective. Both recursive NA forms exclude this opener, in sentences and selbri. KE can negate the whole bridi of this opener, as in `na ke je gi broda gi brode ke'e`. Before `ge`, NA instead negates the whole bridi, as in `na ge broda gi brode`.
+
+The `main-tail` reader separates open tails from tails with written VAU. The `main-gek` reader also separates open and closed forethought wrappers.
+
+The open forethought reader requires omitted KEhE in each wrapper. The closed reader records a written final VAU or a written KEhE around the bridi.
+
+The final reader supplies the shared tail after a KE or BO group. Nonfinal branches use the nonfinal reader, so connections can follow resets.
+
+An open tail can take terms after a reset. A closed tail can take only resets and free modifiers. An empty reset after a closed tail can precede a connection.
 
 ```jbogenbau
-%rule top-sentence
-  [$h:reset-head IhAU #] $b:reset-bridi [top-sentence-link]
-%conditions
-  $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰)
-
-%rule reset-bridi
-  | headed-bridi-tail
-  | $o:reset-bridi IhAU # $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | $c:reset-bridi IhAU # :: Closed-Bridi
-%conditions
-  Closed-Bridi ⊈ $o.tags,
-  Closed-Bridi ⊆ $c.tags
-
 %rule top-sentence-link
-  connective [[stag] BO] I # top-subsentence
+  connective [[stag] BO] I 🆓 top-subsentence
 
 %rule top-subsentence
   [reset-opening] (top-sentence | prenex top-subsentence)
@@ -290,74 +290,154 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
   headed-bridi-tail [sentence-link]
 
 %rule sentence-link
-  connective [[stag] BO] I # subsentence
+  connective [[stag] BO] I 🆓 subsentence
 
 %rule bridi-tail-head
-  | {terms / CU #} [CU #]
-  | CU # [{terms / CU #} [CU #]]
+  | {terms / CU 🆓} [CU 🆓]
+  | CU 🆓 [{terms / CU 🆓} [CU 🆓]]
 
-%rule headed-bridi-tail :: $b.tags ∩ Closed-Bridi
-  | [bridi-tail-head] $b:bridi-tail
+%const $KE-FORETHOUGHT #« [tag] KE [🆓] gek-sentence KEhE [🆓] »
+%const $CONNECTED-KE-SELBRI #« [tag] $KE-UNIT »
+%const $CONNECTED-KE-TAIL #« $CONNECTED-KE-SELBRI tail-terms » ∪ $KE-FORETHOUGHT
+%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
-%rule headed-bridi-tail-2
-  [bridi-tail-head] bridi-tail-2
+%rule headed-bridi-tail-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-with(@T, @G, @P, @H)
 
-%redefine-rule bridi-tail
-  | $b:bridi-tail-1-final :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-1-final (bridi-tail-connective [stag] | gi-stag-connective) KE # headed-bridi-tail [+KEhE] # $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule headed-bridi-tail-2-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
 
-%redefine-rule bridi-tail-1
-  | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule bridi-tail-with(@T, @G, @P, @H)
+  | bridi-tail-1-final-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H)
+    (bridi-tail-connective [stag] | gi-stag-connective) KE 🆓
+    headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+    [+KEhE] 🆓 @T
 
-%const $KE-FORETHOUGHT @([tag] KE [#] gek-sentence KEhE [#])
-%const $CONNECTED-KE-SELBRI @([tag] $KE-UNIT)
-%const $CONNECTED-KE-TAIL @($CONNECTED-KE-SELBRI tail-terms) ∪ $KE-FORETHOUGHT
-%const $CONNECTED-KE-WITH-VAU @($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))
+%rule bridi-tail-1-with(@T, @G, @P, @H)
+  | bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
+    connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) @T
 
-%redefine-rule bridi-tail-1-final
-  | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule bridi-tail-1-final-with(@T, @G, @P, @H)
+  | bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-1-with(@P, @H, @P, @H) bridi-tail-connective
+    $b:connected-bridi-tail-with(tail-terms, gek-sentence, @P, @H) $t:@T
 %conditions
   $b ≇ $CONNECTED-KE-TAIL ∨ ($b ≅ $CONNECTED-KE-WITH-VAU ∧ $t.source-text ≠ "")
 
-%rule connected-bridi-tail
-  | bridi-tail-head bridi-tail-2
-  | bridi-tail-2
+%rule connected-bridi-tail-with(@T, @G, @P, @H)
+  [bridi-tail-head] bridi-tail-2-with(@T, @G, @P, @H)
 
-%redefine-rule bridi-tail-2
-  | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
-  | bridi-tail-3 (bridi-tail-connective [stag] | gi-stag-connective) BO # headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
+%rule bridi-tail-2-with(@T, @G, @P, @H)
+  | bridi-tail-3-with(@T, @G)
+  | bridi-tail-3-with(@P, @H) (bridi-tail-connective [stag] | gi-stag-connective) BO 🆓
+    headed-bridi-tail-2-with(tail-terms, gek-sentence, @P, @H) @T
 
-%redefine-rule bridi-tail-3
-  | selbri $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | gek-sentence
+%rule bridi-tail-3-with(@T, @G)
+  selbri @T | @G
+
+%rule headed-bridi-tail = headed-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule headed-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail = bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1 = bridi-tail-1-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-1-final = bridi-tail-1-final-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%rule connected-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, tail-terms, gek-sentence)
+%redefine-rule bridi-tail-3 = bridi-tail-3-with(tail-terms, gek-sentence)
+
+%rule main-headed-bridi-tail = headed-bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail = bridi-tail-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-1 = bridi-tail-1-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-1-final = bridi-tail-1-final-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-2 = bridi-tail-2-with(main-tail, main-gek, main-tail, main-gek)
+%rule main-bridi-tail-3 = bridi-tail-3-with(main-tail, main-gek)
+%rule connected-main-bridi-tail = connected-bridi-tail-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule connected-main-bridi-tail-2 = bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+%rule headed-connected-main-bridi-tail-2 = headed-bridi-tail-2-with(tail-terms, gek-sentence, main-tail, main-gek)
+
+%rule top-sentence
+  [$h:reset-head IhAU 🆓]
+  $b:main-headed-bridi-tail [top-sentence-link]
+%conditions
+  $h ≇ #« ⋯ CU [🆓] » ∨ $b ≇ #(CU ⋰)
+
+%redefine-rule tail-terms
+  [terms] [+VAU] 🆓
 
 %redefine-rule gek-sentence
-  | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ Closed-Bridi
-  | [tag] KE # $g:gek-sentence [+KEhE] # :: ($g.tags ∩ Closed-Bridi) ∪ ($ ≅ @(⋯ KEhE≠"" [#]) ⟹ Closed-Bridi)
-  | $n:NA # $g:gek-sentence :: $g.tags ∩ Closed-Bridi
+  | gek subsentence gik subsentence tail-terms
+  | [tag] KE 🆓 gek-sentence [+KEhE] 🆓
+  | $n:NA 🆓 gek-sentence
 %conditions
   ¬$n.onward.begins(gek)
+
+%rule main-tail
+  | tail-terms
+  | $o:tail-terms IhAU 🆓 main-tail
+  | $c:tail-terms {IhAU 🆓}
+%conditions
+  $o ≇ $WRITTEN-VAU,
+  $c ≅ $WRITTEN-VAU
+
+%rule main-gek
+  | gek-sentence
+  | open-gek IhAU 🆓 main-tail
+  | closed-gek {IhAU 🆓}
+
+%rule open-gek
+  | gek subsentence gik subsentence open-tail
+  | [tag] KE 🆓 open-gek omitted-kehe 🆓
+  | $n:NA 🆓 open-gek
+%conditions
+  ¬$n.onward.begins(gek)
+
+%rule closed-gek
+  | gek subsentence gik subsentence written-tail
+  | [tag] KE 🆓 gek-sentence KEhE 🆓
+  | [tag] KE 🆓 closed-gek omitted-kehe 🆓
+  | $n:NA 🆓 closed-gek
+%conditions
+  ¬$n.onward.begins(gek)
+
+%rule open-tail
+  [terms] omitted-vau 🆓
+
+%rule omitted-vau
+  [+VAU]
+%conditions
+  $.value = ""
+
+%rule omitted-kehe
+  [+KEhE]
+%conditions
+  $.value = ""
+
+%rule written-tail
+  [terms] VAU 🆓
 
 %rule(fewest) gi-stag-connective
   GI stag
 
 %rule(fewest) bridi-tail-connective
-  gihek # | connective
+  gihek 🆓 | connective
 
-%redefine-rule tail-terms :: ($ ≅ $WRITTEN-VAU ⟹ Closed-Bridi)
-  | [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
-<p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/reset-bridi.svg" alt="Railroad diagram of the rule reset-bridi"></p>
+<details><summary>Railroad diagrams of the 43 rules from <code>top-sentence-link</code> to <code>bridi-tail-connective</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2-with.svg" alt="Railroad diagram of the rule headed-bridi-tail-2-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-with.svg" alt="Railroad diagram of the rule bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-with.svg" alt="Railroad diagram of the rule bridi-tail-1-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-final-with.svg" alt="Railroad diagram of the rule bridi-tail-1-final-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail-with.svg" alt="Railroad diagram of the rule connected-bridi-tail-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2-with.svg" alt="Railroad diagram of the rule bridi-tail-2-with"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-with.svg" alt="Railroad diagram of the rule bridi-tail-3-with"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail.svg" alt="Railroad diagram of the rule headed-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
@@ -366,10 +446,28 @@ The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing 
 <p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-headed-bridi-tail.svg" alt="Railroad diagram of the rule main-headed-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail.svg" alt="Railroad diagram of the rule main-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-1.svg" alt="Railroad diagram of the rule main-bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-1-final.svg" alt="Railroad diagram of the rule main-bridi-tail-1-final"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-2.svg" alt="Railroad diagram of the rule main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-bridi-tail-3.svg" alt="Railroad diagram of the rule main-bridi-tail-3"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-main-bridi-tail.svg" alt="Railroad diagram of the rule connected-main-bridi-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule connected-main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/headed-connected-main-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-connected-main-bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-tail.svg" alt="Railroad diagram of the rule main-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/main-gek.svg" alt="Railroad diagram of the rule main-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/open-gek.svg" alt="Railroad diagram of the rule open-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/closed-gek.svg" alt="Railroad diagram of the rule closed-gek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/open-tail.svg" alt="Railroad diagram of the rule open-tail"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/omitted-vau.svg" alt="Railroad diagram of the rule omitted-vau"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/omitted-kehe.svg" alt="Railroad diagram of the rule omitted-kehe"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/written-tail.svg" alt="Railroad diagram of the rule written-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gi-stag-connective.svg" alt="Railroad diagram of the rule gi-stag-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 </details>
 
 ## Terms
@@ -442,7 +540,7 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 ```jbogenbau
 %redefine-rule terms-1
-  {... terms-2 / PEhE # connective}
+  {... terms-2 / PEhE 🆓 connective}
 
 %redefine-rule term
   | term-bo-group
@@ -458,7 +556,7 @@ These terms carry no span or connection flag. Their contained predicates use the
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-link
-  connective [stag] BO # $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective [stag] BO 🆓 $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
 %rule term-link
   connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
@@ -467,8 +565,8 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 %const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZIhE ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
-%const $BARE-TAG @(tag KU="" [#])
-%const $BARE-NA @(NA [#] KU="" [#])
+%const $BARE-TAG #« tag KU="" [🆓] »
+%const $BARE-NA #« NA [🆓] KU="" [🆓] »
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -483,7 +581,7 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 %rule bare-na
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
-  $n:NA # [+KU] #
+  $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
   $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
@@ -492,38 +590,38 @@ These terms carry no span or connection flag. Their contained predicates use the
   gek | joik-jek-ek | gihek
 
 %rule soi-term
-  SOI # subsentence [+SEhU] #
+  SOI 🆓 subsentence [+SEhU] 🆓
 
 %rule noiha-term
-  NOIhA # selbri [+FEhU] #
+  NOIhA 🆓 selbri [+FEhU] 🆓
 
 %rule sohoi-term
-  SOhOI # subsentence [+SEhU] #
+  SOhOI 🆓 subsentence [+SEhU] 🆓
 
 %rule cahei-term
-  CAhEI # subsentence [+KUhEI] #
+  CAhEI 🆓 subsentence [+KUhEI] 🆓
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
   | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
-  | tag [+KU] #
+  | tag [+KU] 🆓
 %conditions
   $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek)
 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
-  | gek termset-branch gik terms [+NUhU] #
+  | gek termset-branch gik terms [+NUhU] 🆓
   | termset-with-nuhi
 
 %rule gek-termset-body
   (* NUhI_clause free* gek terms NUhU_elidible free* gik terms: tried before NUhI_clause free* terms *)
-  gek terms [+NUhU] # gik terms
+  gek terms [+NUhU] 🆓 gik terms
 
 %rule termset-branch
-  terms [+NUhU] #
+  terms [+NUhU] 🆓
 
 %rule termset-with-nuhi
-  NUhI # (gek-termset-body ≻ terms) [+NUhU] #
+  NUhI 🆓 (gek-termset-body ≻ terms) [+NUhU] 🆓
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
@@ -567,42 +665,42 @@ A description can take a forethought sentence in place of a selbri, and so can a
 ```jbogenbau
 %redefine-rule sumti
   | sumti-1
-  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
-  | sumti-1 VUhO # [relative-clauses] connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
+  | sumti-1 VUhO 🆓 [relative-clauses] :: Link-Extensible-End
+  | sumti-1 VUhO 🆓 [relative-clauses] connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | sumti-2 connective [stag] KE 🆓 $i:sumti [+KEhE] 🆓 :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-2 :: $EXTENSIBLE-END
   | {... sumti-3 / connective}
 
 %redefine-rule sumti-3
-  {sumti-4 ... / connective [stag] BO #}
+  {sumti-4 ... / connective [stag] BO 🆓}
 
 %redefine-rule sumti-5
   | [quantifier] sumti-6 [relative-clauses]
-  | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses]
+  | quantifier (selbri | gek-sentence) [+KU] 🆓 [relative-clauses]
 
 %redefine-rule sumti-6
-  | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
-  | (LAhE # | NAhE BO #) $t:term [+LUhU] #
-  | NAhE # $u:term [+LUhU] #
-  | KOhA #
+  | (LAhE 🆓 | NAhE BO 🆓 | NAhE 🆓) [relative-clauses] sumti [+LUhU] 🆓
+  | (LAhE 🆓 | NAhE BO 🆓) $t:term [+LUhU] 🆓
+  | NAhE 🆓 $u:term [+LUhU] 🆓
+  | KOhA 🆓
   | lerfu-string free-after-lerfu-string
-  | ¬cbm? name-marker # [relative-clauses] {CMEVLA} #
-  | LE # sumti-tail [+KU] #
-  | LOhOI # subsentence [+KUhAU] #
-  | LI # mex [+LOhO] #
-  | ZO #
-  | LU text [+LIhU] #
-  | LOhU #
-  | ZOI #
-  | ZOhOI #
+  | ¬cbm? name-marker 🆓 [relative-clauses] {CMEVLA} 🆓
+  | LE 🆓 sumti-tail [+KU] 🆓
+  | LOhOI 🆓 subsentence [+KUhAU] 🆓
+  | LI 🆓 mex [+LOhO] 🆓
+  | ZO 🆓
+  | LU text [+LIhU] 🆓
+  | LOhU 🆓
+  | ZOI 🆓
+  | ZOhOI 🆓
 %conditions
-  $t ≇ @(sumti),
-  $u ≇ @(sumti),
-  $u ≇ @(tagged-term)
+  $t ≇ #sumti,
+  $u ≇ #sumti,
+  $u ≇ #tagged-term
 
 %redefine-rule sumti-tail
   | $s:sumti sumti-tail-1
@@ -610,7 +708,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  $s ≇ @(quantifier ⋰)
+  $s ≇ #(quantifier ⋰)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>sumti</code> to <code>sumti-tail</code></summary>
@@ -628,15 +726,18 @@ A description can take a forethought sentence in place of a selbri, and so can a
 Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as by `zi'e`. Two groups of them can be connected in forethought (`ge poi broda gi poi brode`).
 
 ```jbogenbau
-%redefine-rule relative-clauses
-  | {relative-clause / ZIhE # | joik-jek-ek #}
-  | gek relative-clauses gik relative-clauses
+%rule relative-clause-list(@C)
+  | {@C / ZIhE 🆓 | joik-jek-ek 🆓}
+  | gek relative-clause-list(@C) gik relative-clause-list(@C)
+
+%redefine-rule relative-clauses = relative-clause-list(relative-clause)
 
 %redefine-rule relative-clause
-  GOI # term [+GEhU] # | NOI # subsentence [+KUhO] #
+  GOI 🆓 term [+GEhU] 🆓 | NOI 🆓 subsentence [+KUhO] 🆓
 ```
 
-<details><summary>Railroad diagrams of <code>relative-clauses</code> and <code>relative-clause</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>relative-clause-list</code> to <code>relative-clause</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/relative-clause-list.svg" alt="Railroad diagram of the rule relative-clause-list"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/relative-clauses.svg" alt="Railroad diagram of the rule relative-clauses"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/relative-clause.svg" alt="Railroad diagram of the rule relative-clause"></p>
 </details>
@@ -651,9 +752,9 @@ A bare `fa`, which matches the rule `tag`, can come before a selbri. The term af
 
 `me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
 
-The whole `mex MOI #` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
+The whole `mex MOI 🆓` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
 
-An outer NAhE modifier outranks the whole `mex MOI #` construction over the same span. Thus `mi na'e su'i pa moi` puts `na'e` on the predicate. Writing PEhO before NAhE selects the operator modifier instead, as in `mi pe'o na'e su'i pa moi`.
+An outer NAhE modifier outranks the whole `mex MOI 🆓` construction over the same span. Thus `mi na'e su'i pa moi` puts `na'e` on the predicate. Writing PEhO before NAhE selects the operator modifier instead, as in `mi pe'o na'e su'i pa moi`.
 
 In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection.
 
@@ -669,22 +770,24 @@ In `be mi klama be do be ti`, `be do` belongs to `klama`, and `be ti` to the who
 
 A tanru unit can take a selbri relative clause. The clause opens with NOhOI (`no'oi` or `po'oi`) and contains a subsentence. It ends with `ku'oi` or `ku'o`. In that clause, `ke'a` refers to the selbri, as in `mi klama no'oi bajra`. The clauses join with `zi'e`, a joik, a jek or an ek. Forethought connections join two groups of clauses.
 
+The `ke-after` template supplies `selbri-4` and `operator`. Each named instance keeps its reference rule name. This layer changes their shared connective choices.
+
 ```jbogenbau
 %redefine-rule selbri-1
   | selbri-2
-  | $n:NA # selbri
+  | $n:NA 🆓 selbri
 %conditions
   ¬$n.onward.begins(gek)
 
-%redefine-rule selbri-4
-  | selbri-5
-  | selbri-4 (joik-jek-ek [stag] KE # selbri-3 [+KEhE] # ≻ connective selbri-5)
+%redefine-rule ke-after(@B, @U)
+  | @U
+  | ke-after(@B, @U) (joik-jek-ek [stag] KE 🆓 @B [+KEhE] 🆓 ≻ connective @U)
 
 %redefine-rule selbri-5
-  {selbri-6 ... / joik-jek-ek [stag] BO #}
+  {selbri-6 ... / joik-jek-ek [stag] BO 🆓}
 
 %redefine-rule tanru-unit
-  {tanru-unit-1 / CEI #} [selbri-relative-clauses]
+  {tanru-unit-1 / CEI 🆓} [selbri-relative-clauses]
 
 %redefine-rule tanru-unit-1
   | $u:tanru-unit-2
@@ -693,43 +796,41 @@ A tanru unit can take a selbri relative clause. The clause opens with NOhOI (`no
   BE ⊈ $u.following-tokens.first-token.tags
 
 %redefine-rule tanru-unit-2
-  | KE # selbri-3 [+KEhE] #
-  | BRIVLA #
-  | cbm? CMEVLA #
-  | GOhA [RAhO] #
+  | KE 🆓 selbri-3 [+KEhE] 🆓
+  | BRIVLA 🆓
+  | cbm? CMEVLA 🆓
+  | GOhA [RAhO] 🆓
   | me-unit
-  | (NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)
-  | NUhA # operator
-  | JAI # [tag] tanru-unit-2
-  | abstractor-chain subsentence [+KEI] #
+  | (NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)
+  | NUhA 🆓 operator
+  | JAI 🆓 [tag] tanru-unit-2
+  | abstractor-chain subsentence [+KEI] 🆓
   | linkargs tanru-unit-1
-  | MEhOI #
+  | MEhOI 🆓
 
 %rule me-unit
-  ME # (sumti | $m:mex) [+MEhU] # [MOI #]
+  ME 🆓 (sumti | $m:mex) [+MEhU] 🆓 [MOI 🆓]
 %conditions
   ¬$m.without-elision.matches(sumti)
 
 %redefine-rule abstractor-chain
-  {... NU # / connective}
+  {... NU 🆓 / connective}
 
-%rule selbri-relative-clauses
-  | {selbri-relative-clause / ZIhE # | joik-jek-ek #}
-  | gek selbri-relative-clauses gik selbri-relative-clauses
+%rule selbri-relative-clauses = relative-clause-list(selbri-relative-clause)
 
 %rule selbri-relative-clause
-  NOhOI # subsentence ([+KUhOI] | KUhO) #
+  NOhOI 🆓 subsentence ([+KUhOI] | KUhO) 🆓
 
 %redefine-rule linkargs
-  BE # [term] [links] [+BEhO] #
+  BE 🆓 [term] [links] [+BEhO] 🆓
 
 %redefine-rule links
-  BEI # [term] [links]
+  BEI 🆓 [term] [links]
 ```
 
 <details><summary>Railroad diagrams of the 12 rules from <code>selbri-1</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-1.svg" alt="Railroad diagram of the rule selbri-1"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/ke-after.svg" alt="Railroad diagram of the rule ke-after"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
@@ -764,10 +865,10 @@ Emphasis before an attitude or its NAI remains attached to that token. It does n
 
 ```jbogenbau
 %extend-rule tanru-unit-2
-  | GOhOI #
-  | MUhOI #
-  | LUhEI text [+LIhAU] #
-  | CIhAU cihau-run [+CIhAUhU] #
+  | GOhOI 🆓
+  | MUhOI 🆓
+  | LUhEI text [+LIhAU] 🆓
+  | CIhAU cihau-run [+CIhAUhU] 🆓
 
 %rule cihau-run
   [{cihau-cai}] UI [NAI] [{UI [NAI] | cihau-cai}]
@@ -805,13 +906,13 @@ The quantifier condition tests the selected tree's first-child path. A qualifier
 
 An initial SE in an operator is its mathematical conversion. The connective alternative excludes that initial SE to avoid a duplicate inner conversion.
 
-A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `#`.
+A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `🆓`.
 
 ```jbogenbau
 %redefine-rule quantifier
   $m:mekso-fragment
 %conditions
-  $m ≇ @(forethought-operator ⋰)
+  $m ≇ #(forethought-operator ⋰)
 
 %rule mekso-fragment
   (* quantifier <- !selbri !sumti_6 mex *)
@@ -826,43 +927,39 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   {... mex-1 / operator}
 
 %redefine-rule mex-1
-  mex-2 [operator [stag] BO # mex-1]
+  mex-2 [operator [stag] BO 🆓 mex-1]
 
 %redefine-rule mex-2
   | number free-after-number
   | lerfu-string free-after-lerfu-string
-  | VEI # mex [+VEhO] #
+  | VEI 🆓 mex [+VEhO] 🆓
   | gek mex gik mex-2
-  | (LAhE # | NAhE # [BO #]) mex [+LUhU] #
-  | (PEhO # operator | forethought-operator) {mex} [+KUhE] #
-  | FUhA # rp-expression
+  | (LAhE 🆓 | NAhE 🆓 [BO 🆓]) mex [+LUhU] 🆓
+  | (PEhO 🆓 operator | forethought-operator) {mex} [+KUhE] 🆓
+  | FUhA 🆓 rp-expression
 
 %rule forethought-operator
   $o:operator
 %conditions
-  $o ≇ @(joik-jek-ek ⋰)
+  $o ≇ #(joik-jek-ek ⋰)
 
 %redefine-rule rp-expression
   mex-1 [{rp-expression operator}]
 
-%redefine-rule operator
-  | operator-1
-  | operator (joik-jek-ek [stag] KE # operator [+KEhE] # ≻ connective operator-1)
-
 %redefine-rule operator-1
   | operator-2
   | guhek operator-1 gik operator-2
-  | operator-2 joik-jek-ek [stag] BO # operator-1
+  | operator-2 joik-jek-ek [stag] BO 🆓 operator-1
 
 %redefine-rule operator-2
   | mex-operator
-  | KE # operator [+KEhE] #
+  | KE 🆓 operator [+KEhE] 🆓
 
 %redefine-rule mex-operator
-  | SE # mex-operator
-  | NAhE # mex-operator
-  | MAhO # mex [+TEhU] #
-  | NAhU # selbri [+TEhU] #
+  | SE 🆓 mex-operator
+  | NAhE 🆓 mex-operator
+  | MAhO 🆓 mex [+TEhU] 🆓
+  | NAhU 🆓 selbri [+TEhU] 🆓
   | $c:connective
 %conditions
   SE ⊈ $c.first-token.tags
@@ -873,7 +970,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   ¬$.followed-by(number-part | lerfu-word)
 
 %rule number-part
-  PA | NIhE # selbri [+TEhU] # | MOhE # sumti [+TEhU] #
+  PA | NIhE 🆓 selbri [+TEhU] 🆓 | MOhE 🆓 sumti [+TEhU] 🆓
 
 %redefine-rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
@@ -881,7 +978,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   ¬$.followed-by(PA | lerfu-word)
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mekso-fragment.svg" alt="Railroad diagram of the rule mekso-fragment"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
@@ -890,7 +987,6 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 <p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/forethought-operator.svg" alt="Railroad diagram of the rule forethought-operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>
@@ -930,20 +1026,20 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
   joik | jek | ek
 
 %rule connective
-  joik-jek-ek # | VUhU #
+  joik-jek-ek 🆓 | VUhU 🆓
 
 %redefine-rule gek
-  | [SE] GA #
-  | GA="ga" # prefixed-connective
-  | joik-jek-ek GI #
+  | [SE] GA 🆓
+  | GA="ga" 🆓 prefixed-connective
+  | joik-jek-ek GI 🆓
   | stag gik
 
 %redefine-rule guhek
-  | [SE] GUhA #
-  | GA="gu" # prefixed-connective
+  | [SE] GUhA 🆓
+  | GA="gu" 🆓 prefixed-connective
 
 %redefine-rule gik
-  GI #
+  GI 🆓
 
 %rule prefixed-connective
   | SE connective
@@ -996,10 +1092,10 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
   {tense-atom}
 
 %rule tense-atom
-  | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) #
-  | [NAhE] [SE] [FEhE] ((number | VEI # mex [+VEhO] #) ROI | TAhE | ZAhO) #
-  | [NAhE] [SE] FIhO # selbri [+FEhU] #
-  | [NAhE] [SE] FA #
+  | [NAhE] [SE] (BAI | CAhA | CUhE | KI | ZI | PU | VA | [MOhI] FAhA | ZEhA | VEhA | VIhA) 🆓
+  | [NAhE] [SE] [FEhE] ((number | VEI 🆓 mex [+VEhO] 🆓) ROI | TAhE | ZAhO) 🆓
+  | [NAhE] [SE] FIhO 🆓 selbri [+FEhU] 🆓
+  | [NAhE] [SE] FA 🆓
 ```
 
 <details><summary>Railroad diagrams of <code>tag</code>, <code>stag</code>, <code>tense-modal</code> and <code>tense-atom</code></summary>
@@ -1029,7 +1125,7 @@ The `free` preference selects this nesting because the nested subscript is the l
 
 A non-XI modifier in the subscript operand's final free slot attaches to the marked word. In `mi broda xi pa boi to do toi`, the subscript and parenthesis both belong to `broda`.
 
-The condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted closer stops the path only when no later child remains. A nonempty free slot after the closer remains the exposed final slot, as in `[+VEhO] #` or `[+BOI] #`. A written closer before the modifier leaves it in the exposed final slot.
+The condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted closer stops the path only when no later child remains. A nonempty free slot after the closer remains the exposed final slot, as in `[+VEhO] 🆓` or `[+BOI] 🆓`. A written closer before the modifier leaves it in the exposed final slot.
 
 The condition excludes an exposed modifier attachment when the modifier belongs to the marked word. It keeps a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
 
@@ -1040,21 +1136,21 @@ A COI run can precede that quoted listener, as it can precede DOI. DOhOI takes n
 Its free modifier inherits `leftmost-longest`, so a complete longer vocative outranks a split into shorter modifiers. A written DOhU fixes its end.
 
 ```jbogenbau
-%const $NON-XI-FREE @(free) ∖ @(XI ⋯)
-%const $FREE-ENDING @(⋱ (# ∩ @(⋯ $NON-XI-FREE ⋯)))
+%const $NON-XI-FREE #free ∖ #« XI ⋯ »
+%const $FREE-ENDING #(⋱ (🆓 ∩ « ⋯ $NON-XI-FREE ⋯ »))
 
 %redefine-rule(leftmost-longest) free
-  | SEI # [terms [CU #]] selbri [+SEhU]
+  | SEI 🆓 [terms [CU 🆓]] selbri [+SEhU]
   | vocative [relative-clauses] selbri [relative-clauses] [+DOhU]
-  | ¬cbm? vocative [relative-clauses] {CMEVLA} # [relative-clauses] [+DOhU]
+  | ¬cbm? vocative [relative-clauses] {CMEVLA} 🆓 [relative-clauses] [+DOhU]
   | vocative [sumti] [+DOhU]
   | mex-2 MAI
   | TO text [+TOI]
-  | XI # $m:mex-2
+  | XI 🆓 $m:mex-2
   | LOhAI<Quote>
   | LEhAI
-  | [{COI}] DOhOI # [relative-clauses] [+DOhU]
-  | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
+  | [{COI}] DOhOI 🆓 [relative-clauses] [+DOhU]
+  | ¬soi-clause? SOI 🆓 sumti [sumti] [+SEhU]
 %conditions
   $m ≇ $FREE-ENDING
 
@@ -1067,10 +1163,10 @@ Its free modifier inherits `leftmost-longest`, so a complete longer vocative out
   LE="la" | LE="lai" | LE="la'i"
 
 %rule free-after-number
-  [+BOI] #
+  [+BOI] 🆓
 
 %rule free-after-lerfu-string
-  [+BOI] #
+  [+BOI] 🆓
 
 ```
 
@@ -1094,7 +1190,7 @@ camxes-exp tries alternatives in order. This layer considers complete readings a
 
 The [experimental lexicon](../words/lexicon-experimental.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental dialect enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
 
-The layer writes `[+X] #` where CLL writes `[+X #]`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
+The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
 
 The layer omits `elision-only`, the option that applies CLL's rule that a terminator can be omitted only where no ambiguity results.[^cll-s21-1] Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
 
@@ -1344,7 +1440,7 @@ This layer uses FEhU alone and requires BE for the converted predicate's inner a
 
 IhAU follows dictionary definition 66786 literally. It stands for the elided terminators that end the current sentence, except its last VAU.
 
-Zantufa instead uses `statement [IAU #] [terms]` at paragraph level. Its added terms need no written IAU, as `mi klama vau do` shows. Its reset covers a whole `.i je` chain, and no statement connection can follow it.
+The Zantufa translation instead uses `statement [IAU 🆓] [terms]` at paragraph level. Its added terms need no written IAU, as `mi klama vau do` shows. Its reset covers a whole `.i je` chain, and no statement connection can follow it.
 
 Here a reset belongs to one sentence. A statement connection, a sentence link or `.i ba bo` can follow it, as written terminators allow.
 
@@ -1354,7 +1450,7 @@ Zantufa permits one reset, with no written VAU after its terms. This layer permi
 
 Zantufa accepts terms after a written final VAU, a closed TUhE group, or a KE-wrapped forethought bridi that a written KEhE closes. These terms require no written IAU. This layer rejects those terms because each boundary closes the main bridi. Free modifiers after a reset can still mark the closed bridi.
 
-A bridi-tail connection cannot follow a reset here. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. A speaker who needs that connection writes the terminators instead.
+A bridi-tail connection can follow a reset here. Its terms join the outermost open tail. That tail includes the shared tail of a completed connection.
 
 The head reset uses `reset-head`, which permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it.
 

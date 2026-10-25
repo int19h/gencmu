@@ -10,25 +10,39 @@
 // fixpoint check compares their DOMs.
 
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { domOfTree } from "../lib/js/src/dialect.js";
+import { domOfTree, fnv1a64 } from "../lib/js/src/dialect.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { run } from "../lib/js/src/trampoline.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
 import { rankedSyntaxFailure } from "../lib/js/src/ranked.js";
 import { UnicodeTable } from "../lib/js/src/unicode.js";
+import { NamesScope } from "../lib/js/src/unicode-names.js";
+import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
 // and the marks that a character tag escapes (engine §1, §9).
-const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
+const unicode = new UnicodeTable(readResource("unicode.txt"), readResource("unicode-properties.txt"));
+
+/** @param {string} key @returns {string} */
+export function readResource(key) {
+  try {
+    const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
+    return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
+  } catch (error) {
+    throw new GencmuError("grammar", `${key}: reading the resource failed`, {document:key}, {cause:error});
+  }
+}
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
-const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "@", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
+const LAYERED_SYMBOLS = new Set(["«", "»", "·"]);
+const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
   "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
-  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
+  "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
 
 // A syntax error: the text cannot be read as the notation at all, which the
 // reader reports before any other error (engine §9).
@@ -67,37 +81,35 @@ function lex(text, originalPositions) {
   const positions = decomposed.map(item => originalPositions[item.origin]);
   const originalEnd = originalPositions[originalPositions.length - 1] || [1, 1];
   positions.push(decomposed.length ? originalPositions[decomposed[decomposed.length - 1].origin + 1] || originalEnd : originalEnd);
-  const source = (start, end) => {
+  const sourceBounds = (start, end) => {
     const origins = decomposed.slice(start, end).map(item => item.origin);
     let left = original.length, right = 0;
     for (const origin of origins) { left = Math.min(left, origin); right = Math.max(right, origin + 1); }
-    return original.slice(left, right).join("");
+    return [left,right];
   };
+  const source = (start,end) => { const [left,right]=sourceBounds(start,end); return original.slice(left,right).join(""); };
   const n = chars.length;
   const at = (index) => positions[index] || positions[positions.length - 1] || [1, 1];
   const isLetter = (c) => c !== undefined && /^[A-Za-z]$/.test(c);
   const isNameChar = (c) => c !== undefined && /^[A-Za-z0-9_-]$/.test(c);
   // For each place: the end of the run of name characters from it; the
   // first `*)` at or after it; and, for each quote, the end of a quoted
-  // body that begins there, where a backslash escapes any character.
+  // body that begins there. Backslashes remain ordinary characters.
   const runEnds = new Array(n + 2).fill(n);
   const closes = new Array(n + 2).fill(n);
   const featureEnds = new Array(n + 2).fill(n);
   const engineEnds = new Array(n + 2).fill(n);
-  const scalarEnds = new Array(n + 2).fill(n);
   for (let i = n - 1; i >= 0; i--) {
     if (hooks.work) countWork(hooks.work, "walkSteps");
     runEnds[i] = isNameChar(chars[i]) ? runEnds[i + 1] : i;
     featureEnds[i] = /^[A-Za-z0-9-]$/.test(chars[i]) ? featureEnds[i + 1] : i;
-    engineEnds[i] = /^[A-Za-z0-9_]$/.test(chars[i]) ? engineEnds[i + 1] : i;
-    scalarEnds[i] = /^[A-Za-z0-9]$/.test(chars[i]) ? scalarEnds[i + 1] : i;
+    engineEnds[i] = (/^[A-Za-z0-9_]$/.test(chars[i]) || chars[i] === "." && /^[0-9]$/.test(chars[i-1] ?? "") && /^[0-9]$/.test(chars[i+1] ?? "")) ? engineEnds[i + 1] : i;
     closes[i] = chars[i] === "*" && chars[i + 1] === ")" ? i : closes[i + 1];
   }
   // A quoted form fails at the character that cannot continue it.
   const quoted = (from, path = false) => {
     let j = from;
     while (j < n && chars[j] !== '"') {
-      if (chars[j] === "\\") return { end: n + 1, reach: j };
       j++;
     }
     return { end: j + 1, reach: j };
@@ -142,12 +154,18 @@ function lex(text, originalPositions) {
       found.push([end, "integer"]);
       reach = Math.max(reach, end);
     }
+    if (c === "@") prefixed(i + 1, () => "parameter");
+    if (unicode.isEmojiName(c)) {
+      if (!(chars[i+1] === "(" && chars[i+2] !== "*")) found.push([i + 1, "emoji"]);
+      if (chars[i+1] === "(" && chars[i+2] !== "*") found.push([i+1, "call-name"]);
+    }
     if (isLetter(c)) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
       const featureEnd = featureEnds[i];
       if (chars[featureEnd] === "?" || chars[featureEnd] === "!") found.push([featureEnd + 1, "guard"]);
-      found.push([end, "identifier"]);
+      if (!( /^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*")) found.push([end, "identifier"]);
+      if (/^[a-z]/.test(c) && chars[end] === "(" && chars[end+1] !== "*") found.push([end, "call-name"]);
       reach = Math.max(reach, end);
     }
     if (c === "¬") {
@@ -163,14 +181,13 @@ function lex(text, originalPositions) {
     }
     if (c === "$") {
       prefixed(i + 1, (word) => (isCapital(word.slice(1)) ? "constant" : "capture"));
-      if (chars[i + 1] === "_") found.push([scalarEnds[i + 2], "constant"]);
       found.push([i + 1, "capture"]);
     }
     if (c === "%") prefixed(i + 1, (word) => (KEYWORDS.has(word) ? word : "keyword"));
     if (c === "_") found.push([engineEnds[i + 1], chars[i + 1] === undefined || engineEnds[i + 1] === i + 1 ? "_" : "tag"]);
     if (c === "%") {
       reach = Math.max(reach, i + 1);
-      if (chars.slice(i, runEnds[i + 1]).join("") === "%include") {
+      if (["%include", "%names"].includes(chars.slice(i, runEnds[i + 1]).join(""))) {
         let j = runEnds[i + 1];
         for (;;) {
           if (j < n && unicode.isWhiteSpace(chars[j].codePointAt(0))) j++;
@@ -197,7 +214,7 @@ function lex(text, originalPositions) {
     }
     if (["=", "∈", "⊆", "≅"].includes(c) && chars[i + 1] === "̸") found.push([i + 2, ({ "=": "≠", "∈": "∉", "⊆": "⊈", "≅": "≇" })[c]]);
     if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
-    if (SYMBOLS.has(c)) found.push([i + 1, c]);
+    if (SYMBOLS.has(c) || LAYERED_SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
     return { found, reach };
@@ -221,7 +238,7 @@ function lex(text, originalPositions) {
       furthest = Math.max(furthest, starting[i].reach);
       for (const [end] of starting[i].found) reached[end] = true;
     }
-    syntaxError(furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
+    syntaxError(chars[furthest] === "@" ? "@ is reserved for parameters, which are not supported yet" : furthest >= n ? "the text ends inside a token" : `the text cannot be read as tokens at ${chars[furthest]}`, at(furthest));
   }
   const tokens = [];
   let i = 0;
@@ -230,15 +247,16 @@ function lex(text, originalPositions) {
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind?.startsWith("include:")) {
       const from = Number(kind.slice(8));
-      tokens.push({ kind: "%include", text: "%include", value: "%include", at: at(i), end: at(i + 8) });
-      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end) });
-    } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end) });
+      const endKeyword = runEnds[i + 1], keyword = chars.slice(i, endKeyword).join("");
+      tokens.push({ kind: keyword, text: keyword, value: keyword, at: at(i), end: at(endKeyword), source:sourceBounds(i,endKeyword) });
+      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end), source:sourceBounds(from,end) });
+    } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end), source:sourceBounds(i,end) });
     i = end;
   }
   return tokens;
 }
 
-const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features"]);
+const DIRECTIVES = new Set(["%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%names", "%features"]);
 const RULE_KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule"]);
 const CONSTANT_KEYWORDS = new Set(["%const", "%redefine-const"]);
 const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
@@ -246,9 +264,9 @@ const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
 const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
-const TERM_STARTS = new Set(["identifier", "tag", "string", "capture", "constant", "(", "∅", "@", "∪", "∩"]);
+const TERM_STARTS = new Set(["call-name", "parameter", "emoji", "identifier", "tag", "string", "capture", "constant", "(", "∅", "#", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
-const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "#", "ε"]);
+const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
 // (grammars/notation/syntax.md). It builds a node for each rule that the
@@ -353,7 +371,7 @@ class Parser {
       const at = this.index;
       if (this.is("identifier") && !this.is(".", 1)) children.push(this.leaf("argument-word"));
       else if (this.is("include-path") || this.is("string") && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("argument-string"));
-      else if (this.is("#") || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
+      else if (this.is("emoji") && !this.is(".", 1) || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
       else children.push(this.node("argument-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
     }
     if (this.is("%conditions")) {
@@ -376,6 +394,7 @@ class Parser {
   }
 
   stringOperand() {
+    if (this.is("parameter")) return this.leaf("parameter");
     if (!this.is("string") && !this.is("constant")) return this.fail("expected a string operand");
     return this.leaf(this.is("string") ? "string" : "constant-reference");
   }
@@ -423,7 +442,11 @@ class Parser {
       flags.push(this.expect(")"));
       children.push(this.node("rule-flags", at, flags));
     }
-    children.push(this.is("identifier") || this.is("#") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
+    children.push(this.is("call-name") ? (yield this.call()) : this.is("identifier") || this.is("emoji") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
+    if (this.is("=")) {
+      children.push(this.tok(), (yield this.call()));
+      return this.node("rule", start, children);
+    }
     if (["::", ":=", ":-"].includes(this.kindAt())) {
       for (const clause of yield this.clauses("tags-clause")) children.push(clause);
       const at = this.index;
@@ -539,12 +562,58 @@ class Parser {
     return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
   }
 
+  *call() {
+    const start = this.index;
+    const children = [this.expect("call-name"), this.expect("("), (yield this.callArgument())];
+    while (this.is(",")) children.push(this.tok(), (yield this.callArgument()));
+    children.push(this.expect(")"));
+    return this.node("call", start, children);
+  }
+
+  *callArgument() {
+    const start = this.index;
+    if (this.is("<")) {
+      const test = yield this.test();
+      return this.node("call-argument", start, [this.node("requirement-argument",start,test.children)]);
+    }
+    const target = function*(parser) {
+      if (parser.is("call-name")) return yield parser.call();
+      if (parser.is("parameter")) return parser.leaf("parameter");
+      if (parser.is("identifier") || parser.is("emoji") || parser.is("tag")) return parser.leaf(isCapital(parser.peek().value) || parser.is("tag") ? "tag" : "reference");
+      return parser.fail("expected a target");
+    };
+    try {
+      const items = [yield target(this), this.expect("|"), yield target(this)];
+      while (this.is("|")) items.push(this.tok(),yield target(this));
+      if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
+      return this.node("call-argument",start,[this.node("target-argument",start,items)]);
+    } catch (error) { if (!(error instanceof SyntaxFailure)) throw error; this.index=start; }
+    for (const category of ["body-argument","symbol-argument","term"]) {
+      try {
+        let value;
+        if (category === "body-argument") {
+          if (!["(","[","{","ε"].includes(this.kindAt())) this.fail("expected a body argument");
+          value=this.node(category,start,[yield this.symbol()]);
+        } else if (category === "symbol-argument") {
+          const valueNode=yield this.primary();
+          if (!["tested","range","wildcard"].includes(valueNode.children[0].rule)) this.fail("expected a symbol argument");
+          value=this.node(category,start,valueNode.children);
+        } else value=yield this.term();
+        if (!this.is(",") && !this.is(")")) this.fail("expected argument boundary");
+        return this.node("call-argument",start,[value]);
+      } catch (error) { if (!(error instanceof SyntaxFailure)) throw error; this.index=start; }
+    }
+    return this.fail("expected one argument term");
+  }
+
   *symbol() {
     const start = this.index;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) return yield this.range();
+    if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) return yield this.range();
     switch (this.kindAt()) {
+      case "call-name": return yield this.call();
+      case "parameter": return this.leaf("parameter");
       case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
-      case "#": return this.leaf("reference");
+      case "emoji": return this.leaf("reference");
       case "tag": return this.leaf("tag");
       case "string": case "constant": return this.node("string-terminal", start, [this.stringOperand()]);
       case "_": return this.leaf("wildcard");
@@ -744,18 +813,18 @@ class Parser {
   *atom(runs) {
     const start = this.index;
     let base;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
+    if ((this.is("string") || this.is("constant") || this.is("parameter")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
-      case "@": base = yield this.patternLiteral(); break;
+      case "call-name": base = yield this.call(); break;
+      case "parameter": base = this.leaf("parameter"); break;
+      case "#": base = yield this.patternLiteral(); break;
       case "string": {
         const strings = [this.leaf("string")];
         if (runs) while (this.is("string")) strings.push(this.leaf("string"));
         base = strings.length === 1 ? strings[0] : this.node("string-run", start, strings);
         break;
       }
-      case "#":
-        if (!runs) return this.fail("expected a term");
-        base = this.leaf("name"); break;
+      case "emoji": base = this.leaf("name"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().value));
@@ -783,7 +852,7 @@ class Parser {
     while (this.is(".")) {
       const at = this.index;
       const selector = [this.tok()];
-      if (!this.is("identifier")) this.fail("expected a method name");
+      if (!this.is("identifier") && !this.is("call-name")) this.fail("expected a method name");
       selector.push(this.leaf("method-name"));
       if (this.is("(")) {
         selector.push(this.tok());
@@ -797,65 +866,150 @@ class Parser {
     return this.node("method", start, children);
   }
 
-  *patternLiteral() {
-    const start = this.index;
-    const children = [this.expect("@")];
-    if (this.is("(")) children.push(this.tok(), (yield this.patternUnion()), this.expect(")"));
-    else children.push((yield this.patternAtom()));
-    return this.node("pattern-literal", start, children);
+  *patternLiteral() { return yield this.layeredLiteral(); }
+
+  *layeredMemo(name,read) {
+    if (hooks.work) countWork(hooks.work,"walkSteps");
+    return yield this.memo(name,read);
   }
 
-  *patternUnion() {
-    const start = this.index, children = [(yield this.patternIntersection())];
-    while (this.is("∪") || this.is("∖")) children.push(this.tok(), (yield this.patternIntersection()));
-    return this.node("pattern-union", start, children);
+  adjacent() {
+    const before=this.tokens[this.index-1], after=this.peek();
+    return !!before && !!after && before.source[1] === after.source[0];
   }
 
-  *patternIntersection() {
-    const start = this.index, children = [(yield this.patternSequence())];
-    while (this.is("∩")) children.push(this.tok(), (yield this.patternSequence()));
-    return this.node("pattern-intersection", start, children);
+  *layeredLiteral() { return yield this.layeredMemo('layeredLiteral',this.layeredLiteralBody); }
+  *layeredLiteralBody() {
+    const start=this.index;
+    return this.node('pattern-literal',start,[this.expect('#'),yield this.layeredPrimary(false)]);
   }
 
-  *patternSequence() {
-    const start = this.index, children = [];
-    do { children.push((yield this.patternItem())); }
-    while (["identifier", "tag", "string", "_", "#", "constant", "@", "(", "[", "{", "⋯", "⋮", "⋱"].includes(this.kindAt()));
-    return this.node("pattern-sequence", start, children);
+  *layeredUnion() { return yield this.layeredMemo('layeredUnion',this.layeredUnionBody); }
+  *layeredUnionBody() {
+    const start=this.index, children=[yield this.layeredIntersection()];
+    while (this.is('∪') || this.is('∖')) children.push(this.tok(),yield this.layeredIntersection());
+    return this.node('pattern-union',start,children);
   }
 
-  *patternItem() {
-    const start = this.index;
-    let child;
-    if (this.is("⋯")) child = this.tok();
-    else if (this.is("⋮") || this.is("⋱")) child = this.node("pattern-path", start, [this.tok(), (yield this.patternAtom())]);
-    else if (this.is("[")) child = this.node("pattern-brackets", start, [this.tok(), (yield this.patternUnion()), this.expect("]")]);
-    else if (this.is("{")) {
-      const children = [this.tok(), (yield this.patternUnion())];
-      if (this.is("/")) children.push(this.tok(), (yield this.patternUnion()));
-      children.push(this.expect("}"));
-      child = this.node("pattern-repeat", start, children);
-    } else {
-      child = (yield this.patternAtom());
-      if (this.is("⋰")) child = this.node("pattern-path", start, [child, this.tok()]);
+  *layeredIntersection() { return yield this.layeredMemo('layeredIntersection',this.layeredIntersectionBody); }
+  *layeredIntersectionBody() {
+    const start=this.index, children=[yield this.layeredPath(false)];
+    while (this.is('∩')) children.push(this.tok(),yield this.layeredPath(false));
+    return this.node('pattern-intersection',start,children);
+  }
+
+  *layeredPrimary(child) { return yield this.layeredMemo('layeredPrimary:'+child,function*() { return yield this.layeredPrimaryBody(child); }); }
+  *layeredPrimaryBody(child) {
+    const start=this.index;
+    let part;
+    if (this.is('(')) {
+      const children=[this.tok(),yield (child ? this.layeredChoice() : this.layeredUnion()),this.expect(')')];
+      return this.node(child ? 'child-primary' : 'pattern-primary',start,children);
     }
-    return this.node("pattern-item", start, [child]);
+    const children=[];
+    if (this.is('·')) {
+      children.push(this.tok());
+      if (!this.adjacent()) { this.index--; this.fail('an exact pattern prefix must touch its node test'); }
+    }
+    if (this.is('«')) {
+      children.push(yield this.layeredChildren());
+      part=this.node('pattern-bare',start,children);
+    } else {
+      children.push(yield this.layeredAtom());
+      if (this.is('«') && this.adjacent()) children.push(yield this.layeredChildren());
+      part=this.node('pattern-node',start,children);
+    }
+    return this.node(child ? 'child-primary' : 'pattern-primary',start,[part]);
   }
 
-  *patternAtom() {
-    const start = this.index;
-    const children = [];
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) children.push((yield this.range()));
-    else if (this.is("identifier") || this.is("#")) children.push(this.tok());
-    else if (this.is("tag")) children.push(this.leaf("tag"));
-    else if (this.is("string")) children.push(this.leaf("string"));
-    else if (this.is("_")) children.push(this.leaf("wildcard"));
-    else if (this.is("constant")) children.push(this.leaf("constant-reference"));
-    else if (this.is("@")) return this.node("pattern-atom", start, [(yield this.patternLiteral())]);
-    else if (this.is("(")) return this.node("pattern-atom", start, [this.tok(), (yield this.patternUnion()), this.expect(")")]);
-    else return this.fail("expected a pattern atom");
-    while (TEST_COMPARATORS.has(this.kindAt())) children.push((yield this.test()));
-    return this.node("pattern-atom", start, children);
+  *layeredAtom() { return yield this.layeredMemo('layeredAtom',this.layeredAtomBody); }
+  *layeredAtomBody() {
+    const start=this.index, children=[];
+    if ((this.is('string') || this.is('constant') || this.is('parameter')) && this.is('..',1)) children.push(yield this.range());
+    else if (this.is('call-name')) children.push(yield this.call());
+    else if (this.is('parameter')) children.push(this.leaf('parameter'));
+    else if (this.is('identifier') || this.is('emoji')) children.push(this.tok());
+    else if (this.is('tag')) children.push(this.leaf('tag'));
+    else if (this.is('string')) children.push(this.leaf('string'));
+    else if (this.is('_')) children.push(this.leaf('wildcard'));
+    else if (this.is('constant')) children.push(this.leaf('constant-reference'));
+    else return this.fail('expected a pattern node test');
+    while (TEST_COMPARATORS.has(this.kindAt())) children.push(yield this.test());
+    return this.node('pattern-atom',start,children);
+  }
+
+  *layeredChildren() { return yield this.layeredMemo('layeredChildren',this.layeredChildrenBody); }
+  *layeredChildrenBody() {
+    const start=this.index, children=[this.expect('«')];
+    if (!this.is('»')) children.push(yield this.layeredChoice());
+    children.push(this.expect('»'));
+    return this.node('pattern-children',start,children);
+  }
+
+  *layeredChoice() { return yield this.layeredMemo('layeredChoice',this.layeredChoiceBody); }
+  *layeredChoiceBody() {
+    const start=this.index, children=[yield this.layeredAlternative()];
+    while (this.is('|')) children.push(this.tok(),yield this.layeredAlternative());
+    return this.node('child-choice',start,children);
+  }
+
+  *layeredAlternative() { return yield this.layeredMemo('layeredAlternative',this.layeredAlternativeBody); }
+  *layeredAlternativeBody() {
+    const start=this.index;
+    // A set needs an operator outside its groups. A sequence cannot eat it.
+    const set=yield this.attempt(this.layeredChildSet);
+    if (set) return this.node('child-alternative',start,[set]);
+    const items=[yield this.layeredItem()];
+    while (['identifier','emoji','call-name','parameter','tag','string','constant','_','«','·','(','[','{','⋯','⋮','⋱'].includes(this.kindAt())) {
+      if ((this.is('«') || this.is('·')) && this.adjacent() && !['⋯','⋰'].includes(this.tokens[this.index-1].kind)) this.fail('separate pattern items require whitespace or a comment');
+      items.push(yield this.layeredItem());
+    }
+    return this.node('child-alternative',start,[this.node('child-sequence',start,items)]);
+  }
+
+  *layeredChildSet() { return yield this.layeredMemo('layeredChildSet',this.layeredChildSetBody); }
+  *layeredChildSetBody() {
+    const start=this.index;
+    const children=[yield this.layeredChildIntersection()];
+    while (this.is('∪') || this.is('∖')) children.push(this.tok(),yield this.layeredChildIntersection());
+    if (children.length>1) return this.node('child-set',start,children);
+    // The all-intersection route has direct child-path parts.
+    const intersection=children[0];
+    if (intersection.children.length<3) return this.fail('a child set requires an operator');
+    return this.node('child-set',start,intersection.children);
+  }
+
+  *layeredChildIntersection() { return yield this.layeredMemo('layeredChildIntersection',this.layeredChildIntersectionBody); }
+  *layeredChildIntersectionBody() {
+    const start=this.index, children=[yield this.layeredPath(true)];
+    while (this.is('∩')) children.push(this.tok(),yield this.layeredPath(true));
+    return this.node('child-intersection',start,children);
+  }
+
+  *layeredPath(child) { return yield this.layeredMemo('layeredPath:'+child,function*() { return yield this.layeredPathBody(child); }); }
+  *layeredPathBody(child) {
+    const start=this.index, children=[];
+    if (this.is('⋮') || this.is('⋱')) children.push(this.tok(),yield this.layeredPrimary(child));
+    else {
+      children.push(yield this.layeredPrimary(child));
+      if (this.is('⋰')) children.push(this.tok());
+    }
+    return this.node(child ? 'child-path' : 'pattern-path',start,children);
+  }
+
+  *layeredItem() { return yield this.layeredMemo('layeredItem',this.layeredItemBody); }
+  *layeredItemBody() {
+    const start=this.index;
+    let part;
+    if (this.is('⋯')) part=this.tok();
+    else if (this.is('[')) part=this.node('pattern-brackets',start,[this.tok(),yield this.layeredChoice(),this.expect(']')]);
+    else if (this.is('{')) {
+      const children=[this.tok(),yield this.layeredChoice()];
+      if (this.is('/')) children.push(this.tok(),yield this.layeredChoice());
+      children.push(this.expect('}'));
+      part=this.node('pattern-repeat',start,children);
+    } else part=yield this.layeredPath(true);
+    return this.node('child-item',start,[part]);
   }
 
   *argument() {
@@ -865,18 +1019,20 @@ class Parser {
 }
 
 /**
- * Reads a grammar document's Markdown into its DOM, or throws the grammar
- * error that the library's reader gives, at the same place (engine §9).
+ * Reads the tokens and syntax tree for the bootstrap recovery reader.
  * @param {string} markdown
  * @param {string} path
  */
-export function readDocument(markdown, path) {
+export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
+  const names = new NamesScope(readResource, unicode, fnv1a64, inherited);
+  const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;
   try {
     tokens = lex(text, positions);
+    strings.inspect(tokens.map(token => ({...token, tags:new Set(token.kind === "string" ? ["String"] : token.kind === "include-path" ? ["Include-Path"] : [])})));
     // An error at the end of the text stands where the last token ends, as
     // the syntax stage reports it.
     const endAt = tokens.length ? tokens[tokens.length - 1].end : positions[positions.length - 1] || [1, 1];
@@ -896,5 +1052,10 @@ export function readDocument(markdown, path) {
     const [line, column] = error.at;
     throw new GencmuError("grammar", `${path}:${line}:${column}: ${error.message}`, { document: path, line, column, ...(error.index !== null && rankedSyntaxFailure(tokens, error.index) ? { code: "ranked-choice-syntax" } : {}) });
   }
-  return domOfTree(tree, tokens, (token) => token.at, path, unicode);
+  return {tree,tokens,positionOf:(token) => token.at,unicode,decodeString:(token,path) => strings.decode(token,path)};
+}
+
+export function readDocument(markdown,path,inherited = []) {
+  const {tree,tokens,positionOf,unicode,decodeString}=readSyntaxTree(markdown,path,inherited);
+  return domOfTree(tree,tokens,positionOf,path,unicode,false,decodeString);
 }

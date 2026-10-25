@@ -47,8 +47,8 @@ class UnicodeTableOrder(unittest.TestCase):
         self.assertEqual(table.category(0x0), "Cn")
         self.assertEqual(table.category(0xD800), "Cs")
         token = character_tokens("a", table)[0]
-        self.assertEqual(token.tags, frozenset({"_Cn", "_C"}))
-        self.assertFalse({"_L", "_Cs"} & token.tags)
+        self.assertEqual(token.tags, frozenset({"_Canonical_Combining_Class_Not_Reordered", "_General_Category_Unassigned", "_General_Category_Other"}))
+        self.assertFalse({"_General_Category_Letter", "_General_Category_Surrogate"} & token.tags)
         self.assertFalse(table.is_white_space(0x20) or table.is_white_space(0x9))
         self.assertNotIn("_White_Space", character_tokens(" ", table)[0].tags)
         self.assertEqual([token.value for token in character_tokens("AB", table)], ["A", "B"])
@@ -69,9 +69,9 @@ class CallerTable(unittest.TestCase):
             }
 
         load = gencmu.load_dialect_sources
-        self.assertFalse(load(sources("_L"), "p.md").parse("a").ok)
-        self.assertTrue(load(sources("_Cn"), "p.md").parse("a").ok)
-        bundled = sources("_L")
+        self.assertFalse(load(sources("_General_Category_Letter"), "p.md").parse("a").ok)
+        self.assertTrue(load(sources("_General_Category_Unassigned"), "p.md").parse("a").ok)
+        bundled = sources("_General_Category_Letter")
         del bundled["unicode.txt"]
         self.assertTrue(load(bundled, "p.md").parse("a").ok)
 
@@ -89,7 +89,7 @@ class LoneSurrogates(unittest.TestCase):
 
     def test_a_text_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         # Each of these would read U+D800 if it became a character tag.
-        rules = ("_Cs", "_", '$_D7FF..$_E000', "[{character}]\n%rule character _")
+        rules = ("_General_Category_Surrogate", "_", '"‹U+D7FF›".."‹U+E000›"', "[{character}]\n%rule character _")
         for rule in rules:
             dialect = gencmu.load_dialect_sources(self._sources(rule), "p.md")
             for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):

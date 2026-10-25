@@ -6,8 +6,8 @@
 <path d="M20 46h20"/>
 <g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">NU</text></g>
 <path d="M73 46h10"/>
-<g class="rule"><rect x="83" y="34" width="25" height="24" rx="0"/><text x="95.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M108 46H160"/>
+<g class="rule"><rect x="83" y="34" width="33" height="24" rx="0"/><text x="99.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">🆓</text></g>
+<path d="M116 46H160"/>
 <path d="M140 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H140"/>
 <g class="rule"><rect x="40" y="68" width="100" height="24" rx="0"/><text x="90" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
 <path d="M40 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>

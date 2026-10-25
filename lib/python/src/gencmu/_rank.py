@@ -1133,7 +1133,19 @@ class Ranking:
 
 def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
     admission = None
-    if not unfiltered and forest.lowered.ranked_helpers:
+    ranked_helpers = forest.lowered.ranked_helpers
+    productions = forest.lowered.productions
+    # A predicted ranked option supplies no admission choice until it completes.
+    # With no completed option, rank the raw forest without a scoped copy.
+    completed_options = {
+        number: len(production.rhs)
+        for number, production in enumerate(productions)
+        if production.lhs in ranked_helpers
+    } if ranked_helpers and not unfiltered else {}
+    if completed_options and any(
+        position == completed_options.get(production)
+        for production, position in zip(forest.prod, forest.dot)
+    ):
         from ._ranked_admission import RankedAdmission
         from ._slot_views import helper_forest
         names = {forest.lowered.rule_names[r] for r in forest.lowered.ranked_helpers}

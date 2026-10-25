@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -221,7 +220,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash); len(got) != 0 {
+	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
 		t.Error("compiled.json was used with another bootstrap")
 	}
 }
@@ -233,7 +232,11 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	if len(bundled.compiled) == 0 {
+	configured, err := bundledLoader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(configured.compiled) == 0 {
 		t.Fatal("compiled.json holds no DOMs for this bootstrap")
 	}
 	var names []string
@@ -314,6 +317,31 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return true
 	case reflect.Map:
+		if a.Type() == reflect.TypeOf(templateObject{}) {
+			// Template audit records retain private source locations. The DOM
+			// cache omits them, as it omits the native term locations above.
+			key := reflect.ValueOf(templateSourceKey)
+			al, bl := a.Len(), b.Len()
+			if a.MapIndex(key).IsValid() {
+				al--
+			}
+			if b.MapIndex(key).IsValid() {
+				bl--
+			}
+			if al != bl {
+				return false
+			}
+			for _, k := range a.MapKeys() {
+				if k.String() == templateSourceKey {
+					continue
+				}
+				v := b.MapIndex(k)
+				if !v.IsValid() || !sameValue(a.MapIndex(k), v) {
+					return false
+				}
+			}
+			return true
+		}
 		if a.Len() != b.Len() {
 			return false
 		}
@@ -365,7 +393,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse(`%rule a :: X | ¬f? B "c" / {E ... "$(_005C)"} [+KU] [+TOI] | g! %rulex $e ¬h "x".."y" _L "a"...`, ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a :: X | ¬f? B "c" / {E ... "$(_005C)"} [+KU] [+TOI] | g! %rulex $e ¬h "x".."y" _General_Category_Letter "a"...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -374,11 +402,11 @@ func TestNotationLexicalTags(t *testing.T) {
 		got = append(got, [2]string{tok.Text, strings.Join(tok.Tags, " ")})
 	}
 	want := [][2]string{
-		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_S _Sm"},
-		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_P _Pe"},
-		{"[", "_P _Ps"}, {"+", "_S _Sm"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_P _Pe"}, {"[", "_P _Ps"}, {"+", "_S _Sm"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_P _Pe"},
-		{"|", "_S _Sm"}, {"g!", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_S _Sm"}, {"h", "Identifier Lowercase-Name"},
-		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_L", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},
+		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_After _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"},
+		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_Age_V1_1 _Bidi_Class_Common_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Other_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_Symbols _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"{", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"},
+		{"[", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"+", "_Age_V1_1 _Bidi_Class_European_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Prefix_Numeric _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Parenthesis _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"[", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Open _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Open_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Open_Punctuation _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"}, {"+", "_Age_V1_1 _Bidi_Class_European_Separator _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Prefix_Numeric _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Mirrored _Bidi_Paired_Bracket_Type_Close _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Close_Punctuation _General_Category_Punctuation _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Close_Parenthesis _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Close _Vertical_Orientation_Rotated _Word_Break_Other"},
+		{"|", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Basic_Latin _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Break_After _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"g!", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_Age_V1_1 _Bidi_Class_Other_Neutral _Bidi_Paired_Bracket_Type_None _Block_Latin_1_Supplement _Canonical_Combining_Class_Not_Reordered _Decomposition_Type_None _East_Asian_Width_Narrow _General_Category_Math_Symbol _General_Category_Symbol _Grapheme_Base _Grapheme_Cluster_Break_Other _Hangul_Syllable_Type_Not_Applicable _Indic_Conjunct_Break_None _Indic_Positional_Category_NA _Indic_Syllabic_Category_Other _Joining_Group_No_Joining_Group _Joining_Type_Non_Joining _Line_Break_Alphabetic _Math _NFC_Quick_Check_Yes _NFD_Quick_Check_Yes _NFKC_Quick_Check_Yes _NFKD_Quick_Check_Yes _Numeric_Type_None _Pattern_Syntax _Script_Common _Script_Extensions_Common _Sentence_Break_Other _Vertical_Orientation_Rotated _Word_Break_Other"}, {"h", "Identifier Lowercase-Name"},
+		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_General_Category_Letter", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v\nwant %v", got, want)
@@ -442,18 +470,9 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `$_0301`, 0xED80: `$_ED80`, '"': `$_0022`, '\\': `$_005C`, 0x7F: `$_007F`, 'é': `$_00E9`, '각': `$_AC01`, 0x10FFFD: `$_10FFFD`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"‹U+0301›"`, 0xED80: `"‹U+ED80›"`, '"': `"‹U+0022›"`, '\\': `"\"`, 0x7F: `"‹DEL›"`, 'é': `"‹U+00E9›"`, '각': `"‹U+AC01›"`, 0x10FFFD: `"‹U+10FFFD›"`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
-		}
-		name := fmt.Sprintf("_%04X", c)
-		if back, ok := engineScalar(name); !ok || back != string(c) {
-			t.Errorf("%s: %q, %v", name, back, ok)
-		}
-	}
-	for _, bad := range []string{"_61", "_0000301", "_ed80", "_D800", "_110000", "_Any"} {
-		if _, ok := engineScalar(bad); ok {
-			t.Errorf("%s is a scalar constant", bad)
 		}
 	}
 	for _, bad := range []string{"'a'", "/a/", "lowercase", "_Bogus"} {
@@ -550,7 +569,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 		rule  string
 		table bool
 		ok    bool
-	}{{`_L`, true, false}, {`_Cn`, true, true}, {`_L`, false, true}} {
+	}{{`_General_Category_Letter`, true, false}, {`_General_Category_Unassigned`, true, true}, {`_General_Category_Letter`, false, true}} {
 		d, err := LoadDialectSources(sources(c.rule, c.table), "p.md")
 		if err != nil {
 			t.Fatal(err)
@@ -606,12 +625,12 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 1 {
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 1 {
 		t.Fatalf("a compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 0 {
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("a compiled.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {

@@ -1,0 +1,57 @@
+{
+  "description": "The ordinary rule 🆓 defines the free-modifier slot. Its node groups zero or more free modifiers (engine §2).",
+  "grammar": "%rule 🆓 [{free}]\n%rule text (A 🆓 B)\n%rule free F",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    },
+    {
+      "text": "f",
+      "tags": [
+        "F"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A"
+          },
+          {
+            "kind": "rule",
+            "rule": "🆓",
+            "span": [
+              1,
+              3
+            ]
+          },
+          {
+            "kind": "token",
+            "terminal": "B"
+          }
+        ]
+      }
+    },
+    "brackets": "(a [f f] b)"
+  }
+}

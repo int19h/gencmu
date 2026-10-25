@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi klama .i su'i pa zo coi",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,
@@ -252,9 +251,6 @@
               "tags": []
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

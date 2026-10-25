@@ -15,6 +15,8 @@ type parseState struct {
 	lineStarts []int
 	// nested holds the answers of nested parses, and inProgress those now
 	// running (terms.go).
+	suffixes   map[suffixKey]*suffixState
+	suffixDeps map[suffixTarget]bool
 	nested     map[nestedKey]*nestedResult
 	inProgress map[spanKey]bool
 	// contents numbers the contents of the short spans that keys of nested
@@ -41,6 +43,12 @@ type parseState struct {
 	// private holds the switches and hooks of the library's own tests, or
 	// nil.
 	private *privateOptions
+	// Stage zero owns these tokens and their already interned profiles.
+	// The first run consumes this pair only for that exact token slice.
+	initialTokens  []Token
+	initialTagsets []*tagset
+	// Public tag lists occupy separate ranges of these bounded blocks.
+	tagStorage []string
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
@@ -77,16 +85,44 @@ func (ps *parseState) characterTokens() []Token {
 	}
 	decomposed := ps.uni.decomposeWithOrigins(ps.text)
 	toks := make([]Token, len(decomposed))
+	tagsets := make([]*tagset, len(decomposed))
+	profiles := map[rune]*tagset{}
 	for i, scalar := range decomposed {
 		c, origin := scalar.character, scalar.origin
-		category := ps.uni.category(c)
-		tags := []string{"_" + category, "_" + category[:1]}
-		if ps.uni.isWhiteSpace(c) {
-			tags = append(tags, "_White_Space")
+		tags, ok := profiles[c]
+		if !ok {
+			tags = ps.in.fromList(ps.uni.profile(c))
+			profiles[c] = tags
 		}
-		toks[i] = Token{Text: string(ps.text[origin]), Value: string(c), Image: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
+		tagsets[i] = tags
+		value := string(c)
+		text := value
+		if ps.text[origin] != c {
+			text = string(ps.text[origin])
+		}
+		toks[i] = Token{Text: text, Value: value, Image: value, Tags: ps.publicTags(tags), Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
 	}
+	ps.initialTokens, ps.initialTagsets = toks, tagsets
 	return toks
+}
+
+// publicTags copies every member into a distinct range. Capacity ends at
+// its last member, so appending cannot change another public tag list.
+// Size each block for up to 64 copies of this list and at most 4096
+// members. A larger list gets one block.
+func (ps *parseState) publicTags(tags *tagset) []string {
+	size := len(tags.names)
+	if size == 0 {
+		return []string{}
+	}
+	if len(ps.tagStorage) < size {
+		count := max(1, min(len(ps.text), 64, 4096/size))
+		ps.tagStorage = make([]string, count*size)
+	}
+	out := ps.tagStorage[:size:size]
+	copy(out, tags.names)
+	ps.tagStorage = ps.tagStorage[size:]
+	return out
 }
 
 type stageRun struct {
@@ -211,10 +247,16 @@ func testHoldsOf(t *symTest, soundIs func(string) bool, tags *tagset) bool {
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
-	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, tagsets: make([]*tagset, len(toks)), inputEnd: len(toks)}
+	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, inputEnd: len(toks)}
+	if len(toks) > 0 && len(toks) == len(ps.initialTokens) && &toks[0] == &ps.initialTokens[0] {
+		run.tagsets = ps.initialTagsets
+		ps.initialTokens, ps.initialTagsets = nil, nil
+		return run
+	}
+	run.tagsets = make([]*tagset, len(toks))
 	for i := range toks {
 		run.tagsets[i] = ps.in.fromList(toks[i].Tags)
-		toks[i].Tags = run.tagsets[i].list()
+		toks[i].Tags = ps.publicTags(run.tagsets[i])
 	}
 	return run
 }

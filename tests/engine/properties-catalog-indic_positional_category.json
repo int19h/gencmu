@@ -1,0 +1,405 @@
+{
+  "description": "Every Indic_Positional_Category value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15\n%rule r0 $x:_Indic_Positional_Category_Bottom<_Indic_Positional_Category_Bottom>\n%conditions $x ≅ #_Indic_Positional_Category_Bottom<_Indic_Positional_Category_Bottom>, _Indic_Positional_Category_Bottom ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Bottom\n%rule r1 $x:_Indic_Positional_Category_Bottom_And_Left<_Indic_Positional_Category_Bottom_And_Left>\n%conditions $x ≅ #_Indic_Positional_Category_Bottom_And_Left<_Indic_Positional_Category_Bottom_And_Left>, _Indic_Positional_Category_Bottom_And_Left ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Bottom_And_Left\n%rule r2 $x:_Indic_Positional_Category_Bottom_And_Right<_Indic_Positional_Category_Bottom_And_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Bottom_And_Right<_Indic_Positional_Category_Bottom_And_Right>, _Indic_Positional_Category_Bottom_And_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Bottom_And_Right\n%rule r3 $x:_Indic_Positional_Category_Left<_Indic_Positional_Category_Left>\n%conditions $x ≅ #_Indic_Positional_Category_Left<_Indic_Positional_Category_Left>, _Indic_Positional_Category_Left ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Left\n%rule r4 $x:_Indic_Positional_Category_Left_And_Right<_Indic_Positional_Category_Left_And_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Left_And_Right<_Indic_Positional_Category_Left_And_Right>, _Indic_Positional_Category_Left_And_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Left_And_Right\n%rule r5 $x:_Indic_Positional_Category_NA<_Indic_Positional_Category_NA>\n%conditions $x ≅ #_Indic_Positional_Category_NA<_Indic_Positional_Category_NA>, _Indic_Positional_Category_NA ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_NA\n%rule r6 $x:_Indic_Positional_Category_Overstruck<_Indic_Positional_Category_Overstruck>\n%conditions $x ≅ #_Indic_Positional_Category_Overstruck<_Indic_Positional_Category_Overstruck>, _Indic_Positional_Category_Overstruck ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Overstruck\n%rule r7 $x:_Indic_Positional_Category_Right<_Indic_Positional_Category_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Right<_Indic_Positional_Category_Right>, _Indic_Positional_Category_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Right\n%rule r8 $x:_Indic_Positional_Category_Top<_Indic_Positional_Category_Top>\n%conditions $x ≅ #_Indic_Positional_Category_Top<_Indic_Positional_Category_Top>, _Indic_Positional_Category_Top ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top\n%rule r9 $x:_Indic_Positional_Category_Top_And_Bottom<_Indic_Positional_Category_Top_And_Bottom>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Bottom<_Indic_Positional_Category_Top_And_Bottom>, _Indic_Positional_Category_Top_And_Bottom ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Bottom\n%rule r10 $x:_Indic_Positional_Category_Top_And_Bottom_And_Left<_Indic_Positional_Category_Top_And_Bottom_And_Left>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Bottom_And_Left<_Indic_Positional_Category_Top_And_Bottom_And_Left>, _Indic_Positional_Category_Top_And_Bottom_And_Left ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Bottom_And_Left\n%rule r11 $x:_Indic_Positional_Category_Top_And_Bottom_And_Right<_Indic_Positional_Category_Top_And_Bottom_And_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Bottom_And_Right<_Indic_Positional_Category_Top_And_Bottom_And_Right>, _Indic_Positional_Category_Top_And_Bottom_And_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Bottom_And_Right\n%rule r12 $x:_Indic_Positional_Category_Top_And_Left<_Indic_Positional_Category_Top_And_Left>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Left<_Indic_Positional_Category_Top_And_Left>, _Indic_Positional_Category_Top_And_Left ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Left\n%rule r13 $x:_Indic_Positional_Category_Top_And_Left_And_Right<_Indic_Positional_Category_Top_And_Left_And_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Left_And_Right<_Indic_Positional_Category_Top_And_Left_And_Right>, _Indic_Positional_Category_Top_And_Left_And_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Left_And_Right\n%rule r14 $x:_Indic_Positional_Category_Top_And_Right<_Indic_Positional_Category_Top_And_Right>\n%conditions $x ≅ #_Indic_Positional_Category_Top_And_Right<_Indic_Positional_Category_Top_And_Right>, _Indic_Positional_Category_Top_And_Right ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Top_And_Right\n%rule r15 $x:_Indic_Positional_Category_Visual_Order_Left<_Indic_Positional_Category_Visual_Order_Left>\n%conditions $x ≅ #_Indic_Positional_Category_Visual_Order_Left<_Indic_Positional_Category_Visual_Order_Left>, _Indic_Positional_Category_Visual_Order_Left ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Positional_Category_Visual_Order_Left",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Bottom",
+        "_Indic_Positional_Category_Bottom"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Bottom_And_Left",
+        "_Indic_Positional_Category_Bottom_And_Left"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Bottom_And_Right",
+        "_Indic_Positional_Category_Bottom_And_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Left",
+        "_Indic_Positional_Category_Left"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Left_And_Right",
+        "_Indic_Positional_Category_Left_And_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_NA",
+        "_Indic_Positional_Category_NA"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Overstruck",
+        "_Indic_Positional_Category_Overstruck"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Right",
+        "_Indic_Positional_Category_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top",
+        "_Indic_Positional_Category_Top"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Bottom",
+        "_Indic_Positional_Category_Top_And_Bottom"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Bottom_And_Left",
+        "_Indic_Positional_Category_Top_And_Bottom_And_Left"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Bottom_And_Right",
+        "_Indic_Positional_Category_Top_And_Bottom_And_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Left",
+        "_Indic_Positional_Category_Top_And_Left"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Left_And_Right",
+        "_Indic_Positional_Category_Top_And_Left_And_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Top_And_Right",
+        "_Indic_Positional_Category_Top_And_Right"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InPC_Visual_Order_Left",
+        "_Indic_Positional_Category_Visual_Order_Left"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Indic_Positional_Category_Bottom"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Bottom_And_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Bottom_And_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Left_And_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_NA"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Overstruck"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Bottom"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Bottom_And_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Bottom_And_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Left"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Left_And_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Top_And_Right"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Positional_Category_Visual_Order_Left"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Bottom"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Bottom"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Bottom_And_Left"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Bottom_And_Left"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Bottom_And_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Bottom_And_Right"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Left"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Left"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Left_And_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Left_And_Right"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_NA"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_NA"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Overstruck"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Overstruck"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Right"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Bottom"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Bottom"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Bottom_And_Left"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Bottom_And_Left"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Bottom_And_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Bottom_And_Right"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Left"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Left"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Left_And_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Left_And_Right"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Top_And_Right"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Top_And_Right"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Indic_Positional_Category_Visual_Order_Left"
+              }
+            ],
+            "tags": [
+              "_Indic_Positional_Category_Visual_Order_Left"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

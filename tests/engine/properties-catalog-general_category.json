@@ -1,0 +1,946 @@
+{
+  "description": "Every General_Category value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36\n%rule r0 $x:_General_Category_Close_Punctuation<_Pe>\n%conditions $x ≅ #_gc_Pe<_gc_Pe>, _gc_Pe ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Pe\n%rule r1 $x:_General_Category_Connector_Punctuation<_Pc>\n%conditions $x ≅ #_gc_Pc<_gc_Pc>, _gc_Pc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Pc\n%rule r2 $x:_General_Category_Control<_Cc>\n%conditions $x ≅ #_gc_Cc<_gc_Cc>, _gc_Cc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Cc\n%rule r3 $x:_General_Category_Currency_Symbol<_Sc>\n%conditions $x ≅ #_gc_Sc<_gc_Sc>, _gc_Sc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Sc\n%rule r4 $x:_General_Category_Dash_Punctuation<_Pd>\n%conditions $x ≅ #_gc_Pd<_gc_Pd>, _gc_Pd ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Pd\n%rule r5 $x:_General_Category_Decimal_Number<_Nd>\n%conditions $x ≅ #_gc_Nd<_gc_Nd>, _gc_Nd ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Nd\n%rule r6 $x:_General_Category_Enclosing_Mark<_Me>\n%conditions $x ≅ #_gc_Me<_gc_Me>, _gc_Me ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Me\n%rule r7 $x:_General_Category_Final_Punctuation<_Pf>\n%conditions $x ≅ #_gc_Pf<_gc_Pf>, _gc_Pf ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Pf\n%rule r8 $x:_General_Category_Format<_Cf>\n%conditions $x ≅ #_gc_Cf<_gc_Cf>, _gc_Cf ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Cf\n%rule r9 $x:_General_Category_Initial_Punctuation<_Pi>\n%conditions $x ≅ #_gc_Pi<_gc_Pi>, _gc_Pi ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Pi\n%rule r10 $x:_General_Category_Letter<_L>\n%conditions $x ≅ #_gc_L<_gc_L>, _gc_L ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_L\n%rule r11 $x:_General_Category_Letter_Number<_Nl>\n%conditions $x ≅ #_gc_Nl<_gc_Nl>, _gc_Nl ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Nl\n%rule r12 $x:_General_Category_Line_Separator<_Zl>\n%conditions $x ≅ #_gc_Zl<_gc_Zl>, _gc_Zl ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Zl\n%rule r13 $x:_General_Category_Lowercase_Letter<_Ll>\n%conditions $x ≅ #_gc_Ll<_gc_Ll>, _gc_Ll ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Ll\n%rule r14 $x:_General_Category_Mark<_M>\n%conditions $x ≅ #_gc_M<_gc_M>, _gc_M ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_M\n%rule r15 $x:_General_Category_Math_Symbol<_Sm>\n%conditions $x ≅ #_gc_Sm<_gc_Sm>, _gc_Sm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Sm\n%rule r16 $x:_General_Category_Modifier_Letter<_Lm>\n%conditions $x ≅ #_gc_Lm<_gc_Lm>, _gc_Lm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Lm\n%rule r17 $x:_General_Category_Modifier_Symbol<_Sk>\n%conditions $x ≅ #_gc_Sk<_gc_Sk>, _gc_Sk ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Sk\n%rule r18 $x:_General_Category_Nonspacing_Mark<_Mn>\n%conditions $x ≅ #_gc_Mn<_gc_Mn>, _gc_Mn ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Mn\n%rule r19 $x:_General_Category_Number<_N>\n%conditions $x ≅ #_gc_N<_gc_N>, _gc_N ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_N\n%rule r20 $x:_General_Category_Open_Punctuation<_Ps>\n%conditions $x ≅ #_gc_Ps<_gc_Ps>, _gc_Ps ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Ps\n%rule r21 $x:_General_Category_Other<_C>\n%conditions $x ≅ #_gc_C<_gc_C>, _gc_C ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_C\n%rule r22 $x:_General_Category_Other_Letter<_Lo>\n%conditions $x ≅ #_gc_Lo<_gc_Lo>, _gc_Lo ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Lo\n%rule r23 $x:_General_Category_Other_Number<_No>\n%conditions $x ≅ #_gc_No<_gc_No>, _gc_No ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_No\n%rule r24 $x:_General_Category_Other_Punctuation<_Po>\n%conditions $x ≅ #_gc_Po<_gc_Po>, _gc_Po ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Po\n%rule r25 $x:_General_Category_Other_Symbol<_So>\n%conditions $x ≅ #_gc_So<_gc_So>, _gc_So ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_So\n%rule r26 $x:_General_Category_Paragraph_Separator<_Zp>\n%conditions $x ≅ #_gc_Zp<_gc_Zp>, _gc_Zp ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Zp\n%rule r27 $x:_General_Category_Private_Use<_Co>\n%conditions $x ≅ #_gc_Co<_gc_Co>, _gc_Co ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Co\n%rule r28 $x:_General_Category_Punctuation<_P>\n%conditions $x ≅ #_gc_P<_gc_P>, _gc_P ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_P\n%rule r29 $x:_General_Category_Separator<_Z>\n%conditions $x ≅ #_gc_Z<_gc_Z>, _gc_Z ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Z\n%rule r30 $x:_General_Category_Space_Separator<_Zs>\n%conditions $x ≅ #_gc_Zs<_gc_Zs>, _gc_Zs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Zs\n%rule r31 $x:_General_Category_Spacing_Mark<_Mc>\n%conditions $x ≅ #_gc_Mc<_gc_Mc>, _gc_Mc ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Mc\n%rule r32 $x:_General_Category_Surrogate<_Cs>\n%conditions $x ≅ #_gc_Cs<_gc_Cs>, _gc_Cs ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Cs\n%rule r33 $x:_General_Category_Symbol<_S>\n%conditions $x ≅ #_gc_S<_gc_S>, _gc_S ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_S\n%rule r34 $x:_General_Category_Titlecase_Letter<_Lt>\n%conditions $x ≅ #_gc_Lt<_gc_Lt>, _gc_Lt ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Lt\n%rule r35 $x:_General_Category_Unassigned<_Cn>\n%conditions $x ≅ #_gc_Cn<_gc_Cn>, _gc_Cn ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Cn\n%rule r36 $x:_General_Category_Uppercase_Letter<_Lu>\n%conditions $x ≅ #_gc_Lu<_gc_Lu>, _gc_Lu ⊆ $x.tags\n%emits $x :: $x.tags ∩ _gc_Lu",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Close_Punctuation",
+        "_Pe",
+        "_gc_Pe"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Connector_Punctuation",
+        "_Pc",
+        "_gc_Pc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Cc",
+        "_General_Category_Control",
+        "_gc_Cc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Currency_Symbol",
+        "_Sc",
+        "_gc_Sc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Dash_Punctuation",
+        "_Pd",
+        "_gc_Pd"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Decimal_Number",
+        "_Nd",
+        "_gc_Nd"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Enclosing_Mark",
+        "_Me",
+        "_gc_Me"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Final_Punctuation",
+        "_Pf",
+        "_gc_Pf"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Cf",
+        "_General_Category_Format",
+        "_gc_Cf"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Initial_Punctuation",
+        "_Pi",
+        "_gc_Pi"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Letter",
+        "_L",
+        "_gc_L"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Letter_Number",
+        "_Nl",
+        "_gc_Nl"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Line_Separator",
+        "_Zl",
+        "_gc_Zl"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Lowercase_Letter",
+        "_Ll",
+        "_gc_Ll"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Mark",
+        "_M",
+        "_gc_M"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Math_Symbol",
+        "_Sm",
+        "_gc_Sm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Modifier_Letter",
+        "_Lm",
+        "_gc_Lm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Modifier_Symbol",
+        "_Sk",
+        "_gc_Sk"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Nonspacing_Mark",
+        "_Mn",
+        "_gc_Mn"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Number",
+        "_N",
+        "_gc_N"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Open_Punctuation",
+        "_Ps",
+        "_gc_Ps"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_C",
+        "_General_Category_Other",
+        "_gc_C"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Other_Letter",
+        "_Lo",
+        "_gc_Lo"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Other_Number",
+        "_No",
+        "_gc_No"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Other_Punctuation",
+        "_Po",
+        "_gc_Po"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Other_Symbol",
+        "_So",
+        "_gc_So"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Paragraph_Separator",
+        "_Zp",
+        "_gc_Zp"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Co",
+        "_General_Category_Private_Use",
+        "_gc_Co"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Punctuation",
+        "_P",
+        "_gc_P"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Separator",
+        "_Z",
+        "_gc_Z"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Space_Separator",
+        "_Zs",
+        "_gc_Zs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Spacing_Mark",
+        "_Mc",
+        "_gc_Mc"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Cs",
+        "_General_Category_Surrogate",
+        "_gc_Cs"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Symbol",
+        "_S",
+        "_gc_S"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Titlecase_Letter",
+        "_Lt",
+        "_gc_Lt"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Cn",
+        "_General_Category_Unassigned",
+        "_gc_Cn"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_General_Category_Uppercase_Letter",
+        "_Lu",
+        "_gc_Lu"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_General_Category_Close_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Connector_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Control"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Currency_Symbol"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Dash_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Decimal_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Enclosing_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Final_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Format"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Initial_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Letter_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Line_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Lowercase_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Math_Symbol"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Modifier_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Modifier_Symbol"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Nonspacing_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Open_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Other"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Other_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Other_Number"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Other_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Other_Symbol"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Paragraph_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Private_Use"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Punctuation"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Space_Separator"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Spacing_Mark"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Surrogate"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Symbol"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Titlecase_Letter"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Unassigned"
+              ]
+            },
+            {
+              "tags": [
+                "_General_Category_Uppercase_Letter"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_General_Category_Close_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Close_Punctuation"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_General_Category_Connector_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Connector_Punctuation"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_General_Category_Control"
+              }
+            ],
+            "tags": [
+              "_General_Category_Control"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_General_Category_Currency_Symbol"
+              }
+            ],
+            "tags": [
+              "_General_Category_Currency_Symbol"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_General_Category_Dash_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Dash_Punctuation"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_General_Category_Decimal_Number"
+              }
+            ],
+            "tags": [
+              "_General_Category_Decimal_Number"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_General_Category_Enclosing_Mark"
+              }
+            ],
+            "tags": [
+              "_General_Category_Enclosing_Mark"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_General_Category_Final_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Final_Punctuation"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_General_Category_Format"
+              }
+            ],
+            "tags": [
+              "_General_Category_Format"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_General_Category_Initial_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Initial_Punctuation"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_General_Category_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Letter"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_General_Category_Letter_Number"
+              }
+            ],
+            "tags": [
+              "_General_Category_Letter_Number"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_General_Category_Line_Separator"
+              }
+            ],
+            "tags": [
+              "_General_Category_Line_Separator"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_General_Category_Lowercase_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Lowercase_Letter"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_General_Category_Mark"
+              }
+            ],
+            "tags": [
+              "_General_Category_Mark"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_General_Category_Math_Symbol"
+              }
+            ],
+            "tags": [
+              "_General_Category_Math_Symbol"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_General_Category_Modifier_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Modifier_Letter"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_General_Category_Modifier_Symbol"
+              }
+            ],
+            "tags": [
+              "_General_Category_Modifier_Symbol"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_General_Category_Nonspacing_Mark"
+              }
+            ],
+            "tags": [
+              "_General_Category_Nonspacing_Mark"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_General_Category_Number"
+              }
+            ],
+            "tags": [
+              "_General_Category_Number"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_General_Category_Open_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Open_Punctuation"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_General_Category_Other"
+              }
+            ],
+            "tags": [
+              "_General_Category_Other"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_General_Category_Other_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Other_Letter"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_General_Category_Other_Number"
+              }
+            ],
+            "tags": [
+              "_General_Category_Other_Number"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_General_Category_Other_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Other_Punctuation"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_General_Category_Other_Symbol"
+              }
+            ],
+            "tags": [
+              "_General_Category_Other_Symbol"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_General_Category_Paragraph_Separator"
+              }
+            ],
+            "tags": [
+              "_General_Category_Paragraph_Separator"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_General_Category_Private_Use"
+              }
+            ],
+            "tags": [
+              "_General_Category_Private_Use"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_General_Category_Punctuation"
+              }
+            ],
+            "tags": [
+              "_General_Category_Punctuation"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_General_Category_Separator"
+              }
+            ],
+            "tags": [
+              "_General_Category_Separator"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_General_Category_Space_Separator"
+              }
+            ],
+            "tags": [
+              "_General_Category_Space_Separator"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_General_Category_Spacing_Mark"
+              }
+            ],
+            "tags": [
+              "_General_Category_Spacing_Mark"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_General_Category_Surrogate"
+              }
+            ],
+            "tags": [
+              "_General_Category_Surrogate"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_General_Category_Symbol"
+              }
+            ],
+            "tags": [
+              "_General_Category_Symbol"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_General_Category_Titlecase_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Titlecase_Letter"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_General_Category_Unassigned"
+              }
+            ],
+            "tags": [
+              "_General_Category_Unassigned"
+            ]
+          },
+          {
+            "rule": "r36",
+            "children": [
+              {
+                "terminal": "_General_Category_Uppercase_Letter"
+              }
+            ],
+            "tags": [
+              "_General_Category_Uppercase_Letter"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

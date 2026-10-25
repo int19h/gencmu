@@ -1033,14 +1033,15 @@ mod tests {
         let (document, dom) = grammar(rng);
         if check_dom {
             // The DOM given to the cache is the one the notation reads.
-            let read = crate::tools::read_grammar_document(&document).expect("the document");
+            let read = crate::tools::read_grammar_document(&document, "").expect("the document");
             assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
         let compiled = format!(
-            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
+            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
             crate::json::fnv1a64(crate::loader::bundled("unicode.txt").unwrap()),
+            crate::json::fnv1a64(crate::loader::bundled("unicode-properties.txt").unwrap()),
             crate::json::fnv1a64(&document),
             crate::json::fnv1a64(PIPELINE)
         );
@@ -1215,7 +1216,7 @@ mod tests {
         let cases: u64 = std::env::var("GENCMU_PROPERTY_CASES").ok().and_then(|n| n.parse().ok()).unwrap_or(2000);
         let seed: u64 = std::env::var("GENCMU_PROPERTY_SEED").ok().and_then(|n| n.parse().ok()).unwrap_or(20261001);
         let mut rng = Rng(seed);
-        let pipeline = crate::tools::read_grammar_document(PIPELINE).expect("the pipeline");
+        let pipeline = crate::tools::read_grammar_document(PIPELINE, "").expect("the pipeline");
         let (mut checked, mut filtered) = (0, 0);
         let mut failures: HashMap<String, (Vec<bool>, Vec<bool>)> = HashMap::new();
         for case in 0..cases {

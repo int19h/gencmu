@@ -1,0 +1,93 @@
+{
+  "description": "Every NFKC_Quick_Check value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2\n%rule r0 $x:_NFKC_Quick_Check_Maybe<_NFKC_Quick_Check_Maybe>\n%conditions $x ≅ #_NFKC_Quick_Check_Maybe<_NFKC_Quick_Check_Maybe>, _NFKC_Quick_Check_Maybe ⊆ $x.tags\n%emits $x :: $x.tags ∩ _NFKC_Quick_Check_Maybe\n%rule r1 $x:_NFKC_Quick_Check_No<_NFKC_Quick_Check_No>\n%conditions $x ≅ #_NFKC_Quick_Check_No<_NFKC_Quick_Check_No>, _NFKC_Quick_Check_No ⊆ $x.tags\n%emits $x :: $x.tags ∩ _NFKC_Quick_Check_No\n%rule r2 $x:_NFKC_Quick_Check_Yes<_NFKC_Quick_Check_Yes>\n%conditions $x ≅ #_NFKC_Quick_Check_Yes<_NFKC_Quick_Check_Yes>, _NFKC_Quick_Check_Yes ⊆ $x.tags\n%emits $x :: $x.tags ∩ _NFKC_Quick_Check_Yes",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_NFKC_QC_M",
+        "_NFKC_Quick_Check_Maybe"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_NFKC_QC_N",
+        "_NFKC_Quick_Check_No"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_NFKC_QC_Y",
+        "_NFKC_Quick_Check_Yes"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_NFKC_Quick_Check_Maybe"
+              ]
+            },
+            {
+              "tags": [
+                "_NFKC_Quick_Check_No"
+              ]
+            },
+            {
+              "tags": [
+                "_NFKC_Quick_Check_Yes"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_NFKC_Quick_Check_Maybe"
+              }
+            ],
+            "tags": [
+              "_NFKC_Quick_Check_Maybe"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_NFKC_Quick_Check_No"
+              }
+            ],
+            "tags": [
+              "_NFKC_Quick_Check_No"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_NFKC_Quick_Check_Yes"
+              }
+            ],
+            "tags": [
+              "_NFKC_Quick_Check_Yes"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

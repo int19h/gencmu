@@ -4,7 +4,7 @@ You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [
 
 A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
-This example adds a word class and changes syntax. It retains the inherited phoneme, normalization, word, and indicator policies.
+This example adds a word class and changes syntax. It retains the inherited phoneme, word, and indicator policies.
 
 ## Before you start
 
@@ -51,13 +51,13 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A stage is one step of a parse. A pipeline is an ordered sequence of stages. A phoneme is one speech sound.
 
-   The pipeline reads phonemes, normalizes values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
+   The pipeline maps phoneme values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
 
-   The included dialect creates all six stages. `%extend-stage` selects an existing stage and preserves its position.
+   The included dialect creates all five stages. `%extend-stage` selects an existing stage and preserves its position.
 
 2. Add the word class in the forms stage.
 
-   A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives normalized values.
+   A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives the phoneme values.
 
    A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with capitals and never start with `_`.
 
@@ -97,14 +97,6 @@ Use example filenames that do not clash with your own files. The commands below 
    3  "e"   "e"    "e"    3-4   3-4
    4  "i"   "i"    "i"    4-5   4-5
 
-   normalize: 5 tokens, unique
-   #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1
-   1  "i"   "i"    "i"    1-2   1-2
-   2  "'"   "'"    "'"    2-3   2-3
-   3  "e"   "e"    "e"    3-4   3-4
-   4  "i"   "i"    "i"    4-5   4-5
-
    forms: 1 tokens, unique
    #  text     value    image    span  source  tags
    0  "ki'ei"  "ki'ei"  "ki'ei"  0-5   0-5     Cmavo Continued KIhEI Onset Run-Final Run-Initial Word
@@ -129,13 +121,13 @@ Use example filenames that do not clash with your own files. The commands below 
      utterance-sequence [{frame-group}] | {frame-group}
 
    %rule utterance-sequence
-     (statement | fragment) [{I # [statement | fragment]}]
+     (statement | fragment) [{I 🆓 [statement | fragment]}]
 
    %rule frame-group
-     frame [I # [utterance-sequence]]
+     frame [I 🆓 [utterance-sequence]]
 
    %rule frame
-     KIhEI # [terms]
+     KIhEI 🆓 [terms]
    ```
    EOF
    ````
@@ -144,7 +136,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `%rule` defines each additional rule. `KIhEI` matches the additional word class, and `[terms]` accepts zero or more CLL terms.
 
-   A free modifier adds information at permitted grammar positions. `#` reads optional free modifiers. `I` matches `.i`.
+   A free modifier adds information at permitted grammar positions. `🆓` reads optional free modifiers. `I` matches `.i`.
 
    The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
 
@@ -422,7 +414,7 @@ Use string terminals for exact characters and ranges for scalar intervals. Use s
 
 `:: ∅` stops inheritance of the child's tags, engine tags included. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
 
-Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
+Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_General_Category_Uppercase_Letter ⊆ $c.tags` tests membership. `:: $c.tags ∩ _General_Category_Uppercase_Letter` filters inherited membership.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Classifiers and elidable terminators cannot assign them. [Engine §1](engine.md#engine-tag-provenance) defines `lit` for nested filters.
 
@@ -432,19 +424,32 @@ An `%extend-rule` takes its own header clauses, never those of the base definiti
 
 ```jbogenbau
 %extend-rule stressed-vowel
-  | "A" $_0301 :: Stressed := "A"
+  | "A" "‹U+0301›" :: Stressed := "a" :- "A"
 %emits
 ```
 
-The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, normalization forwards `A` unchanged, and forms cannot read it.
+The value recipe supplies the plain vowel. The image recipe keeps visible stress. The `Stressed` tag alone carries stress information for later recognition.
 
-A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
+The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, later stages read the vowel as unstressed. Make sure that phoneme fixtures cover both the tag and the image.
 
-## Normalize through grammar
+A one-symbol mapping, such as `"B" := "b"`, inherits `_General_Category_Uppercase_Letter` and `_General_Category_Letter` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
 
-The inherited pipeline defines `normalize` after phonemes and before forms. Use `%redefine-stage normalize` to replace it, or `%stage normalize` in an independent pipeline.
+## Phoneme values and stress
 
-Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings. [Engine §1](engine.md#1-tokens) defines stage-zero decomposition and token fields.
+The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and `syntax`, in that order.
+
+A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
+
+The `syllable-break` rule in [latin-strict.md](../grammars/phonemes/latin-strict.md) reads `commas`. Its covering emission sets the comparison value:
+
+```jbogenbau
+%rule syllable-break
+  commas
+%emits
+  $ :: Syllable-Break := "" :- ","
+```
+
+The token retains the comma run as its text and source. Its empty value does not erase it. The forms stage receives phoneme values directly.
 
 ## Place recipes for parents
 
@@ -685,3 +690,11 @@ Read [Feature guards](notation.md#feature-guards) for gates, warnings, and featu
 Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
 
 Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for expected results and shared tests.
+
+## Zbalermorna names
+
+The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every dialect that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. Each Explicit rule row contributes both scalars to exactly the same grammar alternatives. Channels that these alternatives set by recipe have equal results for both encodings.
+
+Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the dialect's shared rules. BPFK and Zantufa read them as pause material, and experimental reads them as foreign material. Loading and parsing produce no warning about the older encoding.
+
+[The grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.

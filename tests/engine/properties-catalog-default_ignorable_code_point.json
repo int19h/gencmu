@@ -1,0 +1,45 @@
+{
+  "description": "Every Default_Ignorable_Code_Point value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Default_Ignorable_Code_Point<_Default_Ignorable_Code_Point>\n%conditions $x ≅ #_Default_Ignorable_Code_Point<_Default_Ignorable_Code_Point>, _Default_Ignorable_Code_Point ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Default_Ignorable_Code_Point",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_DI",
+        "_Default_Ignorable_Code_Point"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Default_Ignorable_Code_Point"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Default_Ignorable_Code_Point"
+              }
+            ],
+            "tags": [
+              "_Default_Ignorable_Code_Point"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

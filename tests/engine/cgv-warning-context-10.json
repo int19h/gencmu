@@ -16,7 +16,6 @@
           "stages": [
             {},
             {},
-            {},
             {
               "name": "words",
               "verdict": "unique",
@@ -60,7 +59,6 @@
         "result": {
           "ok": true,
           "stages": [
-            {},
             {},
             {},
             {

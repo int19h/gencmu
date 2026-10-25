@@ -115,7 +115,7 @@ func TestLoadErrors(t *testing.T) {
 	}{
 		"syntax":        {oneStage("%ambiguity-resolution greedy\n%rule text A ) B"), 5, 14, "g.md"},
 		"keyword":       {oneStage("%ambiguity-resolution greedy\n%rule text A\n  %emit $"), 6, 3, "g.md"},
-		"escape":        {oneStage("%ambiguity-resolution greedy\n%rule text \"\\\\q\""), 5, 13, "g.md"},
+		"escape":        {oneStage("%ambiguity-resolution greedy\n%rule text \"‹U+D800›\""), 5, 13, "g.md"},
 		"undefined":     {oneStage("%ambiguity-resolution greedy\n%rule text nowhere"), 5, 1, "g.md"},
 		"defined twice": {oneStage("%ambiguity-resolution greedy\n%rule text A\n%rule text B"), 6, 1, "g.md"},
 		"definition":    {oneStage("%ambiguity-resolution greedy\n%rule text $a:A | B\n%emits $a"), 5, 1, "g.md"},
@@ -307,7 +307,7 @@ func TestMarshalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":14,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"ø\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":15,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"ø\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
@@ -319,7 +319,7 @@ func TestMarshalResult(t *testing.T) {
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":14,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"ø\"","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":15,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"ø\"","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
@@ -335,7 +335,7 @@ func TestMarshalResult(t *testing.T) {
 		t.Fatalf("%s", data)
 	}
 	// An emitted token stores the recipe value "?" and the source-text image.
-	// Its JSON fields follow the format 14 order.
+	// Its JSON fields follow the format 15 order.
 	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"ø\"\n%emits $ :: W := \"?\" :- $.source-text"))
 	res, _ = d.Parse("øx", ParseOptions{})
 	data, _ = MarshalResult(res)
@@ -722,7 +722,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s in compiled.json: %v", expr, err)
@@ -752,7 +752,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 func TestMalformedCharacterClasses(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _L")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _General_Category_Letter")
 	gText := sources["g.md"]
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
@@ -763,7 +763,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		return src
 	}
 	bootstrap := func(dom string) error {
@@ -788,7 +788,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	}
 	// The control: a well-formed entry is used, and rejects "ab"; in the
 	// bootstrap, it is read, and its notation then fails on g.md.
-	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}]}`)
+	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`)
 	if parse(compiled(control)) {
 		t.Fatal("the well-formed entry was not used")
 	}
@@ -797,16 +797,16 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		t.Fatalf("the well-formed bootstrap was refused: %v", err)
 	}
 	for _, expr := range []string{
-		`{"seq":[{"range":[{"string":"c"},{"string":"b"}]},{"ref":"_L"}]}`,
-		`{"seq":[{"range":[{"string":"bb"},{"string":"c"}]},{"ref":"_L"}]}`,
+		`{"seq":[{"range":[{"string":"c"},{"string":"b"}]},{"ref":"_General_Category_Letter"}]}`,
+		`{"seq":[{"range":[{"string":"bb"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`,
 		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_Bogus"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}]},"tags":{"ref":"_L"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]},"tags":{"ref":"_General_Category_Letter"}`,
 		// A range or a property beside a sequence, which is checked before
 		// the sequence is split.
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"range":[{"string":"z"},{"string":"a"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"range":[{"string":"a"},{"string":"z"}]}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"ref":"_Bogus"}`,
-		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_L"}],"ref":"_L"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"range":[{"string":"z"},{"string":"a"}]}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"range":[{"string":"a"},{"string":"z"}]}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"ref":"_Bogus"}`,
+		`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}],"ref":"_General_Category_Letter"}`,
 	} {
 		d := dom(expr)
 		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
@@ -897,7 +897,7 @@ func TestInvalidUTF8(t *testing.T) {
 		return errors.As(err, &e) && e.Kind == ErrorUsage
 	}
 	// Each of these would read U+FFFD or U+D800 if the text became tokens.
-	rules := []string{`_Cs`, `_`, `$_D7FF..$_E000`, `$_FFFD`, "[{character}]\n%rule character _"}
+	rules := []string{`_General_Category_Surrogate`, `_`, `"‹U+D7FF›".."‹U+E000›"`, `"‹U+FFFD›"`, "[{character}]\n%rule character _"}
 	for _, rule := range rules {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+rule))
 		for _, text := range []string{"\xed\xa0\x80", "a\xff", "\xc3", "\xf4\x90\x80\x80", "\xe2\x82"} {
@@ -1458,7 +1458,7 @@ func TestMarshalWitnessLost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":14,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}

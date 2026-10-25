@@ -1,0 +1,25 @@
+{
+  "description": "Extras load in code-point order of resolved paths.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%names \"b.txt\"\n%names \"a.txt\"\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
+    "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "a.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
+    "b.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "",
+      "value": "",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "b.txt",
+      "line": 2
+    }
+  }
+}

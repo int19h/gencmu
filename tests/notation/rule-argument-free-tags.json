@@ -1,0 +1,32 @@
+{
+  "description": "The source name 🆓 becomes a tags rule argument (engine §9.3 and §10).",
+  "document": "```jbogenbau\n%rule text $x:A %conditions X ⊆ $x.tags(🆓)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "op": "⊆",
+              "left": {
+                "tag": "X"
+              },
+              "right": {
+                "method": "tags",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": [
+                  {
+                    "rule": "🆓"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

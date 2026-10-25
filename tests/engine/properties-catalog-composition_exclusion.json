@@ -1,0 +1,45 @@
+{
+  "description": "Every Composition_Exclusion value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Composition_Exclusion<_Composition_Exclusion>\n%conditions $x ≅ #_Composition_Exclusion<_Composition_Exclusion>, _Composition_Exclusion ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Composition_Exclusion",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_CE",
+        "_Composition_Exclusion"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Composition_Exclusion"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Composition_Exclusion"
+              }
+            ],
+            "tags": [
+              "_Composition_Exclusion"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

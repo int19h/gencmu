@@ -187,7 +187,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 14;
+export declare const RESULT_FORMAT = 15;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

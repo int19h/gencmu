@@ -1,6 +1,6 @@
 {
   "description": "A wildcard leaf differs from a string-terminal leaf (engine §12).",
-  "grammar": "%rule text _ %conditions $ ≅ @\"a\"",
+  "grammar": "%rule text _ %conditions $ ≅ #\"a\"",
   "input": "a",
   "expect": {
     "error": "rejected",

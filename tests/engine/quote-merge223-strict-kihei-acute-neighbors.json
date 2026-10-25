@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi ´zo coi´",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,
@@ -77,9 +76,6 @@
               ]
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

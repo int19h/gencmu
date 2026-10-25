@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "pe'o su'i re zo coi cu klama",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -279,9 +278,6 @@
               "tags": []
             }
           ]
-        },
-        {
-          "name": "normalize"
         },
         {
           "name": "forms"

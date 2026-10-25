@@ -1,0 +1,15 @@
+[
+  {
+    "description": "A disk names base replaces bundled lookup names.",
+    "files": {
+      "unicode-names.txt": "unicode-names 15.1.0\n",
+      "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+      "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LATIN CAPITAL LETTER A›\"\n```\n"
+    },
+    "error": {
+      "document": "g.md",
+      "line": 3,
+      "column": 13
+    }
+  }
+]

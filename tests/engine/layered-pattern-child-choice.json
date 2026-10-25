@@ -1,0 +1,10 @@
+{
+  "description": "A child choice consumes one complete alternative sequence.",
+  "grammar": "%rule text $x:pair\n%conditions $x ≅ #pair« \"a\" | \"b\" \"c\" »\n%rule pair \"b\" \"c\"",
+  "input": "bc",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

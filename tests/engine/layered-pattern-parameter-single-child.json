@@ -1,0 +1,10 @@
+{
+  "description": "A pattern argument consumes one child without splicing its children.",
+  "grammar": "%rule use(@P) $x:outer\n%conditions $x ≅ #outer« @P »\n%rule outer atom\n%rule atom \"a\" \"b\"\n%rule text use(#atom« \"a\" \"b\" »)",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

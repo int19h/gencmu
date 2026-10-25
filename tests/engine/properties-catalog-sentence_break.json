@@ -1,0 +1,381 @@
+{
+  "description": "Every Sentence_Break value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14\n%rule r0 $x:_Sentence_Break_ATerm<_Sentence_Break_ATerm>\n%conditions $x ≅ #_Sentence_Break_ATerm<_Sentence_Break_ATerm>, _Sentence_Break_ATerm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_ATerm\n%rule r1 $x:_Sentence_Break_CR<_Sentence_Break_CR>\n%conditions $x ≅ #_Sentence_Break_CR<_Sentence_Break_CR>, _Sentence_Break_CR ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_CR\n%rule r2 $x:_Sentence_Break_Close<_Sentence_Break_Close>\n%conditions $x ≅ #_Sentence_Break_Close<_Sentence_Break_Close>, _Sentence_Break_Close ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Close\n%rule r3 $x:_Sentence_Break_Extend<_Sentence_Break_Extend>\n%conditions $x ≅ #_Sentence_Break_Extend<_Sentence_Break_Extend>, _Sentence_Break_Extend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Extend\n%rule r4 $x:_Sentence_Break_Format<_Sentence_Break_Format>\n%conditions $x ≅ #_Sentence_Break_Format<_Sentence_Break_Format>, _Sentence_Break_Format ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Format\n%rule r5 $x:_Sentence_Break_LF<_Sentence_Break_LF>\n%conditions $x ≅ #_Sentence_Break_LF<_Sentence_Break_LF>, _Sentence_Break_LF ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_LF\n%rule r6 $x:_Sentence_Break_Lower<_Sentence_Break_Lower>\n%conditions $x ≅ #_Sentence_Break_Lower<_Sentence_Break_Lower>, _Sentence_Break_Lower ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Lower\n%rule r7 $x:_Sentence_Break_Numeric<_Sentence_Break_Numeric>\n%conditions $x ≅ #_Sentence_Break_Numeric<_Sentence_Break_Numeric>, _Sentence_Break_Numeric ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Numeric\n%rule r8 $x:_Sentence_Break_OLetter<_Sentence_Break_OLetter>\n%conditions $x ≅ #_Sentence_Break_OLetter<_Sentence_Break_OLetter>, _Sentence_Break_OLetter ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_OLetter\n%rule r9 $x:_Sentence_Break_Other<_Sentence_Break_Other>\n%conditions $x ≅ #_Sentence_Break_Other<_Sentence_Break_Other>, _Sentence_Break_Other ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Other\n%rule r10 $x:_Sentence_Break_SContinue<_Sentence_Break_SContinue>\n%conditions $x ≅ #_Sentence_Break_SContinue<_Sentence_Break_SContinue>, _Sentence_Break_SContinue ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_SContinue\n%rule r11 $x:_Sentence_Break_STerm<_Sentence_Break_STerm>\n%conditions $x ≅ #_Sentence_Break_STerm<_Sentence_Break_STerm>, _Sentence_Break_STerm ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_STerm\n%rule r12 $x:_Sentence_Break_Sep<_Sentence_Break_Sep>\n%conditions $x ≅ #_Sentence_Break_Sep<_Sentence_Break_Sep>, _Sentence_Break_Sep ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Sep\n%rule r13 $x:_Sentence_Break_Sp<_Sentence_Break_Sp>\n%conditions $x ≅ #_Sentence_Break_Sp<_Sentence_Break_Sp>, _Sentence_Break_Sp ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Sp\n%rule r14 $x:_Sentence_Break_Upper<_Sentence_Break_Upper>\n%conditions $x ≅ #_Sentence_Break_Upper<_Sentence_Break_Upper>, _Sentence_Break_Upper ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Sentence_Break_Upper",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_AT",
+        "_Sentence_Break_ATerm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_CR",
+        "_Sentence_Break_CR"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_CL",
+        "_Sentence_Break_Close"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_EX",
+        "_Sentence_Break_Extend"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_FO",
+        "_Sentence_Break_Format"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_LF",
+        "_Sentence_Break_LF"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_LO",
+        "_Sentence_Break_Lower"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_NU",
+        "_Sentence_Break_Numeric"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_LE",
+        "_Sentence_Break_OLetter"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_XX",
+        "_Sentence_Break_Other"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_SC",
+        "_Sentence_Break_SContinue"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_ST",
+        "_Sentence_Break_STerm"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_SE",
+        "_Sentence_Break_Sep"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_SP",
+        "_Sentence_Break_Sp"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_SB_UP",
+        "_Sentence_Break_Upper"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Sentence_Break_ATerm"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_CR"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Close"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Extend"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Format"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_LF"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Lower"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Numeric"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_OLetter"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Other"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_SContinue"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_STerm"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Sep"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Sp"
+              ]
+            },
+            {
+              "tags": [
+                "_Sentence_Break_Upper"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_ATerm"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_ATerm"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_CR"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_CR"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Close"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Close"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Extend"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Extend"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Format"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Format"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_LF"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_LF"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Lower"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Lower"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Numeric"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Numeric"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_OLetter"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_OLetter"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Other"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Other"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_SContinue"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_SContinue"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_STerm"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_STerm"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Sep"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Sep"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Sp"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Sp"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Sentence_Break_Upper"
+              }
+            ],
+            "tags": [
+              "_Sentence_Break_Upper"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

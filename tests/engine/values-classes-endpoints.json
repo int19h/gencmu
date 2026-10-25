@@ -8,13 +8,13 @@
         "Word",
         "WORD",
         "A",
-        "_L"
+        "_General_Category_Letter"
       ]
     }
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

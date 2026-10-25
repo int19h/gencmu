@@ -73,18 +73,18 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   $
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
-  | "А" := "A"
-  | ("а" | "А") stress-mark := "A"
-  | ("Е" | "Э" | "Є") := "E"
-  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "E"
-  | ("И" | "І") := "I"
-  | ("и" | "і" | "И" | "І") stress-mark := "I"
-  | "О" := "O"
-  | ("о" | "О") stress-mark := "O"
-  | "У" := "U"
-  | ("у" | "У") stress-mark := "U"
-  | ("Ъ" | "Ы" | "Ә") := "Y"
-  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "Y"
+  | "А" := "a" :- "A"
+  | ("а" | "А") stress-mark := "a" :- "A"
+  | ("Е" | "Э" | "Є") := "e" :- "E"
+  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "e" :- "E"
+  | ("И" | "І") := "i" :- "I"
+  | ("и" | "і" | "И" | "І") stress-mark := "i" :- "I"
+  | "О" := "o" :- "O"
+  | ("о" | "О") stress-mark := "o" :- "O"
+  | "У" := "u" :- "U"
+  | ("у" | "У") stress-mark := "u" :- "U"
+  | ("Ъ" | "Ы" | "Ә") := "y" :- "Y"
+  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "y" :- "Y"
 %emits
   $
 
@@ -97,12 +97,12 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
   | ("И" glide-mark | "Ј") :: ∅ := "i"
   | "У" glide-mark :: ∅ := "u"
-  | "А" stress-mark :: Stressed ∪ Syllabic := "A"
-  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic := "E"
-  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic := "I"
-  | "О" stress-mark :: Stressed ∪ Syllabic := "O"
-  | "У" stress-mark :: Stressed ∪ Syllabic := "U"
-  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "Y"
+  | "А" stress-mark :: Stressed ∪ Syllabic := "a" :- "A"
+  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic := "e" :- "E"
+  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic := "i" :- "I"
+  | "О" stress-mark :: Stressed ∪ Syllabic := "o" :- "O"
+  | "У" stress-mark :: Stressed ∪ Syllabic := "u" :- "U"
+  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "y" :- "Y"
 %emits
   $
 ```

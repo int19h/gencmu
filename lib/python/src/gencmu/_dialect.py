@@ -23,7 +23,9 @@ from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
 from ._unicode import UnicodeTable
-from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
+from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem, known_dom_members
+from ._names import NO_NAMES, NamesDom, NamesScope, selected_names, names_registry
+from ._string_escapes import DocumentStrings
 
 DOM_FORMAT = FORMAT
 
@@ -43,6 +45,8 @@ _bundled: dict[str, str | None] = {}
 
 def bundled_text(path: str) -> str | None:
     """A file of the bundled grammars, by its ``/``-separated path."""
+    if path == "unicode-names-reference.txt":
+        path = "unicode-names.txt"
     if path in _bundled:
         return _bundled[path]
     text = _read_bundled(path)
@@ -107,22 +111,23 @@ _lock = threading.Lock()
 # the texts that key them. The least recently used goes first.
 _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
-_unicode_tables: Recent[str, UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_readers: Recent[tuple[str, str], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_compiled_indexes: Recent[tuple[str, str, str], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_compiled_indexes: Recent[tuple[str, str, str, str | None], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
 _MAX_DOM_SIZE = 4_000_000
 
 
-def _unicode_table(text: str) -> UnicodeTable:
+def _unicode_table(text: str, properties: str | None = None) -> UnicodeTable:
+    key = (text, properties)
     with _lock:
-        table = _unicode_tables.get(text)
+        table = _unicode_tables.get(key)
     if table is None:
-        table = UnicodeTable(text)
+        table = UnicodeTable(text, properties)
         with _lock:
-            _unicode_tables.put(text, table, len(text))
+            _unicode_tables.put(key, table, len(text) + len(properties or ""))
     return table
 
 
@@ -144,16 +149,9 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     problem = scalar_problem(text)
     if problem is not None:
         raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-    tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
     for index, (char, origin) in enumerate(unicode.decompose_with_origins(text)):
-        found = tags.get(char)
-        if found is None:
-            category = unicode.category(ord(char))
-            assigned = {"_" + category, "_" + category[0]}
-            if unicode.is_white_space(ord(char)):
-                assigned.add("_White_Space")
-            found = tags[char] = frozenset(assigned)
+        found = unicode.profile(ord(char))
         tokens.append(Token(text[origin], found, (index, index + 1), (origin, origin + 1), value=char, image=char))
     return tokens
 
@@ -168,9 +166,9 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
-        # Each DOM uses the document hash, bootstrap hash, table fingerprint
-        # and DOM format. The module's lock guards it.
-        self.doms: Recent[tuple[str, str, str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        # Each DOM uses the document hash, bootstrap hash, both table
+        # fingerprints, and DOM format. The module's lock guards it.
+        self.doms: Recent[tuple[str, str, str, str | None, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
         try:
             self.stages = self._bootstrap_stages(bootstrap, unicode)
         except GencmuError as error:
@@ -205,7 +203,7 @@ class NotationReader:
                 problem = dom_problem(document.get("dom"), unicode)
                 if problem is not None:
                     raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
-                pairs.append((document["path"], document["dom"]))
+                pairs.append((document["path"], known_dom_members(document["dom"])))
             inputs.append((stage["name"], pairs))
         for name, pairs in inputs:
             if not any(dom["rules"] for _, dom in pairs):
@@ -226,12 +224,12 @@ class NotationReader:
                 raise
         return lowered
 
-    def located(self, dom, text, path):
+    def located(self, dom, text, path, names=None):
         from ._ranked import has_ranked, restore_locations
         from ._boundary import atoms, Located
         found = atoms([rule for rule in dom['rules']])
         if any(not hasattr(arg, 'at') for atom in found for arg in atom['args']):
-            fresh = self.read(text, path, True)
+            fresh = self.read(text, path, True, names)
             originals = atoms(fresh['rules'])
             if len(found) == len(originals):
                 for atom, original in zip(found, originals):
@@ -249,13 +247,15 @@ class NotationReader:
             return restore_locations(dom, outcome.output, grammar_text.position)
         return dom
 
-    def read(self, text: str, path: str, defer_emission: bool = False) -> Dom:
+    def read(self, text: str, path: str, defer_emission: bool = False, names=None) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
             grammar_text = jbogenbau_text(text)
         except GencmuError as error:
             error.document = path
             raise
+        names = names if names is not None else NamesScope(bundled_text, self.unicode)
+        strings = DocumentStrings(path, self.unicode, names, grammar_text.position)
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
         features = frozenset()
@@ -280,11 +280,15 @@ class NotationReader:
             if outcome.error is not None:
                 source = outcome.error.source
                 index = source[0] if source is not None else len(grammar_text.text)
+                if name == "lexical" and index > 0 and grammar_text.text[index - 1] == "@":
+                    index -= 1
                 line, column = grammar_text.position(index)
                 message = outcome.error.message
                 if outcome.error.kind == "rejected":
                     shown = tokens[outcome.error.token].text if outcome.error.token is not None and outcome.error.token < len(tokens) else None
                     message = f"the notation cannot continue here{f' at {shown!r}' if shown else ''} (stage {name})"
+                if name == "lexical" and index < len(grammar_text.text) and grammar_text.text[index] == "@":
+                    message = "a parameter requires @ followed directly by an ASCII letter"
                 from ._ranked import syntax_failure
                 code = 'ranked-choice-syntax' if name == 'syntax' and outcome.error.kind == 'rejected' and outcome.error.token is not None and syntax_failure(tokens, outcome.error.token) else None
                 raise GencmuError(message, document=path, line=line, column=column, code=code)
@@ -293,9 +297,11 @@ class NotationReader:
             else:
                 assert outcome.output is not None
                 tokens = outcome.output
+                if number == 0:
+                    strings.inspect(tokens)
         assert tree is not None
         try:
-            builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission)
+            builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission, strings.decode)
             dom = builder.document_dom(tree)
             if builder.deferred_emissions:
                 from ._dom import DeferredDom
@@ -310,7 +316,7 @@ class NotationReader:
         # that breaks them.
         problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
-            return dom
+            return NamesDom(dom, names.dependencies) if names.dependencies is not None else dom
         # Each declaration alone, including feature directives and
         # classifiers, in the order of the document.
         items = (
@@ -342,42 +348,49 @@ class NotationReader:
         raise GencmuError(found, document=path, line=line, column=column, code="ranked-choice-syntax" if found.startswith("ranked-choice-syntax:") else None)
 
 
-def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
-    key = (bootstrap, unicode_text)
+def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) -> NotationReader:
+    key = (bootstrap, unicode_text, properties)
     with _lock:
         reader = _readers.get(key)
     if reader is None:
-        reader = NotationReader(bootstrap, _unicode_table(unicode_text))
+        reader = NotationReader(bootstrap, _unicode_table(unicode_text, properties))
         with _lock:
-            _readers.put(key, reader, len(bootstrap) + len(unicode_text))
+            _readers.put(key, reader, len(bootstrap) + len(unicode_text) + len(properties or ""))
     return reader
 
 
-def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
+def _compiled_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable) -> bool:
+    return (isinstance(data, dict) and data.get("format") == DOM_FORMAT
+            and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint
+            and "properties" in data and data["properties"] == unicode.properties_fingerprint)
+
+
+def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
     """The precompiled DOMs usable with this bootstrap, by text hash.
     Their schema and exact string values follow engine §9."""
     if not compiled:
         return {}
-    key = (compiled, bootstrap_hash, unicode_text)
+    key = (compiled, bootstrap_hash, unicode_text, properties)
     with _lock:
         found = _compiled_indexes.get(key)
     if found is not None:
         return found
     index: dict[str, Dom] = {}
-    unicode = _unicode_table(unicode_text)
+    unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(compiled)
-        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint:
+        if _compiled_identity(data, bootstrap_hash, unicode):
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
-                    index[entry["hash"]] = entry["dom"]
+                    dom = known_dom_members(entry["dom"])
+                    index[entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
         # An unreadable compiled.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
-        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text))
+        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text) + len(properties or ""))
     return index
 
 
@@ -390,16 +403,28 @@ class _Resources:
     unicode: str
     bootstrap: str
     compiled: str | None
+    properties: str | None = None
 
 
 class _Loader:
-    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True) -> None:
+    def __init__(self, lookup: Callable[[str], str | None], found: _Resources, use_cache: bool = True, *, from_disk: bool = False, names_override=None) -> None:
+        self.names_override = names_override if names_override is not None else lambda path: True
+        self.bundled_names = None
+        self.from_disk = from_disk
+        self.inherited_names = {}
         self.lookup = lookup
         self.resources = found
         self.use_cache = use_cache
-        self.unicode = _unicode_table(found.unicode)
-        self.reader = _reader(found.bootstrap, found.unicode)
-        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode) if use_cache else {}
+        self.unicode = _unicode_table(found.unicode, found.properties)
+        self.reader = _reader(found.bootstrap, found.unicode, found.properties)
+        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode, found.properties) if use_cache else {}
+        if use_cache and found.compiled:
+            try:
+                envelope = json.loads(found.compiled)
+                if _compiled_identity(envelope, self.reader.hash, self.unicode):
+                    self.bundled_names = names_registry(envelope.get("bundledNames"))
+            except (ValueError, AttributeError, TypeError, RecursionError):
+                pass
 
     def text(self, path: str) -> str:
         text = self.lookup(path)
@@ -407,7 +432,14 @@ class _Loader:
             raise GencmuError(f"the document {path} is missing", document=path)
         return text
 
-    def dom(self, path: str) -> Dom:
+    def names_text(self, path: str) -> str | None:
+        if self.from_disk and path == "unicode-names-reference.txt":
+            return bundled_text(path)
+        text = self.lookup(path)
+        return text if text is not None else bundled_text(path)
+
+    def dom(self, path: str, inherited=()) -> Dom:
+        self.inherited_names[path] = list(inherited)
         text = self.text(path)
         # A document is a sequence of scalar values, as a text is (engine §1).
         problem = scalar_problem(text)
@@ -417,16 +449,17 @@ class _Loader:
         # The reader keeps the DOMs it read. So the bootstrap and the Unicode
         # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
-        key = (text_hash, self.reader.hash, self.unicode.fingerprint, DOM_FORMAT)
+        key = (text_hash, self.reader.hash, self.unicode.fingerprint, self.unicode.properties_fingerprint, DOM_FORMAT)
+        names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
             found = self.compiled.get(text_hash)
-            if found is not None:
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
             with _lock:
                 found = self.reader.doms.get(key)
-            if found is not None:
+            if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
-        dom = self.reader.read(text, path, True)
+        dom = self.reader.read(text, path, True, names)
         with _lock:
             self.reader.doms.put(key, dom, len(text))
         return dom
@@ -435,12 +468,12 @@ class _Loader:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
-        def document(path):
+        def document(path, inherited=()):
             if self.lookup(path) is None:
                 return None
-            dom = self.dom(path)
-            return self.reader.located(dom, self.text(path), path) if path == diagnostic_document else dom
-        return splice_pipeline(pipeline_path, document)
+            dom = self.dom(path, inherited) if inherited else self.dom(path)
+            return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
+        return splice_pipeline(pipeline_path, document, document)
 
     def load(self, pipeline_path: str) -> Dialect:
         try:
@@ -456,7 +489,7 @@ class _Loader:
                 # positions only; the failed cached grammar remains the
                 # authority for this diagnostic.
                 at, index, channel = location
-                fresh = self.reader.read(self.text(error.document), error.document, True)
+                fresh = self.reader.read(self.text(error.document), error.document, True, NamesScope(self.names_text, self.unicode, self.inherited_names.get(error.document, ())))
                 for rule in fresh["rules"]:
                     if tuple(rule["at"]) == at:
                         owner = rule if channel.startswith("rule_") else rule["alternatives"][index]
@@ -495,7 +528,11 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
         raise GencmuError("the bundled unicode.txt is missing", document="unicode.txt")
     if bootstrap is None:
         raise _bootstrap_error(GencmuError("the bundled bootstrap is missing"))
-    return _Resources(unicode, bootstrap, get("compiled.json"))
+    custom_core = sources is not None and "unicode.txt" in sources
+    properties = sources.get("unicode-properties.txt") if custom_core else get("unicode-properties.txt")
+    if not custom_core and properties is None:
+        raise GencmuError("the bundled properties file is missing", document="unicode-properties.txt")
+    return _Resources(unicode, bootstrap, get("compiled.json"), properties)
 
 
 def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
@@ -504,7 +541,7 @@ def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
     path = f"dialects/{name}.md"
     if "/" in name or bundled_text(path) is None:
         raise GencmuError(f"there is no bundled dialect {name}", kind="grammar", document=path)
-    return _Loader(bundled_text, _resources(), use_cache).load(path)
+    return _Loader(bundled_text, _resources(), use_cache, names_override=lambda path: False).load(path)
 
 
 def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Dialect:
@@ -523,7 +560,16 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
             return None
         return _decode(data, key)
 
-    return _Loader(lookup, _resources(), use_cache).load(pipeline)
+    def names_override(key):
+        try:
+            os.stat(key.replace("/", os.sep))
+        except FileNotFoundError:
+            return False
+        except OSError:
+            return True
+        return True
+
+    return _Loader(lookup, _resources(), use_cache, from_disk=True, names_override=names_override).load(pipeline)
 
 
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:
@@ -532,7 +578,7 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
     may hold its own ``unicode.txt``, ``notation/bootstrap.json`` and
     ``compiled.json``; any it lacks come from the bundled grammars."""
     documents = dict(sources)
-    return _Loader(documents.get, _resources(documents), use_cache).load(pipeline)
+    return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 
 def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
@@ -626,6 +672,25 @@ class Dialect:
             raise found.error()
         return found
 
+    def _parse_selection(
+        self, features: Iterable[str], without_features: Iterable[str], until: str | None,
+    ) -> tuple[frozenset[str], frozenset[str], int]:
+        for option, value in (("features", features), ("without_features", without_features)):
+            if isinstance(value, str):
+                raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
+        names = self.stage_names
+        if until is None:
+            last = len(names) - 1
+        elif until in names:
+            last = names.index(until)
+        else:
+            raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
+        on = frozenset(features)
+        off = frozenset(without_features)
+        if on & off:
+            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
+        return (self.declared | on) - off, off, last
+
     def parse(
         self,
         text: str,
@@ -643,14 +708,9 @@ class Dialect:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        return self.parse_tokens(
-            character_tokens(text, self.unicode),
-            text,
-            features=features,
-            without_features=without_features,
-            until=until,
-            elision_only=elision_only,
-        )
+        tokens = character_tokens(text, self.unicode)
+        enabled, off, last = self._parse_selection(features, without_features, until)
+        return self._run(text, tokens, enabled, off, last, elision_only)
 
     def parse_tokens(
         self,
@@ -672,23 +732,7 @@ class Dialect:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        for option, value in (("features", features), ("without_features", without_features)):
-            if isinstance(value, str):
-                raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
-        names = self.stage_names
-        if until is None:
-            last = len(names) - 1
-        elif until in names:
-            last = names.index(until)
-        else:
-            raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        # The features on are the pipeline's, with the caller's added and the
-        # caller's turned off removed (engine §13).
-        on = frozenset(features)
-        off = frozenset(without_features)
-        if on & off:
-            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
-        enabled = (self.declared | on) - off
+        enabled, off, last = self._parse_selection(features, without_features, until)
         # A caller token stores value and image independently (engine
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
@@ -706,14 +750,14 @@ class Dialect:
                 value = getattr(token, field)
                 if not isinstance(value, str) or scalar_problem(value) is not None:
                     raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
-            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag) for tag in token.tags):
+            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag, self.unicode) for tag in token.tags):
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
         tokens = [
             replace(
                 token,
-                tags=frozenset(token.tags),
+                tags=frozenset(self.unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
                 span=None if token.span is None else (token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
@@ -783,7 +827,10 @@ def read_document(text: str, path: str = "document.md", *, sources: Mapping[str,
     """The DOM of one grammar document, read through the notation with no
     cache: the reading the shared notation cases test (engine §8, §9)."""
     found = _resources(sources)
-    return _reader(found.bootstrap, found.unicode).read(text, path)
+    reader = _reader(found.bootstrap, found.unicode, found.properties)
+    def names_text(key):
+        return sources[key] if sources is not None and key in sources else bundled_text(key)
+    return reader.read(text, path, names=NamesScope(names_text, reader.unicode))
 
 
 def _input_conditions_hold(conditions, tokens, text, unicode):

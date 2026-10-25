@@ -1,5 +1,5 @@
 {
-  "description": "The rule other excludes letters, nonspacing marks, digits and whitespace through _L, _Mn, scalar ranges and _White_Space. A spacing mark such as U+0903 passes that rule (engine §1, §4).",
+  "description": "The rule other excludes letters, nonspacing marks, digits and whitespace through _General_Category_Letter, _General_Category_Nonspacing_Mark, scalar ranges and _White_Space. A spacing mark such as U+0903 passes that rule (engine §1, §4).",
   "grammar": "%rule text [{c}]\n%rule c $x:other :: O | $y:_ :: N %conditions ¬($y.matches(other)) %emits $\n\n\n\n\n\n\n%rule other $c:_ %conditions ¬($c.matches(alpha)), ¬($c.matches(mark)), ¬($c.matches(digit)), ¬($c.matches(space))\n\n\n\n\n\n\n%rule alpha _L\n%rule mark _Mn\n%rule digit \"0\"..\"9\"\n%rule space _White_Space",
   "input": "q漢ï!7 «€ ः",
   "expect": {

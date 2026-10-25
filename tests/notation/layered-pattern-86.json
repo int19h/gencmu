@@ -1,0 +1,10 @@
+{
+  "description": "an include token after an exact prefix remains a syntax error",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #·%include \"x.md\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 19
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "description": "Every Indic_Conjunct_Break value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0 r1 r2 r3\n%rule r0 $x:_Indic_Conjunct_Break_Consonant<_Indic_Conjunct_Break_Consonant>\n%conditions $x ≅ #_Indic_Conjunct_Break_Consonant<_Indic_Conjunct_Break_Consonant>, _Indic_Conjunct_Break_Consonant ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Conjunct_Break_Consonant\n%rule r1 $x:_Indic_Conjunct_Break_Extend<_Indic_Conjunct_Break_Extend>\n%conditions $x ≅ #_Indic_Conjunct_Break_Extend<_Indic_Conjunct_Break_Extend>, _Indic_Conjunct_Break_Extend ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Conjunct_Break_Extend\n%rule r2 $x:_Indic_Conjunct_Break_Linker<_Indic_Conjunct_Break_Linker>\n%conditions $x ≅ #_Indic_Conjunct_Break_Linker<_Indic_Conjunct_Break_Linker>, _Indic_Conjunct_Break_Linker ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Conjunct_Break_Linker\n%rule r3 $x:_Indic_Conjunct_Break_None<_Indic_Conjunct_Break_None>\n%conditions $x ≅ #_Indic_Conjunct_Break_None<_Indic_Conjunct_Break_None>, _Indic_Conjunct_Break_None ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Indic_Conjunct_Break_None",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InCB_Consonant",
+        "_Indic_Conjunct_Break_Consonant"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InCB_Extend",
+        "_Indic_Conjunct_Break_Extend"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InCB_Linker",
+        "_Indic_Conjunct_Break_Linker"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_InCB_None",
+        "_Indic_Conjunct_Break_None"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Indic_Conjunct_Break_Consonant"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Conjunct_Break_Extend"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Conjunct_Break_Linker"
+              ]
+            },
+            {
+              "tags": [
+                "_Indic_Conjunct_Break_None"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Indic_Conjunct_Break_Consonant"
+              }
+            ],
+            "tags": [
+              "_Indic_Conjunct_Break_Consonant"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Indic_Conjunct_Break_Extend"
+              }
+            ],
+            "tags": [
+              "_Indic_Conjunct_Break_Extend"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Indic_Conjunct_Break_Linker"
+              }
+            ],
+            "tags": [
+              "_Indic_Conjunct_Break_Linker"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Indic_Conjunct_Break_None"
+              }
+            ],
+            "tags": [
+              "_Indic_Conjunct_Break_None"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

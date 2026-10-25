@@ -62,10 +62,10 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
 
 ```jbogenbau
 %rule term-connective
-  | joik #
-  | jek #
-  | ek #
-  | VUhU #
+  | joik 🆓
+  | jek 🆓
+  | ek 🆓
+  | VUhU 🆓
 ```
 
 The bundled grammars put a sole alternative's clauses after its body. Shared clauses stay on headers for multiple alternatives. Each alternative with its own clause occupies a separate line.
@@ -82,17 +82,23 @@ A `:: T` clause gives constituent tags, with definition and alternative tags uni
 
 The sections below explain these forms.
 
-`(* ... *)` is a comment, anywhere in a block. Comments can contain backslashes, as in `(* see C:\temp *)`. Elsewhere, backslash is an error.
+`(* ... *)` is a comment, anywhere in a block. Comments can contain backslashes, as in `(* see C:\temp *)`. Backslashes are also ordinary characters inside strings.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one eligible emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+
+An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
+
+Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent eligible scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
+
+`#` introduces patterns, and `@` introduces parameters. Neither is a rule name. `/` remains the separator inside braces. `~` and `^` have no syntax role.
 
 A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`.
 
 - A class is a tag such as `KOhA`, `BRIVLA`, or `FOREIGN`.
 - A mark is a tag such as `Word`, `Stressed`, or `Run-Initial`.
-- An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
+- An engine tag is a stored property such as `_General_Category_Uppercase_Letter`, `_General_Category_Letter`, or `_White_Space`.
 
 A selma'o is a class of Lojban particles.
 
@@ -102,23 +108,39 @@ A bare lowercase name names a rule or classifier, never a tag. Capitalized user 
 
 A tag literal is a terminal in a body. A string literal or string constant is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
 
-A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
+A scalar value is a Unicode code point outside surrogates. A string escape names one exact scalar. `"a"` and `"‹U+0061›"` have the same terminal identity. `"‹U+0301›"` contains a combining acute accent.
 
-A grammar document also decomposes. Written `"é"` and `"e" ++ $_0301` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" $_0301`.
+A grammar document also decomposes. Written `"é"` and `"e‹U+0301›"` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" "‹U+0301›"`.
 
-An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar signs inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
+Escape decoding follows source decomposition, so `"‹U+00E9›"` stays one scalar. Dollar signs and backslashes inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
 
-A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
+A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `"‹U+D7FF›".."‹U+E000›"` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` completes the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
+The configured Unicode tables supply stored stage-zero property tags. The bundled version includes 82 properties. General categories use long canonical names such as `_General_Category_Uppercase_Letter`, `_General_Category_Decimal_Number`, and `_General_Category_Letter`.
 
-A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_L`. A grammar can forward or filter engine tags but never introduce them.
+Other binary tags accept long or short names, such as `_Alphabetic` or `_Alpha`. Enumerated values accept all-long or all-short forms, such as `_Script_Latin` or `_sc_Latn`. Mixed forms are errors. The input spellings `_Lu` and `_gc_Lu` normalize to `_General_Category_Uppercase_Letter`. The compact input `_L` and short input `_gc_L` normalize to `_General_Category_Letter`.
 
-An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _Lu`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
+Script_Extensions is multi-valued: each script in its set supplies a tag such as `_Script_Extensions_Hiragana`. An explicit extension set replaces the UCD default singleton Script value. For text associated with a script, extension membership can be more useful than Script alone.
+
+Even without explicit grammar references, every stage-zero token carries its decomposed scalar's complete available profile. Shared immutable profiles can avoid per-token copies. Later stages only forward or filter stored tags. Changed values and images never regenerate them.
+
+[Engine §1](engine.md#unicode-property-inventory) lists included properties, excluded groups, and exact spelling rules. The reader normalizes aliases before constructing the DOM. Canonical names use long forms for every property, including general categories. Mixed forms such as `_Script_Latn` are errors.
+
+A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
+
+The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
+
+Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
+
+Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
+
+A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_General_Category_Letter`. A grammar can forward or filter engine tags but never introduce them.
+
+An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _General_Category_Uppercase_Letter`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The sections "Constants" and ["String concatenation"](#string-concatenation) describe scalar constants and string joins.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings accept `‹…›` escapes, and backslashes and dollar signs are plain characters. String terms can join with `++`. [String literals and escapes](#string-literals-and-escapes) defines exact scalars and names.
 
 ## Tests
 
@@ -132,15 +154,15 @@ A reference or terminal can carry one tag test and one value test. The tag test 
 
 A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with tests is a tested symbol. The symbol matches only where every test holds.
 
-After normalization and word classification, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LA="la"`. A reference reads its complete input value.
+After phoneme mapping and word classification, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LA="la"`. A reference reads its complete input value.
 
 A sumti over `lo mlatu` has value `lomlatu`, so `sumti="lomlatu"` succeeds. The words stage erases the pause between the two words. Concatenation supplies no separator, although the source text remains `lo mlatu`.
 
 The emitted letter word `broda bu` has value `broda bu` when its gap recipe supplies one space. A test in the next stage reads this emitted value. In the words stage, `lerfu-word="broda bu"` instead tests its input span. For `broda .y. bu`, that span includes the hesitation and pauses.
 
-`s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain tag names or tag-set constants, with optional negation. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
+`s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain signed tags, tag-set constants, or template parameters. A parameter can splice a requirement list, as "Parameterized rules" explains. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
 
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows only a reference other than `#`, or a terminal. A test after a group, optional, braces, `ε`, or `#` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows a rule reference, call, terminal, or parameter whose argument must be one symbol. A test after a group, optional, braces, or `ε` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
@@ -161,11 +183,11 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 
 `&` binds tighter than either `|` or `≻`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-`#` is shorthand for an optional list of free modifiers (CLL 1.1 section 21.1, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
+`🆓` names an optional list of free modifiers (CLL 1.1 section 21.1, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
-`#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
+`🆓` is an ordinary rule, and tests can follow it like any rule reference. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
-A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. It writes `/KU#/` for such a terminator whose free-modifier slot goes with it. In this notation, both are elidable optionals: `[+KU]` and `[+KU #]`.
+A terminator is a word that closes a construct, such as `ku`. CLL writes a terminator that can be elided (left out) between slashes, `/KU/`. An optional can also contain the terminator's free-modifier slot. This notation writes `[+KU]` or `[+KU 🆓]`.
 
 The `+` after the bracket marks the optional as elidable, in its place (see "Elided terminators"). A plain optional, `[KU]`, is never elidable.
 
@@ -174,7 +196,7 @@ The `+` after the bracket marks the optional as elidable, in its place (see "Eli
 Braces repeat what they hold. There are two kinds of braces. Flat braces read a list, and the tree shows the list as it stands. Chain braces read the same words, and the tree shows how they group.
 
 - `{x}` is one or more of `x`.
-- `{x / s}` is a separated list: `x`, then any number of `s x`. So `{term / CEhE #}` is one or more terms, with `CEhE #` between each two.
+- `{x / s}` is a separated list: `x`, then any number of `s x`. So `{term / CEhE 🆓}` is one or more terms, with `CEhE 🆓` between each two.
 - `{... x / s}` is a left chain: `x`, or a left chain, then `s` and `x`.
 - `{x ... / s}` is a right chain: `x`, or `x` and `s`, then a right chain.
 
@@ -200,7 +222,7 @@ Second, that alternative is the only alternative of its rule that the gates leav
 
 The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
-An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{#}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse.
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{🆓}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse.
 
 gencmu decides this from the rules alone, as the gates and stitching leave them. It ignores every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
 
@@ -212,7 +234,7 @@ A flat list is not a constituent. Its items and its separators are children of t
 
 ```jbogenbau
 %rule terms-2
-  {term / CEhE #}
+  {term / CEhE 🆓}
 
 %rule text
   A {B} C
@@ -255,7 +277,7 @@ An earlier option can exclude a later option even when intervening options are a
 
 ```jbogenbau
 %rule preferred-operand
-  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
+  ME 🆓 (sumti ≻ mex) [+MEhU] 🆓 [MOI 🆓]
 ```
 
 Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start another level.
@@ -321,8 +343,8 @@ An alternative with several guards exists when all its gates hold. A name is a g
 
 ```jbogenbau
 %rule tanru-unit-2
-  | BRIVLA #
-  | cbm? CMEVLA #
+  | BRIVLA 🆓
+  | cbm? CMEVLA 🆓
 
 %redefine-rule cmavo-token
   | Cmavo<¬Cmavo-Warning>
@@ -350,7 +372,7 @@ A stage reads its input with one grammar. The loader assembles that grammar from
   $
 
 %redefine-rule text
-  | ¬cbm? [{NAI}] {CMEVLA} # [joik-jek] text-1
+  | ¬cbm? [{NAI}] {CMEVLA} 🆓 [joik-jek] text-1
   | [indicators & {free}] [joik-jek] text-1
 ```
 
@@ -361,6 +383,107 @@ The alternatives that an extension adds carry the extension's own clauses, not t
 `%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` and `%redefine-rule(fewest)` replace both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
+
+## Parameterized rules
+
+A template is a rule with load-time parameters. A call supplies arguments and names one instance, the concrete rule that expansion produces. Parameters use `@` in declarations and uses:
+
+```jbogenbau
+%rule pair(@Left, @Right)
+  @Left @Right
+
+%rule text
+  pair("a", "b")
+```
+
+The opening parenthesis follows the name directly. `pair ("a", "b")` is not a call. The comment opener `(*` still starts a comment. A template and an ordinary rule cannot share a name.
+
+Parameters start with `@` and an ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. Case counts. A declaration has one or more distinct parameters. Calls supply exactly that many positional arguments. No defaults, variable argument counts, or overloading exist.
+
+Each parameter belongs to its definition's body and clauses. Another template receives it only through an explicit argument. Arguments cannot declare or read captures, including `$` and capture methods. Recipes written in the template can read that template's captures.
+
+Each argument is one term. A parenthesized body expression or `ε` passes a sequence as one argument. A parenthesized single symbol reads as that symbol:
+
+```jbogenbau
+%rule link(@Prefix, @Body)
+  @Prefix @Body
+
+%rule linked = link((BIhE 🆓), mex-group)
+%rule plain = link(ε, mex-1)
+```
+
+Substitution replaces parsed nodes, without reparsing or regrouping nearby syntax. A choice passed to a body position remains one grouped choice. A ranked choice retains its own priority and seal. Ordinary position restrictions still apply after expansion. For example, a choice cannot replace the symbol in `$x:@X`.
+
+Parameters can occupy body operands, pattern operands, query targets, filter requirements, and terms in conditions, tags, values, and images. A parameter cannot construct a name or occupy a declaration name, flag, guard, method name, capture binder, carrier, or attachment. It cannot replace a directive operand, classifier name, or integer argument. The head after `[+` can be a user tag or a parameter whose argument becomes exactly one bare user-tag atom. A rule, sequence, tested argument, constant, or tag-set expression is invalid there.
+
+### The two list substitutions
+
+A query-target choice splices into one complete target entry, in written order. A tag-requirement list splices into one complete unnegated filter requirement:
+
+```jbogenbau
+%rule letter(@Char, @Forbidden)
+  $c:@Char
+%conditions
+  ¬$c.following-tokens.begins(h | @Forbidden)
+
+%rule filtered(@Char, @Excluded)
+  @Char<¬Accent @Excluded>
+
+%rule b = letter("b", b | unvoiced)
+%rule a = filtered("a", <¬Ogonek ¬Caron>)
+```
+
+Here the letter query tests `h | b | unvoiced`. The filter on `a` requires `<¬Accent ¬Ogonek ¬Caron>`. A list under `¬@Excluded` is an error. A requirement list is distinct from a tag set, and `<>` is an empty list. A query-target choice must remain nonempty.
+
+These are the only list substitutions. A parenthesized body choice does not splice into query targets. Other terms retain their usual grouping and type rules. Recipe substitution flattens concatenations in operand order before validation, with empty operands and source attribution preserved. [Engine §2.3](engine.md#23-templates-and-instances) defines argument reading and conversion.
+
+### Names and layering
+
+A binding assigns a public name to an instance:
+
+```jbogenbau
+%rule connection(@Unit, @Separator)
+  {@Unit / @Separator}
+
+%rule connected-terms = connection(term, (CEhE 🆓))
+```
+
+An instance key uniquely identifies an instance. The name adds no wrapper node. Every call with that instance key uses `connected-terms` in trees, JSON, inserted tokens, warnings, and error witnesses. One instance has at most one public name.
+
+An unnamed instance uses its canonical call spelling, such as `pair("a", "b")`. Instance identity uses argument syntax trees, not evaluated values or expanded rule bodies. A nominal reference names a rule without expanding it. Constants and nominal references retain their names. Engine §2.3 defines the complete spelling and identity rules.
+
+A closed call contains no parameter references. Template edits write parameters, as `%extend-rule pair(@Left, @Right)`. Instance edits name one public name or one closed call, as `%extend-rule pair("a", "b")`. Both kinds apply in source order. A later template redefinition replaces earlier local edits. A later template extension also reaches locally redefined instances.
+
+A later layer can rebind a named instance with `%redefine-rule NAME = CALL`. The old key keeps its edits and takes its canonical call name. Earlier edits by NAME stay on that old key. Later edits by NAME reach the new key. Every reference to NAME, except the head of an edit, uses its final binding.
+
+```jbogenbau
+%rule atom(@Tag)
+  @Tag
+%rule text
+  item
+%rule item = atom(A)
+%extend-rule item
+  B
+%redefine-rule item = atom(C)
+```
+
+Here `item` reads C. The old `atom(A)` still reads A or B and uses its canonical name.
+
+Ordinary rules and named instances keep their declaration slots. Unnamed instances follow them in discovery order. Rebinding keeps the name's slot and moves the old key into the unnamed tail at its original discovery position. The replaced binding still creates its instance during the source pass. This order controls numbering, reference checks, rule traversal for diagnostics, and the audit.
+
+The example's expanded order is `text`, `item`, then `atom(A)`. The template `atom` has no runtime rule slot.
+
+A template's flag applies to its instances. Each instance contributes its actual constituents to the existing shared ranking profiles. A binding adds no flag or ranking occurrence.
+
+### Patterns, queries, and finite expansion
+
+A bare template atom in a pattern matches every instance of that template, including named instances. `#pair` matches the family, while `#pair("a", "b")` names one instance. Its public name identifies it too.
+
+A recognition or neighbor query must name one instance or an ordinary rule. A bare template target is a load error. The same restriction applies to `.tags(rule)` and `.without-elision-except(family)`.
+
+The loader rejects unbounded expansion through a static parameter-flow analysis. Passing a parameter unchanged creates an unchanged edge. Placing it inside another wrapping form creates a growing edge. A parenthesized single parameter adds no growth. A cycle containing a growing edge is an error, even in an uncalled template. Unchanged recursion, parameter permutations, and self-passing rule names remain valid.
+
+Expansion precedes ordinary rule validation and lowering. Errors identify the template use and originating argument. Diagrams show each template once, with its parameters and call arguments. The audit records instances and their names, origins, edits, flags, unused parameters, and uncalled templates.
 
 ## Constants
 
@@ -392,20 +515,109 @@ A constant stands wherever its type is required. A string constant can be a term
 
 The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
 
-### Strings and engine constants
+### String literals and escapes
 
-A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. Engine constants start with `$_` and four to six uppercase hexadecimal digits. A grammar cannot define or redefine an engine constant.
+A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. A string literal uses straight double quotes. Backslashes and dollar signs are ordinary string characters.
 
-A string literal is plain text between straight double quotes. A dollar sign is an ordinary character. A backslash remains a lexical error.
+An escape is a delimited spelling of one scalar. It uses single guillemets `‹ ›` (U+2039, U+203A). `‹U+0301›` names a code point in hexadecimal. `‹COMBINING ACUTE ACCENT›` uses its formal Unicode name, and `‹ZWJ›` uses a name alias.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. The reader preserves its spelling without decomposition. Paths use separate tokens because includes select documents before constant binding.
+Every string literal accepts escape syntax, including terminals, tests, recipes, conditions, classifier keys, call arguments, and include or names-resource paths. A `%names` path restricts name escapes to core abbreviations (engine §1). An escape contributes exactly one scalar. Its source spelling does not survive in the DOM. Unescaped literal text follows ordinary source decomposition. Decoded escape scalars receive no further decomposition or mark reordering.
+
+A literal `‹` must use an escape, as in `"‹U+2039›"`. Without an open escape, `›` is an ordinary character. Escape decoding never scans its result again. Thus `"‹U+2039›ZWJ›"` contains the literal text `‹ZWJ›`.
+
+A numeric escape uses uppercase `U+` and four to six ASCII hexadecimal digits. Input digits can use either case. Its value must be a scalar at most U+10FFFF. A surrogate or malformed numeric escape is a document error at `‹`.
+
+Names and aliases match exactly, including uppercase letters, spaces, and hyphens. Core abbreviations resolve from the core table. Other names and aliases use the selected lazy names resources. An unnamed scalar has no pinned formal name, algorithmic name, or alias. Declared extras add names only for these scalars, without renaming standard characters. Every alias kind in the base file is valid.
+
+An empty escape, missing `›`, or unknown name is a document error at `‹`. A quote or line break cannot occur inside an escape. [Engine §1](engine.md#unicode-names-for-string-escapes) defines the names file and its lazy loading.
+
+An include or names-resource path is the first and only operand of `%include` or `%names`, in straight double quotes. It uses the same escape decoder as other strings. Its unescaped text retains the original spelling without decomposition. Paths use separate tokens because loading selects resources before constant binding. Path resolution uses the decoded string.
+
+Canonical names and terminal diagnostics use these same string literals. The printer writes one quoted string and escapes each scalar that engine §9.1 requires. If the core table supplies an abbreviation, the printer uses it. Otherwise, it writes `U+` with uppercase hexadecimal digits.
+
+Every White_Space scalar except U+0020 requires an escape. A backslash remains literal. [Engine §9.1](engine.md#91-lexical-forms) defines alias selection and canonical padding.
 
 ```jbogenbau
-%const $ACCENTED "a" ++ $_0301
-%const $QUOTED $_0022 ++ "Hello!" ++ $_0022
+%const $ACCENTED "a‹U+0301›"
+%const $QUOTED "‹U+0022›Hello!‹U+0022›"
+%const $ACUTE "‹COMBINING ACUTE ACCENT›"
+%const $JOINER "‹ZWJ›"
+%const $PATH "C:\temp"
 %const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
+
+### Escape migration
+
+The replaced notation used predefined scalar references such as `$_0301`. Current notation uses quoted escapes instead. These source spellings appear here only to define migration. They are not accepted current syntax.
+
+| Replaced form or position | Current form or migration rule |
+| --- | --- |
+| `$_0301`, `$_0022`, `$_005C` | `"‹U+0301›"`, `"‹U+0022›"`, `"‹U+005C›"` |
+| `$_D7FF..$_E000` | `"‹U+D7FF›".."‹U+E000›"` |
+| `"e" $_0301` | `"e" "‹U+0301›"`, still two token terminals |
+| `"e" ++ $_0301` | `"e" ++ "‹U+0301›"`, with the explicit concatenation retained |
+| Pattern `#$_0301` | `#"‹U+0301›"`, through the pattern migration below |
+| Body terminals, constants, recipes, tests, classifier keys, ranges, conditions, and call arguments | Replace each scalar reference with one quoted numeric escape, without merging adjacent terms. |
+| Old diagnostic `"a" ++ $_0301` | Current diagnostic `"a‹U+0301›"`, after resolved values join into one printed string |
+| `{"const":"_0301","at":[L,C]}` in a string-term position | `{"string":"\u0301"}`, without the removed reference's `at` |
+| A user `const` or a containing constructor | Keep the user name or constructor, then recursively convert its string terms. |
+| Surrogate or out-of-range scalar references | A corresponding numeric escape fails escape inspection at `‹`. It cannot produce a valid decoded DOM string. |
+| A declaration that used a predefined scalar reference as its name | It remains an invalid declaration. A quoted replacement cannot become a constant name. |
+
+DOM conversion visits every term and argument, including pattern literals, range endpoints, test operands, recipes, classifier keys, and nested call arguments. It needs no Unicode names lookup. Only user constant references retain their names. Existing concatenation boundaries, empty operands, and source positions on surviving constructors remain intact.
+
+Scalar conversion can merge previously distinct call-argument keys. Bindings and instance edits require inspection after conversion. If distinct argument identities are needed, user constants can retain separate names.
+
+The format-35 pattern mapping below applies this scalar conversion before it converts pattern structure. An invalid legacy scalar requires an invalid-source escape case or a corresponding malformed-string DOM case. Migration cannot discard its intended violation or construct a valid string from a surrogate.
+
+The following four notation cases become valid documents. Backslashes remain ordinary characters and do not decode the following letters.
+
+| Case | Current decoded string |
+| --- | --- |
+| `character-bad-escape` | Backslash followed by x61 |
+| `error-bad-escape` | Backslash followed by q in the value test |
+| `character-escaped-p` | Backslash followed by p |
+| `property-escaped-p-later` | a, backslash, then p{L} |
+
+For the cases below, the migrated invalid escape precedes every reader error. Each error has kind `grammar` and the stated line and column. Positions include the pattern replacements in the fixture table. A separate lexical failure still precedes escape inspection. This also changes previously successful extra-parts cases that hid an invalid scalar from the reader.
+
+| Case | New line | New column |
+| --- | --- | --- |
+| `canonical-name-concat-position` | 2 | 30 |
+| `character-surrogate` | 2 | 10 |
+| `concat-order-second-tag-before-scalar` | 2 | 24 |
+| `concat-order-set-before-scalar` | 2 | 25 |
+| `concat-order-tag-before-scalar` | 2 | 17 |
+| `concat-order-unresolved-before-scalar` | 2 | 24 |
+| `reader-order-capture-name-before-scalar` | 2 | 16 |
+| `reader-order-grouped-terminal-scalar` | 2 | 14 |
+| `reader-order-pattern-repeated-tag-before-scalar` | 2 | 36 |
+| `reader-order-pattern-reversed-tests-before-scalar` | 2 | 36 |
+| `reader-order-pattern-scalar-reference-tag` | 2 | 36 |
+| `reader-order-pattern-scalar-reference-value` | 2 | 36 |
+| `reader-order-prefixed-scalar-join-tag` | 2 | 46 |
+| `reader-order-prefixed-scalar-join-value` | 2 | 46 |
+| `reader-order-range-first-scalar-tag` | 2 | 13 |
+| `reader-order-range-first-scalar-value` | 2 | 13 |
+| `reader-order-range-last-scalar-tag` | 2 | 18 |
+| `reader-order-range-last-scalar-value` | 2 | 18 |
+| `reader-order-repeated-tag-before-scalar` | 2 | 13 |
+| `reader-order-reversed-tests-before-scalar` | 2 | 13 |
+| `reader-order-scalar-reference-tag` | 2 | 13 |
+| `reader-order-scalar-reference-value` | 2 | 13 |
+| `reader-order-target-before-group-scalar` | 2 | 14 |
+| `string-escape-surrogate` | 2 | 12 |
+| `string-escape-too-large` | 2 | 10 |
+| `values-invalid-engine-scalar` | 2 | 10 |
+| `notation-shapes.extraParts[0]` | 3 | 22 |
+| `notation-shapes.extraParts[1]` | 4 | 34 |
+| `notation-shapes.extraParts[2]` | 3 | 17 |
+| `notation-shapes.extraParts[9]` | 3 | 27 |
+| `notation-shapes.extraParts[59]` | 3 | 38 |
+| `notation-shapes.extraParts[61]` | 3 | 38 |
+
+If an old case must retain its reader-order purpose, a valid scalar replaces its invalid scalar. A separate invalid-escape case pins the new earlier phase. Descriptions, expected DOMs, diagnostic strings, and error positions follow the migrated source. Grammar documents receive the same replacements, without changing token or concatenation boundaries.
 
 ### String concatenation
 
@@ -423,9 +635,9 @@ Body terminals, value tests, pattern terminals, range endpoints, and classifier 
 
 String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
 
-Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+Side-by-side strings in a body or pattern child list describe a sequence of tokens. `"e" "‹U+0301›"` reads two tokens. In a classifier entry, `"e" "‹U+0301›" ∈ K` gives two keys.
 
-`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
+`"e" ++ "‹U+0301›"` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
 A range endpoint must resolve to one scalar because a range orders scalar values.
 
@@ -433,7 +645,7 @@ A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`
 
 ## Tree patterns
 
-A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal is `@(BODY)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
+A predicate is a test that holds or fails. A tree pattern is a predicate on one constructed constituent. A pattern literal starts with `#`, as in `#sumti`, `#a« b c »`, or `#(a ∩ b)`. `$x ≅ PATTERN` tests the captured constituent, and `$ ≅ PATTERN` tests the enclosing candidate. `≇` negates that answer after the ordinary missing-capture simplification. Patterns never recognize the captured text again or inspect another reading.
 
 The left operand must be a bare capture. The right operand must have pattern type. [Engine §9](engine.md#9-from-notation-tree-to-dom) defines the diagnostic for a bare name in the pattern position.
 
@@ -441,59 +653,452 @@ The left operand must be a bare capture. The right operand must have pattern typ
 
 Patterns observe named rules, terminal reads, and omitted terminators before bracket output collapses unary nodes. Generated helpers flatten their children in order. Named chain levels retain their nodes. An absent plain optional contributes no child. Recipes do not change this structural observation.
 
-A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, engine constant, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
+Observable nodes are rule nodes and terminal leaves. Terminal leaves can be written or omitted. Ranked seals are not observable nodes.
 
-A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `#` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
+A terminal leaf records the terminal that read it, rather than every tag on its token. A literal, escaped literal, and equal string constant share one terminal identity. An omitted T contributes one leaf labeled T, with empty value and pattern tags `{T}`. Its empty span does not remove it. This leaf adds no tags to the empty helper or the enclosing constituent.
 
-A primitive predicate first tests the current node, then can follow its sole structural child. This single-child transparency repeats only while exactly one child exists. A branching node stops it. A child-sequence predicate uses the same search, and tests each visited node's complete ordered children.
+A structurally empty node contains no terminal read, omitted marker, or seal. Parent sequences remove structurally empty named children, including empty `🆓` nodes and empty wrappers. The [seal of a ranked choice](#ranked-choices) counts as a leaf here. A node that contains a seal remains in its parent sequence. A direct capture of an empty named rule retains its named root for a root-name test.
 
-Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, a tag followed by a sumti, and a sumti beside an omitted terminator. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
+A node test first tests the candidate. If that test fails and the candidate has one structural child, the test follows that child. The search repeats this step. A branching node or ranked seal stops it. A node test with a child list tests both parts at the same visited node.
+
+The prefix `·` (U+00B7) makes one node test exact. It tests only the candidate, without the single-child search. It applies only to its own node test. In `#·a« b ·c »`, `a` and `c` are exact, while `b` keeps its search.
+
+Thus `#sumti` accepts a sumti or its unary wrappers. `#·sumti` requires the candidate itself to be sumti. Neither test passes through a branch. Set operations combine each predicate's complete answer on the same candidate. `P ∖ Q` means P holds and the whole predicate Q fails on the same candidate.
 
 ### Pattern forms and binding
 
 | Form | Meaning |
 | --- | --- |
-| `@(sumti)` | A rule named sumti through single-child wrappers |
-| `@(KEhE)` | A KEhE leaf, written or omitted |
-| `@(KEhE="")` | A KEhE leaf with empty value |
-| `@(KEhE≠"")` | A KEhE leaf with nonempty value |
-| `@([KEhE])` | Zero or one KEhE child |
-| `@(KE ⋯ KEhE)` | A complete child sequence with required endpoints |
-| `@(A B)` | Two children, each with its own unary search |
-| `@(A ⋯ B ⋯ C)` | Ordered children with arbitrary sibling gaps |
-| `@(⋮ P)` | P at an endpoint of any downward path |
-| `@(P ⋰)` | P at an endpoint of the first-child path |
-| `@(⋱ P)` | P at an endpoint of the last-child path |
-| `@(P ∪ Q)` | Either predicate on the candidate |
-| `@(P ∩ Q)` | Both predicates on the candidate |
-| `@(P ∖ Q)` | P holds and Q fails |
-| `@({P})` | A complete sequence of one or more P children |
-| `@({P / S})` | One or more P children separated by S |
-| `@([P Q])` | An optional sequence of those two children |
+| `#sumti` | A rule named sumti through single-child wrappers |
+| `#·sumti` | Exactly the candidate named sumti |
+| `#KEhE` | A KEhE leaf, written or omitted |
+| `#KEhE=""` | A KEhE leaf with empty value |
+| `#KEhE≠""` | A KEhE leaf with nonempty value |
+| `#« [KEhE] »` | Zero or one KEhE child |
+| `#« KE ⋯ KEhE »` | A complete child sequence with required endpoints |
+| `#« A B »` | Two children, each with its own single-child search |
+| `#a« b c »` | An a node whose complete child list matches b then c |
+| `#a« b »` | An a node with exactly one child matching b |
+| `#« A ⋯ B ⋯ C »` | Ordered children with arbitrary sibling gaps |
+| `#«»` | A node with no structural children, possibly through single-child wrappers |
+| `#·«»` | Exactly a node with no structural children |
+| `#(⋮ P)` | P at an endpoint of any downward path |
+| `#(P ⋰)` | P at an endpoint of the first-child path |
+| `#(⋱ P)` | P at an endpoint of the last-child path |
+| `#(P ∪ Q)` | Either predicate on the candidate |
+| `#(P ∩ Q)` | Both predicates on the candidate |
+| `#(P ∖ Q)` | P holds and Q fails |
+| `#« {P} »` | A complete sequence of one or more P children |
+| `#« {P / S} »` | One or more P children separated by S |
+| `#« [P Q] »` | An optional sequence of those two children |
+| `#« a b \| c »` | Either the children a then b, or one child c |
 
-A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
+A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `🆓`, denote named rules. A pattern constant denotes its predicate.
 
-A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals. The shorthand takes one atom, so `@"a" ++ "b"` attempts to concatenate a pattern and a string.
+A node test names one rule, emoji rule, template family, exact call, parameter, or terminal. Terminal forms include tags, strings, string constants, ranges, and `_`. `_` retains the wildcard terminal's identity. It does not match every node. A pattern constant denotes a whole predicate rather than a node test.
 
-Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
+Node decorations are exact prefixes, tests, or child lists. Each decoration applies to its own node test. A compound pattern cannot acquire a node decoration.
+
+A string constant can carry tag and value tests, as in `#$S="x"`. A tested constant must resolve to a string. Rule tests and pattern-valued constants accept no terminal tests. A pattern `literal` holds a decoded string. User constants retain the distinct `constant` form in the DOM.
+
+A child list uses guillemets `« »` (U+00AB, U+00BB). It attaches to a node test only without intervening whitespace or comments. `#a« b c »` tests a and its complete children at the same node. Inside a list, `x« b »` is one item, while `x « b »` is two items.
+
+A separate `«` or `·` requires whitespace or a comment after a node test, `»`, `]`, `}`, or a group's `)`. The first list after an adjacent call's `)` attaches to that call. Other directly adjacent uses are errors.
+
+A bare list has no name test. `#« a b »` tests any observable node whose children match a then b. `#·« a b »` tests those children only at the candidate itself. `#« a »` requires one child and remains distinct from `#a`.
+
+A child list attaches only to a rule name, emoji rule, template family, exact call, or compatible parameter. Terminals, `_`, tested atoms, and string constants cannot carry child lists. A ranked seal passes no node test, including a bare list.
+
+`«»` is an empty list, distinct from an absent list. It can match a terminal leaf or a directly captured empty rule. It does not assert that the input span is empty.
+
+Within a child list, juxtaposition sequences items and `|` chooses complete sequences. Brackets make a sequence optional. Braces repeat a sequence one or more times, with an optional `/` separator. `{C / S}` accepts `C (S C)*`. These constructs give one Boolean answer, without ranking or greediness.
+
+`#a« b (x | y« z ») c« d e » »` tests one a node with three children. The middle child matches x. The other alternative matches y, and that y has one child that matches z. Each child test keeps its own search. A child's `·` suppresses only that child's search.
 
 `⋯` consumes zero or more siblings at one level. It never descends. Multiple sibling gaps are legal, including empty gaps. Each path permits zero or more edges and can stop before a leaf. First and last children follow helper flattening and empty-child removal.
 
 An omitted terminator is a child like a written one. When it is the last child, a last-child path reaches it and never passes it to an earlier sibling.
 
-Binding is primary, path, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. Chained paths and optional operands require parentheses or a nested literal.
+Outside child lists, binding is node test with attachments, grouping, path, intersection, then union or difference, from strongest to weakest. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. A path operand is a whole pattern. Chained paths require parentheses.
 
-Any union operand that is itself a union flattens into its enclosing union. Thus `@(A ∪ (B ∪ C))` and `@(@(A ∪ B) ∪ C)` each have one union with three operands in written order. Intersection and difference retain their operands.
+Parentheses only group. They never introduce a child list or a subtree boundary. Juxtaposition, optional brackets, braces, gaps, and `|` require a child list. A nested `#` cannot act as a pattern atom or child item. `#(a b)` is invalid, and its child-list spelling is `#« a b »`.
 
-`@(A ⋰ B)` tests two children, the first through `A ⋰`. `@((A B) ⋰)` searches for a node with children A and B. `@(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `@((NAhE ∪ SE) ⋰)` puts both alternatives under it. `@(A ⋰ ⋱ B)` applies first-path to A and last-path to B.
+A call's arguments retain their own grammar, including pattern literals and grouped body expressions. Thus `#pair(#a, "b")` can name an instance with a pattern argument. Its inner `#a` belongs to the call argument rather than the enclosing pattern's child syntax.
 
-Plain parentheses preserve sibling grouping without a subtree boundary. `@(A (B C))` therefore has three children. `@(A @(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
+Union and intersection each flatten operands of their own kind, including through parentheses. Runs of `∩` form one flat intersection, in written order. Difference retains exactly two operands. Order and duplicates remain significant for pattern keys.
+
+As a child item, a set expression consumes one child. Beside other items, it requires parentheses. `#« a (b ∪ c) »` is valid, while `#« a b ∪ c »` is invalid. A whole choice arm can be a set expression, as in `#« a ∩ b | c »`.
+
+Within a child list, paths bind before sequence, and sequence binds before `|`. In a repetition, `/` separates the whole item and separator choices. `{a / b | c}` repeats a with separator b or c. A path cannot take a child sequence directly. `#(« a b » ⋰)` searches the first-child path for a node whose children match a then b.
+
+`#(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `#((NAhE ∪ SE) ⋰)` puts both alternatives under it. In `#« A ⋰ ⋱ B »`, the first child uses first-path and the second uses last-path.
+
+Each path tests its operand at every endpoint, including the candidate. The operand retains each node test's search or exact prefix. Set operands also retain separate searches. `#(a ∩ « b c »)` can match its parts at different depths, while `#a« b c »` requires the same node.
 
 One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
 
-A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `@A<B>` means `@(A<B>)`, and `@A<B>=""` means `@(A<B>="")`.
+A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `#A<B>` means `#(A<B>)`, and `#A<B>=""` means `#(A<B>="")`.
 
-Patterns reject `&`, `|`, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions and direct chained path prefixes. Braces keep one-or-more sequence behavior and their separator syntax. A repeat body that only matches empty sequences is an error. A sibling ellipsis cannot be a repeat item or separator. Patterns cannot contain recursive constants.
+Patterns reject captures, emissions, alternative tags, feature guards, elision markers, chain repetitions, and direct chained path prefixes. `&` has no pattern or child operator role. Patterns cannot contain recursive constants.
+
+Optional and repeat bodies and choice arms must contain written items. A repeat body must have a way to consume at least one child. A sibling gap cannot occur within a repeat's item or separator at that sibling level. Gaps inside an attached child list remain valid because they consume another node's children.
+
+A parameter alone can substitute one whole pattern. In a child list, that pattern consumes one child and never splices siblings. With tests, an exact prefix, or an attached list, the argument must supply the corresponding node test. A supplied compound pattern cannot acquire a node attachment. Ordinary type rules apply after substitution.
+
+Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
+
+The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
+
+### Pattern migration
+
+The tables give replacement spellings without changing the structural tree. Replaced-form columns preserve actual source spellings. Replacement columns use current string escapes. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
+
+The form table covers the constructors, grouping boundaries, paths, sets, tests, and parameters:
+
+| Replaced form | Replacement | Meaning |
+| --- | --- | --- |
+| `#a`, `#(a)`, `#((a))` | `#a` | One node test |
+| `#🆓`, `#(🆓)` | `#🆓` | One emoji rule test |
+| `#pair`, `#(pair)` | `#pair` | One template family |
+| `#(pair("a", "b"))` | `#pair("a", "b")` | One exact call |
+| `#(@X)` | `#@X` | One substituted pattern |
+| `#(_)` | `#_` | Wildcard terminal identity |
+| `#(T<A>="x")` | `#T<A>="x"` | Tests on the same terminal leaf |
+| `#("a")`, `#($_0061)`, `#($S)` | `#"a"`, `#"‹U+0061›"`, `#$S` | Terminal identity or a constant's predicate |
+| `#("a".."z")` | `#"a".."z"` | Range terminal identity |
+| `#(a b)` | `#« a b »` | Complete child sequence |
+| `#(a (b c))` | `#« a b c »` | Grouped sibling sequence |
+| `#(a #(b c))` | `#« a « b c » »` | One child with its own child list |
+| `#(a #(b))` | `#« a b »` | A nested literal with one node test |
+| `#([a])`, `#([(a)])` | `#« [a] »` | Optional child |
+| `#([a b])` | `#« [a b] »` | Optional sequence |
+| `#(a #([b]))` | `#« a « [b] » »` | One child whose own list is optional |
+| `#({a})`, `#({a b})` | `#« {a} »`, `#« {a b} »` | One or more item sequences |
+| `#({a / s})` | `#« {a / s} »` | Separated repetition |
+| `#({[a]})` | `#« {[a]} »` | A nullable repetition that can consume |
+| `#(⋯)`, `#(a ⋯ b)` | `#« ⋯ »`, `#« a ⋯ b »` | Sibling gaps |
+| `#(⋮ a)`, `#(a ⋰)`, `#(⋱ a)` | Unchanged | Whole-pattern paths |
+| `#((a b) ⋰)` | `#(« a b » ⋰)` | Path to a child-list predicate |
+| `#(⋱ (a b))` | `#(⋱ « a b »)` | Last-child path to a child-list predicate |
+| `#(a ⋰ ⋱ b)` | `#« a ⋰ ⋱ b »` | Separate paths on two children |
+| `#(a ∪ b)`, `#(a ∩ b)`, `#(a ∖ b)` | Unchanged | Whole-pattern set operations |
+| `#(a b ∩ c)` | `#(« a b » ∩ c)` | A sequence as one set operand |
+| `#(a (b ∪ c))` | `#« a (b ∪ c) »` | A set as one child item |
+| `#(a (#b ∪ #c))` | `#« a (b ∪ c) »` | Nested literals inside a child set |
+| `#(#(a ∪ b) ∪ c)` | `#(a ∪ b ∪ c)` | Flat union |
+| `#((a ∩ b) ∩ c)` | `#(a ∩ b ∩ c)` | Flat intersection |
+| `#(a ∖ (b ∖ c))` | Unchanged | Right-nested difference |
+| `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
+| `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
+
+Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-40 shape acceptance.
+
+The following mapping converts valid format-35 pattern DOMs to format 40. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
+
+| Format-35 form | Format-40 form |
+| --- | --- |
+| Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
+| Child `{"node":P}` | `[{"child":M(P)}]` |
+| Child `{"sequence":[C1,...,Cn]}` | Concatenate `I(C1)` through `I(Cn)` into one array |
+| Child `{"optional":C}` | `[{"optional":I(C)}]` |
+| Child `{"repeat":C}` | `[{"repeat":I(C)}]` |
+| Child `{"repeat":C,"separator":S}` | `[{"repeat":I(C),"separator":I(S)}]` |
+| Child `{"siblings":true}` | `[{"siblings":true}]` |
+| Pattern `{"union":[P1,...,Pn]}` | Convert each operand with M, then flatten direct union operands |
+| Pattern `{"intersection":[P1,...,Pn]}` | Convert each operand with M, then flatten direct intersection operands |
+| Pattern `{"difference":[P,Q]}` | `{"difference":[M(P),M(Q)]}` |
+| Pattern `{"path":K,"pattern":P}` | `{"path":K,"pattern":M(P)}` |
+| String term `{"const":"_0301","at":Q}` anywhere | `{"string":"\u0301"}` before structural conversion |
+| Pattern `{"literal":{"const":USER,"at":Q},"at":P}` | `{"constant":USER,"at":P}` |
+| Pattern test | Retain the test and operands, then convert its `expr` with M |
+| Other pattern atom | Retain its constructor, fields, and source position |
+
+The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The conversion normalizes engine-tag identifiers to current canonical names, including general categories. The resulting format-40 DOM receives ordinary shape and type inspection.
+
+Malformed-DOM fixtures require corresponding format-40 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
+
+Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-40 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
+
+The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
+
+| Grammar location | Replaced spelling | Replacement |
+| --- | --- | --- |
+| `grammars/syntax/cll.md:204` | `#(tag)` | `#tag` |
+| `grammars/syntax/cll.md:204` | `#(⋮ (FIhO ∪ free))` | `#(⋮ (FIhO ∪ free))` |
+| `grammars/syntax/cll.md:205` | `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
+| `grammars/syntax/cll.md:206` | `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
+| `grammars/syntax/cll.md:207` | `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `grammars/syntax/cll.md:208` | `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
+| `grammars/syntax/cll.md:209` | `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
+| `grammars/syntax/cll.md:210` | `#($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `grammars/syntax/experimental.md:133` | `#(ek ⋰)` | `#(ek ⋰)` |
+| `grammars/syntax/experimental.md:133` | `#(VUhU ⋰)` | `#(VUhU ⋰)` |
+| `grammars/syntax/experimental.md:299` | `#([tag] KE [🆓] gek-sentence KEhE [🆓])` | `#« [tag] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `grammars/syntax/experimental.md:300` | `#([tag] $KE-UNIT)` | `#« [tag] $KE-UNIT »` |
+| `grammars/syntax/experimental.md:301` | `#($CONNECTED-KE-SELBRI tail-terms)` | `#« $CONNECTED-KE-SELBRI tail-terms »` |
+| `grammars/syntax/experimental.md:302` | `#($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `grammars/syntax/experimental.md:363` | `#(⋯ CU [🆓])` | `#« ⋯ CU [🆓] »` |
+| `grammars/syntax/experimental.md:363` | `#(CU ⋰)` | `#(CU ⋰)` |
+| `grammars/syntax/experimental.md:564` | `#(tag KU="" [🆓])` | `#« tag KU="" [🆓] »` |
+| `grammars/syntax/experimental.md:565` | `#(NA [🆓] KU="" [🆓])` | `#« NA [🆓] KU="" [🆓] »` |
+| `grammars/syntax/experimental.md:709` | `#(sumti)` | `#sumti` |
+| `grammars/syntax/experimental.md:710` | `#(sumti)` | `#sumti` |
+| `grammars/syntax/experimental.md:711` | `#(tagged-term)` | `#tagged-term` |
+| `grammars/syntax/experimental.md:719` | `#(quantifier ⋰)` | `#(quantifier ⋰)` |
+| `grammars/syntax/experimental.md:923` | `#(forethought-operator ⋰)` | `#(forethought-operator ⋰)` |
+| `grammars/syntax/experimental.md:952` | `#(joik-jek-ek ⋰)` | `#(joik-jek-ek ⋰)` |
+| `grammars/syntax/experimental.md:1147` | `#(free)` | `#free` |
+| `grammars/syntax/experimental.md:1147` | `#(XI ⋯)` | `#« XI ⋯ »` |
+| `grammars/syntax/experimental.md:1148` | `#(⋱ (🆓 ∩ #(⋯ $NON-XI-FREE ⋯)))` | `#(⋱ (🆓 ∩ « ⋯ $NON-XI-FREE ⋯ »))` |
+| `grammars/syntax/zantufa.md:186` | `#({sentence / gik})` | `#« {sentence / gik} »` |
+| `grammars/syntax/zantufa.md:186` | `#(sentence ⋰)` | `#(sentence ⋰)` |
+| `grammars/syntax/zantufa.md:194` | `#(#(na-clause KU="") VAU="")` | `#« « na-clause KU="" » VAU="" »` |
+| `grammars/syntax/zantufa.md:222` | `#(na-clause KU="")` | `#« na-clause KU="" »` |
+| `grammars/syntax/zantufa.md:270` | `#([terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms)` | `#« [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms »` |
+| `grammars/syntax/zantufa.md:280` | `#(KE ⋰)` | `#(KE ⋰)` |
+| `grammars/syntax/zantufa.md:299` | `#(KE ⋰)` | `#(KE ⋰)` |
+| `grammars/syntax/zantufa.md:300` | `#(#(tag #(KE ⋰)) ⋰)` | `#(« tag KE ⋰ » ⋰)` |
+| `grammars/syntax/zantufa.md:301` | `#(#(tag KE ⋯) ⋰)` | `#(« tag KE ⋯ » ⋰)` |
+| `grammars/syntax/zantufa.md:312` | `#(selbri-2 #(VAU=""))` | `#« selbri-2 VAU="" »` |
+| `grammars/syntax/zantufa.md:320` | `#(ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms)` | `#« ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms »` |
+| `grammars/syntax/zantufa.md:321` | `#(#(KE [🆓] selbri-2 KEhE="" [🆓]) ⋰)` | `#(« KE [🆓] selbri-2 KEhE="" [🆓] » ⋰)` |
+| `grammars/syntax/zantufa.md:388` | `#(joik)` | `#joik` |
+| `grammars/syntax/zantufa.md:407` | `#(gek sumti {gik sumti} GIhI [🆓])` | `#« gek sumti {gik sumti} GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:408` | `#(ke-clause sumti KEhE≠"" [🆓])` | `#« ke-clause sumti KEhE≠"" [🆓] »` |
+| `grammars/syntax/zantufa.md:409` | `#(KE [🆓] sumti KEhE="" [🆓])` | `#« KE [🆓] sumti KEhE="" [🆓] »` |
+| `grammars/syntax/zantufa.md:526` | `#(joik-ek)` | `#joik-ek` |
+| `grammars/syntax/zantufa.md:526` | `#(SE [🆓] #(joik-ek))` | `#« SE [🆓] joik-ek »` |
+| `grammars/syntax/zantufa.md:555` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:556` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:625` | `#(tag ⋰)` | `#(tag ⋰)` |
+| `grammars/syntax/zantufa.md:664` | `#(JOI [🆓] [GAhO [🆓]])` | `#« JOI [🆓] [GAhO [🆓]] »` |
+| `grammars/syntax/zantufa.md:667` | `#(GA [🆓] [BO [🆓]])` | `#« GA [🆓] [BO [🆓]] »` |
+| `grammars/syntax/zantufa.md:668` | `#((tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]])` | `#« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »` |
+| `grammars/syntax/zantufa.md:670` | `#(gek selbri-2 gik-selbris GIhI [🆓])` | `#« gek selbri-2 gik-selbris GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:672` | `#($SE-GEK selbri-2 gik-selbris GIhI [🆓])` | `#« $SE-GEK selbri-2 gik-selbris GIhI [🆓] »` |
+| `grammars/syntax/zantufa.md:701` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:702` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:703` | `#(NAhE ⋰)` | `#(NAhE ⋰)` |
+| `grammars/syntax/zantufa.md:780` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:791` | `#(operator ⋰)` | `#(operator ⋰)` |
+| `grammars/syntax/zantufa.md:825` | `#(SE ⋯)` | `#« SE ⋯ »` |
+| `grammars/syntax/zantufa.md:953` | `#(((NAhE ∪ SE) [🆓] (operand ∪ operator)) ⋰)` | `#(« (NAhE ∪ SE) [🆓] (operand ∪ operator) » ⋰)` |
+| `grammars/syntax/zantufa.md:991` | `#(PA ⋰)` | `#(PA ⋰)` |
+| `grammars/syntax/zantufa.md:992` | `#(lerfu-string ⋰)` | `#(lerfu-string ⋰)` |
+| `grammars/syntax/zantufa.md:993` | `#(vocative ⋰)` | `#(vocative ⋰)` |
+| `grammars/syntax/zantufa.md:998` | `#(🆓 ⋰)` | `#(🆓 ⋰)` |
+| `grammars/words/cll.md:238` | `#(ccv-rafsi)` | `#ccv-rafsi` |
+
+The next table covers complete pattern spellings in fixture source fields. The inventory excludes strings, comments, descriptions, expected output, and generated source fragments. Each row retains its fixture's declarations and Unicode table. Normal source decomposition still applies to names such as U+212A, the Kelvin sign.
+
+A replacement spelling does not determine whether the complete fixture loads or accepts its input. Binding, substitution, operand types, and surrounding conditions still apply. Refusal rows name both the replacement and the rule that it tests.
+
+| Replaced fixture spelling | Replacement and restrictions |
+| --- | --- |
+| `# ( $x:A)` | `#« $x:A »` Invalid: captures cannot occur in child lists. |
+| `# ( )` | `#()` Invalid: an empty pattern literal has no predicate. |
+| `# ( A  :: T )` | `#« A :: T »` Invalid: child items cannot carry alternative tags. |
+| `# ( A & B )` | `#« A & B »` Invalid: conjunction has no pattern operator role. |
+| `# ( A )` | `#A` The surrounding fixture context determines acceptance. See the context table below. |
+| `# ( A <"a"> )` | `#A<"a">` Invalid: a tag requirement cannot be a string. |
+| `# ( A \| B )` | `#(A \| B)` Invalid: choice requires a child list. The distinct predicate `#« A \| B »` is valid. |
+| `# ( KEhE = "A" )` | `#KEhE="A"` Valid: the scalar value remains exact. |
+| `# ( [ + A ] )` | `#« [+A] »` Invalid: a child optional cannot mark elision. |
+| `# ( [ A ] ⋰ )` | `#« [A] ⋰ »` Invalid: a path requires one whole pattern, not an optional child expression. |
+| `# ( a ≻ b )` | `#(a ≻ b)` Invalid: ranked choice has no pattern operator role. |
+| `# ( sumti = "" )` | `#sumti=""` Invalid: a rule-name test cannot carry a terminal value test. |
+| `# ( { ... A } )` | `#« {... A} »` Invalid: a child repetition cannot be a chain. |
+| `# ( { A ... } )` | `#« {A ...} »` Invalid: a child repetition cannot be a chain. |
+| `# ( { A / ⋯ } )` | `#« {A / ⋯} »` Invalid: a sibling gap cannot be a repeat separator. |
+| `# ( { ⋯ } )` | `#« {⋯} »` Invalid: a sibling gap cannot be a repeat item. |
+| `# ( ε )` | `#« ε »` Invalid: an empty-input marker cannot be a child item. |
+| `# ( ⋰ A )` | `#(⋰ A)` Invalid: first-path is postfix. |
+| `# ( ⋱ ⋮ A )` | `#(⋱ ⋮ A)` Invalid: chained paths require a group around the inner path. |
+| `# cbm?` | `# cbm?` Invalid: a guard cannot be a pattern atom. |
+| `#!` | `#!` Valid: this fixture makes U+0021 an eligible emoji rule name through its Unicode table. |
+| `#"a"` | `#"a"` |
+| `#$A` | `#$A` |
+| `#$P` | `#$P` |
+| `#$Q` | `#$Q` |
+| `#$_0061` | `#"‹U+0061›"` |
+| `#("a" ++ "b")` | `#("a" ++ "b")` Invalid: inline concatenation cannot form a terminal. |
+| `#("a" ++ "b".."z")` | `#("a" ++ "b".."z")` Invalid: inline concatenation cannot form a range endpoint. |
+| `#("a")` | `#"a"` |
+| `#("a".."y" ++ "z")` | `#("a".."y" ++ "z")` Invalid: inline concatenation cannot form a range endpoint. |
+| `#("a".."z")` | `#"a".."z"` |
+| `#(#($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#(#(A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
+| `#($JOIN-1)` | `#$JOIN-1` |
+| `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
+| `#($JOIN-1=$JOIN-1)` | `#$JOIN-1=$JOIN-1` |
+| `#($K)` | `#$K` |
+| `#($KE-SELBRI (#tail-terms ∩ #$WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
+| `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
+| `#($LETTER)` | `#$LETTER` |
+| `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
+| `#($S)` | `#$S` |
+| `#($_D800<"bad">)` | `#"‹U+D800›"<"bad">` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800<"bad"><A>)` | `#"‹U+D800›"<"bad"><A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800=UI)` | `#"‹U+D800›"=UI` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($_D800=UI<A>)` | `#"‹U+D800›"=UI<A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#($K)` (U+212A) | `#$K` |
+| `#(($P))` | `#$P` |
+| `#(($Q))` | `#$Q` |
+| `#(($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
+| `#((A B)⋰)` | `#(« A B » ⋰)` |
+| `#((A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
+| `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
+| `#((B⋰) (⋱A))` | `#« B ⋰ ⋱ A »` |
+| `#(@X ∖ "b")` | `#(@X ∖ "b")` X is declared in the template. |
+| `#(@X ∩ "a")` | `#(@X ∩ "a")` X is declared in the template. |
+| `#(@X ∪ "b")` | `#(@X ∪ "b")` X is declared in the template. |
+| `#(@X)` | `#@X` X is declared in the template. |
+| `#(A #(B C))` | `#« A « B C » »` |
+| `#(A (#B ∪ #C))` | `#« A (B ∪ C) »` |
+| `#(A B B C)` | `#« A B B C »` |
+| `#(A B C)` | `#« A B C »` |
+| `#(A B)` | `#« A B »` |
+| `#(A KEhE="" B)` | `#« A KEhE="" B »` |
+| `#(A KEhE≠"" B)` | `#« A KEhE≠"" B »` |
+| `#(A OTHER OTHER [OTHER])` | `#« A OTHER OTHER [OTHER] »` |
+| `#(A OTHER OTHER)` | `#« A OTHER OTHER »` |
+| `#(A T<>)` | `#« A T<> »` |
+| `#(A T<T U>)` | `#« A T<T U> »` |
+| `#(A T<T>)` | `#« A T<T> »` |
+| `#(A T<U>)` | `#« A T<U> »` |
+| `#(A T<¬T ¬U>)` | `#« A T<¬T ¬U> »` |
+| `#(A T<¬T>)` | `#« A T<¬T> »` |
+| `#(A T<¬U>)` | `#« A T<¬U> »` |
+| `#(A T="")` | `#« A T="" »` |
+| `#(A T≠"")` | `#« A T≠"" »` |
+| `#(A [KEhE] B)` | `#« A [KEhE] B »` |
+| `#(A ∪ B ∩ C ∖ D)` | `#(A ∪ B ∩ C ∖ D)` |
+| `#(A ⋯ B)` | `#« A ⋯ B »` |
+| `#(A ⋯ C)` | `#« A ⋯ C »` |
+| `#(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)` | `#(« A ⋰ ⋱ B » ∪ C ⋰ ∩ ⋱ D)` |
+| `#(A)` | `#A` |
+| `#(A<$GOOD ¬$BAD>)` | `#A<$GOOD ¬$BAD>` |
+| `#(A<Extra ¬Blocked>)` | `#A<Extra ¬Blocked>` |
+| `#(A="a" ++ "b")` | `#A="a" ++ "b"` Invalid: inline concatenation cannot form a value-test operand. |
+| `#(A⋰)` | `#(A ⋰)` |
+| `#(B A)` | `#« B A »` |
+| `#(B)` | `#B` |
+| `#(B⋰)` | `#(B ⋰)` |
+| `#(K<K>)` | `#K<K>` |
+| `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
+| `#(Q X ⋯)` | `#« Q X ⋯ »` |
+| `#(Q a)` | `#« Q a »` |
+| `#(Q ⋯)` | `#« Q ⋯ »` |
+| `#(X T="")` | `#« X T="" »` |
+| `#(X Y)` | `#« X Y »` |
+| `#(X⋰)` | `#(X ⋰)` |
+| `#(Z)` | `#Z` |
+| `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
+| `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
+| `#([A] [🆓])` | `#« [A] [🆓] »` |
+| `#([X] [Y])` | `#« [X] [Y] »` |
+| `#([X])` | `#« [X] »` |
+| `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
+| `#(_)` | `#_` |
+| `#(_=$JOIN-1)` | `#_=$JOIN-1` |
+| `#(_Bogus<"bad"><A>)` | `#_Bogus<"bad"><A>` Invalid: engine-tag and tag-test restrictions still apply. |
+| `#(atom("a"))` | `#atom("a")` |
+| `#(atom("b"))` | `#atom("b")` |
+| `#(atom(("a" "b")))` | `#atom(("a" "b"))` |
+| `#(atom)` | `#atom` |
+| `#(child ∪ #bad-name)` | `#(child ∪ bad-name)` |
+| `#(child ∪ bad-name)` | `#(child ∪ bad-name)` |
+| `#(left right)` | `#« left right »` |
+| `#(other)` | `#other` |
+| `#(rK)` | `#rK` |
+| `#(rK)` (U+212A) | `#rK` |
+| `#(text)` | `#text` |
+| `#(text⋰)` | `#(text ⋰)` |
+| `#(unit)` | `#unit` |
+| `#(use ∪ "b")` | `#(use ∪ "b")` |
+| `#(use("a") ∩ use)` | `#(use("a") ∩ use)` |
+| `#(use("a"))` | `#use("a")` |
+| `#(use)` | `#use` |
+| `#({A / B})` | `#« {A / B} »` |
+| `#({A})` | `#« {A} »` |
+| `#({[A]})` | `#« {[A]} »` |
+| `#(K<K>)` (U+212A) | `#K<K>` |
+| `#(⋮(#FIhO ∪ #free))` | `#(⋮ (FIhO ∪ free))` |
+| `#(⋮A)` | `#(⋮ A)` |
+| `#(⋮B)` | `#(⋮ B)` |
+| `#(⋮X)` | `#(⋮ X)` |
+| `#(⋮q)` | `#(⋮ q)` |
+| `#(⋮r)` | `#(⋮ r)` |
+| `#(⋯)` | `#« ⋯ »` |
+| `#(⋱(A B))` | `#(⋱ « A B »)` |
+| `#(⋱A)` | `#(⋱ A)` |
+| `#(⋱KU)` | `#(⋱ KU)` |
+| `#(⋱X)` | `#(⋱ X)` |
+| `#(⋱text)` | `#(⋱ text)` |
+| `#@` | `#@` Invalid: the parameter sigil remains reserved under the supplied Unicode table. |
+| `#A` | `#A` |
+| `#A<$S.tag>` | `#A<$S.tag>` Invalid: a tag requirement cannot read a method. |
+| `#A<B><C>` | `#A<B><C>` Invalid: a terminal accepts at most one tag test. |
+| `#A="a".."b"` | `#A="a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=#A` | `#A=#A` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$` | `#A=$` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$.value` | `#A=$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=$S` | `#A=$S` S must resolve to a string. See the context table below. |
+| `#A=("a" "b")` | `#A=("a" "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=("a" ∪ "b")` | `#A=("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=("a")` | `#A=("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=B` | `#A=B` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A=∅` | `#A=∅` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠"a".."b"` | `#A≠"a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠#A` | `#A≠#A` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠$` | `#A≠$` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠$.value` | `#A≠$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠("a" ∪ "b")` | `#A≠("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠("a")` | `#A≠("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠B` | `#A≠B` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#A≠∅` | `#A≠∅` Invalid: a value test requires an ungrouped string literal or string constant. |
+| `#B` | `#B` |
+| `#C` | `#C` |
+| `#GIhI` | `#GIhI` |
+| `#GIhI≠""` | `#GIhI≠""` |
+| `#KEhE` | `#KEhE` |
+| `#KEhE=""` | `#KEhE=""` |
+| `#NUhI` | `#NUhI` |
+| `#NUhI<NUhI>` | `#NUhI<NUhI>` |
+| `#T<T U>` | `#T<T U>` |
+| `#X` | `#X` |
+| `#a` | `#a` |
+| `#b` | `#b` |
+| `#bad-name` | `#bad-name` |
+| `#empty` | `#empty` |
+| `#inner` | `#inner` |
+| `#outer` | `#outer` |
+| `#pair` | `#pair` |
+| `#rK` | `#rK` |
+| `#short` | `#short` |
+| `#sumti` | `#sumti` |
+| `#tag` | `#tag` |
+| `#text` | `#text` |
+| `#🆓` | `#🆓` |
+
+The following contexts distinguish fixtures that share a pattern spelling. Record indexes start at zero. A fixture's name does not determine its expected outcome.
+
+| Fixture context | Migrated pattern and result |
+| --- | --- |
+| `tests/parameters.json`, records 31 and 87 | `#@X` is valid with the declared terminal arguments, including a tested terminal. |
+| `tests/parameters.json`, record 94 | `#@X` remains invalid with a body-sequence argument. |
+| `tests/parameters.json`, records 96, 97, and 98 | The declared X gives valid union, intersection, and difference operands. |
+| `tests/engine/parameters-constants-replaced-invalid.json` | `#atom(("a" "b"))` remains invalid because its argument cannot replace a captured symbol, even in a replaced constant. |
+| `tests/notation/tree-pattern-refused-13.json` | `#KEhE="A"` is valid, despite the fixture name. |
+| `tests/engine/tree-pattern-mixed-pattern-tags.json` | `%const $P #A ∪ T` remains invalid because a pattern and tag set have different types. |
+| `tests/engine/tree-pattern-pattern-equality.json` | `%conditions #A = #A` remains invalid because patterns support no ordinary equality. |
+| `tests/engine/tree-pattern-span-function-left.json` | `$.first-token ≅ #A` remains invalid because the left operand must be a bare capture. |
+| `tests/engine/review-tags-own-rule-tags.json`, `review-tags-own-rule-classes.json`, `review-tags-own-alternative-tags.json`, and `review-tags-own-alternative-classes.json` | `#A` remains a valid pattern. The enclosing tag clause still rejects its own tags or classes. |
+| `tests/engine/tree-pattern-pattern-test-constant-sound.json` | `#A=$S` is valid because S holds the string `"A"`. |
+| `tests/engine/tree-pattern-pattern-test-constant-type.json` | `#A=$S` remains invalid because S holds a tag set. |
+| `tests/engine/notation-r5-string-set-pattern-value-constant.json` | `#A=$S` remains invalid because S holds a string set. |
+| `tests/engine/tree-pattern-rule-test-constant-sound.json` | `#A=$S` loads but rejects the supplied input because its value differs from `"A"`. |
+
 
 ## Classifiers
 
@@ -512,7 +1117,7 @@ A classifier gives a value its classes. A cmavo is a particle, a short structure
 
 An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string literal or string constant. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
 
-A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE "‹U+0022›"` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH "‹U+005C›"` likewise supplies a backslash key.
 
 Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
 
@@ -628,9 +1233,11 @@ A condition term has five types: captures or spans, strings, string sets, tag se
 
 The first type includes spans, sequences of tokens. A capture `$x` retains its matched constituent and its input span. `$` spans the whole constituent. `$x.first-token` is its first token, `$x.tokens-after-first` the rest, and `$x.last-token` the last.
 
-`$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. Both can look past the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
+`$x.onward` runs from the capture's start to its context end. `$x.following-tokens` runs from its end to that boundary. `$x.preceding-tokens` runs from the context start to its start and returns ordinary input.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. A grammar normalization stage supplies the comparison policy. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
+These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
+
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [dialect guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -640,7 +1247,7 @@ So `$content.value.split($PAUSE)` is the set of the runs of `$content`, the stre
 
 An empty delimiter is an error. A literal `""` or an empty string constant as the delimiter causes a document error. Constant evaluation and feature conditions also reject joined empty delimiters during loading. In a constant value, this document error has kind `grammar` and stands at the definition. In a rule condition, a joined empty delimiter causes a grammar error only when a parse evaluates the split. Engine §2 and §10 define these positions and evaluation times.
 
-A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_L ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
+A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_General_Category_Letter ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
 
 A whole capture's `.tags` reads its constituent tags. Another span, such as `$x.first-token`, unions its input token tags. `.tags(rule)` unions eligible whole-query readings and is empty without a match. `.classes` filters the same tag set for names starting and ending with capitals and never starting with `_`.
 
@@ -671,24 +1278,25 @@ The predicates are:
 - `$x` holds when the production has the capture `x`.
 - `span.matches(S)` holds when the span parses as any target in `S`.
 - `span.begins(S)` holds when some prefix parses as any target in `S`. The empty prefix counts for rule targets.
+- `span.ends(S)` holds when some suffix parses as any target in `S`. The empty suffix counts for rule targets.
 - `span.starts-input` holds when the span begins where the parser's input begins.
 - `span.ends-input` holds when the span ends where the parser's input ends.
 - `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbours in the parse" below explains it.
 - `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
 
-The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name.
+The five methods `.matches(S)`, `.begins(S)`, `.ends(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of ordinary rules, exact instances, and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `🆓` is a rule name.
 
-Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and comma separators are errors. Parentheses around one target preserve that target.
+Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and commas between targets are errors. Commas inside a call separate its arguments. Parentheses around one target preserve that target.
 
-Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens. Restored queries retain their alignment rules for every alternative.
+Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens and `ends` permits earlier tokens. Restored whole and prefix queries retain their alignment rules for every alternative. A restored `.ends` receiver is a load error.
 
-In a rule with a ranked choice, a terminal target has the same meaning as in any other rule. For `matches` and `begins`, the engine reads the target through a helper that reads one token. The helper changes no ranked group and no capture. `followed-by` and `preceded-by` test the nodes of the parse, as "Neighbours in the parse" explains.
+In a rule with a ranked choice, a terminal target has the same meaning as in any other rule. For `matches`, `begins`, and `ends`, the engine reads the target through a helper that reads one token. The helper changes no ranked group and no capture. `followed-by` and `preceded-by` test the nodes of the parse, as "Neighbours in the parse" explains.
 
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-Every nested query, whether `matches`, `begins` or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
+Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
 In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
@@ -762,7 +1370,9 @@ The members come from the rules as written. Guards do not matter, so every alter
 
 Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
 
-A rule owns each elidable optional that its alternatives write, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
+A rule owns each elidable optional that its alternatives write outside call arguments, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
+
+After expansion, only an instance owns each elidable optional of its expanded definition, including one that an argument supplies. A template owns no optional.
 
 The witness keeps every close and block of the candidate, in order, as for `.without-elision`. It can add a close only where two things hold. The family permits the close's optional. In the witness's restored view, a kept element stands on each side of the added close, inside the shared stretch. A kept element is a token, or a close or block that the candidate also has. Other added closes can stand between the added close and those kept elements.
 
@@ -785,6 +1395,18 @@ In `le ke my .e gy broda`, the KE group omits its own KEhE at the capture's end.
 
 The receiver and composition rules of `.without-elision` apply unchanged. `$x.onward.without-elision-except(math)` is an error. The argument is exactly one rule name. A family whose members own no elidable optional permits nothing, and its queries answer as `.without-elision` does.
 
+### Fixed-window suffix queries
+
+`s.ends(R)` tests suffixes inside one fixed input window. Every candidate keeps the receiver's start and end as its context. It is not a sequence of `.matches` calls on shorter suffixes. Conditions such as `.starts-input` and nested `.preceding-tokens` therefore see the whole window.
+
+For example, a target that reads `"a"` and requires `$.starts-input` does not match the suffix of two tokens valued `b` and `a`. A nullable target can match the empty suffix. A tag target reads the last token and fails on an empty span.
+
+`$x.preceding-tokens.last-token` reads the token immediately before `$x`. Inside a nested query, it cannot reach before that query's input start. On a restored receiver, `.preceding-tokens` projects to ordinary input and drops close alignment.
+
+`.ends` on a restored span is a load error, including after `.onward`, which preserves restoration. This applies to both restoration methods. Restored suffix queries can be added when a grammar needs them. [Engine §4.4](engine.md#44-backward-token-queries) defines the ordinary query and its sharing rules.
+
+With one target and window start, requests that read no window end share recognition. Its cost is one recognition starting the target at every position, plus constant work per request. That recognition includes any nested queries and can grow faster than linear for complex targets. A target that reads the window end requires separate recognition for each distinct end. Restored nested queries at any depth prevent this sharing. Use `.ends` sparingly.
+
 ### Neighbours in the parse
 
 `$x.followed-by(S)` and `$x.preceded-by(S)` test the parse that the condition belongs to. They parse nothing again. The receiver is `$` or one capture. `S` uses the shared target choice defined above.
@@ -801,7 +1423,7 @@ The test reads the actual neighbor, which a lookahead cannot do. In the experime
 
 ```jbogenbau
 %rule bare-na
-  $n:NA #
+  $n:NA 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
   $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
@@ -813,7 +1435,7 @@ In `mi klama na to broda`, the parenthesis stands in the term's slot, and the te
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
 
-A terminal target of `.begins` or `.matches` makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
+A terminal target of `.begins`, `.ends`, or `.matches` makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 
@@ -836,7 +1458,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Position or kind | Meaning | Example |
 | --- | --- | --- |
 | A body | Sequence | `"b" c` |
-| Inside `@(…)` | Child sequence | `@(A B ∪ C)` |
+| Inside `« »` | Child sequence | `#« A (B ∪ C) »` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
 | A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
@@ -845,15 +1467,19 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Other tag-set atoms | Error | `:: $m.tags Word` |
 | A string-set term | One union atom of string literals | `%const $X "a" "b"` |
 | String sets | Error | `$S $T` |
-| Patterns outside a literal | Error | `%const $P @(A) @(B)` |
+| Patterns outside a literal | Error | `%const $P #(A) #(B)` |
 
 A run of bare tag names or string literals can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
 
-`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Intersection and difference retain their operands. Other atoms require explicit operators.
+`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node.
+
+Difference retains both operands. Pattern-valued term intersections flatten after type resolution. Other intersection types retain their nesting. Other atoms require explicit operators.
+
+For example, `(#a ∩ #b) ∩ #c` flattens to `#a ∩ #b ∩ #c` in its effective form. The cached term retains its unresolved shape. Pattern literals retain their boundaries as operands.
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
-Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
+Within a child list, sequence combines items, and a grouped set expression consumes one child. `#(A B ∩ C)` requires the explicit list spelling `#(« A B » ∩ C)`. Outside child lists, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
 
 String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
 
@@ -955,7 +1581,7 @@ A part that an emission list does not name remains a counted part, although it e
 
 ### Two walks and recipes
 
-The stage fixes each emitted token's value and image through recipes or plain concatenation. It preserves `Stressed` and `Syllable-Break` as the grammar specifies. Tags never assign strings. An implication changes tags only, so it cannot introduce a stressed value or replace an image.
+The stage fixes each emitted token's value and image through recipes or plain concatenation. It preserves `Stressed` and `Syllable-Break` as the grammar specifies. Tags never assign strings. An implication changes tags only, so it cannot change a vowel value or replace an image.
 
 Default string construction concatenates non-erased input parts in order. It enters child constituents without executing their emission items. A child constituent recipe can replace its contribution separately by channel. Gap recipes supply spacing. A quote-body image recipe supplies verbatim text. No engine rule trims pauses or assigns a foreign placeholder.
 
@@ -1044,11 +1670,14 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 - `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the ranking rule: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. "Elided terminators" explains the elision test. Every stage must say it exactly once, in any of its documents.
 - No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` (see "Elided terminators").
+- `%names "PATH"` adds a names resource for the current document and its nested includes. These directives precede every other statement.
 - `%stage NAME`, `%extend-stage NAME`, `%redefine-stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
 ## Pipelines
 
 For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
+
+A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
 A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
@@ -1124,7 +1753,7 @@ The engine evaluates the declarations in order. It stops at the first declaratio
 
 An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
-Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
+Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A names preamble can precede the first `%stage`. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
 Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
 
@@ -1134,7 +1763,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
@@ -1168,7 +1797,7 @@ Two nested `leftmost-longest` occurrences over one span contribute twice, so two
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every span vector is zero and every fewest count is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every span vector is zero and every fewest count is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins`, `ends`, or `tags` queries.
 
 `fewest` states a preference between whole readings. In Zantufa, `term-link` carries it. A sumti connection then beats a term connection over the same words, whatever their omitted terminators. A term connection remains where no sumti connection completes.
 
@@ -1210,23 +1839,34 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 
 ```jbogenbau
 %rule sumti-6
-  | LE # sumti-tail [+KU #]
-  | LI # mex [+LOhO #]
+  | LE 🆓 sumti-tail [+KU 🆓]
+  | LI 🆓 mex [+LOhO 🆓]
 ```
 
-- The terminator `T` stands directly after the marker, as written, with no parentheses around it. So `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors, although parentheses make no node elsewhere. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
-- `T` is a non-engine tag name written directly after `+`. `[+KU]` marks KU. A string, range, engine tag, wildcard, rule, or `#` cannot mark an omission.
+- The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. `[+(@End) 🆓]` is invalid for the same reason. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
+- `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, rule, or `🆓` cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 
-An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU #]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
+An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU 🆓]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
+
+A template can choose its terminator through a parameter:
+
+```jbogenbau
+%rule terminated(@Body, @End)
+  @Body [+@End 🆓]
+
+%rule description = terminated(sumti-tail, KU)
+```
+
+The argument for `@End` must be one bare user tag after argument conversion. A rule name, sequence, tested argument, constant, or tag-set expression fails loading. A parenthesized single tag, such as `(KU)`, reads as that tag. Tests written on `@End` apply to the resulting terminal. The rest of the optional keeps its ordinary restrictions.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
 The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what `elision-only` writes back. The terminator of an elided node is `T`.
 
-An elision records an omitted terminal at its input boundary, without naming a separate constituent that it ends. A query uses the preceding symbol of that reading when looking for a written terminator. In `LE sumti-tail [+KU #]`, that symbol is sumti-tail. A prefix is input read before the marked optional. After a terminal, or at production start, the query tests the optional directly after that prefix.
+An elision records an omitted terminal at its input boundary, without naming a separate constituent that it ends. A query uses the preceding symbol of that reading when looking for a written terminator. In `LE sumti-tail [+KU 🆓]`, that symbol is sumti-tail. A prefix is input read before the marked optional. After a terminal, or at production start, the query tests the optional directly after that prefix.
 
 Braces add no separate query rule. The query uses productions of the expanded grammar, with plain optionals interpreted through their helpers. A marked optional at the first item's start uses its prefix. One at the start of a later flat-list item or left-chain separator follows an initial self-reference and uses that same prefix rule.
 
@@ -1280,13 +1920,13 @@ The `experimental` and `zantufa` dialects do not declare `elision-only`. A calle
 
 ## Layout of the bundled grammars
 
-The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, an engine tag, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
+The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, call, parameter, terminal, range, engine tag, tested symbol, or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
 
 No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
 
 ## Railroad diagrams
 
-Each bundled grammar document shows a railroad diagram of each of its rules. A railroad diagram draws a rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. Under each block of rules stands one collapsed element, which opens on a click and shows a diagram of each rule of the block. `tools/sync.js` draws them, as "Railroad diagrams" in [the design document](design.md#railroad-diagrams) says.
+Each bundled grammar document shows a railroad diagram of each rule or template. A railroad diagram draws a rule as a track. A reader follows the track from left to right, and each path along it is one way to read the rule. Under each block of rules stands one collapsed element, which opens on a click and shows a diagram of each rule of the block. `tools/sync.js` draws them, as "Railroad diagrams" in [the design document](design.md#railroad-diagrams) says.
 
 The diagrams draw the notation in this way:
 
@@ -1305,3 +1945,7 @@ The diagrams draw the notation in this way:
 A diagram shows only what a rule reads. It leaves out the captures, the tag terms, the clauses and the rule's flag. A capture only names a part and changes no rule interpretation. Tags, recipes, emission, and erasure describe the parts' contributions, not which tokens the rule reads.
 
 A condition can reject a reading that the diagram shows. So a diagram shows what a rule reads before its conditions, and the diagram of a rule with conditions says "conditions apply" beside its name. The diagram of an `%extend-rule` shows only the alternatives that it adds. It says "conditions apply" when the extension adds conditions of its own.
+
+A template diagram shows the parameter list in its title and `@` names in parameter boxes. A call box shows its arguments and links to the template. A binding shows the named instance and its substitution without an extra grammar constituent. Instance edits show their written bodies, while unnamed instances receive no separate diagrams.
+
+An emoji rule's diagram filename is `_u` plus lowercase hexadecimal, without unnecessary leading zeros. `🆓` uses `_u1f193.svg`. Diagram titles retain the emoji. Engine §2.3 and the design document define instance and audit ordering.

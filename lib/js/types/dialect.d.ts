@@ -1,10 +1,12 @@
 import { Stage } from "./stage.js";
 import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
+export { fnv1a64 } from "./hash.js";
 import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultNode } from "./types.js";
 export type CompiledEntry = {
     hash: string;
     dom: GrammarDom;
+    names?: Record<string, string>;
 };
 export type RunOptions = {
     features: Set<string>;
@@ -12,11 +14,12 @@ export type RunOptions = {
     until?: string;
     elisionOnly?: boolean | null;
     tokens?: Token[];
+    inspectLexical?: (tokens: Token[]) => void;
 };
 /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
  * A precompiled document of compiled.json.
- * @typedef {{hash: string, dom: GrammarDom}} CompiledEntry
+ * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} CompiledEntry
  */
 /**
  * The options one run of the stages takes.
@@ -26,19 +29,28 @@ export type RunOptions = {
  * @property {string} [until]
  * @property {boolean | null} [elisionOnly]
  * @property {Token[]} [tokens]
+ * @property {(tokens:Token[])=>void} [inspectLexical]
  */
 export declare class Loader {
     read: Resources;
+    namesOverride: (path: string) => boolean;
+    /** @type {Record<string,string> | undefined} */
+    bundledNames: Record<string, string> | undefined;
     unicodeHash: string;
     unicode: UnicodeTable;
+    propertiesHash: string | null;
     bootstrapHash: string;
     notation: Dialect;
     /** @type {Map<string, CompiledEntry>} */
     compiled: Map<string, CompiledEntry>;
     /** @type {Map<string, GrammarDom>} */
     cache: Map<string, GrammarDom>;
-    /** @param {Resources} read */
-    constructor(read: Resources);
+    /** @type {WeakMap<GrammarDom,Record<string,string>>} */
+    namesDependencies: WeakMap<GrammarDom, Record<string, string>>;
+    /** @type {Map<string,string[]>} */
+    inheritedNames: Map<string, string[]>;
+    /** @param {Resources} read @param {(path:string)=>boolean} [namesOverride] */
+    constructor(read: Resources, namesOverride?: (path: string) => boolean);
     /**
      * Admit a cache envelope only under this loader's complete identity.
      * The playground uses the same gate for DOMs retained across workers.
@@ -51,21 +63,27 @@ export declare class Loader {
      * @returns {string}
      */
     need(path: string): string;
+    /** @param {string} path @returns {string} */
+    needNames(path: string): string;
     /**
      * The DOM of a grammar document, from the cache when its text, the
      * bootstrap and the format all match, else read with the notation.
      * @param {string} path
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    documentDom(path: string): GrammarDom;
+    documentDom(path: string, inherited?: string[]): GrammarDom;
     /**
      * Reads a grammar document's Markdown into its DOM with the notation.
      * @param {string} markdown
      * @param {string} path
      * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+     * @param {string[]} [inherited]
      * @returns {GrammarDom}
      */
-    readDocument(markdown: string, path: string, deferEmission?: boolean): GrammarDom;
+    readDocument(markdown: string, path: string, deferEmission?: boolean, inherited?: string[]): GrammarDom;
+    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @returns {boolean} */
+    namesMatch(dependencies: Record<string, string> | undefined, extras: string[]): boolean;
     /**
      * A dialect from its pipeline document's path.
      * @param {string} path
@@ -124,11 +142,7 @@ export declare class Dialect {
  * @param {string} path
  * @param {UnicodeTable} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
-export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean): GrammarDom;
-/**
- * @param {string} text
- * @returns {string}
- */
-export declare function fnv1a64(text: string): string;
+export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;

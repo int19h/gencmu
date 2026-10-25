@@ -1,0 +1,15 @@
+{
+  "description": "Script_Extensions can be available without Script.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
+    "unicode-properties.txt": "unicode-properties 15.1.0\nmultiple Script_Extensions Latin\nvalue Script_Extensions Latin\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

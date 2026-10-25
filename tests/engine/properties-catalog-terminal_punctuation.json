@@ -1,0 +1,45 @@
+{
+  "description": "Every Terminal_Punctuation value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Terminal_Punctuation<_Terminal_Punctuation>\n%conditions $x ≅ #_Terminal_Punctuation<_Terminal_Punctuation>, _Terminal_Punctuation ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Terminal_Punctuation",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Term",
+        "_Terminal_Punctuation"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Terminal_Punctuation"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Terminal_Punctuation"
+              }
+            ],
+            "tags": [
+              "_Terminal_Punctuation"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "description": "A condition resolves @(\"a\") before ≅ and accepts the reading. The string pattern matches \"a\" under engine §§2 and 10.",
-  "grammar": "%rule text \"a\"\n%conditions $ ≅ @(\"a\")",
+  "description": "A condition resolves #\"a\" before ≅ and accepts the reading. The string pattern matches \"a\" under engine §§2 and 10.",
+  "grammar": "%rule text \"a\"\n%conditions $ ≅ #\"a\"",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 14,
+      "format": 15,
       "ok": true,
       "stages": [
         {

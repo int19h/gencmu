@@ -42,6 +42,8 @@ pub(crate) enum Span {
     From(Box<Span>),
     /// From the end of the span to the end of the parse's input.
     After(Box<Span>),
+    /// From the context start to the start of the span.
+    Before(Box<Span>),
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +94,7 @@ pub(crate) enum LCond {
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
     Begins(Span, u32),
+    Ends(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
@@ -330,6 +333,7 @@ impl Prod {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
+    pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
     pub close_families: Vec<FxSet<u32>>,
     pub rules: Vec<LRule>,
@@ -889,6 +893,7 @@ impl<'a> Scope<'a> {
                     "last" => Ok(Span::Last(inner)),
                     "from" => Ok(Span::From(inner)),
                     "after" => Ok(Span::After(inner)),
+                    "preceding-tokens" => Ok(Span::Before(inner)),
                     _ => Err(Missing),
                 }
             }
@@ -916,7 +921,14 @@ impl<'a> Scope<'a> {
             Term::Call(name, _)
                 if matches!(
                     name.as_str(),
-                    "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except"
+                    "head"
+                        | "tail"
+                        | "last"
+                        | "from"
+                        | "after"
+                        | "preceding-tokens"
+                        | "without-elision"
+                        | "without-elision-except"
                 ) =>
             {
                 LTerm::Value(self.span(term)?)
@@ -978,11 +990,13 @@ impl<'a> Scope<'a> {
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
             }
-            Cond::Matches(span, targets) | Cond::Begins(span, targets) => {
+            Cond::Matches(span, targets) | Cond::Begins(span, targets) | Cond::Ends(span, targets) => {
                 let mut choices = Vec::new();
                 for rule in targets {
                     choices.push(if matches!(cond, Cond::Matches(..)) {
                         LCond::Matches(self.span(span)?, self.query_target(rule)?)
+                    } else if matches!(cond, Cond::Ends(..)) {
+                        LCond::Ends(self.span(span)?, self.query_target(rule)?)
                     } else {
                         LCond::Begins(self.span(span)?, self.query_target(rule)?)
                     })
@@ -1709,6 +1723,7 @@ fn lower_mode(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        unicode: grammar.unicode.clone(),
         close_families: close_families(grammar),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
@@ -2322,7 +2337,7 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     while let Some(p) = stack.pop() {
         match p {
             Part::C(c) => match c {
-                Cond::Matches(_, targets) | Cond::Begins(_, targets) => {
+                Cond::Matches(_, targets) | Cond::Begins(_, targets) | Cond::Ends(_, targets) => {
                     result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
                 }
                 Cond::Compare(_, a, b) => stack.extend([Part::T(a), Part::T(b)]),
@@ -2434,6 +2449,7 @@ mod tests {
                 constants: Vec::new(),
                 classifiers: Vec::new(),
                 implications: Vec::new(),
+                ..Dom::default()
             };
             stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], &unicode).expect("a grammar")
         }
@@ -2505,6 +2521,7 @@ mod tests {
             constants: Vec::new(),
             classifiers: Vec::new(),
             implications: Vec::new(),
+            ..Dom::default()
         };
         let grammar = stitch("s", &[(Arc::<str>::from("d.md"), Arc::new(dom))], unicode).expect("a grammar");
         let lowered = lower(&grammar, &BTreeSet::new(), Arc::default()).expect("lowered");

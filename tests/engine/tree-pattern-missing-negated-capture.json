@@ -1,6 +1,6 @@
 {
   "description": "A comparison on an absent capture disappears during lowering. Negation does not change that capture rule (engine §4.1 and §10).",
-  "grammar": "%rule text ([$x:A] B) %conditions $x ≇ @A\n",
+  "grammar": "%rule text ([$x:A] B) %conditions $x ≇ #A\n",
   "tokens": [
     {
       "text": "b",

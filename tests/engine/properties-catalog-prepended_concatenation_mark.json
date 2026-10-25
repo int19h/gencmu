@@ -1,0 +1,45 @@
+{
+  "description": "Every Prepended_Concatenation_Mark value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Prepended_Concatenation_Mark<_Prepended_Concatenation_Mark>\n%conditions $x ≅ #_Prepended_Concatenation_Mark<_Prepended_Concatenation_Mark>, _Prepended_Concatenation_Mark ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Prepended_Concatenation_Mark",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_PCM",
+        "_Prepended_Concatenation_Mark"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Prepended_Concatenation_Mark"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Prepended_Concatenation_Mark"
+              }
+            ],
+            "tags": [
+              "_Prepended_Concatenation_Mark"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

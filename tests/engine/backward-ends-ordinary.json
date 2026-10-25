@@ -1,0 +1,29 @@
+{
+  "description": "An ordinary suffix query accepts a target from an interior boundary. (Engine \u00a74.4.)",
+  "grammar": "%rule text A B C\n%conditions $.ends(tail)\n%rule tail B C",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

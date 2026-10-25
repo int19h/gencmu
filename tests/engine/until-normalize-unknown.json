@@ -1,0 +1,14 @@
+{
+  "description": "The Lojban pipelines have no normalize stage, so until normalize is a usage error.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi klama",
+  "options": {
+    "until": "normalize"
+  },
+  "expect": {
+    "error": "usage"
+  }
+}

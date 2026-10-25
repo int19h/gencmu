@@ -41,39 +41,39 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 
 %rule cyrillic-vowel
   | "а" [letter-marks<¬Accent>] :: Syllabic := "a"
-  | "а" letter-marks<Accent> :: Stressed Syllabic := "A"
-  | "А" letter-marks<Accent> :: Stressed Syllabic Accented := "A"
-  | "А" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "A"
+  | "а" letter-marks<Accent> :: Stressed Syllabic := "a" :- "A"
+  | "А" letter-marks<Accent> :: Stressed Syllabic Accented := "a" :- "A"
+  | "А" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "a" :- "A"
   | "А" [letter-marks<¬Accent>] :: Folded Syllabic Capital := "a"
   | ("е" | "э" | "є") [letter-marks<¬Accent>] :: Syllabic := "e"
-  | ("е" | "э" | "є") letter-marks<Accent> :: Stressed Syllabic := "E"
-  | ("Е" | "Э" | "Є") letter-marks<Accent> :: Stressed Syllabic Accented := "E"
-  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "E"
+  | ("е" | "э" | "є") letter-marks<Accent> :: Stressed Syllabic := "e" :- "E"
+  | ("Е" | "Э" | "Є") letter-marks<Accent> :: Stressed Syllabic Accented := "e" :- "E"
+  | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "e" :- "E"
   | ("Е" | "Э" | "Є") [letter-marks<¬Accent>] :: Folded Syllabic Capital := "e"
   | "и" [letter-marks<¬Accent ¬Breve>] :: Syllabic := "i"
   | "і" [letter-marks<¬Accent>] :: Syllabic := "i"
-  | "и" letter-marks<Accent ¬Breve> :: Stressed Syllabic := "I"
-  | "і" letter-marks<Accent> :: Stressed Syllabic := "I"
-  | "И" letter-marks<Accent ¬Breve> :: Stressed Syllabic Accented := "I"
-  | "І" letter-marks<Accent> :: Stressed Syllabic Accented := "I"
-  | "И" [letter-marks<¬Accent ¬Breve>] :: Stressed Syllabic Capital := "I"
-  | "І" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "I"
+  | "и" letter-marks<Accent ¬Breve> :: Stressed Syllabic := "i" :- "I"
+  | "і" letter-marks<Accent> :: Stressed Syllabic := "i" :- "I"
+  | "И" letter-marks<Accent ¬Breve> :: Stressed Syllabic Accented := "i" :- "I"
+  | "І" letter-marks<Accent> :: Stressed Syllabic Accented := "i" :- "I"
+  | "И" [letter-marks<¬Accent ¬Breve>] :: Stressed Syllabic Capital := "i" :- "I"
+  | "І" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "i" :- "I"
   | "И" [letter-marks<¬Accent ¬Breve>] :: Folded Syllabic Capital := "i"
   | "І" [letter-marks<¬Accent>] :: Folded Syllabic Capital := "i"
   | "о" [letter-marks<¬Accent>] :: Syllabic := "o"
-  | "о" letter-marks<Accent> :: Stressed Syllabic := "O"
-  | "О" letter-marks<Accent> :: Stressed Syllabic Accented := "O"
-  | "О" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "O"
+  | "о" letter-marks<Accent> :: Stressed Syllabic := "o" :- "O"
+  | "О" letter-marks<Accent> :: Stressed Syllabic Accented := "o" :- "O"
+  | "О" [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "o" :- "O"
   | "О" [letter-marks<¬Accent>] :: Folded Syllabic Capital := "o"
   | "у" [letter-marks<¬Accent ¬Breve>] :: Syllabic := "u"
-  | "у" letter-marks<Accent ¬Breve> :: Stressed Syllabic := "U"
-  | "У" letter-marks<Accent ¬Breve> :: Stressed Syllabic Accented := "U"
-  | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed Syllabic Capital := "U"
+  | "у" letter-marks<Accent ¬Breve> :: Stressed Syllabic := "u" :- "U"
+  | "У" letter-marks<Accent ¬Breve> :: Stressed Syllabic Accented := "u" :- "U"
+  | "У" [letter-marks<¬Accent ¬Breve>] :: Stressed Syllabic Capital := "u" :- "U"
   | "У" [letter-marks<¬Accent ¬Breve>] :: Folded Syllabic Capital := "u"
   | ("ъ" | "ы" | "ә") [letter-marks<¬Accent>] :: Syllabic := "y"
-  | ("ъ" | "ы" | "ә") letter-marks<Accent> :: Stressed Syllabic := "Y"
-  | ("Ъ" | "Ы" | "Ә") letter-marks<Accent> :: Stressed Syllabic Accented := "Y"
-  | ("Ъ" | "Ы" | "Ә") [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "Y"
+  | ("ъ" | "ы" | "ә") letter-marks<Accent> :: Stressed Syllabic := "y" :- "Y"
+  | ("Ъ" | "Ы" | "Ә") letter-marks<Accent> :: Stressed Syllabic Accented := "y" :- "Y"
+  | ("Ъ" | "Ы" | "Ә") [letter-marks<¬Accent>] :: Stressed Syllabic Capital := "y" :- "Y"
   | ("Ъ" | "Ы" | "Ә") [letter-marks<¬Accent>] :: Folded Syllabic Capital := "y"
   | "и" letter-marks<Breve> := "i"
   | "И" letter-marks<Breve> :: Capital := "i"
@@ -93,27 +93,21 @@ Joined vowels use the same public tags as isolated vowels. The emission filter k
 %redefine-rule cyrillic-folded-vowel
   cyrillic-vowel<Capital ¬Stressed> | cyrillic-vowel<Accented>
 
-%redefine-rule joined-vowel
-  $v:vowel :: $v.tags
-%emits
-  ε :: ∅ := "'", $v :: $v.tags ∩ (Stressed ∪ Syllabic)
-
-%redefine-rule joined-folded-vowel
-  $v:folded-vowel :: $v.tags
+%redefine-rule joined-vowel-with(@V)
+  $v:@V :: $v.tags
 %emits
   ε :: ∅ := "'", $v :: $v.tags ∩ (Stressed ∪ Syllabic)
 
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>cyrillic-consonant</code> to <code>joined-folded-vowel</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>cyrillic-consonant</code> to <code>joined-vowel-with</code></summary>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-consonant.svg" alt="Railroad diagram of the rule cyrillic-consonant"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-apostrophe.svg" alt="Railroad diagram of the rule cyrillic-apostrophe"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-vowel.svg" alt="Railroad diagram of the rule cyrillic-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-plain-vowel.svg" alt="Railroad diagram of the rule cyrillic-plain-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-stressed-vowel.svg" alt="Railroad diagram of the rule cyrillic-stressed-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/cyrillic-folded-vowel.svg" alt="Railroad diagram of the rule cyrillic-folded-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-vowel.svg" alt="Railroad diagram of the rule joined-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-folded-vowel.svg" alt="Railroad diagram of the rule joined-folded-vowel"></p>
+<p><img src="../../docs/diagrams/phonemes/cyrillic-experimental/joined-vowel-with.svg" alt="Railroad diagram of the rule joined-vowel-with"></p>
 </details>
 
 The Cyrillic of CLL, in [cyrillic-cll.md](cyrillic-cll.md), ignores unknown marks too. It writes a diphthong as two plain vowels, as the Latin orthography does, so it has no glide letters. An accent on a vowel marks stress, as on a Latin vowel. Every other mark is ignored, the breve and the dieresis included. So `май` is `mai`, `мёи` is `mei` and `ма́и` is `mAi`. A capital vowel still marks stress, because this orthography has no all-capital runs.
@@ -150,15 +144,13 @@ The Cyrillic of CLL, in [cyrillic-cll.md](cyrillic-cll.md), ignores unknown mark
 %emits
   $
 
-%redefine-rule cll-cyrillic-stressed-vowel :: Stressed
-  | ("а" letter-marks<Accent> | "А" [letter-marks]) := "A"
-  | ("е" letter-marks<Accent> | "Е" [letter-marks]) := "E"
-  | ("и" letter-marks<Accent> | "И" [letter-marks]) := "I"
-  | ("о" letter-marks<Accent> | "О" [letter-marks]) := "O"
-  | ("у" letter-marks<Accent> | "У" [letter-marks]) := "U"
-  | ("ъ" letter-marks<Accent> | "Ъ" [letter-marks]) := "Y"
-%emits
-  $
+%redefine-rule cll-cyrillic-stressed-vowel = stressed-vowel-with(
+  ("а" letter-marks<Accent> | "А" [letter-marks]),
+  ("е" letter-marks<Accent> | "Е" [letter-marks]),
+  ("и" letter-marks<Accent> | "И" [letter-marks]),
+  ("о" letter-marks<Accent> | "О" [letter-marks]),
+  ("у" letter-marks<Accent> | "У" [letter-marks]),
+  ("ъ" letter-marks<Accent> | "Ъ" [letter-marks]))
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>cll-cyrillic-consonant</code> to <code>cll-cyrillic-stressed-vowel</code></summary>

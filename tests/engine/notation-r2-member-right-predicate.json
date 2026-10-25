@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 rejects incompatible membership operands in `\"a\" ∈ ($x.starts-input)`.",
-  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ∈ ($x.starts-input)\n%rule unit A\n%rule family unit\n%rule want A",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P #A\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ∈ ($x.starts-input)\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {
       "text": "a",

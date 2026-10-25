@@ -1,0 +1,10 @@
+{
+  "description": "A regional indicator cannot name a rule because it is an emoji component.",
+  "document": "```jbogenbau\n%rule 🇦 A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

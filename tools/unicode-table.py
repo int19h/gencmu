@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Writes grammars/unicode.txt, the character data every gencmu library uses.
+"""Writes pinned Unicode resources, catalogs, and source digests.
 
 The engine reads Unicode properties from this table
 rather than with the platform's own Unicode data, so that the four libraries
 agree on every character whatever version their platform has. The table is
-generated from the Unicode data of the Python that runs this script, whose
-version it records; regenerate it deliberately, and review the change.
+generated from the pinned Unicode 15.1.0 UCD files. Pass the extracted UCD
+directory with --ucd. Pass DerivedName.txt and NameAliases.txt with
+--derived-name and --name-aliases. Input hashes and the archive URL appear
+in tools/unicode-property-sources.json.
+The source digest helper requires Go. It hashes every scalar directly from
+the UCD assignments, without reading the generated properties file.
 
 Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
 
@@ -16,133 +20,208 @@ Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
                             Unicode scalar value once, Cn included, and no
                             surrogate
     white-space 0009 000D   a range of the White_Space property
+    emoji-presentation 1F193 1F19A   an Emoji_Presentation range
+    emoji-component 1F1E6 1F1FF   an Emoji_Component range
     decompose 00E1 0061 0301   a full canonical decomposition
+    abbreviation 000A LF   an alias for string escapes and canonical printing
     combining 230 0300 0314   a range of one nonzero combining class
 
-The records follow this order: unicode, category, white-space, decompose, combining.
+The record order is unicode, category, white-space, emoji-presentation, emoji-component, decompose, abbreviation, combining.
 Hangul syllables decompose by arithmetic and have no records.
-The tool compares its generated decomposition with Python before it writes the file.
+The tool compares extracted categories and combining classes with UnicodeData.txt.
 """
 import pathlib
-import random
 import sys
-import unicodedata
+import argparse
+import re
 
-# The White_Space property, from PropList.txt. Python has no API for it, and
-# it has not changed since Unicode 6.3. Each entry is a range, first and last.
-WHITE_SPACE = [
-    (0x0009, 0x000D),
-    (0x0020, 0x0020),
-    (0x0085, 0x0085),
-    (0x00A0, 0x00A0),
-    (0x1680, 0x1680),
-    (0x2000, 0x200A),
-    (0x2028, 0x2029),
-    (0x202F, 0x202F),
-    (0x205F, 0x205F),
-    (0x3000, 0x3000),
-]
+from unicode_properties import UCD, audit_resources, write_catalog, write_digests, write_properties
 
-def scalar_values():
-    """Every Unicode scalar value: every code point but the surrogates."""
-    yield from range(0xD800)
-    yield from range(0xE000, 0x110000)
+UNICODE_VERSION = "15.1.0"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-def category_ranges():
-    """The longest runs of one General_Category, over the scalar values."""
-    start = previous = category = None
-    for code in scalar_values():
-        current = unicodedata.category(chr(code))
-        if category is not None and (current != category or code != previous + 1):
-            yield category, start, previous
-            start = None
-        if start is None:
-            start, category = code, current
-        previous = code
-    yield category, start, previous
+
+def names_records(derived_path, aliases_path):
+    """Read the pinned names, algorithms, and aliases from the UCD."""
+    derived = derived_path.read_text(encoding="utf-8")
+    aliases = aliases_path.read_text(encoding="utf-8")
+    if not derived.startswith(f"# DerivedName-{UNICODE_VERSION}.txt\n"):
+        raise SystemExit(f"DerivedName.txt must use Unicode {UNICODE_VERSION}")
+    if not aliases.startswith(f"# NameAliases-{UNICODE_VERSION}.txt\n"):
+        raise SystemExit(f"NameAliases.txt must use Unicode {UNICODE_VERSION}")
+    records, catalog, abbreviations = [f"unicode-names {UNICODE_VERSION}"], {}, []
+    for line in derived.splitlines():
+        fields = [field.strip() for field in line.split("#", 1)[0].split(";")]
+        if len(fields) != 2:
+            continue
+        domain, name = fields
+        ends = [int(code, 16) for code in domain.split("..")]
+        first, last = ends[0], ends[-1]
+        if name.endswith("*"):
+            records.append(f"algorithm hex {first:04X} {last:04X} {name[:-1]}")
+        elif HANGUL_FIRST <= first <= HANGUL_LAST:
+            if first == HANGUL_FIRST:
+                records.append("algorithm hangul AC00 D7A3")
+        else:
+            if first != last:
+                raise SystemExit(f"Unexpected name range: {domain}")
+            records.append(f"name {first:04X} {name}")
+            if re.fullmatch(r"[A-Z][A-Z0-9]*", name):
+                catalog[name] = first
+    for line in aliases.splitlines():
+        fields = [field.strip() for field in line.split("#", 1)[0].split(";")]
+        if len(fields) != 3:
+            continue
+        code, name, kind = fields
+        scalar = int(code, 16)
+        records.append(f"alias {kind} {scalar:04X} {name}")
+        if re.fullmatch(r"[A-Z][A-Z0-9]*", name):
+            previous = catalog.setdefault(name, scalar)
+            if previous != scalar:
+                raise SystemExit(f"Conflicting pinned name: {name}")
+        if kind == "abbreviation":
+            abbreviations.append((scalar, name))
+    return records, sorted(catalog.items()), sorted(abbreviations)
+
+
+def write_names(records, catalog):
+    """Write the separate names resource and the small core inspection catalog."""
+    text = "\n".join(records) + "\n"
+    (ROOT / "grammars/unicode-names.txt").write_text(text, encoding="utf-8")
+    fingerprint = 0xcbf29ce484222325
+    for byte in text.encode("utf-8"):
+        fingerprint = ((fingerprint ^ byte) * 0x100000001b3) & 0xffffffffffffffff
+    title = "Generated by tools/unicode-table.py from Unicode 15.1.0."
+    js = f'// {title}\nexport const PINNED_NAMES_HASH = "{fingerprint:016x}";\nexport const PINNED_CORE_NAMES = new Map([\n'
+    js += "".join(f'  ["{name}", 0x{code:04X}],\n' for name, code in catalog) + "]);\n"
+    rust = f'// {title}\npub(crate) const PINNED_NAMES_HASH: &str = "{fingerprint:016x}";\nconst PINNED_CORE_NAMES: &[(&str, u32)] = &[\n'
+    rust += "".join(f'    ("{name}", 0x{code:04X}),\n' for name, code in catalog) + "];\n"
+    go = f'// {title}\npackage gencmu\n\nconst pinnedNamesHash = "{fingerprint:016x}"\n\nvar pinnedCoreNames = map[string]rune{{\n'
+    width = max(len(name) for name, _ in catalog) + 4
+    go += "".join("\t" + f'"{name}":'.ljust(width) + f"0x{code:04X},\n" for name, code in catalog) + "}\n"
+    python = f'"""{title}"""\n\nPINNED_NAMES_HASH = "{fingerprint:016x}"\n\nPINNED_CORE_NAMES = {{\n'
+    python += "".join(f'    "{name}": 0x{code:04X},\n' for name, code in catalog) + "}\n"
+    for path, text in [("lib/js/src/unicode-names-catalog.js", js),
+                       ("lib/rust/src/unicode_names_catalog.rs", rust),
+                       ("lib/go/unicode_names_catalog.go", go),
+                       ("lib/python/src/gencmu/_unicode_names_catalog.py", python)]:
+        (ROOT / path).write_text(text, encoding="utf-8")
+
+
+# Humbert's 2014-06-06 proposal and the UCSUR proposal dated 2024-08-20.
+# The paired assignments follow the pinned Fairfax table in zbalermorna.md.
+ZBALERMORNA = """\
+ED80 LETTER PY
+ED81 LETTER TY
+ED82 LETTER KY
+ED83 LETTER FY
+ED84 LETTER LY
+ED85 LETTER SY
+ED86 LETTER CY
+ED87 LETTER MY
+ED88 LETTER XY
+ED89 SYMBOL FOR DENPA BU
+ED8A SYMBOL FOR YHY
+ED8B SYMBOL FOR CNIMAHO BU
+ED8C COMBINING PA TONGA
+ED8D COMBINING RE TONGA
+ED8E COMBINING CI TONGA
+ED8F COMBINING VO TONGA
+ED90 LETTER BY
+ED91 LETTER DY
+ED92 LETTER GY
+ED93 LETTER VY
+ED94 LETTER RY
+ED95 LETTER ZY
+ED96 LETTER JY
+ED97 LETTER NY
+ED98 COMBINING BAHEBU
+ED99 SYMBOL FOR SMAJI BU
+ED9A SYMBOL FOR SLAKA BU
+ED9B COMBINING TCENA BU
+EDA0 VOWEL SIGN ABU
+EDA1 VOWEL SIGN EBU
+EDA2 VOWEL SIGN IBU
+EDA3 VOWEL SIGN OBU
+EDA4 VOWEL SIGN UBU
+EDA5 VOWEL SIGN YBU
+EDA6 VOWEL SIGN AIBU
+EDA7 VOWEL SIGN EIBU
+EDA8 VOWEL SIGN OIBU
+EDA9 VOWEL SIGN AUBU
+EDAA LETTER SEMIVOWEL IY
+EDAB LETTER SEMIVOWEL UY
+EDB0 LETTER FULL ABU
+EDB1 LETTER FULL EBU
+EDB2 LETTER FULL IBU
+EDB3 LETTER FULL OBU
+EDB4 LETTER FULL UBU
+EDB5 LETTER FULL YBU
+EDB6 LETTER FULL AIBU
+EDB7 LETTER FULL EIBU
+EDB8 LETTER FULL OIBU
+EDB9 LETTER FULL AUBU
+"""
+
+
+def write_zbalermorna_names():
+    """Write the two qualified names for each assigned character."""
+    records = [f"unicode-names {UNICODE_VERSION}"]
+    for encoding, offset in [("HUMBERT", 0), ("UCSUR", 0xE3B20)]:
+        for row in ZBALERMORNA.splitlines():
+            code, suffix = row.split(" ", 1)
+            records.append(f"name {int(code, 16) + offset:04X} ZBALERMORNA {encoding} {suffix}")
+    path = ROOT / "grammars/phonemes/zbalermorna-names.txt"
+    path.write_text("\n".join(records) + "\n", encoding="utf-8")
+
 
 HANGUL_FIRST, HANGUL_LAST = 0xAC00, 0xD7A3
 
-def decompositions():
-    """The full canonical decomposition of every scalar that NFD changes, Hangul syllables aside."""
-    for code in scalar_values():
-        if HANGUL_FIRST <= code <= HANGUL_LAST:
-            continue
-        nfd = unicodedata.normalize("NFD", chr(code))
-        if nfd != chr(code):
-            yield code, [ord(c) for c in nfd]
-
-def combining_ranges():
-    """The longest runs of one nonzero Canonical_Combining_Class."""
-    run = None
-    for code in scalar_values():
-        klass = unicodedata.combining(chr(code))
-        if run and klass == run[0] and code == run[2] + 1:
-            run[2] = code
-            continue
-        if run and run[0]:
-            yield tuple(run)
-        run = [klass, code, code]
-    if run and run[0]:
-        yield tuple(run)
-
-def library_nfd(text, table, classes):
-    """The algorithm of engine §1, over the records that the tool writes."""
-    def klass(code):
-        return classes.get(code, 0)
-    out = []
-    for ch in text:
-        code = ord(ch)
-        if HANGUL_FIRST <= code <= HANGUL_LAST:
-            s = code - HANGUL_FIRST
-            out += [0x1100 + s // 588, 0x1161 + (s % 588) // 28] + ([0x11A7 + s % 28] if s % 28 else [])
-        else:
-            out += table.get(code, [code])
-    result, i = [], 0
-    while i < len(out):
-        if klass(out[i]) == 0:
-            result.append(out[i])
-            i += 1
-            continue
-        j = i
-        while j < len(out) and klass(out[j]) != 0:
-            j += 1
-        result += sorted(out[i:j], key=klass)
-        i = j
-    return "".join(map(chr, result))
-
-def check(table, ranges, samples=20000, seed=15):
-    """Stop with an error where the records disagree with Python's NFD."""
-    classes = {code: k for k, start, end in ranges for code in range(start, end + 1)}
-    for code in scalar_values():
-        c = chr(code)
-        if library_nfd(c, table, classes) != unicodedata.normalize("NFD", c):
-            raise SystemExit(f"U+{code:04X}: the records disagree with NFD")
-    marks = [code for k, s, e in ranges for code in range(s, e + 1)]
-    pool = list(table) + marks + [0x61, 0x41, 0xAC00, 0xD7A3]
-    rng = random.Random(seed)
-    for _ in range(samples):
-        s = "".join(chr(rng.choice(pool)) for _ in range(rng.randint(1, 6)))
-        if library_nfd(s, table, classes) != unicodedata.normalize("NFD", s):
-            raise SystemExit(f"{s!r}: the records disagree with NFD")
-
-
 def main():
-    lines = [f"unicode {unicodedata.unidata_version}"]
-    for category, start, end in category_ranges():
-        lines.append(f"category {category} {start:04X} {end:04X}")
-    for start, end in WHITE_SPACE:
-        lines.append(f"white-space {start:04X} {end:04X}")
-    table = dict(decompositions())
-    ranges = list(combining_ranges())
-    check(table, ranges)
-    for code, scalars in table.items():
-        lines.append("decompose " + " ".join(f"{c:04X}" for c in [code] + scalars))
-    for klass, start, end in ranges:
-        lines.append(f"combining {klass} {start:04X} {end:04X}")
-    path = pathlib.Path(__file__).resolve().parent.parent / "grammars" / "unicode.txt"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"{path}: {len(lines)} lines, Unicode {unicodedata.unidata_version}", file=sys.stderr)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ucd", type=pathlib.Path,
+                        help="the extracted pinned Unicode 15.1.0 UCD directory")
+    parser.add_argument("--derived-name", type=pathlib.Path,
+                        help="Unicode 15.1.0 ucd/extracted/DerivedName.txt")
+    parser.add_argument("--name-aliases", type=pathlib.Path,
+                        help="Unicode 15.1.0 ucd/NameAliases.txt")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--names-only", action="store_true",
+                       help="write names and core catalogs without regenerating character properties")
+    modes.add_argument("--properties-only", action="store_true",
+                       help="write the companion and embedded catalogs without regenerating core data or names")
+    modes.add_argument("--zbalermorna-only", action="store_true",
+                       help="write the names resource for both zbalermorna encodings")
+    modes.add_argument("--audit", action="store_true",
+                       help="compare shipped resources with pinned all-scalar digests without writing files")
+    args = parser.parse_args()
+    if args.audit:
+        import json
+        print(json.dumps(audit_resources(ROOT), indent=2))
+        return
+    if args.zbalermorna_only:
+        write_zbalermorna_names()
+        return
+    if not args.properties_only:
+        if args.derived_name is None or args.name_aliases is None:
+            parser.error("--derived-name and --name-aliases are required without --properties-only")
+        names, catalog, abbreviations = names_records(args.derived_name, args.name_aliases)
+        write_names(names, catalog)
+        write_zbalermorna_names()
+    if args.names_only:
+        return
+    if args.ucd is None:
+        parser.error("--ucd is required without --names-only")
+    ucd = UCD(ROOT, args.ucd)
+    write_properties(ROOT, ucd)
+    write_catalog(ROOT, ucd)
+    write_digests(ROOT, ucd)
+    if not args.properties_only:
+        lines = ucd.core_records(abbreviations)
+        path = ROOT / "grammars/unicode.txt"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"{path}: {len(lines)} lines, Unicode {ucd.version}", file=sys.stderr)
+    audit_resources(ROOT)
 
 if __name__ == "__main__":
     main()

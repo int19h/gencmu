@@ -4,7 +4,7 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 ## Running the tests
 
-Run `node tools/sync.js` from the repository root after a grammar change. Each library runs all of its tests and the core corpus sample by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
+Run `node tools/sync.js` from the repository root after a grammar change. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
 
 Run each command from the named library directory:
 
@@ -27,6 +27,14 @@ The bundled grammars use the current notation. A case that loads a bundled pipel
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
+The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
+
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete dialects through the public loader.
+
+Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
+
+A `cacheFallback` case supplies valid source and a malformed cached DOM. Each library uses matching cache fingerprints and must parse `input` from the source.
+
 Each file is one case:
 
 ```
@@ -47,7 +55,7 @@ The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` 
 
 The input is `input` or `tokens`. `input` supplies scalar characters as engine §1 states. `tokens` replaces the first stage input. With both members, `input` supplies the original source text. Without `input`, the runner joins token texts with single spaces. Each token gets these values:
 
-- Its tags are its listed identifier tags, including stored engine tags (`docs/output.md`).
+- Its tags are its listed tags, including stored engine tags (`docs/output.md`).
 - Its text is as given.
 - Its value is the `value` member when present, otherwise its text.
 - Its image is the `image` member when present, otherwise its text.
@@ -66,7 +74,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 14 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -99,6 +107,8 @@ For a `grammar` error, it can also give `expect.where`. It gives no `result`, `b
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
+
+A resource error names the resource key. Its position omits an unknown line or column. The reserved keys include `unicode.txt`, `unicode-names.txt`, and `unicode-names-reference.txt`.
 
 ### Result invariants and witness tests
 
@@ -165,6 +175,8 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
+Message wording is not part of conformance. Error cases pin only their line and column.
+
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a compiled entry. A matching compiled entry must give the same DOM.
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
@@ -177,11 +189,25 @@ Open names are names that grammar authors choose.
 
 The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
 
+## Layered pattern conformance
+
+The `notation/layered-pattern-*.json` cases use the public reader and format-40 DOM. They cover node decorations, item arrays, operator binding, grouping, source spacing, parameters, and source error positions.
+
+The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
+
+Canonical pattern cases in `parameter-structure.json` load complete dialects. They assert expanded names and instance counts. Repeated calls with equal arguments share one instance despite different source positions.
+
+Malformed pattern cases in `json-keys.json` exercise matching compiled entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
+
+Small native tests retain state-reuse bounds, walk order, and codec preservation. They contain no shared conformance runners or prebound constant fixtures.
+
 ## Supplied notation values: `notation-values.json`
 
-Each case gives a document, lexical aliases, and a DOM pattern. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and matches its DOM. It also runs the cold, matching, and mismatched cache paths described above.
+Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
-The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
+An error expectation pins its line and column through `expect.error`. Message wording is not part of conformance. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
+
+The canonical-name cases use canonically equivalent ASCII and Kelvin spellings. These aliases test captures and fixed names through a supplied notation. The invalid-name cases supply semantic values that the bundled notation cannot produce. These cases add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
 ## Recipe diagnostics: `recipe-diagnostics.json`
 
@@ -213,6 +239,10 @@ An extra part holds text that the reader refuses if it reads it. An outcome othe
 
 The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name. The cache template uses `@unicode@` for the fingerprint of the Unicode table.
 
+Each cache case names its core Unicode table, `unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
+
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+
 The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
 ## Places in fixtures
@@ -233,7 +263,9 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 34. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+
+An optional `unicode` member supplies the contents of `unicode.txt` for that case. Without it, the case uses the bundled table.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -256,6 +288,48 @@ Include nested omissions, repeated wrappers, recursive queries, and ambiguous ra
 For ranked admission, record chart facts, admission groups, and retained edges. Measure loader cost separately from recognition. Include stored-value comparison work when interpreting admission costs.
 
 The cases in `without-elision-growth.json` bound the measured close-summary fixtures. Their bounds do not establish a grammar-wide bound on summaries. A passing language corpus alone does not establish sharing and termination properties. The growth sections below define the fixture bounds. The growth tests of each library define its counters, as `lib/js/test/ranked-growth.test.js` and `lib/js/test/grammar-growth.test.js` do in JavaScript.
+
+### Unicode property performance gate
+
+`python3 tools/unicode-table.py --audit` compares shipped data with `unicode/property-digests.json`. It reads both character resources independently of UCD generation. Each of the 82 properties receives all 1,112,064 scalar records, including defaults and extension sets. Generation also runs this audit after writing resources. The command writes no files and requires Go for the shared digest helper.
+
+The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
+
+`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+
+A later change uses the revision before that change as its baseline. That revision must include the complete property profiles. Such a change measures only the workloads that it can affect.
+
+The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
+
+`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, `unicode.txt` data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
+
+The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
+
+The repeated-character workloads use this forwarding grammar:
+
+```jbogenbau
+%stage main
+%ambiguity-resolution greedy
+%rule text {token}
+%rule token _
+%emits $
+```
+
+The three inputs contain 4,096 ASCII a characters, 2,048 pairs of e and U+0301, or 1,365 Hangul 한 syllables. Every decomposed scalar passes through its own token rule and retains its tags. The text rule has no whole-constituent emission that merges those tokens.
+
+Timings include stage-zero construction, parsing, and tag propagation. Each workload receives two warm-up runs, then nine paired timed runs with revision order alternating between pairs. Calibration selects one repetition count for both revisions of a workload, so each timed batch lasts at least one second. The report records that count and time per repetition. Median warm time per repetition can increase by at most five percent for each workload and library.
+
+Cold runs use new processes and include loading and one timed corpus-sample batch. They use the same nine-pair ordering. The median increase cannot exceed five percent or 25 milliseconds, whichever is larger. The report also records peak memory and separate JSON serialization time. Those two measurements have no separate numerical gate.
+
+Each revision also runs the full cll-ebnf corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
+
+Before comparing results, the baseline normalizes general-category names to their current long spellings. This includes tag sets, terminal identities, diagnostics, and canonical call names.
+
+A tag projection keeps all user tags and the engine inventory before profiles. That inventory consists of the atomic and seven major category tags, `_White_Space`, `_Emoji_Presentation`, and `_Emoji_Component`. The projection excludes Canonical_Combining_Class tags and every other newly exposed property tag. It applies recursively to all token and node tag sets, including attachments, witnesses, warnings, and error readings. Every other result field remains intact.
+
+The workload comparison uses this projection for equality against the baseline. It still compares parse outcomes, complete tree structure, values, images, sources, spans, and all retained user tags. A reviewed full-corpus change does not excuse different parse work in a timed workload. Separate conformance cases inspect complete unprojected profiles, generic set operations, and serialization.
+
+The harness records both revisions, environment, selection manifest, raw timings, medians, peak memory, serialization time, and full-corpus differences. It exits unsuccessfully for a timing failure, missing measurement, unexplained outcome change, or changed timed-workload result. CI requires this comparison for implementation changes that affect profiles. The gate cannot pass through omitted logical tags or reduced parse work.
 
 ## Growth cases: `growth.json`
 
@@ -519,4 +593,4 @@ Lines that begin with `#` are comments. An entry that the check does not need is
 
 `unicode/NormalizationTest.txt` is the complete Unicode 15.1 normalization conformance file from Unicode.org. Each library tests its canonical decomposition against every data line. Columns 1, 2 and 3 decompose to column 3. Columns 4 and 5 decompose to column 5. Every scalar that part 1 omits decomposes to itself.
 
-The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact engine constants, original constant reference positions and original include paths.
+The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact escaped scalars, original user-constant positions, and include paths. Escape-inspection cases pin the ordering between lexical recognition, escape errors, syntax errors, and reader errors. The [escape migration](../docs/notation.md#escape-migration) defines changed fixture outcomes.

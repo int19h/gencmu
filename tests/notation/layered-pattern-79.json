@@ -1,0 +1,39 @@
+{
+  "description": "a child intersection flattens through child groups",
+  "document": "```jbogenbau\n%rule probe(@X, @P, @Q, @Value, @High) A\n%conditions $ ≅ #« (a ∩ (b ∩ c)) »\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "right": {
+                "pattern": {
+                  "any": true,
+                  "children": [
+                    {
+                      "child": {
+                        "intersection": [
+                          {
+                            "name": "a"
+                          },
+                          {
+                            "name": "b"
+                          },
+                          {
+                            "name": "c"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "Stage zero decomposes canonical equivalents and keeps original scalar sources.",
-  "grammar": "%rule text (\"e\" $_0301 \"e\" $_0301 \"e\")",
+  "grammar": "%rule text (\"e\" \"‹U+0301›\" \"e\" \"‹U+0301›\" \"e\")",
   "input": "éée",
   "expect": {
     "result": {
@@ -25,7 +25,7 @@
           },
           {
             "kind": "token",
-            "terminal": "$_0301",
+            "terminal": "\"‹U+0301›\"",
             "token": 1,
             "source": [
               0,
@@ -43,7 +43,7 @@
           },
           {
             "kind": "token",
-            "terminal": "$_0301",
+            "terminal": "\"‹U+0301›\"",
             "token": 3,
             "source": [
               2,

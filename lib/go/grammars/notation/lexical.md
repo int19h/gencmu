@@ -31,8 +31,9 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
   ε | text piece
 
 %rule piece
-  | word | string | engine-tag | capture-token | constant-token | guard
-  | include | keyword | integer | symbol | negation | layout
+  | call-name | parameter-token | emoji-name | word | string | engine-tag
+  | capture-token | constant-token | guard
+  | include | names | keyword | integer | symbol | negation | layout
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
@@ -44,20 +45,30 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
 
 An ordinary name starts with an ASCII letter. Letters, digits, hyphens, and underscores can follow it.
 
+An emoji name contains one scalar with `Emoji_Presentation` and without `Emoji_Component` in the configured Unicode table. Adjacent emoji names remain separate tokens.
+
 `word` distinguishes lowercase and uppercase names while marking both as `Identifier`. The first letter later distinguishes rule names from user tags.
 
 `whole-name` refuses a following name character. Keywords use it so that a keyword cannot stop inside a longer name.
 
 An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
-An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
+An engine tag starts with `_` and continues with letters, digits, or underscores. A dot is part of the tag when it sits between two digits. The short Age aliases need it, as in `_age_15.1`. The greedy reading keeps that alias as one tag, and does not split it at the dot. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
 ```jbogenbau
+%rule emoji-name
+  _Emoji_Presentation<¬_Emoji_Component>
+%conditions
+  ¬$.following-tokens.begins(call-open)
+%emits
+  $ :: Emoji-Name
+
 %rule word
-  | lower-name :: Identifier Lowercase-Name
+  | $lower:lower-name :: Identifier Lowercase-Name
   | upper-name :: Identifier Uppercase-Name
 %conditions
-  ¬$.following-tokens.begins(name-character)
+  ¬$.following-tokens.begins(name-character),
+  $lower ⟹ ¬$.following-tokens.begins(call-open)
 %emits
   $
 
@@ -92,18 +103,24 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule engine-tag
   "_" [engine-name]
 %conditions
-  ¬$.following-tokens.begins(engine-name-character)
+  ¬$.following-tokens.begins(engine-name-part)
 %emits
   $ :: Engine-Tag
 
 %rule engine-name
-  engine-name-character | engine-name engine-name-character
+  engine-name-part | engine-name engine-name-part
 
-%rule engine-name-character
-  letter | digit | "_"
+%rule engine-name-part
+  letter | digit | "_" | engine-digit-dot
+
+%rule engine-digit-dot
+  digit "."
+%conditions
+  $.following-tokens.begins(digit)
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>word</code> to <code>engine-name-character</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>emoji-name</code> to <code>engine-digit-dot</code></summary>
+<p><img src="../../docs/diagrams/notation/lexical/emoji-name.svg" alt="Railroad diagram of the rule emoji-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
@@ -115,14 +132,51 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 <p><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-name.svg" alt="Railroad diagram of the rule engine-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/engine-name-character.svg" alt="Railroad diagram of the rule engine-name-character"></p>
+<p><img src="../../docs/diagrams/notation/lexical/engine-name-part.svg" alt="Railroad diagram of the rule engine-name-part"></p>
+<p><img src="../../docs/diagrams/notation/lexical/engine-digit-dot.svg" alt="Railroad diagram of the rule engine-digit-dot"></p>
+</details>
+
+## Calls and parameters
+
+A call name requires an adjacent opening parenthesis. The name does not include that parenthesis. A comment opener takes priority over a call.
+
+A parameter starts with `@` and an ASCII letter. Its remaining characters follow the ordinary name rules.
+
+```jbogenbau
+%rule call-name
+  lower-name | _Emoji_Presentation<¬_Emoji_Component>
+%conditions
+  $.following-tokens.begins(call-open),
+  ¬$.following-tokens.begins(name-character)
+%emits
+  $ :: Call-Name
+
+%rule call-open
+  "("
+%conditions
+  ¬$.following-tokens.begins(star-character)
+
+%rule star-character
+  "*"
+
+%rule parameter-token
+  "@" whole-name
+%emits
+  $ :: Parameter
+```
+
+<details><summary>Railroad diagrams of the 4 rules from <code>call-name</code> to <code>parameter-token</code></summary>
+<p><img src="../../docs/diagrams/notation/lexical/call-name.svg" alt="Railroad diagram of the rule call-name"></p>
+<p><img src="../../docs/diagrams/notation/lexical/call-open.svg" alt="Railroad diagram of the rule call-open"></p>
+<p><img src="../../docs/diagrams/notation/lexical/star-character.svg" alt="Railroad diagram of the rule star-character"></p>
+<p><img src="../../docs/diagrams/notation/lexical/parameter-token.svg" alt="Railroad diagram of the rule parameter-token"></p>
 </details>
 
 ## Captures and constants
 
 A capture is `$` alone or `$` followed by a lowercase name. `$` alone names the enclosing constituent.
 
-A user constant starts with `$` and an uppercase name. An engine scalar reference starts with `$_` and letters or digits. The reader later requires valid hexadecimal digits and a Unicode scalar value.
+A user constant starts with `$` and an uppercase name.
 
 In these grammar strings, `"$"` denotes one dollar sign. Thus `"$" upper-name` reads a constant.
 
@@ -137,31 +191,16 @@ The boundary conditions prevent either token from ending inside its name. The sy
   $ :: Capture
 
 %rule constant-token
-  | user-constant
-  | "$" "_" [scalar-name]
-%conditions
-  ¬$.following-tokens.begins(scalar-name-character)
-%emits
-  $ :: Constant
-
-%rule user-constant
   "$" upper-name
 %conditions
   ¬$.following-tokens.begins(name-character)
-
-%rule scalar-name
-  scalar-name-character | scalar-name scalar-name-character
-
-%rule scalar-name-character
-  letter | digit
+%emits
+  $ :: Constant
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>capture-token</code> to <code>scalar-name-character</code></summary>
+<details><summary>Railroad diagrams of <code>capture-token</code> and <code>constant-token</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/capture-token.svg" alt="Railroad diagram of the rule capture-token"></p>
 <p><img src="../../docs/diagrams/notation/lexical/constant-token.svg" alt="Railroad diagram of the rule constant-token"></p>
-<p><img src="../../docs/diagrams/notation/lexical/user-constant.svg" alt="Railroad diagram of the rule user-constant"></p>
-<p><img src="../../docs/diagrams/notation/lexical/scalar-name.svg" alt="Railroad diagram of the rule scalar-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/scalar-name-character.svg" alt="Railroad diagram of the rule scalar-name-character"></p>
 </details>
 
 ## Feature guards
@@ -201,40 +240,36 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 
 ## Strings
 
-Straight double quotes enclose a string. Ordinary string characters exclude the quote and backslash: U+0022 and U+005C.
+Straight double quotes enclose a string. Ordinary string characters exclude only the quote, U+0022.
 
-Dollar signs are ordinary characters.
-
-A backslash has no string form, so the stage rejects it rather than treating it as an escape.
+Dollar signs and backslashes are ordinary characters.
 
 The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
 
 ```jbogenbau
 %rule string
-  $_0022 [{string-part}] $_0022
+  "‹U+0022›" [{ordinary-string-character}] "‹U+0022›"
 %emits
   $ :: String
 
-%rule string-part
-  ordinary-string-character
-
 %rule ordinary-string-character
-  $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
+  "‹U+0000›".."‹U+0021›" | "‹U+0023›".."‹U+10FFFF›"
 ```
 
-<details><summary>Railroad diagrams of <code>string</code>, <code>string-part</code> and <code>ordinary-string-character</code></summary>
+<details><summary>Railroad diagrams of <code>string</code> and <code>ordinary-string-character</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/string.svg" alt="Railroad diagram of the rule string"></p>
-<p><img src="../../docs/diagrams/notation/lexical/string-part.svg" alt="Railroad diagram of the rule string-part"></p>
 <p><img src="../../docs/diagrams/notation/lexical/ordinary-string-character.svg" alt="Railroad diagram of the rule ordinary-string-character"></p>
 </details>
 
-## Include paths
+## Resource paths
 
 `include` reads `%include` and its quoted path together, then emits two tokens. The keyword carries `KW-INCLUDE`, and the path carries `Include-Path`.
 
-An include path keeps dollar signs literally. It excludes quotes and backslashes.
+`names` reads `%names` and its quoted path in the same way. Its keyword carries `KW-NAMES`. The reader collects leading names declarations before it inspects other string escapes.
 
-`include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare `%include` token when a path follows.
+An include path keeps dollar signs and backslashes literally. It excludes quotes.
+
+`include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare directive token when a path follows.
 
 ```jbogenbau
 %rule include
@@ -242,25 +277,31 @@ An include path keeps dollar signs literally. It excludes quotes and backslashes
 %emits
   $keyword :: KW-INCLUDE, $path :: Include-Path
 
+%rule names
+  $keyword:names-keyword [layout-run] $path:include-path
+%emits
+  $keyword :: KW-NAMES, $path :: Include-Path
+
 %rule include-tail
   [layout-run] include-path
 
 %rule include-keyword
   "%" whole-name="include"
 
-%rule include-path
-  $_0022 [{path-part}] $_0022
+%rule names-keyword
+  "%" whole-name="names"
 
-%rule path-part
-  $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
+%rule include-path
+  "‹U+0022›" [{ordinary-string-character}] "‹U+0022›"
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>include</code> to <code>path-part</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>include</code> to <code>include-path</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/include.svg" alt="Railroad diagram of the rule include"></p>
+<p><img src="../../docs/diagrams/notation/lexical/names.svg" alt="Railroad diagram of the rule names"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-tail.svg" alt="Railroad diagram of the rule include-tail"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-keyword.svg" alt="Railroad diagram of the rule include-keyword"></p>
+<p><img src="../../docs/diagrams/notation/lexical/names-keyword.svg" alt="Railroad diagram of the rule names-keyword"></p>
 <p><img src="../../docs/diagrams/notation/lexical/include-path.svg" alt="Railroad diagram of the rule include-path"></p>
-<p><img src="../../docs/diagrams/notation/lexical/path-part.svg" alt="Railroad diagram of the rule path-part"></p>
 </details>
 
 ## Layout
@@ -304,7 +345,7 @@ A keyword is `%` followed by a whole name. Each known keyword receives its own t
 
 An unknown keyword receives `Keyword`, which the syntax grammar never reads. Recognition therefore reports it as a syntax error at that token.
 
-The `%include` alternative applies only when no quoted path follows. A complete include instead uses the path rule above.
+The `%include` and `%names` alternatives apply only when no quoted path follows. A complete directive instead uses its path rule above.
 
 Value tests select known keywords. `$KEYWORDS` holds their exact names. The fallback excludes that set with one membership condition.
 
@@ -313,7 +354,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   "rule" "redefine-rule" "extend-rule" "conditions"
   "emits" "erased" "ambiguity-resolution" "stage"
   "extend-stage" "redefine-stage" "include" "features"
-  "const" "redefine-const" "classifier" "implies"
+  "const" "redefine-const" "classifier" "implies" "names"
 
 %rule keyword
   | "%" whole-name="rule" :: KW-RULE
@@ -327,6 +368,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" whole-name="extend-stage" :: KW-EXTEND-STAGE
   | "%" whole-name="redefine-stage" :: KW-REDEFINE-STAGE
   | "%" $include:whole-name="include" :: KW-INCLUDE
+  | "%" $names:whole-name="names" :: KW-NAMES
   | "%" whole-name="features" :: KW-FEATURES
   | "%" whole-name="const" :: KW-CONST
   | "%" whole-name="redefine-const" :: KW-REDEFINE-CONST
@@ -335,7 +377,8 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
   | "%" $other:whole-name :: Keyword
 %conditions
   $other.value ∉ $KEYWORDS,
-  $include ⟹ ¬$.following-tokens.begins(include-tail)
+  $include ⟹ ¬$.following-tokens.begins(include-tail),
+  $names ⟹ ¬$.following-tokens.begins(include-tail)
 %emits
   $
 ```
@@ -346,19 +389,22 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 ## Symbols
 
+`@` starts a parameter token. A bare `@` is invalid.
+
 A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
-The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
+The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `#` and `(` remain separate tokens.
 
 `≻` separates ranked options. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
 ```jbogenbau
 %rule symbol
+  | "«" | "»" | "·"
   | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
-  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
+  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "."
   | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
-  | ("=" | "∈" | "⊆" | "≅") $_0338
+  | ("=" | "∈" | "⊆" | "≅") "‹U+0338›"
 %emits
   $
 ```

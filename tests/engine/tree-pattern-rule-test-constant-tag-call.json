@@ -1,6 +1,6 @@
 {
   "description": "The loader rejects an invalid closed operand in a rule pattern. It reports the dependency as a grammar error (engine §4.1 and §10).",
-  "grammar": "%const $S \"bad name\"\n%rule text A %conditions $ ≅ @A<$S.tag>\n",
+  "grammar": "%const $S \"bad name\"\n%rule text A %conditions $ ≅ #A<$S.tag>\n",
   "tokens": [
     {
       "text": "a",

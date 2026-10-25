@@ -1,0 +1,10 @@
+{
+  "description": "The rule name 🆓 cannot name a classifier at the method (engine §9.3 and §10).",
+  "document": "```jbogenbau\n%rule text \"a\" :: $.classify(🆓)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

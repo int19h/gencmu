@@ -92,6 +92,8 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    #[allow(dead_code)] // Retained for native audit consumers.
+    pub parameters: crate::parameters::expand::Records,
     pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
@@ -217,6 +219,8 @@ pub(crate) fn stitch(
     documents: &[(Arc<str>, Arc<Dom>)],
     unicode: &Unicode,
 ) -> Result<StageGrammar, Error> {
+    let expansion = crate::parameters::expand(documents, unicode)?;
+    let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
     let mut grammar = StageGrammar {
         unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
@@ -229,6 +233,7 @@ pub(crate) fn stitch(
         classifiers: Vec::new(),
         features: Vec::new(),
         implications: Arc::from(Vec::new()),
+        parameters: expansion.as_ref().map_or_else(Default::default, |x| x.records.clone()),
     };
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
     let mut resolution: Option<(Arc<str>, (usize, usize))> = None;
@@ -388,7 +393,7 @@ pub(crate) fn stitch(
                 let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
                 for (name, _) in references {
-                    if crate::dom::engine_scalar(name).is_none() && !constants.values.contains_key(name) {
+                    if !constants.values.contains_key(name) {
                         return Err(located(
                             format!("${name} is not defined in stage {stage}"),
                             document,
@@ -416,6 +421,14 @@ pub(crate) fn stitch(
                 }
             }
         }
+    }
+    if let Some(expanded) = &expansion {
+        for (path, rule) in &expanded.validation {
+            users.push((path, rule));
+        }
+        let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
+        grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
+        grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
     constants.resolve(&mut grammar, &users, &mut deferred)?;
     constants.evaluate_tests(&mut grammar)?;
@@ -997,6 +1010,9 @@ impl Constants<'_> {
 
     fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
         if let Term::Pattern(root) = term {
+            if let Some(fault) = root.type_fault(&|name| self.ty(name)) {
+                return Err(located(fault.problem, document, fault.at.unwrap_or(item)));
+            }
             enum Part<'a> {
                 Pattern(&'a Pattern),
                 Children(&'a crate::patterns::Children),
@@ -1017,12 +1033,17 @@ impl Constants<'_> {
                             pending.push(Part::Pattern(b));
                         }
                         Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
-                        Pattern::Children(children) => pending.push(Part::Children(children)),
+                        Pattern::Node(node, _, children) => {
+                            pending.push(Part::Pattern(node));
+                            pending.extend(children.as_ref().map(Part::Children));
+                        }
                         _ => {}
                     },
                     Part::Children(children) => match children {
                         Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
-                        Children::Sequence(items) => pending.extend(items.iter().map(Part::Children)),
+                        Children::Sequence(items) | Children::Choice(items) => {
+                            pending.extend(items.iter().map(Part::Children))
+                        }
                         Children::Optional(inner) => pending.push(Part::Children(inner)),
                         Children::Repeat(item, separator) => {
                             pending.push(Part::Children(item));
@@ -1072,9 +1093,15 @@ impl Constants<'_> {
             Term::Union(xs) | Term::Intersection(xs) => {
                 let ps = xs.iter().map(|x| self.evaluate_pattern(x, document, item)).collect::<Result<Vec<_>, _>>()?;
                 if matches!(term, Term::Union(_)) {
-                    Pattern::Union(ps)
+                    Pattern::Union(
+                        ps.into_iter().flat_map(|p| if let Pattern::Union(xs) = p { xs } else { vec![p] }).collect(),
+                    )
                 } else {
-                    Pattern::Intersection(ps)
+                    Pattern::Intersection(
+                        ps.into_iter()
+                            .flat_map(|p| if let Pattern::Intersection(xs) = p { xs } else { vec![p] })
+                            .collect(),
+                    )
                 }
             }
             Term::Difference(a, b) => Pattern::Difference(
@@ -1107,17 +1134,12 @@ impl Constants<'_> {
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
-                Term::Const(name, at) => match crate::dom::engine_scalar(name) {
-                    Some(c) => Value::Str(c.to_string()),
-                    None => self
-                        .values
-                        .get(name)
-                        .ok_or_else(|| {
-                            located(format!("${name} is not defined in stage {}", self.stage), document, *at)
-                        })?
-                        .value
-                        .clone(),
-                },
+                Term::Const(name, at) => self
+                    .values
+                    .get(name)
+                    .ok_or_else(|| located(format!("${name} is not defined in stage {}", self.stage), document, *at))?
+                    .value
+                    .clone(),
                 Term::Union(_) => Value::Set(operands.flat_map(|value| value.set()).collect()),
                 Term::Intersection(_) => {
                     let mut sets = operands.map(Value::set);
@@ -1189,7 +1211,7 @@ impl Constants<'_> {
             let mut references = Vec::new();
             constants_in_term(side, &mut references);
             for (name, at) in references {
-                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                if !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
@@ -1220,7 +1242,7 @@ impl Constants<'_> {
     ) -> Result<(), Error> {
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
-                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                if !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
@@ -1367,7 +1389,7 @@ impl Constants<'_> {
                     let mut references = Vec::new();
                     constants_in_term(key, &mut references);
                     for (name, at) in references {
-                        if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                        if !self.values.contains_key(name) {
                             return Err(located(
                                 format!("${name} is not defined in stage {}", self.stage),
                                 document,
@@ -1499,12 +1521,7 @@ impl Constants<'_> {
             return;
         }
         match term {
-            Term::Const(name, _) => {
-                *term = match crate::dom::engine_scalar(name) {
-                    Some(c) => Term::Str(c.to_string()),
-                    None => self.values[name.as_str()].value.term(),
-                }
-            }
+            Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
             }
@@ -1547,6 +1564,7 @@ impl Constants<'_> {
             }
             Cond::Matches(..)
             | Cond::Begins(..)
+            | Cond::Ends(..)
             | Cond::Initial(_)
             | Cond::Final(_)
             | Cond::Boundary(_, _, _, _)
@@ -1622,6 +1640,7 @@ fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg]
         }
         Cond::Matches(..)
         | Cond::Begins(..)
+        | Cond::Ends(..)
         | Cond::Initial(_)
         | Cond::Final(_)
         | Cond::Boundary(_, _, _, _)
@@ -1720,7 +1739,10 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             _ => Err(".without-elision-except takes a bare capture and one rule name".to_string()),
         },
         Term::Call(name, args)
-            if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision") =>
+            if matches!(
+                name.as_str(),
+                "head" | "tail" | "last" | "from" | "after" | "preceding-tokens" | "without-elision"
+            ) =>
         {
             match &args[..] {
                 [Arg::Term(Term::Capture(_))] if name == "without-elision" => Ok(()),
@@ -1788,9 +1810,17 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                     Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
                 }
             }
-            ("head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except", _) => {
-                check_span(grammar, term)
-            }
+            (
+                "head"
+                | "tail"
+                | "last"
+                | "from"
+                | "after"
+                | "preceding-tokens"
+                | "without-elision"
+                | "without-elision-except",
+                _,
+            ) => check_span(grammar, term),
             (
                 "value"
                 | "text"
@@ -1802,6 +1832,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "classify"
                 | "matches"
                 | "begins"
+                | "ends"
                 | "initial",
                 _,
             ) => Err(format!("{name}() is called with the wrong arguments")),
@@ -1820,7 +1851,10 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_term(grammar, left)?;
             check_term(grammar, right)
         }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
+            if matches!(cond, Cond::Ends(..)) && crate::dom::restored_span(span) {
+                return Err(".ends cannot read a restored span".into());
+            }
             check_span(grammar, span)?;
             for target in rule {
                 if !is_terminal_name(target) {
@@ -1901,6 +1935,7 @@ mod tests {
                 }],
                 classifiers: Vec::new(),
                 implications: Vec::new(),
+                ..Dom::default()
             };
             vec![(Arc::<str>::from("d.md"), Arc::new(dom))]
         };
@@ -1944,6 +1979,7 @@ mod tests {
                 changes: Vec::new(),
                 classifiers: vec![(Arc::from("d.md"), ClassifierDef { name: "c".into(), entries, at: (0, 0) })],
                 implications: Arc::from(Vec::new()),
+                parameters: Default::default(),
             }
         };
         let grammars = [grammar(20_000), grammar(80_000)];

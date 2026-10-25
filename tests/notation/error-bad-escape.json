@@ -1,10 +1,25 @@
 {
-  "description": "A backslash fails before reader validation (engine §9.1).",
+  "description": "A value test retains an ordinary backslash (engine §9.1).",
   "document": "```jbogenbau\n%rule a A=\"\\q\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 12
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "test": "=",
+                "value": {
+                  "string": "\\q"
+                },
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

@@ -1,0 +1,11 @@
+{
+  "description": "An exact terminal does not search a unary rule.",
+  "grammar": "%rule text $x:atom\n%conditions $x ≅ #·\"a\"\n%rule atom \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

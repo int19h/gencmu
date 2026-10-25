@@ -2,26 +2,73 @@
 //! produces, what `bootstrap.json` and `compiled.json` hold, and what
 //! stitching and lowering read.
 
-mod schema;
+pub(crate) mod schema;
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
-    schema::problem(dom, unicode)
+    let cleaned = known_dom_members(dom);
+    let dom = cleaned.as_ref().unwrap_or(dom);
+    let roots = ["rules", "directives", "constants", "classifiers", "implications"];
+    for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
+        for field in ["ref", "tag", "terminal"] {
+            if let Some(name) = part.get(field).and_then(crate::json::Json::as_str) {
+                if name.starts_with('_') && unicode.canonical_tag(name) != Some(name) {
+                    return Some("unknown, unavailable, or noncanonical engine tag");
+                }
+            }
+        }
+    }
+    if crate::parameters::unresolved(dom) {
+        crate::parameters::problem(dom, unicode)
+    } else {
+        schema::problem(dom, unicode)
+    }
+}
+
+fn known_dom_members(dom: &Json) -> Option<Json> {
+    // Unknown directive members carry no grammar nodes.
+    if dom.get("directives").and_then(crate::json::Json::as_array).is_some_and(|items| {
+        items.iter().any(|item| {
+            item.as_object().is_some_and(|fields| {
+                fields.iter().any(|(key, _)| !["name", "args", "conditions", "at"].contains(&key.as_str()))
+            })
+        })
+    }) {
+        let mut cleaned = dom.clone();
+        if let crate::json::Json::Obj(fields) = &mut cleaned {
+            for (key, value) in fields {
+                if key == "directives" {
+                    if let crate::json::Json::Arr(items) = value {
+                        for item in items {
+                            if let crate::json::Json::Obj(fields) = item {
+                                fields.retain(|(key, _)| ["name", "args", "conditions", "at"].contains(&key.as_str()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Some(cleaned)
+    } else {
+        None
+    }
 }
 
 use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
 use crate::tags::is_name;
-use crate::unicode::{is_property_name, Unicode};
+use crate::unicode::Unicode;
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 34;
+pub const DOM_FORMAT: i64 = 40;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
+    pub names_dependencies: Option<std::collections::BTreeMap<String, String>>,
     pub rules: Vec<RuleDef>,
     pub directives: Vec<Directive>,
     pub constants: Vec<ConstDef>,
     pub classifiers: Vec<ClassifierDef>,
     pub implications: Vec<ImplicationDef>,
+    pub unresolved: std::collections::BTreeMap<(usize, usize), Json>,
 }
 
 /// A `%classifier NAME` item (engine §2): its name, which begins with `a`
@@ -157,7 +204,7 @@ pub(crate) enum Expr {
     Capture(String, Box<Expr>),
     /// A tested symbol, such as `X="s"`: its comparator, `=`, `≠`, `⊇`,
     /// `⊉`, `∩=∅` or `∩≠∅`, its value, a closed term, and its symbol, a
-    /// `Ref` other than `#`, a `Terminal`, a `Range` or a `Property`
+    /// `Ref`, a `Terminal`, a `Range` or a `Property`
     /// (engine §2, §4).
     Tested(String, Term, Box<Expr>),
     Empty,
@@ -227,6 +274,7 @@ pub(crate) enum Cond {
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
     Begins(Term, Vec<String>),
+    Ends(Term, Vec<String>),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
     Final(Term),
@@ -314,9 +362,17 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
     dom_from_json_mode(value, unicode, false)
 }
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
+    let cleaned = known_dom_members(value);
+    let value = cleaned.as_ref().unwrap_or(value);
+    if crate::parameters::unresolved(value) {
+        return crate::parameters::decode(value, unicode, defer);
+    }
     if let Some(problem) = dom_problem(value, unicode) {
         return Err(problem.to_string());
     }
+    decode_checked(value, unicode, defer)
+}
+pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
     let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
@@ -393,7 +449,7 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
             }
         }
     }
-    Ok(Dom { rules, directives, constants, classifiers, implications })
+    Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
 }
 
 pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
@@ -466,14 +522,6 @@ pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
         }
     }
     values.pop().unwrap_or_default()
-}
-
-pub(crate) fn engine_scalar(name: &str) -> Option<char> {
-    let digits = name.strip_prefix('_')?;
-    if !(4..=6).contains(&digits.len()) || !digits.bytes().all(|c| c.is_ascii_digit() || (b'A'..=b'F').contains(&c)) {
-        return None;
-    }
-    u32::from_str_radix(digits, 16).ok().and_then(char::from_u32)
 }
 
 pub(crate) fn method_alias(name: &str) -> &str {
@@ -561,10 +609,43 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
 }
 
 fn first_key(value: &Json) -> R<&str> {
-    match value.as_object() {
-        Some([(key, _), ..]) => Ok(key),
-        _ => Err("an empty or non-object DOM node".to_string()),
-    }
+    const FORMS: &[&str] = &[
+        "seq",
+        "choice",
+        "ranked",
+        "and",
+        "optional",
+        "repeat",
+        "ref",
+        "literal",
+        "wildcard",
+        "range",
+        "capture",
+        "empty",
+        "string",
+        "tag",
+        "const",
+        "emptySet",
+        "method",
+        "union",
+        "intersection",
+        "difference",
+        "if",
+        "concat",
+        "pattern",
+        "op",
+        "not",
+        "any",
+        "all",
+        "captured",
+    ];
+    let members = value.as_object().ok_or("not a JSON object")?;
+    members
+        .iter()
+        .find(|(k, _)| FORMS.contains(&k.as_str()))
+        .or_else(|| members.first())
+        .map(|(k, _)| k.as_str())
+        .ok_or_else(|| "an empty JSON object".into())
 }
 
 fn expr_from_json(value: &Json) -> R<Expr> {
@@ -724,13 +805,15 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                                 .collect::<R<Vec<_>>>()?,
                             BoundaryLocation::default(),
                         ),
-                        ("matches" | "begins", args) => {
+                        ("matches" | "begins" | "ends", args) => {
                             let targets = args
                                 .iter()
                                 .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
                                 .collect::<R<Vec<_>>>()?;
                             if name == "matches" {
                                 Cond::Matches(receiver, targets)
+                            } else if name == "ends" {
+                                Cond::Ends(receiver, targets)
                             } else {
                                 Cond::Begins(receiver, targets)
                             }
@@ -838,7 +921,7 @@ fn is_position(value: Option<&Json>) -> bool {
     matches!(value.and_then(Json::as_array), Some([Json::Int(line), Json::Int(column)]) if *line > 0 && *column > 0)
 }
 
-/// A rule's name: a name, or `#`, the free-modifier slot (engine §2).
+/// A capture name starts with a lowercase ASCII letter and contains no capitals.
 pub(crate) fn is_capture_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
@@ -918,12 +1001,20 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
         if index > 0 {
             out.push(',');
         }
+        if let Some(raw) = dom.unresolved.get(&rule.at) {
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
+            continue;
+        }
         write_rule(&mut out, rule);
     }
     out.push_str("],\"directives\":[");
     for (index, directive) in dom.directives.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&directive.at) {
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
+            continue;
         }
         out.push_str("{\"name\":");
         write_str(&mut out, &directive.name);
@@ -951,6 +1042,10 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     for (index, constant) in dom.constants.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&constant.at) {
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
+            continue;
         }
         out.push_str("{\"name\":");
         write_str(&mut out, &constant.name);
@@ -995,6 +1090,10 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
     for (index, implication) in dom.implications.iter().enumerate() {
         if index > 0 {
             out.push(',');
+        }
+        if let Some(raw) = dom.unresolved.get(&implication.at) {
+            out.push_str(&crate::parameters::canonical_source(raw).to_json());
+            continue;
         }
         out.push_str("{\"if\":");
         write_term(&mut out, &implication.antecedent);
@@ -1334,8 +1433,14 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             write_term(out, right);
             out.push('}');
         }
-        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
-            let name = if matches!(cond, Cond::Matches(..)) { "matches" } else { "begins" };
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) | Cond::Ends(span, rule) => {
+            let name = if matches!(cond, Cond::Matches(..)) {
+                "matches"
+            } else if matches!(cond, Cond::Ends(..)) {
+                "ends"
+            } else {
+                "begins"
+            };
             out.push_str("{\"method\":");
             write_str(out, name);
             out.push_str(",\"receiver\":");
@@ -1495,13 +1600,14 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push(Nested::Term(span)),
                 Cond::Captured(_) => {}
             },
             // Pattern references are handled through Term::Pattern above.
-            Nested::Expr(_) | Nested::Pattern(_) | Nested::Children(_) => {}
+            Nested::Expr(_) | Nested::Pattern(_) | Nested::PatternItems(_) => {}
         }
     }
 }
@@ -1511,12 +1617,13 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
 const MAX_NESTING: usize = DOM_MAX_DEPTH;
 
 /// A node of a DOM that the check of nesting walks.
+#[derive(Clone, Copy)]
 enum Nested<'d> {
     Expr(&'d Expr),
     Term(&'d Term),
     Cond(&'d Cond),
     Pattern(&'d crate::patterns::Pattern),
-    Children(&'d crate::patterns::Children),
+    PatternItems(&'d crate::patterns::Children),
 }
 
 /// Whether any DOM node exceeds the depth bound of engine §9.
@@ -1526,6 +1633,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
     let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
     while let Some((node, depth)) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
+        if let Nested::PatternItems(crate::patterns::Children::Sequence(items)) = node {
+            stack.extend(items.iter().map(|item| (Nested::PatternItems(item), depth)));
+            continue;
+        }
         if depth > MAX_NESTING {
             return true;
         }
@@ -1587,7 +1698,11 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                         stack.push((Nested::Term(value), below));
                         stack.push((Nested::Pattern(inner), below));
                     }
-                    Pattern::Children(children) => stack.push((Nested::Children(children), below)),
+                    Pattern::Node(node, _, children) => {
+                        stack.push((Nested::Pattern(node), depth));
+                        stack.extend(children.as_ref().map(|c| (Nested::PatternItems(c), below)));
+                    }
+                    Pattern::Any => {}
                     Pattern::Path(_, inner) => stack.push((Nested::Pattern(inner), below)),
                     Pattern::Union(items) | Pattern::Intersection(items) => {
                         stack.extend(items.iter().map(|item| (Nested::Pattern(item), below)));
@@ -1599,15 +1714,18 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Wildcard(..) | Pattern::Constant(..) => {}
                 }
             }
-            Nested::Children(children) => {
+            Nested::PatternItems(children) => {
                 use crate::patterns::Children;
                 match children {
-                    Children::Node(pattern) => stack.push((Nested::Pattern(pattern), below)),
-                    Children::Sequence(items) => stack.extend(items.iter().map(|item| (Nested::Children(item), below))),
-                    Children::Optional(inner) => stack.push((Nested::Children(inner), below)),
-                    Children::Repeat(inner, separator) => {
-                        stack.push((Nested::Children(inner), below));
-                        stack.extend(separator.as_deref().map(|separator| (Nested::Children(separator), below)));
+                    Children::Sequence(items) => {
+                        stack.extend(items.iter().map(|item| (Nested::PatternItems(item), depth)))
+                    }
+                    Children::Node(node) => stack.push((Nested::Pattern(node), below)),
+                    Children::Choice(arms) => stack.extend(arms.iter().map(|arm| (Nested::PatternItems(arm), below))),
+                    Children::Optional(body) => stack.push((Nested::PatternItems(body), below)),
+                    Children::Repeat(body, separator) => {
+                        stack.push((Nested::PatternItems(body), below));
+                        stack.extend(separator.as_deref().map(|separator| (Nested::PatternItems(separator), below)));
                     }
                     Children::Siblings => {}
                 }
@@ -1623,6 +1741,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
                 Cond::Matches(span, _)
                 | Cond::Begins(span, _)
+                | Cond::Ends(span, _)
                 | Cond::Initial(span)
                 | Cond::Final(span)
                 | Cond::Boundary(_, span, _, _) => stack.push((Nested::Term(span), below)),
@@ -1903,7 +2022,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::Tag(_) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
-        Term::Const(name, _) => Ok(if engine_scalar(name).is_some() { Type::String } else { constants(name) }),
+        Term::Const(name, _) => Ok(constants(name)),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
@@ -1969,6 +2088,7 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
         }
         Cond::Matches(span, _)
         | Cond::Begins(span, _)
+        | Cond::Ends(span, _)
         | Cond::Initial(span)
         | Cond::Final(span)
         | Cond::Boundary(_, span, _, _) => match term_type_in(span, constants) {
@@ -2193,6 +2313,7 @@ impl Cond {
             }
             Cond::Matches(span, _)
             | Cond::Begins(span, _)
+            | Cond::Ends(span, _)
             | Cond::Initial(span)
             | Cond::Final(span)
             | Cond::Boundary(_, span, _, _) => stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet))),
@@ -2252,4 +2373,21 @@ pub(crate) fn ngrams(s: &str, digits: &str) -> Vec<String> {
         return Vec::new();
     }
     points.windows(n).map(|run| run.iter().collect()).collect()
+}
+
+/// Whether a span preserves a restoration constraint through onward.
+pub(crate) fn restored_span(mut term: &Term) -> bool {
+    for _ in 0..=256 {
+        match term {
+            Term::Call(name, _) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
+                return true
+            }
+            Term::Call(name, args) if name == "from" => {
+                let [Arg::Term(inner)] = &args[..] else { return false };
+                term = inner;
+            }
+            _ => return false,
+        }
+    }
+    false
 }

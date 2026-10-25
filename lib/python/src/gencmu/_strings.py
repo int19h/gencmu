@@ -5,22 +5,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._unicode import CATEGORIES
-
-ENGINE_TAGS = frozenset("_" + name for name in (*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space"))
+from ._unicode_property_catalog import PROPERTY_CATALOG
+ENGINE_TAGS = frozenset(PROPERTY_CATALOG["tags"])
 USER_NAME = re.compile(r"[A-Z][A-Za-z0-9_-]*")
-SCALAR_NAME = re.compile(r"_[0-9A-F]{4,6}")
-
-
-def scalar(name: str) -> str | None:
-    if SCALAR_NAME.fullmatch(name) is None:
-        return None
-    code = int(name[1:], 16)
-    return chr(code) if code <= 0x10FFFF and not 0xD800 <= code <= 0xDFFF else None
-
-
 def is_constant(name: Any) -> bool:
-    return isinstance(name, str) and (USER_NAME.fullmatch(name) is not None or scalar(name) is not None)
+    return isinstance(name, str) and USER_NAME.fullmatch(name) is not None
 
 
 def literal_string(term: Any) -> str | None:
@@ -28,29 +17,23 @@ def literal_string(term: Any) -> str | None:
         return None
     if isinstance(term.get("string"), str):
         return term["string"]
-    if isinstance(term.get("const"), str):
-        return scalar(term["const"])
     return None
 
 
 def spelling(value: str, unicode: Any) -> str:
-    out = []
-    literal = ""
+    out = ['"']
     for char in value:
         code = ord(char)
-        if (code <= 0x1F or 0x7F <= code <= 0x9F or code in (0x22, 0x5C)
-              or 0xE000 <= code <= 0xF8FF or 0xF0000 <= code <= 0xFFFFD
-              or 0x100000 <= code <= 0x10FFFD or unicode.is_mark(code)
-              or unicode.changes_in_document(code)):
-            if literal:
-                out.append('"' + literal + '"')
-                literal = ""
-            out.append(f"$_{code:04X}")
+        if (code <= 0x1F or 0x7F <= code <= 0x9F or char in ('"', '‹')
+                or 0xE000 <= code <= 0xF8FF or 0xF0000 <= code <= 0xFFFFD
+                or 0x100000 <= code <= 0x10FFFD or unicode.is_mark(code)
+                or unicode.category(code) == "Cf" or unicode.changes_in_document(code)
+                or code != 0x20 and unicode.is_white_space(code)):
+            out.append('‹' + unicode.canonical_abbreviations.get(code, f"U+{code:04X}") + '›')
         else:
-            literal += char
-    if literal:
-        out.append('"' + literal + '"')
-    return " ++ ".join(out) if out else '""'
+            out.append(char)
+    out.append('"')
+    return ''.join(out)
 
 
 def lit(term: Any) -> frozenset[str]:

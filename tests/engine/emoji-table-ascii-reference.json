@@ -1,0 +1,15 @@
+{
+  "description": "The configured table can make an ASCII scalar eligible for rule names, references, captures and tests.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:!=\"a\"\n%rule ! \"a\"\n```",
+    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 0021 0021\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

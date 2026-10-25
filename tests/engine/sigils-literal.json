@@ -1,0 +1,10 @@
+{
+  "description": "Strings and notation comments retain literal sigils.",
+  "grammar": "%rule text \"#\" \"@\" (* literal # and @ *)",
+  "input": "#@",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

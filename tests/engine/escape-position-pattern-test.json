@@ -1,0 +1,18 @@
+{
+  "description": "A pattern value test decodes its quoted operand.",
+  "grammar": "%rule text $x:_ %conditions $x ≅ #_=\"‹U+00E9›\"",
+  "tokens": [
+    {
+      "text": "é",
+      "value": "é",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

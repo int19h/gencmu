@@ -1,0 +1,10 @@
+{
+  "description": "Stage zero gives `#` the `_Emoji_Component` tag.",
+  "grammar": "%rule text _Emoji_Component",
+  "input": "#",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

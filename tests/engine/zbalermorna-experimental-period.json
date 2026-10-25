@@ -1,0 +1,43 @@
+{
+  "description": "Both zbalermorna period scalars form one quiet period pause in experimental.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "󲢩",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "󲢩",
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "span": [
+                0,
+                2
+              ],
+              "source": [
+                0,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "warnings": []
+  }
+}

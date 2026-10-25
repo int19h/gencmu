@@ -1,6 +1,6 @@
 {
-  "description": "`#` is a rule name, so it can be a target (engine §4.2 and §6, case 64).",
-  "grammar": "%rule text a # B\n%rule # [{F}]\n%rule a A\n%conditions $.followed-by(#)",
+  "description": "`🆓` is a rule name, so it can be a target (engine §4.2 and §6, case 64).",
+  "grammar": "%rule text a 🆓 B\n%rule 🆓 [{F}]\n%rule a A\n%conditions $.followed-by(🆓)",
   "tokens": [
     {
       "text": "a",

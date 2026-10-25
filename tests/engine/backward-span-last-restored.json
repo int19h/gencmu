@@ -1,0 +1,17 @@
+{
+  "description": "The last token of a restored span is its last original token. (Engine \u00a74.4.)",
+  "grammar": "%rule text $x:unit\n%conditions $x.without-elision.last-token.value = \"a\", $x.without-elision-except(unit).last-token.value = \"a\"\n%rule unit A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

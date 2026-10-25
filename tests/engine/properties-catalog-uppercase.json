@@ -1,0 +1,45 @@
+{
+  "description": "Every Uppercase value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags.",
+  "grammar": "%rule text r0\n%rule r0 $x:_Uppercase<_Uppercase>\n%conditions $x ≅ #_Uppercase<_Uppercase>, _Uppercase ⊆ $x.tags\n%emits $x :: $x.tags ∩ _Uppercase",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Upper",
+        "_Uppercase"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Uppercase"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Uppercase"
+              }
+            ],
+            "tags": [
+              "_Uppercase"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

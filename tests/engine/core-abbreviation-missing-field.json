@@ -1,0 +1,17 @@
+{
+  "description": "An abbreviation record requires a scalar and an alias.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
+    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nabbreviation 0041\n"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "unicode.txt",
+      "line": 4
+    }
+  }
+}

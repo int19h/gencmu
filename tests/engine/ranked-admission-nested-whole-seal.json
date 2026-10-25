@@ -1,6 +1,6 @@
 {
   "description": "A nested gate sees the enclosing named parent with one seal for the outer ranked group (engine §2.1 and §6.1).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text (Q ((X ($y:a ≻ b)) ≻ c)) %conditions ($y ⟹ $ ≇ @(Q X ⋯))\n\n%rule a (Y Z)\n%rule b (Y Z)\n%rule c (X Y Z)",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (Q ((X ($y:a ≻ b)) ≻ c)) %conditions ($y ⟹ $ ≇ #« Q X ⋯ »)\n\n%rule a (Y Z)\n%rule b (Y Z)\n%rule c (X Y Z)",
   "tokens": [
     {
       "text": "q",

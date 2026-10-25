@@ -209,7 +209,7 @@ A lujvo is exactly what the algorithm of CLL[^cll-s4-11] makes from two rafsi or
 
 The rules below build the letters of a lujvo from the left, and they place each hyphen by its cause. `lujvo-rest` is the rafsi after a vowel or after an `r` or `n` hyphen, to the end of the word. `cvc-rest` is the part of a CVC or CVCC rafsi from its third letter, with the joint after it. A joint without a hyphen must be a permissible pair and must not make one of the four triples. A `y` at a joint must be required.
 
-A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
+A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen.
 
 `pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants).
 
@@ -235,7 +235,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "r" $r:lujvo-rest
   | "n" $n:lujvo-rest
 %conditions
-  $r ≇ @(ccv-rafsi),
+  $r ≇ #ccv-rafsi,
   ¬$r.begins(r-letter),
   $n.begins(r-letter)
 
@@ -472,13 +472,13 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
 
 ## Commas
 
-A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). Phonemes gives it value `,` and tag `Syllable-Break`, and a comma anywhere else is no phoneme. Normalization empties that value and keeps its tag and image. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". So a comma never makes a word, and it never changes the class of a word.
+A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). The phoneme stage gives it an empty value, image `,`, and tag `Syllable-Break`. A comma anywhere else is no phoneme. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". So a comma never makes a word, and it never changes the class of a word.
 
 Only a borrowing, a name or hesitation can hold a comma between two vowels. A cmavo, a gismu or a lujvo cannot. A word with such a comma must also be a word of the same class when its commas are removed and its capitals lowered. So `ma,i` and `ba,irgau` are no words, because `mai` is a cmavo and `bairgau` is a lujvo. `zda,i` is no word either, because `zdai` is none.
 
 A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([forms.md](forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the normalized comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
+The comma rules read `Syllable-Break`, because the comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` and `lujvo-after-cvv` read a comma before the `i` or `u` that ends a first CVV rafsi. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 

@@ -13,13 +13,10 @@ export declare function patternProblem(root: any, testFault: (test: any) => stri
  * @param {any} root
  * @param {(name:string, at:[number,number]) => any} constant
  * @param {(term:any, test:any) => any} value
- * @param {{isMark(code:number):boolean, changesInDocument?(code:number):boolean}} unicode
+ * @param {import("./unicode.js").UnicodeTable} unicode
  * @returns {any}
  */
-export declare function resolvePattern(root: any, constant: (name: string, at: [number, number]) => any, value: (term: any, test: any) => any, unicode: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-}): any;
+export declare function resolvePattern(root: any, constant: (name: string, at: [number, number]) => any, value: (term: any, test: any) => any, unicode: import("./unicode.js").UnicodeTable): any;
 export declare class PatternMachine {
     /** @type {any[]} */ predicates: any[];
     /** @type {any[]} */ machines: any[];
@@ -48,5 +45,3 @@ export declare class PatternMachine {
     /** @param {number} state @param {any} pattern @returns {boolean} */
     matches(state: number, pattern: any): boolean;
 }
-/** @param {any} pattern @returns {string} */
-export declare function patternText(pattern: any): string;

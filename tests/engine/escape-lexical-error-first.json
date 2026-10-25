@@ -1,0 +1,17 @@
+{
+  "description": "Lexical errors precede escape inspection.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹›\" @\n```"
+  },
+  "pipeline": "p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 3,
+      "column": 17
+    }
+  }
+}

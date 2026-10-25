@@ -1,0 +1,10 @@
+{
+  "description": "The pattern sigil `#` cannot name a rule.",
+  "document": "```jbogenbau\n%rule # A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

@@ -315,7 +315,11 @@ export type DomDirective = {
     args: string[];
     at: Position;
 };
-export type DomRule = {
+export type DomRule = BodyRule | InstanceBinding;
+export type BodyRule = {
+    params?: string[];
+    args?: TemplateArgument[];
+    instance?: never;
     name: string;
     op: "define" | "redefine" | "extend";
     flags: string[];
@@ -327,6 +331,22 @@ export type DomRule = {
     value?: Recipe;
     image?: Recipe;
     at: Position;
+};
+export type InstanceBinding = {
+    name: string;
+    op: "define" | "redefine";
+    flags: [];
+    instance: TemplateCall;
+    conditions: [];
+    at: Position;
+    params?: never;
+    args?: never;
+    tags?: never;
+    alternatives?: never;
+    emit?: never;
+    erased?: never;
+    value?: never;
+    image?: never;
 };
 export type DomAlternative = {
     guards: Guard[];
@@ -347,10 +367,40 @@ export type Guard = {
      */
     negated: boolean;
 };
-export type Pattern = {
+export type Parameter = {
+    param: string;
+    at: Position;
+};
+export type TemplateCall = {
+    call: string;
+    args: TemplateArgument[];
+    at: Position;
+};
+export type QueryTarget = {
+    rule: string;
+} | {
+    terminal: string;
+} | TemplateCall | Parameter;
+export type TemplateArgument = Term | {
+    rule: string;
+} | TemplateCall | Parameter | {
+    range: [Term, Term];
+} | {
+    wildcard: true;
+} | TestedSymbol | {
+    body: Expr;
+} | {
+    targets: QueryTarget[];
+} | {
+    requirements: Requirement[];
+};
+export type Pattern = (({
     name: string;
     at: Position;
-} | PatternAtom | {
+} | TemplateCall | Parameter) & {
+    exact?: true;
+    children?: PatternChildren;
+}) | ((PatternAtom | {
     test: "=" | "≠";
     value: Term;
     expr: PatternTestTarget;
@@ -358,7 +408,11 @@ export type Pattern = {
     test: "tags";
     requirements: Requirement[];
     expr: PatternAtom;
-} | {
+}) & {
+    exact?: true;
+}) | {
+    any: true;
+    exact?: true;
     children: PatternChildren;
 } | {
     union: Pattern[];
@@ -374,8 +428,10 @@ export type PatternTerminal = {
     terminal: string;
     at: Position;
 };
-export type PatternAtom = PatternTerminal | {
-    literal: Term;
+export type PatternAtom = Parameter | PatternTerminal | {
+    literal: {
+        string: string;
+    };
     at: Position;
 } | {
     range: [Term, Term];
@@ -392,17 +448,18 @@ export type PatternTestTarget = PatternAtom | {
     requirements: Requirement[];
     expr: PatternAtom;
 };
-export type PatternChildren = {
-    node: Pattern;
+export type PatternChildren = PatternItem[];
+export type PatternItem = {
+    child: Pattern;
 } | {
-    sequence: PatternChildren[];
+    siblings: true;
 } | {
     optional: PatternChildren;
 } | {
     repeat: PatternChildren;
     separator?: PatternChildren;
 } | {
-    siblings: true;
+    choice: PatternChildren[];
 };
 export type Expr = {
     choice: Expr[];
@@ -440,9 +497,9 @@ export type Expr = {
     expr: TestedSymbol;
 } | {
     empty: true;
-};
+} | TemplateCall | Parameter;
 export type TestOp = "tags" | "=" | "≠";
-export type TestedSymbol = {
+export type TestedSymbol = TemplateCall | Parameter | {
     ref: string;
 } | {
     range: [Term, Term];
@@ -513,7 +570,7 @@ export type Term = {
     difference: [Term, Term];
 } | {
     capture: string;
-} | ConstantTerm;
+} | ConstantTerm | TemplateCall | Parameter;
 export type ConstantTerm = {
     const: string;
     at: Position;
@@ -1086,7 +1143,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Position} at
  */
 /**
- * @typedef {object} DomRule
+ * @typedef {BodyRule | InstanceBinding} DomRule
+ */
+/**
+ * @typedef {object} BodyRule
+ * @property {string[]} [params]
+ * @property {TemplateArgument[]} [args]
+ * @property {never} [instance]
  * @property {string} name
  * @property {"define" | "redefine" | "extend"} op
  * @property {string[]} flags
@@ -1098,6 +1161,24 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Recipe} [value]
  * @property {Recipe} [image]
  * @property {Position} at
+ */
+/**
+ * A public binding adds no body or runtime node.
+ * @typedef {object} InstanceBinding
+ * @property {string} name
+ * @property {"define" | "redefine"} op
+ * @property {[]} flags
+ * @property {TemplateCall} instance
+ * @property {[]} conditions
+ * @property {Position} at
+ * @property {never} [params]
+ * @property {never} [args]
+ * @property {never} [tags]
+ * @property {never} [alternatives]
+ * @property {never} [emit]
+ * @property {never} [erased]
+ * @property {never} [value]
+ * @property {never} [image]
  */
 /**
  * @typedef {object} DomAlternative
@@ -1114,36 +1195,43 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   its feature is on, or off if negated; a warning always keeps it
  * @property {boolean} negated always false for a warning
  */
+/** @typedef {{param:string, at:Position}} Parameter */
+/** @typedef {{call:string, args:TemplateArgument[], at:Position}} TemplateCall */
+/** @typedef {{rule:string} | {terminal:string} | TemplateCall | Parameter} QueryTarget */
+/**
+ * One argument before template expansion.
+ * @typedef {Term | {rule:string} | TemplateCall | Parameter | {range:[Term,Term]}
+ *   | {wildcard:true} | TestedSymbol | {body:Expr} | {targets:QueryTarget[]}
+ *   | {requirements:Requirement[]}} TemplateArgument
+ */
 /**
  * A structural node predicate in a grammar DOM (output §2).
- * @typedef {{name:string, at:Position} | PatternAtom
- *   | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom} | {children:PatternChildren}
+ * @typedef {(({name:string, at:Position} | TemplateCall | Parameter) & {exact?:true,children?:PatternChildren})
+ *   | ((PatternAtom | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom}) & {exact?:true})
+ *   | {any:true, exact?:true, children:PatternChildren}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
  */
 /** @typedef {{terminal:string, at:Position}} PatternTerminal */
-/** @typedef {PatternTerminal | {literal:Term,at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
+/** @typedef {Parameter | PatternTerminal | {literal:{string:string},at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
 /** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
-/**
- * A pattern expression over sibling nodes.
- * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
- *   | {repeat:PatternChildren, separator?:PatternChildren} | {siblings:true}} PatternChildren
- */
+/** @typedef {PatternItem[]} PatternChildren */
+/** @typedef {{child:Pattern} | {siblings:true} | {optional:PatternChildren} | {repeat:PatternChildren,separator?:PatternChildren} | {choice:PatternChildren[]}} PatternItem */
 /**
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
  *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
  *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
- *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true}} Expr
+ *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true} | TemplateCall | Parameter} Expr
  */
 /**
  * The comparator of a test in a body (engine §2).
  * @typedef {"tags" | "=" | "≠"} TestOp
  */
 /**
- * What a test follows: a reference other than `#`, or a terminal.
- * @typedef {{ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
+ * What a test follows: a reference, a terminal, a range or a property.
+ * @typedef {TemplateCall | Parameter | {ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
  */
 /**
  * An emission clause.
@@ -1177,7 +1265,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * empty set, a set expression, a guarded term, a method, or a span
  * (engine §10).
  * @typedef {{method: string, receiver: Term, args: Argument[]} | {concat: Term[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
- *   | {intersection: Term[]} | {difference: [Term, Term]} | {capture: string} | ConstantTerm} Term
+ *   | {intersection: Term[]} | {difference: [Term, Term]} | {capture: string} | ConstantTerm | TemplateCall | Parameter} Term
  */
 /**
  * A reference to a constant, with the position of the reference. In a

@@ -198,11 +198,11 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("elidable choice", set_expr({"seq": [CAP_X, marked({"choice": [KU, {"ref": "VAU"}]})]})),
     ("elidable and", set_expr({"seq": [CAP_X, marked({"and": [KU, {"ref": "A"}]})]})),
     ("elidable rule", set_expr({"seq": [CAP_X, marked({"ref": "ku"})]})),
-    ("elidable #", set_expr({"seq": [CAP_X, marked({"ref": "#"})]})),
+    ("elidable 🆓", set_expr({"seq": [CAP_X, marked({"ref": "🆓"})]})),
     ("elidable phoneme tag", set_expr({"seq": [CAP_X, marked({"literal": {"string": "a"}})]})),
     ("elidable character tag", set_expr({"seq": [CAP_X, marked({"literal": {"string": "a"}})]})),
     ("elidable range", set_expr({"seq": [CAP_X, marked({"range": [{"string": "a"}, {"string": "z"}]})]})),
-    ("elidable sequence first", set_expr({"seq": [CAP_X, marked({"seq": [{"seq": [KU, {"ref": "#"}]}, {"ref": "A"}]})]})),
+    ("elidable sequence first", set_expr({"seq": [CAP_X, marked({"seq": [{"seq": [KU, {"ref": "🆓"}]}, {"ref": "A"}]})]})),
     ("elidable optional first", set_expr({"seq": [CAP_X, marked({"optional": KU})]})),
     ("elidable ε", set_expr({"seq": [CAP_X, marked({"empty": True})]})),
     ("capture of an optional", set_expr({"capture": "x", "expr": {"optional": A}})),
@@ -377,7 +377,6 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     # Tests in a body (engine §2, §9).
     ("a test with an unknown comparator", set_expr({"capture": "x", "expr": {"test": "==", "value": {"string": "a"}, "expr": A}})),
     ("a test whose comparator is no string", set_expr({"capture": "x", "expr": {"test": 7, "value": {"string": "a"}, "expr": A}})),
-    ("a test of #", set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": {"ref": "#"}}]})),
     (
         "a test of an optional",
         set_expr({"seq": [{"capture": "x", "expr": A}, {"test": "=", "value": {"string": "a"}, "expr": {"optional": A}}]}),
@@ -419,7 +418,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ),
     (
         "a tested symbol that is also an optional",
-        set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "test": "=", "value": {"string": "a"}, "expr": {"ref": "#"}}]}),
+        set_expr({"seq": [{"capture": "x", "expr": A}, {"optional": A, "test": "=", "value": {"string": "a"}, "expr": {"ref": "🆓"}}]}),
     ),
 ]
 
@@ -477,7 +476,7 @@ class PrecompiledDomRules(unittest.TestCase):
         sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT}
         if dom is not None:
             sources["compiled.json"] = json.dumps(
-                {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
+                {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
             )
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=dom is not None)
         return gencmu.to_json(dialect.parse("a"))
@@ -522,7 +521,7 @@ class PrecompiledDomRules(unittest.TestCase):
             "g.md": '```jbogenbau\n%ambiguity-resolution greedy\n%rule "x" "a"\n```\n',
             "notation/bootstrap.json": json.dumps(bootstrap),
         }
-        with self.assertRaisesRegex(gencmu.GencmuError, "a rule name starts lowercase") as caught:
+        with self.assertRaisesRegex(gencmu.GencmuError, "a rule name starts with a lowercase letter or uses one eligible emoji") as caught:
             gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
         self.assertEqual(
             (caught.exception.kind, caught.exception.document, caught.exception.line, caught.exception.column), ("grammar", "g.md", 3, 7)
@@ -583,7 +582,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 keys = range(len(node)) if isinstance(node, list) else list(node) if isinstance(node, dict) else []
                 for key in keys:
                     value = node[key]
-                    if isinstance(value, dict) and len(value) == 1 and isinstance(value.get("ref"), str) and value["ref"] != "#":
+                    if isinstance(value, dict) and len(value) == 1 and isinstance(value.get("ref"), str) and True:
                         node[key] = tested(value)
                         return json.dumps(bootstrap)
                     stack.append(value)
@@ -667,7 +666,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 "$.starts-input in a guard of an alternative's tags",
                 set_tags({"if": {"receiver": WHOLE, "args": [], "method": "starts-input"}, "then": TAG}),
             ),
-            ("# as a rule's name", lambda dom: rule(dom).update(name="#")),
+            ("🆓 as a rule's name", lambda dom: rule(dom).update(name="🆓")),
             ("a negated gate", lambda dom: alt(dom).update(guards=[{"feature": "f", "kind": "gate", "negated": True}])),
             ("a warning", lambda dom: alt(dom).update(guards=[{"feature": "w", "kind": "warning", "negated": False}])),
             ("an implication", set_condition({"if": SAME, "then": {"op": "=", "left": TEXT, "right": STR}})),
@@ -716,7 +715,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a right chain with a separator", bare(set_expr({"repeat": A, "separator": KU, "chain": "right"}))),
             ("an elidable optional", set_expr({"seq": [CAP_X, marked(KU)]})),
             ("an elidable terminal tag", set_expr({"seq": [CAP_X, marked({"ref": "KU"})]})),
-            ("an elidable sequence", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"ref": "#"}]})]})),
+            ("an elidable sequence", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"ref": "🆓"}]})]})),
             ("an elidable = test", set_expr({"seq": [CAP_X, marked({"test": "=", "value": {"string": "ku"}, "expr": KU})]})),
             ("an elidable sequence with a choice", set_expr({"seq": [CAP_X, marked({"seq": [KU, {"choice": [A, {"ref": "B"}]}]})]})),
             ("a capture in an optional", bare(set_expr({"seq": [{"optional": CAP_X}, A]}))),
@@ -774,7 +773,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ),
             (
                 "⊉ of ∅ on a property",
-                {"capture": "x", "expr": tested({"emptySet": True}, {"ref": "_L"}, "⊉")},
+                {"capture": "x", "expr": tested({"emptySet": True}, {"ref": "_General_Category_Letter"}, "⊉")},
                 "a tag test requires tags or constants",
             ),
             ("∩≠∅ of a constant", {"capture": "x", "expr": tested({"const": "A", "at": [1, 1]}, A, "∩≠∅")}, None),
@@ -785,7 +784,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a string in capitals", {"capture": "x", "expr": tested("La")}, None),
             ("a Cyrillic capital", {"capture": "x", "expr": tested("Ла")}, None),
             ("a string with a comma", {"capture": "x", "expr": tested("ko,a")}, None),
-            ("a test of #", {"seq": [{"capture": "x", "expr": A}, tested("a", {"ref": "#"})]}, refusal),
+            ("a test of 🆓", {"seq": [{"capture": "x", "expr": A}, tested("a", {"ref": "🆓"})]}, None),
             ("a test of a test", {"capture": "x", "expr": tested("a", tested("a"))}, refusal),
             ("a test of ε", {"seq": [{"capture": "x", "expr": A}, tested("a", {"empty": True})]}, refusal),
             ("a test of an empty terminal", {"capture": "x", "expr": tested("a", {"empty": True, "terminal": "a"})}, refusal),
@@ -843,14 +842,14 @@ class PrecompiledDomRules(unittest.TestCase):
     def test_the_unicode_table_keys_the_cache(self) -> None:
         """A cached grammar observes stored tags from its configured table."""
         pipeline = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
-        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _Ll\n```\n"}
+        sources = {"p.md": pipeline, "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _General_Category_Lowercase_Letter\n```\n"}
         self.assertTrue(gencmu.load_dialect_sources(sources, "p.md").parse("a").ok)
         table = "unicode 0.0.0\ncategory Lu 0061 0061\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
         for use_cache in (False, True):
             with self.subTest(use_cache=use_cache):
                 result = gencmu.load_dialect_sources({**sources, "unicode.txt": table}, "p.md", use_cache=use_cache).parse("a")
                 self.assertFalse(result.ok)
-                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_L", "_Lu"}))
+                self.assertEqual(result.stages[0].input[0].tags, frozenset({"_Canonical_Combining_Class_Not_Reordered", "_General_Category_Letter", "_General_Category_Uppercase_Letter"}))
 
     def test_ranges_and_properties(self) -> None:
         """A precompiled range or property is checked as the reader checks
@@ -863,7 +862,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 {
                     "seq": [
                         {"capture": "c", "expr": {"range": [{"string": "\u0300"}, {"string": "\u036f"}]}},
-                        {"capture": "d", "expr": {"ref": "_Cs"}},
+                        {"capture": "d", "expr": {"ref": "_General_Category_Surrogate"}},
                     ]
                 },
                 None,
@@ -873,7 +872,7 @@ class PrecompiledDomRules(unittest.TestCase):
             ("a tested range", {"test": "=", "value": {"string": "a"}, "expr": {"range": [{"string": "a"}, {"string": "z"}]}}, None),
             (
                 "a tested stored property tag",
-                {"test": "tags", "requirements": [{"negated": False, "value": {"tag": "_L"}}], "expr": {"ref": "_L"}},
+                {"test": "tags", "requirements": [{"negated": False, "value": {"tag": "_General_Category_Letter"}}], "expr": {"ref": "_General_Category_Letter"}},
                 None,
             ),
         ):
@@ -1034,7 +1033,7 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertEqual(self.parse(broken), fresh)
 
 
-CLASS_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a".."z" _L\n```\n'
+CLASS_DOCUMENT = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text "a".."z" _General_Category_Letter\n```\n'
 CLASS_PIPELINE = '```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
 
@@ -1080,7 +1079,7 @@ class CharacterClassLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse("zb"))
 
@@ -1103,7 +1102,7 @@ class CharacterClassLoading(unittest.TestCase):
             # Put a rule of the shape above first in the bootstrap's first
             # document.
             bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
-            expr = {"seq": [{"range": [{"string": "a"}, {"string": "z"}]}, {"ref": "_L"}]}
+            expr = {"seq": [{"range": [{"string": "a"}, {"string": "z"}]}, {"ref": "_General_Category_Letter"}]}
             added = {
                 "name": "unused-rule",
                 "op": "define",
@@ -1235,7 +1234,7 @@ class MixedFormLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(MIXED_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(tokens, "ok b"))
 
@@ -1367,7 +1366,7 @@ class Constants(unittest.TestCase):
 
         def parse(entry: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CONSTANT_SOURCES["g.md"]), "dom": entry}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(token, "a"))
 
@@ -1415,7 +1414,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(dom_problem(read_json(deep)), "nested too deeply")
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
         compiled = (
-            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}","unicode":"{fnv1a64(bundled_text("unicode.txt") or "")}",'
+            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}","unicode":"{fnv1a64(bundled_text("unicode.txt") or "")}","properties":"{fnv1a64(bundled_text("unicode-properties.txt") or "")}",'
             f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
         )
         dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
@@ -1452,7 +1451,7 @@ class Constants(unittest.TestCase):
             sources = {**CONSTANT_SOURCES, "g.md": text}
             if entry is not None:
                 documents = {"g.md": {"hash": fnv1a64(text), "dom": entry}}
-                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
+                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": documents})
             try:
                 dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=entry is not None)
             except gencmu.GencmuError as error:
@@ -1688,7 +1687,7 @@ class Classifiers(unittest.TestCase):
 
         def cached(part: Dom) -> gencmu.Dialect:
             documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": documents})
             return gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
 
         self.assertIsNone(dom_problem(dom(well_formed)))
@@ -1737,7 +1736,6 @@ class Classifiers(unittest.TestCase):
             '%classifier l "a" ∈ ~a',
             '%implies A ⟹ "a"',
             "%implies $x.tags ⟹ A",
-            '%implies classify("a", l) ⟹ A',
         ]:
             with self.subTest(document=refused):
                 if refused in ('%classifier l "A" ∈ A', '%classifier l "a,b" ∈ A'):
@@ -1746,6 +1744,15 @@ class Classifiers(unittest.TestCase):
                 else:
                     with self.assertRaises(gencmu.GencmuError):
                         read_document("```jbogenbau\n" + refused + "\n```\n", "t.md")
+
+    def test_an_unresolved_call_is_checked_at_stage_load(self) -> None:
+        from .shared import load_case_dialect
+        document = '%implies classify("a", l) ⟹ A'
+        dom = read_document("```jbogenbau\n" + document + "\n```\n", "t.md")
+        self.assertEqual(dom['implications'][0]['if']['call'], 'classify')
+        dialect, error = load_case_dialect(dict(grammar=document + '\n%rule text "a"'))
+        self.assertIsNone(dialect)
+        self.assertEqual(error.kind, 'grammar')
 
 
 if __name__ == "__main__":

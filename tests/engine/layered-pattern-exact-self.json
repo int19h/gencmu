@@ -1,0 +1,10 @@
+{
+  "description": "An exact node test stops at its candidate.",
+  "grammar": "%rule text $x:atom\n%conditions $x ≅ #·atom\n%rule atom \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

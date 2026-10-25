@@ -146,6 +146,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 Cond::Compare(_, a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
                 Cond::Matches(t, _)
                 | Cond::Begins(t, _)
+                | Cond::Ends(t, _)
                 | Cond::Initial(t)
                 | Cond::Final(t)
                 | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
@@ -617,6 +618,9 @@ pub(crate) fn restore_locations(
     tokens: &[crate::result::Token],
     position: &dyn Fn(usize) -> (usize, usize),
 ) {
+    if crate::parameters::locations::recover(dom, tokens, position) {
+        return;
+    }
     let separators: Vec<_> =
         tokens.iter().filter(|token| token.value == "≻").map(|token| position(token.source.start)).collect();
     let mut index = 0;

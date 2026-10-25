@@ -83,7 +83,7 @@ func TestExactStoredStrings(t *testing.T) {
 %classifier lex
  "A,b" ∈ T
 %rule text $x:_="A,b" :: $x.classify(lex)
-%conditions "A" ∈ $x.split($_002C)
+%conditions "A" ∈ $x.split("‹U+002C›")
 %emits $`))
 	for _, v := range []string{"A,b", "a,b", "Ab", "ab"} {
 		res, err := d.ParseTokens("x", []InputToken{{Text: "x", Value: stringPtr(v), Source: [2]int{0, 1}}}, ParseOptions{})

@@ -13,15 +13,18 @@ import type { Token } from "./tokens.js";
  * @param {Token[]} tokens
  * @param {(token: Token) => Position} positionOf
  * @param {string} path
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  *   the configured category table for diagnostic strings
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+ * @param {(token:Token, path:boolean)=>string} [decodeString]
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
-}, deferEmission?: boolean): GrammarDom;
+    isEmojiName?(name: string): boolean;
+    canonicalTag(name: string): string | null;
+}, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
 export type OperandKind = "name" | "class" | "string" | "tag" | "range" | "term";
 /**
  * A directive's operand: a bare name, lower case or with a capital, a

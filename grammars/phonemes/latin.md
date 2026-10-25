@@ -29,6 +29,8 @@ Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. 
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
+The rule lists these code points instead of naming the property. Thus the dialects need only the core properties, and they also work with a custom Unicode table.
+
 An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after the final quiet core, a material token keeps an ignored-only stretch.
 
 ```jbogenbau
@@ -109,26 +111,26 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   alpha-char | mark-char | digit-char | space-char
 
 %rule alpha-char
-  _L
+  _General_Category_Letter
 
 %rule mark-char
   combining-mark
 
 %rule combining-mark
-  _M
+  _General_Category_Mark
 
 %rule digit-char
   "0".."9"
 
 %extend-rule comma
-  $c:_Cf
+  $c:_General_Category_Format
 %conditions
   ¬$c.matches(breaking-format-char)
 
 %rule breaking-format-char
-  | $_200B
-  | $_0600..$_0605 | $_06DD | $_070F | $_0890..$_0891 | $_08E2
-  | $_110BD | $_110CD
+  | "‹U+200B›"
+  | "‹U+0600›".."‹U+0605›" | "‹U+06DD›" | "‹U+070F›" | "‹U+0890›".."‹U+0891›" | "‹U+08E2›"
+  | "‹U+110BD›" | "‹U+110CD›"
 
 %redefine-rule run-char
   $c:_
@@ -173,18 +175,18 @@ A comma between vowels is ignored, as it is between other letters. It creates no
   | vowel-group
   | letters-after-consonant [commas] vowel-group
 
-%extend-rule vowel-group-plain
-  | vowel-group<¬Syllabic> commas $v:vowel :: $v.tags
-  | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> :: $w.tags
+%extend-rule vowel-group-plain-with(@V)
+  | vowel-group-with(@V)<¬Syllabic> commas $v:@V :: $v.tags
+  | vowel-group-with(@V)<Syllabic> commas $w:@V<¬Syllabic> :: $w.tags
 
-%extend-rule vowel-group-joined
-  vowel-group<Syllabic> commas $v:joined-vowel<Syllabic> :: $v.tags
+%extend-rule vowel-group-joined-with(@V)
+  vowel-group-with(@V)<Syllabic> commas $v:joined-vowel-with(@V)<Syllabic> :: $v.tags
 ```
 
-<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined</code></summary>
+<details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined-with</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-plain.svg" alt="Railroad diagram of the rule vowel-group-plain"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-joined.svg" alt="Railroad diagram of the rule vowel-group-joined"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-plain-with.svg" alt="Railroad diagram of the rule vowel-group-plain-with"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/vowel-group-joined-with.svg" alt="Railroad diagram of the rule vowel-group-joined-with"></p>
 </details>
 
 ## The apostrophe
@@ -245,20 +247,10 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 %rule capital-non-vowel
   consonant | digit | apostrophe
 
-%rule folded-vowel-group
-  folded-vowel | folded-vowel-group-plain | folded-vowel-group-joined
-
-%rule folded-vowel-group-plain
-  | folded-vowel-group<¬Syllabic> [commas] $v:folded-vowel :: $v.tags
-  | folded-vowel-group<Syllabic> [commas] $w:folded-vowel<¬Syllabic> :: $w.tags
-
-%rule folded-vowel-group-joined
-  folded-vowel-group<Syllabic> [commas] $v:joined-folded-vowel<Syllabic> :: $v.tags
-
-%rule joined-folded-vowel
-  $v:folded-vowel :: $v.tags
-%emits
-  ε :: ∅ := "'", $v
+%rule folded-vowel-group = vowel-group-with(folded-vowel)
+%rule folded-vowel-group-plain = vowel-group-plain-with(folded-vowel)
+%rule folded-vowel-group-joined = vowel-group-joined-with(folded-vowel)
+%rule joined-folded-vowel = joined-vowel-with(folded-vowel)
 
 %rule folded-vowel :: ∅
   | "A" := "a"
@@ -267,12 +259,12 @@ An accent on a capital still marks stress there, and the other capitals fold. So
   | "O" := "o"
   | "U" [glide-mark] := "u"
   | "Y" := "y"
-  | "A" stress-mark :: Stressed := "A"
-  | "E" stress-mark :: Stressed := "E"
-  | "I" stress-mark :: Stressed := "I"
-  | "O" stress-mark :: Stressed := "O"
-  | "U" stress-mark :: Stressed := "U"
-  | "Y" stress-mark :: Stressed := "Y"
+  | "A" stress-mark :: Stressed := "a" :- "A"
+  | "E" stress-mark :: Stressed := "e" :- "E"
+  | "I" stress-mark :: Stressed := "i" :- "I"
+  | "O" stress-mark :: Stressed := "o" :- "O"
+  | "U" stress-mark :: Stressed := "u" :- "U"
+  | "Y" stress-mark :: Stressed := "y" :- "Y"
 %emits
   $
 ```
@@ -307,20 +299,20 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("a" | "A") stress-mark := "A"
-  | ("e" | "E") stress-mark := "E"
-  | ("i" | "I") stress-mark := "I"
-  | ("o" | "O") stress-mark := "O"
-  | ("u" | "U") stress-mark := "U"
-  | ("y" | "Y") stress-mark := "Y"
+  | ("a" | "A") stress-mark := "a" :- "A"
+  | ("e" | "E") stress-mark := "e" :- "E"
+  | ("i" | "I") stress-mark := "i" :- "I"
+  | ("o" | "O") stress-mark := "o" :- "O"
+  | ("u" | "U") stress-mark := "u" :- "U"
+  | ("y" | "Y") stress-mark := "y" :- "Y"
 %emits
   $
 
 %rule stress-mark
-  $_0301 | $_0300
+  "‹U+0301›" | "‹U+0300›"
 
 %rule glide-mark
-  $_0306
+  "‹U+0306›"
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>plain-vowel</code> to <code>glide-mark</code></summary>
@@ -332,7 +324,9 @@ A combining mark that no letter rule takes makes its run foreign, whatever its c
 
 ## Digits
 
-Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images spell the number word.
+Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It names the digit rule in `insertedBy`. Their values and images spell the number word.
+
+The `two-phonemes` template takes a character and two output strings. The named instances keep each digit rule and the decimal-point rule as the `insertedBy` rule.
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
@@ -373,63 +367,35 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
 
-%rule digit-0
-  "0"
+%rule two-phonemes(@C, @A, @B)
+  @C
 %emits
-  $ :: ∅ := "n", ε :: ∅ := "o"
+  $ :: ∅ := @A, ε :: ∅ := @B
 
-%rule digit-1
-  "1"
-%emits
-  $ :: ∅ := "p", ε :: ∅ := "a"
+%rule digit-0 = two-phonemes("0", "n", "o")
 
-%rule digit-2
-  "2"
-%emits
-  $ :: ∅ := "r", ε :: ∅ := "e"
+%rule digit-1 = two-phonemes("1", "p", "a")
 
-%rule digit-3
-  "3"
-%emits
-  $ :: ∅ := "c", ε :: ∅ := "i"
+%rule digit-2 = two-phonemes("2", "r", "e")
 
-%rule digit-4
-  "4"
-%emits
-  $ :: ∅ := "v", ε :: ∅ := "o"
+%rule digit-3 = two-phonemes("3", "c", "i")
 
-%rule digit-5
-  "5"
-%emits
-  $ :: ∅ := "m", ε :: ∅ := "u"
+%rule digit-4 = two-phonemes("4", "v", "o")
 
-%rule digit-6
-  "6"
-%emits
-  $ :: ∅ := "x", ε :: ∅ := "a"
+%rule digit-5 = two-phonemes("5", "m", "u")
 
-%rule digit-7
-  "7"
-%emits
-  $ :: ∅ := "z", ε :: ∅ := "e"
+%rule digit-6 = two-phonemes("6", "x", "a")
 
-%rule digit-8
-  "8"
-%emits
-  $ :: ∅ := "b", ε :: ∅ := "i"
+%rule digit-7 = two-phonemes("7", "z", "e")
 
-%rule digit-9
-  "9"
-%emits
-  $ :: ∅ := "s", ε :: ∅ := "o"
+%rule digit-8 = two-phonemes("8", "b", "i")
 
-%rule decimal-point
-  "."
-%emits
-  $ :: ∅ := "p", ε :: ∅ := "i"
+%rule digit-9 = two-phonemes("9", "s", "o")
+
+%rule decimal-point = two-phonemes(".", "p", "i")
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
@@ -437,6 +403,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../docs/diagrams/phonemes/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/two-phonemes.svg" alt="Railroad diagram of the rule two-phonemes"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-2.svg" alt="Railroad diagram of the rule digit-2"></p>

@@ -22,7 +22,7 @@ def cached_sources(texts, dom):
             {
                 "format": DOM_FORMAT,
                 "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json")),
-                "unicode": fnv1a64(bundled_text("unicode.txt")),
+                "unicode": fnv1a64(bundled_text("unicode.txt")), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""),
                 "documents": {"g.md": {"hash": fnv1a64(texts["g.md"]), "dom": dom}},
             }
         ),
@@ -33,7 +33,7 @@ def cached_sources(texts, dom):
 def require_compiled_cache(reader, texts):
     read = NotationReader.read
     memory_get = reader.doms.get
-    grammar_key = (fnv1a64(texts["g.md"]), reader.hash, reader.unicode.fingerprint, DOM_FORMAT)
+    grammar_key = (fnv1a64(texts["g.md"]), reader.hash, reader.unicode.fingerprint, reader.unicode.properties_fingerprint, DOM_FORMAT)
 
     def read_source(self, text, path, *args, **kwargs):
         if path == "g.md":
@@ -71,7 +71,7 @@ class Ranked(unittest.TestCase):
     def test_valid_cached_grammar_never_recovers_locations(self):
         texts = sources("%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
         found = _resources()
-        reader = _reader(found.bootstrap, found.unicode)
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["g.md"], "g.md", True)
         with (
             patch.object(NotationReader, "located", side_effect=AssertionError("source-location recovery ran")),
@@ -92,7 +92,7 @@ class Ranked(unittest.TestCase):
         with self.assertRaises(GencmuError) as plain:
             load_dialect_sources(texts, "p.md", use_cache=False)
         found = _resources()
-        reader = _reader(found.bootstrap, found.unicode)
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["g.md"], "g.md", True)
         with require_compiled_cache(reader, texts), self.assertRaises(GencmuError) as cached:
             load_dialect_sources(cached_sources(texts, dom), "p.md")
@@ -121,7 +121,7 @@ class Ranked(unittest.TestCase):
 
     def test_syntax_and_retirement(self):
         found = _resources()
-        reader = _reader(found.bootstrap, found.unicode)
+        reader = _reader(found.bootstrap, found.unicode, found.properties)
         for body in ("a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"):
             with self.subTest(body=body), self.assertRaises(GencmuError) as raised:
                 reader.read("```jbogenbau\n%rule text " + body + "\n```\n", "g.md")

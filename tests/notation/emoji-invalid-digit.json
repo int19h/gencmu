@@ -1,0 +1,10 @@
+{
+  "description": "A digit cannot name a rule.",
+  "document": "```jbogenbau\n%rule 1 A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

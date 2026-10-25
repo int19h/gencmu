@@ -199,7 +199,7 @@ func (g *stageGrammar) resolveClassifierKeys() *Error {
 			entry.Keys = nil
 			for _, key := range entry.KeyTerms {
 				for _, ref := range constRefs(key) {
-					if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
+					if g.constants[ref.Str] == nil {
 						return g.constError(item.doc, ref.At, "unknown classifier string constant $%s", ref.Str)
 					}
 				}
@@ -221,8 +221,8 @@ func (g *stageGrammar) resolveClassifierKeys() *Error {
 
 // restoreRecipeLocations reads source positions only after a cached cycle
 // failure. It does not replace the cached definitions or their recipes (§8).
-func (nr *notationReader) restoreRecipeLocations(text, document string, cached *domDoc) {
-	source, err := nr.readMode(text, document, true)
+func (nr *notationReader) restoreRecipeLocations(text, document string, cached *domDoc, names ...*namesScope) {
+	source, err := nr.readMode(text, document, true, names...)
 	if err != nil {
 		return
 	}

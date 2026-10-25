@@ -1,0 +1,18 @@
+{
+  "description": "Every constant version remains valid, and the final pattern value selects the matching instance.",
+  "grammar": "%rule atom(@X) @X\n%const $P #atom(\"a\")\n%redefine-const $P #atom(\"b\")\n%rule text $x:atom(\"a\") | $x:atom(\"b\") %conditions $x ≅ $P",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "rule": "text",
+        "children": [
+          {
+            "rule": "atom(\"b\")"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -22,10 +22,11 @@ fn single(rules: &str) -> BTreeMap<String, String> {
 /// the hash of the document of `rules`, holds `dom`.
 fn compiled(rules: &str, dom: &str) -> String {
     format!(
-        "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::DOM_FORMAT,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
         gencmu::tools::fnv1a64(&grammar(rules))
     )
 }
@@ -33,7 +34,7 @@ fn compiled(rules: &str, dom: &str) -> String {
 /// The DOM that the reader gives for the document of `rules`, with the
 /// node `from` in it replaced by `to`.
 fn changed_dom(rules: &str, from: &str, to: &str) -> String {
-    let dom = gencmu::tools::read_grammar_document(&grammar(rules)).expect("a DOM");
+    let dom = gencmu::tools::read_grammar_document(&grammar(rules), "").expect("a DOM");
     assert!(dom.contains(from), "{from} is not in {dom}");
     dom.replacen(from, to, 1)
 }
@@ -138,17 +139,21 @@ fn load_errors_carry_the_document_and_position() {
 
 #[test]
 fn sources_may_bring_their_own_tables() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text _L");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text _General_Category_Letter");
     // A character table that knows no letters, only the white space that
     // the notation reads between tokens.
     let table = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n";
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(!dialect.parse("a", &ParseOptions::default()).unwrap().ok);
-    let dialect = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text _L"), "p.md").unwrap();
+    let dialect = gencmu::load_dialect_sources(
+        single("%ambiguity-resolution greedy\n%rule text _General_Category_Letter"),
+        "p.md",
+    )
+    .unwrap();
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     // A scalar value that the caller's table omits is Cn (engine §1).
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text _Cn");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text _General_Category_Unassigned");
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
@@ -404,7 +409,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":14,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":15,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -654,7 +659,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         // JSON reader allows, but not so deep that the JSON does not parse,
         // as the first entry below is.
         let deep = format!("{}{{\"literal\":{{\"string\":\"b\"}}}}{}", "{\"optional\":".repeat(1000), "}".repeat(1000));
-        let dom = gencmu::tools::read_grammar_document(&grammar(text)).expect("a DOM");
+        let dom = gencmu::tools::read_grammar_document(&grammar(text), "").expect("a DOM");
         let rules = &dom[dom.find("\"rules\":").expect("rules")..dom.find(",\"directives\":").expect("directives")];
         for cache in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
@@ -1011,7 +1016,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":14,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":15,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"value":"vau"}]}}"#
@@ -1058,7 +1063,7 @@ fn ranked_groups_grow_with_forest_positions() {
 fn ranked_diagnostics_match_with_a_dom_cache() {
     let text="%const $K Tag-k\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
     let sources = single(text);
-    let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
+    let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
     let mut cached = sources.clone();
     // The source alone now loads. Only the cached DOM retains the export error.
     let clause = ":: $x ⟹ ($x.tags ∪ $K)";
@@ -1107,10 +1112,10 @@ fn ranked_error_retains_a_written_constant() {
 #[test]
 fn ranked_syntax_codes_and_retirement_are_specific() {
     for body in ["a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"] {
-        let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}"))).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}")), "").unwrap_err();
         assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
     }
-    let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b")).unwrap_err();
+    let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b"), "").unwrap_err();
     assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
     assert!(error.code.is_none());
     assert_eq!((error.line, error.column), (Some(4), Some(1)));
@@ -1139,7 +1144,7 @@ fn recipe_cycle_positions_match_with_a_dom_cache() {
     ] {
         let sources = single(text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
+        let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
         let mut cached = sources;
         cached.insert("compiled.json".into(), compiled(text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
@@ -1169,7 +1174,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
         let text = format!("%ambiguity-resolution greedy\n{rules}");
         let sources = single(&text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(&text)).unwrap();
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap();
         let mut cached = sources;
         cached.insert("compiled.json".into(), compiled(&text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
@@ -1185,7 +1190,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
 fn emitted_pairs_cannot_supply_source_observations() {
     for method in ["source-text", "verbatim-text"] {
         let text = format!("%rule text \"a\" := $.emitted.{method}");
-        let error = gencmu::tools::read_grammar_document(&grammar(&text)).unwrap_err();
+        let error = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap_err();
         assert_eq!(error.kind, ErrorKind::Grammar);
         assert_eq!((error.line, error.column), {
             let at = common::position_of(&grammar(&text), "$.emitted");
@@ -1205,14 +1210,14 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
         let text = format!("%ambiguity-resolution greedy\n{text}");
         let mut sources = single(&text);
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
-        let dom = gencmu::tools::read_grammar_document(&grammar(&text));
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text), "");
         // Public reader validation retains its missing-capture check.
         // The cached fixture uses the competing cycle as an absence-free DOM.
         let dom = match dom {
             Ok(dom) => dom,
             Err(_) => {
                 let control = text.replace("($x:A ≻ B)", "($x:A ≻ $x:B)");
-                gencmu::tools::read_grammar_document(&grammar(&control))
+                gencmu::tools::read_grammar_document(&grammar(&control), "")
                     .unwrap()
                     .replace(r#"{"capture":"x","expr":{"ref":"B"}}"#, r#"{"ref":"B"}"#)
             }
@@ -1249,7 +1254,8 @@ fn inserted_tag_clauses_validate_rules_and_delimiters() {
 fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
     let rules = "%ambiguity-resolution greedy\n%rule text \"a\"";
     let dom = changed_dom(rules, r#"{"literal":{"string":"a"}}"#, r#"{"literal":{"string":"b"}}"#);
-    let cache = compiled(rules, &dom);
+    let properties = gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt"));
+    let cache = compiled(rules, &dom).replace(&format!("\"properties\":\"{properties}\""), "\"properties\":null");
     let bundled_table = include_str!("../grammars/unicode.txt");
     let bundled_hash = gencmu::tools::fnv1a64(bundled_table);
     let custom_table = bundled_table.replace("decompose 00E9 0065 0301\n", "");
@@ -1272,7 +1278,7 @@ fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
 
 #[test]
 fn an_include_keeps_its_original_precomposed_path() {
-    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"e\" $_0301");
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"e\" \"‹U+0301›\"");
     let document = sources.remove("g.md").unwrap();
     sources.insert("café.md".into(), document);
     sources.insert("p.md".into(), grammar("%stage main\n%include \"café.md\""));

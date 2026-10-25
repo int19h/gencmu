@@ -388,9 +388,11 @@ class Output(unittest.TestCase):
         result = dialect.parse("mi", until="words")
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
+        tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
         self.assertTrue(
             text.startswith(
-                '{"format":14,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":["_L","_Ll"],"span":[0,1],"source":[0,1]}'
+                '{"format":15,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":'
+                + tags + ',"span":[0,1],"source":[0,1]}'
             ),
             text,
         )
@@ -677,7 +679,7 @@ class Robustness(unittest.TestCase):
         compiled = {
             "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "unicode": fnv1a64(bundled_text("unicode.txt") or ""),
+            "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""),
             "documents": {
                 "g.md": {
                     "hash": fnv1a64(sources["g.md"]),
@@ -788,7 +790,7 @@ class Robustness(unittest.TestCase):
                 doms[last] = read_document(end, last)
             entries = {path: {"hash": fnv1a64(text), "dom": doms[path]} for path, text in texts.items()}
             bootstrap = fnv1a64(bundled_text("notation/bootstrap.json") or "")
-            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "documents": entries})
+            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": entries})
             return texts
 
         def load(end: str | None) -> gencmu.Dialect:
