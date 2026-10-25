@@ -89,8 +89,19 @@ func TestSelectedDiskNames(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			t.Chdir(root)
-			_, err := LoadDialectFile(filepath.Join(root, "p.md"))
+			home, err := os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chdir(root); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				if err := os.Chdir(home); err != nil {
+					t.Fatal(err)
+				}
+			})
+			_, err = LoadDialectFile(filepath.Join(root, "p.md"))
 			var e *Error
 			if !errors.As(err, &e) {
 				t.Fatalf("expected grammar error: %v", err)
