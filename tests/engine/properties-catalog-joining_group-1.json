@@ -1,0 +1,1269 @@
+{
+  "description": "Every Joining_Group value normalizes aliases through terminals, tests, patterns, conditions, filters, and caller tags. Part 1 of 2.",
+  "grammar": "%rule text r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47 r48 r49 r50 r51\n%rule r0 $x:_Joining_Group_African_Feh<_jg_African_Feh>\n%conditions $x ≅ #_jg_African_Feh<_jg_African_Feh>, _jg_African_Feh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_African_Feh\n%rule r1 $x:_Joining_Group_African_Noon<_jg_African_Noon>\n%conditions $x ≅ #_jg_African_Noon<_jg_African_Noon>, _jg_African_Noon ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_African_Noon\n%rule r2 $x:_Joining_Group_African_Qaf<_jg_African_Qaf>\n%conditions $x ≅ #_jg_African_Qaf<_jg_African_Qaf>, _jg_African_Qaf ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_African_Qaf\n%rule r3 $x:_Joining_Group_Ain<_jg_Ain>\n%conditions $x ≅ #_jg_Ain<_jg_Ain>, _jg_Ain ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Ain\n%rule r4 $x:_Joining_Group_Alaph<_jg_Alaph>\n%conditions $x ≅ #_jg_Alaph<_jg_Alaph>, _jg_Alaph ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Alaph\n%rule r5 $x:_Joining_Group_Alef<_jg_Alef>\n%conditions $x ≅ #_jg_Alef<_jg_Alef>, _jg_Alef ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Alef\n%rule r6 $x:_Joining_Group_Beh<_jg_Beh>\n%conditions $x ≅ #_jg_Beh<_jg_Beh>, _jg_Beh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Beh\n%rule r7 $x:_Joining_Group_Beth<_jg_Beth>\n%conditions $x ≅ #_jg_Beth<_jg_Beth>, _jg_Beth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Beth\n%rule r8 $x:_Joining_Group_Burushaski_Yeh_Barree<_jg_Burushaski_Yeh_Barree>\n%conditions $x ≅ #_jg_Burushaski_Yeh_Barree<_jg_Burushaski_Yeh_Barree>, _jg_Burushaski_Yeh_Barree ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Burushaski_Yeh_Barree\n%rule r9 $x:_Joining_Group_Dal<_jg_Dal>\n%conditions $x ≅ #_jg_Dal<_jg_Dal>, _jg_Dal ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Dal\n%rule r10 $x:_Joining_Group_Dalath_Rish<_jg_Dalath_Rish>\n%conditions $x ≅ #_jg_Dalath_Rish<_jg_Dalath_Rish>, _jg_Dalath_Rish ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Dalath_Rish\n%rule r11 $x:_Joining_Group_E<_jg_E>\n%conditions $x ≅ #_jg_E<_jg_E>, _jg_E ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_E\n%rule r12 $x:_Joining_Group_Farsi_Yeh<_jg_Farsi_Yeh>\n%conditions $x ≅ #_jg_Farsi_Yeh<_jg_Farsi_Yeh>, _jg_Farsi_Yeh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Farsi_Yeh\n%rule r13 $x:_Joining_Group_Fe<_jg_Fe>\n%conditions $x ≅ #_jg_Fe<_jg_Fe>, _jg_Fe ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Fe\n%rule r14 $x:_Joining_Group_Feh<_jg_Feh>\n%conditions $x ≅ #_jg_Feh<_jg_Feh>, _jg_Feh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Feh\n%rule r15 $x:_Joining_Group_Final_Semkath<_jg_Final_Semkath>\n%conditions $x ≅ #_jg_Final_Semkath<_jg_Final_Semkath>, _jg_Final_Semkath ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Final_Semkath\n%rule r16 $x:_Joining_Group_Gaf<_jg_Gaf>\n%conditions $x ≅ #_jg_Gaf<_jg_Gaf>, _jg_Gaf ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Gaf\n%rule r17 $x:_Joining_Group_Gamal<_jg_Gamal>\n%conditions $x ≅ #_jg_Gamal<_jg_Gamal>, _jg_Gamal ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Gamal\n%rule r18 $x:_Joining_Group_Hah<_jg_Hah>\n%conditions $x ≅ #_jg_Hah<_jg_Hah>, _jg_Hah ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Hah\n%rule r19 $x:_Joining_Group_Hamza_On_Heh_Goal<_jg_Teh_Marbuta_Goal>\n%conditions $x ≅ #_jg_Teh_Marbuta_Goal<_jg_Teh_Marbuta_Goal>, _jg_Teh_Marbuta_Goal ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Teh_Marbuta_Goal\n%rule r20 $x:_Joining_Group_Hanifi_Rohingya_Kinna_Ya<_jg_Hanifi_Rohingya_Kinna_Ya>\n%conditions $x ≅ #_jg_Hanifi_Rohingya_Kinna_Ya<_jg_Hanifi_Rohingya_Kinna_Ya>, _jg_Hanifi_Rohingya_Kinna_Ya ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Hanifi_Rohingya_Kinna_Ya\n%rule r21 $x:_Joining_Group_Hanifi_Rohingya_Pa<_jg_Hanifi_Rohingya_Pa>\n%conditions $x ≅ #_jg_Hanifi_Rohingya_Pa<_jg_Hanifi_Rohingya_Pa>, _jg_Hanifi_Rohingya_Pa ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Hanifi_Rohingya_Pa\n%rule r22 $x:_Joining_Group_He<_jg_He>\n%conditions $x ≅ #_jg_He<_jg_He>, _jg_He ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_He\n%rule r23 $x:_Joining_Group_Heh<_jg_Heh>\n%conditions $x ≅ #_jg_Heh<_jg_Heh>, _jg_Heh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Heh\n%rule r24 $x:_Joining_Group_Heh_Goal<_jg_Heh_Goal>\n%conditions $x ≅ #_jg_Heh_Goal<_jg_Heh_Goal>, _jg_Heh_Goal ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Heh_Goal\n%rule r25 $x:_Joining_Group_Heth<_jg_Heth>\n%conditions $x ≅ #_jg_Heth<_jg_Heth>, _jg_Heth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Heth\n%rule r26 $x:_Joining_Group_Kaf<_jg_Kaf>\n%conditions $x ≅ #_jg_Kaf<_jg_Kaf>, _jg_Kaf ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Kaf\n%rule r27 $x:_Joining_Group_Kaph<_jg_Kaph>\n%conditions $x ≅ #_jg_Kaph<_jg_Kaph>, _jg_Kaph ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Kaph\n%rule r28 $x:_Joining_Group_Khaph<_jg_Khaph>\n%conditions $x ≅ #_jg_Khaph<_jg_Khaph>, _jg_Khaph ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Khaph\n%rule r29 $x:_Joining_Group_Knotted_Heh<_jg_Knotted_Heh>\n%conditions $x ≅ #_jg_Knotted_Heh<_jg_Knotted_Heh>, _jg_Knotted_Heh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Knotted_Heh\n%rule r30 $x:_Joining_Group_Lam<_jg_Lam>\n%conditions $x ≅ #_jg_Lam<_jg_Lam>, _jg_Lam ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Lam\n%rule r31 $x:_Joining_Group_Lamadh<_jg_Lamadh>\n%conditions $x ≅ #_jg_Lamadh<_jg_Lamadh>, _jg_Lamadh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Lamadh\n%rule r32 $x:_Joining_Group_Malayalam_Bha<_jg_Malayalam_Bha>\n%conditions $x ≅ #_jg_Malayalam_Bha<_jg_Malayalam_Bha>, _jg_Malayalam_Bha ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Bha\n%rule r33 $x:_Joining_Group_Malayalam_Ja<_jg_Malayalam_Ja>\n%conditions $x ≅ #_jg_Malayalam_Ja<_jg_Malayalam_Ja>, _jg_Malayalam_Ja ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Ja\n%rule r34 $x:_Joining_Group_Malayalam_Lla<_jg_Malayalam_Lla>\n%conditions $x ≅ #_jg_Malayalam_Lla<_jg_Malayalam_Lla>, _jg_Malayalam_Lla ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Lla\n%rule r35 $x:_Joining_Group_Malayalam_Llla<_jg_Malayalam_Llla>\n%conditions $x ≅ #_jg_Malayalam_Llla<_jg_Malayalam_Llla>, _jg_Malayalam_Llla ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Llla\n%rule r36 $x:_Joining_Group_Malayalam_Nga<_jg_Malayalam_Nga>\n%conditions $x ≅ #_jg_Malayalam_Nga<_jg_Malayalam_Nga>, _jg_Malayalam_Nga ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Nga\n%rule r37 $x:_Joining_Group_Malayalam_Nna<_jg_Malayalam_Nna>\n%conditions $x ≅ #_jg_Malayalam_Nna<_jg_Malayalam_Nna>, _jg_Malayalam_Nna ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Nna\n%rule r38 $x:_Joining_Group_Malayalam_Nnna<_jg_Malayalam_Nnna>\n%conditions $x ≅ #_jg_Malayalam_Nnna<_jg_Malayalam_Nnna>, _jg_Malayalam_Nnna ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Nnna\n%rule r39 $x:_Joining_Group_Malayalam_Nya<_jg_Malayalam_Nya>\n%conditions $x ≅ #_jg_Malayalam_Nya<_jg_Malayalam_Nya>, _jg_Malayalam_Nya ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Nya\n%rule r40 $x:_Joining_Group_Malayalam_Ra<_jg_Malayalam_Ra>\n%conditions $x ≅ #_jg_Malayalam_Ra<_jg_Malayalam_Ra>, _jg_Malayalam_Ra ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Ra\n%rule r41 $x:_Joining_Group_Malayalam_Ssa<_jg_Malayalam_Ssa>\n%conditions $x ≅ #_jg_Malayalam_Ssa<_jg_Malayalam_Ssa>, _jg_Malayalam_Ssa ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Ssa\n%rule r42 $x:_Joining_Group_Malayalam_Tta<_jg_Malayalam_Tta>\n%conditions $x ≅ #_jg_Malayalam_Tta<_jg_Malayalam_Tta>, _jg_Malayalam_Tta ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Malayalam_Tta\n%rule r43 $x:_Joining_Group_Manichaean_Aleph<_jg_Manichaean_Aleph>\n%conditions $x ≅ #_jg_Manichaean_Aleph<_jg_Manichaean_Aleph>, _jg_Manichaean_Aleph ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Aleph\n%rule r44 $x:_Joining_Group_Manichaean_Ayin<_jg_Manichaean_Ayin>\n%conditions $x ≅ #_jg_Manichaean_Ayin<_jg_Manichaean_Ayin>, _jg_Manichaean_Ayin ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Ayin\n%rule r45 $x:_Joining_Group_Manichaean_Beth<_jg_Manichaean_Beth>\n%conditions $x ≅ #_jg_Manichaean_Beth<_jg_Manichaean_Beth>, _jg_Manichaean_Beth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Beth\n%rule r46 $x:_Joining_Group_Manichaean_Daleth<_jg_Manichaean_Daleth>\n%conditions $x ≅ #_jg_Manichaean_Daleth<_jg_Manichaean_Daleth>, _jg_Manichaean_Daleth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Daleth\n%rule r47 $x:_Joining_Group_Manichaean_Dhamedh<_jg_Manichaean_Dhamedh>\n%conditions $x ≅ #_jg_Manichaean_Dhamedh<_jg_Manichaean_Dhamedh>, _jg_Manichaean_Dhamedh ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Dhamedh\n%rule r48 $x:_Joining_Group_Manichaean_Five<_jg_Manichaean_Five>\n%conditions $x ≅ #_jg_Manichaean_Five<_jg_Manichaean_Five>, _jg_Manichaean_Five ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Five\n%rule r49 $x:_Joining_Group_Manichaean_Gimel<_jg_Manichaean_Gimel>\n%conditions $x ≅ #_jg_Manichaean_Gimel<_jg_Manichaean_Gimel>, _jg_Manichaean_Gimel ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Gimel\n%rule r50 $x:_Joining_Group_Manichaean_Heth<_jg_Manichaean_Heth>\n%conditions $x ≅ #_jg_Manichaean_Heth<_jg_Manichaean_Heth>, _jg_Manichaean_Heth ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Heth\n%rule r51 $x:_Joining_Group_Manichaean_Hundred<_jg_Manichaean_Hundred>\n%conditions $x ≅ #_jg_Manichaean_Hundred<_jg_Manichaean_Hundred>, _jg_Manichaean_Hundred ⊆ $x.tags\n%emits $x :: $x.tags ∩ _jg_Manichaean_Hundred",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_African_Feh",
+        "_jg_African_Feh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_African_Noon",
+        "_jg_African_Noon"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_African_Qaf",
+        "_jg_African_Qaf"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Ain",
+        "_jg_Ain"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Alaph",
+        "_jg_Alaph"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Alef",
+        "_jg_Alef"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Beh",
+        "_jg_Beh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Beth",
+        "_jg_Beth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Burushaski_Yeh_Barree",
+        "_jg_Burushaski_Yeh_Barree"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Dal",
+        "_jg_Dal"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Dalath_Rish",
+        "_jg_Dalath_Rish"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_E",
+        "_jg_E"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Farsi_Yeh",
+        "_jg_Farsi_Yeh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Fe",
+        "_jg_Fe"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Feh",
+        "_jg_Feh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Final_Semkath",
+        "_jg_Final_Semkath"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Gaf",
+        "_jg_Gaf"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Gamal",
+        "_jg_Gamal"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Hah",
+        "_jg_Hah"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Hamza_On_Heh_Goal",
+        "_jg_Teh_Marbuta_Goal"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Hanifi_Rohingya_Kinna_Ya",
+        "_jg_Hanifi_Rohingya_Kinna_Ya"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Hanifi_Rohingya_Pa",
+        "_jg_Hanifi_Rohingya_Pa"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_He",
+        "_jg_He"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Heh",
+        "_jg_Heh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Heh_Goal",
+        "_jg_Heh_Goal"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Heth",
+        "_jg_Heth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Kaf",
+        "_jg_Kaf"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Kaph",
+        "_jg_Kaph"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Khaph",
+        "_jg_Khaph"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Knotted_Heh",
+        "_jg_Knotted_Heh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Lam",
+        "_jg_Lam"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Lamadh",
+        "_jg_Lamadh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Bha",
+        "_jg_Malayalam_Bha"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Ja",
+        "_jg_Malayalam_Ja"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Lla",
+        "_jg_Malayalam_Lla"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Llla",
+        "_jg_Malayalam_Llla"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Nga",
+        "_jg_Malayalam_Nga"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Nna",
+        "_jg_Malayalam_Nna"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Nnna",
+        "_jg_Malayalam_Nnna"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Nya",
+        "_jg_Malayalam_Nya"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Ra",
+        "_jg_Malayalam_Ra"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Ssa",
+        "_jg_Malayalam_Ssa"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Malayalam_Tta",
+        "_jg_Malayalam_Tta"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Aleph",
+        "_jg_Manichaean_Aleph"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Ayin",
+        "_jg_Manichaean_Ayin"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Beth",
+        "_jg_Manichaean_Beth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Daleth",
+        "_jg_Manichaean_Daleth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Dhamedh",
+        "_jg_Manichaean_Dhamedh"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Five",
+        "_jg_Manichaean_Five"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Gimel",
+        "_jg_Manichaean_Gimel"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Heth",
+        "_jg_Manichaean_Heth"
+      ]
+    },
+    {
+      "text": "x",
+      "value": "different",
+      "tags": [
+        "_Joining_Group_Manichaean_Hundred",
+        "_jg_Manichaean_Hundred"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "tags": [
+                "_Joining_Group_African_Feh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_African_Noon"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_African_Qaf"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Ain"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Alaph"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Alef"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Beh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Beth"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Burushaski_Yeh_Barree"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Dal"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Dalath_Rish"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_E"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Farsi_Yeh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Fe"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Feh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Final_Semkath"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Gaf"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Gamal"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Hah"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Hamza_On_Heh_Goal"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Hanifi_Rohingya_Kinna_Ya"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Hanifi_Rohingya_Pa"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_He"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Heh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Heh_Goal"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Heth"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Kaf"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Kaph"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Khaph"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Knotted_Heh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Lam"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Lamadh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Bha"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Ja"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Lla"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Llla"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Nga"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Nna"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Nnna"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Nya"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Ra"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Ssa"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Malayalam_Tta"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Aleph"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Ayin"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Beth"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Daleth"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Dhamedh"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Five"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Gimel"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Heth"
+              ]
+            },
+            {
+              "tags": [
+                "_Joining_Group_Manichaean_Hundred"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "r0",
+            "children": [
+              {
+                "terminal": "_Joining_Group_African_Feh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_African_Feh"
+            ]
+          },
+          {
+            "rule": "r1",
+            "children": [
+              {
+                "terminal": "_Joining_Group_African_Noon"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_African_Noon"
+            ]
+          },
+          {
+            "rule": "r2",
+            "children": [
+              {
+                "terminal": "_Joining_Group_African_Qaf"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_African_Qaf"
+            ]
+          },
+          {
+            "rule": "r3",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Ain"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Ain"
+            ]
+          },
+          {
+            "rule": "r4",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Alaph"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Alaph"
+            ]
+          },
+          {
+            "rule": "r5",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Alef"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Alef"
+            ]
+          },
+          {
+            "rule": "r6",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Beh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Beh"
+            ]
+          },
+          {
+            "rule": "r7",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Beth"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Beth"
+            ]
+          },
+          {
+            "rule": "r8",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Burushaski_Yeh_Barree"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Burushaski_Yeh_Barree"
+            ]
+          },
+          {
+            "rule": "r9",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Dal"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Dal"
+            ]
+          },
+          {
+            "rule": "r10",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Dalath_Rish"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Dalath_Rish"
+            ]
+          },
+          {
+            "rule": "r11",
+            "children": [
+              {
+                "terminal": "_Joining_Group_E"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_E"
+            ]
+          },
+          {
+            "rule": "r12",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Farsi_Yeh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Farsi_Yeh"
+            ]
+          },
+          {
+            "rule": "r13",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Fe"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Fe"
+            ]
+          },
+          {
+            "rule": "r14",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Feh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Feh"
+            ]
+          },
+          {
+            "rule": "r15",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Final_Semkath"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Final_Semkath"
+            ]
+          },
+          {
+            "rule": "r16",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Gaf"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Gaf"
+            ]
+          },
+          {
+            "rule": "r17",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Gamal"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Gamal"
+            ]
+          },
+          {
+            "rule": "r18",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Hah"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Hah"
+            ]
+          },
+          {
+            "rule": "r19",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Hamza_On_Heh_Goal"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Hamza_On_Heh_Goal"
+            ]
+          },
+          {
+            "rule": "r20",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Hanifi_Rohingya_Kinna_Ya"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Hanifi_Rohingya_Kinna_Ya"
+            ]
+          },
+          {
+            "rule": "r21",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Hanifi_Rohingya_Pa"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Hanifi_Rohingya_Pa"
+            ]
+          },
+          {
+            "rule": "r22",
+            "children": [
+              {
+                "terminal": "_Joining_Group_He"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_He"
+            ]
+          },
+          {
+            "rule": "r23",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Heh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Heh"
+            ]
+          },
+          {
+            "rule": "r24",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Heh_Goal"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Heh_Goal"
+            ]
+          },
+          {
+            "rule": "r25",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Heth"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Heth"
+            ]
+          },
+          {
+            "rule": "r26",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Kaf"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Kaf"
+            ]
+          },
+          {
+            "rule": "r27",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Kaph"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Kaph"
+            ]
+          },
+          {
+            "rule": "r28",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Khaph"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Khaph"
+            ]
+          },
+          {
+            "rule": "r29",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Knotted_Heh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Knotted_Heh"
+            ]
+          },
+          {
+            "rule": "r30",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Lam"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Lam"
+            ]
+          },
+          {
+            "rule": "r31",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Lamadh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Lamadh"
+            ]
+          },
+          {
+            "rule": "r32",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Bha"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Bha"
+            ]
+          },
+          {
+            "rule": "r33",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Ja"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Ja"
+            ]
+          },
+          {
+            "rule": "r34",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Lla"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Lla"
+            ]
+          },
+          {
+            "rule": "r35",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Llla"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Llla"
+            ]
+          },
+          {
+            "rule": "r36",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Nga"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Nga"
+            ]
+          },
+          {
+            "rule": "r37",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Nna"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Nna"
+            ]
+          },
+          {
+            "rule": "r38",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Nnna"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Nnna"
+            ]
+          },
+          {
+            "rule": "r39",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Nya"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Nya"
+            ]
+          },
+          {
+            "rule": "r40",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Ra"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Ra"
+            ]
+          },
+          {
+            "rule": "r41",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Ssa"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Ssa"
+            ]
+          },
+          {
+            "rule": "r42",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Malayalam_Tta"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Malayalam_Tta"
+            ]
+          },
+          {
+            "rule": "r43",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Aleph"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Aleph"
+            ]
+          },
+          {
+            "rule": "r44",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Ayin"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Ayin"
+            ]
+          },
+          {
+            "rule": "r45",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Beth"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Beth"
+            ]
+          },
+          {
+            "rule": "r46",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Daleth"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Daleth"
+            ]
+          },
+          {
+            "rule": "r47",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Dhamedh"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Dhamedh"
+            ]
+          },
+          {
+            "rule": "r48",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Five"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Five"
+            ]
+          },
+          {
+            "rule": "r49",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Gimel"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Gimel"
+            ]
+          },
+          {
+            "rule": "r50",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Heth"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Heth"
+            ]
+          },
+          {
+            "rule": "r51",
+            "children": [
+              {
+                "terminal": "_Joining_Group_Manichaean_Hundred"
+              }
+            ],
+            "tags": [
+              "_Joining_Group_Manichaean_Hundred"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
