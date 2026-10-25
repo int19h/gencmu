@@ -999,10 +999,7 @@ impl<'a> Reader<'a> {
                     let part = self.inner(operand, ATOMS)?;
                     let value = match rule_name(part) {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
-                        "constant-reference" => {
-                            let term = self.constant_reference(self.token(part)?)?;
-                            term
-                        }
+                        "constant-reference" => self.constant_reference(self.token(part)?)?,
                         _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
                     };
                     let negated = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
@@ -1370,8 +1367,8 @@ impl<'a> Reader<'a> {
                 if !Self::pattern_rule_name(first) && (is_capital(name) || crate::dom::is_engine_tag(name)) {
                     (P::Terminal(name.into(), self.at(token)), true)
                 } else {
-                    if !self.unicode.is_emoji_name(name)
-                        && !(name.starts_with(|c: char| c.is_ascii_lowercase()) && crate::tags::is_name(name))
+                    if !(self.unicode.is_emoji_name(name)
+                        || name.starts_with(|c: char| c.is_ascii_lowercase()) && crate::tags::is_name(name))
                     {
                         return Err(self.error(token, "a malformed pattern rule name"));
                     }
@@ -1418,10 +1415,7 @@ impl<'a> Reader<'a> {
                     let part = self.inner(operand, ATOMS)?;
                     let term = match rule_name(part) {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
-                        "constant-reference" => {
-                            let term = self.constant_reference(self.token(part)?)?;
-                            term
-                        }
+                        "constant-reference" => self.constant_reference(self.token(part)?)?,
                         _ => return Err(self.error(operand, "invalid tag requirement")),
                     };
                     let negative = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");

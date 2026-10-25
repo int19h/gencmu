@@ -22,8 +22,10 @@ fn aliases(a: &Json, b: &Json, names: &BTreeMap<&str, &Instance>) -> bool {
     }
     match (a, b) {
         (Json::Obj(a), Json::Obj(b)) => {
-            let a: BTreeMap<_, _> = a.iter().filter(|(k, _)| k != "at" && k != SOURCE).map(|(k, v)| (k, v)).collect();
-            let b: BTreeMap<_, _> = b.iter().filter(|(k, _)| k != "at" && k != SOURCE).map(|(k, v)| (k, v)).collect();
+            let a: BTreeMap<_, _> =
+                a.iter().filter(|(k, _)| k != "at" && k != SOURCE).map(|(k, v)| (k.as_str(), v)).collect();
+            let b: BTreeMap<_, _> =
+                b.iter().filter(|(k, _)| k != "at" && k != SOURCE).map(|(k, v)| (k.as_str(), v)).collect();
             a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).is_some_and(|other| aliases(v, other, names)))
         }
         (Json::Arr(a), Json::Arr(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| aliases(a, b, names)),

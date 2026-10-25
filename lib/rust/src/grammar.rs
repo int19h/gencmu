@@ -423,7 +423,9 @@ pub(crate) fn stitch(
         }
     }
     if let Some(expanded) = &expansion {
-        users.extend(expanded.validation.iter().map(|(path, rule)| (path, rule)));
+        for (path, rule) in &expanded.validation {
+            users.push((path, rule));
+        }
         let positions: HashMap<_, _> = expanded.order.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
         grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
         grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
