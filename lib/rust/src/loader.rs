@@ -306,7 +306,7 @@ impl Context {
                     file("data/unicode/unicode.txt")?,
                     Some(file("data/unicode/unicode-properties.txt")?),
                     file("data/preparsed/gencmu.json")?,
-                    file(BOOTSTRAP_PATH)?,
+                    "",
                 )
                 .map(Arc::new)
             })
@@ -879,7 +879,7 @@ where
             &pick("data/unicode/unicode.txt")?,
             properties.as_deref(),
             &pick("data/preparsed/gencmu.json")?,
-            &pick(BOOTSTRAP_PATH)?,
+            "",
         )?)
     };
     load(&context, &MapSources { map }, pipeline)
