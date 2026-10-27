@@ -675,7 +675,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 		return strings.Join(res.Tree.Tags, " ")
 	}
 	read := func(g string) string {
-		dom, err := bundled.reader.read(oneStage(g)["grammars/test/g.md"], "grammars/test/g.md")
+		dom, err := bundled.reader.read(oneStage(g)["g.md"], "grammars/test/g.md")
 		if err != nil {
 			t.Fatalf("the document is refused: %v", err)
 		}
