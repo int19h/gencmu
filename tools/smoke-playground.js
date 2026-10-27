@@ -266,12 +266,18 @@ async function main() {
 
     const namesFetches = [];
     const namesPaths = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-names-paths.json"),"utf8"));
-    await page.route("**/grammars/**", route => {
-      const resource = decodeURIComponent(new URL(route.request().url()).pathname.split("/grammars/")[1]);
+    const namesRoute = "**/*";
+    const namesBase = new URL(".", target).pathname;
+    const extraNames = "grammars/test/smoke-extra-names.txt";
+    const missingNames = "grammars/test/missing-names.txt";
+    await page.route(namesRoute, route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (!pathname.startsWith(namesBase)) return route.continue();
+      const resource = decodeURIComponent(pathname.slice(namesBase.length));
+      if (!["data/unicode/unicode-names.txt", extraNames, missingNames, ...namesPaths].includes(resource)) return route.continue();
       namesFetches.push(resource);
       if (resource === "data/unicode/unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"data/unicode/unicode-names.txt"),"utf8") });
-      if (namesPaths.includes(resource)) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
-      if (resource === "smoke-extra-names.txt") return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
+      if (namesPaths.includes(resource) || resource === extraNames) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       return route.fulfill({ status:404, body:"missing" });
     });
     const namesProof = await run(async () => {
@@ -279,33 +285,34 @@ async function main() {
       const block = text => "```jbogenbau\n" + text + "\n```\n";
       const source = block('%names "smoke-extra-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"');
       const cache = JSON.parse(self.gencmuGrammars["data/preparsed/lojban.json"]);
-      cache.bundledNames["smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
-      const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
-      cache.documents["smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
+      cache.bundledNames["grammars/test/smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
+      const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "grammars/test/smoke-extra-names.txt":cache.bundledNames["grammars/test/smoke-extra-names.txt"] };
+      cache.documents = {};
+      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
         rules:[{name:"text",op:"define",flags:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
           {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
         const client = new self.ParserWorker({...self.gencmuGrammars,...documents},message => {
-          if (message.kind === "ready") client.run(1,{pipeline:"smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          if (message.kind === "ready") client.run(1,{pipeline:"grammars/test/smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
           if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
           if (message.kind === "result") { client.stop(); resolve({ok:!!message.parse?.ok,error:message.loadError?.document || null}); }
         });
         client.start();
       });
-      const cached = await proof({"smoke-names.md":source,"data/preparsed/lojban.json":JSON.stringify(cache)},"b");
-      cache.documents["smoke-names.md"].names["smoke-extra-names.txt"] = "0000000000000000";
-      const missed = await proof({"smoke-names.md":source,"data/preparsed/lojban.json":JSON.stringify(cache)},"\uE000");
-      const custom = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
+      const cached = await proof({"grammars/test/smoke-names.md":source,"data/preparsed/test.json":JSON.stringify(cache)},"b");
+      cache.documents["grammars/test/smoke-names.md"].names["grammars/test/smoke-extra-names.txt"] = "0000000000000000";
+      const missed = await proof({"grammars/test/smoke-names.md":source,"data/preparsed/test.json":JSON.stringify(cache)},"\uE000");
+      const custom = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
         "data/unicode/unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
-      const numeric = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
-      const core = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
-      const missing = await proof({"smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
+      const numeric = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
+      const core = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
+      const missing = await proof({"grammars/test/smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
       return {cached,missed,custom,numeric,core,missing};
     });
     assert.deepEqual(namesProof,{cached:{ok:true,error:null},missed:{ok:true,error:null},custom:{ok:true,error:null},
-      numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:"missing-names.txt"}});
-    assert.deepEqual(namesFetches,["data/unicode/unicode-names.txt","smoke-extra-names.txt","data/unicode/unicode-names.txt","data/unicode/unicode-names.txt","missing-names.txt"]);
+      numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:missingNames}});
+    assert.deepEqual(namesFetches,["data/unicode/unicode-names.txt",extraNames,"data/unicode/unicode-names.txt","data/unicode/unicode-names.txt",missingNames]);
     const pathProof = await run(async paths => {
       const results = [];
       for (const path of paths) {
@@ -326,7 +333,7 @@ async function main() {
     },namesPaths);
     assert.deepEqual(pathProof,namesPaths.map(() => ({ok:true,stored:true,error:null})));
     assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["data/unicode/unicode-names.txt",path]));
-    await page.unroute("**/grammars/**");
+    await page.unroute(namesRoute);
     console.log(`lazy names fetching works in ${browser}`);
 
     // From here on, every answer the page shows as ready must be for the text
