@@ -17,7 +17,7 @@
 // document on disk, and LoadPipelineSources documents held in memory. A
 // pipeline that cannot be loaded is a *Error, carrying the document, line
 // and column where known. A document is read through the notation only
-// when the bundled data/preparsed/lojban.json has no DOM for its text under the current
+// when the bundled data/preparsed/FAMILY.json has no DOM for its text under the current
 // bootstrap, Unicode table, and DOM format version. A bundled pipeline
 // normally loads from the preparsed cache.
 //

@@ -4409,7 +4409,7 @@
 
 
   // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a preparsed one from data/preparsed/lojban.json, has the shape the
+  // bootstrap's or a preparsed one from data/preparsed/FAMILY.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
 

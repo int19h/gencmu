@@ -7,7 +7,7 @@ import (
 )
 
 // The DOM of a grammar document, when it did not come from reading the
-// document (the bootstrap's, or a preparsed one from data/preparsed/lojban.json), is
+// document (the bootstrap's, or a preparsed one from data/preparsed/FAMILY.json), is
 // held to every rule the reader enforces (engine §9, docs/output.md "A
 // grammar DOM"), so that a malformed one is refused rather than lowered: a
 // bad cache entry is then a miss, and a bad bootstrap a load error.

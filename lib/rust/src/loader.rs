@@ -643,7 +643,7 @@ impl Sources for DiskSources {
     /// A document's bytes as strict UTF-8, which keeps a byte order mark as
     /// the character U+FEFF. Bytes that do not decode are a grammar error of
     /// the document, found before anything hashes it or looks it up in
-    /// `data/preparsed/lojban.json` (engine §1).
+    /// `data/preparsed/FAMILY.json` (engine §1).
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         let bytes = match std::fs::read(path) {
             Ok(bytes) => bytes,
@@ -849,7 +849,7 @@ pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
 /// Loads a pipeline from documents held in memory: a map from
 /// `/`-separated path to text, and the path of the pipeline document in it.
 /// The map may supply its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and
-/// `data/preparsed/lojban.json`; any it lacks come from the bundled grammars.
+/// `data/preparsed/FAMILY.json`; any it lacks come from the bundled grammars.
 pub fn load_pipeline_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Pipeline, Error>
 where
     I: IntoIterator<Item = (K, V)>,
@@ -917,7 +917,7 @@ pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
 /// items, as spliced stage records, and the features. With `cached`
 /// false, every document is read through the notation, bypassing
-/// `data/preparsed/lojban.json`. For tests and tools.
+/// `data/preparsed/FAMILY.json`. For tests and tools.
 pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error> {
     let bundled_context = Context::bundled()?;
     let uncached;

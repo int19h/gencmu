@@ -58,7 +58,7 @@ def _decode(data: bytes, document: str) -> str:
     """A file's bytes as strict UTF-8, which keeps a byte order mark as the
     character U+FEFF. Bytes that do not decode are a grammar error of the
     document, found before anything hashes it or looks it up in
-    data/preparsed/lojban.json (engine §1)."""
+    data/preparsed/FAMILY.json (engine §1)."""
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as error:
@@ -93,7 +93,7 @@ def _read_bundled(path: str) -> str | None:
     try:
         return _decode(data, path)
     except GencmuError as error:
-        # data/preparsed/lojban.json is only a cache, so bytes of it that do not decode
+        # data/preparsed/FAMILY.json is only a cache, so bytes of it that do not decode
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
         if path.startswith("data/preparsed/") and path != "data/preparsed/gencmu.json":
@@ -391,7 +391,7 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
                     dom = known_dom_members(entry["dom"])
                     index[path, entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
-        # An unreadable data/preparsed/lojban.json, one nested deeper than json.loads can
+        # An unreadable data/preparsed/FAMILY.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
@@ -620,7 +620,7 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     """A pipeline from documents held in memory: a mapping from ``/``-separated
     path to text, and the path of the pipeline document in it. The mapping
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
-    ``data/preparsed/lojban.json``; any it lacks come from the bundled grammars."""
+    ``data/preparsed/FAMILY.json``; any it lacks come from the bundled grammars."""
     documents = dict(sources)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 

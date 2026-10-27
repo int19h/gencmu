@@ -1,5 +1,5 @@
 //! A small JSON reader for the files the library ships (`data/preparsed/gencmu.json`,
-//! `data/preparsed/lojban.json`), and the string escaping its hand-written JSON uses.
+//! `data/preparsed/FAMILY.json`), and the string escaping its hand-written JSON uses.
 //! The standard library has neither.
 
 use std::collections::HashMap;

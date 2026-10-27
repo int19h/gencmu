@@ -65,13 +65,13 @@ export function quotedText(content) {
 }
 
 /**
- * The names of the pipelines of a repository that prose can name: those of
- * its pipeline documents, less the notation pipeline, which reads jbogenbau.
+ * The names of the Lojban pipelines that the prose checker can use.
+ * Other families do not enter this Lojban text check.
  * @param {string} [base] the repository
  * @returns {string[]}
  */
 export function pipelineNames(base = root) {
-  return pipelineDocuments(base).map((document) => document.slice("grammars/".length, -"/pipeline.md".length)).filter((name) => name !== "gencmu/jbogenbau");
+  return pipelineDocuments(base).map((document) => document.slice("grammars/".length, -"/pipeline.md".length)).filter((name) => name.startsWith("lojban/"));
 }
 
 /**
