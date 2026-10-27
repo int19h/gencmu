@@ -71,7 +71,7 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 35. The result format is 15. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 40. The result format is 15. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 
