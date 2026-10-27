@@ -321,7 +321,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    These local cases omit `pipeline`, so the CLI uses `--pipeline-file`. The shared corpus requires a bundled pipeline name.
 
-   For shared tests, add `"pipeline":"my-kihei"` to each case. Save those cases to `tests/corpus/my-kihei.jsonl`.
+   For shared tests, add `"pipeline":"lojban/examples/my-kihei"` to each case. Save those cases to `tests/corpus/my-kihei.jsonl`.
 
    Add their IDs to `tests/core.txt`. The core corpus runs in all four libraries on pull requests.
 
@@ -355,9 +355,9 @@ Use example filenames that do not clash with your own files. The commands below 
 
    For your own pipeline, name its actual tests in that reason.
 
-   In `lib/js/test/quoted-texts.test.js`, add `my-kihei` to the expected list for `pipelineNames()`.
+   In `lib/js/test/quoted-texts.test.js`, add `lojban/examples/my-kihei` after `lojban/examples/kihei` in the expected list for `pipelineNames()`.
 
-   Add `my-kihei` to the expected list for `documentPipelines().get("grammars/lojban/cll/syntax.md")`.
+   Add `lojban/examples/my-kihei` after `lojban/examples/kihei` in the expected list for `documentPipelines().get("grammars/lojban/cll/syntax.md")`.
 
    `quoted-texts.test.js` names every pipeline and every pipeline that includes CLL syntax. Keep each list in alphabetical order.
 
@@ -696,6 +696,6 @@ Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for
 
 The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every pipeline that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. Each Explicit rule row contributes both scalars to exactly the same grammar alternatives. Channels that these alternatives set by recipe have equal results for both encodings.
 
-Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the pipeline's shared rules. BPFK and Zantufa read them as pause material, and experimental reads them as foreign material. Loading and parsing produce no warning about the older encoding.
+Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the pipeline's shared rules. The `lojban/bpfk` and `lojban/zantufa` pipelines read them as pause material. The experimental pipeline reads them as foreign material. Loading and parsing produce no warning about the older encoding.
 
 [The grammar's encoding section](../grammars/lojban/common/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.

@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 Tokens include characters, phonemes and words. A transducer reads tokens and emits another sequence.
 
-Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A pipeline is a pipeline of these grammars, its stages, defined by one pipeline document.
+Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A pipeline is an ordered series of these grammars. Each grammar forms one stage. One pipeline document names the stages.
 
 An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
@@ -355,7 +355,7 @@ A pipeline that extends another pipeline can use the two kinds for two kinds of 
 
 A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled pipelines do not guard every change. The bundled warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
+The bundled pipelines do not guard every change. The bundled warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
 
 ## Stitching documents
 
@@ -497,7 +497,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. Other pipelines exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. Other pipelines exclude LOhAI and LEhAI because the experimental pipeline reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
@@ -1258,6 +1258,8 @@ A document can start its grammar statements with `%names "PATH"`. The path resol
 
 A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
+This example belongs to `grammars/lojban/experimental/pipeline.md`:
+
 ````markdown
 # The experimental pipeline
 
@@ -1273,9 +1275,9 @@ A pipeline document, which is Markdown too, defines a pipeline. Each stage is a 
 %stage phonemes
 ```
 
-- [Latin orthography](../lojban/common/latin.md): what this document contributes
+- [Latin orthography](../common/latin.md): what this document contributes
   ```jbogenbau
-  %include "../lojban/common/latin.md"
+  %include "../common/latin.md"
   ```
 
 ... what the stage receives, does and hands on ...
@@ -1340,7 +1342,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's documents as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
@@ -1493,7 +1495,7 @@ Grammars that extend CLL can contain ambiguities unrelated to terminators. A sum
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
-The `experimental` and `zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 

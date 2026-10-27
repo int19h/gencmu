@@ -12,7 +12,7 @@ For lojban.pw, extraction selects one Lojban column and omits heading and metada
 
 For suzypavlis, extraction selects the song body, the Lojban journal column, or one chapter of a story. It omits English translations, hover glosses, introductions, navigation, and footers. It retains small-font paragraph markers because the page displays them as text. The manifest records paragraph indices and the chapter heading where present.
 
-The Great Winged Snake case covers chapter one only. Whole books are not inputs in this collection. The earlier audit tested Alice by chapter and Tlön by section, with smaller topic divisions within its longest section. No complete narrative chunk from those works passed `lojban/cll` or bpfk. This collection includes the Tlön quotation repair as a sentence with an original rejection twin.
+The Great Winged Snake case covers chapter one only. Whole books are not inputs in this collection. The earlier audit tested Alice by chapter and Tlön by section, with smaller topic divisions within its longest section. No complete narrative chunk from those works passed `lojban/cll` or `lojban/bpfk`. This collection includes the Tlön quotation repair as a sentence with an original rejection twin.
 
 ## Typography and repairs
 
@@ -26,7 +26,7 @@ Three changes beyond typography have separate variants and original rejection tw
 - Chapter one of The Great Winged Snake removes `.i` after `ni'o` at ten paragraph boundaries.
 - The Tlön sentence restores three missing opening foreign quotation delimiters.
 
-The corpus also records both outcomes for songs that pass BPFK and fail `lojban/cll`. A rejection records the first failure position, not a judgment about the author's dialect. The fixtures preserve the source wording apart from the listed transformations. No fixture silently replaces a dialect feature or a deliberate lyrical spelling.
+The corpus also records both outcomes for songs that pass `lojban/bpfk` and fail `lojban/cll`. A rejection records the first failure position, not a judgment about the author's dialect. The fixtures preserve the source wording apart from the listed transformations. No fixture silently replaces a dialect feature or a deliberate lyrical spelling.
 
 ## Maintenance
 

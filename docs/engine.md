@@ -1969,7 +1969,7 @@ A document key under `grammars/FAMILY/` selects `data/preparsed/FAMILY.json`. Ot
 
 The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of `data/preparsed/gencmu.json`. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
 
-An implementation can keep the DOMs that it built before. Its key includes document text hash, bootstrap hash, core-table fingerprint, properties fingerprint, and DOM format version. Any mismatch gives a cache miss. Each table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
+An implementation can keep the DOMs that it built before. Its key includes document text hash, bootstrap fingerprint, core-table fingerprint, properties fingerprint, and DOM format version. Any mismatch gives a cache miss. Each table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
 
 Even without explicit property references, every document cache requires the properties fingerprint. With no companion for a custom core, it is `null`. An absent member or a different fingerprint gives a cache miss. Prepared stages and scalar-profile caches also distinguish the complete core and properties resources. A custom properties file therefore invalidates bundled cache entries with a different fingerprint, including entries for documents naming no additional property. This unavoidable cache cost preserves table-dependent notation semantics.
 

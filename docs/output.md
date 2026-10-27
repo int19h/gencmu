@@ -211,7 +211,7 @@ DOM format 40 supports integer method arguments and query target choices. Intege
 
 Format 40 also applies to preparsed envelopes, including `data/preparsed/gencmu.json`. Each envelope holds document entries, not stitched stages. The loader splices the required notation entries before stitching the bootstrap stages. It rejects other bootstrap formats and skips other optional cache formats.
 
-The cache identity also includes the bootstrap hash (engine §8).
+The cache identity also includes the bootstrap fingerprint (engine §8).
 
 A rule has this form, in canonical member order:
 

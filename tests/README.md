@@ -181,7 +181,7 @@ Message wording is not part of conformance. Error cases pin only their line and 
 
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
-Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
+Four further loads each change one identity field: the document hash, bootstrap fingerprint, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
 JavaScript compares every notation case with the handwritten bootstrap reader. Both readers must produce the same DOM or error position.
 

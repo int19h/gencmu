@@ -159,7 +159,7 @@ Grammar authors write gencmu's grammars in jbogenbau, a notation of its own. `do
 
 A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries tags computed from its parts. Tree patterns, which test a constituent's structure, also contribute finite observations during recognition.
 
-Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. So each grammar is a transducer (it reads one token sequence and writes another), and a pipeline is a pipeline of them.
+Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. Each grammar is a transducer that reads one token sequence and writes another. A pipeline runs an ordered series of these grammars. One pipeline document names its stages.
 
 The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that look. Keywords around the bodies name their functions explicitly.
 
@@ -506,6 +506,8 @@ Sealing remains an authoring limit. An outside pattern that needs hidden option 
 
 A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are pipeline directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks:
 
+This example belongs to `grammars/lojban/cll/pipeline.md`:
+
 ````markdown
 # The CLL pipeline
 
@@ -517,9 +519,9 @@ A pipeline document is Markdown too, and literate. Each stage is a heading, foll
 %stage phonemes
 ```
 
-- [Latin orthography](../lojban/common/latin.md): what this document contributes
+- [Latin orthography](latin.md): what this document contributes
   ```jbogenbau
-  %include "../lojban/common/latin.md"
+  %include "latin.md"
   ```
 
 ... what the stage receives, does and hands on ...
@@ -549,7 +551,7 @@ The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`
 
 Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip standalone material. Attached marks remain formatting. Other quote bodies keep their own spacing rules.
 
-In BPFK, experimental and Zantufa, ZO also takes a standalone material stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
+In `lojban/bpfk`, `lojban/experimental`, and `lojban/zantufa`, ZO also takes a standalone material stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 
 Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The CLL family retains its strict punctuation rules.
 
@@ -563,7 +565,7 @@ The `lojban/experimental` pipeline enables `experimental-cgv` by default for con
 
 Other bundled warnings require the caller to enable them.
 
-A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled warnings are `y-cmavo` in lojban/cll and `experimental-cgv` in experimental.
+A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A pipeline that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
