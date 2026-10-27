@@ -350,7 +350,7 @@ Ilmen wrote [definition 53170](https://github.com/int19h/jbocirvei/blob/8c157925
 
 With `soi-clause` enabled, `fi'oi` closes with `se'u`. This deliberately departs from the definition's `fi'au` terminator. `fi'au` now has an unrelated [definition, 70585](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/fi%27au/en-70585.md), for a continued-fraction operator.
 
-`ku'oi` closes NOhOI clauses here. The [NOhOI closers section](../syntax/experimental.md#nohoi-closers) gives the history and the departure from definition 73011.
+`ku'oi` closes NOhOI clauses here. The [NOhOI closers section](../syntax/experimental.md#nohoi-closers) gives the usage evidence and the departure from definition 73011.
 
 ### Additions from real text
 

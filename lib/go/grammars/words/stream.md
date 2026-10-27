@@ -690,7 +690,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 `raw-tokens` and `zohoi-payload` keep word and FOREIGN values. Their material-token recipes recover punctuation and ignored characters from source text. Delimited quotes take their images from their whole source intervals.
 
-The legacy `Silent` routes also require quiet pauses at their boundaries.
+The `Silent` routes also require quiet pauses at their boundaries.
 
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
