@@ -54,7 +54,7 @@ Ilmentufa's morphology-only parser accepts this division of `kyyykerlo`, but ful
 
 The camxes-std [morphology-only parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-morpho.js) splits a bare odd y run through its `cmavo_form` onset alternative. Its `initial_spaces` reader instead reads a whole run. The [full camxes-std parser](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.js) uses that whole-run spacing reading. Both reference parsers keep every y inside the `ybu` letter word before BU.
 
-This grammar excludes pure y from the onset alternative and reads the whole run as hesitation. Thus `.yyy.` is one hesitation token, in agreement with camxes-std's spacing rule. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The words stage drops this hesitation in BPFK and experimental. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
+This grammar excludes pure y from the onset alternative and reads the whole run as hesitation. Thus `.yyy.` is one hesitation token, in agreement with camxes-std's spacing rule. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The words stage drops this hesitation in `lojban/bpfk` and `lojban/experimental`. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
 ```jbogenbau
 %rule cmevla-shape  (* A name carries its join property and an onset mark when it does not begin with a nucleus. *)

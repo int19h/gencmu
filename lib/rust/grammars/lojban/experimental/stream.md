@@ -165,4 +165,4 @@ Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follow
 
 An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp lacks `ze'ei`. Zantufa has no such reading because `ze'ei` erases there.
 
-The LUhEI boundary extends experimental SU's stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.
+The LUhEI boundary extends this pipeline's SU stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.

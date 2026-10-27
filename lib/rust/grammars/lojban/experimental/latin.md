@@ -1,12 +1,12 @@
 # Latin conventions of the experimental pipeline
 
-This document adds to [../common/latin.md](../common/latin.md) the Latin conventions of the [experimental](pipeline.md) pipeline. Only that pipeline reads it. The [BPFK](../bpfk/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines keep the stricter orthography of latin.md. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../common/latin.md](../common/latin.md) the Latin conventions of the [experimental](pipeline.md) pipeline. Only that pipeline reads it. The [BPFK](../bpfk/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines keep the stricter orthography of [../common/latin.md](../common/latin.md). [The notation document](../../../docs/notation.md) explains the notation.
 
-The document belongs to the phoneme stage. It stands after latin.md and before the documents of other scripts. It restates some Latin rules, and the script documents then extend them as usual.
+The document belongs to the phoneme stage. It stands after [../common/latin.md](../common/latin.md) and before the documents of other scripts. It restates some Latin rules, and the script documents then extend them as usual.
 
 Stage zero decomposes every text, so an accented letter arrives as its base letter and its combining marks. The conventions are these:
 
-- Genuine punctuation is a word break. Other numbers, controls, private-use and unassigned characters make their run foreign. Format characters follow latin.md: U+200B and the visible number signs are word breaks, and the others are nothing.
+- Genuine punctuation is a word break. Other numbers, controls, private-use and unassigned characters make their run foreign. Format characters follow [../common/latin.md](../common/latin.md): U+200B and the visible number signs are word breaks, and the others are nothing.
 - A straight or curly quotation mark, a backtick or a spacing acute accent is an apostrophe between letters and punctuation at a word edge.
 - A length mark, such as `~`, and the middle dot `·` are ignored wherever they stand.
 - An acute or grave accent marks stress. A dieresis on a vowel means an apostrophe before it.
@@ -17,11 +17,11 @@ Stage zero decomposes every text, so an accented letter arrives as its base lett
 
 ## Genuine punctuation
 
-Genuine punctuation is a word break: a character of Unicode category P, punctuation, or S, symbol, that no letter rule reads. The marks after it belong to it. latin.md finds punctuation by exclusion, so numbers and other characters count as punctuation there. This document excludes them too.
+Genuine punctuation is a word break: a character of Unicode category P, punctuation, or S, symbol, that no letter rule reads. The marks after it belong to it. [../common/latin.md](../common/latin.md) finds punctuation by exclusion, so numbers and other characters count as punctuation there. This document excludes them too.
 
 So a number other than an ASCII digit makes its run foreign. A control character other than white space, a private-use character and an unassigned code point do the same. The zbalermorna characters stay letters and marks of their script.
 
-latin.md reads a format character as nothing, as a comma, with two exceptions. The zero-width space U+200B and the visible number signs of Arabic, Syriac and Kaithi are word breaks there. This document keeps that rule, so it leaves category Cf out of the excluded classes. Those exceptions then stay word breaks, although they are format characters and not genuine punctuation of category P or S.
+[../common/latin.md](../common/latin.md) reads a format character as nothing, as a comma, with two exceptions. The zero-width space U+200B and the visible number signs of Arabic, Syriac and Kaithi are word breaks there. This document keeps that rule, so it leaves category Cf out of the excluded classes. Those exceptions then stay word breaks, although they are format characters and not genuine punctuation of category P or S.
 
 ```jbogenbau
 %extend-rule non-punctuation-char
@@ -41,7 +41,7 @@ The straight `'`, curly `‘` and `’`, backtick and spacing acute accent serve
 
 The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE ACCENT. The combining grave accent U+0300 is a stress mark on its letter. The combining acute accent U+0301 also marks stress.
 
-latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [../common/latin.md](../common/latin.md) lets a foreign run hold a decimal point.
+[../cll/latin.md](../cll/latin.md) reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [../common/latin.md](../common/latin.md) lets a foreign run hold a decimal point.
 
 A letter is a character of category L that is neither ignored nor a script period. `quote-letter` reads one letter. `misplaced-quote` tests the tokens of the run before each quotation mark with `.ends(letter-final)`. The suffix must be a letter, its combining marks, and any ignored characters. A mark at the start of a run has no such suffix. A combining mark after an ignored character belongs to no letter and fails this test.
 
@@ -148,7 +148,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/letter-final.svg" alt="Railroad diagram of the rule letter-final"></p>
 </details>
 
-`apostrophe` keeps `h`, which latin.md adds. Both `h` and the modifier apostrophe U+02BC take following combining marks. `run` keeps the three kinds of run, the capital run of latin.md included.
+`apostrophe` keeps `h`, which [../common/latin.md](../common/latin.md) adds. Both `h` and the modifier apostrophe U+02BC take following combining marks. `run` keeps the three kinds of run, the capital run of [../common/latin.md](../common/latin.md) included.
 
 So a mark that touches a digit, another quotation mark, a stray combining mark or the run's edge has only its punctuation reading. `mi''do` is `mi do`, and `mi'` followed by U+0301 is `mi`, because punctuation takes the marks after it. U+0301 followed by `'a` gives a foreign run of the mark, a pause and `a`. `zoi gy. ß'a .gy.` quotes the one foreign run `ß'a`, and `zo'oibrodaß` stays one foreign run. `zoi gy. ß'٣ .gy.` splits at the mark, because `٣` is no letter.
 
@@ -162,9 +162,9 @@ Only U+00B7 is a silent mark among the dots. The Greek ano teleia U+0387 decompo
 
 The combining tilde U+0303 is a mark, so `letter-marks` already ignores it on a Latin letter.
 
-`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in latin.md, so `ja~i` is `jai`.
+`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in [../common/latin.md](../common/latin.md), so `ja~i` is `jai`.
 
-A separate ignored stretch between quiet pauses becomes a `Quote-Material` token. The same holds at the text end after a quiet pause. Ignored-only edges beside words belong to no token. A raw quote body keeps both kinds of text ([stream.md](../common/stream.md)).
+A separate ignored stretch between quiet pauses becomes a `Quote-Material` token. The same holds at the text end after a quiet pause. Ignored-only edges beside words belong to no token. A raw quote body keeps both kinds of text ([../common/stream.md](../common/stream.md)).
 
 So `mi · klama` is `mi klama`, and `zoi gy. ~~ .gy.` quotes `~~`.
 
@@ -203,9 +203,9 @@ The run's image is its source text. A quote body keeps its verbatim text, so `zo
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/non-lojban-char-run.svg" alt="Railroad diagram of the rule non-lojban-char-run"></p>
 </details>
 
-The conditions on the run's edges are those of latin-strict.md, so each edge has one reading. `ア〜` is the foreign run `ア`, with the mark in no token. `ーß` is the foreign run `ß`, with the mark in no token. A run of Latin letters with a silent mark at its edge has no foreign reading either. So `klạmaー` is `klama`. The redefinition only adds `misplaced-quote` to the conditions of latin-strict.md.
+The conditions on the run's edges are those of [../cll/latin.md](../cll/latin.md), so each edge has one reading. `ア〜` is the foreign run `ア`, with the mark in no token. `ーß` is the foreign run `ß`, with the mark in no token. A run of Latin letters with a silent mark at its edge has no foreign reading either. So `klạmaー` is `klama`. The redefinition only adds `misplaced-quote` to the conditions of [../cll/latin.md](../cll/latin.md).
 
-bpfk and Zantufa keep `~`, `～`, `〜` and `·` as pauses. So `bro~da` and `gen·cmu` are two runs each there, and the words stage rejects them. Their `ー` and `ｰ` are letters of another script, so they make a run foreign.
+The `lojban/bpfk` and `lojban/zantufa` pipelines keep `~`, `～`, `〜` and `·` as pauses. So `bro~da` and `gen·cmu` are two runs each there, and the words stage rejects them. Their `ー` and `ｰ` are letters of another script, so they make a run foreign.
 
 ## Marks
 
@@ -277,7 +277,7 @@ A Latin consonant takes any marks and ignores them, and so does `h`, the apostro
 
 - `Stressed`: An accent stresses the vowel, or a capital does outside an all-capital run.
 - `Capital`: The letter is a capital.
-- `Accented`: The letter is a capital with an accent. An all-capital run keeps its stress, as "Capital runs" in latin.md says.
+- `Accented`: The letter is a capital with an accent. An all-capital run keeps its stress, as "Capital runs" in [../common/latin.md](../common/latin.md) says.
 - `Folded`: This is the plain reading of a capital in an all-capital run.
 - `Dieresis`: The marks include a dieresis.
 - `Glide`: The letter is a glide letter. The emitted token keeps this tag for the forms stage.
@@ -348,7 +348,7 @@ The three restated rules have no `%emits`. Their walk reaches `latin-vowel`, whi
 
 `ɩ` and `q` write the i-glide, and `w` writes the u-glide. `q` comes from the zbalermorna keyboard layout, and `ɩ` and `w` from krulermorna. Their capitals are `Ɩ`, the Unicode capital of `ɩ`, `Q` and `W`. A breve on `i` or `u`, in either case, also makes a glide letter: `ĭ`, `ŭ`, `Ĭ` and `Ŭ`.
 
-A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` with the tag `Glide`, and it does not test what follows. The forms stage decides whether a glide can stand there, by the glide rules of the word forms ([experimental.md](morphology.md)). So `wa` is `ua`, while `mɩ` reads as the phonemes `m` and a glide `i`, which divide into no words.
+A glide letter is a glide wherever it stands. This stage reads it as `i` or `u` with the tag `Glide`, and it does not test what follows. The forms stage decides whether a glide can stand there, by the glide rules of the word forms ([morphology.md](morphology.md)). So `wa` is `ua`, while `mɩ` reads as the phonemes `m` and a glide `i`, which divide into no words.
 
 `ɩ`, `q` and `w` also carry `Onglide`. krulermorna writes an offglide with a diphthong letter, so these letters write only a glide before a vowel, and `kaw` divides into no words. A breve glide carries no `Onglide`, so it can also end a diphthong: `maĭ` is `mai`.
 
@@ -468,13 +468,13 @@ A dieresis on a vowel letter means an apostrophe before it, as in an orthography
 <p><img src="../../../docs/diagrams/lojban/experimental/latin/letters-after-vowel.svg" alt="Railroad diagram of the rule letters-after-vowel"></p>
 </details>
 
-The extension of `letters-after-vowel` lets a group follow a vowel group only where it starts with a dieresis. Two vowels without one still form one group, as in latin.md.
+The extension of `letters-after-vowel` lets a group follow a vowel group only where it starts with a dieresis. Two vowels without one still form one group, as in [../common/latin.md](../common/latin.md).
 
 ## All-capital runs
 
-An all-capital run reads its capitals as plain vowels, as latin.md says. Capital glides, capital diphthong letters and capital dieresis vowels fold too, through `folded-vowel` and the rules below. A dieresis vowel starts a new group there as well, so `AÏ` has two vowel groups and folds to `a'i`.
+An all-capital run reads its capitals as plain vowels, as [../common/latin.md](../common/latin.md) says. Capital glides, capital diphthong letters and capital dieresis vowels fold too, through `folded-vowel` and the rules below. A dieresis vowel starts a new group there as well, so `AÏ` has two vowel groups and folds to `a'i`.
 
-An accented capital keeps its stress in an all-capital run, as latin.md says, and the other capitals still fold. So `KLÁMA` is `klAma`, `ĄKLÁMA` is `ai klAma`, and `AḮ` is `a'I`. A lowercase vowel letter keeps the run ordinary, and that includes a lowercase glide letter.
+An accented capital keeps its stress in an all-capital run, as [../common/latin.md](../common/latin.md) says, and the other capitals still fold. So `KLÁMA` is `klAma`, `ĄKLÁMA` is `ai klAma`, and `AḮ` is `a'I`. A lowercase vowel letter keeps the run ordinary, and that includes a lowercase glide letter.
 
 ```jbogenbau
 %rule folded-dieresis-start

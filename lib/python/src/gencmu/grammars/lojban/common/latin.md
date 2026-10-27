@@ -25,7 +25,7 @@ Punctuation beside a quiet pause emits a separate token tagged `PAUSE` and `Quot
 
 Punctuation between letters also emits such a token, as in `klama!do`. Outside quotes, all these tokens still act as pauses.
 
-Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. In experimental, `zo'oi :)` also quotes `:)`.
+Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. In `lojban/experimental`, `zo'oi :)` also quotes `:)`.
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
@@ -289,7 +289,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
 
-A combining mark that no letter rule takes makes its run foreign, whatever its category. So in bpfk and Zantufa, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
+A combining mark that no letter rule takes makes its run foreign, whatever its category. So in `lojban/bpfk` and `lojban/zantufa`, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([../experimental/latin.md](../experimental/latin.md)).
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅

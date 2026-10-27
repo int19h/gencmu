@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 A layer is a document that changes earlier rules. The syntax layer follows camxes-exp, the experimental grammar of the camxes parser. [`syntax.md`](syntax.md) explains its additions to CLL.
 
-A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the bpfk pipeline, with the conventions of [latin.md](latin.md) and [cyrillic.md](cyrillic.md). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the `lojban/bpfk` pipeline, with the conventions of [latin.md](latin.md) and [cyrillic.md](cyrillic.md). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`morphology.md`](morphology.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the lojban/cll pipeline's stage ([`../cll/pipeline.md`](../cll/pipeline.md)). The experimental layer adds bare NAI indicators and keeps flat attachment.
 

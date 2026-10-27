@@ -15,7 +15,7 @@ Zantufa 1.9999 reads the working word forms of the BPFK, the Lojban language pla
 - It reads `ie'o` as hesitation, as it reads `y`.
 - It divides the letters after `ra'oi` into the rafsi or gismu form that `ra'oi` quotes.
 
-The rule names follow Zantufa, while their comments state its morphology constraints, as in bpfk.md. The rest are rules of [../common/forms.md](../common/forms.md) that this document changes, or rules that support them. [The notation document](../../../docs/notation.md) explains the notation.
+The rule names follow Zantufa, while their comments state its morphology constraints, as in [../bpfk/morphology.md](../bpfk/morphology.md). The rest are rules of [../common/forms.md](../common/forms.md) that this document changes, or rules that support them. [The notation document](../../../docs/notation.md) explains the notation.
 
 ## The pair mz
 
@@ -69,9 +69,9 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
   LU ∪ TO ∪ LUhEI
 ```
 
-This document extends the rule `word-run` of forms.md to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of forms.md never takes such a run.
+This document extends the rule `word-run` of [../common/forms.md](../common/forms.md) to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of [../common/forms.md](../common/forms.md) never takes such a run.
 
-The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as forms.md explains.
+The redefined `run-words` keeps the join conditions of [../common/forms.md](../common/forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as [../common/forms.md](../common/forms.md) explains.
 
 ```jbogenbau
 %redefine-rule runs

@@ -25,7 +25,7 @@ The prose uses these Lojban terms before the sections that explain them:
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([forms.md](../common/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
+The stages before it make the word stream that it reads. The forms stage ([../common/forms.md](../common/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
 [The indicator stage](indicators.md), with any pipeline-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 
@@ -904,7 +904,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 Earlier stages also depart from CLL. [The word stream](../common/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
-[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. For lojban/cll, [the word forms](morphology.md) and [CLL word stream](stream.md) describe its choices and extensions, including `y` as a vowel. For bpfk, [the BPFK word forms](../bpfk/morphology.md) and [its pipeline](../bpfk/pipeline.md) describe them. These documents and this section together describe each pipeline's departures.
+[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. For lojban/cll, [the word forms](morphology.md) and [CLL word stream](stream.md) describe its choices and extensions, including `y` as a vowel. For `lojban/bpfk`, [the BPFK word forms](../bpfk/morphology.md) and [its pipeline](../bpfk/pipeline.md) describe them. These documents and this section together describe each pipeline's departures.
 
 The words stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 

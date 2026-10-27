@@ -200,7 +200,7 @@ CLL[^cll-s13-9] states: "If the word that an indicator (or group) attaches to is
 
 A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `lojban/cll` and `lojban/bpfk` pipelines reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
-Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [corpus cases](../../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
+The `lojban/experimental` pipeline with `cbm` and the `lojban/zantufa` pipeline reject those texts under their own name-as-predicate rules. The [corpus cases](../../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
 
 CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The example[^cll-e19-67] in CLL[^cll-s19-12] uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The ["Digressives" section, revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) of the BPFK defines `to'i` as "Equivalent to {to sa'a}". These sources support the choice that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL[^cll-s19-8][^cll-s13-9].
 

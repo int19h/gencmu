@@ -285,7 +285,7 @@ The words stage drops hesitation, or reads it as the base of the letter word `.y
 
 Separate material tokens preserve punctuation for raw quotes. Their normalized pause values also let delimiter comparisons find punctuation boundaries. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
 
-camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of bpfk and experimental instead drop the hesitation `yy`.
+camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of `lojban/bpfk` and `lojban/experimental` instead drop the hesitation `yy`.
 
 [^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
 

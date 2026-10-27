@@ -302,7 +302,7 @@ The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Thei
 
 These alternatives cover 43 character pairs. The seven No explicit rule pairs have no zbalermorna alternative. They are three tone marks and four full diphthong letters. The pipeline's shared rules still read these characters in both encodings. A names declaration alone adds no phoneme rule. Escape decoding never converts between the encodings.
 
-At the phoneme stage, BPFK and Zantufa read these seven pairs as pause material tagged `PAUSE`, `Punctuation-Material`, and `Quote-Material`. The experimental pipeline reads them as `FOREIGN`. Shared recipes retain the written scalar in each value and image.
+At the phoneme stage, `lojban/bpfk` and `lojban/zantufa` read these seven pairs as pause material tagged `PAUSE`, `Punctuation-Material`, and `Quote-Material`. The experimental pipeline reads them as `FOREIGN`. Shared recipes retain the written scalar in each value and image.
 
 The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
 
@@ -318,7 +318,7 @@ jbotci, another Lojban parser, ignores PA TONGA (U+ED8C), SMAJI BU (U+ED99), and
 
 After CNIMAHO BU (U+ED8B), jbotci accepts the diphthong diacritics AIBU, EIBU, OIBU, and AUBU (U+EDA6 to U+EDA9). Those diacritics make the run foreign here. This document accepts Latin and Cyrillic vowels and the glide radicals SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) there. jbotci rejects them.
 
-In BPFK and Zantufa, RE TONGA (U+ED8D) and FULL AIBU (U+EDB6) read as pauses. The unnamed slots U+EDAC and U+ED9C also read as pauses. The experimental pipeline reads all four scalars as foreign material. jbotci rejects them as invalid characters.
+In `lojban/bpfk` and `lojban/zantufa`, RE TONGA (U+ED8D) and FULL AIBU (U+EDB6) read as pauses. The unnamed slots U+EDAC and U+ED9C also read as pauses. The experimental pipeline reads all four scalars as foreign material. jbotci rejects them as invalid characters.
 
 A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
 

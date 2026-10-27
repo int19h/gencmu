@@ -2,11 +2,11 @@
 
 This document adds to [../common/cyrillic.md](../common/cyrillic.md) and [../cll/cyrillic.md](../cll/cyrillic.md) the Cyrillic conventions of the [experimental](pipeline.md) pipeline. Only that pipeline reads it. It stands right after [../cll/cyrillic.md](../cll/cyrillic.md), and it restates the letter rules of both documents. [The notation document](../../../docs/notation.md) explains the notation.
 
-A Cyrillic letter takes any combining marks after it, as a Latin letter does in [latin.md](latin.md). `letter-marks` of that document reads them. An acute or grave accent on a full vowel marks stress, as in cyrillic.md. A breve on `и` or `у` makes the glide, as `й` and `ў` do. Every other mark is ignored.
+A Cyrillic letter takes any combining marks after it, as a Latin letter does in [latin.md](latin.md). `letter-marks` of that document reads them. An acute or grave accent on a full vowel marks stress, as in [../common/cyrillic.md](../common/cyrillic.md). A breve on `и` or `у` makes the glide, as `й` and `ў` do. Every other mark is ignored.
 
 So `ё` reads as `е` and `ї` as `і`, because a dieresis means nothing here. The Cyrillic orthography already puts an apostrophe between two full vowels, so the Latin meaning of the dieresis has no job. A mark on a consonant is ignored, so `ќ` is `к`. A breve on another vowel is ignored, so `ӑ` is `а`. An accent on a glide is ignored, as on a Latin glide letter.
 
-The Cyrillic glides carry no `Glide` tag, and the word forms find them by position, as they do in bpfk.
+The Cyrillic glides carry no `Glide` tag, and the word forms find them by position, as they do in `lojban/bpfk`.
 
 `cyrillic-vowel` reads every Cyrillic vowel letter with its marks. Its tags work as those of `latin-vowel`. A capital full vowel without an accent has a stressed and a folded reading. An accented capital has one reading, stressed and `Accented`, which an all-capital run keeps, as "Capital runs" in [../common/latin.md](../common/latin.md) says. The three restated vowel rules take the readings that fit them.
 
@@ -163,8 +163,8 @@ The Cyrillic of CLL, in [../cll/cyrillic.md](../cll/cyrillic.md), ignores unknow
 
 camxes-exp reads no Cyrillic orthography. These Cyrillic conventions belong to gencmu.
 
-The experimental pipeline inherits the genuine-punctuation boundary from [latin.md](latin.md#genuine-punctuation). Non-ASCII numbers remain foreign because numeric characters do not mark word boundaries. Thus `ми½клама` forms one foreign run here, while BPFK reads two words.
+The experimental pipeline inherits the genuine-punctuation boundary from [latin.md](latin.md#genuine-punctuation). Non-ASCII numbers remain foreign because numeric characters do not mark word boundaries. Thus `ми½клама` forms one foreign run here, while `lojban/bpfk` reads two words.
 
 The pipeline also inherits silent marks for length or visual separation without new phonemes or word boundaries. Thus `кла~ма` reads as `klama` here. BPFK treats `~` as punctuation and separates the two runs.
 
-Joined vowels retain the apostrophe insertion of cyrillic.md. Their emitted tokens expose only the public vowel tags, as isolated vowels do.
+Joined vowels retain the apostrophe insertion of [../common/cyrillic.md](../common/cyrillic.md). Their emitted tokens expose only the public vowel tags, as isolated vowels do.
