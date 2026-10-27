@@ -20,7 +20,9 @@ class DiskPaths(unittest.TestCase):
         for item in cases:
             with self.subTest(item["description"]), tempfile.TemporaryDirectory() as root:
                 for name, text in item["files"].items():
-                    pathlib.Path(root, name).write_text(text, encoding="utf-8")
+                    file = pathlib.Path(root, name)
+                    file.parent.mkdir(parents=True, exist_ok=True)
+                    file.write_text(text, encoding="utf-8")
                 os.chdir(root)
                 try:
                     with self.assertRaises(gencmu.GencmuError) as caught:

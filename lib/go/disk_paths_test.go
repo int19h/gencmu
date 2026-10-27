@@ -85,7 +85,11 @@ func TestSelectedDiskNames(t *testing.T) {
 		t.Run(c.Description, func(t *testing.T) {
 			root := t.TempDir()
 			for name, text := range c.Files {
-				if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+				file := filepath.Join(root, name)
+				if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(file, []byte(text), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
