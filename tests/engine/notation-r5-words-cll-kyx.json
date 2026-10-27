@@ -1,14 +1,14 @@
 {
-  "description": "The cll-ebnf pipeline accepts px under permissible-run in grammars/lojban/cll/shapes.md (Consonants).",
+  "description": "The lojban/cll pipeline accepts kyx under pair-across-y in grammars/lojban/cll/morphology.md (Lujvo).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
-  "input": ".apxab.",
+  "input": "pakyxrani",
   "expect": {
     "result": {
       "ok": true
     },
-    "brackets": "apxab"
+    "brackets": "pakyxrani"
   }
 }

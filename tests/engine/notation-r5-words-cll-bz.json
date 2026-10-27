@@ -1,14 +1,14 @@
 {
-  "description": "The cll-ebnf pipeline accepts fx under permissible-run in grammars/lojban/cll/shapes.md (Consonants).",
+  "description": "The lojban/cll pipeline accepts bz under permissible-run in grammars/lojban/cll/shapes.md (Consonants).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
-  "input": ".afxab.",
+  "input": ".abzab.",
   "expect": {
     "result": {
       "ok": true
     },
-    "brackets": "afxab"
+    "brackets": "abzab"
   }
 }
