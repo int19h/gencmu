@@ -492,7 +492,7 @@ function holdsConstant(term) {
  * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, pipeline: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
  * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
- *   document, by its path under grammars/
+ *   document, by its package-root path
  * @returns {Map<string, Map<string, Set<boolean>[]>>} by document, then by
  *   the rule's line and column: one set of answers for each of its
  *   testedElisions, in order
@@ -507,8 +507,8 @@ export function elisionOutcomes(loader, pipelines, documents) {
   // a rule text and its ambiguity resolution, and it holds nothing else.
   // Its Unicode table, for a range, is the one that every stage shares.
   const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", flags: [], alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", args: ["greedy"], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
-  for (const pipeline of pipelines) {
-    const { stages } = loader.splice(pipeline);
+  for (const documentPath of pipelines) {
+    const { stages } = loader.splice(documentPath);
     /** @type {{stages: {grammar: any}[]} | null} */
     let pipeline = null;
     stages.forEach((stage, index) => {
@@ -519,7 +519,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             if (hasUnresolved(first)) return;
-            const grammar = holdsConstant(first) ? (pipeline ??= loader.pipeline(pipeline)).stages[index].grammar : stageless;
+            const grammar = holdsConstant(first) ? (pipeline ??= loader.pipeline(documentPath)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             let base = first;
             while (base.test) base = base.expr;
