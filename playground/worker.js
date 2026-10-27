@@ -41,7 +41,7 @@
     let loader = null;
     // Bumped whenever a document changes, so that cached results go stale.
     let version = 0;
-    // Pipelines by pipeline path: { pipeline, info, audit } or { error }.
+    // Pipelines by full pipeline name: { pipeline, info, audit } or { error }.
     const pipelines = new Map();
     // The last parse, kept so that switching the output format, tracing or
     // auditing does not parse the text again.
@@ -72,7 +72,7 @@
       for (const [path, entry] of Object.entries(message.preparsed || {})) {
         loader.usePreparsed({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
-      // Reading a document that data/preparsed/lojban.json does not hold goes through the
+      // Reading a document that data/preparsed/FAMILY.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
       loader.readDocument = (markdown, path, deferEmission, inherited) => {
@@ -102,7 +102,7 @@
       pipelines.clear();
       last = null;
       // Forget this document's earlier DOMs; the bundled one stays in
-      // data/preparsed/lojban.json, so resetting a document costs nothing.
+      // data/preparsed/FAMILY.json, so resetting a document costs nothing.
       for (const key of [...loader.cache.keys()]) if (key.startsWith(path + "\u0000")) loader.cache.delete(key);
     }
 
@@ -119,9 +119,10 @@
       };
     }
 
-    function loadPipeline(path) {
-      let entry = pipelines.get(path);
+    function loadPipeline(name) {
+      let entry = pipelines.get(name);
       if (entry) return entry;
+      const path = `grammars/${name}/pipeline.md`;
       phase("loading", path);
       try {
         const pipeline = loader.pipeline(path);
@@ -143,7 +144,7 @@
         if (error instanceof NeedNames) throw error;
         entry = { error: describeError(error) };
       }
-      pipelines.set(path, entry);
+      pipelines.set(name, entry);
       return entry;
     }
 
@@ -298,7 +299,7 @@
 
     // One run: load the pipeline, parse the text, render what the page shows.
     //
-    // request: { pipeline, text, features: string[], withoutFeatures: string[], until,
+    // request: { pipeline: full pipeline name, text, features: string[], withoutFeatures: string[], until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
     //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
     //

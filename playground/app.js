@@ -42,8 +42,17 @@
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
   const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
-  const pipelineName = (path) => path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, "");
-  const pipelinePaths = self.gencmu.bundledPipelines(bundled).map((name) => `grammars/${name}/pipeline.md`);
+  const pipelinePath = (name) => `grammars/${name}/pipeline.md`;
+  // The selector has a preferred order. The enumeration API stays in code-point order.
+  const preferredPipelines = ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "lojban/examples/kihei", "gencmu/jbogenbau"];
+  const pipelineNames = self.gencmu.bundledPipelines(bundled);
+  pipelineNames.sort((a, b) => {
+    const rank = (name) => {
+      const index = preferredPipelines.indexOf(name);
+      return index < 0 ? preferredPipelines.length : index;
+    };
+    return rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0);
+  });
 
   const EXAMPLES = [
     { label: "A sentence", text: "mi klama le zarci", pipeline: "lojban/cll" },
@@ -81,7 +90,7 @@
 
   const state = {
     text: $("input").value,
-    pipeline: pipelinePaths.includes("grammars/lojban/cll/pipeline.md") ? "grammars/lojban/cll/pipeline.md" : pipelinePaths[0],
+    pipeline: pipelineNames.includes("lojban/cll") ? "lojban/cll" : pipelineNames[0],
     // The features the page turns on, and those it turns off among the
     // ones the pipeline turns on.
     features: new Set(),
@@ -108,7 +117,7 @@
     const params = new URLSearchParams(location.hash.slice(1));
     if (params.has("text")) state.text = params.get("text");
     const pipeline = params.get("pipeline");
-    if (pipeline && pipelinePaths.includes(`grammars/${pipeline}/pipeline.md`)) state.pipeline = `grammars/${pipeline}/pipeline.md`;
+    if (pipeline && pipelineNames.includes(pipeline)) state.pipeline = pipeline;
     if (params.get("features")) state.features = new Set(params.get("features").split(",").filter(Boolean));
     if (params.get("without")) state.without = new Set(params.get("without").split(",").filter(Boolean));
     if (["on", "off"].includes(params.get("elision"))) state.elision = params.get("elision");
@@ -121,7 +130,7 @@
     fragmentTimer = setTimeout(() => {
       const params = new URLSearchParams();
       params.set("text", state.text);
-      params.set("pipeline", pipelineName(state.pipeline));
+      params.set("pipeline", state.pipeline);
       if (state.features.size) params.set("features", [...state.features].join(","));
       if (state.without.size) params.set("without", [...state.without].join(","));
       if (state.elision) params.set("elision", state.elision);
@@ -162,7 +171,7 @@
     let text = "Parsing…";
     if (phase === "waiting") text = "Working…";
     else if (phase === "starting") text = workerReady ? "Working…" : "Starting the parser…";
-    else if (phase === "loading") text = `Loading the ${pipelineName(running.path || state.pipeline)} pipeline…`;
+    else if (phase === "loading") text = `Loading the ${state.pipeline} pipeline…`;
     else if (phase === "reading") text = `Reading ${running.path} with the notation grammar…`;
     else if (phase === "rendering") text = "Rendering…";
     else if (phase === "tracing") text = "Tracing…";
@@ -242,7 +251,7 @@
 
   // The documents a run of the selected pipeline reads.
   function neededDocuments() {
-    return new Set(pipelineOf(state.pipeline).documents);
+    return new Set(pipelineOf(pipelinePath(state.pipeline)).documents);
   }
 
   // A run whose answer is no longer wanted goes on if it is reading a
@@ -436,7 +445,7 @@
     shownGeneration = generation;
     setBusy(false);
     $("result").dataset.for = message.text;
-    $("result").dataset.pipeline = pipelineName(message.pipeline);
+    $("result").dataset.pipeline = message.pipeline;
     renderSummary(message);
     renderDiagnostics(message);
     renderOutput(message);
@@ -513,7 +522,7 @@
         onclick: () => openDocument(error.document, error.line || 0, error.column || 1),
       }) : null;
       boxes.push(element("div", { class: "box bad", role: "alert" },
-        element("h3", { text: `The engine cannot load the ${pipelineName(message.pipeline)} pipeline` }),
+        element("h3", { text: `The engine cannot load the ${message.pipeline} pipeline` }),
         element("pre", {}, linkified(error.message)), at));
     }
     if (message.parseError) {
@@ -788,7 +797,7 @@
   // The documents of the selected pipeline, stage by stage, and the edited
   // documents of other pipelines.
   function renderDocuments() {
-    const { before, stages, documents } = pipelineOf(state.pipeline);
+    const { before, stages, documents } = pipelineOf(pipelinePath(state.pipeline));
     const error = shown && shown.loadError && shown.pipeline === state.pipeline ? shown.loadError.document : null;
     const button = (path) => {
       const classes = ["doc"];
@@ -802,9 +811,9 @@
         title: (firstHeading(client.text(path)) || path) + (notes.length ? ` (${notes.join(", ")})` : ""),
         "aria-label": path + (notes.length ? `, ${notes.join(", ")}` : ""),
         onclick: () => openDocument(path, 0, 1),
-      }, path.replace(/\.md$/, ""));
+      }, path.replace(/^grammars\//, "").replace(/\.md$/, ""));
     };
-    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), [state.pipeline, ...before].map(button))];
+    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), [pipelinePath(state.pipeline), ...before].map(button))];
     for (const stage of stages) {
       groups.push(element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: stage.name }), stage.documents.map(button)));
     }
@@ -951,12 +960,13 @@
     renderDocuments();
   });
 
-  // A download of one document, named after its path so that the several
-  // cll.md documents stay apart: grammars/lojban/cll/morphology.md is words--cll.md.
+  // Downloads omit grammars/ and replace slashes with --. The remaining path
+  // keeps each latin.md, stream.md and syntax.md apart. For example,
+  // grammars/lojban/cll/morphology.md downloads as lojban--cll--morphology.md.
   function download(path) {
     const blob = new Blob([client.text(path)], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const link = element("a", { href: url, download: path.replace(/\//g, "--") });
+    const link = element("a", { href: url, download: path.replace(/^grammars\//, "").replace(/\//g, "--") });
     document.body.append(link);
     link.click();
     link.remove();
@@ -979,12 +989,12 @@
   function initControls() {
     const pipeline = $("pipeline");
     const groups = new Map();
-    for (const path of pipelinePaths) {
-      const name = pipelineName(path);
+    for (const name of pipelineNames) {
+      const path = pipelinePath(name);
       const parent = name.slice(0, name.lastIndexOf("/"));
       if (!groups.has(parent)) groups.set(parent, element("optgroup", { label: parent }));
       groups.get(parent).append(element("option", {
-        value: path, text: `${name}: ${firstHeading(bundled[path]).replace(/^The\s+/i, "").replace(/\s+pipeline$/i, "")}`,
+        value: name, text: `${name}: ${firstHeading(bundled[path]).replace(/^The\s+/i, "").replace(/\s+pipeline$/i, "")}`,
       }));
     }
     fill(pipeline, [...groups.values()]);
@@ -997,7 +1007,7 @@
       if (!example) return;
       state.text = example.text;
       $("input").value = example.text;
-      state.pipeline = `grammars/${example.pipeline}/pipeline.md`;
+      state.pipeline = example.pipeline;
       state.elision = example.elision || "";
       state.until = "";
       const hint = $("example-hint");

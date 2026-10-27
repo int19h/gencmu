@@ -136,7 +136,7 @@ async function main() {
       if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
     };
     const type = (text) => change("typing", "input", text, "input");
-    const choose = (pipeline) => change("choosing a pipeline", "pipeline", pipeline, "change");
+    const choose = (path) => change("choosing a pipeline", "pipeline", path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, ""), "change");
     const tokenTable = () => run(() => ({
       header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
       rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
@@ -246,8 +246,8 @@ async function main() {
       const results = [];
       for (const item of cases) {
         results.push(await new Promise((resolve,reject) => {
-          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources},message => {
-            if (message.kind === "ready") client.run(1,{pipeline:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources,"grammars/test/includes/pipeline.md":"```jbogenbau\n%include \"../../../p.md\"\n```"},message => {
+            if (message.kind === "ready") client.run(1,{pipeline:"test/includes",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),(path, names) => client.documentDirectives.get(JSON.stringify([path, names])));
@@ -293,8 +293,8 @@ async function main() {
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
           {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
-        const client = new self.ParserWorker({...self.gencmuGrammars,...documents},message => {
-          if (message.kind === "ready") client.run(1,{pipeline:"grammars/test/smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+        const client = new self.ParserWorker({...self.gencmuGrammars,...documents,"grammars/test/names/pipeline.md":block('%include "../smoke-names.md"')},message => {
+          if (message.kind === "ready") client.run(1,{pipeline:"test/names",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
           if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
           if (message.kind === "result") { client.stop(); resolve({ok:!!message.parse?.ok,error:message.loadError?.document || null}); }
         });
@@ -318,8 +318,8 @@ async function main() {
       for (const path of paths) {
         results.push(await new Promise((resolve,reject) => {
           const source = '```jbogenbau\n%names "' + path + '"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"\n```';
-          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source},message => {
-            if (message.kind === "ready") client.run(1,{pipeline:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source,"grammars/test/names-path/pipeline.md":'```jbogenbau\n%include "../../../names-path.md"\n```'},message => {
+            if (message.kind === "ready") client.run(1,{pipeline:"test/names-path",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               client.stop();
@@ -347,7 +347,7 @@ async function main() {
         if (status.dataset.state !== "ready") return;
         const text = document.getElementById("input").value;
         const pipeline = document.getElementById("pipeline").value;
-        if (result.dataset.for !== text || "grammars/" + result.dataset.pipeline + "/pipeline.md" !== pipeline) {
+        if (result.dataset.for !== text || result.dataset.pipeline !== pipeline) {
           self.smokeStale.push({ shown: result.dataset.for, pipeline: result.dataset.pipeline, text, selected: pipeline });
         }
       };
@@ -590,15 +590,15 @@ async function main() {
 
     const pipelineGroups = await run(() => [...document.querySelectorAll("#pipeline optgroup")].map((group) => ({
       label: group.label,
-      names: [...group.children].map((option) => option.value.slice("grammars/".length, -"/pipeline.md".length)),
+      names: [...group.children].map((option) => option.value),
     })));
     assert.deepEqual(pipelineGroups, [
-      { label: "gencmu", names: ["gencmu/jbogenbau"] },
-      { label: "lojban", names: ["lojban/bpfk", "lojban/cll", "lojban/experimental", "lojban/zantufa"] },
+      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"] },
       { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+      { label: "gencmu", names: ["gencmu/jbogenbau"] },
     ]);
 
-    const kiheiLabel = await run(() => document.querySelector('#pipeline option[value="grammars/lojban/examples/kihei/pipeline.md"]').textContent);
+    const kiheiLabel = await run(() => document.querySelector('#pipeline option[value="lojban/examples/kihei"]').textContent);
     if (kiheiLabel !== "lojban/examples/kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
     await choose("grammars/lojban/examples/kihei/pipeline.md");
     const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
@@ -634,8 +634,8 @@ async function main() {
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
       name: group.querySelector(".doc-stage").textContent, text: group.textContent,
     })));
-    if (!groups.some(group => group.name === "a" && group.text.includes("grammars/lojban/zantufa/syntax")) ||
-        groups.some(group => group.name === "a" && group.text.includes("grammars/lojban/common/latin"))) {
+    if (!groups.some(group => group.name === "a" && group.text.includes("lojban/zantufa/syntax")) ||
+        groups.some(group => group.name === "a" && group.text.includes("lojban/common/latin"))) {
       throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
@@ -723,7 +723,7 @@ async function main() {
     // while for a long one such as the CLL word shapes; a pipeline that does
     // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "grammars/lojban/cll/shapes").click();
+      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "lojban/cll/shapes").click();
       const editor = document.getElementById("doc-text");
       editor.value = editor.value.replace("%rule", "%rule ");
       editor.dispatchEvent(new Event("input"));
