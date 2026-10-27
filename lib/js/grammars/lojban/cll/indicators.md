@@ -28,7 +28,7 @@ The closing section compares this stage with other indicator rules.
 
 ## Quotation boundaries
 
-The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every pipeline. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
+The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every Lojban pipeline. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
 
 The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The tree of the words stage retains its internal structure.
 

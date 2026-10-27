@@ -25,7 +25,7 @@ The prose uses these Lojban terms before the sections that explain them:
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([../common/forms.md](../common/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
+The stages before it make the word stream that it reads. The forms stage ([../common/forms.md](../common/forms.md), with a word family and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
 [The indicator stage](indicators.md), with any pipeline-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 

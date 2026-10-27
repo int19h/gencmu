@@ -26,7 +26,7 @@ A pipeline document lists the stages and the grammar documents that define a pip
 - `load_pipeline_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
 - `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
-The loader reads a grammar document through the notation only when `data/preparsed/lojban.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
+The loader reads a grammar document through the notation only when the family's `data/preparsed/FAMILY.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
 
 Each loader takes `use_cache=False` to read every document afresh.
 

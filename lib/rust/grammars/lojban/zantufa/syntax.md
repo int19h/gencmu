@@ -1067,7 +1067,7 @@ Here, `su` cannot erase a quote word that opens no quote. So the pipeline reject
 
 `ba'e` is not a magic word, as the Magic Words proposal says. The words stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
 
-The phoneme stage accepts commas and the other conventions of `lojban/common/latin.md`. Zantufa reads only two of them: `h` as the apostrophe, and `?` and `!` as pauses. It rejects commas, digits, accents and other punctuation. The stage ignores a comma, so a comma is not the syllable break of CLL[^cll-s3-3] here.
+The phoneme stage accepts commas and the other [Latin conventions](../common/latin.md). Zantufa reads only two of them: `h` as the apostrophe, and `?` and `!` as pauses. It rejects commas, digits, accents and other punctuation. The stage ignores a comma, so a comma is not the syllable break of CLL[^cll-s3-3] here.
 
 ### Translation choices by grammar area
 

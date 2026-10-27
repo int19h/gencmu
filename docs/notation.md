@@ -1256,7 +1256,7 @@ For a procedure with commands and tree examples, read [Implement a pipeline](pip
 
 A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
-A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
+A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of.
 
 This example belongs to `grammars/lojban/experimental/pipeline.md`:
 

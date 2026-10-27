@@ -40,7 +40,9 @@ Disk loaders read the resolved file. Source-map loaders use that exact normalize
 
 Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `data/unicode/unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `data/unicode/unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
-A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. Each `data/preparsed/FAMILY.json` holds the preparsed DOMs for one family. The required `gencmu.json` supplies the notation bootstrap. Loading a pipeline reads only its family's optional file, besides that bootstrap. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
+A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. Each `data/preparsed/FAMILY.json` holds the preparsed DOMs for one family. The required `gencmu.json` supplies the notation bootstrap.
+
+Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
 
 An ordinary entry requires matching text hash, bootstrap fingerprint, core-table hash, properties fingerprint, and DOM format. Bootstrap entries bypass source text hash checks, as engine §8 defines. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
 
@@ -64,7 +66,9 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 A feature is a named switch that the grammars of the pipeline test (engine §13).
 
-A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
+A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+
+Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
 
 ### Parsing
 
@@ -207,7 +211,7 @@ toJson(result); toBrackets(result, { showElided: true });
 - `pipeline.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
 - Errors are `GencmuError`, with `kind` and `where`.
-- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.load(path)` returns a loaded `Pipeline`.
+- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
 The types are in the package's declarations (`lib/js/types/`).
 

@@ -4,7 +4,7 @@ This document opens the phoneme stage for the Latin orthography of *The Complete
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The phoneme stage is the first stage of every Lojban pipeline. The bundled pipelines are [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
+The phoneme stage is the first stage of every Lojban pipeline. The main Lojban pipelines are [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md). BPFK is the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL pipeline adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic.md](cyrillic.md). A feature is a named switch that the grammars test. The CLL pipeline turns the `cll-cyrillic` feature on by default. The other pipelines include that document but turn its feature off by default.
 

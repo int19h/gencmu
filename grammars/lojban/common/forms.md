@@ -8,7 +8,7 @@ The forms stage follows the phoneme stage in every Lojban pipeline: [CLL](../cll
 
 The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../../docs/notation.md) explains the notation.
 
-This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
+This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one word family, and one lexicon. A word family is a set of word forms that pipelines use. The word family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
 The prose uses these Lojban terms for words:
 
@@ -19,7 +19,7 @@ The prose uses these Lojban terms for words:
 - A rafsi is a shortened word form used inside compounds.
 - A gismu is a root word.
 
-The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its family. The other pipelines stitch [../bpfk/morphology.md](../bpfk/morphology.md), with [../experimental/morphology.md](../experimental/morphology.md) or [../zantufa/morphology.md](../zantufa/morphology.md) after it. The lexicon is [../cll/lexicon.md](../cll/lexicon.md), [../experimental/lexicon.md](../experimental/lexicon.md) or [../zantufa/lexicon.md](../zantufa/lexicon.md), and it gives each cmavo its selma'o.
+The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch [../bpfk/morphology.md](../bpfk/morphology.md), with [../experimental/morphology.md](../experimental/morphology.md) or [../zantufa/morphology.md](../zantufa/morphology.md) after it. The lexicon is [../cll/lexicon.md](../cll/lexicon.md), [../experimental/lexicon.md](../experimental/lexicon.md) or [../zantufa/lexicon.md](../zantufa/lexicon.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
@@ -29,7 +29,7 @@ The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold w
 
 A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
 
-A prolonged y run tests for `bu` across one pause. In the BPFK family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL family, it tests only the letters `bu`, even at the start of another word.
+A prolonged y run tests for `bu` across one pause. In the BPFK word family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL word family, it tests only the letters `bu`, even at the start of another word.
 
 In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([../zantufa/morphology.md](../zantufa/morphology.md)).
 
@@ -122,7 +122,7 @@ The rule `word-run` is a run that divides into words. A pipeline that divides a 
 
 ## Words in a run
 
-The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after. The following list describes the CLL family:
+The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The word family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after. The following list describes the CLL word family:
 
 - `Onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
 - `Continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
@@ -158,13 +158,13 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 
 A join permits two words without a pause. No two joins apply to the same pair. The general join excludes `Open-Stress`, which has its own join.
 
-For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
+For example, in the CLL word family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
+Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK word family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL word family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
 Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other pipelines ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
@@ -260,7 +260,7 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 
 
-Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
+Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the word family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
 CLL[^cll-s19-14] requires pauses before and after `.y.`. These pipelines omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
 

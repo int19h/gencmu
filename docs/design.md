@@ -28,9 +28,9 @@ grammars/                  source grammars grouped by family
     bpfk/                  pipeline.md and morphology
     experimental/          pipeline.md and its layers
     zantufa/               pipeline.md and its layers
-    common/                latin, cyrillic, zbalermorna, names, forms, stream, lohai
-    examples/kihei/         pipeline.md for the discourse-frame example
-  gencmu/jbogenbau/         pipeline.md, lexical and syntax
+    common/                latin, cyrillic, zbalermorna and its names file, forms, stream, lohai
+    examples/kihei/        pipeline.md for the discourse-frame example
+  gencmu/jbogenbau/        pipeline.md, lexical and syntax
 data/                      engine resources, independent of pipeline families
   unicode/                 unicode.txt, unicode-properties.txt and unicode-names.txt
   preparsed/               one JSON file per grammar family
@@ -39,7 +39,7 @@ data/                      engine resources, independent of pipeline families
     README.md              the role of these files
 docs/
   design.md                design choices and their reasons
-  pipelines.md              the pipeline author guide
+  pipelines.md             the pipeline author guide
   experimental-cmavo-evidence.md  evidence for the experimental lexicon
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers
@@ -288,7 +288,9 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. Each package ships those DOMs in `data/preparsed/FAMILY.json`. A pipeline loads its family's file, besides the required `gencmu.json`. Other families' files remain unread.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python.
+
+Each package ships those DOMs in `data/preparsed/FAMILY.json`. Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the required `gencmu.json`. Other document keys select no optional file. A bundled pipeline therefore reads only its own family's file.
 
 The key of a DOM always has five parts:
 
@@ -504,7 +506,7 @@ Sealing remains an authoring limit. An outside pattern that needs hidden option 
 
 ## Pipelines
 
-A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are pipeline directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks:
+A pipeline document is Markdown too, and literate. Each stage is a heading, followed by the list of documents stitched into it. Prose then says what the stage receives from the one before, what it does, and what it hands on. The machine-readable parts are pipeline directives in `jbogenbau` blocks. The notation reads them like any other directives, so no library reads Markdown structure beyond finding the blocks.
 
 This example belongs to `grammars/lojban/cll/pipeline.md`:
 
@@ -553,7 +555,7 @@ Ordinary spacing still reads these tokens as pauses. One-word quote gaps and ope
 
 In `lojban/bpfk`, `lojban/experimental`, and `lojban/zantufa`, ZO also takes a standalone material stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 
-Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The CLL family retains its strict punctuation rules.
+Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The `lojban/cll` pipeline retains its strict punctuation rules.
 
 ## Gates and warnings
 
@@ -849,7 +851,9 @@ pipeline.features                              # each feature: name, gate or war
 to_json(result); to_brackets(result)
 ```
 
-The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
+The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory.
+
+In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
 
 Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
@@ -918,9 +922,11 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 
 The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. The grammar documents are a JavaScript object in the grammar bundle. At startup, the page fetches `data/unicode/unicode-properties.txt` relative to its own URL. It adds that text to the source map before loading a pipeline. Local use requires an HTTP server because the resource fetch must succeed.
 
-The selector has one group per parent path, such as `lojban`, `lojban/examples`, or `gencmu`. Each option carries a full pipeline name. The URL parameter and worker protocol member are `pipeline`, and both carry that full name.
+The selector has one group per parent path, such as `lojban`, `lojban/examples`, or `gencmu`. Each option carries a full pipeline name. The URL parameter and worker protocol member are `pipeline`, and both carry that full name. The worker resolves the name to `grammars/NAME/pipeline.md`.
 
 The preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojban/zantufa`, `lojban/examples/kihei`, then `gencmu/jbogenbau`. Other names follow in code-point order. Groups appear in the order of their first pipeline.
+
+Document buttons omit the `grammars/` prefix and the `.md` suffix. Download names omit `grammars/` and replace each slash with `--`. Thus `grammars/lojban/cll/morphology.md` downloads as `lojban--cll--morphology.md`.
 
 The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only pipeline.
 

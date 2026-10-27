@@ -2,7 +2,7 @@
 
 The notation pipeline lets gencmu read its own grammar documents. A pipeline document defines an ordered sequence of stages. Each stage has its own grammar. The engine runs this pipeline like any Lojban pipeline. The notation therefore defines itself with ordinary grammar documents.
 
-The libraries start by splicing this pipeline's document DOMs from `../../../data/preparsed/gencmu.json`. A DOM holds parsed rules and directives. Each library reads these documents through that reader. The result must reproduce the preparsed entries.
+The libraries build the notation reader by splicing this pipeline's DOMs from `data/preparsed/gencmu.json`. A DOM holds parsed rules and directives. A check in CI reads these documents with that reader. The result must reproduce the preparsed entries.
 
 The input is the text of a grammar document's `jbogenbau` blocks, joined with a newline between blocks. Three steps of the reading of a grammar are not grammars, and each library writes them by hand:
 
@@ -10,7 +10,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
 - The walk from the parse tree to the grammar objects
 - The errors that the grammar of the notation does not find
 
-`../../../docs/engine.md` specifies these steps in §8 and §9.
+`docs/engine.md` specifies these steps in §8 and §9.
 
 ## Stage 1: lexical
 

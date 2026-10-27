@@ -1,6 +1,6 @@
 # BPFK working word forms
 
-This document is the family part of the forms stage in the [BPFK](pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use.
+This document supplies the word family for the forms stage in the [BPFK](pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)). A word family is a set of word forms that pipelines use.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

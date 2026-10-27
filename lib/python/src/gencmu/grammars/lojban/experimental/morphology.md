@@ -53,7 +53,7 @@ The rule for `m` applies `letter-ban` and rejects another `m`, but permits `z` a
 
 ## Consonants before glides
 
-The `letter-ban` hook reads only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
+The `letter-ban` hook reads only a syllable-initial apostrophe. Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL word family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
 
 The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 

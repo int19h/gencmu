@@ -268,15 +268,19 @@ Use example filenames that do not clash with your own files. The commands below 
 
 6. Try the rules in the playground.
 
-   Open `index.html` from your checkout in a browser.
+   From your checkout, start an HTTP server with `python3 -m http.server`.
 
-   Under `lojban/examples`, select `kihei` in the Pipeline menu.
+   Open `http://localhost:8000/index.html` in a browser.
+
+   The page fetches the Unicode properties file at startup. It fetches names data when a grammar needs it.
+
+   Under `lojban/examples`, select `lojban/examples/kihei` in the Pipeline menu.
 
    Enter `ki'ei ko'a .i broda` in Text.
 
    Select the Tree tab.
 
-   Under Grammar documents, open `lojban/examples/kihei/pipeline.md`.
+   Under Grammar documents, open `lojban/examples/kihei/pipeline`.
 
    Edit its `%extend-stage` blocks to try your change.
 
@@ -288,7 +292,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The playground has no file upload or command that loads an arbitrary local pipeline. You cannot load a local `pipeline.md` directly into the shipped page.
 
-   If you want your additional pipeline in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
+   If you want your additional pipeline in the local menu, complete step 8 first. After synchronization, reload `http://localhost:8000/index.html` from the server.
 
    `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
 
@@ -359,7 +363,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Add `lojban/examples/my-kihei` after `lojban/examples/kihei` in the expected list for `documentPipelines().get("grammars/lojban/cll/syntax.md")`.
 
-   `quoted-texts.test.js` names every pipeline and every pipeline that includes CLL syntax. Keep each list in alphabetical order.
+   `quoted-texts.test.js` names every Lojban pipeline and every pipeline that includes CLL syntax. Keep each list in alphabetical order.
 
    You maintain these pipeline lists by hand.
 

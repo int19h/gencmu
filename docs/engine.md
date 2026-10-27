@@ -1963,7 +1963,7 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the selected family's optional file besides that required file. Missing, malformed, or mismatched optional files give cache misses.
+Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the optional file that each document key selects, besides that required file. Missing, malformed, or mismatched optional files give cache misses.
 
 A document key under `grammars/FAMILY/` selects `data/preparsed/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
 
@@ -3143,9 +3143,11 @@ Nothing else gives warnings. No warnings come from a reading of an `ambiguous` e
 
 ## 13. The pipeline
 
-Bundled pipeline names are directory paths below `grammars/`, with two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before any document lookup and accepts no short aliases. It reads `NAME/pipeline.md` for a valid name. Invalid names and absent bundled pipelines cause a `usage` error.
+Bundled pipeline names are directory paths below `grammars/`, with two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before any document lookup and accepts no short aliases. It reads `grammars/NAME/pipeline.md` for a valid name. Invalid names and absent bundled pipelines cause a `usage` error.
 
-`bundledPipelines()` enumerates the bundled paths ending in `/pipeline.md` and removes that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`. A directory without `pipeline.md` defines no pipeline. Enumeration includes only valid pipeline names. This discovery uses no separate catalog file.
+`bundledPipelines()` takes each bundled key that starts with `grammars/` and ends with `/pipeline.md`. It removes that prefix and that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`.
+
+A directory without `pipeline.md` defines no pipeline. Enumeration includes only valid pipeline names. This discovery uses no separate catalog file.
 
 A pipeline document (`docs/design.md`, "Pipelines") defines a pipeline. The loader reads it into stages as follows.
 

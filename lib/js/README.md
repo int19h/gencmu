@@ -61,7 +61,7 @@ The library and playground run without Playwright. The browser smoke test needs 
 ```sh
 npm ci                                      # installs Playwright
 npx playwright install chromium firefox     # its browsers, once
-node ../../tools/smoke-playground.js --browser chromium  # index.html from file:// in Chromium
+node ../../tools/smoke-playground.js --browser chromium  # index.html over loopback HTTP in Chromium
 node ../../tools/smoke-playground.js --browser firefox   # in Firefox
 node ../../tools/smoke-playground.js URL                 # a deployment, such as GitHub Pages
 ```

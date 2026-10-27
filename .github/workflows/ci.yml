@@ -28,7 +28,7 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps ${{ matrix.browser == 'chrome' && 'chromium' || 'firefox' }}
-      - name: Open index.html from file:// in a headless browser
+      - name: Open index.html over loopback HTTP in a headless browser
         run: node tools/smoke-playground.js --browser ${{ matrix.browser }}
       - name: Open the Pages files over HTTP
         run: |
