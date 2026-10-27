@@ -96,16 +96,16 @@ c j s z # grammars/lojban/cll/shapes.md # notation: a set of consonant letters
 ai ei oi au # grammars/lojban/cll/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/lojban/cll/shapes.md # notation: the rising diphthongs
 
-zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
-zu'a nu'i la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
+zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.1.cll adhoc.syntax.tag-termset.9.bpfk
+zu'a nu'i la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.2.cll adhoc.syntax.tag-termset.10.bpfk
 tag termset # grammars/lojban/cll/syntax.md @ "govern the whole termset" @ "In `term`" # These are names of grammar rules in an alternative, not Lojban words.
 gi'a brodi # grammars/lojban/cll/syntax.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
-pu ku # grammars/lojban/cll/syntax.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
-na'e ke # grammars/lojban/cll/syntax.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
-nu'u fa'u # grammars/lojban/cll/syntax.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
+pu ku # grammars/lojban/cll/syntax.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll adhoc.syntax.gek-term.4.bpfk
+na'e ke # grammars/lojban/cll/syntax.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll adhoc.syntax.negation-scope.4.bpfk
+nu'u fa'u # grammars/lojban/cll/syntax.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll adhoc.syntax.errata.6.bpfk
 pe'e fa'u # grammars/lojban/cll/syntax.md @ "The errata page instead proposes" # The words of the wiki's alternative correction, rather than a complete text.
 ractu du # grammars/lojban/cll/syntax.md @ "omits CU before `du`" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
-kanla viska # grammars/lojban/cll/syntax.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+kanla viska # grammars/lojban/cll/syntax.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll adhoc.syntax.elision-unforced.4.bpfk
 pu ca gi # grammars/lojban/cll/syntax.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
 ca gi # grammars/lojban/cll/syntax.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
 joi ke # grammars/lojban/bpfk/pipeline.md = operator adhoc.connective.operator-joi-ke.bpfk

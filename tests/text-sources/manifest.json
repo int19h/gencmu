@@ -66,7 +66,7 @@
           "changes": [],
           "text_sha256": "656a1bed0298aad7ce68f95088a0b346d23ed4e3461cb0c760d71492dfb4fa6b",
           "cases": [
-            "texts.pw-the-book.original.cll-ebnf",
+            "texts.pw-the-book.original.cll",
             "texts.pw-the-book.original.bpfk"
           ]
         }
@@ -112,7 +112,7 @@
           "changes": [],
           "text_sha256": "d520a06308311278e3f3cf1b3186c35060386906ad9cfc6fe9767d62074c3fc9",
           "cases": [
-            "texts.pw-how-the-enemy-came-to-thlunrana.original.cll-ebnf",
+            "texts.pw-how-the-enemy-came-to-thlunrana.original.cll",
             "texts.pw-how-the-enemy-came-to-thlunrana.original.bpfk"
           ]
         },
@@ -127,7 +127,7 @@
           ],
           "text_sha256": "767de38abc44d5fd61a70250d39da82e62b46cb1c3e502b02ec432d1ab592d57",
           "cases": [
-            "texts.pw-how-the-enemy-came-to-thlunrana.bianfu-adaptation.cll-ebnf",
+            "texts.pw-how-the-enemy-came-to-thlunrana.bianfu-adaptation.cll",
             "texts.pw-how-the-enemy-came-to-thlunrana.bianfu-adaptation.bpfk"
           ]
         }
@@ -164,7 +164,7 @@
           "changes": [],
           "text_sha256": "1df3aa61a63ca4a50bd071a52c41a3d9a0df8eb56ad8e99d619f20ed174924e7",
           "cases": [
-            "texts.pw-terry-the-tiger-visits-the-big-city.original.cll-ebnf",
+            "texts.pw-terry-the-tiger-visits-the-big-city.original.cll",
             "texts.pw-terry-the-tiger-visits-the-big-city.original.bpfk"
           ]
         },
@@ -178,7 +178,7 @@
           ],
           "text_sha256": "0da23ef5c78c83ea916ead072188a8caefa6beaad6757f260690a936e2a2093b",
           "cases": [
-            "texts.pw-terry-the-tiger-visits-the-big-city.typography.cll-ebnf",
+            "texts.pw-terry-the-tiger-visits-the-big-city.typography.cll",
             "texts.pw-terry-the-tiger-visits-the-big-city.typography.bpfk"
           ]
         }
@@ -219,7 +219,7 @@
           "changes": [],
           "text_sha256": "1adfa3c7aba88effd991e5a4a3cf26463b9a57e906c4b7b678e0f565442e50ed",
           "cases": [
-            "texts.pw-emerald-tablet.original.cll-ebnf",
+            "texts.pw-emerald-tablet.original.cll",
             "texts.pw-emerald-tablet.original.bpfk"
           ]
         }
@@ -250,7 +250,7 @@
           "changes": [],
           "text_sha256": "987effc7ad2e5a8b7f3c5650aa1e611a57b36522a0627d0a97d808f880bb6e03",
           "cases": [
-            "texts.pw-the-north-wind-and-the-sun.original.cll-ebnf",
+            "texts.pw-the-north-wind-and-the-sun.original.cll",
             "texts.pw-the-north-wind-and-the-sun.original.bpfk"
           ]
         }
@@ -299,7 +299,7 @@
           "changes": [],
           "text_sha256": "84f627fc70192f5959ab0700e86c1f6ab3bb903d75f6dc695c3de89aa032f851",
           "cases": [
-            "texts.pw-the-girl-from-ipanema.original.cll-ebnf",
+            "texts.pw-the-girl-from-ipanema.original.cll",
             "texts.pw-the-girl-from-ipanema.original.bpfk"
           ]
         }
@@ -337,7 +337,7 @@
           "changes": [],
           "text_sha256": "9db6a1c0c49a1976cd1ec3d0fc383cb49444df2aad79263c4143920054962b5c",
           "cases": [
-            "texts.pw-there-will-come-soft-rains.original.cll-ebnf",
+            "texts.pw-there-will-come-soft-rains.original.cll",
             "texts.pw-there-will-come-soft-rains.original.bpfk"
           ]
         }
@@ -379,7 +379,7 @@
           "changes": [],
           "text_sha256": "42100b85eb8045c50b1338dcb5d90ab811299e0788f83187244a567e8c68db08",
           "cases": [
-            "texts.pw-various-texts.original.cll-ebnf",
+            "texts.pw-various-texts.original.cll",
             "texts.pw-various-texts.original.bpfk"
           ]
         }
@@ -422,7 +422,7 @@
           ],
           "text_sha256": "96574e6a8046000fe50de8c5cf3a40dd8466f17512fc534f950261b551b16e11",
           "cases": [
-            "texts.suzy-zgike-valsi-tarzan.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-tarzan.typography.cll",
             "texts.suzy-zgike-valsi-tarzan.typography.bpfk"
           ]
         }
@@ -460,7 +460,7 @@
           ],
           "text_sha256": "0746dc2a061f44749bffea7649bb7165378159aa15666ae78b4921e50aef07dd",
           "cases": [
-            "texts.suzy-zgike-valsi-uenaisai.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-uenaisai.typography.cll",
             "texts.suzy-zgike-valsi-uenaisai.typography.bpfk"
           ]
         }
@@ -494,7 +494,7 @@
           ],
           "text_sha256": "1facee3ed9c73ffe6063c8f9eda04fc016cc4840249eae386e4217ccc2af407e",
           "cases": [
-            "texts.suzy-zgike-valsi-dranicohe.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-dranicohe.typography.cll",
             "texts.suzy-zgike-valsi-dranicohe.typography.bpfk"
           ]
         }
@@ -531,7 +531,7 @@
           ],
           "text_sha256": "4da00c2edbad1a388876f9b74dbc6a5bc02c8e17006335d169350939e93e5409",
           "cases": [
-            "texts.suzy-zgike-valsi-klinasexance.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-klinasexance.typography.cll",
             "texts.suzy-zgike-valsi-klinasexance.typography.bpfk"
           ]
         }
@@ -569,7 +569,7 @@
           ],
           "text_sha256": "51955b1acf86dfcf5db9d484d4f9b615bd353f74a429a40bca830a93367ac9bf",
           "cases": [
-            "texts.suzy-zgike-valsi-catramilxe.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-catramilxe.typography.cll",
             "texts.suzy-zgike-valsi-catramilxe.typography.bpfk"
           ]
         }
@@ -603,7 +603,7 @@
           ],
           "text_sha256": "a134605c0bb83c24d1d22f8f41738543a0a363eb6f7339806bb113578536079d",
           "cases": [
-            "texts.suzy-zgike-valsi-puzukusolji.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-puzukusolji.typography.cll",
             "texts.suzy-zgike-valsi-puzukusolji.typography.bpfk"
           ]
         }
@@ -638,7 +638,7 @@
           ],
           "text_sha256": "2c68487ab9c40127edff00392dca9a7385ceb420c21bc0564c7c4fc88b07598e",
           "cases": [
-            "texts.suzy-zgike-valsi-prenucuntu.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-prenucuntu.typography.cll",
             "texts.suzy-zgike-valsi-prenucuntu.typography.bpfk"
           ]
         }
@@ -672,7 +672,7 @@
           ],
           "text_sha256": "5919852fcc96e38183ebe90316c9ed4f8569b567c6eb64605f24d8ded87b2997",
           "cases": [
-            "texts.suzy-zgike-valsi-nupre.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-nupre.typography.cll",
             "texts.suzy-zgike-valsi-nupre.typography.bpfk"
           ]
         }
@@ -709,7 +709,7 @@
           ],
           "text_sha256": "5dea0d1769992369e280ba343d25b76e5970929ad2cdb3c6ac934f0ee8c7ff4e",
           "cases": [
-            "texts.suzy-zgike-valsi-lameris.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-lameris.typography.cll",
             "texts.suzy-zgike-valsi-lameris.typography.bpfk"
           ]
         }
@@ -742,7 +742,7 @@
           ],
           "text_sha256": "5f1bb2673a38739559f75de9e03498895f4a3974568784c378cab6971483ba8f",
           "cases": [
-            "texts.suzy-zgike-valsi-kolaurgau.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-kolaurgau.typography.cll",
             "texts.suzy-zgike-valsi-kolaurgau.typography.bpfk"
           ]
         }
@@ -777,7 +777,7 @@
           ],
           "text_sha256": "7a6ba84e1c1d3deb482f3182a1a00e43bcd86bfc501784a0db6d5d9c68248041",
           "cases": [
-            "texts.suzy-zgike-valsi-lebifmlo.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-lebifmlo.typography.cll",
             "texts.suzy-zgike-valsi-lebifmlo.typography.bpfk"
           ]
         }
@@ -811,7 +811,7 @@
           ],
           "text_sha256": "a9cb3c1a3f5ae70f0fe244bc725e079e65ef0da878263ba86732b98fd1a5325c",
           "cases": [
-            "texts.suzy-karni-2026-08-31-coi-coi.typography.cll-ebnf",
+            "texts.suzy-karni-2026-08-31-coi-coi.typography.cll",
             "texts.suzy-karni-2026-08-31-coi-coi.typography.bpfk"
           ]
         }
@@ -852,7 +852,7 @@
           ],
           "text_sha256": "02c5e29811ff387dbbf8f50eba721ce7983c3d13a6266489a31f7b87719b7cc2",
           "cases": [
-            "texts.suzy-banli-chapter-1.typography.cll-ebnf",
+            "texts.suzy-banli-chapter-1.typography.cll",
             "texts.suzy-banli-chapter-1.typography.bpfk"
           ]
         },
@@ -870,7 +870,7 @@
           ],
           "text_sha256": "c696c5fec2362e4e25dc68b8f3668796f1366e3f900e3c7f41c200de79c9146b",
           "cases": [
-            "texts.suzy-banli-chapter-1.paragraph-repair.cll-ebnf",
+            "texts.suzy-banli-chapter-1.paragraph-repair.cll",
             "texts.suzy-banli-chapter-1.paragraph-repair.bpfk"
           ]
         }
@@ -897,7 +897,7 @@
           "changes": [],
           "text_sha256": "72fc8b02de98239a550e98945ebd9c4533a88a2e9d422c791ef62429e585242a",
           "cases": [
-            "texts.pw-tlon-row-18.original.cll-ebnf",
+            "texts.pw-tlon-row-18.original.cll",
             "texts.pw-tlon-row-18.original.bpfk"
           ]
         },
@@ -911,7 +911,7 @@
           ],
           "text_sha256": "f8e9dcc9e8b6460d8da5997b6b7b757cd3ad64485b04d286486cf45e554ddcb9",
           "cases": [
-            "texts.pw-tlon-row-18.delimiter-repair.cll-ebnf",
+            "texts.pw-tlon-row-18.delimiter-repair.cll",
             "texts.pw-tlon-row-18.delimiter-repair.bpfk"
           ]
         }
