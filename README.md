@@ -25,7 +25,7 @@ node lib/js/cli.js audit --pipeline lojban/zantufa
 node lib/js/cli.js help
 ```
 
-Open the playground on GitHub Pages. For local use, serve the repository root with `python3 -m http.server`, then open `http://localhost:8000/index.html` in a browser. The playground runs the browser library. At startup it fetches the Unicode properties file, and it fetches names data when a grammar needs it. The playground does these things:
+Open the playground on GitHub Pages. For local use, serve the repository root with `python3 -m http.server`. Then open `http://localhost:8000/index.html` in a browser. The playground runs the browser library. At startup it fetches the Unicode properties file, and it fetches names data when a grammar needs it. The playground does these things:
 
 - It parses the text as you type, under any pipeline and set of features.
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
