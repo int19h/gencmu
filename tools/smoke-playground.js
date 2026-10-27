@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Opens the playground in a headless browser and checks that it works: its
-// parser worker starts, parses a sentence under the CLL dialect into the
+// parser worker starts, parses a sentence under the CLL pipeline into the
 // expected brackets, explains a text it rejects, and shows a tie as an
 // error with its two readings; that "gencmu" in its heading links to the
 // repository; that it lists the features a parse used by name; that it
@@ -136,7 +136,7 @@ async function main() {
       if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
     };
     const type = (text) => change("typing", "input", text, "input");
-    const choose = (dialect) => change("choosing a dialect", "dialect", dialect, "change");
+    const choose = (pipeline) => change("choosing a pipeline", "pipeline", pipeline, "change");
     const tokenTable = () => run(() => ({
       header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
       rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
@@ -232,9 +232,9 @@ async function main() {
       const g=self.gencmu;
       const source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
       const sources={...self.gencmuGrammars,"smoke-parameters.md":source};
-      const dialect=g.loadPipelineSources(sources,"smoke-parameters.md");
-      const result=dialect.parse("ab");
-      const audit=g.audit(dialect)[0];
+      const pipeline=g.loadPipelineSources(sources,"smoke-parameters.md");
+      const result=pipeline.parse("ab");
+      const audit=g.audit(pipeline)[0];
       return {ok:result.ok,rule:result.tree.rule,children:result.tree.children.map(child=>child.kind),
         templates:audit.templates.map(item=>item.template),instances:audit.instances.map(item=>item.name)};
     });
@@ -247,7 +247,7 @@ async function main() {
       for (const item of cases) {
         results.push(await new Promise((resolve,reject) => {
           const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources},message => {
-            if (message.kind === "ready") client.run(1,{dialect:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "ready") client.run(1,{pipeline:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),(path, names) => client.documentDirectives.get(JSON.stringify([path, names])));
@@ -287,7 +287,7 @@ async function main() {
           {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
         const client = new self.ParserWorker({...self.gencmuGrammars,...documents},message => {
-          if (message.kind === "ready") client.run(1,{dialect:"smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          if (message.kind === "ready") client.run(1,{pipeline:"smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
           if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
           if (message.kind === "result") { client.stop(); resolve({ok:!!message.parse?.ok,error:message.loadError?.document || null}); }
         });
@@ -312,7 +312,7 @@ async function main() {
         results.push(await new Promise((resolve,reject) => {
           const source = '```jbogenbau\n%names "' + path + '"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"\n```';
           const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source},message => {
-            if (message.kind === "ready") client.run(1,{dialect:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+            if (message.kind === "ready") client.run(1,{pipeline:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               client.stop();
@@ -330,7 +330,7 @@ async function main() {
     console.log(`lazy names fetching works in ${browser}`);
 
     // From here on, every answer the page shows as ready must be for the text
-    // and dialect its controls hold at that moment: an answer that arrives
+    // and pipeline its controls hold at that moment: an answer that arrives
     // after they changed is out of date and must not be shown.
     await run(() => {
       self.smokeStale = [];
@@ -339,9 +339,9 @@ async function main() {
         const result = document.getElementById("result");
         if (status.dataset.state !== "ready") return;
         const text = document.getElementById("input").value;
-        const dialect = document.getElementById("dialect").value;
-        if (result.dataset.for !== text || "grammars/" + result.dataset.dialect + "/pipeline.md" !== dialect) {
-          self.smokeStale.push({ shown: result.dataset.for, dialect: result.dataset.dialect, text, selected: dialect });
+        const pipeline = document.getElementById("pipeline").value;
+        if (result.dataset.for !== text || "grammars/" + result.dataset.pipeline + "/pipeline.md" !== pipeline) {
+          self.smokeStale.push({ shown: result.dataset.for, pipeline: result.dataset.pipeline, text, selected: pipeline });
         }
       };
       new MutationObserver(check).observe(document.getElementById("status"), { attributes: true, childList: true, subtree: true });
@@ -569,7 +569,7 @@ async function main() {
     if (accepted.error) throw new Error(`the playground failed: ${accepted.error}`);
     const brackets = "(mi [klama {le zarci}])";
     if (accepted.output.trim() !== brackets) {
-      throw new Error(`${sentence} under cll-ebnf gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
+      throw new Error(`${sentence} under lojban/cll gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
     }
 
     const rejected = "mi klama le le";
@@ -581,8 +581,18 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
-    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="grammars/lojban/examples/kihei/pipeline.md"]').textContent);
-    if (kiheiLabel !== "kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
+    const pipelineGroups = await run(() => [...document.querySelectorAll("#pipeline optgroup")].map((group) => ({
+      label: group.label,
+      names: [...group.children].map((option) => option.value.slice("grammars/".length, -"/pipeline.md".length)),
+    })));
+    assert.deepEqual(pipelineGroups, [
+      { label: "gencmu", names: ["gencmu/jbogenbau"] },
+      { label: "lojban", names: ["lojban/bpfk", "lojban/cll", "lojban/experimental", "lojban/zantufa"] },
+      { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+    ]);
+
+    const kiheiLabel = await run(() => document.querySelector('#pipeline option[value="grammars/lojban/examples/kihei/pipeline.md"]').textContent);
+    if (kiheiLabel !== "lojban/examples/kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
     await choose("grammars/lojban/examples/kihei/pipeline.md");
     const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
     await type(saFrame);
@@ -598,10 +608,10 @@ async function main() {
     await run(({patched, discarded, extended}) => {
       self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
       self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n```\n");
-      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../lojban/common/latin.md\"\n" +
+      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../common/latin.md\"\n" +
         "%stage b\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage a\n" +
         "%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%extend-stage a\n" +
-        "%include \"../lojban/zantufa/syntax.md\"\n```\n");
+        "%include \"syntax.md\"\n```\n");
     }, {patched, discarded, extended});
     await choose(patched);
     await type("b");
@@ -617,8 +627,8 @@ async function main() {
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
       name: group.querySelector(".doc-stage").textContent, text: group.textContent,
     })));
-    if (!groups.some(group => group.name === "a" && group.text.includes("syntax/zantufa")) ||
-        groups.some(group => group.name === "a" && group.text.includes("phonemes/latin"))) {
+    if (!groups.some(group => group.name === "a" && group.text.includes("grammars/lojban/zantufa/syntax")) ||
+        groups.some(group => group.name === "a" && group.text.includes("grammars/lojban/common/latin"))) {
       throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
@@ -627,7 +637,7 @@ async function main() {
     console.log(`stage patches and KIhEI work in ${browser}`);
 
     // A tie is an error, shown with its two readings and no tree. No text
-    // ties in a bundled dialect, so an edited pipeline stands in for one: its
+    // ties in a bundled pipeline, so an edited pipeline stands in for one: its
     // stage syntax reads "w" as either of two rules.
     const tiedPipeline = "grammars/lojban/zantufa/pipeline.md";
     await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
@@ -688,7 +698,7 @@ async function main() {
       "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), imageless);
     await choose(imageless);
     await emptyRendering("a token with an empty image");
-    const shownFor = await run(() => document.getElementById("result").dataset.dialect);
+    const shownFor = await run(() => document.getElementById("result").dataset.pipeline);
     if (shownFor !== "lojban/zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
@@ -703,26 +713,26 @@ async function main() {
     await answerFor(last);
 
     // An edited document is read with the notation grammar, which takes a
-    // while for a long one such as the CLL word shapes; a dialect that does
+    // while for a long one such as the CLL word shapes; a pipeline that does
     // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/shapes").click();
+      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "grammars/lojban/cll/shapes").click();
       const editor = document.getElementById("doc-text");
       editor.value = editor.value.replace("%rule", "%rule ");
       editor.dispatchEvent(new Event("input"));
     });
     await until("the edited word shapes to be read", () =>
-      document.getElementById("status").textContent.includes("Reading words/shapes") ? true : null);
+      document.getElementById("status").textContent.includes("Reading grammars/lojban/cll/shapes.md") ? true : null);
     await choose("grammars/lojban/experimental/pipeline.md");
-    const other = await until("an answer under the experimental dialect", () => {
+    const other = await until("an answer under the experimental pipeline", () => {
       const status = document.getElementById("status");
       const result = document.getElementById("result");
-      return status.dataset.state === "ready" && result.dataset.dialect === "lojban/experimental" && !result.hasAttribute("aria-busy")
+      return status.dataset.state === "ready" && result.dataset.pipeline === "lojban/experimental" && !result.hasAttribute("aria-busy")
         ? { read: self.playground.client.doms.has("grammars/lojban/cll/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
     });
     // The worker hands the page every document it finishes reading, so the
     // document's being there means the switch waited for it.
-    if (other.read) throw new Error("switching to a dialect that does not read the edited word shapes waited for them to be read");
+    if (other.read) throw new Error("switching to a pipeline that does not read the edited word shapes waited for them to be read");
     if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
     await stale();
 
@@ -786,8 +796,8 @@ async function main() {
     // A shared link can ask for a feature both on and off, which the library
     // refuses. On the Trace tab the page shows that error once and then
     // stays idle: it asks the worker again only when the worker says that
-    // the trace waits for the dialect's stages. The link keeps both lists.
-    const conflicting = "#text=mi&dialect=cll-ebnf&features=sa-su&without=sa-su&view=trace";
+    // the trace waits for the pipeline's stages. The link keeps both lists.
+    const conflicting = "#text=mi&pipeline=lojban/cll&features=sa-su&without=sa-su&view=trace";
     page = await instance.newPage();
     await page.goto(target + conflicting);
     const refused = await idle("the refused feature selection");
@@ -808,9 +818,9 @@ async function main() {
     }
 
     // A link to the Trace tab traces the text, once the worker has named
-    // the dialect's stages.
+    // the pipeline's stages.
     page = await instance.newPage();
-    await page.goto(target + "#text=mi%20klama&dialect=cll-ebnf&view=trace");
+    await page.goto(target + "#text=mi%20klama&pipeline=lojban/cll&view=trace");
     const traced = await idle("a trace from a link", "#trace-picker .gap");
     await assertLinks();
     if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);

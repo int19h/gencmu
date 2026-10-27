@@ -20,7 +20,7 @@
 // Worker to page:
 //   { kind: "ready", version, ms }       after init
 //   { kind: "phase", id, phase, path }   what a run is doing: "loading" a
-//       dialect, "reading" a document with the notation, "parsing", "rendering"
+//       pipeline, "reading" a document with the notation, "parsing", "rendering"
 //   { kind: "need-names", id, path }    names text required to resume loading
 //   { kind: "dom", path, hash, names, dom }     a document just read, for the page
 //       to hand to the next worker if this one is ever replaced
@@ -41,8 +41,8 @@
     let loader = null;
     // Bumped whenever a document changes, so that cached results go stale.
     let version = 0;
-    // Pipelines by pipeline path: { dialect, info, audit } or { error }.
-    const dialects = new Map();
+    // Pipelines by pipeline path: { pipeline, info, audit } or { error }.
+    const pipelines = new Map();
     // The last parse, kept so that switching the output format, tracing or
     // auditing does not parse the text again.
     let last = null;
@@ -89,7 +89,7 @@
         post({ kind: "directives", id: runId, path, inherited: inherited || [], directives: dom.directives });
         return dom;
       };
-      dialects.clear();
+      pipelines.clear();
       last = null;
       post({ kind: "ready", version: gencmu.version, ms: now() - started });
     }
@@ -99,7 +99,7 @@
       if (text === null) sources.delete(path);
       else sources.set(path, text);
       version++;
-      dialects.clear();
+      pipelines.clear();
       last = null;
       // Forget this document's earlier DOMs; the bundled one stays in
       // data/preparsed/lojban.json, so resetting a document costs nothing.
@@ -120,39 +120,39 @@
     }
 
     function loadPipeline(path) {
-      let entry = dialects.get(path);
+      let entry = pipelines.get(path);
       if (entry) return entry;
       phase("loading", path);
       try {
-        const dialect = loader.pipeline(path);
+        const pipeline = loader.pipeline(path);
         entry = {
-          dialect,
+          pipeline,
           info: {
             path,
-            stages: dialect.stages.map((stage) => ({
+            stages: pipeline.stages.map((stage) => ({
               name: stage.name,
               lean: stage.grammar.resolution ? stage.grammar.resolution.lean : null,
               elisionOnly: !!(stage.grammar.resolution && stage.grammar.resolution.elisionOnly),
             })),
             // Each feature a switch can change: its name, whether it is a
-            // gate or a warning, and whether the dialect turns it on.
-            features: dialect.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
+            // gate or a warning, and whether the pipeline turns it on.
+            features: pipeline.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
           },
         };
       } catch (error) {
         if (error instanceof NeedNames) throw error;
         entry = { error: describeError(error) };
       }
-      dialects.set(path, entry);
+      pipelines.set(path, entry);
       return entry;
     }
 
     function parse(entry, request) {
-      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.withoutFeatures, request.until, request.elisionOnly]);
+      const key = JSON.stringify([version, request.pipeline, request.text, request.features, request.withoutFeatures, request.until, request.elisionOnly]);
       if (last && last.key === key) return last;
       phase("parsing");
       const started = now();
-      const result = entry.dialect.parse(request.text, {
+      const result = entry.pipeline.parse(request.text, {
         features: request.features,
         withoutFeatures: request.withoutFeatures,
         until: request.until || undefined,
@@ -277,7 +277,7 @@
       phase("tracing");
       let answer;
       try {
-        const traced = gencmu.trace(entry.dialect, request.text, {
+        const traced = gencmu.trace(entry.pipeline, request.text, {
           stage: request.trace.stage, position: request.trace.position,
           features: request.features, withoutFeatures: request.withoutFeatures,
         });
@@ -296,9 +296,9 @@
       return answer;
     }
 
-    // One run: load the dialect, parse the text, render what the page shows.
+    // One run: load the pipeline, parse the text, render what the page shows.
     //
-    // request: { dialect, text, features: string[], withoutFeatures: string[], until,
+    // request: { pipeline, text, features: string[], withoutFeatures: string[], until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
     //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
     //
@@ -309,10 +309,10 @@
     function run(id, request) {
       runId = id;
       const started = now();
-      const entry = loadPipeline(request.dialect);
-      const answer = { kind: "result", id, text: request.text, dialect: request.dialect, info: entry.info || null, loadError: entry.error || null };
+      const entry = loadPipeline(request.pipeline);
+      const answer = { kind: "result", id, text: request.text, pipeline: request.pipeline, info: entry.info || null, loadError: entry.error || null };
       if (request.locateRule) {
-        const stage = entry.dialect?.stages.find((stage) => stage.name === request.locateRule.stage);
+        const stage = entry.pipeline?.stages.find((stage) => stage.name === request.locateRule.stage);
         const rule = stage?.grammar.rules.get(request.locateRule.name);
         answer.ruleLocation = rule ? rule.at : null;
       }
@@ -326,12 +326,12 @@
       answer.parse = parsed.summary;
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
-      // A trace asked for before the page knew the dialect's stages names
+      // A trace asked for before the page knew the pipeline's stages names
       // none. This answer names them, and says that the page can ask again.
       if (request.trace && request.trace.stage === null) answer.traceNeedsStages = true;
       else if (request.trace) answer.trace = runTrace(entry, parsed, request);
       if (request.audit) {
-        if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.dialect));
+        if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.pipeline));
         answer.audit = entry.audit;
       }
       answer.ms = now() - started;

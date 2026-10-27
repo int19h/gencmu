@@ -1,9 +1,9 @@
-// The playground page: the text, the dialect and its options, the grammar
+// The playground page: the text, the pipeline and its options, the grammar
 // editor, and the results the parser worker (playground/worker.js) renders.
 //
 // The page keeps its state in one object, sends the whole of it to the
 // worker whenever it changes, and draws whatever answer comes back. The
-// worker caches the dialect, the parse and each rendering, so asking again
+// worker caches the pipeline, the parse and each rendering, so asking again
 // for what it already has costs little. At most one run is in flight; a
 // change while one runs waits for it, unless the run has gone on long
 // enough to be worth stopping, in which case the worker is replaced.
@@ -31,7 +31,7 @@
   const TEXT_DELAY = 150;
   const GRAMMAR_DELAY = 400;
 
-  // ---- Documents and dialects ---------------------------------------------
+  // ---- Documents and pipelines ---------------------------------------------
 
   // The first heading of a Markdown document.
   function firstHeading(markdown) {
@@ -42,38 +42,34 @@
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
   const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
-  const DIALECT_ORDER = ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "gencmu/jbogenbau"];
-  const dialectName = (path) => path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, "");
-  const dialectPaths = Object.keys(bundled).filter((path) => /^grammars\/.+\/pipeline\.md$/.test(path)).sort((a, b) => {
-    const rank = (path) => { const index = DIALECT_ORDER.indexOf(dialectName(path)); return index < 0 ? DIALECT_ORDER.length : index; };
-    return rank(a) - rank(b) || (a < b ? -1 : 1);
-  });
+  const pipelineName = (path) => path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, "");
+  const pipelinePaths = self.gencmu.bundledPipelines(bundled).map((name) => `grammars/${name}/pipeline.md`);
 
   const EXAMPLES = [
-    { label: "A sentence", text: "mi klama le zarci", dialect: "lojban/cll" },
-    { label: "A text with omitted endings", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", dialect: "lojban/cll" },
-    { label: "A repeated le is rejected", text: "mi klama le le", dialect: "lojban/cll" },
-    { label: "sa erases the earlier words", text: "mi klama sa do", dialect: "lojban/cll" },
-    { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", dialect: "lojban/cll" },
-    { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "lojban/bpfk" },
-    { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", dialect: "lojban/zantufa",
+    { label: "A sentence", text: "mi klama le zarci", pipeline: "lojban/cll" },
+    { label: "A text with omitted endings", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", pipeline: "lojban/cll" },
+    { label: "A repeated le is rejected", text: "mi klama le le", pipeline: "lojban/cll" },
+    { label: "sa erases the earlier words", text: "mi klama sa do", pipeline: "lojban/cll" },
+    { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", pipeline: "lojban/cll" },
+    { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", pipeline: "lojban/bpfk" },
+    { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", pipeline: "lojban/zantufa",
       document: "grammars/lojban/zantufa/syntax.md", rule: "tanru-unit-1",
       hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie." },
-    { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "lojban/experimental",
+    { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", pipeline: "lojban/experimental",
       document: "grammars/lojban/experimental/syntax.md", rule: "tanru-unit-2",
       hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace each ≻ with | in the open MOI group to see a tie." },
-    { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "lojban/experimental", tab: "tree",
+    { label: "ME prefers an argument (experimental)", text: "mi me by", pipeline: "lojban/experimental", tab: "tree",
       document: "grammars/lojban/experimental/syntax.md", rule: "me-unit",
       hint: "A sumti is an argument. A mex is a mathematical expression. The condition excludes mex only when sumti reads the same words with the same boundaries. Remove the %conditions clause to see a tie." },
-    { label: "ME accepts a number (experimental)", text: "mi me pa", dialect: "lojban/experimental", tab: "tree",
+    { label: "ME accepts a number (experimental)", text: "mi me pa", pipeline: "lojban/experimental", tab: "tree",
       document: "grammars/lojban/experimental/syntax.md", rule: "me-unit",
       hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex." },
-    { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", dialect: "lojban/cll",
+    { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", pipeline: "lojban/cll",
       document: "grammars/lojban/cll/syntax.md", rule: "simple-tense-modal",
       hint: "The leftmost-longest rule flag prefers the earlier tense pu va. Remove (leftmost-longest) from the open rule to see a tie." },
-    { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "gencmu/jbogenbau", tab: "tree",
-      hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
-    { label: "A rule with tree tests (notation)", dialect: "gencmu/jbogenbau", tab: "tree",
+    { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", pipeline: "gencmu/jbogenbau", tab: "tree",
+      hint: "The notation pipeline reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
+    { label: "A rule with tree tests (notation)", pipeline: "gencmu/jbogenbau", tab: "tree",
       text: "%rule text $x:pair\n%conditions\n  $x ≅ #« A ⋯ B »,\n  $x ≇ #(⋮ C),\n  $x ≅ #(A ⋰),\n  $x ≅ #(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
@@ -85,9 +81,9 @@
 
   const state = {
     text: $("input").value,
-    dialect: dialectPaths.includes("grammars/lojban/cll/pipeline.md") ? "grammars/lojban/cll/pipeline.md" : dialectPaths[0],
+    pipeline: pipelinePaths.includes("grammars/lojban/cll/pipeline.md") ? "grammars/lojban/cll/pipeline.md" : pipelinePaths[0],
     // The features the page turns on, and those it turns off among the
-    // ones the dialect turns on.
+    // ones the pipeline turns on.
     features: new Set(),
     without: new Set(),
     elision: "",
@@ -99,7 +95,7 @@
     trace: { stage: "", position: 0 },
     open: null,
   };
-  // What the worker said about each dialect: its stages and features.
+  // What the worker said about each pipeline: its stages and features.
   const infos = new Map();
   // The last answer shown, and the document the worker is reading now.
   let shown = null;
@@ -111,8 +107,8 @@
   function loadFragment() {
     const params = new URLSearchParams(location.hash.slice(1));
     if (params.has("text")) state.text = params.get("text");
-    const dialect = params.get("dialect");
-    if (dialect && dialectPaths.includes(`grammars/${dialect}/pipeline.md`)) state.dialect = `grammars/${dialect}/pipeline.md`;
+    const pipeline = params.get("pipeline");
+    if (pipeline && pipelinePaths.includes(`grammars/${pipeline}/pipeline.md`)) state.pipeline = `grammars/${pipeline}/pipeline.md`;
     if (params.get("features")) state.features = new Set(params.get("features").split(",").filter(Boolean));
     if (params.get("without")) state.without = new Set(params.get("without").split(",").filter(Boolean));
     if (["on", "off"].includes(params.get("elision"))) state.elision = params.get("elision");
@@ -125,7 +121,7 @@
     fragmentTimer = setTimeout(() => {
       const params = new URLSearchParams();
       params.set("text", state.text);
-      params.set("dialect", dialectName(state.dialect));
+      params.set("pipeline", pipelineName(state.pipeline));
       if (state.features.size) params.set("features", [...state.features].join(","));
       if (state.without.size) params.set("without", [...state.without].join(","));
       if (state.elision) params.set("elision", state.elision);
@@ -166,7 +162,7 @@
     let text = "Parsing…";
     if (phase === "waiting") text = "Working…";
     else if (phase === "starting") text = workerReady ? "Working…" : "Starting the parser…";
-    else if (phase === "loading") text = `Loading the ${dialectName(running.path || state.dialect)} dialect…`;
+    else if (phase === "loading") text = `Loading the ${pipelineName(running.path || state.pipeline)} pipeline…`;
     else if (phase === "reading") text = `Reading ${running.path} with the notation grammar…`;
     else if (phase === "rendering") text = "Rendering…";
     else if (phase === "tracing") text = "Tracing…";
@@ -193,7 +189,7 @@
   }
 
   function currentRequest() {
-    const info = infos.get(state.dialect);
+    const info = infos.get(state.pipeline);
     let trace = null;
     if (state.tab === "trace" && info) {
       if (!info.stages.some((stage) => stage.name === state.trace.stage)) state.trace.stage = defaultTraceStage(info);
@@ -209,7 +205,7 @@
     else if (state.tab === "tree" || state.tab === "json") view = { format: state.tab };
     else view = { format: "brackets", showElided: state.showElided };
     return {
-      dialect: state.dialect,
+      pipeline: state.pipeline,
       text: state.text,
       features: [...state.features],
       withoutFeatures: [...state.without],
@@ -244,9 +240,9 @@
     considerRestart();
   }
 
-  // The documents a run of the selected dialect reads.
+  // The documents a run of the selected pipeline reads.
   function neededDocuments() {
-    return new Set(pipelineOf(state.dialect).documents);
+    return new Set(pipelineOf(state.pipeline).documents);
   }
 
   // A run whose answer is no longer wanted goes on if it is reading a
@@ -305,7 +301,7 @@
         if (!running || message.id !== running.id) break;
         timings.runs.push({ total: performance.now() - running.started, worker: message.ms, parse: message.parseMs });
         finishRun(running.generation === generation);
-        // Remembering the dialect's stages may change the state, when the
+        // Remembering the pipeline's stages may change the state, when the
         // last stage asked for is not one of them.
         remember(message);
         // An answer for an earlier state is not shown; the run for the
@@ -419,13 +415,13 @@
 
   // ---- The answer -------------------------------------------------------------
 
-  // What an answer says about its dialect is worth keeping even when the
+  // What an answer says about its pipeline is worth keeping even when the
   // answer itself is out of date.
   function remember(message) {
     if (!message.info) return;
-    const before = JSON.stringify(infos.get(message.dialect) || null);
-    infos.set(message.dialect, message.info);
-    if (message.dialect === state.dialect && before !== JSON.stringify(message.info)) {
+    const before = JSON.stringify(infos.get(message.pipeline) || null);
+    infos.set(message.pipeline, message.info);
+    if (message.pipeline === state.pipeline && before !== JSON.stringify(message.info)) {
       renderOptions();
       if (state.until && !message.info.stages.some((stage) => stage.name === state.until)) {
         state.until = "";
@@ -440,16 +436,16 @@
     shownGeneration = generation;
     setBusy(false);
     $("result").dataset.for = message.text;
-    $("result").dataset.dialect = dialectName(message.dialect);
+    $("result").dataset.pipeline = pipelineName(message.pipeline);
     renderSummary(message);
     renderDiagnostics(message);
     renderOutput(message);
     renderDocuments();
     renderDocumentError();
-    if (message.loadError) setStatus("ready", "The dialect has a grammar error");
+    if (message.loadError) setStatus("ready", "The pipeline has a grammar error");
     else if (message.parseError) setStatus("ready", "The parser could not run");
     else setStatus("ready", "Ready");
-    // A trace asked for before the dialect's stages were known. Only the
+    // A trace asked for before the pipeline's stages were known. Only the
     // worker's explicit answer asks again: an answer with an error has no
     // trace either, and asking again for it fails in the same way forever.
     if (state.tab === "trace" && message.traceNeedsStages) schedule(0);
@@ -464,7 +460,7 @@
 
   function renderSummary(message) {
     const summary = $("summary");
-    const info = message.info || infos.get(message.dialect);
+    const info = message.info || infos.get(message.pipeline);
     const badge = (kind, text) => element("span", { class: `badge ${kind}`, text });
     let verdict;
     if (message.loadError) verdict = badge("bad", "grammar error");
@@ -501,7 +497,7 @@
       element("code", { text: name })])] : "No features.");
     fill(summary, [element("div", { class: "verdict" }, verdict), element("div", { class: "stages", "aria-label": "Stages" }, chips),
       message.parse ? features : null].filter(Boolean));
-    // The parse's own time; the run's, which includes loading the dialect
+    // The parse's own time; the run's, which includes loading the pipeline
     // and rendering, or nothing much when the parse was cached, on hover.
     $("timing").textContent = message.parseMs !== undefined ? `parsed in ${ms(message.parseMs)}` : "";
     $("timing").title = message.ms !== undefined ? `this answer took the worker ${ms(message.ms)}` : "";
@@ -517,7 +513,7 @@
         onclick: () => openDocument(error.document, error.line || 0, error.column || 1),
       }) : null;
       boxes.push(element("div", { class: "box bad", role: "alert" },
-        element("h3", { text: `The ${dialectName(message.dialect)} dialect could not be loaded` }),
+        element("h3", { text: `The engine cannot load the ${pipelineName(message.pipeline)} pipeline` }),
         element("pre", {}, linkified(error.message)), at));
     }
     if (message.parseError) {
@@ -701,24 +697,24 @@
   }
 
   function renderOptions() {
-    $("dialect").value = state.dialect;
+    $("pipeline").value = state.pipeline;
     $("elision").value = state.elision;
     $("show-elided").checked = state.showElided;
     $("pretty-json").checked = state.pretty;
-    const info = infos.get(state.dialect);
+    const info = infos.get(state.pipeline);
     const features = $("features");
     if (!info) {
       features.replaceChildren(element("span", { class: "muted", text: "loading…" }));
       return;
     }
-    if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this dialect is guarded on a feature" }));
+    if (!info.features.length) features.replaceChildren(element("span", { class: "muted", text: "none: no grammar of this pipeline is guarded on a feature" }));
     else {
       fill(features, info.features.map((feature) => {
         const name = feature.name;
         const mode = state.without.has(name) ? "off" : state.features.has(name) ? "on" : "grammar";
         const on = mode === "on" || mode === "grammar" && feature.default;
         const title = (feature.kind === "warning" ? "A warning: while it is on, a parse that uses this addition says where" : "A gate: while it is on, the grammar has this construct") +
-          (feature.default ? "; the dialect turns it on" : "");
+          (feature.default ? "; the pipeline turns it on" : "");
         return element("label", { class: "chip" + (on ? " enabled" : ""), title },
           element("select", {
             "aria-label": `${name} feature`,
@@ -738,7 +734,7 @@
             element("option", { value: "off", selected: mode === "off", text: "Off" }),
           ]),
           " ", name, element("small", { text: feature.kind === "warning" ? " warning" : "" }),
-          feature.default ? element("small", { text: " dialect" }) : null);
+          feature.default ? element("small", { text: " pipeline" }) : null);
       }));
     }
     const until = $("until");
@@ -789,11 +785,11 @@
   const normalized = (text) => (text || "").replace(/\r\n?/g, "\n");
   const isEdited = (path) => client.edits.has(path);
 
-  // The documents of the selected dialect, stage by stage, and the edited
-  // documents of other dialects.
+  // The documents of the selected pipeline, stage by stage, and the edited
+  // documents of other pipelines.
   function renderDocuments() {
-    const { before, stages, documents } = pipelineOf(state.dialect);
-    const error = shown && shown.loadError && shown.dialect === state.dialect ? shown.loadError.document : null;
+    const { before, stages, documents } = pipelineOf(state.pipeline);
+    const error = shown && shown.loadError && shown.pipeline === state.pipeline ? shown.loadError.document : null;
     const button = (path) => {
       const classes = ["doc"];
       if (isEdited(path)) classes.push("edited");
@@ -808,7 +804,7 @@
         onclick: () => openDocument(path, 0, 1),
       }, path.replace(/\.md$/, ""));
     };
-    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), [state.dialect, ...before].map(button))];
+    const groups = [element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: "pipeline" }), [state.pipeline, ...before].map(button))];
     for (const stage of stages) {
       groups.push(element("div", { class: "doc-group" }, element("span", { class: "doc-stage", text: stage.name }), stage.documents.map(button)));
     }
@@ -817,7 +813,7 @@
     const elsewhere = [...client.edits.keys()].filter((path) => !listed.has(path));
     const note = $("edited-elsewhere");
     note.hidden = !elsewhere.length;
-    fill(note, ["Also edited, outside this dialect: ", elsewhere.flatMap((path, index) => [index ? ", " : "", element("button", {
+    fill(note, ["Also edited, outside this pipeline: ", elsewhere.flatMap((path, index) => [index ? ", " : "", element("button", {
       type: "button", class: "link", text: path, onclick: () => openDocument(path, 0, 1),
     })])]);
     const count = client.edits.size;
@@ -981,10 +977,17 @@
   // ---- Controls ---------------------------------------------------------------
 
   function initControls() {
-    const dialect = $("dialect");
-    fill(dialect, dialectPaths.map((path) => element("option", {
-      value: path, text: `${dialectName(path)}: ${firstHeading(bundled[path]).replace(/^The\s+/i, "").replace(/\s+dialect$/i, "")}`,
-    })));
+    const pipeline = $("pipeline");
+    const groups = new Map();
+    for (const path of pipelinePaths) {
+      const name = pipelineName(path);
+      const parent = name.slice(0, name.lastIndexOf("/"));
+      if (!groups.has(parent)) groups.set(parent, element("optgroup", { label: parent }));
+      groups.get(parent).append(element("option", {
+        value: path, text: `${name}: ${firstHeading(bundled[path]).replace(/^The\s+/i, "").replace(/\s+pipeline$/i, "")}`,
+      }));
+    }
+    fill(pipeline, [...groups.values()]);
     const examples = $("examples");
     EXAMPLES.forEach((example, index) => examples.append(element("option", { value: String(index), text: example.label })));
     examples.addEventListener("change", () => {
@@ -994,7 +997,7 @@
       if (!example) return;
       state.text = example.text;
       $("input").value = example.text;
-      state.dialect = `grammars/${example.dialect}/pipeline.md`;
+      state.pipeline = `grammars/${example.pipeline}/pipeline.md`;
       state.elision = example.elision || "";
       state.until = "";
       const hint = $("example-hint");
@@ -1017,8 +1020,8 @@
       state.text = $("input").value;
       schedule(TEXT_DELAY);
     });
-    dialect.addEventListener("change", () => {
-      state.dialect = dialect.value;
+    pipeline.addEventListener("change", () => {
+      state.pipeline = pipeline.value;
       state.until = "";
       state.trace.stage = "";
       renderOptions();
