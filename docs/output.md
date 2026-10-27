@@ -81,6 +81,7 @@ A node has one of these forms:
 {"kind":"rule","rule":"sumti","span":[0,3],"source":[0,9],"tags":[TAG...],"children":[NODE...]}
 {"kind":"token","terminal":"KOhA","token":0,"span":[0,1],"source":[0,2]}
 {"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9]}
+{"kind":"elided","terminal":"KU","span":[3,3],"source":[9,9],"value":""}
 ```
 
 A rule name is an output string, rather than an ASCII identifier. It can contain an emoji or a canonical call with punctuation, quotes, and spaces. Named instances use their public name without an extra node. Nodes, `insertedBy`, warnings, expected rules, and witness actions all use that same effective name. Engine §2.3 defines instance identity and canonical names.
@@ -91,7 +92,7 @@ A list that flat braces read has no node of its own. Each level of a chain is a 
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
-An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
+An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. All other nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
 
 ```json
 {"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}

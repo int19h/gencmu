@@ -272,7 +272,7 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents total about 750 KiB, including prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
 The key of a DOM always has five parts:
 
@@ -422,7 +422,7 @@ The notation sets no fixed limit on captures. A captured span before the dot for
 
 ## Backward queries
 
-`.preceding-tokens` returns original tokens from the current context start to the receiver's start. `.last-token` then names the preceding token. Nested queries cannot see before their own context start.
+`.preceding-tokens` returns original tokens from the current context start to the receiver's start. `$x.preceding-tokens.last-token` names the token immediately before `$x` within that context. `.last-token` alone names the last token of its receiver. Nested queries cannot see before their own context start.
 
 `.ends(R)` recognizes suffixes over one fixed window. Every suffix candidate retains that window as its context. The method preserves ordinary query eligibility and errors. A restored `.ends` receiver causes a load error. Restored suffix queries can be added when a grammar needs them.
 
@@ -797,6 +797,7 @@ Node
   children      for a rule node: nodes, in text order
   span          token range in the stage's input
   source        code-point range in the original text
+  value         for an equality-tested elided node: its saved string, including ""
   tags          for a rule node: its tag set, a sorted list of tags
   token         for a token node: the index of the stage-input token it read
 ```
@@ -805,7 +806,9 @@ The tree is lossless with respect to the grammar that the author wrote. Every ru
 
 The engine splices out only one kind of node, because no author wrote it. That is the helper rules that lowering invents for `[ ]` and flat `{ }`. So `%rule text {item}` gives one `text` node over all its items. A chain's levels are nodes of the rule that the author wrote, so they stay (see "Repetition, lists and chains").
 
-An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens. An equality-tested elided node instead saves its restoration operand as `value`, including an explicit empty string. Omitted pattern leaves still observe empty strings.
+An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens.
+
+An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
 
 Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
 
