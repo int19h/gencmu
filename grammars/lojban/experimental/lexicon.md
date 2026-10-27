@@ -1,6 +1,6 @@
 # The experimental lexicon
 
-This document is the lexicon of the forms stage in the [experimental](pipeline.md) dialect. A lexicon is a list of words, each with its classes. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+This document is the lexicon of the forms stage in the [experimental](pipeline.md) pipeline. A lexicon is a list of words, each with its classes. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -60,7 +60,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
   "mu'o" "nu'e" "pe'u" "re'i" "sa'ei" "ta'a" "vi'o" ∈ COI
-  (* #212: jo'au forms a vocative without changing the parser dialect. *)
+  (* #212: jo'au forms a vocative without changing the parser pipeline. *)
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
   "bu'oi" "de'a'ai" "di'a'ai" "ke'o'a" "ku'au'i" "sau'ei" "sei'u" ∈ COI
   "ni'au" ∈ COI
@@ -303,7 +303,7 @@ All 255 experimental cmavo whose highest English score is at least three appear 
 
 The lexicon also includes `ci'au'u` as a required companion of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because the CIhAU construction needs its written terminator.
 
-The dictionary gives `la'ai` class LOhU. Every written example in [definition 56471](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/la%27ai/en-56471.md) closes with `le'u`. The words stage reads the quote through `le'u`, as that definition shows. The dialect accepts `la'ai meri.celi le'u` and `la'ai li bai le'u jungo prenu`.
+The dictionary gives `la'ai` class LOhU. Every written example in [definition 56471](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/la%27ai/en-56471.md) closes with `le'u`. The words stage reads the quote through `le'u`, as that definition shows. The pipeline accepts `la'ai meri.celi le'u` and `la'ai li bai le'u jungo prenu`.
 
 English definitions determine the classes, rather than the combined classes in `word.toml`. Among the 255 words that meet the score threshold, no highest-voted definition ties or lists several classes. The following table records their disagreements about base classes between English definitions. Definition numbers identify the English files in the dictionary snapshot.
 
@@ -457,7 +457,7 @@ The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The in
 
 The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The words stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
 
-The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected dialect. Its dialect switch waits for #212.
+The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected pipeline. Pipeline switching waits for #212.
 
 The dictionary gives `xei'u` class DAhO to attach following attitudes to the containing sentence. The indicator stage instead attaches both `xei'u` and the attitudes to the preceding word. Its special attachment rule waits for #212.
 
@@ -477,7 +477,7 @@ The ZOI delimiter rule skips a hesitation that no BU follows. Before `bu`, `ie'o
 
 The dictionary gives `ze'ei` class SI, but the words stage treats that spelling as a joiner. Its result takes the right word's grammar and normalized value. The complete expression remains in its image. A magic right word and a missing right word both reject.
 
-`ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The dialect accepts `ro'oi broda` as a quantified description.
+`ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The pipeline accepts `ro'oi broda` as a quantified description.
 
 The lexicon omits camxes-exp's entry for `y`. The forms stage reads a run of `y` as hesitation instead of a cmavo.
 

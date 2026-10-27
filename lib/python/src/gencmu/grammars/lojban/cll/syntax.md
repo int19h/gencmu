@@ -1,6 +1,6 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](pipeline.md) dialect and the dialect of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee. It also supplies the base for the [experimental](../experimental/pipeline.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](pipeline.md) pipeline and the pipeline of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee. It also supplies the base for the [experimental](../experimental/pipeline.md) syntax. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -27,9 +27,9 @@ The prose uses these Lojban terms before the sections that explain them:
 
 The stages before it make the word stream that it reads. The forms stage ([forms.md](../common/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
-[The indicator stage](indicators.md), with any dialect-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
+[The indicator stage](indicators.md), with any pipeline-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 
-The earlier stages supply cmavo classes from the dialect's selected lexicon. Each finished quote from the words stage arrives as one token of its opening class.
+The earlier stages supply cmavo classes from the pipeline's selected lexicon. Each finished quote from the words stage arrives as one token of its opening class.
 
 [The notation document](../../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. In this base grammar, an elided terminator takes its `🆓` with it. Thus an elided `[+X 🆓]` leaves no free-modifier slot (see `🆓` below). The [experimental layer](../experimental/syntax.md#the-experimental-grammar) instead keeps the free slot after an elided terminator. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
 
@@ -43,7 +43,7 @@ A left chain, `{... x / s}`, groups from the left, and each level of it is a nod
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. Footnotes link to the CLL sources.
 
-A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each dialect states the remaining ranking policy after this document. The cll-ebnf and bpfk dialects state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
+A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each pipeline states the remaining ranking policy after this document. The `lojban/cll` and `lojban/bpfk` pipelines state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU 🆓]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
@@ -185,7 +185,7 @@ A lookahead tests the input that follows a construct. The condition needs no loo
 
 In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late-elision` then keeps `gi'a brodi` inside the abstraction.
 
-In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The cll-ebnf and bpfk dialects still read one `ke` group, so `pu` stays on the connective.
+In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The `lojban/cll` and `lojban/bpfk` pipelines still read one `ke` group, so `pu` stays on the connective.
 
 The plain parse remains where the group cannot read the same words. The [experimental layer](../experimental/syntax.md#sentences-and-bridi-tails) keeps these continuing KE-unit readings with its own whole-tail patterns. Its connectives permit free modifiers before KE, so its free-modifier case has a different reading. The base grammar preserves these plain readings:
 
@@ -639,7 +639,7 @@ Each afterthought connective can be negated on either side, `na` before and `nai
 
 The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
-In cll-ebnf and bpfk, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
+In `lojban/cll` and `lojban/bpfk`, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
 
 A jek has no connective-plus-`ke` form, so `mi broda je ke brode ke'e` keeps its plain reading. The plain joik reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
@@ -718,7 +718,7 @@ A space tense is likewise a `va` distance, `fa'a`-family offsets, a space interv
 
 This base grammar flags simple tense-modal groups. The [experimental tense layer](../experimental/syntax.md#tenses-and-modals) replaces these rules and their grouping preference.
 
-The `leftmost-longest` flag prefers the earliest simple tense-modal group, then the longest one at that start. It ranks complete parses before the dialect compares elided terminators. A longer group cannot win when it leaves no complete parse.
+The `leftmost-longest` flag prefers the earliest simple tense-modal group, then the longest one at that start. It ranks complete parses before the pipeline compares elided terminators. A longer group cannot win when it leaves no complete parse.
 
 The rules can divide words before `gi` between an outer tag and the connective's stag in several ways. Those parses elide the same terminators, so `late-elision` ties them. The flag settles this tie.
 
@@ -827,15 +827,15 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ## Choosing among parses
 
-Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`. The experimental layer declares `late-elision` and adds a `fewest` ranking step.
+Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each pipeline declares. The `lojban/cll` and `lojban/bpfk` pipelines declare `late-elision elision-only`. The experimental layer declares `late-elision` and adds a `fewest` ranking step.
 
 In this base grammar, the flag described under ["Tenses and modals"](#tenses-and-modals) applies first. `late-elision` then compares parses with equal flagged groups. It prefers the parse that omits a terminator later. Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
 
 The [experimental layer](../experimental/syntax.md#the-experimental-grammar) instead ranks spans, counted connective links and elision boundaries, in that order.
 
-In cll-ebnf and bpfk, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
+In `lojban/cll` and `lojban/bpfk`, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
 
-The cll-ebnf and bpfk dialects let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
+The `lojban/cll` and `lojban/bpfk` pipelines let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, its `ku` elided before `tavla`, and the selbri `tavla`. The other is a fragment that consists of the single description `le sutra tavla`. The fragment elides its `ku` only at the end of the text.
 
@@ -904,7 +904,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 Earlier stages also depart from CLL. [The word stream](../common/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
-[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. For cll-ebnf, [the word forms](morphology.md) and [CLL word stream](stream.md) describe its choices and extensions, including `y` as a vowel. For bpfk, [the BPFK word forms](../bpfk/morphology.md) and [its pipeline](../bpfk/pipeline.md) describe them. These documents and this section together describe each dialect's departures.
+[The indicator stage](indicators.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. For lojban/cll, [the word forms](morphology.md) and [CLL word stream](stream.md) describe its choices and extensions, including `y` as a vowel. For bpfk, [the BPFK word forms](../bpfk/morphology.md) and [its pipeline](../bpfk/pipeline.md) describe them. These documents and this section together describe each pipeline's departures.
 
 The words stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
@@ -989,21 +989,21 @@ The official parser binary gives the same groupings as the `leftmost-longest` fl
 
 ### Elision policy and CLL advice
 
-CLL's official parser reads one lexeme ahead, which no dialect here follows. A lexeme is one token of its lexer. The [design document](../../../docs/design.md) explains the difference.
+CLL's official parser reads one lexeme ahead, which no pipeline here follows. A lexeme is one token of its lexer. The [design document](../../../docs/design.md) explains the difference.
 
-Notation note 10 of CLL[^cll-s21-1] says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each dialect chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
+Notation note 10 of CLL[^cll-s21-1] says that an elidable terminator "may be omitted (without change of meaning) if no grammatical ambiguity results". The note does not choose a parse when the grammar allows several. Each pipeline chooses its ranking. Nor does the note say how to check that no ambiguity results, so `elision-only` is a choice too. Both are chosen to fit the conventions of CLL. CLL does not state them.
 
 CLL gives advice about boundaries that preserve an intended reading. A complete parse can force such a boundary without a written terminator. Where nothing forces the boundary, the grammar gives the reading that CLL warns about. General advice does not override CLL's notation note 10.[^cll-s21-1]
 
 CLL[^cll-s6-2] warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
-CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. The cll-ebnf and bpfk dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
+CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. The `lojban/cll` and `lojban/bpfk` pipelines accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
 
-CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. The cll-ebnf and bpfk dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
+CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. The `lojban/cll` and `lojban/bpfk` pipelines read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
 In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-61]. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
 
-CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. The cll-ebnf and bpfk dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
+CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. The `lojban/cll` and `lojban/bpfk` pipelines read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
 Other warnings describe the official parser. CLL[^cll-s14-14] says that "Lojban's parsing rules would see le nanmu joi and assume that another tanru component is to follow". The complete grammar permits a sumti connection that this left-to-right reading misses. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
 
@@ -1011,17 +1011,17 @@ CLL[^cll-s18-11] says that the parser combines `pa` and `moi` in the example[^cl
 
 CLL[^cll-s18-17] says that the parser assumes another operand after `.onai` in the example[^cll-e18-116] without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
 
-The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for the cll-ebnf and bpfk dialects.
+The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for the `lojban/cll` and `lojban/bpfk` pipelines.
 
 ### Number and letter boundaries
 
 CLL[^cll-s17-9] requires the indivisible-run boundary for letter strings. The example[^cll-e17-27] requires `boi` before the following `PA` word. CLL[^cll-s18-6] requires the boundary for numbers and function names. CLL[^cll-s17-8] allows digits inside a letter string. CLL[^cll-s17-11] repeats the function example with `boi`.
 
-The indivisible-number rule follows these CLL requirements in the cll-ebnf and bpfk dialects:
+The indivisible-number rule follows these CLL requirements in the `lojban/cll` and `lojban/bpfk` pipelines:
 
-- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. The cll-ebnf and bpfk dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
-- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. The cll-ebnf and bpfk dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
-- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. The cll-ebnf and bpfk dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
+- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. The `lojban/cll` and `lojban/bpfk` pipelines reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
+- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. The `lojban/cll` and `lojban/bpfk` pipelines reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
+- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. The `lojban/cll` and `lojban/bpfk` pipelines reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
 [^cll-s19-5]: [CLL 1.1, section 19.5](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-questions-and-answers.html).
 

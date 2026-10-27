@@ -1,6 +1,6 @@
 # The experimental word stream
 
-This document is part of the words stage in the [experimental](pipeline.md) dialect, after [../common/stream.md](../common/stream.md). A stage is one step of the pipeline. A token is one unit that a stage reads or emits. A tag marks a token by an identifier.
+This document is part of the words stage in the [experimental](pipeline.md) pipeline, after [../common/stream.md](../common/stream.md). A stage is one step of the pipeline. A token is one unit that a stage reads or emits. A tag marks a token by an identifier.
 
 [The word forms](morphology.md) tag CgV names and predicate words with `Cgv-Warning`. A nucleus is a syllable's vowel or diphthong. A glide is `i` or `u` before a nucleus. CgV combines a consonant, glide and nucleus. This stage enables the warning `experimental-cgv` by default. Disabling it changes no reading.
 
@@ -153,13 +153,13 @@ The empty-prefix alternatives handle both an empty stream and a nonempty stream.
 
 ## Differences from camxes-exp
 
-camxes-exp rejects CgV in names and borrowings. This dialect admits those word forms, as [morphology.md](morphology.md) explains. The default warning reports only word reads that rely on this extension. Opaque bodies and post-FAhO text do not rely on it.
+camxes-exp rejects CgV in names and borrowings. This pipeline admits those word forms, as [morphology.md](morphology.md) explains. The default warning reports only word reads that rely on this extension. Opaque bodies and post-FAhO text do not rely on it.
 
 GOhOI, MUhOI, DOhOI, `ze'ei`, and the global eraser add word operations that camxes-exp lacks. Their quotations retain the shared Magic Words opacity rules.
 
-GOhOI shares ZO's marker to keep one target reader for both quote kinds. Upstream Zantufa reads only a Lojban word after GOhOI, through `any_word`. This dialect also admits ZO's standalone material targets. [The Zantufa word stream](../zantufa/stream.md) shares that wider reader. MUhOI uses ZOI's empty and nonempty bodies.
+GOhOI shares ZO's marker to keep one target reader for both quote kinds. Upstream Zantufa reads only a Lojban word after GOhOI, through `any_word`. This pipeline also admits ZO's standalone material targets. [The Zantufa word stream](../zantufa/stream.md) shares that wider reader. MUhOI uses ZOI's empty and nonempty bodies.
 
-Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zantufa permits that fallback, so this dialect deliberately differs.
+Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zantufa permits that fallback, so this pipeline deliberately differs.
 
 Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follows its dictionary definition's right-word grammar, while rejecting magic right operands.
 

@@ -1,5 +1,5 @@
 {
-  "description": "Runs of parses that share one dialect object. Each run parses every input under every option set, input by input. Each result must equal, as canonical JSON, the result of the same parse on a fresh dialect, or with an empty shared memo where a library keeps one (engine §4.3). A parse that ends in an error must give the same error. tests/README.md explains how the runners use this file.",
+  "description": "Runs of parses that share one pipeline object. Each run parses every input under every option set, input by input. Each result must equal, as canonical JSON, the result of the same parse on a fresh pipeline, or with an empty shared memo where a library keeps one (engine §4.3). A parse that ends in an error must give the same error. tests/README.md explains how the runners use this file.",
   "runs": [
     {
       "pipeline": "lojban/bpfk",

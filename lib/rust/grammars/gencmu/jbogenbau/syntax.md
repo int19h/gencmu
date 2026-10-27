@@ -1,6 +1,6 @@
 # jbogenbau: from tokens to a grammar
 
-The syntax stage follows [lexical.md](lexical.md) in the [notation dialect](pipeline.md). A stage is one step of a pipeline. A token is one unit that a stage reads or emits.
+The syntax stage follows [lexical.md](lexical.md) in the [notation pipeline](pipeline.md). A stage is one step of a pipeline. A token is one unit that a stage reads or emits.
 
 A token's value is the string that exact comparisons read. Its image is the string that people see.
 

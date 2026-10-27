@@ -10,9 +10,9 @@
 #   node spans exactly the text in the case's tree, `words` for words that
 #   some stage gives as the labels of tokens in a row, one label for each
 #   word, where the tokens stand together in the case's text, or `reject`
-#   for a text that the dialect rejects at the text or the word after it.
+#   for a text that the pipeline rejects at the text or the word after it.
 #   A role applies to the ids after it. The check parses each case and
-#   requires a case of each dialect that the text needs. Use this form
+#   requires a case of each pipeline that the text needs. Use this form
 #   for a part of a text that the sentence makes a claim about: a special
 #   grouping, a rejection or a repair.
 # - " # " and why the text needs no case. It is notation, or a shape that a

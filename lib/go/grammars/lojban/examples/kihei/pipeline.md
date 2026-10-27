@@ -1,12 +1,12 @@
 # Discourse frames (ki'ei)
 
-This dialect is a small example of extending the grammar of *The Complete Lojban Language* (CLL). It adds the particle `ki'ei` from [Ntsékees's proposal in Lensisku](https://lensisku.lojban.org/en/valsi/ki%27ei). An utterance is a statement or a fragment, as in CLL's `paragraph`. A frame is a context for subsequent utterances.
+This pipeline is a small example of extending the grammar of *The Complete Lojban Language* (CLL). It adds the particle `ki'ei` from [Ntsékees's proposal in Lensisku](https://lensisku.lojban.org/en/valsi/ki%27ei). An utterance is a statement or a fragment, as in CLL's `paragraph`. A frame is a context for subsequent utterances.
 
 The proposal uses the material after `ki'ei` as the context or world for following utterances. Another `ki'ei` phrase resets that context.
 
-The dialect includes CLL and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
+The pipeline includes CLL and then extends its forms and syntax stages. The CLL documents explain the inherited rules and parsing policy.
 
-- [The CLL dialect](../../cll/pipeline.md)
+- [The CLL pipeline](../../cll/pipeline.md)
   ```jbogenbau
   %include "../../cll/pipeline.md"
   ```
@@ -21,7 +21,7 @@ The inherited CLL stages already accept the word form of `ki'ei`. The classifier
   "ki'ei" ∈ KIhEI
 ```
 
-The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. The dialect needs no marker rule or class condition.
+The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. The pipeline needs no marker rule or class condition.
 
 The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 
@@ -51,6 +51,6 @@ In `ki'ei ko'a .i broda .i brode ki'ei ko'e .i brodi`, the first group contains 
 
 The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
 
-The CLL rules place `ni'o` outside each paragraph. This dialect places each frame above the `.i` sequence inside that paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
+The CLL rules place `ni'o` outside each paragraph. This pipeline places each frame above the `.i` sequence inside that paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
 
 This example accepts terms as payloads. It rejects a full predicate payload, such as `ki'ei ce'u purci ce'u .i broda`. It adds no pronoun for the selected world.

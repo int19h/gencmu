@@ -205,7 +205,7 @@ def main():
                      if (case := json.loads(line))["pipeline"] == "lojban/cll")
     cases.sort(key=lambda case: case["id"].encode("ascii"))
     if len(cases) < 400 or len({c["id"] for c in cases}) != len(cases):
-        raise ValueError("The baseline requires 400 distinct cll-ebnf IDs")
+        raise ValueError("The baseline requires 400 distinct lojban/cll IDs")
     candidate_cases = {}
     for path in (ROOT / "tests/corpus").glob("*.jsonl"):
         for line in path.read_text().splitlines():

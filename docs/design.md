@@ -306,7 +306,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Phoneme values and stress
 
-The [pipeline guide](dialects.md#phoneme-values-and-stress) owns the bundled stage list and phoneme mappings. The engine concatenates stored values without a separate normalization policy. A script extension controls its own tags and image recipes. Phoneme fixtures must cover the grammar's declared tags and images.
+The [pipeline guide](pipelines.md#phoneme-values-and-stress) owns the bundled stage list and phoneme mappings. The engine concatenates stored values without a separate normalization policy. A script extension controls its own tags and image recipes. Phoneme fixtures must cover the grammar's declared tags and images.
 
 ## Two walks and recipe placement
 
@@ -347,7 +347,7 @@ The following grammar gives `x` for input `a`, and `xb` for input `ab`:
 %emits
 ```
 
-The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The [pipeline author guide](dialects.md) uses this rule for quote bodies and gaps.
+The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The [pipeline author guide](pipelines.md) uses this rule for quote bodies and gaps.
 
 Recipes use a closed string language. They join literals, string constants, and seven captured string methods with `++`. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 

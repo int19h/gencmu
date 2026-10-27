@@ -4,9 +4,9 @@ A letteral is a letter word of class BY, as [../common/stream.md](../common/stre
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-This document is part of the words stage in the [Zantufa](pipeline.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+This document is part of the words stage in the [Zantufa](pipeline.md) pipeline. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
-The dialect includes this document after [the word stream](../common/stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../../docs/notation.md) explains the notation.
+The pipeline includes this document after [the word stream](../common/stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -61,7 +61,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 <p><img src="../../../docs/diagrams/lojban/zantufa/stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](../common/stream.md)). So the dialect adds only the MUhOI class to the shared marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every pipeline compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](../common/stream.md)). So the pipeline adds only the MUhOI class to the shared marker.
 
 ```jbogenbau
 %redefine-const $ZOI-MARKERS
@@ -70,7 +70,7 @@ For quote markers, this layer only adds classes to the shared class sets. The sh
 
 ```
 
-Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letteral.
+Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the pipeline rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letteral.
 
 In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every other quoted word. The shared reader handles both quote bodies.
 
@@ -240,4 +240,4 @@ The rafsi quote refuses standalone material in its gap, as the shared one-word q
 
 The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 
-The shared list lacks RAhOI, which only Zantufa uses. It also lacks GOhOI and MUhOI, which both Zantufa and experimental use. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.
+The shared list lacks RAhOI, which only Zantufa uses. It also lacks GOhOI and MUhOI, which both Zantufa and experimental use. It also omits LOhAI and LEhAI because the experimental pipeline permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.

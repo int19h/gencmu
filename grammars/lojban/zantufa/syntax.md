@@ -1,6 +1,6 @@
 # The Zantufa grammar
 
-This document is the syntax of the [Zantufa](pipeline.md) dialect. A dialect is a pipeline of stages, defined by one pipeline document. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule.
+This document is the syntax of the [Zantufa](pipeline.md) pipeline. A pipeline document defines an ordered sequence of stages. Its reference is Guskant's Zantufa 1.9999, `zantufa-1.9999.peg` in the `gerna_cipra` repository, a PEG (parsing expression grammar). It is a grammar of its own, and it translates the reference rule by rule.
 
 A translated rule keeps the reference rule's name, with hyphens, and its comment names that rule.
 
@@ -999,37 +999,37 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
 
 ## Differences from Zantufa 1.9999
 
-The dialect reads some texts differently from Zantufa 1.9999. The [dialect policy](pipeline.md#differences-from-zantufa-and-cll) accounts for most of them. The first three sections group differences by cause. The last records translation choices by grammar area, including where this grammar keeps Zantufa's reading.
+The pipeline reads some texts differently from Zantufa 1.9999. The [pipeline policy](pipeline.md#differences-from-zantufa-and-cll) accounts for most of them. The first three sections group differences by cause. The last records translation choices by grammar area, including where this grammar keeps Zantufa's reading.
 
 ### Ordered choice and preferred readings
 
-A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
+A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the pipeline accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
 
 `ke my .e gy ku'e ke'e roi klama` parses here. Zantufa reads `ke my .e gy` as grouped terms, and then it cannot continue at `ku'e`.
 
 A TO body that starts with a connective and a mekso also parses here, as in `le ke my .e by to .e cy boi dy toi ke'e broda`. Zantufa's fragment rule tries `ek` before `mex`. So it reads `.e` alone as the body, and it fails after it.
 
-In `li ma'o me my su'i pa`, only the mekso ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
+In `li ma'o me my su'i pa`, only the mekso ME operand completes the surrounding construction. This pipeline accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
 
-In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the outer mekso includes NAhE. The literal PEG rejects this text after committing inside KE and MOhE. This dialect revisits those inner choices, so the outer mekso ends at the last MOI.
+In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the outer mekso includes NAhE. The literal PEG rejects this text after committing inside KE and MOhE. This pipeline revisits those inner choices, so the outer mekso ends at the last MOI.
 
 In `li ma'o ke by .e cy jo'u dy pa`, MAhO takes the long mekso operand. The final PA lies outside it. Shorter mekso operands close TEhU earlier and lose by late elision. The literal PEG rejects this text because its grouped mekso commits to an inner choice.
 
-In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This dialect revisits the inner subscript choices, so its selbri completes. The ranked choice then takes that selbri.
+In `li mo'e ke by xi mo'e ke cy moi jo'u dy xi mo'e ke zy moi`, the outer MOhE takes a selbri. The literal reference takes a sumti after its committed selbri attempt fails. This pipeline revisits the inner subscript choices, so its selbri completes. The ranked choice then takes that selbri.
 
-Where a PEG's greed gives a reading that the ranking of this stage does not choose, the dialect keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In the same way, `ui .e re mai` puts the free modifier `.e re` with `mai` in the slot of `ui`. Zantufa reads `ui` and then a `.e` fragment, with `re mai` in its slot.
+Where a PEG's greed gives a reading that the ranking of this stage does not choose, the pipeline keeps its own reading. The ranking is the order of preference of the stage among parses. In `mi klama pamai le zarci .e remai le zdani`, Zantufa's `.e` takes `re mai` as its own free modifier. Here the free modifier is the mekso `.e re` with `mai`, after `zarci`. In the same way, `ui .e re mai` puts the free modifier `.e re` with `mai` in the slot of `ui`. Zantufa reads `ui` and then a `.e` fragment, with `re mai` in its slot.
 
 In `coi poi broda klama`, Zantufa's relative clause reads the tanru `broda klama`. Then the vocative has no selbri, so Zantufa reads a bare `coi` and a fragment of relative clauses. Here `coi` takes the relative clause `poi broda` and the selbri `klama`. `doi poi broda djan.` reads in the same way.
 
 In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an operand as a forethought mekso. So in `li fu'a pa su'i re pi'i`, it reads `su'i re` as one operand of `pi'i`. Here `su'i` is an operator of the reverse Polish mekso itself, as in *The Complete Lojban Language* (CLL).
 
-In `lo pa ke my ke'e .e gy prenu`, Zantufa reads `pa` with the connected sumti `ke my ke'e .e gy`. Then it closes the description, and `prenu` becomes the main selbri. Its `sumti_3` tries a KE sumti before `sumti_4`. So it never reads `ke my ke'e .e gy prenu` as one quantified sumti. This dialect has no condition for that order inside a quantified sumti. It reads `ke my ke'e .e gy` as a mekso quantifier of `prenu`, so `prenu` stays inside the description.
+In `lo pa ke my ke'e .e gy prenu`, Zantufa reads `pa` with the connected sumti `ke my ke'e .e gy`. Then it closes the description, and `prenu` becomes the main selbri. Its `sumti_3` tries a KE sumti before `sumti_4`. So it never reads `ke my ke'e .e gy prenu` as one quantified sumti. This pipeline has no condition for that order inside a quantified sumti. It reads `ke my ke'e .e gy` as a mekso quantifier of `prenu`, so `prenu` stays inside the description.
 
 `lo ke my .e gy ke'e ke my ke'e .e gy prenu` differs in the same way after its first KE group.
 
 ### Early closure
 
-The dialect allows an unwritten `toi` or `se'u` to close a construction before the PEG closes it. It selects a complete reading by late elision, like the other dialects. A longer parenthesis or clause usually wins when it permits a complete reading.
+The pipeline allows an unwritten `toi` or `se'u` to close a construction before the PEG closes it. It selects a complete reading by late elision, like the other pipelines. A longer parenthesis or clause usually wins when it permits a complete reading.
 
 In `metonymy`, the words are `me to ny my`. The parenthesis is empty, and the letter string `ny my` supplies the sumti after `me`. The PEG takes both letters into the parenthesis and then rejects the incomplete `me` construction.
 
@@ -1049,7 +1049,7 @@ Early closure does not require a short reading when a long reading works. In `so
 
 ### Word processing and quotation boundaries
 
-A lookahead tests words without reading them. A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the dialect rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the dialect as a grouped sumti.
+A lookahead tests words without reading them. A lookahead here sees the words that the syntax reads, after erasure and without `ba'e`. Zantufa erases and reads `ba'e` inside its grammar, so its lookaheads see those words. So Zantufa accepts `li pa je ba'e cu broda`, `li pa je brode si cu broda` and `ba'e ke broda ke'e ke'e be mi`, and the pipeline rejects them. And Zantufa reads `ke mi ba'e ke'e` as a group of terms, and the pipeline as a grouped sumti.
 
 CLL writes both `LU text` and `TO text`.[^cll-s21-1] Those rules alone do not distinguish the openers. This grammar preserves leading free modifiers as quoted content after LU and LUhEI. Zantufa instead puts them in the opener's slot. The CLL text-initial exception gives initial indicators scope over what follows.[^cll-s13-9] This grammar extends that boundary to every leading free modifier and to LUhEI.
 
@@ -1061,9 +1061,9 @@ The words stage reads a stray `si` or `bu` at the start of a text as the Magic W
 
 So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
 
-The forms stage reads the rafsi or gismu form after `ra'oi` before the words stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
+The forms stage reads the rafsi or gismu form after `ra'oi` before the words stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the pipeline rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
 
-Here, `su` cannot erase a quote word that opens no quote. So the dialect rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
+Here, `su` cannot erase a quote word that opens no quote. So the pipeline rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
 
 `ba'e` is not a magic word, as the Magic Words proposal says. The words stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
 
@@ -1128,7 +1128,7 @@ In `broda na'e my na'e me my`, an aligned sumti prefix reserves the sumti catego
 
 Zantufa nests a following free modifier in the nearest available slot. Its `post_clause <- free*` reads as far as it can. An attitudinal uses `post_clause`. A vocative uses `vocative_post_clause`, whose `!vocative free` repetition excludes a following vocative.
 
-A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. camxes-std keeps a run of vocatives or subscripts flat, but the dialect follows Zantufa.
+A comment of the reference, from camxes, says that UI words are eaten after a word. And in CLL, an indicator applies to the word before it, as in `ui nai`. camxes-std keeps a run of vocatives or subscripts flat, but the pipeline follows Zantufa.
 
 The condition is on `free`, not on each slot. So it removes a free modifier that another free modifier follows at the same level. But it does not make each slot read as far as it can. This keeps a departure from Zantufa, in `mi klama pamai le zarci .e remai le zdani` (see [preferred readings](#ordered-choice-and-preferred-readings)). There the slot of `.e` stays empty, and `.e re` with `mai` is one free modifier after `zarci`.
 

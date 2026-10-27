@@ -1,6 +1,6 @@
 # jbogenbau: from characters to tokens
 
-The lexical stage opens the [notation dialect](pipeline.md). A stage is one step of a pipeline. A token is one unit that a stage reads or emits.
+The lexical stage opens the [notation pipeline](pipeline.md). A stage is one step of a pipeline. A token is one unit that a stage reads or emits.
 
 This stage reads the decomposed character tokens of stage zero. A token's value is the string that exact comparisons read. Its image is the string that people see. Each input token carries its decomposed scalar as both strings and the stored engine tags.
 

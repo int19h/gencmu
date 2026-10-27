@@ -107,7 +107,7 @@ A failed result retains features enabled before the failure, including earlier d
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-The [pipeline guide](dialects.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
+The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
 A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 

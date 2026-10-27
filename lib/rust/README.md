@@ -8,8 +8,8 @@ The minimum supported Rust version is 1.75.
 
 ```rust
 // in a function that returns Result<_, gencmu::Error>
-let dialect = gencmu::load_pipeline("lojban/cll")?;
-let result = dialect.parse("mi klama le zarci", &gencmu::ParseOptions::default())?;
+let pipeline = gencmu::load_pipeline("lojban/cll")?;
+let result = pipeline.parse("mi klama le zarci", &gencmu::ParseOptions::default())?;
 if result.ok {
     println!("{}", gencmu::to_brackets(&result, true));
 } else if let Some(error) = &result.error {
@@ -18,24 +18,26 @@ if result.ok {
 println!("{}", gencmu::to_json(&result));
 ```
 
+`bundled_pipelines()` lists bundled names without parsing their documents. Names use two or more lowercase path segments, as in `lojban/cll`. Invalid or absent bundled names cause usage errors.
+
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
-## Loading a dialect
+## Loading a pipeline
 
-`load_pipeline(name)` loads a bundled dialect, the pipeline document `grammars/NAME/pipeline.md`. `load_pipeline_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_pipeline_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.
+`load_pipeline(name)` loads a bundled pipeline, the pipeline document `grammars/NAME/pipeline.md`. `load_pipeline_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_pipeline_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Pipeline, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.
 
 ## Parsing
 
-- `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>` parses a text. A text that does not parse is a result whose `ok` is false. The same holds for a grammar defect found while parsing, such as an entry that adds a class twice under the selected features. The `Error` is for a mistake of the caller. Examples are an unknown stage in `until`, and a feature named both to turn on and to turn off.
+- `Pipeline::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>` parses a text. A text that does not parse is a result whose `ok` is false. The same holds for a grammar defect found while parsing, such as an entry that adds a class twice under the selected features. The `Error` is for a mistake of the caller. Examples are an unknown stage in `until`, and a feature named both to turn on and to turn off.
 - `ParseOptions` has `features`, `without_features`, `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names features to disable, including unconditional defaults.
-- `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
+- `Pipeline::features()` lists the features of the pipeline in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 
 A `FeatureConflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
 ## Results
 
 - `to_json(&result)` writes the canonical JSON of `docs/output.md`.
-- `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` in the `cll-ebnf` dialect is `([mi ui] klama)`.
+- `to_brackets(&result, show_elided)` renders the tree as brackets. It shows each token by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` in the `lojban/cll` pipeline is `([mi ui] klama)`.
 - A `ParseResult` owns its data: the stages, the tree, the error and the warnings. Each stage has its input and output tokens, its verdict and, for a tie, its witness. A tied stage has no output tokens, and the error of the result holds its two readings. An error of the kind `ParseErrorKind::Ambiguous` has a `reason`: `AmbiguityReason::Tie` for a tie, or `AmbiguityReason::ElisionOnly` where the check of `elision-only` fails. Only an `elision-only` error has a `witness`, the pair of actions where its readings first differ (engine §7.10). Such an action can be `Action::Elided`, a read of a terminator that the check wrote back.
 
   An error whose `kind` is `ParseErrorKind::Grammar` and whose `code` is `Some(ErrorCode::ElisionWitnessLost)` marks a library defect. The check loses the stage's chosen derivation (engine §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
@@ -59,13 +61,13 @@ Grammar documents decompose too. Escaped scalars inside strings remain exact. In
 The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
 
 
-Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The dialect loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
+Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The pipeline loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
 
-`Pipeline` is `Send` and `Sync`, so threads can share one dialect freely.
+`Pipeline` is `Send` and `Sync`, so threads can share one pipeline freely.
 
 ## Tools
 
-For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments, since a caller cannot supply them. A DOM (document object model) is the parsed form of a grammar document.
+For tests and tools: `Pipeline::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments, since a caller cannot supply them. A DOM (document object model) is the parsed form of a grammar document.
 
 `gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a preparsed DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
 
@@ -77,7 +79,7 @@ The DOM format is 40. The result format is 15. Braces are a `repeat`, with a `se
 
 `$x.without-elision-except(family)` takes a bare capture and one rule name. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
 
-The Rust API exposes definition changes through `Dialect::changes`. Rejections can name a failed tree boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
+The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed tree boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
 
 A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 

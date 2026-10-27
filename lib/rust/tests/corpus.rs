@@ -246,7 +246,7 @@ fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
 }
 
 /// The corpus runner refuses the error elision-witness-lost, and a check
-/// that loses its witness. The check of `le sutra tavla` runs in cll-ebnf,
+/// that loses its witness. The check of `le sutra tavla` runs in lojban/cll,
 /// since the ranking chooses the fragment (grammars/lojban/cll/syntax.md), and a
 /// private switch loses its witness after recognition.
 #[test]

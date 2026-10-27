@@ -1465,7 +1465,7 @@ An inserted `ε` token has no input parts. Its default strings are empty, and it
 
 Every emitted token stores a value and image, including empty strings. Stage-zero tokens store both too. Empty tag sets are legal. Implications alter tags without changing strings. No tag-to-string mapping exists.
 
-`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The engine supplies no lowercase mapping or comma removal. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes the bundled comparison policy.
+`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The engine supplies no lowercase mapping or comma removal. The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled comparison policy.
 
 The input value keeps every character that its tokens store. A grammar can supply different value and image strings through recipes. Those mappings belong to the grammar, not comparison behavior.
 

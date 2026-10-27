@@ -4,7 +4,7 @@ This document opens the forms stage. A stage is one step of a pipeline, with its
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The forms stage follows the phoneme stage in every Lojban dialect: [CLL](../cll/pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md). The stage reads the phoneme values, images and tags.
+The forms stage follows the phoneme stage in every Lojban pipeline: [CLL](../cll/pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md). The stage reads the phoneme values, images and tags.
 
 The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../../docs/notation.md) explains the notation.
 
@@ -19,11 +19,11 @@ The prose uses these Lojban terms for words:
 - A rafsi is a shortened word form used inside compounds.
 - A gismu is a root word.
 
-The `cll-ebnf` dialect stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its family. The other dialects stitch [../bpfk/morphology.md](../bpfk/morphology.md), with [../experimental/morphology.md](../experimental/morphology.md) or [../zantufa/morphology.md](../zantufa/morphology.md) after it. The lexicon is [../cll/lexicon.md](../cll/lexicon.md), [../experimental/lexicon.md](../experimental/lexicon.md) or [../zantufa/lexicon.md](../zantufa/lexicon.md), and it gives each cmavo its selma'o.
+The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its family. The other pipelines stitch [../bpfk/morphology.md](../bpfk/morphology.md), with [../experimental/morphology.md](../experimental/morphology.md) or [../zantufa/morphology.md](../zantufa/morphology.md) after it. The lexicon is [../cll/lexicon.md](../cll/lexicon.md), [../experimental/lexicon.md](../experimental/lexicon.md) or [../zantufa/lexicon.md](../zantufa/lexicon.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
-The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits a pause as one or more `PAUSE` tokens. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
+The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits a pause as one or more `PAUSE` tokens. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other pipelines read, other punctuation is a pause too.
 
 The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
@@ -39,7 +39,7 @@ A `Quote-Material` pause token preserves punctuation or ignored source text in [
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
-In `cll-ebnf`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
+In `lojban/cll`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban pipelines drop commas in the phoneme stage.
 
 Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is the exception. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading. The other word forms fix every boundary, so the stage's `lazy` choice decides nothing else.
 
@@ -118,7 +118,7 @@ A run of phonemes that divides into no words becomes one `FOREIGN` token. Its va
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
 
-The rule `word-run` is a run that divides into words. A dialect that divides a run in another way extends `word-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
+The rule `word-run` is a run that divides into words. A pipeline that divides a run in another way extends `word-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
 
 ## Words in a run
 
@@ -166,7 +166,7 @@ The parser tests it as soon as it reads `$r`. If the condition fails, the parser
 
 Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
-Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other pipelines ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
@@ -262,7 +262,7 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-CLL[^cll-s19-14] requires pauses before and after `.y.`. These dialects omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
+CLL[^cll-s19-14] requires pauses before and after `.y.`. These pipelines omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
 
 The words stage drops hesitation, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 

@@ -1,6 +1,6 @@
-# Latin conventions of the experimental dialect
+# Latin conventions of the experimental pipeline
 
-This document adds to [../common/latin.md](../common/latin.md) the Latin conventions of the [experimental](pipeline.md) dialect. Only that dialect reads it. The [BPFK](../bpfk/pipeline.md) and [Zantufa](../zantufa/pipeline.md) dialects keep the stricter orthography of latin.md. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../common/latin.md](../common/latin.md) the Latin conventions of the [experimental](pipeline.md) pipeline. Only that pipeline reads it. The [BPFK](../bpfk/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines keep the stricter orthography of latin.md. [The notation document](../../../docs/notation.md) explains the notation.
 
 The document belongs to the phoneme stage. It stands after latin.md and before the documents of other scripts. It restates some Latin rules, and the script documents then extend them as usual.
 
@@ -505,12 +505,12 @@ An accented capital keeps its stress in an all-capital run, as latin.md says, an
 
 ## Differences from CLL and camxes-exp
 
-CLL describes none of these conventions. camxes-exp, the baseline of the experimental syntax, reads none of these letters and marks. It also treats only some punctuation as a pause. The dialect does not follow camxes-exp on punctuation or diacritics. It reads what written Lojban means.
+CLL describes none of these conventions. camxes-exp, the baseline of the experimental syntax, reads none of these letters and marks. It also treats only some punctuation as a pause. The pipeline does not follow camxes-exp on punctuation or diacritics. It reads what written Lojban means.
 
 The shared Latin rules treat non-ASCII numbers as punctuation. This layer excludes them because numeric characters do not mark word boundaries. Thus `mi½klama` forms one foreign run instead of the two words that BPFK reads.
 
 Silent marks show length or visual separation without adding phonemes or word boundaries. Thus `bro~da` forms one word here. BPFK instead treats `~` as punctuation and separates `bro` from `da`.
 
-Neither CLL nor camxes-exp defines the contextual apostrophe use of U+0060 or U+00B4. The experimental dialect accepts these keyboard spellings between letters and treats either mark as punctuation at a word edge. The neighbor rules treat them like straight and curly quotation marks. They apply across ignored characters and in foreign and capital runs.
+Neither CLL nor camxes-exp defines the contextual apostrophe use of U+0060 or U+00B4. The experimental pipeline accepts these keyboard spellings between letters and treats either mark as punctuation at a word edge. The neighbor rules treat them like straight and curly quotation marks. They apply across ignored characters and in foreign and capital runs.
 
 krulermorna marks syllables with its letters. This stage reads the phonemes that the letters stand for, and the word forms divide them by their own rules.

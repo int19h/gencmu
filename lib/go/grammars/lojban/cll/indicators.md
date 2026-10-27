@@ -1,10 +1,10 @@
 # Indicators and `ba'e`
 
-This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document.
+This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A pipeline document defines an ordered sequence of stages.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) dialects include these rules as their fifth stage.
+The [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines include these rules as their fourth stage.
 
 This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
@@ -28,7 +28,7 @@ The closing section compares this stage with other indicator rules.
 
 ## Quotation boundaries
 
-The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every dialect. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
+The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every pipeline. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
 
 The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The tree of the words stage retains its internal structure.
 
@@ -47,7 +47,7 @@ A leading indicator run also stays in the stream at the start of the whole text.
   LU
 ```
 
-The name `$INDICATOR-BOUNDARIES` lets a dialect layer add boundaries that open no quotation.
+The name `$INDICATOR-BOUNDARIES` lets a pipeline layer add boundaries that open no quotation.
 
 ## The stream
 
@@ -198,7 +198,7 @@ CLL[^cll-s19-8] says that an attitudinal "Normally" applies to the preceding wor
 
 CLL[^cll-s13-9] states: "If the word that an indicator (or group) attaches to is itself a cmavo which governs a grammatical structure". It then says: "then the indicator construct pertains to the referent of the entire structure". That sentence describes meaning, and a quotation refers to its quoted text. It does not require attachment to `lu`.
 
-A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `cll-ebnf` and `bpfk` dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
+A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `lojban/cll` and `lojban/bpfk` pipelines reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
 Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [corpus cases](../../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
 
@@ -230,13 +230,13 @@ camxes-std also lets UI and CAI clauses take further indicators before their fol
 
 A NAI after DAhO or FUhO stays available to the syntax. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that DAhO, FUhE and FUhO do not absorb `nai`, and CLL[^cll-s19-16] agrees. The syntax reads it under its own rules.
 
-In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
+In `lojban/cll` and `lojban/bpfk`, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
 
-In cll-ebnf and bpfk, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead negates `ui`.
+In `lojban/cll` and `lojban/bpfk`, `mi pu ui da'o nai klama` negates `pu`. camxes-std instead negates `ui`.
 
-In cll-ebnf and bpfk, `mi ui ia nai nai klama` and `mi cai sai nai nai klama` fail. camxes-std accepts both and pairs each NAI with a different attitudinal.
+In `lojban/cll` and `lojban/bpfk`, `mi ui ia nai nai klama` and `mi cai sai nai nai klama` fail. camxes-std accepts both and pairs each NAI with a different attitudinal.
 
-In cll-ebnf and bpfk, `ui ia nai nai mi klama` and `cai sai nai nai mi klama` fail. camxes-std accepts both leading runs too.
+In `lojban/cll` and `lojban/bpfk`, `ui ia nai nai mi klama` and `cai sai nai nai mi klama` fail. camxes-std accepts both leading runs too.
 
 Rule 1100, one of four non-formal rules, prints `word = [BAhE] any-word [indicators]`, with at most one BAhE.[^cll-s21-1] This stage follows the prose of CLL:[^cll-s19-16]
 

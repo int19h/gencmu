@@ -1,10 +1,10 @@
 # BPFK working word forms
 
-This document is the family part of the forms stage in the [BPFK](pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use.
+This document is the family part of the forms stage in the [BPFK](pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines. A stage is one step of a pipeline, with its own grammar ([engine §1](../../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The loader stitches this document in after [../common/forms.md](../common/forms.md). The experimental dialect stitches [../experimental/morphology.md](../experimental/morphology.md) after it, and the Zantufa dialect stitches [../zantufa/morphology.md](../zantufa/morphology.md). [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
+The loader stitches this document in after [../common/forms.md](../common/forms.md). The experimental pipeline stitches [../experimental/morphology.md](../experimental/morphology.md) after it, and the Zantufa pipeline stitches [../zantufa/morphology.md](../zantufa/morphology.md). [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
 This document gives the working word-form grammar of the BPFK, the Lojban language planning committee. It derives from the morphology part of `camxes.peg`, a parsing expression grammar (PEG). The executable baseline is ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) (*The Complete Lojban Language*) prints that grammar in appendix A2.
 

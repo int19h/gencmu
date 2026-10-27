@@ -249,7 +249,7 @@
     {
       "description": "Bootstrap requires its exact pipeline key",
       "find": "\"grammars/gencmu/jbogenbau/pipeline.md\":",
-      "replace": "\"GRAMMARS/DIALECTS/NOTATION.MD\":",
+      "replace": "\"GRAMMARS/GENCMU/JBOGENBAU/PIPELINE.MD\":",
       "loads": false
     },
     {

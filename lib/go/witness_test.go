@@ -169,7 +169,7 @@ func TestCheckGrammarErrorHasNoCode(t *testing.T) {
 }
 
 // The corpus runner refuses the error elision-witness-lost. The check of le
-// sutra tavla runs in cll-ebnf, since the ranking chooses the fragment
+// sutra tavla runs in lojban/cll, since the ranking chooses the fragment
 // (grammars/lojban/cll/syntax.md). The private switch loses its witness after
 // recognition.
 func TestCorpusRunnerWitnessLost(t *testing.T) {

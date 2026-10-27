@@ -1,10 +1,10 @@
 # gencmu
 
-gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is preparsed.
+gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads. No build step is required.
 
-A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. A pipeline document defines each dialect. It lists the stages and the grammar documents of each stage.
+A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. Its pipeline document lists the stages and the grammar documents of each stage.
 
-A phoneme is a unit of sound. A Lojban dialect has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values and keeps the spelling that images show. The forms stage divides the phonemes into words and classifies each word. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
+A phoneme is a unit of sound. A Lojban pipeline has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values and keeps the spelling that images show. The forms stage divides the phonemes into words and classifies each word. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
 
 Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has a lowercase value and an uppercase image.
 
@@ -25,26 +25,26 @@ node lib/js/cli.js audit --pipeline lojban/zantufa
 node lib/js/cli.js help
 ```
 
-Open `index.html` in a browser, from the clone or from GitHub Pages. This page is the playground. It runs the same library in the page and fetches nothing. The playground does these things:
+Open `index.html` in a browser, from the clone or from GitHub Pages. This page is the playground. It runs the browser library and fetches extra character resources when a grammar needs them. The playground does these things:
 
-- It parses the text as you type, under any dialect and set of features.
+- It parses the text as you type, under any pipeline and set of features.
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
 - It explains a rejection or a tie (two readings that rank the same).
 - It traces a stage at a position.
-- It audits the dialect: it lists the unreachable, replaced and extended rules.
+- It audits the pipeline: it lists the unreachable, replaced and extended rules.
 - It has an editor for the grammar documents. When you change a document, the playground parses the text again at once. You can download what you changed.
 
-## The dialects
+## The pipelines
 
 | name | what it reads |
 | --- | --- |
-| `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
-| `bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `cll-ebnf` dialect does. |
-| `experimental` | CLL with extensions. Its baseline is camxes-exp, an experimental PEG parser of Lojban. |
-| `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
-| `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
+| `lojban/cll` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
+| `lojban/bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `lojban/cll` pipeline does. |
+| `lojban/experimental` | CLL with extensions. Its baseline is camxes-exp, an experimental PEG parser of Lojban. |
+| `lojban/zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
+| `gencmu/jbogenbau` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
-A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled dialect. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --pipeline NAME` prints a dialect as one jbogenbau text.
+A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled pipeline. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --pipeline NAME` prints a pipeline as one jbogenbau text.
 
 ## The libraries
 
@@ -62,7 +62,7 @@ console.log(toBrackets(loadPipeline("lojban/cll").parse("mi klama")));
 
 ## Documents
 
-- [`docs/pipelines.md`](docs/pipelines.md): implement a dialect, with a worked example
+- [`docs/pipelines.md`](docs/pipelines.md): implement a pipeline, with a worked example
 - [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors
 - [`docs/engine.md`](docs/engine.md): the engine specification, for implementers
 - [`docs/api.md`](docs/api.md): the library API in each language

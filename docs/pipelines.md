@@ -441,7 +441,7 @@ The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and
 
 A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
 
-The `syllable-break` rule in [latin-strict.md](../grammars/lojban/cll/latin.md) reads `commas`. Its covering emission sets the comparison value:
+The `syllable-break` rule in [the strict Latin grammar](../grammars/lojban/cll/latin.md) reads `commas`. Its covering emission sets the comparison value:
 
 ```jbogenbau
 %rule syllable-break

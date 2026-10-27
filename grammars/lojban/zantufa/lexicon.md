@@ -1,6 +1,6 @@
 # The Zantufa lexicon
 
-This document is the lexicon of the forms stage in the [Zantufa](pipeline.md) dialect. A lexicon is a list of words, each with its classes. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
+This document is the lexicon of the forms stage in the [Zantufa](pipeline.md) pipeline. A lexicon is a list of words, each with its classes. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

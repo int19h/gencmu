@@ -1,6 +1,6 @@
 # Zantufa word forms
 
-This document is part of the forms stage in the [Zantufa](pipeline.md) dialect. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. The loader stitches this document into the stage after [../bpfk/morphology.md](../bpfk/morphology.md).
+This document is part of the forms stage in the [Zantufa](pipeline.md) pipeline. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. The loader stitches this document into the stage after [../bpfk/morphology.md](../bpfk/morphology.md).
 
 The prose uses these Lojban terms for words:
 

@@ -1,10 +1,10 @@
 # Latin conventions
 
-This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read them after latin-strict.md. The [CLL](../cll/pipeline.md) dialect does not. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The pipelines of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read them after [../cll/latin.md](../cll/latin.md). The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The working morphology is the word-form grammar that [bpfk.md](../bpfk/morphology.md) states directly, with [listed departures](../bpfk/morphology.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
+Most conventions here admit spellings that [../cll/latin.md](../cll/latin.md) rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The working morphology is the word-form grammar that [the BPFK morphology](../bpfk/morphology.md) states directly, with [listed departures](../bpfk/morphology.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -29,7 +29,7 @@ Quotes read `Quote-Material` as body text. Thus `zoi gy. !!! .gy.` keeps `!!!`. 
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
-The rule lists these code points instead of naming the property. Thus the dialects need only the core properties, and they also work with a custom Unicode table.
+The rule lists these code points instead of naming the property. Thus the pipelines need only the core properties, and they also work with a custom Unicode table.
 
 An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after the final quiet core, a material token keeps an ignored-only stretch.
 
@@ -168,7 +168,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 
 ## The comma
 
-A comma between vowels is ignored, as it is between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of latin-strict.md. So nothing reads `syllable-break` in these dialects.
+A comma between vowels is ignored, as it is between other letters. It creates no syllable break. The vowels on either side are one vowel group, as if they stood side by side. `me,iin` is `meiin`, and the Cyrillic `ма,и` is `ma'i`, as `маи` is. This document redefines `letters-after-vowel` without the `syllable-break` of [../cll/latin.md](../cll/latin.md). So nothing reads `syllable-break` in these pipelines.
 
 ```jbogenbau
 %redefine-rule letters-after-vowel

@@ -1,18 +1,18 @@
 # The experimental pipeline
 
-This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo.
+This pipeline extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 A layer is a document that changes earlier rules. The syntax layer follows camxes-exp, the experimental grammar of the camxes parser. [`syntax.md`](syntax.md) explains its additions to CLL.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the bpfk dialect, with the conventions of `latin-experimental.md` and `cyrillic-experimental.md`. The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the bpfk pipeline, with the conventions of [latin.md](latin.md) and [cyrillic.md](cyrillic.md). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../bpfk/morphology.md`](../bpfk/morphology.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
-A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`morphology.md`](morphology.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the cll-ebnf dialect's stage ([`../cll/pipeline.md`](../cll/pipeline.md)). The experimental layer adds bare NAI indicators and keeps flat attachment.
+A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`morphology.md`](morphology.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the lojban/cll pipeline's stage ([`../cll/pipeline.md`](../cll/pipeline.md)). The experimental layer adds bare NAI indicators and keeps flat attachment.
 
-A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, LUhEI, TUhE or TO.
+A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, LUhEI, TUhE or TO.
 
-The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
+The pipeline turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -133,7 +133,7 @@ A ranked choice orders alternatives at one written position. An earlier option c
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
-The dialect does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
+The pipeline does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
 
 The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
 
@@ -141,7 +141,7 @@ The grammar has ambiguities that are not about terminators. For example, two sum
 
 ### Ordered choice
 
-camxes-exp is the baseline of this dialect, not its limit. gencmu considers every parse that its grammars allow, and a PEG (parsing expression grammar) gives up the alternatives it does not backtrack into. So the dialect accepts texts that camxes-exp rejects only because its PEG committed to a first match. An example is `sei la alis cusku`, where camxes-exp reads `la alis cusku` as one description and has no selbri left.
+camxes-exp is the baseline of this pipeline, not its limit. gencmu considers every parse that its grammars allow, and a PEG (parsing expression grammar) gives up the alternatives it does not backtrack into. So the pipeline accepts texts that camxes-exp rejects only because its PEG committed to a first match. An example is `sei la alis cusku`, where camxes-exp reads `la alis cusku` as one description and has no selbri left.
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
@@ -175,11 +175,11 @@ The `leftmost-longest` preference includes vocatives, but it compares only readi
 
 ### Explicit grammar differences
 
-The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it rejects `ro'oi broda`. This dialect reads it as a quantified description.
+The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it rejects `ro'oi broda`. This pipeline reads it as a quantified description.
 
 A nucleus is the vowel center of a syllable. A glide is an `i` or `u` before a nucleus. camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
-The dialect also accepts four constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
+The pipeline also accepts four constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
 
@@ -215,11 +215,11 @@ No preference based only on form selects the intended meaning in every text. Thi
 
 Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one. For example, `mi nelci lo nu mi djica gy ku .e lo nu do klama` makes `.e` join those descriptions. The flag gives no preference between the two scopes, so late elision alone decides.
 
-A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
+A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The pipeline gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 
-In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
+In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The pipeline connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the pipeline rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
 
-ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. In `me my moi`, this dialect takes a sumti, while camxes-exp takes a mekso. This dialect accepts `me my su'i pa` as a complete mekso. camxes-exp commits to a shorter sumti and rejects it.
+ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. In `me my moi`, this pipeline takes a sumti, while camxes-exp takes a mekso. This pipeline accepts `me my su'i pa` as a complete mekso. camxes-exp commits to a shorter sumti and rejects it.
 
 ### Quotes and indicators
 
@@ -229,7 +229,7 @@ A replacement quote is one unit of raw words in the words stage (`../lojban/comm
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.
 - `mi lo'ai lu le'ai su klama` is `klama`, since the `lu` inside the quote is no boundary for `su`. camxes-exp rejects it.
 
-`ba'e` is not a magic word, as the Magic Words proposal says. So the words stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
+`ba'e` is not a magic word, as the Magic Words proposal says. So the words stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the pipeline rejects it. camxes-exp accepts it.
 
 The [indicator document](../cll/indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../cll/indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
@@ -237,17 +237,17 @@ A quote or a parenthesis whose terminator is elided can hold a fragment of terms
 
 ### Erasure
 
-The dialect also reads `sa` by a different rule. The words stage erases with `sa` left to right, as the Magic Words proposal says ([`../common/stream.md`](../common/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
+The pipeline also reads `sa` by a different rule. The words stage erases with `sa` left to right, as the Magic Words proposal says ([`../common/stream.md`](../common/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
 
 - `mi broda le brode sa ti` is `ti`, since `mi` is the last word of KOhA before the `sa`. camxes-exp reads `mi broda ti`.
 - `lo broda sa broda` is `lo broda`, and `mi broda sa brode` is `mi brode`. camxes-exp rejects both.
-- The dialect rejects `mi broda gi'e klama da de di sa na gi'e prami`. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
-- The dialect rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
+- The pipeline rejects `mi broda gi'e klama da de di sa na gi'e prami`. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
+- The pipeline rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
 
 ### Feature choices
 
-camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This dialect stops SU by class: NIhO, LU, TUhE, TO, and LUhEI. Thus `la'au` and `tu'ai`, which belong to LU, also stop SU.
+camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This pipeline stops SU by class: NIhO, LU, TUhE, TO, and LUhEI. Thus `la'au` and `tu'ai`, which belong to LU, also stop SU.
 
-camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
+camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This pipeline enables them by default but permits a caller to turn either off.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

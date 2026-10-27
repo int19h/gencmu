@@ -1,10 +1,10 @@
 # Experimental word forms
 
-This document is part of the forms stage in the [experimental](pipeline.md) dialect. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. The loader stitches this document into the stage after [../bpfk/morphology.md](../bpfk/morphology.md).
+This document is part of the forms stage in the [experimental](pipeline.md) pipeline. The forms stage follows the phoneme stage. It divides the phonemes of the text into words. The loader stitches this document into the stage after [../bpfk/morphology.md](../bpfk/morphology.md).
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [../bpfk/morphology.md](../bpfk/morphology.md). A lookahead tests input without reading it.
 
-The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../zantufa/pipeline.md) dialect shares the `ie'o` hesitation and the permitted `mz` pair, as [../zantufa/morphology.md](../zantufa/morphology.md) describes. [The notation document](../../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in [../bpfk/morphology.md](../bpfk/morphology.md). The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../zantufa/pipeline.md) pipeline shares the `ie'o` hesitation and the permitted `mz` pair, as [../zantufa/morphology.md](../zantufa/morphology.md) describes. [The notation document](../../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -260,7 +260,7 @@ The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, 
 
 ## Differences from CLL, BPFK and camxes-exp
 
-camxes-exp extends the working word forms of the BPFK, the Lojban language planning committee. This layer retains its changes except the redundant glide lookahead described in [the dialect departures](pipeline.md#where-it-reads-texts-differently-from-camxes-exp).
+camxes-exp extends the working word forms of the BPFK, the Lojban language planning committee. This layer retains its changes except the redundant glide lookahead described in [the pipeline departures](pipeline.md#where-it-reads-texts-differently-from-camxes-exp).
 
 *The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`. The letter rule for `m` in camxes-exp refuses only another `m` among the consonants. So camxes-exp accepts `mz` wherever a permissible pair can stand. Examples are the predicate word `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 

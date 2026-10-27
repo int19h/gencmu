@@ -182,7 +182,7 @@ class Corpus(unittest.TestCase):
     def test_the_runner_refuses_the_error_elision_witness_lost(self) -> None:
         """The runner fails a corpus case whose result is the error
         elision-witness-lost, or whose check loses its witness
-        (tests/README.md). The check of le sutra tavla runs in cll-ebnf,
+        (tests/README.md). The check of le sutra tavla runs in lojban/cll,
         since the ranking chooses the fragment (grammars/lojban/cll/syntax.md). A
         replaced step of the check loses its witness after recognition."""
         from unittest import mock

@@ -3179,8 +3179,8 @@ adhoc.prose.syntax-zantufa.pin-11
 adhoc.prose.syntax-zantufa.pin-12
 adhoc.prose.syntax-zantufa.pin-13
 adhoc.prose.syntax-zantufa.pin-14
-adhoc.prose.dialects-experimental.pin-1
-adhoc.prose.dialects-experimental.pin-2
+adhoc.prose.pipelines-experimental.pin-1
+adhoc.prose.pipelines-experimental.pin-2
 adhoc.kihei.sa-class
 adhoc.kihei.indicator
 adhoc.kihei.tense
@@ -4459,7 +4459,7 @@ i211.experimental.fuhei-indicator-reading
 i211.experimental.zeei-joins-words
 i211.experimental.zeei-missing-right
 i211.experimental.xoha-erases-suffix
-i211.experimental.johau-keeps-dialect
+i211.experimental.johau-keeps-pipeline
 i211.experimental.xeihu-attaches-to-word
 i211.experimental.saihei-ordinal-reading
 i211.experimental.pehei-keeps-connective-scope

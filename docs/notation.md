@@ -814,7 +814,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/lojban/cll/morphology.md#commas) define the comma restrictions of lojban/cll.
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/lojban/cll/morphology.md#commas) define the comma restrictions of lojban/cll.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -1252,7 +1252,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Pipelines
 
-For a procedure with commands and tree examples, read [Implement a pipeline](dialects.md).
+For a procedure with commands and tree examples, read [Implement a pipeline](pipelines.md).
 
 A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 

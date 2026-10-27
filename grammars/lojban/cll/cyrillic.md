@@ -1,16 +1,16 @@
 # The Cyrillic orthography of CLL
 
-This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](pipeline.md) dialect reads it as its Cyrillic.
+This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](pipeline.md) pipeline reads it as its Cyrillic.
 
-The [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) dialects read gencmu's own Cyrillic, [../common/cyrillic.md](../common/cyrillic.md). A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
+The [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines read gencmu's own Cyrillic, [../common/cyrillic.md](../common/cyrillic.md). A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
 
-The two read the same letters differently, so a dialect or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin.md](latin.md), so a text can mix scripts. [The notation document](../../../docs/notation.md) explains the notation.
+The two read the same letters differently, so a pipeline or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin.md](latin.md), so a text can mix scripts. [The notation document](../../../docs/notation.md) explains the notation.
 
 The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. Their images use these Latin phoneme letters. So `ж` is `j`, `х` is `x` and `ш` is `c`.
 
-The apostrophe and period are those of the Latin orthography. In cll-ebnf, a comma marks a syllable break. The other dialects discard it through [../common/latin.md](../common/latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [../common/latin.md](../common/latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
+The apostrophe and period are those of the Latin orthography. In lojban/cll, a comma marks a syllable break. The other pipelines discard it through [../common/latin.md](../common/latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [../common/latin.md](../common/latin.md) do not apply to these letters, so in every pipeline a capital vowel here marks stress.
 
-A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin stress rules](latin.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. In cll-ebnf, a compound hyphen stays unstressed. The other dialects ignore a stress mark on `y`, so they read `bajЪkla` as a brivla.
+A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin stress rules](latin.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. In lojban/cll, a compound hyphen stays unstressed. The other pipelines ignore a stress mark on `y`, so they read `bajЪkla` as a brivla.
 
 ```jbogenbau
 %extend-rule consonant
@@ -67,7 +67,7 @@ A capital `Ъ` writes stressed `y`, with value `y` and image `Y`. The [Latin str
 
 ## Choices beyond CLL
 
-CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
+CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in pipelines with capital folding for other scripts.
 
 The [Latin choices](latin.md#choices-beyond-cll) explain consonant folding.
 
