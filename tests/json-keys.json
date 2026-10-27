@@ -1846,6 +1846,12 @@
       "cached": true
     },
     {
+      "description": "A family cache cannot reuse another document with the same text hash.",
+      "find": "\"grammars/test/g.md\":",
+      "replace": "\"grammars/other/g.md\":",
+      "cached": false
+    },
+    {
       "description": "A family cache cannot supply a document from another family.",
       "find": "\"format\":40",
       "replace": "\"format\":0",

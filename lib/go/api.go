@@ -65,8 +65,8 @@ func loadBundled() error {
 
 // domCacheKey includes every input that determines a document DOM (engine §8).
 type domCacheKey struct {
-	document, bootstrap, unicode, properties string
-	format                                   int
+	path, hash, bootstrap, unicode, properties string
+	format                                     int
 }
 
 // readPreparsed admits an envelope only under the complete loader identity.
@@ -105,10 +105,10 @@ func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string,
 	} else if propertiesHash == "" || *properties != propertiesHash {
 		return out, names, nil
 	}
-	for _, d := range c.Documents {
-		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
+	for path, d := range c.Documents {
+		out[domCacheKey{path, d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
 		if len(d.Names) > 0 {
-			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
+			names[domCacheKey{path, d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
 		}
 	}
 	return out, names, readNamesRegistry(c.BundledNames)
@@ -154,6 +154,12 @@ func (l *loader) activatePreparsed(document string) {
 	if !ok {
 		text, _ := l.preparsedRead(file)
 		doms, names, registry := readPreparsedCache(text, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, file == "data/preparsed/gencmu.json")
+		for key := range doms {
+			if preparsedPath(key.path) != file {
+				delete(doms, key)
+				delete(names, key)
+			}
+		}
 		family = familyPreparsed{doms, names, registry}
 		l.families[file] = family
 	}
@@ -203,7 +209,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	}
 	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
-		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
+		key := domCacheKey{p, fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
 		if raw, ok := l.preparsed[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))

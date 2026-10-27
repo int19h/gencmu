@@ -123,7 +123,7 @@ func domStage(t *testing.T, dom string) *Pipeline {
 	src := oneStage("")
 	l.read = func(p string) (string, bool) { s, ok := src[p]; return s, ok }
 	l.preparsedRead = nil
-	l.preparsed = map[domCacheKey]json.RawMessage{{fnv1a64(src["g.md"]), l.reader.hash, l.uni.hash, l.uni.propertiesHash, domFormat}: json.RawMessage(dom)}
+	l.preparsed = map[domCacheKey]json.RawMessage{{"g.md", fnv1a64(src["g.md"]), l.reader.hash, l.uni.hash, l.uni.propertiesHash, domFormat}: json.RawMessage(dom)}
 	d, err := l.pipeline("p.md")
 	if err != nil {
 		t.Fatal(err)

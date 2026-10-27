@@ -113,7 +113,7 @@ _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
 _unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 _readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_preparsed_indexes: Recent[tuple[str, str, str, str | None, bool], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_preparsed_indexes: Recent[tuple[str, str, str, str | None, bool], dict[tuple[str, str], Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
@@ -200,7 +200,7 @@ class NotationReader:
             entry = entries.get(path)
             if entry is None:
                 return None
-            problem = dom_problem(entry.get("dom"), unicode) if isinstance(entry, dict) and isinstance(entry.get("hash"), str) else "a document entry requires a hash and DOM"
+            problem = dom_problem(entry.get("dom"), unicode) if isinstance(path, str) and isinstance(entry, dict) and isinstance(entry.get("hash"), str) else "a document entry requires a hash and DOM"
             if problem is not None:
                 raise GencmuError(f"the bootstrap's DOM of {path} is malformed: {problem}", document=where,
                                   code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
@@ -370,8 +370,8 @@ def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable, i
             and "properties" in data and data["properties"] == unicode.properties_fingerprint)
 
 
-def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None, implicit: bool = False) -> dict[str, Dom]:
-    """The preparsed DOMs usable with this bootstrap, by text hash.
+def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None, implicit: bool = False) -> dict[tuple[str, str], Dom]:
+    """The preparsed DOMs usable with this bootstrap, by document path and text hash.
     Their schema and exact string values follow engine §9."""
     if not preparsed:
         return {}
@@ -380,16 +380,16 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
         found = _preparsed_indexes.get(key)
     if found is not None:
         return found
-    index: dict[str, Dom] = {}
+    index: dict[tuple[str, str], Dom] = {}
     unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(preparsed)
         if _preparsed_identity(data, bootstrap_hash, unicode, implicit):
-            for entry in data.get("documents", {}).values():
+            for path, entry in data.get("documents", {}).items():
                 # A malformed entry is a miss: its document is read afresh.
-                if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
+                if isinstance(path, str) and isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
                     dom = known_dom_members(entry["dom"])
-                    index[entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
+                    index[path, entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
         # An unreadable data/preparsed/lojban.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.
@@ -435,6 +435,8 @@ class _Loader:
             text = source(key) if callable(source) else source
             implicit = key == "data/preparsed/gencmu.json"
             index = _preparsed_index(text, self.reader.hash, self.resources.unicode, self.resources.properties, implicit)
+            if callable(source):
+                index = {entry: dom for entry, dom in index.items() if _preparsed_path(entry[0]) == key}
             registry = None
             if text:
                 try:
@@ -473,7 +475,7 @@ class _Loader:
         key = (text_hash, self.reader.hash, self.unicode.fingerprint, self.unicode.properties_fingerprint, DOM_FORMAT)
         names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
-            found = self.preparsed.get(text_hash)
+            found = self.preparsed.get((path, text_hash))
             if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
             with _lock:

@@ -42,14 +42,11 @@ fn preparsed_path(document: &str) -> Option<String> {
     valid.then(|| format!("data/preparsed/{family}.json"))
 }
 
-/// The preparsed DOMs of `data/preparsed/lojban.json`, usable only when its format
-/// and fingerprints of the bootstrap and Unicode table match. Each DOM is shared by its two keys, not
-/// copied: a copy would recurse over the JSON before `dom_from_json` checks
-/// its depth.
+/// Preparsed DOMs keyed by document path and text hash, with matching resource fingerprints.
+/// Each DOM uses shared storage to avoid recursion before its depth check.
 #[derive(Default)]
 struct Preparsed {
     by_path: HashMap<String, (String, PreparsedEntry)>,
-    by_hash: HashMap<String, PreparsedEntry>,
     bundled_names: Option<BTreeMap<String, String>>,
 }
 
@@ -120,8 +117,7 @@ impl Preparsed {
             }
             if let (Some(hash), Some(dom)) = (hash, dom) {
                 let entry = PreparsedEntry { dom, names };
-                preparsed.by_path.insert(path, (hash.clone(), entry.clone()));
-                preparsed.by_hash.insert(hash, entry);
+                preparsed.by_path.insert(path, (hash, entry));
             }
         }
         Ok(preparsed)
@@ -132,7 +128,7 @@ impl Preparsed {
     fn lookup(&self, path: &str, hash: &str, unicode: &Unicode, names: &NamesScope<'_>) -> Result<Option<Dom>, Error> {
         let entry = match self.by_path.get(path) {
             Some((known, entry)) if known == hash => Some(entry),
-            _ => self.by_hash.get(hash),
+            _ => None,
         };
         let Some(entry) = entry else {
             return Ok(None);
@@ -711,13 +707,14 @@ impl Documents for Reading<'_> {
                     Err(_) => Some(String::new()),
                 };
                 let resource = supplied.as_deref().unwrap_or("");
-                let index = Preparsed::parse_implicit(
+                let mut index = Preparsed::parse_implicit(
                     resource,
                     &self.context.bootstrap_hash,
                     &self.context.unicode_hash,
                     self.context.unicode.properties_fingerprint.as_deref(),
                     file == BOOTSTRAP_PATH,
                 )?;
+                index.by_path.retain(|path, _| preparsed_path(path).as_deref() == Some(file.as_str()));
                 self.families.insert(file.clone(), index);
             }
             self.families.get(&file).unwrap()
@@ -1161,7 +1158,6 @@ mod ranked_location_tests {
         )
         .unwrap();
         preparsed.by_path.extend(notation_entries.by_path);
-        preparsed.by_hash.extend(notation_entries.by_hash);
         let context = Context {
             unicode: bundled.unicode.clone(),
             notation,

@@ -70,7 +70,7 @@ class GrammarReading(unittest.TestCase):
         cache["documents"]["g.md"]["dom"] = sparse_dom
         cached = _Loader(texts.get, type(resources)(table, resources.bootstrap, json.dumps(cache)))
         with patch.object(cached.reader, "read", side_effect=AssertionError("cache was bypassed")):
-            self.assertIs(cached.dom("g.md"), cached.preparsed[fnv1a64(grammar)])
+            self.assertIs(cached.dom("g.md"), cached.preparsed["g.md", fnv1a64(grammar)])
 
     def test_negated_operator_needs_its_decomposition_record(self) -> None:
         from gencmu._pipeline import read_document
