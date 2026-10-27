@@ -43,7 +43,7 @@ class GrammarReading(unittest.TestCase):
     def test_cache_identity_includes_exact_table_text(self) -> None:
         import json
         from unittest.mock import patch
-        from gencmu._dialect import DOM_FORMAT, _compiled_index, _Loader, _resources
+        from gencmu._dialect import DOM_FORMAT, _preparsed_index, _Loader, _resources
         from gencmu._hash import fnv1a64
 
         table = bundled_text("data/unicode/unicode.txt") or ""
@@ -56,21 +56,21 @@ class GrammarReading(unittest.TestCase):
         self.assertEqual(dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "e\u0301"})
         cache = {"format": DOM_FORMAT, "bootstrap": first.reader.hash, "unicode": fnv1a64(table), "properties": None,
                  "documents": {"g.md": {"hash": fnv1a64(grammar), "dom": dom}}}
-        compiled = json.dumps(cache)
-        self.assertTrue(_compiled_index(compiled, first.reader.hash, table))
-        self.assertFalse(_compiled_index(compiled, first.reader.hash, sparse))
+        preparsed = json.dumps(cache)
+        self.assertTrue(_preparsed_index(preparsed, first.reader.hash, table))
+        self.assertFalse(_preparsed_index(preparsed, first.reader.hash, sparse))
         for fingerprint in (None, "0000000000000000"):
             cache["unicode"] = fingerprint
-            self.assertFalse(_compiled_index(json.dumps(cache), first.reader.hash, table))
+            self.assertFalse(_preparsed_index(json.dumps(cache), first.reader.hash, table))
         cache["unicode"] = fnv1a64(table)
-        second = _Loader(texts.get, type(resources)(sparse, resources.bootstrap, compiled))
+        second = _Loader(texts.get, type(resources)(sparse, resources.bootstrap, preparsed))
         sparse_dom = second.dom("g.md")
         self.assertEqual(sparse_dom["rules"][0]["alternatives"][0]["expr"]["literal"], {"string": "é"})
         # The matching envelope must be used even if its valid DOM differs.
         cache["documents"]["g.md"]["dom"] = sparse_dom
         cached = _Loader(texts.get, type(resources)(table, resources.bootstrap, json.dumps(cache)))
         with patch.object(cached.reader, "read", side_effect=AssertionError("cache was bypassed")):
-            self.assertIs(cached.dom("g.md"), cached.compiled[fnv1a64(grammar)])
+            self.assertIs(cached.dom("g.md"), cached.preparsed[fnv1a64(grammar)])
 
     def test_negated_operator_needs_its_decomposition_record(self) -> None:
         from gencmu._dialect import read_document

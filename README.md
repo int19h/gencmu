@@ -1,6 +1,6 @@
 # gencmu
 
-gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is compiled.
+gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads, and nothing is preparsed.
 
 A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. A pipeline document defines each dialect. It lists the stages and the grammar documents of each stage.
 

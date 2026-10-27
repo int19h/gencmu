@@ -1036,7 +1036,7 @@ mod tests {
             let read = crate::tools::read_grammar_document(&document, "").expect("the document");
             assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
-        let compiled = format!(
+        let preparsed = format!(
             r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
@@ -1046,7 +1046,7 @@ mod tests {
             crate::json::fnv1a64(PIPELINE)
         );
         let tokens: Vec<&str> = (0..rng.below(5)).map(|_| TERMINALS[rng.below(4)]).collect();
-        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("grammars/compiled.json", compiled)];
+        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("grammars/compiled.json", preparsed)];
         let dialect = crate::load_dialect_sources(sources, "p.md").ok()?;
         let g = dialect.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper)? as u32;

@@ -1,6 +1,6 @@
 """A grammar document read from disk is strict UTF-8 (engine §1): bytes that
 do not decode are a grammar error of that document, with no line or column,
-found before any hash or compiled DOM."""
+found before any hash or preparsed DOM."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ class UndecodableCache(unittest.TestCase):
     def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
         sources = {"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}
         for cache in (b"\xff", b'{"format":' + str(FORMAT).encode() + b',"documents":{"\xff":{}}}'):
-            root = self.bundle(grammars_compiled_json=cache)
+            root = self.bundle(grammars_preparsed_json=cache)
             for use_cache in (True, False):
                 with self.subTest(cache=cache, use_cache=use_cache):
                     with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):

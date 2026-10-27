@@ -113,7 +113,7 @@ _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
 _unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 _readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_compiled_indexes: Recent[tuple[str, str, str, str | None], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_preparsed_indexes: Recent[tuple[str, str, str, str | None], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
@@ -311,7 +311,7 @@ class NotationReader:
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
             # Only a bootstrap that is not the notation's gives such a tree.
             raise GencmuError(f"the notation's tree cannot be read as a grammar ({error!r}); is the bootstrap the notation's?", document=path) from error
-        # A document read here is held to the rules of a precompiled DOM
+        # A document read here is held to the rules of a preparsed DOM
         # (engine §9). A bootstrap that is not the notation's can give a DOM
         # that breaks them.
         problem = dom_problem(dom, self.unicode, defer_emission)
@@ -359,27 +359,27 @@ def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) ->
     return reader
 
 
-def _compiled_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable) -> bool:
+def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable) -> bool:
     return (isinstance(data, dict) and data.get("format") == DOM_FORMAT
             and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint
             and "properties" in data and data["properties"] == unicode.properties_fingerprint)
 
 
-def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
-    """The precompiled DOMs usable with this bootstrap, by text hash.
+def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
+    """The preparsed DOMs usable with this bootstrap, by text hash.
     Their schema and exact string values follow engine §9."""
-    if not compiled:
+    if not preparsed:
         return {}
-    key = (compiled, bootstrap_hash, unicode_text, properties)
+    key = (preparsed, bootstrap_hash, unicode_text, properties)
     with _lock:
-        found = _compiled_indexes.get(key)
+        found = _preparsed_indexes.get(key)
     if found is not None:
         return found
     index: dict[str, Dom] = {}
     unicode = _unicode_table(unicode_text, properties)
     try:
-        data = json.loads(compiled)
-        if _compiled_identity(data, bootstrap_hash, unicode):
+        data = json.loads(preparsed)
+        if _preparsed_identity(data, bootstrap_hash, unicode):
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
@@ -390,7 +390,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
-        _compiled_indexes.put(key, index, len(compiled) + len(unicode_text) + len(properties or ""))
+        _preparsed_indexes.put(key, index, len(preparsed) + len(unicode_text) + len(properties or ""))
     return index
 
 
@@ -402,7 +402,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
 class _Resources:
     unicode: str
     bootstrap: str
-    compiled: str | None
+    preparsed: str | None
     properties: str | None = None
 
 
@@ -417,11 +417,11 @@ class _Loader:
         self.use_cache = use_cache
         self.unicode = _unicode_table(found.unicode, found.properties)
         self.reader = _reader(found.bootstrap, found.unicode, found.properties)
-        self.compiled = _compiled_index(found.compiled, self.reader.hash, found.unicode, found.properties) if use_cache else {}
-        if use_cache and found.compiled:
+        self.preparsed = _preparsed_index(found.preparsed, self.reader.hash, found.unicode, found.properties) if use_cache else {}
+        if use_cache and found.preparsed:
             try:
-                envelope = json.loads(found.compiled)
-                if _compiled_identity(envelope, self.reader.hash, self.unicode):
+                envelope = json.loads(found.preparsed)
+                if _preparsed_identity(envelope, self.reader.hash, self.unicode):
                     self.bundled_names = names_registry(envelope.get("bundledNames"))
             except (ValueError, AttributeError, TypeError, RecursionError):
                 pass
@@ -452,7 +452,7 @@ class _Loader:
         key = (text_hash, self.reader.hash, self.unicode.fingerprint, self.unicode.properties_fingerprint, DOM_FORMAT)
         names = NamesScope(self.names_text, self.unicode, inherited)
         if self.use_cache:
-            found = self.compiled.get(text_hash)
+            found = self.preparsed.get(text_hash)
             if found is not None and NamesScope(self.names_text, self.unicode, selected_names(path, found, inherited)).matches(getattr(found, "names_dependencies", NO_NAMES), self.bundled_names, self.names_override):
                 return found
             with _lock:

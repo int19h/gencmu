@@ -29,7 +29,7 @@ func TestSharedJSONKeys(t *testing.T) {
 			Replace     string `json:"replace"`
 			Loads       bool   `json:"loads"`
 		} `json:"bootstrap"`
-		Compiled []struct {
+		Preparsed []struct {
 			Description string            `json:"description"`
 			Find        string            `json:"find"`
 			Replace     string            `json:"replace"`
@@ -41,7 +41,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				Document string `json:"document"`
 				Line     int    `json:"line"`
 			} `json:"error"`
-		} `json:"compiled"`
+		} `json:"preparsed"`
 		Grammar string `json:"grammar"`
 		Cache   string `json:"cache"`
 	}
@@ -103,7 +103,7 @@ func TestSharedJSONKeys(t *testing.T) {
 			}
 		})
 	}
-	for _, item := range fixtures.Compiled {
+	for _, item := range fixtures.Preparsed {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
 			s["data/unicode/unicode.txt"] = string(unicode)
@@ -264,7 +264,7 @@ func TestJSONRawAndIgnored(t *testing.T) {
 	}
 }
 
-func BenchmarkReadCompiledJSON(b *testing.B) {
+func BenchmarkReadPreparsedJSON(b *testing.B) {
 	cache, err := os.ReadFile("../../grammars/compiled.json")
 	if err != nil {
 		b.Fatal(err)
@@ -287,7 +287,7 @@ func BenchmarkReadCompiledJSON(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readCompiled(text, hash, unicodeHash, propertiesHash)) == 0 {
+		if len(readPreparsed(text, hash, unicodeHash, propertiesHash)) == 0 {
 			b.Fatal("cache miss")
 		}
 	}

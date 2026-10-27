@@ -1,4 +1,4 @@
-//! The fixpoint of the bootstrap, and the precompiled DOMs (engine §8).
+//! The fixpoint of the bootstrap, and the preparsed DOMs (engine §8).
 
 mod common;
 
@@ -36,7 +36,7 @@ fn bootstrap_is_a_fixpoint() {
 }
 
 /// Every bundled dialect splices to the same stages and features with the
-/// precompiled DOMs of `grammars/compiled.json` and without them.
+/// preparsed DOMs of `grammars/compiled.json` and without them.
 #[test]
 fn dialects_splice_the_same_with_and_without_the_cache() {
     let mut names: Vec<String> = std::fs::read_dir(grammars().join("dialects"))
@@ -85,15 +85,15 @@ fn the_grammar_copy_is_current() {
 
 /// `grammars/compiled.json` agrees with a fresh reading of every document it lists.
 #[test]
-fn compiled_doms_match_a_fresh_reading() {
-    let compiled = parse_json(&read("grammars/compiled.json")).expect("grammars/compiled.json");
-    assert_eq!(compiled.get("format"), Some(&Value::Number(DOM_FORMAT as f64)));
-    assert_eq!(compiled.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
+fn preparsed_doms_match_a_fresh_reading() {
+    let preparsed = parse_json(&read("grammars/compiled.json")).expect("grammars/compiled.json");
+    assert_eq!(preparsed.get("format"), Some(&Value::Number(DOM_FORMAT as f64)));
+    assert_eq!(preparsed.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
     assert_eq!(
-        compiled.get("unicode").and_then(Value::str),
+        preparsed.get("unicode").and_then(Value::str),
         Some(gencmu::tools::fnv1a64(&read("data/unicode/unicode.txt")).as_str())
     );
-    let documents = compiled.get("documents").expect("documents").object().to_vec();
+    let documents = preparsed.get("documents").expect("documents").object().to_vec();
     assert!(!documents.is_empty());
     // Each document is read on a thread of its own: the Lojban grammars
     // are slow to read through the notation in a debug build.
@@ -110,7 +110,7 @@ fn compiled_doms_match_a_fresh_reading() {
                 let fresh =
                     parse_json(&gencmu::tools::read_grammar_document(&text, &path).expect("a DOM")).expect("JSON");
                 same(entry.get("dom").expect("a DOM"), &fresh, &path)
-                    .unwrap_or_else(|problem| panic!("{path} differs from its compiled DOM: {problem}"));
+                    .unwrap_or_else(|problem| panic!("{path} differs from its preparsed DOM: {problem}"));
             })
         })
         .collect();
@@ -119,7 +119,7 @@ fn compiled_doms_match_a_fresh_reading() {
     }
 }
 
-fn bundled_sources(compiled: Option<&str>) -> BTreeMap<String, String> {
+fn bundled_sources(preparsed: Option<&str>) -> BTreeMap<String, String> {
     let mut sources = BTreeMap::new();
     for path in [
         "data/unicode/unicode.txt",
@@ -131,7 +131,7 @@ fn bundled_sources(compiled: Option<&str>) -> BTreeMap<String, String> {
     ] {
         sources.insert(path.to_string(), read(path));
     }
-    sources.insert("grammars/compiled.json".to_string(), compiled.map_or_else(|| read("grammars/compiled.json"), str::to_string));
+    sources.insert("grammars/compiled.json".to_string(), preparsed.map_or_else(|| read("grammars/compiled.json"), str::to_string));
     sources
 }
 

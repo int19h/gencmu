@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// FuzzPrecompiledDOM feeds arbitrary JSON as a document's DOM: whatever it
+// FuzzPreparsedDOM feeds arbitrary JSON as a document's DOM: whatever it
 // is, decoding, stitching, lowering and parsing return errors or results and
-// never panic. go test runs the seeds; go test -fuzz FuzzPrecompiledDOM
+// never panic. go test runs the seeds; go test -fuzz FuzzPreparsedDOM
 // searches further.
-func FuzzPrecompiledDOM(f *testing.F) {
+func FuzzPreparsedDOM(f *testing.F) {
 	loadBundled()
 	for _, doc := range []string{"grammars/notation/lexical.md", "grammars/notation/syntax.md"} {
 		var c struct {

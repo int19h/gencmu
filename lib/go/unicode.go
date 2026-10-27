@@ -226,7 +226,7 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	return t.category(c) == name
 }
 
-// fnv1a64 is the hash that keys precompiled DOMs (engine §8).
+// fnv1a64 is the hash that keys preparsed DOMs (engine §8).
 func fnv1a64(text string) string {
 	h := uint64(0xcbf29ce484222325)
 	for i := 0; i < len(text); i++ {

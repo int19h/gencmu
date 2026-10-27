@@ -53,7 +53,7 @@ fn shared_json_keys() {
             assert!(e.message.starts_with("grammars/notation/bootstrap.json:"));
         }
     }
-    for case in fixtures.get("compiled").unwrap().array() {
+    for case in fixtures.get("preparsed").unwrap().array() {
         let cache = mutate(text(&fixtures, "cache"), case)
             .replace("@bootstrap@", &gencmu::tools::fnv1a64(&bundled))
             .replace("@unicode@", &gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")))

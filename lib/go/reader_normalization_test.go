@@ -21,7 +21,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 			l.read = func(p string) (string, bool) { return document, p == path }
 			l.reader = reader
 			l.bootstrapHash = reader.hash
-			l.compiled = nil
+			l.preparsed = nil
 			if mode != "cold" {
 				raw := expected.json()
 				if mode != "matching" {
@@ -59,8 +59,8 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 				if err != nil {
 					t.Fatal(err)
 				}
-				l.compiled = readCompiled(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
-				if mode == "matching" && len(l.compiled) != 1 {
+				l.preparsed = readPreparsed(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+				if mode == "matching" && len(l.preparsed) != 1 {
 					t.Fatal("matching cache not admitted")
 				}
 				if mode == "matching" {

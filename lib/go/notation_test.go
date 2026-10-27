@@ -137,9 +137,9 @@ func TestFixpoint(t *testing.T) {
 	}
 }
 
-// TestCompiled checks that grammars/compiled.json agrees with a fresh reading of
+// TestPreparsed checks that grammars/compiled.json agrees with a fresh reading of
 // every document it lists, and that it is the file of the grammars.
-func TestCompiled(t *testing.T) {
+func TestPreparsed(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -188,7 +188,7 @@ func TestCompiled(t *testing.T) {
 	}
 }
 
-// TestCacheUsedAndBypassed parses with the precompiled DOMs and without
+// TestCacheUsedAndBypassed parses with the preparsed DOMs and without
 // them, and the two agree.
 func TestCacheUsedAndBypassed(t *testing.T) {
 	t.Parallel()
@@ -220,12 +220,12 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["grammars/compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got := readPreparsed(bundled.sources["grammars/compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Error("grammars/compiled.json was used with another bootstrap")
 	}
 }
 
-// TestBundledCacheSameStages loads each bundled dialect with the precompiled
+// TestBundledCacheSameStages loads each bundled dialect with the preparsed
 // DOMs and without them, and the two give the same stages and features.
 func TestBundledCacheSameStages(t *testing.T) {
 	t.Parallel()
@@ -236,7 +236,7 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(configured.compiled) == 0 {
+	if len(configured.preparsed) == 0 {
 		t.Fatal("grammars/compiled.json holds no DOMs for this bootstrap")
 	}
 	var names []string
@@ -627,10 +627,10 @@ func TestFormat17Refused(t *testing.T) {
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
+	if got := readPreparsed(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
 		t.Fatalf("a grammars/compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got := readPreparsed(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("a grammars/compiled.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {

@@ -1,4 +1,4 @@
-"""64-bit FNV-1a, the key of the precompiled DOMs (engine §8)."""
+"""64-bit FNV-1a, the key of the preparsed DOMs (engine §8)."""
 
 from __future__ import annotations
 

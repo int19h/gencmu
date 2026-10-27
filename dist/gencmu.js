@@ -4409,7 +4409,7 @@
 
 
   // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a precompiled one from grammars/compiled.json, has the shape the
+  // bootstrap's or a preparsed one from grammars/compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
 
@@ -19606,7 +19606,7 @@
 
   // ---- hash.js
   // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
-  // the hash that keys the precompiled DOMs in every library.
+  // the hash that keys the preparsed DOMs in every library.
   /**
    * @param {string} text
    * @returns {string}
@@ -19947,8 +19947,8 @@
 
 
   /**
-   * A precompiled document of compiled.json.
-   * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} CompiledEntry
+   * A preparsed document of compiled.json.
+   * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} PreparsedEntry
    */
 
   /**
@@ -20005,19 +20005,19 @@
         }
         throw error;
       }
-      /** @type {Map<string, CompiledEntry>} */
-      this.compiled = new Map();
-      // Precompiled DOMs are a cache: one that cannot be read, or an entry
+      /** @type {Map<string, PreparsedEntry>} */
+      this.preparsed = new Map();
+      // Preparsed DOMs are a cache: one that cannot be read, or an entry
       // that is not a DOM, is a miss, and the document is read instead.
-      const compiled = this.read("grammars/compiled.json");
-      if (compiled !== undefined) {
+      const preparsed = this.read("grammars/compiled.json");
+      if (preparsed !== undefined) {
         let data;
         try {
-          data = JSON.parse(compiled);
+          data = JSON.parse(preparsed);
         } catch {
           data = null;
         }
-        this.useCompiled(data);
+        this.usePreparsed(data);
       }
       /** @type {Map<string, GrammarDom>} */
       this.cache = new Map();
@@ -20032,13 +20032,13 @@
      * The playground uses the same gate for DOMs retained across workers.
      * @param {any} data
      */
-    useCompiled(data) {
+    usePreparsed(data) {
       if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash
         || !Object.hasOwn(data, "properties") || data.properties !== this.propertiesHash
         || !data.documents || typeof data.documents !== "object") return;
       this.bundledNames = namesRegistry(data.bundledNames);
       for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
-        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, {...entry, dom:knownDomMembers(entry.dom)});
+        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.preparsed.set(path, {...entry, dom:knownDomMembers(entry.dom)});
       }
     }
 
@@ -20079,7 +20079,7 @@
       const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${this.propertiesHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
       if (cached && this.namesMatch(this.namesDependencies.get(cached),selectedNames(path,cached,inherited))) return cached;
-      const entry = this.compiled.get(path);
+      const entry = this.preparsed.get(path);
       let dom;
       if (entry && entry.hash === hash && this.namesMatch(entry.names,selectedNames(path,entry.dom,inherited))) {
         dom = entry.dom;
@@ -20441,7 +20441,7 @@
 
   /**
    * A document's DOM from the notation's syntax tree of it: the reader's DOM,
-   * held to the rules of a precompiled DOM, or a grammar error at its place
+   * held to the rules of a preparsed DOM, or a grammar error at its place
    * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
    * its own tree with it too.
    * @param {ResultNode} tree
@@ -20467,7 +20467,7 @@
       throw new GencmuError("grammar", `${path}: the notation's tree cannot be read as a grammar: ${error instanceof Error ? error.message : String(error)}`,
         { document: path }, { cause: error });
     }
-    // A document read here is held to the rules of a precompiled DOM
+    // A document read here is held to the rules of a preparsed DOM
     // (engine §9). A bootstrap that is not the notation's can give a DOM
     // that breaks them.
     const problem = domProblem(dom, unicode, deferEmission);

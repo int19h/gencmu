@@ -20,7 +20,7 @@ fn single(rules: &str) -> BTreeMap<String, String> {
 
 /// A `grammars/compiled.json` of the current format whose entry for `g.md`, under
 /// the hash of the document of `rules`, holds `dom`.
-fn compiled(rules: &str, dom: &str) -> String {
+fn preparsed(rules: &str, dom: &str) -> String {
     format!(
         "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::DOM_FORMAT,
@@ -624,7 +624,7 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         let items = vec![r#"{"literal":{"string":"B"}}"#; count];
         let dom = changed_dom(text, r#"{"literal":{"string":"A"}}"#, &format!(r#"{{"and":[{}]}}"#, items.join(",")));
         let mut sources = single(text);
-        sources.insert("grammars/compiled.json".to_string(), compiled(text, &dom));
+        sources.insert("grammars/compiled.json".to_string(), preparsed(text, &dom));
         gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
     };
     // The & reads "B" in sixteen ways, a tie, but the stage accepts it.
@@ -653,7 +653,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         // reaches the check of the DOM. Unchanged but for 'b' in place of
         // 'a', the cache is used.
         let terminal = r#"{"literal":{"string":"a"}}"#;
-        let dialect = load(compiled(text, &changed_dom(text, terminal, r#"{"literal":{"string":"b"}}"#)));
+        let dialect = load(preparsed(text, &changed_dom(text, terminal, r#"{"literal":{"string":"b"}}"#)));
         assert!(dialect.parse("b", &ParseOptions::default()).unwrap().ok, "the cache is used");
         // Deeper than a DOM can nest (engine §9), and nearly as deep as the
         // JSON reader allows, but not so deep that the JSON does not parse,
@@ -663,8 +663,8 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         let rules = &dom[dom.find("\"rules\":").expect("rules")..dom.find(",\"directives\":").expect("directives")];
         for cache in [
             format!("{}{}", "[".repeat(10_000), "]".repeat(10_000)),
-            compiled(text, &changed_dom(text, terminal, &deep)),
-            compiled(text, &dom.replacen(rules, "\"rules\":7", 1)),
+            preparsed(text, &changed_dom(text, terminal, &deep)),
+            preparsed(text, &dom.replacen(rules, "\"rules\":7", 1)),
             "not JSON".to_string(),
         ] {
             let dialect = load(cache);
@@ -681,7 +681,7 @@ fn long_production(rules: &str, count: usize) -> gencmu::Dialect {
     let two = r#"{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"a"}}"#;
     let many = format!(r#"{{"seq":[{}"#, vec![r#"{"literal":{"string":"a"}}"#; count].join(","));
     let mut sources = single(&text);
-    sources.insert("grammars/compiled.json".to_string(), compiled(&text, &changed_dom(&text, two, &many)));
+    sources.insert("grammars/compiled.json".to_string(), preparsed(&text, &changed_dom(&text, two, &many)));
     gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
 }
 
@@ -1071,7 +1071,7 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
     let cache_source = text.replace(clause, &format!(":: ∅{padding}"));
     cached.insert("g.md".into(), grammar(&cache_source));
     gencmu::load_dialect_sources(&cached, "p.md").expect("the cache bypass control loads");
-    cached.insert("grammars/compiled.json".into(), compiled(&cache_source, &dom));
+    cached.insert("grammars/compiled.json".into(), preparsed(&cache_source, &dom));
     let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
     let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
     assert_eq!(plain, cached);
@@ -1146,7 +1146,7 @@ fn recipe_cycle_positions_match_with_a_dom_cache() {
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
         let mut cached = sources;
-        cached.insert("grammars/compiled.json".into(), compiled(text, &dom));
+        cached.insert("grammars/compiled.json".into(), preparsed(text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
         assert_eq!(plain, from_cache);
         assert_eq!((plain.line, plain.column), {
@@ -1176,7 +1176,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         let dom = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap();
         let mut cached = sources;
-        cached.insert("grammars/compiled.json".into(), compiled(&text, &dom));
+        cached.insert("grammars/compiled.json".into(), preparsed(&text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
         assert_eq!(plain, from_cache, "{rules}");
         let marker_offset = if marker.starts_with(':') { 3 } else { 0 };
@@ -1222,7 +1222,7 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
                     .replace(r#"{"capture":"x","expr":{"ref":"B"}}"#, r#"{"ref":"B"}"#)
             }
         };
-        sources.insert("grammars/compiled.json".into(), compiled(&text, &dom));
+        sources.insert("grammars/compiled.json".into(), preparsed(&text, &dom));
         let cached = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         assert_eq!(plain, cached, "{text}");
         assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"), "{text}: {plain}");
@@ -1251,11 +1251,11 @@ fn inserted_tag_clauses_validate_rules_and_delimiters() {
 }
 
 #[test]
-fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
+fn a_preparsed_dom_requires_the_exact_unicode_table_fingerprint() {
     let rules = "%ambiguity-resolution greedy\n%rule text \"a\"";
     let dom = changed_dom(rules, r#"{"literal":{"string":"a"}}"#, r#"{"literal":{"string":"b"}}"#);
     let properties = gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt"));
-    let cache = compiled(rules, &dom).replace(&format!("\"properties\":\"{properties}\""), "\"properties\":null");
+    let cache = preparsed(rules, &dom).replace(&format!("\"properties\":\"{properties}\""), "\"properties\":null");
     let bundled_table = include_str!("../data/unicode/unicode.txt");
     let bundled_hash = gencmu::tools::fnv1a64(bundled_table);
     let custom_table = bundled_table.replace("decompose 00E9 0065 0301\n", "");

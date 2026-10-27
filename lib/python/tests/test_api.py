@@ -676,7 +676,7 @@ class Robustness(unittest.TestCase):
         from gencmu._hash import fnv1a64
 
         sources = self.grammar('%rule text "a"')
-        compiled = {
+        preparsed = {
             "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("grammars/notation/bootstrap.json") or ""),
             "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
@@ -687,15 +687,15 @@ class Robustness(unittest.TestCase):
                 }
             },
         }
-        sources["grammars/compiled.json"] = json.dumps(compiled)
+        sources["grammars/compiled.json"] = json.dumps(preparsed)
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         self.assertTrue(dialect.parse("a").ok)
 
     def test_unreadable_cache_is_no_cache(self) -> None:
-        for compiled in ("[" * 2000 + "]" * 2000, "not json", "[]"):
-            with self.subTest(compiled=compiled[:10]):
+        for preparsed in ("[" * 2000 + "]" * 2000, "not json", "[]"):
+            with self.subTest(preparsed=preparsed[:10]):
                 sources = self.grammar('%rule text "a"')
-                sources["grammars/compiled.json"] = compiled
+                sources["grammars/compiled.json"] = preparsed
                 dialect = gencmu.load_dialect_sources(sources, "p.md")
                 self.assertTrue(dialect.parse("a").ok)
 
@@ -704,8 +704,8 @@ class Robustness(unittest.TestCase):
         from gencmu._validate import dom_problem
 
         unicode = _unicode_table(bundled_text("data/unicode/unicode.txt") or "")
-        compiled = json.loads(bundled_text("grammars/compiled.json") or "{}")
-        for path, entry in compiled["documents"].items():
+        preparsed = json.loads(bundled_text("grammars/compiled.json") or "{}")
+        for path, entry in preparsed["documents"].items():
             with self.subTest(document=path):
                 self.assertIsNone(dom_problem(entry["dom"], unicode))
 
@@ -768,7 +768,7 @@ class Robustness(unittest.TestCase):
 
     def test_deep_include_chain(self) -> None:
         """A chain of includes far deeper than the call stack loads, and its
-        errors name the whole chain. The DOMs come precompiled, since the
+        errors name the whole chain. The DOMs come preparsed, since the
         notation reader would spend most of the run reading them."""
         from unittest.mock import patch
         from gencmu._dialect import NotationReader, read_document
@@ -795,7 +795,7 @@ class Robustness(unittest.TestCase):
 
         def load(end: str | None) -> gencmu.Dialect:
             texts = sources(end)
-            with patch.object(NotationReader, "read", side_effect=AssertionError("the include fixture bypassed its compiled DOMs")):
+            with patch.object(NotationReader, "read", side_effect=AssertionError("the include fixture bypassed its preparsed DOMs")):
                 return gencmu.load_dialect_sources(texts, "d0.md")
 
         dialect = load('```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text "a"\n```\n')

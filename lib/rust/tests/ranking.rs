@@ -1026,7 +1026,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             return Err(format!("seed {seed}: the generated DOM differs from the notation's:\n{dom}\n{read}"));
         }
     }
-    let compiled = format!(
+    let preparsed = format!(
         "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
@@ -1036,7 +1036,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     let sources = [
         ("main.md".to_string(), document),
         ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
-        ("grammars/compiled.json".to_string(), compiled),
+        ("grammars/compiled.json".to_string(), preparsed),
     ];
     let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;
     let input: Vec<gencmu::InputToken> = tokens

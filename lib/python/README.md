@@ -126,7 +126,7 @@ The tests cover these items:
 - The fixpoint of the bootstrap of the notation
 - A comparison of `grammars/compiled.json` with a fresh reading
 - The API
-- The checks of a precompiled DOM, and the refusal of a cache of another DOM format
+- The checks of a preparsed DOM, and the refusal of a cache of another DOM format
 - The place and the order of the errors of lowering, and the items that captures add to the recognizer (`tests/README.md`)
 - A property test of the ranking against brute-force enumeration
 - The core sample of the Lojban corpus (`tests/core.txt`)

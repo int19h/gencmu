@@ -12,7 +12,7 @@
 // explanations itself, with the library's non-recursive renderers.
 //
 // Protocol, page to worker:
-//   { kind: "init", sources, compiled }  the documents, path to text, and
+//   { kind: "init", sources, preparsed }  the documents, path to text, and
 //       DOMs already read in an earlier worker, path to { hash, dom }
 //   { kind: "set", path, text }          a document changed (text null: gone)
 //   { kind: "run", id, request }         parse and render; see `run` below
@@ -69,8 +69,8 @@
         if (namesErrors.has(path)) throw new gencmu.GencmuError("grammar", namesErrors.get(path), { document: path });
         throw new NeedNames(path);
       };
-      for (const [path, entry] of Object.entries(message.compiled || {})) {
-        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
+      for (const [path, entry] of Object.entries(message.preparsed || {})) {
+        loader.usePreparsed({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
       // Reading a document that grammars/compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
@@ -440,10 +440,10 @@
       const sources = Object.assign({}, this.bundled);
       for (const [path,text] of this.namesResources) if (!Object.hasOwn(this.bundled,path)) sources[path] = text;
       for (const [path, text] of this.edits) sources[path] = text;
-      const compiled = {};
-      for (const [path, entry] of this.doms) if (this.edits.has(path)) compiled[path] = entry;
+      const preparsed = {};
+      for (const [path, entry] of this.doms) if (this.edits.has(path)) preparsed[path] = entry;
       this.unsent.clear();
-      worker.postMessage({ kind: "init", sources, compiled });
+      worker.postMessage({ kind: "init", sources, preparsed });
     }
 
     async supplyNames(worker, message) {

@@ -70,12 +70,12 @@ def check_notation_cache_paths(
         "documents": {name: {"hash": fnv1a64(document), "dom": expected}},
     }
 
-    def loader(compiled):
-        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(compiled), resources.properties))
+    def loader(preparsed):
+        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(preparsed), resources.properties))
 
     cached = loader(envelope)
-    test.assertIn(fnv1a64(document), cached.compiled)
-    with patch.object(cached.reader, "read", side_effect=AssertionError("compiled cache was bypassed")):
+    test.assertIn(fnv1a64(document), cached.preparsed)
+    with patch.object(cached.reader, "read", side_effect=AssertionError("preparsed cache was bypassed")):
         test.assertEqual(cached.dom(name), expected)
         test.assertEqual(cached.dom(name), expected)
     for key in ("document", "bootstrap", "unicode", "format"):

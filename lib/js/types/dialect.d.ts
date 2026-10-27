@@ -3,7 +3,7 @@ import { Token } from "./tokens.js";
 import { UnicodeTable } from "./unicode.js";
 export { fnv1a64 } from "./hash.js";
 import type { Feature, GrammarDom, ParseOptions, ParseResult, Resources, ResultNode } from "./types.js";
-export type CompiledEntry = {
+export type PreparsedEntry = {
     hash: string;
     dom: GrammarDom;
     names?: Record<string, string>;
@@ -18,8 +18,8 @@ export type RunOptions = {
 };
 /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
- * A precompiled document of compiled.json.
- * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} CompiledEntry
+ * A preparsed document of compiled.json.
+ * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} PreparsedEntry
  */
 /**
  * The options one run of the stages takes.
@@ -41,8 +41,8 @@ export declare class Loader {
     propertiesHash: string | null;
     bootstrapHash: string;
     notation: Dialect;
-    /** @type {Map<string, CompiledEntry>} */
-    compiled: Map<string, CompiledEntry>;
+    /** @type {Map<string, PreparsedEntry>} */
+    preparsed: Map<string, PreparsedEntry>;
     /** @type {Map<string, GrammarDom>} */
     cache: Map<string, GrammarDom>;
     /** @type {WeakMap<GrammarDom,Record<string,string>>} */
@@ -56,7 +56,7 @@ export declare class Loader {
      * The playground uses the same gate for DOMs retained across workers.
      * @param {any} data
      */
-    useCompiled(data: any): void;
+    usePreparsed(data: any): void;
     /**
      * A resource's text, or a grammar error when it is missing.
      * @param {string} path
@@ -133,7 +133,7 @@ export declare class Dialect {
 }
 /**
  * A document's DOM from the notation's syntax tree of it: the reader's DOM,
- * held to the rules of a precompiled DOM, or a grammar error at its place
+ * held to the rules of a preparsed DOM, or a grammar error at its place
  * (engine §9). The hand-written reader of tools/bootstrap-reader.js reads
  * its own tree with it too.
  * @param {ResultNode} tree

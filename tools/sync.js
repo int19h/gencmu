@@ -95,7 +95,7 @@ if (misshapen.length) {
 // change to the notation that the current bootstrap cannot read needs
 // tools/write-bootstrap.js first.
 const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
-// A loader of grammars/ with the given bootstrap and no precompiled DOMs.
+// A loader of grammars/ with the given bootstrap and no preparsed DOMs.
 /** @param {string} bootstrap */
 const loaderWith = (bootstrap) => new Loader((relative) => {
   if (relative === "grammars/notation/bootstrap.json") return bootstrap;
@@ -166,7 +166,7 @@ if (strays.length) {
   process.exit(1);
 }
 
-// The precompiled DOMs, read with the engine and the bootstrap. Where the
+// The preparsed DOMs, read with the engine and the bootstrap. Where the
 // pass of the diagrams changed neither a document nor the bootstrap, its
 // DOM is the one that pass read.
 const loader = moved ? loaderWith(bootstrapText) : reader;
@@ -183,7 +183,7 @@ for (const file of grammarFiles()) {
 }
 const bundledNames = Object.fromEntries(["data/unicode/unicode-names.txt", ...grammarFiles().filter(file => file.endsWith("-names.txt")).map(file => `grammars/${file}`)]
   .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(root,file),"utf8"))]));
-const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
+const preparsed = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
 
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters
@@ -259,7 +259,7 @@ if (parserMissing && check) {
     process.exit(1);
   }
 }
-write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
+write("grammars/compiled.json", JSON.stringify(preparsed) + "\n");
 
 // The SVG files of the railroad diagrams. They are documentation, so no
 // package ships them. A file under docs/diagrams/ that this run does not
@@ -287,7 +287,7 @@ for (const library of ["lib/js", "lib/python", "lib/go", "lib/rust"]) write(`${l
 // The grammar copies.
 const sources = {};
 for (const file of grammarFiles()) sources[file] = fs.readFileSync(path.join(grammars, file), "utf8");
-sources["compiled.json"] = JSON.stringify(compiled) + "\n";
+sources["compiled.json"] = JSON.stringify(preparsed) + "\n";
 for (const copy of copies) {
   for (const [file, text] of Object.entries(sources)) write(`${copy}/${file}`, text);
   // A copy of a document that grammars/ no longer has, such as one renamed

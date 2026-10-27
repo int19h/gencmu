@@ -10,7 +10,7 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 
 /**
  * A loader of the grammar documents under `base`/grammars, with no
- * precompiled DOMs. `bootstrap`, when given, takes the place of
+ * preparsed DOMs. `bootstrap`, when given, takes the place of
  * grammars/notation/bootstrap.json, as tools/sync.js does while it settles the
  * bootstrap.
  * @param {string} base the repository

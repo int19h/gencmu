@@ -19,7 +19,7 @@
 // and column where known. A document is read through the notation only
 // when the bundled grammars/compiled.json has no DOM for its text under the current
 // bootstrap, Unicode table, and DOM format version. A bundled dialect
-// normally loads from the compiled cache.
+// normally loads from the preparsed cache.
 //
 // A DOM holds a document's constants, classifiers and implications as the
 // document writes them, never their values. The loader gives each constant

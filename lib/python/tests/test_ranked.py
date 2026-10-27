@@ -30,19 +30,19 @@ def cached_sources(texts, dom):
 
 
 @contextmanager
-def require_compiled_cache(reader, texts):
+def require_preparsed_cache(reader, texts):
     read = NotationReader.read
     memory_get = reader.doms.get
     grammar_key = (fnv1a64(texts["g.md"]), reader.hash, reader.unicode.fingerprint, reader.unicode.properties_fingerprint, DOM_FORMAT)
 
     def read_source(self, text, path, *args, **kwargs):
         if path == "g.md":
-            raise AssertionError("compiled grammar cache was bypassed for g.md")
+            raise AssertionError("preparsed grammar cache was bypassed for g.md")
         return read(self, text, path, *args, **kwargs)
 
     def get_memory(key):
         if key == grammar_key:
-            raise AssertionError("compiled grammar cache was bypassed for g.md")
+            raise AssertionError("preparsed grammar cache was bypassed for g.md")
         return memory_get(key)
 
     with patch.object(NotationReader, "read", read_source), patch.object(reader.doms, "get", get_memory):
@@ -78,7 +78,7 @@ class Ranked(unittest.TestCase):
             patch("gencmu._ranked.restore_locations", side_effect=AssertionError("source-location recovery ran")),
         ):
             load_dialect_sources(texts, "p.md", use_cache=False)
-            with require_compiled_cache(reader, texts):
+            with require_preparsed_cache(reader, texts):
                 for _ in range(2):
                     load_dialect_sources(cached_sources(texts, dom), "p.md")
 
@@ -94,7 +94,7 @@ class Ranked(unittest.TestCase):
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["g.md"], "g.md", True)
-        with require_compiled_cache(reader, texts), self.assertRaises(GencmuError) as cached:
+        with require_preparsed_cache(reader, texts), self.assertRaises(GencmuError) as cached:
             load_dialect_sources(cached_sources(texts, dom), "p.md")
         error = plain.exception
         self.assertEqual(error.to_dict(), cached.exception.to_dict())

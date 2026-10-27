@@ -27,8 +27,8 @@ var bundled struct {
 	propertiesOnce          sync.Once
 	propertiesUni           *unicodeTable
 	propertiesReader        *notationReader
-	propertiesCompiled      map[domCacheKey]json.RawMessage
-	propertiesCompiledNames map[domCacheKey]json.RawMessage
+	propertiesPreparsed      map[domCacheKey]json.RawMessage
+	propertiesPreparsedNames map[domCacheKey]json.RawMessage
 	propertiesBundledNames  map[string]string
 	propertiesErr           error
 }
@@ -72,13 +72,13 @@ type domCacheKey struct {
 	format                                   int
 }
 
-// readCompiled admits an envelope only under the complete loader identity.
-func readCompiled(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
-	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash)
+// readPreparsed admits an envelope only under the complete loader identity.
+func readPreparsed(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
+	doms, _, _ := readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash)
 	return doms
 }
 
-func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
+func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`
 		Bootstrap    string          `json:"bootstrap"`
@@ -123,8 +123,8 @@ type loader struct {
 	uni                *unicodeTable
 	reader             *notationReader
 	bootstrapHash      string
-	compiled           map[domCacheKey]json.RawMessage
-	compiledNames      map[domCacheKey]json.RawMessage
+	preparsed           map[domCacheKey]json.RawMessage
+	preparsedNames      map[domCacheKey]json.RawMessage
 	bundledNames       map[string]string
 	namesOverride      func(string) bool
 	noCache            bool
@@ -147,7 +147,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
 	// A document is a sequence of scalar values, as a text is. A file on
-	// disk is strict UTF-8, checked before its hash finds a compiled DOM
+	// disk is strict UTF-8, checked before its hash finds a preparsed DOM
 	// (engine §1). A byte order mark stays U+FEFF.
 	if problem := utf8Problem(text); problem != "" {
 		if l.fromDisk {
@@ -158,10 +158,10 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
 		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
-		if raw, ok := l.compiled[key]; ok {
+		if raw, ok := l.preparsed[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
-				match, err := candidate.matches(l.compiledNames[key], l.bundledNames, l.namesOverride)
+				match, err := candidate.matches(l.preparsedNames[key], l.bundledNames, l.namesOverride)
 				if err != nil {
 					return nil, err
 				}
@@ -422,7 +422,7 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		return nil, err
 	}
 	uni, reader := bundled.uni, bundled.reader
-	var compiled, compiledNames map[domCacheKey]json.RawMessage
+	var preparsed, preparsedNames map[domCacheKey]json.RawMessage
 	var bundledNames map[string]string
 	if withProperties {
 		bundled.propertiesOnce.Do(func() {
@@ -441,14 +441,14 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 			bundled.propertiesUni = &copy
 			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], &copy)
 			if bundled.propertiesErr == nil {
-				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["grammars/compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
+				bundled.propertiesPreparsed, bundled.propertiesPreparsedNames, bundled.propertiesBundledNames = readPreparsedCache(bundled.sources["grammars/compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
 			}
 		})
 		if bundled.propertiesErr != nil {
 			return nil, bundled.propertiesErr
 		}
 		uni, reader = bundled.propertiesUni, bundled.propertiesReader
-		compiled, compiledNames, bundledNames = bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames
+		preparsed, preparsedNames, bundledNames = bundled.propertiesPreparsed, bundled.propertiesPreparsedNames, bundled.propertiesBundledNames
 	}
 	return &loader{
 		read: func(p string) (string, bool) {
@@ -461,8 +461,8 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		uni:           uni,
 		reader:        reader,
 		bootstrapHash: reader.hash,
-		compiled:      compiled,
-		compiledNames: compiledNames,
+		preparsed:      preparsed,
+		preparsedNames: preparsedNames,
 		bundledNames:  bundledNames,
 		namesOverride: func(string) bool { return false },
 	}, nil
@@ -554,9 +554,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["grammars/compiled.json"]; ok {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+		l.preparsed, l.preparsedNames, l.bundledNames = readPreparsedCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	} else if customCore || customProperties || customBootstrap {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["grammars/compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+		l.preparsed, l.preparsedNames, l.bundledNames = readPreparsedCache(bundled.sources["grammars/compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	}
 	return l.dialect(path.Clean(pipeline))
 }

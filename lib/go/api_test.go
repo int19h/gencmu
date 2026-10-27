@@ -623,10 +623,10 @@ func TestBootstrapNulls(t *testing.T) {
 	}
 }
 
-// Malformed precompiled DOMs: a bad grammars/compiled.json entry is a miss, read
+// Malformed preparsed DOMs: a bad grammars/compiled.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
-func TestMalformedPrecompiled(t *testing.T) {
+func TestMalformedPreparsed(t *testing.T) {
 	t.Parallel()
 	loadBundled()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
@@ -758,7 +758,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	dom := func(expr string) string {
 		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
-	compiled := func(dom string) map[string]string {
+	preparsed := func(dom string) map[string]string {
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
@@ -789,7 +789,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	// The control: a well-formed entry is used, and rejects "ab"; in the
 	// bootstrap, it is read, and its notation then fails on g.md.
 	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`)
-	if parse(compiled(control)) {
+	if parse(preparsed(control)) {
 		t.Fatal("the well-formed entry was not used")
 	}
 	var e *Error
@@ -812,7 +812,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
 			t.Errorf("a malformed DOM decodes: %s", expr)
 		}
-		if !parse(compiled(d)) {
+		if !parse(preparsed(d)) {
 			t.Errorf("%s in grammars/compiled.json: the document was not read instead", expr)
 		}
 		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
@@ -922,7 +922,7 @@ func TestInvalidUTF8(t *testing.T) {
 
 // A grammar document read from disk is strict UTF-8 (engine §1): bytes that
 // do not decode are a grammar error of that document, with no line or
-// column, found before any hash or compiled DOM. U+FFFD, supplementary
+// column, found before any hash or preparsed DOM. U+FFFD, supplementary
 // characters and a byte order mark decode as themselves.
 func TestFileUTF8(t *testing.T) {
 	t.Parallel()

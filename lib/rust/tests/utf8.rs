@@ -1,6 +1,6 @@
 //! A grammar document read from disk is strict UTF-8 (engine §1): bytes
 //! that do not decode are a grammar error of that document, with no line or
-//! column, found before any hash or compiled DOM.
+//! column, found before any hash or preparsed DOM.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};

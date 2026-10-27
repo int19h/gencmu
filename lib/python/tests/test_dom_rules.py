@@ -1,4 +1,4 @@
-"""A precompiled DOM is held to every rule the reader holds a document to
+"""A preparsed DOM is held to every rule the reader holds a document to
 (engine §9, docs/output.md "A grammar DOM"): one that breaks any of them is a
 cache miss, and its document is read afresh, so a grammars/compiled.json entry can
 never change a result."""
@@ -463,7 +463,7 @@ def scramble(value: Any, rng: random.Random) -> Any:
     return value
 
 
-class PrecompiledDomRules(unittest.TestCase):
+class PreparsedDomRules(unittest.TestCase):
     dom: Dom
     bootstrap_hash: str
 
@@ -740,7 +740,7 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertIsNone(dom_problem(dom))
 
     def test_tests(self) -> None:
-        """A test in a precompiled DOM is checked as the reader checks it,
+        """A test in a preparsed DOM is checked as the reader checks it,
         with the lowercase mapping that the match uses (engine §9)."""
         unicode = _unicode_table(bundled_text("data/unicode/unicode.txt") or "")
 
@@ -852,7 +852,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 self.assertEqual(result.stages[0].input[0].tags, frozenset({"_Canonical_Combining_Class_Not_Reordered", "_General_Category_Letter", "_General_Category_Uppercase_Letter"}))
 
     def test_ranges_and_properties(self) -> None:
-        """A precompiled range or property is checked as the reader checks
+        """A preparsed range or property is checked as the reader checks
         it (engine §9)."""
         for name, expr, tags in (
             ("a range", {"range": [{"string": "a"}, {"string": "z"}]}, None),
@@ -1068,9 +1068,9 @@ def _class_changes() -> list[tuple[str, Callable[[Dom], None]]]:
 
 class CharacterClassLoading(unittest.TestCase):
     """A malformed range or property takes the whole loading path: a
-    precompiled one is a miss, and one in the bootstrap is an error."""
+    preparsed one is a miss, and one in the bootstrap is an error."""
 
-    def test_a_precompiled_malformed_range_or_property_is_a_miss(self) -> None:
+    def test_a_preparsed_malformed_range_or_property_is_a_miss(self) -> None:
         sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT}
         fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse("zb")
         self.assertTrue(fresh_result.ok)
@@ -1079,8 +1079,8 @@ class CharacterClassLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
-            dialect = gencmu.load_dialect_sources({**sources, "grammars/compiled.json": compiled}, "p.md")
+            preparsed = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
+            dialect = gencmu.load_dialect_sources({**sources, "grammars/compiled.json": preparsed}, "p.md")
             return gencmu.to_json(dialect.parse("zb"))
 
         # The control: a well-formed entry with the range 'a'..'b' is used in
@@ -1221,10 +1221,10 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
 
 
 class MixedFormLoading(unittest.TestCase):
-    """A node of two forms takes the whole loading path: a precompiled one
+    """A node of two forms takes the whole loading path: a preparsed one
     is a miss, and one in the bootstrap is an error."""
 
-    def test_a_precompiled_node_of_two_forms_is_a_miss(self) -> None:
+    def test_a_preparsed_node_of_two_forms_is_a_miss(self) -> None:
         sources = {"p.md": CLASS_PIPELINE, "g.md": MIXED_DOCUMENT}
         tokens = [Token("ok", frozenset(["A"]), (0, 1), (0, 2), None), Token("b", frozenset(["B"]), (1, 2), (3, 4), None)]
         fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse_tokens(tokens, "ok b")
@@ -1234,8 +1234,8 @@ class MixedFormLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(MIXED_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
-            dialect = gencmu.load_dialect_sources({**sources, "grammars/compiled.json": compiled}, "p.md")
+            preparsed = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
+            dialect = gencmu.load_dialect_sources({**sources, "grammars/compiled.json": preparsed}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(tokens, "ok b"))
 
         # The control: a well-formed entry whose condition wants "no" is
@@ -1299,7 +1299,7 @@ CONSTANT_SOURCES = {
 
 
 class Constants(unittest.TestCase):
-    """A constant's definition and a reference to one in a precompiled or
+    """A constant's definition and a reference to one in a preparsed or
     bootstrap DOM are checked as the reader checks them (engine §2, §9)."""
 
     @staticmethod
@@ -1326,7 +1326,7 @@ class Constants(unittest.TestCase):
     def constant(value: Any, **extra: Any) -> Dom:
         return {"name": "K", "op": "define", "value": value, "at": [1, 1], **extra}
 
-    def test_a_precompiled_constant_is_checked(self) -> None:
+    def test_a_preparsed_constant_is_checked(self) -> None:
         text, constant = self.text, self.constant
         self.assertIsNone(dom_problem(text([constant({"tag": "A"})])))
         split = {"method": "split", "args": [{"const": "K", "at": [2, 20]}], "receiver": {"string": "a.b"}}
@@ -1351,7 +1351,7 @@ class Constants(unittest.TestCase):
         # Two items at one position, a constant among them.
         self.assertEqual(dom_problem(text([constant({"tag": "A"}, at=[9, 1])])), "two items at one position")
 
-    def test_a_precompiled_constant_serves_the_parse(self) -> None:
+    def test_a_preparsed_constant_serves_the_parse(self) -> None:
         """A cached DOM holds the constant, and the loader gives it its
         value; one that holds a value, or a malformed definition, is a
         miss, and the document is read instead (engine §2, §8)."""
@@ -1366,8 +1366,8 @@ class Constants(unittest.TestCase):
 
         def parse(entry: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CONSTANT_SOURCES["g.md"]), "dom": entry}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
-            dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "grammars/compiled.json": compiled}, "p.md")
+            preparsed = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
+            dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "grammars/compiled.json": preparsed}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(token, "a"))
 
         # The control: an entry whose constant is ~c is used in place of the
@@ -1402,7 +1402,7 @@ class Constants(unittest.TestCase):
         The standard decoder can reject this depth before DOM validation."""
         return '{"union":[' * depth + '{"tag":"a"}' + ',{"tag":"B"}]}' * depth
 
-    def test_a_precompiled_constant_nested_too_deeply_is_a_miss(self) -> None:
+    def test_a_preparsed_constant_nested_too_deeply_is_a_miss(self) -> None:
         """The bound on nesting holds before any walk that recurses (engine
         §9), so the entry is a miss and the document is read instead."""
         token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
@@ -1413,11 +1413,11 @@ class Constants(unittest.TestCase):
         deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
         self.assertEqual(dom_problem(read_json(deep)), "nested too deeply")
         bootstrap_hash = fnv1a64(bundled_text("grammars/notation/bootstrap.json") or "")
-        compiled = (
+        preparsed = (
             f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}","unicode":"{fnv1a64(bundled_text("data/unicode/unicode.txt") or "")}","properties":"{fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or "")}",'
             f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
         )
-        dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "grammars/compiled.json": compiled}, "p.md")
+        dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "grammars/compiled.json": preparsed}, "p.md")
         self.assertEqual(gencmu.to_json(dialect.parse_tokens(token, "a")), expected)
 
     def test_a_bootstrap_constant_nested_too_deeply_is_an_error(self) -> None:
@@ -1437,7 +1437,7 @@ class Constants(unittest.TestCase):
         if "the bootstrap is not JSON" in str(caught.exception):
             self.assertIsInstance(caught.exception.__cause__, RecursionError)
 
-    def test_a_precompiled_clause_with_a_constant_waits_for_its_value(self) -> None:
+    def test_a_preparsed_clause_with_a_constant_waits_for_its_value(self) -> None:
         """A cached DOM whose capture checks wait for a constant's value is
         used, and the loader makes the checks once the constants have their
         values (engine §3.6, §9)."""
@@ -1496,7 +1496,7 @@ class Constants(unittest.TestCase):
 
 
 class Classifiers(unittest.TestCase):
-    """A classifier, an implication and a call of classify in a precompiled
+    """A classifier, an implication and a call of classify in a preparsed
     or bootstrap DOM are checked as the reader checks them (engine §9)."""
 
     @staticmethod
@@ -1522,7 +1522,7 @@ class Classifiers(unittest.TestCase):
     def implication(**extra: Any) -> Dom:
         return {"if": {"tag": "UI"}, "then": {"tag": "Indicator"}, "at": [5, 1], **extra}
 
-    def test_a_precompiled_classifier_is_checked(self) -> None:
+    def test_a_preparsed_classifier_is_checked(self) -> None:
         dom, entry, classifier = self.dom, self.entry, self.classifier
         negated = entry(guards=[{"feature": "f", "kind": "gate", "negated": True}], op="∉", at=[4, 3])
         self.assertIsNone(dom_problem(dom([classifier([entry(), negated])])))
@@ -1550,7 +1550,7 @@ class Classifiers(unittest.TestCase):
                 expected = "a malformed string" if bad_entry["keys"] == [1] else "a malformed classifier entry"
                 self.assertEqual(dom_problem(dom([classifier([bad_entry])])), expected, json.dumps(bad_entry))
 
-    def test_a_precompiled_implication_is_checked(self) -> None:
+    def test_a_preparsed_implication_is_checked(self) -> None:
         dom, implication = self.dom, self.implication
         self.assertIsNone(dom_problem(dom([], [implication(**{"if": {"union": [{"tag": "UI"}, {"const": "K", "at": [5, 15]}]}})])))
         self.assertEqual(dom_problem(dom([], [implication(at=None)])), "a declaration requires a position")
@@ -1567,7 +1567,7 @@ class Classifiers(unittest.TestCase):
         # them.
         self.assertEqual(dom_problem(dom([self.classifier([])], [implication(at=[2, 1])])), "two items at one position")
 
-    def test_a_precompiled_classify_names_a_classifier(self) -> None:
+    def test_a_preparsed_classify_names_a_classifier(self) -> None:
         def call(args: list[Dom]) -> Dom:
             alternative = {
                 "guards": [],
@@ -1687,8 +1687,8 @@ class Classifiers(unittest.TestCase):
 
         def cached(part: Dom) -> gencmu.Dialect:
             documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
-            return gencmu.load_dialect_sources({**sources, "grammars/compiled.json": compiled}, "p.md")
+            preparsed = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": documents})
+            return gencmu.load_dialect_sources({**sources, "grammars/compiled.json": preparsed}, "p.md")
 
         self.assertIsNone(dom_problem(dom(well_formed)))
         if guard:

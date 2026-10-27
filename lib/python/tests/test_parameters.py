@@ -135,7 +135,7 @@ class Parameters(unittest.TestCase):
                 mutated['rules'][0]['alternatives'][0]['expr'] = dict(param='Other', at=[3, 16])
             supplied = cached_sources(texts, mutated)
             loader = _Loader(lambda path: supplied.get(path), _resources(supplied))
-            self.assertEqual(bool(loader.compiled), valid)
+            self.assertEqual(bool(loader.preparsed), valid)
             self.assertTrue(load_dialect_sources(supplied, 'p.md').parse('a').ok)
 
     def test_ranked_location_recovery_preserves_arrays(self):

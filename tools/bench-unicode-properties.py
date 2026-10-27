@@ -47,7 +47,7 @@ def concurrent_tables(directory):
         for byte in text.encode():
             value = ((value ^ byte) * 0x100000001b3) & 0xffffffffffffffff
         hashes[name] = f"{value:016x}"
-    selected = [case for case in fixtures["compiled"] if case.get("concurrent")]
+    selected = [case for case in fixtures["preparsed"] if case.get("concurrent")]
     if len(selected) != 3:
         raise ValueError("Concurrent table conformance requires its three shared cache controls")
     rows, expected = [], {}
@@ -261,7 +261,7 @@ def main():
         try:
             observed = table_worker.request("concurrent", "-", tables)
             if len(observed) != len(table_expected) * 4 or any(item != table_expected.get(item["name"]) for item in observed):
-                raise ValueError(library + ": concurrent reads change a selected table or its compiled cache hit")
+                raise ValueError(library + ": concurrent reads change a selected table or its preparsed cache hit")
             if any(sum(item["name"] == name for item in observed) != 4 for name in table_expected):
                 raise ValueError(library + ": concurrent reads omit a shared control")
             record["concurrentTables"] = observed

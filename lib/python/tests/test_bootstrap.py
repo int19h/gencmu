@@ -1,4 +1,4 @@
-"""The fixpoint of the notation and the precompiled DOMs (engine §8)."""
+"""The fixpoint of the notation and the preparsed DOMs (engine §8)."""
 
 from __future__ import annotations
 
@@ -53,18 +53,18 @@ class Fixpoint(unittest.TestCase):
                     self.assertEqual(bundled_text(path), file.read())
 
 
-class Compiled(unittest.TestCase):
+class Preparsed(unittest.TestCase):
     def setUp(self) -> None:
         text = bundled_text("grammars/compiled.json")
         assert text is not None
-        self.compiled = json.loads(text)
+        self.preparsed = json.loads(text)
 
     def test_keys(self) -> None:
         bootstrap = bundled_text("grammars/notation/bootstrap.json")
         assert bootstrap is not None
-        self.assertEqual(self.compiled["format"], DOM_FORMAT)
-        self.assertEqual(self.compiled["bootstrap"], fnv1a64(bootstrap))
-        self.assertEqual(self.compiled["unicode"], fnv1a64(bundled_text("data/unicode/unicode.txt") or ""))
+        self.assertEqual(self.preparsed["format"], DOM_FORMAT)
+        self.assertEqual(self.preparsed["bootstrap"], fnv1a64(bootstrap))
+        self.assertEqual(self.preparsed["unicode"], fnv1a64(bundled_text("data/unicode/unicode.txt") or ""))
 
     def test_dialects_with_and_without_the_cache(self) -> None:
         """Each cached document equals a fresh reading.
@@ -72,8 +72,8 @@ class Compiled(unittest.TestCase):
         Both loading paths give the same stages, grammars, and features.
         One worker shares the fresh reads between these comparisons.
         """
-        self.assertTrue(self.compiled["documents"])
-        for path, entry in self.compiled["documents"].items():
+        self.assertTrue(self.preparsed["documents"])
+        for path, entry in self.preparsed["documents"].items():
             with self.subTest(document=path):
                 text = bundled_text(path)
                 assert text is not None
@@ -86,12 +86,12 @@ class Compiled(unittest.TestCase):
             with self.subTest(dialect=name):
                 path = f"grammars/dialects/{name}.md"
                 cached = _Loader(bundled_text, _resources())
-                self.assertTrue(cached.compiled)
+                self.assertTrue(cached.preparsed)
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
                 uncached.dom = fresh_dom  # type: ignore[method-assign]
                 with (
-                    patch.object(cached.reader, "read", side_effect=AssertionError("compiled grammar cache was bypassed")),
-                    patch.object(cached.reader.doms, "get", side_effect=AssertionError("compiled grammar cache was bypassed")),
+                    patch.object(cached.reader, "read", side_effect=AssertionError("preparsed grammar cache was bypassed")),
+                    patch.object(cached.reader.doms, "get", side_effect=AssertionError("preparsed grammar cache was bypassed")),
                 ):
                     a = cached.load(path)
                 b = uncached.load(path)
@@ -114,7 +114,7 @@ class Compiled(unittest.TestCase):
         """An entry whose hash does not match the text is not used."""
         lexical = bundled_text("grammars/notation/lexical.md")
         assert lexical is not None
-        stale = json.loads(json.dumps(self.compiled))
+        stale = json.loads(json.dumps(self.preparsed))
         stale["documents"]["grammars/notation/lexical.md"]["dom"] = {
             "format": DOM_FORMAT,
             "rules": [],
@@ -152,8 +152,8 @@ class Compiled(unittest.TestCase):
         empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
         def load(file_format: int, dom: Dom) -> gencmu.Dialect:
-            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
-            return gencmu.load_dialect_sources({**sources, "grammars/compiled.json": json.dumps(compiled)}, "p.md")
+            preparsed = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
+            return gencmu.load_dialect_sources({**sources, "grammars/compiled.json": json.dumps(preparsed)}, "p.md")
 
         with self.assertRaises(gencmu.GencmuError):
             load(DOM_FORMAT, {"format": DOM_FORMAT, **empty})

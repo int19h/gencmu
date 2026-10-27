@@ -67,7 +67,7 @@ Lowering can find grammar defects for the features of a parse. Examples include 
 
 For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first stage. An `InputToken` has optional `value` and `image` fields. Each absent field defaults independently to its `text`. An `InputToken` has no attachments, since a caller cannot supply them. A DOM (document object model) is the parsed form of a grammar document.
 
-`gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a precompiled DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
+`gencmu::tools` reads a grammar document into a DOM. It tests that DOM as a preparsed DOM. It also splices bundled pipelines into stages and computes the hashes for the DOM cache. `gencmu::tools::DOM_FORMAT` is the version of the DOM's shape, which every cache key holds.
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 

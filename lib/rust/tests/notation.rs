@@ -115,7 +115,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     // that notation.
     let pipeline = "```jbogenbau\n%stage main\n%include \"t.md\"\n```\n";
     let dom = read_grammar_document(pipeline, "").expect("the pipeline's document");
-    let compiled = format!(
+    let preparsed = format!(
         r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         fnv1a64(&bootstrap),
         fnv1a64(include_str!("../data/unicode/unicode.txt")),
@@ -124,7 +124,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     );
     let sources = [
         ("grammars/notation/bootstrap.json", bootstrap.clone()),
-        ("grammars/compiled.json", compiled),
+        ("grammars/compiled.json", preparsed),
         ("p.md", pipeline.to_string()),
         ("t.md", "```jbogenbau\na\n```\n".to_string()),
     ];

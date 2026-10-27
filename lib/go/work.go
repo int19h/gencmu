@@ -44,7 +44,7 @@ import (
 //   - classSteps: the classes that resolving a classifier looks at,
 //     indexes and compares as it sorts them, each before it does.
 //   - implicationSteps: the implications that a token's tags set off.
-//   - decodeSteps: the values that decoding a precompiled DOM reads.
+//   - decodeSteps: the values that decoding a preparsed DOM reads.
 //   - elidableSteps: the productions that finding elidable helpers
 //     walks, each before it is looked at.
 //   - spliceSteps: the documents and stages that splicing a pipeline

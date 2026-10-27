@@ -4,7 +4,7 @@ checks a definition is held to as a whole (engine §9).
 Whether a production has a capture is known when the grammar is read, so a
 clause is simplified for each production before it is attached: presence
 tests become true or false, and the connectives over them are reduced. The
-reader, the check of a precompiled DOM and lowering all simplify the same
+reader, the check of a preparsed DOM and lowering all simplify the same
 way, so that a DOM the reader refuses is refused everywhere.
 """
 

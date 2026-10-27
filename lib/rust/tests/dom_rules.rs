@@ -67,7 +67,7 @@ fn document_was_read(dom: &str) -> bool {
 
 /// The same, with a `grammars/compiled.json` of the given format.
 fn document_was_read_from(format: i64, dom: &str) -> bool {
-    let compiled = format!(
+    let preparsed = format!(
         r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
@@ -77,7 +77,7 @@ fn document_was_read_from(format: i64, dom: &str) -> bool {
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", DOCUMENT.to_string()),
-        ("grammars/compiled.json", compiled),
+        ("grammars/compiled.json", preparsed),
     ];
     // A load error means the entry was used, and refused too late.
     let Ok(dialect) = gencmu::load_dialect_sources(sources, "p.md") else {
@@ -247,7 +247,7 @@ fn a_cache_of_another_format_is_a_miss() {
 /// A range or a property from the cache is held to what the reader checks
 /// (engine §1, §9).
 #[test]
-fn a_precompiled_range_or_property_is_checked() {
+fn a_preparsed_range_or_property_is_checked() {
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
     // Scalar strings replace the old canonical character-tag spellings.
     assert_eq!(gencmu::tools::check_dom(&expr(r#"{"range":[{"string":"a"},{"string":"z"}]}"#)).unwrap(), None);
@@ -934,10 +934,10 @@ fn constant(name: &str, op: &str, value: &str, line: usize) -> String {
     format!(r#"{{"name":"{name}","op":"{op}","value":{value},"at":[{line},1]}}"#)
 }
 
-/// A precompiled constant, and a reference to one, are checked as the
+/// A preparsed constant, and a reference to one, are checked as the
 /// reader checks them (engine §2, §9).
 #[test]
-fn a_precompiled_constant_is_checked() {
+fn a_preparsed_constant_is_checked() {
     let k = constant("K", "define", r#"{"tag":"Tag-a"}"#, 5);
     let used = [
         with_constants(&k, ""),
@@ -1032,7 +1032,7 @@ fn a_precompiled_constant_is_checked() {
 /// A cached DOM holds a constant as the document writes it, and the loader
 /// gives it its value when it stitches the stage (engine §2, §8).
 #[test]
-fn a_precompiled_constant_serves_the_parse() {
+fn a_preparsed_constant_serves_the_parse() {
     let document = "```jbogenbau\n%ambiguity-resolution greedy\n%const $K Tag-a ∪ B\n%rule text :: $K | \"a\"\n```\n";
     let read = gencmu::tools::read_grammar_document(document, "").expect("the document");
     assert!(
@@ -1048,14 +1048,14 @@ fn a_precompiled_constant_serves_the_parse() {
             ("g.md", document.to_string()),
         ];
         if let Some(entry) = entry {
-            let compiled = format!(
+            let preparsed = format!(
                 r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
-            sources.push(("grammars/compiled.json", compiled));
+            sources.push(("grammars/compiled.json", preparsed));
         }
         let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
         let options = gencmu::ParseOptions::default();
@@ -1112,7 +1112,7 @@ fn deep_value(depth: usize) -> String {
 /// A cached constant nested too deeply is a miss, found before any walk
 /// that recurses (engine §9).
 #[test]
-fn a_precompiled_constant_nested_too_deeply_is_a_miss() {
+fn a_preparsed_constant_nested_too_deeply_is_a_miss() {
     assert!(!document_was_read(&with_constants(&constant("K", "define", &deep_value(256), 5), "")));
     assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(257), 5), "")));
     // As deep as grammars/compiled.json can hold.
@@ -1141,7 +1141,7 @@ fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
 /// and the loader makes the checks once the constants have their values
 /// (engine §3.6, §9).
 #[test]
-fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
+fn a_preparsed_clause_with_a_constant_waits_for_its_value() {
     // The first alternative has no capture and reads only "b", so the
     // text "a" has one derivation.
     let document = |first: &str, last: &str| {
@@ -1157,14 +1157,14 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
             ("g.md", document.to_string()),
         ];
         if let Some(entry) = entry {
-            let compiled = format!(
+            let preparsed = format!(
                 r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
-            sources.push(("grammars/compiled.json", compiled));
+            sources.push(("grammars/compiled.json", preparsed));
         }
         let dialect = gencmu::load_dialect_sources(sources, "p.md")
             .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
@@ -1199,7 +1199,7 @@ fn with_classifiers(tags: &str, classifiers: &str, implications: &str) -> String
 /// A cached classifier, implication or call of classify is checked as the
 /// reader checks it (engine §9).
 #[test]
-fn a_precompiled_classifier_and_implication_are_checked() {
+fn a_preparsed_classifier_and_implication_are_checked() {
     let entry = |extra: &str| {
         let mut fields = [
             ("guards", "[]".to_string()),
@@ -1365,7 +1365,7 @@ fn a_gate_of_an_entry_names_a_feature() {
 /// The features of a dialect whose `grammars/compiled.json` holds `dom` for the
 /// document, each with its kind.
 fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
-    let compiled = format!(
+    let preparsed = format!(
         r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
@@ -1375,7 +1375,7 @@ fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", DOCUMENT.to_string()),
-        ("grammars/compiled.json", compiled),
+        ("grammars/compiled.json", preparsed),
     ];
     let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
     dialect.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
@@ -1476,7 +1476,7 @@ fn a_guard_of_an_alternative_has_three_members() {
     assert_refused(&guarded(r#"{"feature":"f","kind":"gate","negated":false}"#), &refused, "a malformed alternative");
 }
 
-/// The DOM of the check of a precompiled DOM, with one rule `text` whose
+/// The DOM of the check of a preparsed DOM, with one rule `text` whose
 /// one alternative's expression is `expr`.
 fn expression_problem(expr: &str) -> Option<String> {
     let dom = format!(

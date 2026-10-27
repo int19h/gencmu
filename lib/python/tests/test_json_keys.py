@@ -27,7 +27,7 @@ class JsonKeys(unittest.TestCase):
                     error = caught.exception
                     self.assertEqual((error.kind, error.document, error.stage, error.line, error.column), ("grammar", "grammars/notation/bootstrap.json", None, None, None))
                     self.assertTrue(error.message.startswith("grammars/notation/bootstrap.json:"))
-        for item in fixtures["compiled"]:
+        for item in fixtures["preparsed"]:
             with self.subTest(case=item["description"]):
                 self.assertIn(item["find"], fixtures["cache"])
                 cache = fixtures["cache"].replace(item["find"], item["replace"], 1).replace("@bootstrap@", fnv1a64(bundled)).replace("@unicode@", fnv1a64((REPOSITORY / "data/unicode/unicode.txt").read_text())).replace("@source@", fnv1a64(fixtures["grammar"]))

@@ -26,7 +26,7 @@ export declare function loadDialectFile(file: string): Dialect;
 /**
  * A dialect from documents held in memory, a map or a plain object from path
  * to text, and the path of the pipeline document among them. The Unicode
- * table, the bootstrap and the precompiled DOMs come from the bundled
+ * table, the bootstrap and the preparsed DOMs come from the bundled
  * grammars unless the map has its own.
  * @param {Map<string, string> | Record<string, string>} sources
  * @param {string} pipelinePath
