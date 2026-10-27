@@ -8,7 +8,7 @@ This example adds a word class and changes syntax. It retains the inherited phon
 
 ## Before you start
 
-Use a checkout of [int19h/gencmu](https://github.com/int19h/gencmu). Install Node 24 or later.
+Use a checkout of [int19h/gencmu](https://github.com/int19h/gencmu). Install Node 24 or later. The playground step also needs a static HTTP server, such as `python3 -m http.server`.
 
 Run these commands from the repository root:
 

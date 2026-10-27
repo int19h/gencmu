@@ -823,7 +823,7 @@
     const note = $("edited-elsewhere");
     note.hidden = !elsewhere.length;
     fill(note, ["Also edited, outside this pipeline: ", elsewhere.flatMap((path, index) => [index ? ", " : "", element("button", {
-      type: "button", class: "link", text: path, onclick: () => openDocument(path, 0, 1),
+      type: "button", class: "link", text: path.replace(/^grammars\//, "").replace(/\.md$/, ""), title: path, onclick: () => openDocument(path, 0, 1),
     })])]);
     const count = client.edits.size;
     $("download-all").disabled = !count;

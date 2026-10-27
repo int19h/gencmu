@@ -14,7 +14,7 @@ A free modifier is a word or phrase that can stand almost anywhere. `🆓` names
 
 ## Try it
 
-You need Node 24 or later, and nothing else installed. Run these commands in a clone:
+The command line needs only Node 24 or later. Run these commands in a clone:
 
 ```sh
 node lib/js/cli.js parse mi klama le zarci
