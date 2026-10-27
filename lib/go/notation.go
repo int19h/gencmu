@@ -12,20 +12,21 @@ import (
 // DOM is the bootstrap (engine §8), and turns the tree into the document's
 // DOM (engine §9).
 type notationReader struct {
-	uni     *unicodeTable
-	stages  []*stageGrammar
-	lowered []*lowered
-	hash    string
+	defaults []string
+	uni      *unicodeTable
+	stages   []*stageGrammar
+	lowered  []*lowered
+	hash     string
 }
 
 func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationReader, err error) {
 	defer func() {
 		if e, ok := err.(*Error); ok {
 			embedded := e.Document
-			if embedded != "" && embedded != "grammars/notation/bootstrap.json" && !strings.Contains(e.Message, embedded) {
+			if embedded != "" && embedded != "data/preparsed/gencmu.json" && !strings.Contains(e.Message, embedded) {
 				e.Message += " (embedded document: " + embedded + ")"
 			}
-			e.Document = "grammars/notation/bootstrap.json"
+			e.Document = "data/preparsed/gencmu.json"
 			location := e.Document
 			if e.Line != 0 {
 				location += ":" + strconv.Itoa(e.Line)
@@ -43,56 +44,48 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		}
 	}()
 	var b struct {
-		Format int `json:"format"`
-		// A stage's name and a document's path are strings: null and
-		// absent are refused, as the other libraries refuse them.
-		Stages []struct {
-			Name      *string `json:"name"`
-			Documents []struct {
-				Path *string         `json:"path"`
-				Dom  json.RawMessage `json:"dom"`
-			} `json:"documents"`
-		} `json:"stages"`
+		Format    int                        `json:"format"`
+		Documents map[string]json.RawMessage `json:"documents"`
 	}
 	if err := unmarshalJSON([]byte(bootstrap), &b); err != nil {
-		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
+		return nil, &Error{Kind: ErrorGrammar, Message: "cannot read the bootstrap: " + err.Error()}
 	}
-	if b.Format != domFormat {
-		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "the bootstrap has an unknown format"}
+	if b.Format != domFormat || b.Documents == nil {
+		return nil, &Error{Kind: ErrorGrammar, Message: "the bootstrap requires a document map of the current format"}
 	}
-	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap)}
-	if len(b.Stages) == 0 {
-		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "the bootstrap has no stages"}
+	pipeline, failure := splicePipeline("grammars/dialects/notation.md", func(p string) (*domDoc, *Error) {
+		raw, ok := b.Documents[p]
+		if !ok {
+			return nil, nil
+		}
+		var entry struct {
+			Hash *string         `json:"hash"`
+			Dom  json.RawMessage `json:"dom"`
+		}
+		if err := unmarshalJSON(raw, &entry); err != nil {
+			return nil, &Error{Kind: ErrorGrammar, Message: "cannot read the bootstrap entry of " + p + ": " + err.Error()}
+		}
+		if entry.Hash == nil {
+			return nil, &Error{Kind: ErrorGrammar, Message: "the bootstrap entry of " + p + " requires a hash"}
+		}
+		dom, err := decodeDOM(entry.Dom, uni)
+		if err != nil {
+			return nil, &Error{Kind: ErrorGrammar, Message: "cannot read the bootstrap's DOM of " + p + ": " + err.Error(), Code: rankedDOMCode(err)}
+		}
+		return dom, nil
+	})
+	if failure != nil {
+		failure.Stage = ""
+		return nil, failure
 	}
+	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap), defaults: pipeline.features}
 	type stageInput struct {
 		name      string
 		documents []docDOM
 	}
 	var inputs []stageInput
-	names := map[string]bool{}
-	for _, s := range b.Stages {
-		if s.Name == nil || !isName(*s.Name) {
-			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
-		}
-		if names[*s.Name] {
-			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a second stage named " + *s.Name}
-		}
-		names[*s.Name] = true
-		if len(s.Documents) == 0 {
-			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a bootstrap stage requires documents"}
-		}
-		var docs []docDOM
-		for _, d := range s.Documents {
-			if d.Path == nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a document of the bootstrap has no path"}
-			}
-			dom, err := decodeDOM(d.Dom, uni)
-			if err != nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error(), Code: rankedDOMCode(err)}
-			}
-			docs = append(docs, docDOM{path: *d.Path, dom: dom})
-		}
-		inputs = append(inputs, stageInput{*s.Name, docs})
+	for _, stage := range pipeline.stages {
+		inputs = append(inputs, stageInput{stage.name, stage.documents})
 	}
 	for _, input := range inputs {
 		hasRules := false
@@ -111,7 +104,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		}
 		nr.stages = append(nr.stages, g)
 	}
-	if _, err := newDialect(nr.stages, nil, uni); err != nil {
+	if _, err := newDialect(nr.stages, pipeline.features, uni); err != nil {
 		return nil, err
 	}
 	for _, g := range nr.stages {
@@ -143,6 +136,9 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 	toks := ps.characterTokens()
 	var out stageOutcome
 	features := map[string]bool{}
+	for _, name := range nr.defaults {
+		features[name] = true
+	}
 	for i, g := range nr.stages {
 		if g.name == "syntax" {
 			for _, token := range toks {

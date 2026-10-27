@@ -603,27 +603,26 @@ func TestDeepDerivations(t *testing.T) {
 	}
 }
 
-// A bootstrap stage's name and a document's path are strings, and null is
-// refused as the other libraries refuse it.
+// Required bootstrap documents and their entries reject null.
 func TestBootstrapNulls(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	bootstrap := bundled.sources["grammars/notation/bootstrap.json"]
-	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"grammars/notation/lexical.md"`, `"path":null`}} {
+	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
+	for _, change := range [][2]string{{`"documents":{`, `"documents":null,"ignored":{`}, {`"grammars/notation/lexical.md":{`, `"grammars/notation/lexical.md":null,"ignored-entry":{`}} {
 		if !strings.Contains(bootstrap, change[0]) {
 			t.Fatalf("no %s in the bootstrap", change[0])
 		}
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
-		src["grammars/notation/bootstrap.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
+		src["data/preparsed/gencmu.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
 		_, err := LoadDialectSources(src, "p.md")
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", change[1], err)
 		}
 	}
 }
 
-// Malformed preparsed DOMs: a bad grammars/compiled.json entry is a miss, read
+// Malformed preparsed DOMs: a bad data/preparsed/lojban.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
 func TestMalformedPreparsed(t *testing.T) {
@@ -717,26 +716,26 @@ func TestMalformedPreparsed(t *testing.T) {
 		if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 			t.Fatalf("a malformed DOM decodes: %s", dom)
 		}
-		// In grammars/compiled.json, with every hash matching: a miss.
+		// In data/preparsed/lojban.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["grammars/compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["data/preparsed/lojban.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
-			t.Fatalf("%s in grammars/compiled.json: %v", expr, err)
+			t.Fatalf("%s in data/preparsed/lojban.json: %v", expr, err)
 		}
 		res, err := d.Parse("ab", ParseOptions{})
 		if err != nil || !res.OK {
-			t.Fatalf("%s in grammars/compiled.json: the document was not read instead: %v %+v", expr, err, res)
+			t.Fatalf("%s in data/preparsed/lojban.json: the document was not read instead: %v %+v", expr, err, res)
 		}
 		// In the bootstrap: a load error.
 		src = map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["grammars/notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"grammars/notation/lexical.md","dom":` + dom + `}]}]}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/notation/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -746,7 +745,7 @@ func TestMalformedPreparsed(t *testing.T) {
 }
 
 // Malformed range and property nodes take the whole loading path: in
-// grammars/compiled.json each is a miss, read from the document instead, and in the
+// data/preparsed/lojban.json each is a miss, read from the document instead, and in the
 // bootstrap each is an error of the bootstrap (engine §9). Each keeps the
 // range 'b'..'c' first, so an entry used by mistake would reject "ab".
 func TestMalformedCharacterClasses(t *testing.T) {
@@ -763,7 +762,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["grammars/compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["data/preparsed/lojban.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		return src
 	}
 	bootstrap := func(dom string) error {
@@ -771,7 +770,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["grammars/notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"grammars/notation/lexical.md","dom":` + dom + `}]}]}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/notation/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadDialectSources(src, "p.md")
 		return err
 	}
@@ -793,7 +792,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		t.Fatal("the well-formed entry was not used")
 	}
 	var e *Error
-	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "grammars/notation/bootstrap.json" {
+	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "data/preparsed/gencmu.json" {
 		t.Fatalf("the well-formed bootstrap was refused: %v", err)
 	}
 	for _, expr := range []string{
@@ -813,9 +812,9 @@ func TestMalformedCharacterClasses(t *testing.T) {
 			t.Errorf("a malformed DOM decodes: %s", expr)
 		}
 		if !parse(preparsed(d)) {
-			t.Errorf("%s in grammars/compiled.json: the document was not read instead", expr)
+			t.Errorf("%s in data/preparsed/lojban.json: the document was not read instead", expr)
 		}
-		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
+		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" {
 			t.Errorf("%s in the bootstrap: expected an error of the bootstrap, got %v", expr, err)
 		}
 	}

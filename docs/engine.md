@@ -1965,6 +1965,8 @@ Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So e
 
 Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the selected family's optional file besides that required file. Missing, malformed, or mismatched optional files give cache misses.
 
+A document key under `grammars/FAMILY/` selects `data/preparsed/FAMILY.json`. Other document keys select no optional file. A loader can still reuse DOMs that it reads through the notation, under the complete identity below.
+
 The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of `data/preparsed/gencmu.json`. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
 
 An implementation can keep the DOMs that it built before. Its key includes document text hash, bootstrap hash, core-table fingerprint, properties fingerprint, and DOM format version. Any mismatch gives a cache miss. Each table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.

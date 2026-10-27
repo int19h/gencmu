@@ -278,6 +278,7 @@ func TestParameterCacheValidation(t *testing.T) {
 			t.Fatal(e)
 		}
 		l.read = func(path string) (string, bool) { return text, path == "g.md" }
+		l.preparsedRead = nil
 		l.preparsed = map[domCacheKey]json.RawMessage{{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}: templateJSON(raw)}
 		if valid {
 			l.reader = nil
@@ -481,9 +482,9 @@ func TestParameterSharedStructure(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
-				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
-				sources := map[string]string{"g.md": source, "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "grammars/compiled.json": string(templateJSON(cache))}
-				dialect, err := LoadDialectSources(sources, "p.md")
+				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"grammars/test/g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
+				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(templateJSON(cache))}
+				dialect, err := LoadDialectSources(sources, "grammars/test/p.md")
 				if err != nil {
 					t.Fatal(err)
 				}

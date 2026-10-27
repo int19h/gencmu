@@ -69,7 +69,7 @@ class GencmuError(Exception):
         return ":".join(parts) if parts else None
 
     def __str__(self) -> str:
-        if self.document == "grammars/notation/bootstrap.json" and self.message.startswith("grammars/notation/bootstrap.json:"):
+        if self.document == "data/preparsed/gencmu.json" and self.message.startswith("data/preparsed/gencmu.json:"):
             return self.message
         where = self.where
         prefix = f"{where}: " if where else ""

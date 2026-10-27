@@ -12,18 +12,18 @@ from .shared import load_case_dialect, parse_case
 
 
 def sources(grammar):
-    return {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n" + grammar + "\n```\n"}
+    return {"grammars/test/p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "grammars/test/g.md": "```jbogenbau\n" + grammar + "\n```\n"}
 
 
 def cached_sources(texts, dom):
     return {
         **texts,
-        "grammars/compiled.json": json.dumps(
+        "data/preparsed/test.json": json.dumps(
             {
                 "format": DOM_FORMAT,
-                "bootstrap": fnv1a64(bundled_text("grammars/notation/bootstrap.json")),
+                "bootstrap": fnv1a64(bundled_text("data/preparsed/gencmu.json")),
                 "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt")), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
-                "documents": {"g.md": {"hash": fnv1a64(texts["g.md"]), "dom": dom}},
+                "documents": {"grammars/test/g.md": {"hash": fnv1a64(texts["grammars/test/g.md"]), "dom": dom}},
             }
         ),
     }
@@ -33,10 +33,10 @@ def cached_sources(texts, dom):
 def require_preparsed_cache(reader, texts):
     read = NotationReader.read
     memory_get = reader.doms.get
-    grammar_key = (fnv1a64(texts["g.md"]), reader.hash, reader.unicode.fingerprint, reader.unicode.properties_fingerprint, DOM_FORMAT)
+    grammar_key = (fnv1a64(texts["grammars/test/g.md"]), reader.hash, reader.unicode.fingerprint, reader.unicode.properties_fingerprint, DOM_FORMAT)
 
     def read_source(self, text, path, *args, **kwargs):
-        if path == "g.md":
+        if path == "grammars/test/g.md":
             raise AssertionError("preparsed grammar cache was bypassed for g.md")
         return read(self, text, path, *args, **kwargs)
 
@@ -72,15 +72,15 @@ class Ranked(unittest.TestCase):
         texts = sources("%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
-        dom = reader.read(texts["g.md"], "g.md", True)
+        dom = reader.read(texts["grammars/test/g.md"], "grammars/test/g.md", True)
         with (
             patch.object(NotationReader, "located", side_effect=AssertionError("source-location recovery ran")),
             patch("gencmu._ranked.restore_locations", side_effect=AssertionError("source-location recovery ran")),
         ):
-            load_dialect_sources(texts, "p.md", use_cache=False)
+            load_dialect_sources(texts, "grammars/test/p.md", use_cache=False)
             with require_preparsed_cache(reader, texts):
                 for _ in range(2):
-                    load_dialect_sources(cached_sources(texts, dom), "p.md")
+                    load_dialect_sources(cached_sources(texts, dom), "grammars/test/p.md")
 
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources("""%const $K K
@@ -90,12 +90,12 @@ class Ranked(unittest.TestCase):
 %rule b U V
 %rule c R S""")
         with self.assertRaises(GencmuError) as plain:
-            load_dialect_sources(texts, "p.md", use_cache=False)
+            load_dialect_sources(texts, "grammars/test/p.md", use_cache=False)
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
-        dom = reader.read(texts["g.md"], "g.md", True)
+        dom = reader.read(texts["grammars/test/g.md"], "grammars/test/g.md", True)
         with require_preparsed_cache(reader, texts), self.assertRaises(GencmuError) as cached:
-            load_dialect_sources(cached_sources(texts, dom), "p.md")
+            load_dialect_sources(cached_sources(texts, dom), "grammars/test/p.md")
         error = plain.exception
         self.assertEqual(error.to_dict(), cached.exception.to_dict())
         self.assertEqual(error.code, "ranked-choice-export")
@@ -114,7 +114,7 @@ class Ranked(unittest.TestCase):
 %rule v Y
 %rule b :: ∅ | Z""")
         with self.assertRaises(GencmuError) as raised:
-            load_dialect_sources(texts, "p.md")
+            load_dialect_sources(texts, "grammars/test/p.md")
         error = raised.exception
         self.assertEqual(error.code, "ranked-choice-tags")
         self.assertEqual([site["rule"] for site in error.inheritance], ["text", "a", "v"])
@@ -124,10 +124,10 @@ class Ranked(unittest.TestCase):
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         for body in ("a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"):
             with self.subTest(body=body), self.assertRaises(GencmuError) as raised:
-                reader.read("```jbogenbau\n%rule text " + body + "\n```\n", "g.md")
+                reader.read("```jbogenbau\n%rule text " + body + "\n```\n", "grammars/test/g.md")
             self.assertEqual(raised.exception.code, "ranked-choice-syntax")
         with self.assertRaises(GencmuError) as raised:
-            reader.read("```jbogenbau\n%prefer a > b\n```\n", "g.md")
+            reader.read("```jbogenbau\n%prefer a > b\n```\n", "grammars/test/g.md")
         self.assertIsNone(raised.exception.code)
         self.assertEqual((raised.exception.line, raised.exception.column), (2, 1))
         self.assertIn("unknown directive %prefer; use an inline ranked choice", raised.exception.message)

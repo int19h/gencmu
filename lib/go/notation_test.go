@@ -86,15 +86,11 @@ func TestFixpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	var b struct {
-		Stages []struct {
-			Name      string `json:"name"`
-			Documents []struct {
-				Path string          `json:"path"`
-				Dom  json.RawMessage `json:"dom"`
-			} `json:"documents"`
-		} `json:"stages"`
+		Documents map[string]struct {
+			Dom json.RawMessage `json:"dom"`
+		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["grammars/notation/bootstrap.json"]), &b); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["data/preparsed/gencmu.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
 	// The repository's documents, each read with the bootstrap.
@@ -111,33 +107,48 @@ func TestFixpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.stages) != len(b.Stages) || len(p.stages) == 0 {
-		t.Fatalf("the pipeline has %d stages, the bootstrap %d", len(p.stages), len(b.Stages))
+	pipelineDOM, derr := decodeDOM(b.Documents["grammars/dialects/notation.md"].Dom, l.uni)
+	if derr != nil {
+		t.Fatal(derr)
 	}
-	for i, s := range p.stages {
-		want := b.Stages[i]
-		if s.name != want.Name || len(s.documents) != len(want.Documents) {
-			t.Errorf("stage %d: %s of %d runs, the bootstrap's %s of %d", i, s.name, len(s.documents), want.Name, len(want.Documents))
-			continue
-		}
-		for j, d := range s.documents {
-			if d.path != want.Documents[j].Path {
-				t.Errorf("stage %s, run %d: %s, the bootstrap's %s", s.name, j, d.path, want.Documents[j].Path)
-				continue
-			}
-			wantDOM, _ := decodeJSON(want.Documents[j].Dom)
-			if got := domValue(t, d.dom); !equalJSON(got, wantDOM) {
-				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.path, d.dom.json())
-			}
-			// The DOM also writes byte for byte as the bootstrap holds it.
-			if string(d.dom.json()) != string(want.Documents[j].Dom) {
-				t.Errorf("%s: the DOM's canonical JSON differs from the bootstrap's text", d.path)
-			}
+	var names []string
+	for _, d := range pipelineDOM.Directives {
+		if d.Name == "stage" {
+			names = append(names, d.Args[0])
 		}
 	}
+	if len(p.stages) != len(names) {
+		t.Fatal("the stage count differs")
+	}
+	for i, stage := range p.stages {
+		if stage.name != names[i] {
+			t.Fatal("the stage name differs")
+		}
+		for _, document := range stage.documents {
+			want, _ := decodeJSON(b.Documents[document.path].Dom)
+			if !equalJSON(domValue(t, document.dom), want) {
+				t.Errorf("%s: the bootstrap DOM differs", document.path)
+			}
+		}
+	}
+	for path, entry := range b.Documents {
+		text, ok := l.read(path)
+		if !ok {
+			t.Fatal(path)
+		}
+		fresh, err := bundled.reader.read(text, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := decodeJSON(entry.Dom)
+		if !equalJSON(domValue(t, fresh), want) {
+			t.Errorf("%s: the document DOM differs", path)
+		}
+	}
+
 }
 
-// TestPreparsed checks that grammars/compiled.json agrees with a fresh reading of
+// TestPreparsed checks that data/preparsed/lojban.json agrees with a fresh reading of
 // every document it lists, and that it is the file of the grammars.
 func TestPreparsed(t *testing.T) {
 	t.Parallel()
@@ -153,23 +164,24 @@ func TestPreparsed(t *testing.T) {
 			Dom  json.RawMessage `json:"dom"`
 		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["grammars/compiled.json"]), &c); err != nil {
+	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
+	if err := unmarshalJSON([]byte(preparsedText), &c); err != nil {
 		t.Fatal(err)
 	}
 	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash || c.Unicode != bundled.uni.hash {
-		t.Fatalf("grammars/compiled.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
+		t.Fatalf("data/preparsed/lojban.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
 	}
 	if len(c.Documents) == 0 {
-		t.Fatal("grammars/compiled.json lists no documents")
+		t.Fatal("data/preparsed/lojban.json lists no documents")
 	}
 	for p, d := range c.Documents {
 		text, ok := bundled.sources[p]
 		if !ok {
-			t.Errorf("%s: listed in grammars/compiled.json but not bundled", p)
+			t.Errorf("%s: listed in data/preparsed/lojban.json but not bundled", p)
 			continue
 		}
 		if fnv1a64(text) != d.Hash {
-			t.Errorf("%s: grammars/compiled.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
+			t.Errorf("%s: data/preparsed/lojban.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
 		}
 		dom, rerr := bundled.reader.read(text, p)
 		if rerr != nil {
@@ -177,7 +189,7 @@ func TestPreparsed(t *testing.T) {
 		}
 		want, _ := decodeJSON(d.Dom)
 		if !equalJSON(domValue(t, dom), want) {
-			t.Errorf("%s: grammars/compiled.json's DOM differs from a fresh reading", p)
+			t.Errorf("%s: data/preparsed/lojban.json's DOM differs from a fresh reading", p)
 		}
 	}
 	for p, text := range bundled.sources {
@@ -220,8 +232,9 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readPreparsed(bundled.sources["grammars/compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
-		t.Error("grammars/compiled.json was used with another bootstrap")
+	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
+	if got := readPreparsed(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+		t.Error("data/preparsed/lojban.json was used with another bootstrap")
 	}
 }
 
@@ -236,8 +249,9 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	configured.activatePreparsed("grammars/dialects/cll-ebnf.md")
 	if len(configured.preparsed) == 0 {
-		t.Fatal("grammars/compiled.json holds no DOMs for this bootstrap")
+		t.Fatal("data/preparsed/lojban.json holds no DOMs for this bootstrap")
 	}
 	var names []string
 	for p := range bundled.sources {
@@ -425,7 +439,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"stages":[{"name":"syntax","documents":[{"path":"n.md","dom":` + string(notation.json()) + `}]}]}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
@@ -628,10 +642,10 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
 	if got := readPreparsed(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
-		t.Fatalf("a grammars/compiled.json of format %d is not used", domFormat)
+		t.Fatalf("a data/preparsed/lojban.json of format %d is not used", domFormat)
 	}
 	if got := readPreparsed(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
-		t.Fatal("a grammars/compiled.json of format 17 is used")
+		t.Fatal("a data/preparsed/lojban.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
 		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {

@@ -48,7 +48,7 @@ func TestSharedJSONKeys(t *testing.T) {
 	if err := unmarshalJSON(raw, &fixtures); err != nil {
 		t.Fatal(err)
 	}
-	bundled, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	bundled, err := os.ReadFile("../../data/preparsed/gencmu.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestSharedJSONKeys(t *testing.T) {
 	for _, item := range fixtures.Bootstrap {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
-			s["grammars/notation/bootstrap.json"] = mutate(string(bundled), item.Find, item.Replace)
+			s["data/preparsed/gencmu.json"] = mutate(string(bundled), item.Find, item.Replace)
 			d, err := LoadDialectSources(s, "p.md")
 			if item.Loads {
 				if err != nil {
@@ -97,7 +97,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				if !errors.As(err, &e) {
 					t.Fatalf("expected grammar error, got %v", err)
 				}
-				if e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "grammars/notation/bootstrap.json:") {
+				if e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "data/preparsed/gencmu.json:") {
 					t.Fatalf("metadata: %#v", e)
 				}
 			}
@@ -112,7 +112,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				s[item.Document] = fixtures.Grammar
 				s["p.md"] = fmt.Sprintf("```jbogenbau\n%%stage main\n%%include %q\n```\n", item.Document)
 			}
-			s["grammars/compiled.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
+			s["data/preparsed/test.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
 			for path, value := range item.Sources {
 				if value == "@bundled-names@" {
 					raw, err := os.ReadFile("../../data/unicode/unicode-names.txt")
@@ -124,9 +124,19 @@ func TestSharedJSONKeys(t *testing.T) {
 				if value == "@unicode-16@" {
 					value = strings.Replace(string(unicode), "unicode 15.1.0", "unicode 16.0.0", 1)
 				}
+				if value == "@matching-cache@" {
+					value = cacheIdentity.Replace(fixtures.Cache)
+				}
 				s[path] = value
 			}
-			d, err := LoadDialectSources(s, "p.md")
+			family := map[string]string{}
+			for key, value := range s {
+				if key == "p.md" || key == "g.md" || key == item.Document {
+					key = "grammars/test/" + key
+				}
+				family[key] = value
+			}
+			d, err := LoadDialectSources(family, "grammars/test/p.md")
 			if item.Error != nil {
 				e, ok := err.(*Error)
 				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line {
@@ -265,11 +275,11 @@ func TestJSONRawAndIgnored(t *testing.T) {
 }
 
 func BenchmarkReadPreparsedJSON(b *testing.B) {
-	cache, err := os.ReadFile("../../grammars/compiled.json")
+	cache, err := os.ReadFile("../../data/preparsed/lojban.json")
 	if err != nil {
 		b.Fatal(err)
 	}
-	bootstrap, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	bootstrap, err := os.ReadFile("../../data/preparsed/gencmu.json")
 	if err != nil {
 		b.Fatal(err)
 	}

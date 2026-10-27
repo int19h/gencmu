@@ -65,7 +65,7 @@ jobs:
         # With bash named, the step runs with pipefail, so a failure of
         # npm pack fails the step.
         shell: bash
-        run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "grammars/compiled.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
+        run: npm pack --dry-run 2>&1 | tee pack.txt && grep -q "data/preparsed/lojban.json" pack.txt && grep -q "src/index.js" pack.txt && grep -q "types/index.d.ts" pack.txt
 
   python:
     name: Python ${{ matrix.python }}
@@ -93,8 +93,8 @@ jobs:
         shell: bash
         run: |
           python -m zipfile -l "$RUNNER_TEMP"/dist/*.whl | tee wheel.txt
-          grep -q "gencmu/grammars/compiled.json" wheel.txt
-          grep -q "gencmu/grammars/notation/bootstrap.json" wheel.txt
+          grep -q "gencmu/data/preparsed/lojban.json" wheel.txt
+          grep -q "gencmu/data/preparsed/gencmu.json" wheel.txt
           python -m venv "$RUNNER_TEMP/installed"
           "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl --group test
       - name: Tests against the installed wheel

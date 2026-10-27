@@ -52,13 +52,13 @@ class BoundaryTests(unittest.TestCase):
                            '%emits $ :: ($.METHOD(((a)) | (A) | z) ⟹ T)'):
                 text = '%const $OK A\n%ambiguity-resolution greedy\n%rule text a\n%rule a A\n' + clause.replace('METHOD', method) + '\n%rule z B'
                 texts = sources(text)
-                dom = read_document(texts['g.md'], 'g.md')
+                dom = read_document(texts['grammars/test/g.md'], 'g.md')
                 cached = cached_sources(texts, dom)
                 with self.subTest(method=method, clause=clause):
                     errors = []
                     for values in (texts, cached):
                         with self.assertRaises(gencmu.GencmuError) as caught:
-                            gencmu.load_dialect_sources(values, 'p.md')
+                            gencmu.load_dialect_sources(values, 'grammars/test/p.md')
                         errors.append(caught.exception)
                     self.assertEqual((errors[0].line, errors[0].column), (errors[1].line, errors[1].column))
                     self.assertEqual(errors[1].line, 6)
@@ -68,11 +68,11 @@ class BoundaryTests(unittest.TestCase):
         from gencmu._dialect import read_document
         from .test_ranked import sources, cached_sources
         texts = sources('%const $OK A\n%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r C ($a:aa ≻ bb) :: ∅\n%conditions $a.tags = $OK ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A')
-        dom = read_document(texts['g.md'], 'g.md')
+        dom = read_document(texts['grammars/test/g.md'], 'g.md')
         errors = []
         for values in (texts, cached_sources(texts, dom)):
             with self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources(values, 'p.md')
+                gencmu.load_dialect_sources(values, 'grammars/test/p.md')
             errors.append(caught.exception)
         self.assertEqual(errors[0].code, 'ranked-choice-boundary')
         for field in ('code', 'group', 'option', 'expression', 'line', 'column'):

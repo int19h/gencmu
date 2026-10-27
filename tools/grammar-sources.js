@@ -1,6 +1,6 @@
 // The grammars of a repository as its source documents give them, for the
 // tools that judge what a grammar does. The packages' bundled copies under
-// lib/ and grammars/compiled.json are generated from these sources by
+// lib/ and data/preparsed/FAMILY.json are generated from these sources by
 // tools/sync.js, and can be older than them, so no check of the sources
 // reads them.
 import fs from "node:fs";
@@ -11,7 +11,7 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 /**
  * A loader of the grammar documents under `base`/grammars, with no
  * preparsed DOMs. `bootstrap`, when given, takes the place of
- * grammars/notation/bootstrap.json, as tools/sync.js does while it settles the
+ * data/preparsed/gencmu.json, as tools/sync.js does while it settles the
  * bootstrap.
  * @param {string} base the repository
  * @param {string} [bootstrap]
@@ -19,12 +19,15 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
  */
 export function sourceLoader(base, bootstrap) {
   const grammars = path.join(base, "grammars");
-  return new Loader((relative) => {
-    if (relative === "grammars/notation/bootstrap.json" && bootstrap !== undefined) return bootstrap;
-    if (relative === "grammars/compiled.json") return undefined;
+  const loader = new Loader((relative) => {
+    if (relative === "data/preparsed/gencmu.json" && bootstrap !== undefined) return bootstrap;
+    if (relative.startsWith("data/preparsed/") && relative !== "data/preparsed/gencmu.json") return undefined;
     const file = path.join(base, relative.split("/").join(path.sep));
     return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
+  // The required file boots the reader but supplies no ordinary cached entries here.
+  loader.preparsedFiles.add("data/preparsed/gencmu.json");
+  return loader;
 }
 
 /**

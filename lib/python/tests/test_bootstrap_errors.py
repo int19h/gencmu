@@ -13,7 +13,7 @@ from .shared import REPOSITORY, find_places, position_of, substitute
 class BootstrapErrors(unittest.TestCase):
     def test_shared_error_metadata(self) -> None:
         fixtures = json.loads((REPOSITORY / "tests/bootstrap-errors.json").read_text())
-        bundled = (REPOSITORY / "grammars/notation/bootstrap.json").read_text()
+        bundled = (REPOSITORY / "data/preparsed/gencmu.json").read_text()
         for item in fixtures["cases"]:
             with self.subTest(case=item["description"]):
                 if "bootstrap" in item:
@@ -25,7 +25,7 @@ class BootstrapErrors(unittest.TestCase):
                     gencmu.load_dialect_sources({
                         "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
-                        "grammars/notation/bootstrap.json": bootstrap,
+                        "data/preparsed/gencmu.json": bootstrap,
                     }, "p.md")
                 self.assertEqual(raised.exception.kind, fixtures["kind"])
                 self.assertEqual(raised.exception.document, fixtures["document"])
@@ -47,13 +47,13 @@ class BootstrapErrors(unittest.TestCase):
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "grammars/notation").mkdir(parents=True)
+            (root / "data/preparsed").mkdir(parents=True)
             (root / "data/unicode").mkdir(parents=True)
             (root / "data/unicode/unicode.txt").write_bytes((REPOSITORY / "data/unicode/unicode.txt").read_bytes())
             (root / "data/unicode/unicode-properties.txt").write_bytes((REPOSITORY / "data/unicode/unicode-properties.txt").read_bytes())
             for failure in ("missing", "directory", "invalid UTF-8"):
                 with self.subTest(failure=failure):
-                    file = root / "grammars/notation/bootstrap.json"
+                    file = root / "data/preparsed/gencmu.json"
                     if failure == "directory":
                         file.mkdir()
                     if failure == "invalid UTF-8":
@@ -62,6 +62,6 @@ class BootstrapErrors(unittest.TestCase):
                     with patch.object(_dialect, "_bundled_root", return_value=root), patch.dict(_dialect._bundled, {}, clear=True):
                         with self.assertRaises(gencmu.GencmuError) as raised:
                             gencmu.load_dialect_sources({"p.md": "%stage main"}, "p.md")
-                    self.assertEqual(raised.exception.document, "grammars/notation/bootstrap.json")
-                    self.assertTrue(raised.exception.message.startswith("grammars/notation/bootstrap.json:"), raised.exception.message)
+                    self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
+                    self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
                     self.assertEqual(str(raised.exception), raised.exception.message)

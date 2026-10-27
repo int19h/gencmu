@@ -95,7 +95,7 @@ class StrictUtf8(unittest.TestCase):
 
 
 class UndecodableCache(unittest.TestCase):
-    """grammars/compiled.json is only a cache: bytes of it that do not decode make it
+    """data/preparsed/lojban.json is only a cache: bytes of it that do not decode make it
     absent, and valid documents still load. A required resource that does
     not decode stays an error."""
 
@@ -104,7 +104,7 @@ class UndecodableCache(unittest.TestCase):
         holder = tempfile.TemporaryDirectory(prefix="gencmu-utf8-")
         self.addCleanup(holder.cleanup)
         root = pathlib.Path(holder.name)
-        for name in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "grammars/notation/bootstrap.json", "grammars/compiled.json"):
+        for name in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/preparsed/gencmu.json", "data/preparsed/lojban.json"):
             (root / name).parent.mkdir(parents=True, exist_ok=True)
             data = replaced.get(name.replace("/", "_").replace(".", "_"))
             if data is None:
@@ -114,14 +114,15 @@ class UndecodableCache(unittest.TestCase):
         return root
 
     def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
-        sources = {"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}
+        sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": grammar('%rule text "a"')}
         for cache in (b"\xff", b'{"format":' + str(FORMAT).encode() + b',"documents":{"\xff":{}}}'):
-            root = self.bundle(grammars_preparsed_json=cache)
+            root = self.bundle(data_preparsed_lojban_json=cache)
+            (root / "data/preparsed/lojban.json").rename(root / "data/preparsed/test.json")
             for use_cache in (True, False):
                 with self.subTest(cache=cache, use_cache=use_cache):
                     with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
-                        self.assertIsNone(_dialect.bundled_text("grammars/compiled.json"))
-                        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=use_cache)
+                        self.assertIsNone(_dialect.bundled_text("data/preparsed/test.json"))
+                        dialect = gencmu.load_dialect_sources(sources, "grammars/test/p.md", use_cache=use_cache)
                         self.assertTrue(dialect.parse("a").ok)
 
     def test_a_required_resource_that_does_not_decode_is_an_error(self) -> None:

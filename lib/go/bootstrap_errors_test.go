@@ -35,7 +35,7 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 	if err := unmarshalJSON(raw, &fixtures); err != nil {
 		t.Fatal(err)
 	}
-	bundled, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	bundled, err := os.ReadFile("../../data/preparsed/gencmu.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			_, err := LoadDialectSources(map[string]string{
 				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
 				"g.md":                    "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
-				"grammars/notation/bootstrap.json": bootstrap,
+				"data/preparsed/gencmu.json": bootstrap,
 			}, "p.md")
 			var e *Error
 			if !errors.As(err, &e) {

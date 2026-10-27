@@ -122,6 +122,7 @@ func domStage(t *testing.T, dom string) *Dialect {
 	}
 	src := oneStage("")
 	l.read = func(p string) (string, bool) { s, ok := src[p]; return s, ok }
+	l.preparsedRead = nil
 	l.preparsed = map[domCacheKey]json.RawMessage{{fnv1a64(src["g.md"]), l.reader.hash, l.uni.hash, l.uni.propertiesHash, domFormat}: json.RawMessage(dom)}
 	d, err := l.dialect("p.md")
 	if err != nil {

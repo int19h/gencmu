@@ -163,7 +163,7 @@ function dialectDocuments(base) {
 /**
  * The DOMs of the grammar documents of a repository, read from its source
  * documents (tools/grammar-sources.js), never from the generated
- * grammars/compiled.json or a bundled copy.
+ * data/preparsed/lojban.json or a bundled copy.
  * @param {string} base
  * @returns {{get: (file: string) => any}}
  */

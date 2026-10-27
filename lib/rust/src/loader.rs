@@ -2,7 +2,7 @@
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -27,7 +27,25 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
     bundled::BUNDLED.iter().find(|(name, _)| *name == path).map(|(_, text)| *text)
 }
 
-/// The preparsed DOMs of `grammars/compiled.json`, usable only when its format
+const BOOTSTRAP_PATH: &str = "data/preparsed/gencmu.json";
+const NOTATION_PATH: &str = "grammars/dialects/notation.md";
+
+fn preparsed_path(document: &str) -> Option<String> {
+    let rest = document.strip_prefix("grammars/")?;
+    let family = rest.split('/').next()?;
+    if document == NOTATION_PATH || family == "notation" {
+        return Some(BOOTSTRAP_PATH.into());
+    }
+    if ["dialects", "phonemes", "words", "indicators", "syntax"].contains(&family) {
+        return Some("data/preparsed/lojban.json".into());
+    }
+    let valid = !family.is_empty()
+        && family.as_bytes()[0].is_ascii_alphanumeric()
+        && family.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-');
+    valid.then(|| format!("data/preparsed/{family}.json"))
+}
+
+/// The preparsed DOMs of `data/preparsed/lojban.json`, usable only when its format
 /// and fingerprints of the bootstrap and Unicode table match. Each DOM is shared by its two keys, not
 /// copied: a copy would recurse over the JSON before `dom_from_json` checks
 /// its depth.
@@ -58,11 +76,22 @@ fn take(value: Json, key: &str) -> Option<Json> {
 }
 
 impl Preparsed {
+    #[cfg(test)]
     fn parse(
         text: &str,
         bootstrap_hash: &str,
         unicode_hash: &str,
         properties_hash: Option<&str>,
+    ) -> Result<Preparsed, Error> {
+        Self::parse_implicit(text, bootstrap_hash, unicode_hash, properties_hash, false)
+    }
+
+    fn parse_implicit(
+        text: &str,
+        bootstrap_hash: &str,
+        unicode_hash: &str,
+        properties_hash: Option<&str>,
+        implicit: bool,
     ) -> Result<Preparsed, Error> {
         // A cache that does not parse, corrupt or malicious, is no cache:
         // every document is read through the notation instead.
@@ -71,7 +100,7 @@ impl Preparsed {
         };
         let mut preparsed = Preparsed::default();
         let usable = value.get("format").and_then(Json::as_int) == Some(DOM_FORMAT)
-            && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash)
+            && (implicit || value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash))
             && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash)
             && match (value.get("properties"), properties_hash) {
                 (Some(Json::Null), None) => true,
@@ -129,6 +158,9 @@ struct Context {
     unicode: Arc<Unicode>,
     notation: Arc<Dialect>,
     preparsed: Preparsed,
+    bootstrap_hash: String,
+    unicode_hash: String,
+    allow_families: bool,
 }
 
 fn grammar_error(message: String) -> Error {
@@ -142,7 +174,8 @@ fn grammar_error(message: String) -> Error {
 }
 
 fn unicode_error(message: String) -> Error {
-    let line = message.strip_prefix("data/unicode/unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
+    let line =
+        message.strip_prefix("data/unicode/unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
     let mut error = Error::grammar(message).in_document("data/unicode/unicode.txt");
     error.line = line;
     error
@@ -151,12 +184,12 @@ fn unicode_error(message: String) -> Error {
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
     build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
-            if embedded != "grammars/notation/bootstrap.json" && !error.message.contains(embedded) {
+            if embedded != "data/preparsed/gencmu.json" && !error.message.contains(embedded) {
                 error.message.push_str(&format!(" (embedded document: {embedded})"));
             }
         }
-        error.document = Some("grammars/notation/bootstrap.json".to_string());
-        let mut location = "grammars/notation/bootstrap.json".to_string();
+        error.document = Some("data/preparsed/gencmu.json".to_string());
+        let mut location = "data/preparsed/gencmu.json".to_string();
         if let Some(line) = error.line {
             location.push_str(&format!(":{line}"));
             if let Some(column) = error.column {
@@ -176,44 +209,46 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
     if value.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Err(grammar_error("an unsupported bootstrap format".to_string()));
     }
-    let mut stages = Vec::new();
-    let mut inputs = Vec::new();
-    let mut names = HashSet::new();
-    let stage_values = value
-        .get("stages")
-        .and_then(Json::as_array)
-        .filter(|stages| !stages.is_empty())
-        .ok_or_else(|| grammar_error("the bootstrap requires a nonempty stages array".to_string()))?;
-    for stage in stage_values {
-        let name = stage
-            .get("name")
-            .and_then(Json::as_str)
-            .filter(|name| crate::tags::is_name(name))
-            .ok_or_else(|| grammar_error("a bootstrap stage requires a valid name".to_string()))?
-            .to_string();
-        if !names.insert(name.clone()) {
-            return Err(grammar_error(format!("a second stage named {name}")));
-        }
-        let mut documents = Vec::new();
-        let document_values = stage
-            .get("documents")
-            .and_then(Json::as_array)
-            .filter(|documents| !documents.is_empty())
-            .ok_or_else(|| grammar_error("a bootstrap stage requires a nonempty documents array".to_string()))?;
-        for document in document_values {
-            let path: Arc<str> = document
-                .get("path")
-                .and_then(Json::as_str)
-                .ok_or_else(|| grammar_error("a bootstrap document requires a string path".to_string()))?
-                .into();
-            let dom = document
-                .get("dom")
-                .ok_or_else(|| grammar_error("a bootstrap document without a DOM".to_string()))
-                .and_then(|dom| dom_from_json(dom, &unicode).map_err(grammar_error))?;
-            documents.push((path, Arc::new(dom)));
-        }
-        inputs.push((name, documents));
+    let entries = value
+        .get("documents")
+        .filter(|v| matches!(v, Json::Obj(_)))
+        .ok_or_else(|| grammar_error("the bootstrap requires a document map".into()))?;
+    struct BootstrapDocuments<'a> {
+        entries: &'a Json,
+        unicode: &'a Unicode,
     }
+    impl Documents for BootstrapDocuments<'_> {
+        fn dom(&mut self, path: &str) -> Result<Option<Arc<Dom>>, Error> {
+            let Some(entry) = self.entries.get(path) else { return Ok(None) };
+            if entry.get("hash").and_then(Json::as_str).is_none() {
+                return Err(grammar_error(format!("the bootstrap entry of {path} requires a hash")));
+            }
+            let dom = entry
+                .get("dom")
+                .ok_or_else(|| grammar_error(format!("the bootstrap entry of {path} requires a DOM")))?;
+            dom_from_json(dom, self.unicode).map(|dom| Some(Arc::new(dom))).map_err(|e| {
+                let mut error = grammar_error(e);
+                error.message = format!("the bootstrap's DOM of {path} is malformed: {}", error.message);
+                error
+            })
+        }
+        fn resolve(&self, base: &str, target: &str) -> Option<String> {
+            crate::markdown::resolve(base, target)
+        }
+    }
+    let pipeline =
+        splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
+            error.stage = None;
+            error
+        })?;
+    let inputs: Vec<_> = pipeline
+        .stages
+        .into_iter()
+        .map(|stage| {
+            (stage.name, stage.documents.into_iter().map(|(path, dom)| (path, Arc::new(dom))).collect::<Vec<_>>())
+        })
+        .collect();
+    let mut stages = Vec::new();
     for (name, documents) in &inputs {
         if !documents.iter().any(|(_, dom)| !dom.rules.is_empty()) {
             return Err(Error::grammar(format!("stage {name} has no rules")).in_stage(name));
@@ -222,7 +257,7 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
     for (name, documents) in inputs {
         stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
     }
-    let dialect = Dialect::new(stages, Vec::new(), unicode)?;
+    let dialect = Dialect::new(stages, pipeline.features, unicode)?;
     dialect.prepare_bootstrap()?;
     Ok(dialect)
 }
@@ -230,7 +265,9 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
 impl Context {
     #[cfg(test)]
     fn new(unicode: &str, bootstrap: &str, preparsed: &str) -> Result<Context, Error> {
-        Self::with_properties(unicode, None, bootstrap, preparsed)
+        let mut context = Self::with_properties(unicode, None, bootstrap, preparsed)?;
+        context.allow_families = false;
+        Ok(context)
     }
 
     fn with_properties(
@@ -247,9 +284,21 @@ impl Context {
         }
         let unicode = Arc::new(unicode);
         let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
-        let preparsed =
-            Preparsed::parse(preparsed, &fnv1a64(bootstrap), &unicode_hash, unicode.properties_fingerprint.as_deref())?;
-        Ok(Context { unicode, notation, preparsed })
+        let preparsed = Preparsed::parse_implicit(
+            preparsed,
+            &fnv1a64(bootstrap),
+            &unicode_hash,
+            unicode.properties_fingerprint.as_deref(),
+            preparsed == bootstrap,
+        )?;
+        Ok(Context {
+            unicode,
+            notation,
+            preparsed,
+            bootstrap_hash: fnv1a64(bootstrap),
+            unicode_hash,
+            allow_families: true,
+        })
     }
 
     fn bundled() -> Result<Arc<Context>, Error> {
@@ -263,8 +312,8 @@ impl Context {
                 Context::with_properties(
                     file("data/unicode/unicode.txt")?,
                     Some(file("data/unicode/unicode-properties.txt")?),
-                    file("grammars/notation/bootstrap.json")?,
-                    file("grammars/compiled.json")?,
+                    file("data/preparsed/gencmu.json")?,
+                    file(BOOTSTRAP_PATH)?,
                 )
                 .map(Arc::new)
             })
@@ -277,8 +326,20 @@ impl Context {
         self.document_named(path, text, diagnostic, &names)
     }
 
+    #[cfg(test)]
     fn document_named(&self, path: &str, text: &str, diagnostic: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
-        let mut dom = if let Some(dom) = self.preparsed.lookup(path, &fnv1a64(text), &self.unicode, names)? {
+        self.document_from(path, text, diagnostic, names, &self.preparsed)
+    }
+
+    fn document_from(
+        &self,
+        path: &str,
+        text: &str,
+        diagnostic: bool,
+        names: &NamesScope<'_>,
+        preparsed: &Preparsed,
+    ) -> Result<Dom, Error> {
+        let mut dom = if let Some(dom) = preparsed.lookup(path, &fnv1a64(text), &self.unicode, names)? {
             dom
         } else {
             read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
@@ -589,7 +650,7 @@ impl Sources for DiskSources {
     /// A document's bytes as strict UTF-8, which keeps a byte order mark as
     /// the character U+FEFF. Bytes that do not decode are a grammar error of
     /// the document, found before anything hashes it or looks it up in
-    /// `grammars/compiled.json` (engine §1).
+    /// `data/preparsed/lojban.json` (engine §1).
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         let bytes = match std::fs::read(path) {
             Ok(bytes) => bytes,
@@ -623,6 +684,7 @@ struct Reading<'a> {
     sources: &'a dyn Sources,
     read: HashMap<(String, Vec<String>), Arc<Dom>>,
     diagnostic_document: Option<&'a str>,
+    families: HashMap<String, Preparsed>,
 }
 
 impl Documents for Reading<'_> {
@@ -644,7 +706,34 @@ impl Documents for Reading<'_> {
         let names = NamesScope::new(&read_names, &self.context.unicode, inherited.iter().cloned())
             .in_document(path, &resolve)
             .with_overrides(&names_override);
-        let dom = Arc::new(self.context.document_named(path, &text, self.diagnostic_document == Some(path), &names)?);
+        let family = if self.context.allow_families { preparsed_path(path) } else { None };
+        let preparsed = if let Some(file) = family {
+            if !self.families.contains_key(&file) {
+                let supplied = match self.sources.read(&file) {
+                    Ok(value) => value.or_else(|| bundled(&file).map(str::to_string)),
+                    Err(_) => Some(String::new()),
+                };
+                let resource = supplied.as_deref().unwrap_or("");
+                let index = Preparsed::parse_implicit(
+                    resource,
+                    &self.context.bootstrap_hash,
+                    &self.context.unicode_hash,
+                    self.context.unicode.properties_fingerprint.as_deref(),
+                    file == BOOTSTRAP_PATH,
+                )?;
+                self.families.insert(file.clone(), index);
+            }
+            self.families.get(&file).unwrap()
+        } else {
+            &self.context.preparsed
+        };
+        let dom = Arc::new(self.context.document_from(
+            path,
+            &text,
+            self.diagnostic_document == Some(path),
+            &names,
+            preparsed,
+        )?);
         self.read.insert(key, dom.clone());
         Ok(Some(dom))
     }
@@ -656,7 +745,10 @@ impl Documents for Reading<'_> {
 
 /// Splices the pipeline document at `path` (engine §13).
 fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Result<Spliced, Error> {
-    splice(path, &mut Reading { context, sources, read: HashMap::new(), diagnostic_document: None })
+    splice(
+        path,
+        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document: None, families: HashMap::new() },
+    )
 }
 
 fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Dialect, Error> {
@@ -687,7 +779,10 @@ fn load_mode(
     pipeline_path: &str,
     diagnostic_document: Option<&str>,
 ) -> Result<Dialect, Error> {
-    let pipeline = splice(pipeline_path, &mut Reading { context, sources, read: HashMap::new(), diagnostic_document })?;
+    let pipeline = splice(
+        pipeline_path,
+        &mut Reading { context, sources, read: HashMap::new(), diagnostic_document, families: HashMap::new() },
+    )?;
     let mut stages = Vec::new();
     for stage in pipeline.stages {
         let documents: Vec<(Arc<str>, Arc<Dom>)> =
@@ -732,8 +827,8 @@ pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
 
 /// Loads a dialect from documents held in memory: a map from
 /// `/`-separated path to text, and the path of the pipeline document in it.
-/// The map may supply its own `data/unicode/unicode.txt`, `grammars/notation/bootstrap.json` and
-/// `grammars/compiled.json`; any it lacks come from the bundled grammars.
+/// The map may supply its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and
+/// `data/preparsed/lojban.json`; any it lacks come from the bundled grammars.
 pub fn load_dialect_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Dialect, Error>
 where
     I: IntoIterator<Item = (K, V)>,
@@ -744,8 +839,7 @@ where
     let own = |path: &str| map.get(path).map(String::as_str);
     let context = if own("data/unicode/unicode.txt").is_none()
         && own("data/unicode/unicode-properties.txt").is_none()
-        && own("grammars/notation/bootstrap.json").is_none()
-        && own("grammars/compiled.json").is_none()
+        && own("data/preparsed/gencmu.json").is_none()
     {
         Context::bundled()?
     } else {
@@ -763,8 +857,8 @@ where
         Arc::new(Context::with_properties(
             &pick("data/unicode/unicode.txt")?,
             properties.as_deref(),
-            &pick("grammars/notation/bootstrap.json")?,
-            &pick("grammars/compiled.json")?,
+            &pick("data/preparsed/gencmu.json")?,
+            &pick(BOOTSTRAP_PATH)?,
         )?)
     };
     load(&context, &MapSources { map }, pipeline)
@@ -798,11 +892,11 @@ pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>,
 }
 
 /// Splices a bundled pipeline document (engine §13) and returns the result
-/// as JSON, `{"format":8,"stages":[{"name":...,"documents":[{"path":...,
+/// as JSON, `{"format":40,"stages":[{"name":...,"documents":[{"path":...,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
-/// items, in the shape of `bootstrap.json`, and the features. With `cached`
+/// items, as spliced stage records, and the features. With `cached`
 /// false, every document is read through the notation, bypassing
-/// `grammars/compiled.json`. For tests and tools.
+/// `data/preparsed/lojban.json`. For tests and tools.
 pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error> {
     let bundled_context = Context::bundled()?;
     let uncached;
@@ -813,6 +907,9 @@ pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error
             unicode: bundled_context.unicode.clone(),
             notation: bundled_context.notation.clone(),
             preparsed: Preparsed::default(),
+            bootstrap_hash: bundled_context.bootstrap_hash.clone(),
+            unicode_hash: bundled_context.unicode_hash.clone(),
+            allow_families: false,
         };
         &uncached
     };
@@ -848,9 +945,9 @@ pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error
     Ok(out)
 }
 
-/// The FNV-1a hash of the bundled `grammars/notation/bootstrap.json` (engine §8).
+/// The FNV-1a hash of the bundled `data/preparsed/gencmu.json` (engine §8).
 pub fn bootstrap_hash() -> String {
-    fnv1a64(bundled("grammars/notation/bootstrap.json").unwrap_or(""))
+    fnv1a64(bundled("data/preparsed/gencmu.json").unwrap_or(""))
 }
 
 #[cfg(test)]
@@ -1025,13 +1122,20 @@ mod ranked_location_tests {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
         let preparsed = Preparsed::parse(
-            super::bundled("grammars/compiled.json").unwrap(),
+            super::bundled("data/preparsed/lojban.json").unwrap(),
             &bootstrap_hash(),
             &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
             bundled.unicode.properties_fingerprint.as_deref(),
         )
         .unwrap();
-        let context = Context { unicode: bundled.unicode.clone(), notation, preparsed };
+        let context = Context {
+            unicode: bundled.unicode.clone(),
+            notation,
+            preparsed,
+            bootstrap_hash: bundled.bootstrap_hash.clone(),
+            unicode_hash: bundled.unicode_hash.clone(),
+            allow_families: false,
+        };
         let sources = MapSources {
             map: bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect(),
         };
@@ -1053,12 +1157,22 @@ mod ranked_location_tests {
             assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             preparsed.by_path.insert(
                 path.clone(),
-                (fnv1a64(text), PreparsedEntry { dom: Arc::new(json::parse(&dom_to_json(&dom)).unwrap()), names: None }),
+                (
+                    fnv1a64(text),
+                    PreparsedEntry { dom: Arc::new(json::parse(&dom_to_json(&dom)).unwrap()), names: None },
+                ),
             );
         }
         // No notation stages can parse a document if the preparsed cache is bypassed.
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
-        let context = Context { unicode: bundled.unicode.clone(), notation, preparsed };
+        let context = Context {
+            unicode: bundled.unicode.clone(),
+            notation,
+            preparsed,
+            bootstrap_hash: bundled.bootstrap_hash.clone(),
+            unicode_hash: bundled.unicode_hash.clone(),
+            allow_families: false,
+        };
         LOCATION_RECOVERIES.with(|count| count.set(0));
         for _ in 0..2 {
             load(&context, &sources, "p.md").unwrap();
@@ -1079,8 +1193,14 @@ mod notation_cache_tests {
     }
 
     fn cache_paths(base: &Context, bootstrap_hash: &str, path: &str, text: &str, expected: &str) {
-        let cold =
-            Context { unicode: base.unicode.clone(), notation: base.notation.clone(), preparsed: Preparsed::default() };
+        let cold = Context {
+            unicode: base.unicode.clone(),
+            notation: base.notation.clone(),
+            preparsed: Preparsed::default(),
+            bootstrap_hash: base.bootstrap_hash.clone(),
+            unicode_hash: base.unicode_hash.clone(),
+            allow_families: false,
+        };
         for read in 0..2 {
             assert_eq!(dom_to_json(&cold.document(path, text, false).unwrap()), expected, "{path}: cold read {read}");
         }
@@ -1124,7 +1244,14 @@ mod notation_cache_tests {
             } else {
                 base.notation.clone()
             };
-            let context = Context { unicode: base.unicode.clone(), notation, preparsed };
+            let context = Context {
+                unicode: base.unicode.clone(),
+                notation,
+                preparsed,
+                bootstrap_hash: base.bootstrap_hash.clone(),
+                unicode_hash: base.unicode_hash.clone(),
+                allow_families: false,
+            };
             for read in 0..2 {
                 let actual = context.document(path, text, false).unwrap();
                 assert_eq!(dom_to_json(&actual), expected, "{path}: {mismatch:?}, read {read}");
@@ -1175,12 +1302,8 @@ mod notation_cache_tests {
 
     /// Adds the lexical aliases exactly as tests/README.md specifies.
     fn value_notation(aliases: &[Json]) -> String {
-        let mut bootstrap = json::parse(super::bundled("grammars/notation/bootstrap.json").unwrap()).unwrap();
-        let lexical = array(field(&mut bootstrap, "stages"))
-            .iter_mut()
-            .find(|stage| stage.get("name").and_then(Json::as_str) == Some("lexical"))
-            .unwrap();
-        let document = &mut array(field(lexical, "documents"))[0];
+        let mut bootstrap = json::parse(super::bundled("data/preparsed/gencmu.json").unwrap()).unwrap();
+        let document = field(field(&mut bootstrap, "documents"), "grammars/notation/lexical.md");
         let rules = array(field(field(document, "dom"), "rules"));
         for (index, alias) in aliases.iter().enumerate() {
             let name = format!("value-alias-{index}");
@@ -1234,12 +1357,13 @@ mod notation_cache_tests {
         let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
         let cases = fixture.get("cases").and_then(Json::as_array).unwrap();
         assert!(!cases.is_empty(), "no supplied notation cases ran");
-        let mut ids = HashSet::new();
+        let mut ids = std::collections::HashSet::new();
         for case in cases {
             let id = case.get("id").and_then(Json::as_str).unwrap();
             assert!(ids.insert(id), "duplicate case ID: {id}");
             let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
-            let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap, "null").unwrap();
+            let context =
+                Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap, "null").unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
             if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
                 let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");
@@ -1324,7 +1448,14 @@ mod parameter_cache_tests {
             } else {
                 base.notation.clone()
             };
-            let context = Context { unicode: base.unicode.clone(), notation, preparsed };
+            let context = Context {
+                unicode: base.unicode.clone(),
+                notation,
+                preparsed,
+                bootstrap_hash: base.bootstrap_hash.clone(),
+                unicode_hash: base.unicode_hash.clone(),
+                allow_families: false,
+            };
             let d = context.document("g.md", text, false).unwrap();
             assert_eq!(dom_to_json(&d), if valid { raw.to_json() } else { original.clone() });
         }

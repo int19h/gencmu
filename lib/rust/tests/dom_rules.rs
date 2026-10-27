@@ -1,4 +1,4 @@
-//! A DOM from `grammars/compiled.json` is used only when it is one the reader could
+//! A DOM from `data/preparsed/test.json` is used only when it is one the reader could
 //! have produced (engine §9, docs/output.md "A grammar DOM"): one malformed
 //! DOM per rule, each of which must be a cache miss, so that the document
 //! is read instead and no cache entry can change a result.
@@ -59,28 +59,28 @@ fn with_tags(term: &str) -> String {
     ))
 }
 
-/// Parses "a" with a dialect whose `grammars/compiled.json` holds `dom` for the
+/// Parses "a" with a dialect whose `data/preparsed/test.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
     document_was_read_from(DOM_FORMAT, dom)
 }
 
-/// The same, with a `grammars/compiled.json` of the given format.
+/// The same, with a `data/preparsed/test.json` of the given format.
 fn document_was_read_from(format: i64, dom: &str) -> bool {
     let preparsed = format!(
-        r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/compiled.json", preparsed),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/test.json", preparsed),
     ];
     // A load error means the entry was used, and refused too late.
-    let Ok(dialect) = gencmu::load_dialect_sources(sources, "p.md") else {
+    let Ok(dialect) = gencmu::load_dialect_sources(sources, "grammars/test/p.md") else {
         return false;
     };
     let options = gencmu::ParseOptions::default();
@@ -309,19 +309,25 @@ const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
 fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     let refusal = |dom: String| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{dom}}}]}}]}}"#
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
         );
         let sources = [
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", DOCUMENT.to_string()),
-            ("grammars/notation/bootstrap.json", bootstrap),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", DOCUMENT.to_string()),
+            ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+            .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("grammars/notation/bootstrap.json: ").map(str::to_string)
+        error
+            .message
+            .strip_prefix(
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+            )
+            .map(str::to_string)
     };
     let expr = |expr: &str| with_alternative(&format!(r#"{{"guards":[],"expr":{expr}}}"#));
-    // A bootstrap that is read, whose notation then fails on g.md.
+    // A bootstrap that is read, whose notation then fails on grammars/test/g.md.
     assert_eq!(
         refusal(expr(r#"{"seq":[{"range":[{"string":"a"},{"string":"z"}]},{"ref":"_General_Category_Letter"}]}"#)),
         None
@@ -803,15 +809,15 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_emission(r#"{"items":[{"capture":""},{"tags":{"tag":"X"},"insert":true}]}"#)
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a malformed bootstrap");
+    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
 }
 
@@ -822,19 +828,25 @@ fn a_refused_bootstrap_test_is_an_error() {
     let refusal = |expr: &str| {
         let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_alternative(&alternative)
         );
         let sources = [
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", DOCUMENT.to_string()),
-            ("grammars/notation/bootstrap.json", bootstrap),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", DOCUMENT.to_string()),
+            ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+            .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("grammars/notation/bootstrap.json: ").map(str::to_string)
+        error
+            .message
+            .strip_prefix(
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+            )
+            .map(str::to_string)
     };
-    // A bootstrap that is read, whose notation then fails on g.md.
+    // A bootstrap that is read, whose notation then fails on grammars/test/g.md.
     assert_eq!(refusal(r#"{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}"#), None);
     assert_eq!(refusal(r#"{"test":"=","value":{"string":"b,c"},"expr":{"literal":{"string":"b"}}}"#).as_deref(), None);
     assert_eq!(
@@ -853,19 +865,25 @@ fn a_refused_bootstrap_test_is_an_error() {
 fn a_bootstrap_term_of_two_forms_is_an_error() {
     let refusal = |term: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_tags(term)
         );
         let sources = [
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", DOCUMENT.to_string()),
-            ("grammars/notation/bootstrap.json", bootstrap),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", DOCUMENT.to_string()),
+            ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+            .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("grammars/notation/bootstrap.json: ").map(str::to_string)
+        error
+            .message
+            .strip_prefix(
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+            )
+            .map(str::to_string)
     };
-    // A bootstrap that is read, whose notation then fails on g.md.
+    // A bootstrap that is read, whose notation then fails on grammars/test/g.md.
     assert_eq!(refusal(r#"{"tag":"T"}"#), None);
     assert_eq!(refusal(r#"{"difference":[{"tag":"T"},{"tag":"U"}]}"#), None);
     for term in [
@@ -1044,20 +1062,20 @@ fn a_preparsed_constant_serves_the_parse() {
     // The tags of the parse's tree, with the cache entry given.
     let tags = |entry: Option<&str>| {
         let mut sources = vec![
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", document.to_string()),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", document.to_string()),
         ];
         if let Some(entry) = entry {
             let preparsed = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
-            sources.push(("grammars/compiled.json", preparsed));
+            sources.push(("data/preparsed/test.json", preparsed));
         }
-        let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+        let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect("a dialect");
         let options = gencmu::ParseOptions::default();
         let result = dialect.parse("a", &options).expect("a parse");
         let tree = result.tree.expect("a tree");
@@ -1082,19 +1100,25 @@ fn a_preparsed_constant_serves_the_parse() {
 fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     let refusal = |constants: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_constants(constants, "")
         );
         let sources = [
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", DOCUMENT.to_string()),
-            ("grammars/notation/bootstrap.json", bootstrap),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", DOCUMENT.to_string()),
+            ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+            .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-        error.message.strip_prefix("grammars/notation/bootstrap.json: ").map(str::to_string)
+        error
+            .message
+            .strip_prefix(
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+            )
+            .map(str::to_string)
     };
-    // A bootstrap that is read, whose notation then fails on g.md.
+    // A bootstrap that is read, whose notation then fails on grammars/test/g.md.
     assert_eq!(refusal(&constant("K", "define", r#"{"tag":"Tag-a"}"#, 5)), None);
     assert_eq!(refusal(&constant("k", "define", r#"{"tag":"Tag-a"}"#, 5)).as_deref(), Some("a malformed constant"));
 }
@@ -1115,7 +1139,7 @@ fn deep_value(depth: usize) -> String {
 fn a_preparsed_constant_nested_too_deeply_is_a_miss() {
     assert!(!document_was_read(&with_constants(&constant("K", "define", &deep_value(256), 5), "")));
     assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(257), 5), "")));
-    // As deep as grammars/compiled.json can hold.
+    // As deep as data/preparsed/test.json can hold.
     assert!(document_was_read(&with_constants(&constant("K", "define", &deep_value(500), 5), "")));
 }
 
@@ -1124,15 +1148,15 @@ fn a_preparsed_constant_nested_too_deeply_is_a_miss() {
 #[test]
 fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_constants(&constant("K", "define", &deep_value(500), 5), "")
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a bootstrap nested too deeply");
+    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a bootstrap nested too deeply");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("nested too deeply"), "{}", error.message);
 }
@@ -1153,20 +1177,20 @@ fn a_preparsed_clause_with_a_constant_waits_for_its_value() {
     // cache entry given.
     let outcome = |document: &str, entry: Option<&str>| -> Result<Vec<String>, (usize, usize)> {
         let mut sources = vec![
-            ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", document.to_string()),
+            ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+            ("grammars/test/g.md", document.to_string()),
         ];
         if let Some(entry) = entry {
             let preparsed = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
                 gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
                 gencmu::tools::fnv1a64(document)
             );
-            sources.push(("grammars/compiled.json", preparsed));
+            sources.push(("data/preparsed/test.json", preparsed));
         }
-        let dialect = gencmu::load_dialect_sources(sources, "p.md")
+        let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
             .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
         let options = gencmu::ParseOptions::default();
         let result = dialect.parse("a", &options).expect("a parse");
@@ -1278,15 +1302,15 @@ fn a_preparsed_classifier_and_implication_are_checked() {
 fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
     let bad = r#"{"name":"lex","entries":[{"guards":[],"keys":[{"capture":"x"}],"op":"∈","class":"KOhA","at":[6,3]}],"at":[5,1]}"#;
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{}}}]}}]}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_classifiers("", bad, "")
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a malformed bootstrap");
+    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("a string term is required"), "{}", error.message);
 }
@@ -1295,16 +1319,20 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
 /// the grammar, or `None` when the bootstrap is read.
 fn bootstrap_refusal(dom: &str) -> Option<String> {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"lexical","documents":[{{"path":"grammars/notation/lexical.md","dom":{dom}}}]}}]}}"#
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a notation that cannot read g.md");
+    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        .expect_err("a notation that cannot read grammars/test/g.md");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
-    error.message.strip_prefix("grammars/notation/bootstrap.json: ").map(str::to_string)
+    error
+        .message
+        .strip_prefix("data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ")
+        .map(str::to_string)
 }
 
 /// `well_formed` is used from the cache and read from the bootstrap. Each
@@ -1362,22 +1390,22 @@ fn a_gate_of_an_entry_names_a_feature() {
     }
 }
 
-/// The features of a dialect whose `grammars/compiled.json` holds `dom` for the
+/// The features of a dialect whose `data/preparsed/test.json` holds `dom` for the
 /// document, each with its kind.
 fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
     let preparsed = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
         gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
-        ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-        ("g.md", DOCUMENT.to_string()),
-        ("grammars/compiled.json", preparsed),
+        ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+        ("grammars/test/g.md", DOCUMENT.to_string()),
+        ("data/preparsed/test.json", preparsed),
     ];
-    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+    let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect("a dialect");
     dialect.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
 }
 

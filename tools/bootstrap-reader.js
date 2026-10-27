@@ -1,5 +1,5 @@
 // A hand-written reader for the notation, used only to produce the first
-// grammars/notation/bootstrap.json and to recover if a change to the
+// data/preparsed/gencmu.json and to recover if a change to the
 // notation ever leaves the current bootstrap unable to read the notation
 // documents. The libraries never use it: they read every grammar, the
 // notation's own included, with the bootstrap. Its lexer and parser follow

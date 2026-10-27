@@ -41,7 +41,7 @@ def manifest(path, cases):
 def concurrent_tables(directory):
     fixtures = json.loads((ROOT / "tests/json-keys.json").read_text())
     hashes = {}
-    for name, text in [("bootstrap", (ROOT / "grammars/notation/bootstrap.json").read_text()),
+    for name, text in [("bootstrap", (ROOT / "data/preparsed/gencmu.json").read_text()),
                        ("unicode", (ROOT / "data/unicode/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
         value = 0xcbf29ce484222325
         for byte in text.encode():
@@ -56,7 +56,7 @@ def concurrent_tables(directory):
         for name, fingerprint in hashes.items():
             cache = cache.replace("@" + name + "@", fingerprint)
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": fixtures["grammar"],
-                   "data/unicode/unicode.txt": (ROOT / "data/unicode/unicode.txt").read_text(), "grammars/compiled.json": cache, **case["sources"]}
+                   "data/unicode/unicode.txt": (ROOT / "data/unicode/unicode.txt").read_text(), "data/preparsed/lojban.json": cache, **case["sources"]}
         path = directory / f"table-{index}.tsv"
         path.write_text("".join(hex_text(key) + "\t" + hex_text(value) + "\n" for key, value in sources.items()), encoding="ascii")
         rows.append(str(index) + "\t" + str(path) + "\n")

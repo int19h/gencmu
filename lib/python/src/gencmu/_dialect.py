@@ -58,7 +58,7 @@ def _decode(data: bytes, document: str) -> str:
     """A file's bytes as strict UTF-8, which keeps a byte order mark as the
     character U+FEFF. Bytes that do not decode are a grammar error of the
     document, found before anything hashes it or looks it up in
-    grammars/compiled.json (engine §1)."""
+    data/preparsed/lojban.json (engine §1)."""
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as error:
@@ -69,9 +69,9 @@ def _decode(data: bytes, document: str) -> str:
 
 def _bootstrap_error(error: GencmuError) -> GencmuError:
     embedded = error.document
-    if embedded and embedded != "grammars/notation/bootstrap.json" and embedded not in error.message:
+    if embedded and embedded != "data/preparsed/gencmu.json" and embedded not in error.message:
         error.message += f" (embedded document: {embedded})"
-    error.document = "grammars/notation/bootstrap.json"
+    error.document = "data/preparsed/gencmu.json"
     location = error.where
     if not error.message.startswith(f"{location}: "):
         stage = f"stage {error.stage}: " if error.stage else ""
@@ -93,12 +93,12 @@ def _read_bundled(path: str) -> str | None:
     try:
         return _decode(data, path)
     except GencmuError as error:
-        # grammars/compiled.json is only a cache, so bytes of it that do not decode
+        # data/preparsed/lojban.json is only a cache, so bytes of it that do not decode
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
-        if path == "grammars/compiled.json":
+        if path.startswith("data/preparsed/") and path != "data/preparsed/gencmu.json":
             return None
-        if path == "grammars/notation/bootstrap.json":
+        if path == "data/preparsed/gencmu.json":
             _bootstrap_error(error)
         raise
 
@@ -113,7 +113,7 @@ _MAX_TEXTS = 4
 _MAX_TEXT_SIZE = 4_000_000
 _unicode_tables: Recent[tuple[str, str | None], UnicodeTable] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 _readers: Recent[tuple[str, str, str | None], NotationReader] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
-_preparsed_indexes: Recent[tuple[str, str, str, str | None], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
+_preparsed_indexes: Recent[tuple[str, str, str, str | None, bool], dict[str, Dom]] = Recent(_MAX_TEXTS, _MAX_TEXT_SIZE)
 # The DOMs that a reader read, each keyed by the hash of its document, and
 # sized by the length of that document.
 _MAX_DOMS = 256
@@ -156,6 +156,17 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     return tokens
 
 
+def _preparsed_path(document: str) -> str | None:
+    if not document.startswith("grammars/"):
+        return None
+    family = document.split("/")[1]
+    if document == "grammars/dialects/notation.md" or family == "notation":
+        return "data/preparsed/gencmu.json"
+    if family in ("dialects", "phonemes", "words", "indicators", "syntax"):
+        return "data/preparsed/lojban.json"
+    return f"data/preparsed/{family}.json" if re.fullmatch(r"[a-z0-9][a-z0-9-]*", family) else None
+
+
 # ---------------------------------------------------------------------------
 # Reading grammar documents
 
@@ -176,35 +187,31 @@ class NotationReader:
             raise
 
     def _bootstrap_stages(self, bootstrap: str, unicode: UnicodeTable) -> list[tuple[str, Lowered]]:
-        where = "grammars/notation/bootstrap.json"
+        where = "data/preparsed/gencmu.json"
         try:
             data = json.loads(bootstrap)
         except (ValueError, RecursionError) as error:
             # json.loads recurses, and a text nested deeper than the stack
             # allows is no bootstrap either.
             raise GencmuError(f"the bootstrap is not JSON: {error}", document=where) from error
-        stages_data = data.get("stages") if isinstance(data, dict) else None
-        if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(stages_data, list) or not stages_data:
-            raise GencmuError(f"the bootstrap is an object of format {DOM_FORMAT} with at least one stage", document=where)
+        entries = data.get("documents") if isinstance(data, dict) else None
+        if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(entries, dict):
+            raise GencmuError("the bootstrap requires a document map of the current format", document=where)
+
+        def dom_of(path: str) -> Dom | None:
+            entry = entries.get(path)
+            if entry is None:
+                return None
+            problem = dom_problem(entry.get("dom"), unicode) if isinstance(entry, dict) and isinstance(entry.get("hash"), str) else "a document entry requires a hash and DOM"
+            if problem is not None:
+                raise GencmuError(f"the bootstrap's DOM of {path} is malformed: {problem}", document=where,
+                                  code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
+            return known_dom_members(entry["dom"])
+
+        pipeline = splice_pipeline("grammars/dialects/notation.md", dom_of)
+        self.bootstrap_features = pipeline.features
         stages: list[Grammar] = []
-        inputs: list[tuple[str, list[tuple[str, Dom]]]] = []
-        names: set[str] = set()
-        for stage in stages_data:
-            documents = stage.get("documents") if isinstance(stage, dict) else None
-            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or CLASSIFIER_NAME.fullmatch(stage["name"]) is None or not isinstance(documents, list) or not documents:
-                raise GencmuError("a stage of the bootstrap has a name and documents", document=where)
-            if stage["name"] in names:
-                raise GencmuError(f"a second stage named {stage['name']}", document=where)
-            names.add(stage["name"])
-            pairs: list[tuple[str, Dom]] = []
-            for document in documents:
-                if not isinstance(document, dict) or not isinstance(document.get("path"), str):
-                    raise GencmuError("a document of the bootstrap has a path and a DOM", document=where)
-                problem = dom_problem(document.get("dom"), unicode)
-                if problem is not None:
-                    raise GencmuError(f"the bootstrap's DOM of {document['path']} is malformed: {problem}", document=where, code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
-                pairs.append((document["path"], known_dom_members(document["dom"])))
-            inputs.append((stage["name"], pairs))
+        inputs = [(stage.name, stage.documents) for stage in pipeline.stages]
         for name, pairs in inputs:
             if not any(dom["rules"] for _, dom in pairs):
                 raise GencmuError(f"stage {name} has no rules", stage=name)
@@ -214,7 +221,7 @@ class NotationReader:
             except GencmuError as error:
                 error.stage = name
                 raise
-        _dialect_features(where, stages, frozenset())
+        _dialect_features(where, stages, pipeline.features)
         lowered = []
         for grammar in stages:
             try:
@@ -239,7 +246,7 @@ class NotationReader:
         grammar_text = jbogenbau_text(text)
         tokens = character_tokens(grammar_text.text, self.unicode)
         name, lowered = self.stages[0]
-        features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, frozenset())
+        features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, self.bootstrap_features)
         if features:
             lowered = lower(lowered.grammar, features)
         outcome = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode).run(lowered.grammar.elision_only)
@@ -258,7 +265,7 @@ class NotationReader:
         strings = DocumentStrings(path, self.unicode, names, grammar_text.position)
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
-        features = frozenset()
+        features = self.bootstrap_features
         for number, (name, lowered) in enumerate(self.stages):
             features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, features)
             if features:
@@ -359,18 +366,18 @@ def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) ->
     return reader
 
 
-def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable) -> bool:
+def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable, implicit: bool = False) -> bool:
     return (isinstance(data, dict) and data.get("format") == DOM_FORMAT
-            and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint
+            and (implicit or data.get("bootstrap") == bootstrap_hash) and data.get("unicode") == unicode.fingerprint
             and "properties" in data and data["properties"] == unicode.properties_fingerprint)
 
 
-def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None) -> dict[str, Dom]:
+def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: str, properties: str | None = None, implicit: bool = False) -> dict[str, Dom]:
     """The preparsed DOMs usable with this bootstrap, by text hash.
     Their schema and exact string values follow engine §9."""
     if not preparsed:
         return {}
-    key = (preparsed, bootstrap_hash, unicode_text, properties)
+    key = (preparsed, bootstrap_hash, unicode_text, properties, implicit)
     with _lock:
         found = _preparsed_indexes.get(key)
     if found is not None:
@@ -379,14 +386,14 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
     unicode = _unicode_table(unicode_text, properties)
     try:
         data = json.loads(preparsed)
-        if _preparsed_identity(data, bootstrap_hash, unicode):
+        if _preparsed_identity(data, bootstrap_hash, unicode, implicit):
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
                     dom = known_dom_members(entry["dom"])
                     index[entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
-        # An unreadable grammars/compiled.json, one nested deeper than json.loads can
+        # An unreadable data/preparsed/lojban.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
@@ -402,7 +409,7 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
 class _Resources:
     unicode: str
     bootstrap: str
-    preparsed: str | None
+    preparsed: str | None | Callable[[str], str | None]
     properties: str | None = None
 
 
@@ -417,14 +424,29 @@ class _Loader:
         self.use_cache = use_cache
         self.unicode = _unicode_table(found.unicode, found.properties)
         self.reader = _reader(found.bootstrap, found.unicode, found.properties)
-        self.preparsed = _preparsed_index(found.preparsed, self.reader.hash, found.unicode, found.properties) if use_cache else {}
-        if use_cache and found.preparsed:
-            try:
-                envelope = json.loads(found.preparsed)
-                if _preparsed_identity(envelope, self.reader.hash, self.unicode):
-                    self.bundled_names = names_registry(envelope.get("bundledNames"))
-            except (ValueError, AttributeError, TypeError, RecursionError):
-                pass
+        self.preparsed = {}
+        self.preparsed_families = {}
+
+    def _activate_preparsed(self, path: str) -> None:
+        source = self.resources.preparsed
+        key = _preparsed_path(path) if callable(source) else ""
+        if not self.use_cache or key is None:
+            self.preparsed, self.bundled_names = {}, None
+            return
+        if key not in self.preparsed_families:
+            text = source(key) if callable(source) else source
+            implicit = key == "data/preparsed/gencmu.json"
+            index = _preparsed_index(text, self.reader.hash, self.resources.unicode, self.resources.properties, implicit)
+            registry = None
+            if text:
+                try:
+                    envelope = json.loads(text)
+                    if _preparsed_identity(envelope, self.reader.hash, self.unicode, implicit):
+                        registry = names_registry(envelope.get("bundledNames"))
+                except (ValueError, AttributeError, TypeError, RecursionError):
+                    pass
+            self.preparsed_families[key] = index, registry
+        self.preparsed, self.bundled_names = self.preparsed_families[key]
 
     def text(self, path: str) -> str:
         text = self.lookup(path)
@@ -439,6 +461,7 @@ class _Loader:
         return text if text is not None else bundled_text(path)
 
     def dom(self, path: str, inherited=()) -> Dom:
+        self._activate_preparsed(path)
         self.inherited_names[path] = list(inherited)
         text = self.text(path)
         # A document is a sequence of scalar values, as a text is (engine §1).
@@ -523,7 +546,7 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
         return bundled_text(path)
 
     unicode = get("data/unicode/unicode.txt")
-    bootstrap = get("grammars/notation/bootstrap.json")
+    bootstrap = get("data/preparsed/gencmu.json")
     if unicode is None:
         raise GencmuError("the bundled data/unicode/unicode.txt is missing", document="data/unicode/unicode.txt")
     if bootstrap is None:
@@ -532,7 +555,7 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
     properties = sources.get("data/unicode/unicode-properties.txt") if custom_core else get("data/unicode/unicode-properties.txt")
     if not custom_core and properties is None:
         raise GencmuError("the bundled properties file is missing", document="data/unicode/unicode-properties.txt")
-    return _Resources(unicode, bootstrap, get("grammars/compiled.json"), properties)
+    return _Resources(unicode, bootstrap, get, properties)
 
 
 def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
@@ -575,8 +598,8 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:
     """A dialect from documents held in memory: a mapping from ``/``-separated
     path to text, and the path of the pipeline document in it. The mapping
-    may hold its own ``data/unicode/unicode.txt``, ``grammars/notation/bootstrap.json`` and
-    ``grammars/compiled.json``; any it lacks come from the bundled grammars."""
+    may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
+    ``data/preparsed/lojban.json``; any it lacks come from the bundled grammars."""
     documents = dict(sources)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 

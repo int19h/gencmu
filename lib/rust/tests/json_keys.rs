@@ -18,7 +18,7 @@ fn mutate(source: &str, case: &Value) -> String {
 #[test]
 fn shared_json_keys() {
     let fixtures = parse_json(&std::fs::read_to_string(repository().join("tests/json-keys.json")).unwrap()).unwrap();
-    let bundled = std::fs::read_to_string(repository().join("grammars/notation/bootstrap.json")).unwrap();
+    let bundled = std::fs::read_to_string(repository().join("data/preparsed/gencmu.json")).unwrap();
     let sources = || {
         BTreeMap::from([
             ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -35,7 +35,7 @@ fn shared_json_keys() {
     }
     for case in fixtures.get("bootstrap").unwrap().array() {
         let mut sources = sources();
-        sources.insert("grammars/notation/bootstrap.json".into(), mutate(&bundled, case));
+        sources.insert("data/preparsed/gencmu.json".into(), mutate(&bundled, case));
         let outcome = gencmu::load_dialect_sources(sources, "p.md");
         // The shared case records Rust's existing integer limit explicitly.
         let loads = flag(case, if case.get("rustLoads").is_some() { "rustLoads" } else { "loads" });
@@ -46,11 +46,11 @@ fn shared_json_keys() {
             let e = outcome.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
             assert_eq!(
                 (e.kind, e.document.as_deref(), e.stage.as_deref(), e.line, e.column),
-                (gencmu::ErrorKind::Grammar, Some("grammars/notation/bootstrap.json"), None, None, None),
+                (gencmu::ErrorKind::Grammar, Some("data/preparsed/gencmu.json"), None, None, None),
                 "{}: {e}",
                 text(case, "description")
             );
-            assert!(e.message.starts_with("grammars/notation/bootstrap.json:"));
+            assert!(e.message.starts_with("data/preparsed/gencmu.json:"));
         }
     }
     for case in fixtures.get("preparsed").unwrap().array() {
@@ -60,11 +60,11 @@ fn shared_json_keys() {
             .replace("@source@", &gencmu::tools::fnv1a64(text(&fixtures, "grammar")));
         let document = case.get("document").and_then(Value::str).unwrap_or("g.md");
         let mut sources = BTreeMap::from([
-            ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
-            (document.to_string(), text(&fixtures, "grammar").to_string()),
+            ("grammars/test/p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
+            (format!("grammars/test/{document}"), text(&fixtures, "grammar").to_string()),
         ]);
         sources.insert("data/unicode/unicode.txt".into(), include_str!("../data/unicode/unicode.txt").to_string());
-        sources.insert("grammars/compiled.json".into(), cache);
+        sources.insert("data/preparsed/test.json".into(), cache);
         let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
         if let Some(Value::Object(resources)) = case.get("sources") {
             for (path, value) in resources {
@@ -73,6 +73,11 @@ fn shared_json_keys() {
                     path.clone(),
                     if value == "@bundled-names@" {
                         include_str!("../data/unicode/unicode-names.txt").to_string()
+                    } else if value == "@matching-cache@" {
+                        text(&fixtures, "cache")
+                            .replace("@bootstrap@", &gencmu::tools::fnv1a64(&bundled))
+                            .replace("@source@", &gencmu::tools::fnv1a64(text(&fixtures, "grammar")))
+                            .replace("@unicode@", &gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")))
                     } else if value == "@unicode-16@" {
                         include_str!("../data/unicode/unicode.txt").replace("unicode 15.1.0", "unicode 16.0.0")
                     } else {
@@ -81,7 +86,7 @@ fn shared_json_keys() {
                 );
             }
         }
-        let result = gencmu::load_dialect_sources(sources, "p.md");
+        let result = gencmu::load_dialect_sources(sources, "grammars/test/p.md");
         if let Some(expected) = case.get("error") {
             let error = result.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
             assert_eq!(error.kind, gencmu::ErrorKind::Grammar);

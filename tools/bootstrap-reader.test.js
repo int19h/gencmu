@@ -91,7 +91,7 @@ test("ranked syntax diagnostics follow the failing token and group", () => {
 test("the bootstrap and engine readers agree on the notation documents", () => {
   const loader = notationLoader();
   for (const file of ["grammars/notation/lexical.md", "grammars/notation/syntax.md", "grammars/dialects/notation.md"]) {
-    const text = fs.readFileSync(new URL(`../grammars/${file}`, import.meta.url), "utf8");
+    const text = fs.readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     assert.deepEqual(loader.readDocument(text, file), readDocument(text, file), file);
   }
 });
@@ -171,8 +171,8 @@ test("both readers reject invalid forms at the same specified position", () => {
 
 function notationLoader() {
   return new Loader((file) => {
-    if (file === "grammars/compiled.json") return undefined;
-    const path = new URL(`../grammars/${file}`, import.meta.url);
+    if (file === "data/preparsed/lojban.json") return undefined;
+    const path = new URL(`../${file}`, import.meta.url);
     return fs.existsSync(path) ? fs.readFileSync(path, "utf8") : undefined;
   });
 }

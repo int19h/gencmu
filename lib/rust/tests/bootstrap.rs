@@ -20,7 +20,7 @@ fn read(path: &str) -> String {
 /// names and their runs of one document's items (engine §8).
 #[test]
 fn bootstrap_is_a_fixpoint() {
-    let bootstrap = parse_json(&read("grammars/notation/bootstrap.json")).expect("bootstrap.json");
+    let bootstrap = parse_json(&read("data/preparsed/gencmu.json")).expect("bootstrap.json");
     let started = std::time::Instant::now();
     let json = gencmu::tools::splice_bundled_pipeline("grammars/dialects/notation.md", false)
         .unwrap_or_else(|error| panic!("grammars/dialects/notation.md: {error}"));
@@ -28,15 +28,37 @@ fn bootstrap_is_a_fixpoint() {
     let spliced = parse_json(&json).expect("the spliced pipeline");
     assert_eq!(spliced.get("format"), bootstrap.get("format"));
     let stages = spliced.get("stages").expect("stages");
-    same(bootstrap.get("stages").expect("stages"), stages, "stages")
-        .unwrap_or_else(|problem| panic!("the notation does not reproduce the bootstrap: {problem}\n{json}"));
+    let entries = bootstrap.get("documents").expect("documents");
+    let expected_names: Vec<_> = entries
+        .get("grammars/dialects/notation.md")
+        .unwrap()
+        .get("dom")
+        .unwrap()
+        .get("directives")
+        .unwrap()
+        .array()
+        .iter()
+        .filter(|d| d.get("name").and_then(Value::str) == Some("stage"))
+        .map(|d| &d.get("args").unwrap().array()[0])
+        .collect();
+    assert_eq!(stages.array().iter().map(|s| s.get("name").unwrap()).collect::<Vec<_>>(), expected_names);
+    for stage in stages.array() {
+        for document in stage.get("documents").unwrap().array() {
+            let path = document.get("path").unwrap().str().unwrap();
+            same(entries.get(path).unwrap().get("dom").unwrap(), document.get("dom").unwrap(), path).unwrap();
+        }
+    }
+    for (path, entry) in entries.object() {
+        let fresh = gencmu::tools::read_grammar_document(&read(path), path).unwrap();
+        same(entry.get("dom").unwrap(), &parse_json(&fresh).unwrap(), path).unwrap();
+    }
     let documents: usize =
         stages.array().iter().map(|stage| stage.get("documents").expect("documents").array().len()).sum();
     assert_eq!(documents, 2);
 }
 
 /// Every bundled dialect splices to the same stages and features with the
-/// preparsed DOMs of `grammars/compiled.json` and without them.
+/// preparsed DOMs of `data/preparsed/lojban.json` and without them.
 #[test]
 fn dialects_splice_the_same_with_and_without_the_cache() {
     let mut names: Vec<String> = std::fs::read_dir(grammars().join("dialects"))
@@ -55,7 +77,7 @@ fn dialects_splice_the_same_with_and_without_the_cache() {
                 let path = format!("grammars/dialects/{name}.md");
                 let cached = gencmu::tools::splice_bundled_pipeline(&path, true).expect("a cached splice");
                 let fresh = gencmu::tools::splice_bundled_pipeline(&path, false).expect("a fresh splice");
-                assert!(cached == fresh, "{path} splices differently without grammars/compiled.json");
+                assert!(cached == fresh, "{path} splices differently without data/preparsed/lojban.json");
                 let spliced = parse_json(&cached).expect("JSON");
                 assert!(!spliced.get("stages").expect("stages").array().is_empty(), "{path}");
             })
@@ -70,23 +92,22 @@ fn dialects_splice_the_same_with_and_without_the_cache() {
 #[test]
 fn the_grammar_copy_is_current() {
     for path in [
-        "grammars/compiled.json",
+        "data/preparsed/lojban.json",
         "data/unicode/unicode.txt",
-        "grammars/notation/bootstrap.json",
+        "data/preparsed/gencmu.json",
         "grammars/notation/lexical.md",
         "grammars/notation/syntax.md",
         "grammars/dialects/notation.md",
     ] {
-        let original =
-            std::fs::read_to_string(repository().join(path)).expect("the repository's grammars");
+        let original = std::fs::read_to_string(repository().join(path)).expect("the repository's grammars");
         assert!(original == read(path), "lib/rust/grammars/{path} is out of date; run node tools/sync.js");
     }
 }
 
-/// `grammars/compiled.json` agrees with a fresh reading of every document it lists.
+/// `data/preparsed/lojban.json` agrees with a fresh reading of every document it lists.
 #[test]
 fn preparsed_doms_match_a_fresh_reading() {
-    let preparsed = parse_json(&read("grammars/compiled.json")).expect("grammars/compiled.json");
+    let preparsed = parse_json(&read("data/preparsed/lojban.json")).expect("data/preparsed/lojban.json");
     assert_eq!(preparsed.get("format"), Some(&Value::Number(DOM_FORMAT as f64)));
     assert_eq!(preparsed.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
     assert_eq!(
@@ -119,19 +140,23 @@ fn preparsed_doms_match_a_fresh_reading() {
     }
 }
 
-fn bundled_sources(preparsed: Option<&str>) -> BTreeMap<String, String> {
+fn bundled_sources(cached: bool) -> BTreeMap<String, String> {
     let mut sources = BTreeMap::new();
     for path in [
         "data/unicode/unicode.txt",
         "data/unicode/unicode-properties.txt",
-        "grammars/notation/bootstrap.json",
+        "data/preparsed/gencmu.json",
         "grammars/notation/lexical.md",
         "grammars/notation/syntax.md",
         "grammars/dialects/notation.md",
     ] {
         sources.insert(path.to_string(), read(path));
     }
-    sources.insert("grammars/compiled.json".to_string(), preparsed.map_or_else(|| read("grammars/compiled.json"), str::to_string));
+    if !cached {
+        let hash = gencmu::tools::fnv1a64(&read("data/unicode/unicode.txt"));
+        let text = sources.get_mut("data/preparsed/gencmu.json").unwrap();
+        *text = text.replacen(&format!("\"unicode\":\"{hash}\""), "\"unicode\":\"0000000000000000\"", 1);
+    }
     sources
 }
 
@@ -142,13 +167,12 @@ fn parsing_with_and_without_the_cache() {
     let cached = gencmu::load_dialect("notation").expect("the notation dialect");
     let with_cache = started.elapsed();
     let started = std::time::Instant::now();
-    let empty = r#"{"format":10,"bootstrap":"0000000000000000","documents":{}}"#;
     let fresh =
-        gencmu::load_dialect_sources(bundled_sources(Some(empty)), "grammars/dialects/notation.md").expect("a fresh load");
+        gencmu::load_dialect_sources(bundled_sources(false), "grammars/dialects/notation.md").expect("a fresh load");
     let without_cache = started.elapsed();
     eprintln!("loading the notation dialect: {with_cache:?} with the cache, {without_cache:?} without");
     let also_cached =
-        gencmu::load_dialect_sources(bundled_sources(None), "grammars/dialects/notation.md").expect("a cached load");
+        gencmu::load_dialect_sources(bundled_sources(true), "grammars/dialects/notation.md").expect("a cached load");
     for (text, accepted) in [
         ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
         ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
@@ -201,7 +225,7 @@ fn load_with_bootstrap(bootstrap: String, document: &str) -> Result<gencmu::Dial
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", document.to_string()),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
     gencmu::load_dialect_sources(sources, "p.md")
 }
@@ -213,22 +237,25 @@ fn load_with_bootstrap(bootstrap: String, document: &str) -> Result<gencmu::Dial
 /// reader then gives an error of the grammar, and never panics.
 #[test]
 fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
-    let bootstrap = read("grammars/notation/bootstrap.json");
+    let bootstrap = read("data/preparsed/gencmu.json");
     if let Err(error) = load_with_bootstrap(bootstrap.clone(), EVERY_CONSTRUCT) {
         panic!("the bundled bootstrap reads the document: {error}");
     }
     // The syntax document is the bootstrap's last, and only its rules are
     // renamed.
-    let start = bootstrap.find(r#""path":"grammars/notation/syntax.md""#).expect("the syntax document");
+    let start = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
     let syntax = parse_json(&bootstrap).expect("bootstrap.json");
     let names: Vec<String> = syntax
-        .get("stages")
-        .expect("stages")
+        .get("documents")
+        .unwrap()
+        .get("grammars/notation/syntax.md")
+        .unwrap()
+        .get("dom")
+        .unwrap()
+        .get("rules")
+        .unwrap()
         .array()
         .iter()
-        .flat_map(|stage| stage.get("documents").expect("documents").array().iter())
-        .filter(|document| document.get("path").and_then(Value::str) == Some("grammars/notation/syntax.md"))
-        .flat_map(|document| document.get("dom").expect("dom").get("rules").expect("rules").array().iter())
         .map(|rule| rule.get("name").and_then(Value::str).expect("a rule's name").to_string())
         .collect();
     assert!(names.iter().any(|name| name == "definer"), "{names:?}");
@@ -255,7 +282,7 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
 fn bootstrap_errors_name_the_bootstrap_document() {
     let text = std::fs::read_to_string(repository().join("tests/bootstrap-errors.json")).expect("the shared cases");
     let fixtures = parse_json(&text).expect("JSON");
-    let bundled = read("grammars/notation/bootstrap.json");
+    let bundled = read("data/preparsed/gencmu.json");
     for item in fixtures.get("cases").expect("cases").array() {
         let description = item.get("description").and_then(Value::str).expect("description");
         let bootstrap = if let Some(text) = item.get("bootstrap").and_then(Value::str) {
@@ -306,38 +333,35 @@ fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
         let Value::Object(fields) = value else { panic!("object") };
         &mut fields.iter_mut().find(|(key, _)| key == name).unwrap().1
     }
-    let mut bootstrap = parse_json(&read("grammars/notation/bootstrap.json")).unwrap();
-    let Value::Array(stages) = field(&mut bootstrap, "stages") else { panic!("stages") };
-    for stage in stages {
-        let Value::Array(documents) = field(stage, "documents") else { panic!("documents") };
-        for document in documents {
-            let Value::Array(rules) = field(field(document, "dom"), "rules") else { panic!("rules") };
-            let mut padding = false;
-            for rule in rules.iter_mut() {
-                match rule.get("name").and_then(Value::str) {
-                    Some("feature-character") => {
-                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
-                        alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
-                    }
-                    Some("guard")
-                        if rule.get("alternatives").unwrap().array()[0]
-                            .get("expr")
-                            .unwrap()
-                            .get("ref")
-                            .and_then(Value::str)
-                            == Some("Guard") =>
-                    {
-                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
-                        *field(&mut alternatives[0], "expr") =
-                            parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Guard"}]}"#).unwrap();
-                        padding = true;
-                    }
-                    _ => {}
+    let mut bootstrap = parse_json(&read("data/preparsed/gencmu.json")).unwrap();
+    let Value::Object(documents) = field(&mut bootstrap, "documents") else { panic!("documents") };
+    for (_, document) in documents {
+        let Value::Array(rules) = field(field(document, "dom"), "rules") else { panic!("rules") };
+        let mut padding = false;
+        for rule in rules.iter_mut() {
+            match rule.get("name").and_then(Value::str) {
+                Some("feature-character") => {
+                    let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                    alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
                 }
+                Some("guard")
+                    if rule.get("alternatives").unwrap().array()[0]
+                        .get("expr")
+                        .unwrap()
+                        .get("ref")
+                        .and_then(Value::str)
+                        == Some("Guard") =>
+                {
+                    let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                    *field(&mut alternatives[0], "expr") =
+                        parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Guard"}]}"#).unwrap();
+                    padding = true;
+                }
+                _ => {}
             }
-            if padding {
-                rules.push(parse_json(r#"{"name":"padding","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
-            }
+        }
+        if padding {
+            rules.push(parse_json(r#"{"name":"padding","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
         }
     }
     let error = load_with_bootstrap(

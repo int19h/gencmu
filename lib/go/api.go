@@ -19,18 +19,15 @@ import (
 var bundledFS embed.FS
 
 var bundled struct {
-	once                    sync.Once
-	sources                 map[string]string
-	uni                     *unicodeTable
-	reader                  *notationReader
-	err                     error
-	propertiesOnce          sync.Once
-	propertiesUni           *unicodeTable
-	propertiesReader        *notationReader
-	propertiesPreparsed      map[domCacheKey]json.RawMessage
-	propertiesPreparsedNames map[domCacheKey]json.RawMessage
-	propertiesBundledNames  map[string]string
-	propertiesErr           error
+	once             sync.Once
+	sources          map[string]string
+	uni              *unicodeTable
+	reader           *notationReader
+	err              error
+	propertiesOnce   sync.Once
+	propertiesUni    *unicodeTable
+	propertiesReader *notationReader
+	propertiesErr    error
 }
 
 func loadBundled() error {
@@ -40,7 +37,7 @@ func loadBundled() error {
 			if err != nil || d.IsDir() {
 				return err
 			}
-			if strings.HasSuffix(p, "-names.txt") {
+			if strings.HasSuffix(p, "-names.txt") || (strings.HasPrefix(p, "data/preparsed/") && p != "data/preparsed/gencmu.json") {
 				return nil
 			}
 			data, err := bundledFS.ReadFile(p)
@@ -58,7 +55,7 @@ func loadBundled() error {
 			bundled.err = err
 			return
 		}
-		if bundled.reader, err = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], bundled.uni); err != nil {
+		if bundled.reader, err = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], bundled.uni); err != nil {
 			bundled.err = err
 			return
 		}
@@ -78,7 +75,7 @@ func readPreparsed(text, bootstrapHash, unicodeHash, propertiesHash string) map[
 	return doms
 }
 
-func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
+func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string, implicit ...bool) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`
 		Bootstrap    string          `json:"bootstrap"`
@@ -93,7 +90,7 @@ func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string)
 	}
 	out := map[domCacheKey]json.RawMessage{}
 	names := map[domCacheKey]json.RawMessage{}
-	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
+	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || (c.Bootstrap != bootstrapHash && !(len(implicit) > 0 && implicit[0])) || c.Unicode != unicodeHash {
 		return out, names, nil
 	}
 	// An absent fingerprint differs from explicit null for a core-only table.
@@ -117,14 +114,66 @@ func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string)
 	return out, names, readNamesRegistry(c.BundledNames)
 }
 
+func preparsedPath(document string) string {
+	if !strings.HasPrefix(document, "grammars/") {
+		return ""
+	}
+	family := strings.Split(strings.TrimPrefix(document, "grammars/"), "/")[0]
+	if document == "grammars/dialects/notation.md" || family == "notation" {
+		return "data/preparsed/gencmu.json"
+	}
+	switch family {
+	case "dialects", "phonemes", "words", "indicators", "syntax":
+		return "data/preparsed/lojban.json"
+	}
+	if family == "" {
+		return ""
+	}
+	for i, c := range family {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || i > 0 && c == '-') {
+			return ""
+		}
+	}
+	return "data/preparsed/" + family + ".json"
+}
+
+type familyPreparsed struct {
+	doms, names map[domCacheKey]json.RawMessage
+	registry    map[string]string
+}
+
+func (l *loader) activatePreparsed(document string) {
+	if l.preparsedRead == nil {
+		return
+	}
+	file := preparsedPath(document)
+	if file == "" || l.noCache {
+		l.preparsed, l.preparsedNames, l.bundledNames = nil, nil, nil
+		return
+	}
+	if l.families == nil {
+		l.families = map[string]familyPreparsed{}
+	}
+	family, ok := l.families[file]
+	if !ok {
+		text, _ := l.preparsedRead(file)
+		doms, names, registry := readPreparsedCache(text, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, file == "data/preparsed/gencmu.json")
+		family = familyPreparsed{doms, names, registry}
+		l.families[file] = family
+	}
+	l.preparsed, l.preparsedNames, l.bundledNames = family.doms, family.names, family.registry
+}
+
 // loader reads a pipeline and its documents from one source of files.
 type loader struct {
+	preparsedRead      func(string) (string, bool)
+	families           map[string]familyPreparsed
 	read               func(p string) (string, bool)
 	uni                *unicodeTable
 	reader             *notationReader
 	bootstrapHash      string
-	preparsed           map[domCacheKey]json.RawMessage
-	preparsedNames      map[domCacheKey]json.RawMessage
+	preparsed          map[domCacheKey]json.RawMessage
+	preparsedNames     map[domCacheKey]json.RawMessage
 	bundledNames       map[string]string
 	namesOverride      func(string) bool
 	noCache            bool
@@ -138,6 +187,7 @@ type loader struct {
 }
 
 func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
+	l.activatePreparsed(p)
 	var inherited []string
 	if len(selected) > 0 {
 		inherited = selected[0]
@@ -422,8 +472,6 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		return nil, err
 	}
 	uni, reader := bundled.uni, bundled.reader
-	var preparsed, preparsedNames map[domCacheKey]json.RawMessage
-	var bundledNames map[string]string
 	if withProperties {
 		bundled.propertiesOnce.Do(func() {
 			text, ok := bundled.sources["data/unicode/unicode-properties.txt"]
@@ -439,18 +487,16 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 			}
 			copy.propertiesHash = fnv1a64(text)
 			bundled.propertiesUni = &copy
-			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], &copy)
-			if bundled.propertiesErr == nil {
-				bundled.propertiesPreparsed, bundled.propertiesPreparsedNames, bundled.propertiesBundledNames = readPreparsedCache(bundled.sources["grammars/compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
-			}
+			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], &copy)
+
 		})
 		if bundled.propertiesErr != nil {
 			return nil, bundled.propertiesErr
 		}
 		uni, reader = bundled.propertiesUni, bundled.propertiesReader
-		preparsed, preparsedNames, bundledNames = bundled.propertiesPreparsed, bundled.propertiesPreparsedNames, bundled.propertiesBundledNames
 	}
 	return &loader{
+		preparsedRead: bundledNamesText,
 		read: func(p string) (string, bool) {
 			if text, ok := bundled.sources[p]; ok {
 				return text, true
@@ -461,9 +507,6 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		uni:           uni,
 		reader:        reader,
 		bootstrapHash: reader.hash,
-		preparsed:      preparsed,
-		preparsedNames: preparsedNames,
-		bundledNames:  bundledNames,
 		namesOverride: func(string) bool { return false },
 	}, nil
 }
@@ -504,8 +547,8 @@ func LoadDialectFile(file string) (*Dialect, error) {
 
 // LoadDialectSources loads a dialect from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
-// it. The map may hold its own data/unicode/unicode.txt, grammars/notation/bootstrap.json and
-// grammars/compiled.json; those it lacks come from the bundled grammars.
+// it. The map may hold its own data/unicode/unicode.txt, data/preparsed/gencmu.json and
+// data/preparsed/lojban.json; those it lacks come from the bundled grammars.
 func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, error) {
 	return loadSources(sources, pipeline, false)
 }
@@ -518,7 +561,6 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	_, customCore := norm["data/unicode/unicode.txt"]
 	_, customProperties := norm["data/unicode/unicode-properties.txt"]
-	_, customBootstrap := norm["grammars/notation/bootstrap.json"]
 	l, lerr := loaderForBundled(!customCore && !customProperties)
 	if lerr != nil {
 		return nil, lerr
@@ -543,21 +585,24 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	if customProperties {
 		l.uni.propertiesHash = fnv1a64(norm["data/unicode/unicode-properties.txt"])
 	}
-	if t, ok := norm["grammars/notation/bootstrap.json"]; ok {
+	if t, ok := norm["data/preparsed/gencmu.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
 	} else if l.uni != l.reader.uni {
-		if l.reader, err = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], l.uni); err != nil {
+		if l.reader, err = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], l.uni); err != nil {
 			return nil, err
 		}
 	}
 	l.bootstrapHash = l.reader.hash
-	if t, ok := norm["grammars/compiled.json"]; ok {
-		l.preparsed, l.preparsedNames, l.bundledNames = readPreparsedCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
-	} else if customCore || customProperties || customBootstrap {
-		l.preparsed, l.preparsedNames, l.bundledNames = readPreparsedCache(bundled.sources["grammars/compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+	l.preparsedRead = func(p string) (string, bool) {
+		if text, ok := norm[p]; ok {
+			return text, true
+		}
+		return bundledNamesText(p)
 	}
+	l.families = nil
+
 	return l.dialect(path.Clean(pipeline))
 }
 

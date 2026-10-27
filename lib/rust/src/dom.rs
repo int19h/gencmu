@@ -1,5 +1,5 @@
 //! The grammar DOM of `docs/output.md`: what reading a grammar document
-//! produces, what `bootstrap.json` and `grammars/compiled.json` hold, and what
+//! produces, what `data/preparsed/gencmu.json` and `data/preparsed/lojban.json` hold, and what
 //! stitching and lowering read.
 
 pub(crate) mod schema;

@@ -278,7 +278,7 @@ async function main() {
       const g = self.gencmu;
       const block = text => "```jbogenbau\n" + text + "\n```\n";
       const source = block('%names "smoke-extra-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"');
-      const cache = JSON.parse(self.gencmuGrammars["grammars/compiled.json"]);
+      const cache = JSON.parse(self.gencmuGrammars["data/preparsed/lojban.json"]);
       cache.bundledNames["smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
       const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
       cache.documents["smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
@@ -293,9 +293,9 @@ async function main() {
         });
         client.start();
       });
-      const cached = await proof({"smoke-names.md":source,"grammars/compiled.json":JSON.stringify(cache)},"b");
+      const cached = await proof({"smoke-names.md":source,"data/preparsed/lojban.json":JSON.stringify(cache)},"b");
       cache.documents["smoke-names.md"].names["smoke-extra-names.txt"] = "0000000000000000";
-      const missed = await proof({"smoke-names.md":source,"grammars/compiled.json":JSON.stringify(cache)},"\uE000");
+      const missed = await proof({"smoke-names.md":source,"data/preparsed/lojban.json":JSON.stringify(cache)},"\uE000");
       const custom = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
         "data/unicode/unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
       const numeric = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");

@@ -14,17 +14,10 @@ import gencmu
 from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, substitute
 
 SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
-with open(REPOSITORY / "grammars" / "notation" / "bootstrap.json", encoding="utf-8") as _file:
+with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as _file:
     BOOTSTRAP = _file.read()
-SYNTAX_AT = BOOTSTRAP.index('"path":"grammars/notation/syntax.md"')
-NAMES = [
-    rule["name"]
-    for stage in read_json(BOOTSTRAP)["stages"]
-    for document in stage["documents"]
-    if document["path"] == "grammars/notation/syntax.md"
-    for rule in document["dom"]["rules"]
-    if rule["name"] != "text"
-]
+SYNTAX_AT = BOOTSTRAP.index('"grammars/notation/syntax.md":')
+NAMES = [rule["name"] for rule in read_json(BOOTSTRAP)["documents"]["grammars/notation/syntax.md"]["dom"]["rules"] if rule["name"] != "text"]
 
 
 def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | None = None, where: dict[str, Any] | None = None) -> Any:
@@ -34,7 +27,7 @@ def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | Non
     (tests/README.md). Any other exception escapes, and fails the test."""
     document = SHAPES["document"] if document is None else document
     inputs = SHAPES["inputs"] if inputs is None else inputs
-    sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document, "grammars/notation/bootstrap.json": bootstrap}
+    sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document, "data/preparsed/gencmu.json": bootstrap}
     try:
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
     except gencmu.GencmuError as error:
@@ -62,7 +55,7 @@ def with_syntax(change: Callable[[str], str]) -> str:
 class NotationShapes(unittest.TestCase):
     def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
         parsed = json.loads(BOOTSTRAP)
-        documents = {document["path"]: document["dom"] for stage in parsed["stages"] for document in stage["documents"]}
+        documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}
         lexical = documents["grammars/notation/lexical.md"]
         next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
             {"guards": [], "expr": {"literal": {"string": "_"}}}
@@ -100,22 +93,22 @@ class NotationShapes(unittest.TestCase):
         the lexical stage, the check finds the ambiguity that greedy settled
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
-        lexical_dom = next(d["dom"] for stage in parsed["stages"] for d in stage["documents"] if d["path"] == "grammars/notation/lexical.md")
+        lexical_dom = parsed["documents"]["grammars/notation/lexical.md"]["dom"]
         next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
             {"guards": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
-        lexical = bootstrap.index('"path":"grammars/notation/lexical.md"')
+        lexical = bootstrap.index('"grammars/notation/lexical.md":')
         at = bootstrap.index(directive)
-        self.assertTrue(lexical < at < bootstrap.index('"path":"grammars/notation/syntax.md"'), "the first directive is the lexical stage's")
+        self.assertTrue(lexical < at < bootstrap.index('"grammars/notation/syntax.md":'), "the first directive is the lexical stage's")
         elision = bootstrap.replace(directive, '"name":"ambiguity-resolution","args":["greedy","elision-only"]', 1)
 
         def sources(bootstrap: str) -> dict[str, str]:
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n",
-                "grammars/notation/bootstrap.json": bootstrap,
+                "data/preparsed/gencmu.json": bootstrap,
             }
 
         # The bundled bootstrap loads the same documents.

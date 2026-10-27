@@ -74,9 +74,9 @@ def check_notation_cache_paths(
         return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(preparsed), resources.properties))
 
     cached = loader(envelope)
-    test.assertIn(fnv1a64(document), cached.preparsed)
     with patch.object(cached.reader, "read", side_effect=AssertionError("preparsed cache was bypassed")):
         test.assertEqual(cached.dom(name), expected)
+        test.assertIn(fnv1a64(document), cached.preparsed)
         test.assertEqual(cached.dom(name), expected)
     for key in ("document", "bootstrap", "unicode", "format"):
         with test.subTest(cache_mismatch=key):
@@ -104,9 +104,9 @@ class NotationTies(unittest.TestCase):
             "n.md",
         )
         bootstrap = json.dumps(
-            {"format": notation["format"], "stages": [{"name": "syntax", "documents": [{"path": "n.md", "dom": notation}]}]}
+            {"format":notation["format"],"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":read_document('```jbogenbau\n%stage syntax\n%include "../../n.md"\n```\n',"boot.md")},"n.md":{"hash":"0","dom":notation}}}
         )
-        sources = {"grammars/notation/bootstrap.json": bootstrap}
+        sources = {"data/preparsed/gencmu.json": bootstrap}
         with self.assertRaises(gencmu.GencmuError) as caught:
             read_document("```jbogenbau\na\n```\n", "t.md", sources=sources)
         error = caught.exception

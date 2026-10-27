@@ -11,7 +11,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	text := bundled.sources["grammars/compiled.json"]
+	text, _ := bundledNamesText("data/preparsed/lojban.json")
 	if len(readPreparsed(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) == 0 {
 		t.Fatal("bundled cache missed")
 	}
@@ -34,21 +34,25 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	}
 
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"é\"")
-	dom, failure := bundled.reader.read(sources["g.md"], "g.md")
+	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": sources["g.md"]}
+	dom, failure := bundled.reader.read(sources["grammars/test/g.md"], "grammars/test/g.md")
 	if failure != nil {
 		t.Fatal(failure)
 	}
 	cache, err := json.Marshal(map[string]any{
 		"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
-		"documents": map[string]any{"g.md": map[string]any{"hash": fnv1a64(sources["g.md"]), "dom": json.RawMessage(dom.json())}},
+		"documents": map[string]any{"grammars/test/g.md": map[string]any{"hash": fnv1a64(sources["grammars/test/g.md"]), "dom": json.RawMessage(dom.json())}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources["grammars/compiled.json"] = string(cache)
+	sources["data/preparsed/test.json"] = string(cache)
 	// The replacement table deliberately omits all normalization records.
 	sources["data/unicode/unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
-	d := mustLoad(t, sources)
+	d, err := LoadDialectSources(sources, "grammars/test/p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
 	res, err := d.Parse("é", ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("replacement table reused a bundled DOM: %v %#v", err, res)

@@ -22,9 +22,9 @@ A pipeline document and the grammar documents that it includes define a dialect.
 
 - `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
 - `load_dialect_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
-- `load_dialect_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `grammars/notation/bootstrap.json` and `grammars/compiled.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `load_dialect_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
-The loader reads a grammar document through the notation only when `grammars/compiled.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
+The loader reads a grammar document through the notation only when `data/preparsed/lojban.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
 
 Each loader takes `use_cache=False` to read every document afresh.
 
@@ -124,7 +124,7 @@ The tests cover these items:
 - The shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives
 - For a case with `parses`, several parses of its input with one loaded dialect
 - The fixpoint of the bootstrap of the notation
-- A comparison of `grammars/compiled.json` with a fresh reading
+- A comparison of `data/preparsed/lojban.json` with a fresh reading
 - The API
 - The checks of a preparsed DOM, and the refusal of a cache of another DOM format
 - The place and the order of the errors of lowering, and the items that captures add to the recognizer (`tests/README.md`)

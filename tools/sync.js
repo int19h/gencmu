@@ -2,7 +2,7 @@
 // Regenerates every generated file from grammars/ and lib/js/src/, or, with
 // --check, fails if any of them is out of date:
 //
-//   grammars/compiled.json   the DOM of every grammar document, keyed by hash
+//   data/preparsed/FAMILY.json   the DOM of every grammar document, keyed by hash
 //   lib/js/{grammars,data}/ the npm package's bundled resources
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
+import { BOOTSTRAP_PATH, NOTATION_PATH, preparsedPath } from "../lib/js/src/resources.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
@@ -94,24 +95,32 @@ if (misshapen.length) {
 // reading it again changes nothing (docs/design.md, "Self-hosting"). A
 // change to the notation that the current bootstrap cannot read needs
 // tools/write-bootstrap.js first.
-const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
+const bootstrapPath = path.join(root, BOOTSTRAP_PATH);
 // A loader of grammars/ with the given bootstrap and no preparsed DOMs.
 /** @param {string} bootstrap */
-const loaderWith = (bootstrap) => new Loader((relative) => {
-  if (relative === "grammars/notation/bootstrap.json") return bootstrap;
-  if (relative === "grammars/compiled.json") return undefined;
+const loaderWith = (bootstrap) => {
+  const loader = new Loader((relative) => {
+  if (relative === BOOTSTRAP_PATH) return bootstrap;
+  if (relative.startsWith("data/preparsed/")) return undefined;
   const file = path.join(root, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
-});
+  });
+  loader.preparsedFiles.add(BOOTSTRAP_PATH);
+  return loader;
+};
 /**
  * The bootstrap that reading the notation with `bootstrap` reaches.
  * @param {string} bootstrap
  */
 function settle(bootstrap) {
   for (let round = 0; ; round++) {
-    // The notation's own pipeline, spliced with the current bootstrap.
-    const { stages } = loaderWith(bootstrap).splice("grammars/dialects/notation.md");
-    const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
+    const loader = loaderWith(bootstrap);
+    const documents = {};
+    for (const file of grammarFiles().filter(file => (file === "dialects/notation.md" || file.startsWith("notation/")) && file.endsWith(".md"))) {
+      const text = fs.readFileSync(path.join(grammars,file),"utf8");
+      documents[`grammars/${file}`] = {hash:fnv1a64(text), dom:loader.readDocument(text,`grammars/${file}`)};
+    }
+    const next = {format:DOM_FORMAT, unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames:bundledNamesRegistry(), documents};
     const nextText = JSON.stringify(next) + "\n";
     if (nextText === bootstrap) return bootstrap;
     if (round === 3) throw new Error("the notation does not reach a fixpoint");
@@ -148,7 +157,7 @@ for (const [file, { text, dom }] of read) {
   if (!check) moved = true;
 }
 if (moved) bootstrapText = settle(bootstrapText);
-write("grammars/notation/bootstrap.json", bootstrapText);
+write(BOOTSTRAP_PATH, bootstrapText);
 
 // No other document holds a generated element: one there would show
 // diagrams that nothing updates. The packages' copies of grammars/ hold
@@ -181,9 +190,25 @@ for (const file of grammarFiles()) {
   const names = loader.namesDependencies.get(dom);
   documents[`grammars/${file}`] = { hash: fnv1a64(text), ...(names ? {names} : {}), dom };
 }
-const bundledNames = Object.fromEntries(["data/unicode/unicode-names.txt", ...grammarFiles().filter(file => file.endsWith("-names.txt")).map(file => `grammars/${file}`)]
-  .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(root,file),"utf8"))]));
-const preparsed = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
+function bundledNamesRegistry() {
+  return Object.fromEntries(["data/unicode/unicode-names.txt", ...grammarFiles().filter(file => file.endsWith("-names.txt")).map(file => `grammars/${file}`)]
+    .sort(compareCodePoints).map(file => [file,fnv1a64(fs.readFileSync(path.join(root,file),"utf8"))]));
+}
+const bundledNames = bundledNamesRegistry();
+const families = new Map();
+for (const [file,entry] of Object.entries(documents)) {
+  const resource = preparsedPath(file);
+  if (!families.has(resource)) families.set(resource,{});
+  families.get(resource)[file] = entry;
+}
+const familyTexts = new Map();
+for (const [resource,entries] of families) {
+  const envelope = {format:DOM_FORMAT, ...(resource === BOOTSTRAP_PATH ? {} : {bootstrap:loader.bootstrapHash}),
+    unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames, documents:entries};
+  familyTexts.set(resource,JSON.stringify(envelope) + "\n");
+}
+if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the preparsed bootstrap does not reach its fixpoint");
+
 
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters
@@ -259,7 +284,7 @@ if (parserMissing && check) {
     process.exit(1);
   }
 }
-write("grammars/compiled.json", JSON.stringify(preparsed) + "\n");
+for (const [file,text] of familyTexts) write(file,text);
 
 // The SVG files of the railroad diagrams. They are documentation, so no
 // package ships them. A file under docs/diagrams/ that this run does not
@@ -287,15 +312,15 @@ for (const library of ["lib/js", "lib/python", "lib/go", "lib/rust"]) write(`${l
 // The grammar copies.
 const sources = {};
 for (const file of grammarFiles()) sources[file] = fs.readFileSync(path.join(grammars, file), "utf8");
-sources["compiled.json"] = JSON.stringify(preparsed) + "\n";
+
 for (const copy of copies) {
   for (const [file, text] of Object.entries(sources)) write(`${copy}/${file}`, text);
   // A copy of a document that grammars/ no longer has, such as one renamed
   // there, goes too.
-  for (const file of grammarFiles(path.join(root, copy))) {
-    if (Object.hasOwn(sources, file)) continue;
-    stale.push(`${copy}/${file}`);
-    if (!check) fs.unlinkSync(path.join(root, copy, file));
+  for (const relative of existing(copy)) {
+    if (Object.hasOwn(sources, relative.slice(copy.length + 1))) continue;
+    stale.push(relative);
+    if (!check) fs.unlinkSync(path.join(root, relative));
   }
 }
 // Copy engine data beside each package's grammar directory.

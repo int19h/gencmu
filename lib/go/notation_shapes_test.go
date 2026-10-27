@@ -43,45 +43,35 @@ func TestNotationShapes(t *testing.T) {
 	if err := unmarshalJSON(raw, &shapes); err != nil {
 		t.Fatal(err)
 	}
-	bootstrapRaw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	bootstrapRaw, err := os.ReadFile("../../data/preparsed/gencmu.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	bootstrap := string(bootstrapRaw)
-	syntaxAt := strings.Index(bootstrap, `"path":"grammars/notation/syntax.md"`)
+	syntaxAt := strings.Index(bootstrap, `"grammars/notation/syntax.md":`)
 	var b struct {
-		Stages []struct {
-			Documents []struct {
-				Path string `json:"path"`
-				Dom  struct {
-					Rules []struct {
-						Name string `json:"name"`
-					} `json:"rules"`
-				} `json:"dom"`
-			} `json:"documents"`
-		} `json:"stages"`
+		Documents map[string]struct {
+			Dom struct {
+				Rules []struct {
+					Name string `json:"name"`
+				} `json:"rules"`
+			} `json:"dom"`
+		} `json:"documents"`
 	}
 	if err := unmarshalJSON(bootstrapRaw, &b); err != nil {
 		t.Fatal(err)
 	}
 	var names []string
-	for _, s := range b.Stages {
-		for _, d := range s.Documents {
-			if d.Path != "grammars/notation/syntax.md" {
-				continue
-			}
-			for _, r := range d.Dom.Rules {
-				if r.Name != "text" {
-					names = append(names, r.Name)
-				}
-			}
+	for _, rule := range b.Documents["grammars/notation/syntax.md"].Dom.Rules {
+		if rule.Name != "text" {
+			names = append(names, rule.Name)
 		}
 	}
 	// outcomeOf loads a document with a bootstrap, and parses each input:
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
 	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
-		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "grammars/notation/bootstrap.json": boot}, "p.md")
+		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "data/preparsed/gencmu.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
@@ -175,7 +165,7 @@ func TestNotationShapes(t *testing.T) {
 // `...`, which is also three `.`, and the document does not load.
 func TestNotationStageRunsTheCheck(t *testing.T) {
 	t.Parallel()
-	raw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
+	raw, err := os.ReadFile("../../data/preparsed/gencmu.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,16 +173,11 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		t.Fatal(err)
 	}
-	for _, document := range parsed["stages"].([]any)[0].(map[string]any)["documents"].([]any) {
-		d := document.(map[string]any)
-		if d["path"] != "grammars/notation/lexical.md" {
-			continue
-		}
-		for _, rule := range d["dom"].(map[string]any)["rules"].([]any) {
-			r := rule.(map[string]any)
-			if r["name"] == "symbol" {
-				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
-			}
+	lexicalDOM := parsed["documents"].(map[string]any)["grammars/notation/lexical.md"].(map[string]any)["dom"].(map[string]any)
+	for _, rule := range lexicalDOM["rules"].([]any) {
+		r := rule.(map[string]any)
+		if r["name"] == "symbol" {
+			r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
 		}
 	}
 	encoded, err := json.Marshal(parsed)
@@ -200,7 +185,6 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	bootstrap := string(encoded)
-	lexicalDOM := parsed["stages"].([]any)[0].(map[string]any)["documents"].([]any)[0].(map[string]any)["dom"].(map[string]any)
 	for _, value := range lexicalDOM["directives"].([]any) {
 		directive := value.(map[string]any)
 		if directive["name"] == "ambiguity-resolution" {
@@ -214,7 +198,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	elision := string(encoded)
 	sources := func(boot string) map[string]string {
 		return map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "grammars/notation/bootstrap.json": boot}
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "data/preparsed/gencmu.json": boot}
 	}
 	// The bundled bootstrap loads the same documents.
 	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {

@@ -349,7 +349,8 @@ impl<'a> NamesScope<'a> {
         let text = self.need("data/unicode/unicode-names.txt")?;
         let hash = fnv1a64(&text);
         let base = Names::parse(&text, "data/unicode/unicode-names.txt", version)?;
-        let reference = if hash == PINNED_NAMES_HASH { text } else { self.need("data/unicode/unicode-names-reference.txt")? };
+        let reference =
+            if hash == PINNED_NAMES_HASH { text } else { self.need("data/unicode/unicode-names-reference.txt")? };
         if fnv1a64(&reference) != PINNED_NAMES_HASH {
             return Err(failure(
                 "data/unicode/unicode-names-reference.txt",

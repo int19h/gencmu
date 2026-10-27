@@ -936,7 +936,8 @@ mod tests {
                 format!("B {optional} [+T] {suffix}")
             };
             let document = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r {body}\n%rule c D\n```\n");
-            let dialect = crate::load_dialect_sources([("main.md", document)], "main.md").unwrap();
+            let dialect =
+                crate::load_dialect_sources([("grammars/test/main.md", document)], "grammars/test/main.md").unwrap();
             let g = dialect.lowered_stage(0);
             let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).unwrap() as u32;
             let mut oracle = Oracle::new(&g, &tokens, start);
@@ -1037,7 +1038,7 @@ mod tests {
             assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
         let preparsed = format!(
-            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
+            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/main.md":{{"hash":"{}","dom":{dom}}},"grammars/test/p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
             crate::json::fnv1a64(crate::loader::bundled("data/unicode/unicode.txt").unwrap()),
@@ -1046,8 +1047,12 @@ mod tests {
             crate::json::fnv1a64(PIPELINE)
         );
         let tokens: Vec<&str> = (0..rng.below(5)).map(|_| TERMINALS[rng.below(4)]).collect();
-        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("grammars/compiled.json", preparsed)];
-        let dialect = crate::load_dialect_sources(sources, "p.md").ok()?;
+        let sources = [
+            ("grammars/test/main.md", document.clone()),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+            ("data/preparsed/test.json", preparsed),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "grammars/test/p.md").ok()?;
         let g = dialect.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper)? as u32;
         let chars: Vec<char> = vec![' '; tokens.len() * 2];
@@ -1133,8 +1138,11 @@ mod tests {
             starts.join(" | "),
             tagged.join(" | ")
         );
-        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let sources = [
+            ("grammars/test/main.md", format!("```jbogenbau\n{grammar}```\n")),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "grammars/test/p.md").expect("the dialect");
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
             image: None,
             text: text.to_string(),
@@ -1164,8 +1172,11 @@ mod tests {
     }
 
     fn query_work(grammar: &str, n: usize, c: usize, begins: bool, most: &dyn Fn(u64) -> u64) -> (Vec<bool>, u64, u64) {
-        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let sources = [
+            ("grammars/test/main.md", format!("```jbogenbau\n{grammar}```\n")),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+        ];
+        let dialect = crate::load_dialect_sources(sources, "grammars/test/p.md").expect("the dialect");
         let g = dialect.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
         let chars: Vec<char> = vec![' '; (n + c + 1) * 2];

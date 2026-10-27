@@ -4409,7 +4409,7 @@
 
 
   // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a preparsed one from grammars/compiled.json, has the shape the
+  // bootstrap's or a preparsed one from data/preparsed/lojban.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
 
@@ -14789,6 +14789,21 @@
     return notes;
   }
 
+  // ---- resources.js
+  // Package-relative keys shared by resource loading and generation.
+  const BOOTSTRAP_PATH = "data/preparsed/gencmu.json";
+  const NOTATION_PATH = "grammars/dialects/notation.md";
+
+  /** @param {string} document @returns {string | undefined} */
+  function preparsedPath(document) {
+    if (!document.startsWith("grammars/")) return undefined;
+    const family = document.split("/")[1];
+    // The family move replaces these stage directories in the next step.
+    if (document === NOTATION_PATH || family === "notation") return BOOTSTRAP_PATH;
+    if (["dialects", "phonemes", "words", "indicators", "syntax"].includes(family)) return "data/preparsed/lojban.json";
+    return /^[a-z0-9][a-z0-9-]*$/.test(family) ? `data/preparsed/${family}.json` : undefined;
+  }
+
   // ---- emission-overlap.js
   // Conservative input coverage of final stitched emissions (engine §9.3).
 
@@ -19921,6 +19936,7 @@
 
 
 
+
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
@@ -19947,8 +19963,8 @@
 
 
   /**
-   * A preparsed document of compiled.json.
-   * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} PreparsedEntry
+   * A preparsed document of data/preparsed/FAMILY.json.
+   * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>, registry?: Record<string,string>}} PreparsedEntry
    */
 
   /**
@@ -19978,25 +19994,26 @@
       this.unicode = new UnicodeTable(unicodeText, propertiesText);
       this.propertiesHash = propertiesText === undefined ? null : fnv1a64(propertiesText);
       try {
-        const bootstrapText = this.need("grammars/notation/bootstrap.json");
+        const bootstrapText = this.need(BOOTSTRAP_PATH);
+        this.bootstrapText = bootstrapText;
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
         this.bootstrapHash = fnv1a64(bootstrapText);
-        this.notation = new Dialect("grammars/dialects/notation.md", bootstrap.stages.map((stage) => {
+        this.notation = new Dialect(NOTATION_PATH, bootstrap.stages.map((stage) => {
           try {
             return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
           } catch (error) {
             if (error instanceof GencmuError) error.where.stage = stage.name;
             throw error;
           }
-        }), this);
+        }), this, bootstrap.features);
         for (const stage of this.notation.stages) stage.grammar.lower(new Set());
       } catch (error) {
         if (error instanceof GencmuError) {
           const embedded = error.where.document;
-          if (embedded && embedded !== "grammars/notation/bootstrap.json" && !error.message.includes(embedded)) {
+          if (embedded && embedded !== BOOTSTRAP_PATH && !error.message.includes(embedded)) {
             error.message += ` (embedded document: ${embedded})`;
           }
-          error.where.document = "grammars/notation/bootstrap.json";
+          error.where.document = BOOTSTRAP_PATH;
           const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
           if (!error.message.startsWith(`${location}: `)) {
             const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
@@ -20007,38 +20024,54 @@
       }
       /** @type {Map<string, PreparsedEntry>} */
       this.preparsed = new Map();
-      // Preparsed DOMs are a cache: one that cannot be read, or an entry
-      // that is not a DOM, is a miss, and the document is read instead.
-      const preparsed = this.read("grammars/compiled.json");
-      if (preparsed !== undefined) {
-        let data;
-        try {
-          data = JSON.parse(preparsed);
-        } catch {
-          data = null;
-        }
-        this.usePreparsed(data);
-      }
+      /** @type {Set<string>} */
+      this.preparsedFiles = new Set();
+      /** @type {WeakMap<GrammarDom, Record<string,string> | null>} */
+      this.domRegistries = new WeakMap();
       /** @type {Map<string, GrammarDom>} */
       this.cache = new Map();
       /** @type {WeakMap<GrammarDom,Record<string,string>>} */
       this.namesDependencies = new WeakMap();
       /** @type {Map<string,string[]>} */
       this.inheritedNames = new Map();
+      const metadata = JSON.parse(this.bootstrapText);
+      if (metadata.unicode === this.unicodeHash && Object.hasOwn(metadata,"properties") && metadata.properties === this.propertiesHash) {
+        this.bundledNames = namesRegistry(metadata.bundledNames);
+      }
     }
 
     /**
      * Admit a cache envelope only under this loader's complete identity.
      * The playground uses the same gate for DOMs retained across workers.
      * @param {any} data
+     * @param {boolean} [replace]
      */
-    usePreparsed(data) {
+    usePreparsed(data, replace = true) {
       if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash
         || !Object.hasOwn(data, "properties") || data.properties !== this.propertiesHash
         || !data.documents || typeof data.documents !== "object") return;
       this.bundledNames = namesRegistry(data.bundledNames);
       for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
-        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.preparsed.set(path, {...entry, dom:knownDomMembers(entry.dom)});
+        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode) && (replace || !this.preparsed.has(path))) this.preparsed.set(path, {...entry, dom:knownDomMembers(entry.dom), registry:this.bundledNames});
+      }
+    }
+
+    /** @param {string} path */
+    loadPreparsed(path) {
+      const file = preparsedPath(path);
+      if (!file || this.preparsedFiles.has(file)) return;
+      this.preparsedFiles.add(file);
+      try {
+        const text = file === BOOTSTRAP_PATH ? this.bootstrapText : this.read(file);
+        if (text === undefined) return;
+        const data = JSON.parse(text);
+        if (file === BOOTSTRAP_PATH && data && typeof data === "object") data.bootstrap = this.bootstrapHash;
+        if (data && typeof data.documents === "object" && data.documents !== null) {
+          data.documents = Object.fromEntries(Object.entries(data.documents).filter(([path]) => preparsedPath(path) === file));
+        }
+        this.usePreparsed(data, false);
+      } catch (error) {
+        // Unreadable optional data supplies no entries.
       }
     }
 
@@ -20050,7 +20083,7 @@
     need(path) {
       let text;
       try { text = this.read(path); } catch (error) {
-        if (path !== "grammars/notation/bootstrap.json" || error instanceof GencmuError) throw error;
+        if (path !== BOOTSTRAP_PATH || error instanceof GencmuError) throw error;
         throw new GencmuError("grammar", `cannot read the bootstrap: ${error instanceof Error ? error.message : String(error)}`, { document: path }, { cause: error });
       }
       if (text === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
@@ -20069,6 +20102,7 @@
      */
     documentDom(path, inherited = []) {
       this.inheritedNames.set(path,inherited);
+      this.loadPreparsed(path);
       const text = this.need(path);
       // A document is a sequence of scalar values, as a text is (engine §1).
       const surrogate = loneSurrogate(text);
@@ -20078,14 +20112,15 @@
       const hash = fnv1a64(text);
       const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${this.propertiesHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
-      if (cached && this.namesMatch(this.namesDependencies.get(cached),selectedNames(path,cached,inherited))) return cached;
+      if (cached && this.namesMatch(this.namesDependencies.get(cached),selectedNames(path,cached,inherited),this.domRegistries.get(cached) ?? null)) return cached;
       const entry = this.preparsed.get(path);
       let dom;
-      if (entry && entry.hash === hash && this.namesMatch(entry.names,selectedNames(path,entry.dom,inherited))) {
+      if (entry && entry.hash === hash && this.namesMatch(entry.names,selectedNames(path,entry.dom,inherited),entry.registry ?? null)) {
         dom = entry.dom;
         if (entry.names) this.namesDependencies.set(dom, entry.names);
       }
       else dom = this.readDocument(text, path, true, inherited);
+      this.domRegistries.set(dom, entry?.dom === dom ? entry.registry ?? null : null);
       this.cache.set(key, dom);
       return dom;
     }
@@ -20104,7 +20139,7 @@
       const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
-      const run = this.notation.run(text, { features: new Set(), inspectLexical: tokens => strings.inspect(tokens) });
+      const run = this.notation.run(text, { features: new Set(this.notation.declared), inspectLexical: tokens => strings.inspect(tokens) });
       /** @type {(token: Token) => import("./types.js").Position} */
       const positionOf = (token) => positions[token.source[0]] || positions[positions.length - 1] || [1, 1];
       if (!run.ok) {
@@ -20128,14 +20163,13 @@
       return dom;
     }
 
-    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @returns {boolean} */
-    namesMatch(dependencies, extras) {
+    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @param {Record<string,string> | null} [registry] @returns {boolean} */
+    namesMatch(dependencies, extras, registry = this.bundledNames) {
       if (dependencies === undefined) return true;
       if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)
         || Object.values(dependencies).some(hash => typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return false;
       const paths = [...new Set(["data/unicode/unicode-names.txt",...extras])].sort(compareCodePoints);
       if (Object.keys(dependencies).length !== paths.length || paths.some(path => !Object.hasOwn(dependencies,path))) return false;
-      const registry = this.bundledNames;
       if (registry && paths.every(path => Object.hasOwn(registry,path) && !this.namesOverride(path))) {
         if (this.unicode.versionCount !== 1 || this.unicode.version !== "15.1.0") {
           throw new GencmuError("grammar", "bundled names require Unicode version 15.1.0", {document:"data/unicode/unicode.txt"});
@@ -20507,40 +20541,36 @@
   }
 
   /**
-   * The notation dialect's DOM from bootstrap.json, or a grammar error saying
+   * The notation dialect spliced from the required preparsed file, or a grammar error saying
    * what is wrong with it.
    * @param {string} text
    * @param {UnicodeTable} unicode
-   * @returns {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[]}}
+   * @returns {{stages: {name: string, documents: {path: string, dom: GrammarDom}[]}[], features:string[]}}
    */
   function readBootstrap(text, unicode) {
     let data;
     try {
       data = JSON.parse(text);
     } catch (error) {
-      throw new GencmuError("grammar", `grammars/notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "grammars/notation/bootstrap.json" });
+      throw new GencmuError("grammar", `data/preparsed/gencmu.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: BOOTSTRAP_PATH });
     }
-    const names = new Set();
-    const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
-    if (!stages || stages.length === 0) throw new GencmuError("grammar", "grammars/notation/bootstrap.json has no stages", { document: "grammars/notation/bootstrap.json" });
-    for (const stage of stages) {
-      if (!stage || typeof stage.name !== "string" || !CLASSIFIER_NAME.test(stage.name) || !Array.isArray(stage.documents) || stage.documents.length === 0) {
-        throw new GencmuError("grammar", "grammars/notation/bootstrap.json has a malformed stage", { document: "grammars/notation/bootstrap.json" });
-      }
-      if (names.has(stage.name)) throw new GencmuError("grammar", `grammars/notation/bootstrap.json: a second stage named ${stage.name}`, { document: "grammars/notation/bootstrap.json" });
-      names.add(stage.name);
-      for (const document of stage.documents) {
-        const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
-        if (problem) throw new GencmuError("grammar", `grammars/notation/bootstrap.json: ${problem}`, { document: "grammars/notation/bootstrap.json", ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
-        document.dom = knownDomMembers(document.dom);
-      }
+    if (!data || data.format !== DOM_FORMAT || !data.documents || typeof data.documents !== "object" || Array.isArray(data.documents)) {
+      throw new GencmuError("grammar", "the bootstrap requires a document map of the current format");
     }
-    for (const stage of stages) {
-      if (!stage.documents.some((/** @type {{dom: GrammarDom}} */ document) => document.dom.rules.length > 0)) {
-        throw new GencmuError("grammar", `stage ${stage.name} has no rules`, { stage: stage.name });
+    const bootstrap = splicePipeline(NOTATION_PATH, path => {
+      const entry = Object.hasOwn(data.documents, path) ? data.documents[path] : undefined;
+      if (!entry) return undefined;
+      const problem = typeof entry.hash === "string" ? domProblem(entry.dom, unicode) : "a document entry requires a hash";
+      if (problem) throw new GencmuError("grammar", `the bootstrap's DOM of ${path} is malformed: ${problem}`,
+        { ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
+      return knownDomMembers(entry.dom);
+    });
+    for (const stage of bootstrap.stages) {
+      if (!stage.documents.some(document => document.dom.rules.length > 0)) {
+        throw new GencmuError("grammar", `stage ${stage.name} has no rules`, { stage:stage.name });
       }
     }
-    return data;
+    return bootstrap;
   }
 
   /**
@@ -20626,7 +20656,7 @@
   /**
    * A dialect from documents held in memory: a map, or a plain object, from
    * path to text, which must include `data/unicode/unicode.txt` and
-   * `grammars/notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+   * `data/preparsed/gencmu.json` (`gencmu/node` fills them in from the bundled
    * grammars), and the path of the pipeline document among them.
    * @param {Map<string, string> | Record<string, string>} sources
    * @param {string} pipelinePath

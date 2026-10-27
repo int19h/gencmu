@@ -72,7 +72,7 @@
       for (const [path, entry] of Object.entries(message.preparsed || {})) {
         loader.usePreparsed({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
-      // Reading a document that grammars/compiled.json does not hold goes through the
+      // Reading a document that data/preparsed/lojban.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
       loader.readDocument = (markdown, path, deferEmission, inherited) => {
@@ -102,7 +102,7 @@
       dialects.clear();
       last = null;
       // Forget this document's earlier DOMs; the bundled one stays in
-      // grammars/compiled.json, so resetting a document costs nothing.
+      // data/preparsed/lojban.json, so resetting a document costs nothing.
       for (const key of [...loader.cache.keys()]) if (key.startsWith(path + "\u0000")) loader.cache.delete(key);
     }
 

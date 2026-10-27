@@ -176,7 +176,7 @@ class Loaders(unittest.TestCase):
         """A map may supply the notation's bootstrap; the bundled one is used
         only when it does not."""
         broken = dict(SOURCES)
-        broken["grammars/notation/bootstrap.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
+        broken["data/preparsed/gencmu.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
 
@@ -667,7 +667,7 @@ class Robustness(unittest.TestCase):
         ):
             with self.subTest(bootstrap=bootstrap[:40]):
                 sources = self.grammar('%rule text "a"')
-                sources["grammars/notation/bootstrap.json"] = bootstrap
+                sources["data/preparsed/gencmu.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
                     gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
                 self.assertEqual(caught.exception.kind, "grammar")
@@ -675,28 +675,28 @@ class Robustness(unittest.TestCase):
     def test_malformed_cache_entry_is_a_miss(self) -> None:
         from gencmu._hash import fnv1a64
 
-        sources = self.grammar('%rule text "a"')
+        sources = {"grammars/test/" + path: text for path,text in self.grammar('%rule text "a"').items()}
         preparsed = {
             "format": DOM_FORMAT,
-            "bootstrap": fnv1a64(bundled_text("grammars/notation/bootstrap.json") or ""),
+            "bootstrap": fnv1a64(bundled_text("data/preparsed/gencmu.json") or ""),
             "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
             "documents": {
-                "g.md": {
-                    "hash": fnv1a64(sources["g.md"]),
+                "grammars/test/g.md": {
+                    "hash": fnv1a64(sources["grammars/test/g.md"]),
                     "dom": {"format": DOM_FORMAT, "rules": [{}], "directives": [], "constants": [], "classifiers": [], "implications": []},
                 }
             },
         }
-        sources["grammars/compiled.json"] = json.dumps(preparsed)
-        dialect = gencmu.load_dialect_sources(sources, "p.md")
+        sources["data/preparsed/test.json"] = json.dumps(preparsed)
+        dialect = gencmu.load_dialect_sources(sources, "grammars/test/p.md")
         self.assertTrue(dialect.parse("a").ok)
 
     def test_unreadable_cache_is_no_cache(self) -> None:
         for preparsed in ("[" * 2000 + "]" * 2000, "not json", "[]"):
             with self.subTest(preparsed=preparsed[:10]):
-                sources = self.grammar('%rule text "a"')
-                sources["grammars/compiled.json"] = preparsed
-                dialect = gencmu.load_dialect_sources(sources, "p.md")
+                sources = {"grammars/test/" + path: text for path,text in self.grammar('%rule text "a"').items()}
+                sources["data/preparsed/test.json"] = preparsed
+                dialect = gencmu.load_dialect_sources(sources, "grammars/test/p.md")
                 self.assertTrue(dialect.parse("a").ok)
 
     def test_bundled_doms_are_well_formed(self) -> None:
@@ -704,7 +704,7 @@ class Robustness(unittest.TestCase):
         from gencmu._validate import dom_problem
 
         unicode = _unicode_table(bundled_text("data/unicode/unicode.txt") or "")
-        preparsed = json.loads(bundled_text("grammars/compiled.json") or "{}")
+        preparsed = json.loads(bundled_text("data/preparsed/lojban.json") or "{}")
         for path, entry in preparsed["documents"].items():
             with self.subTest(document=path):
                 self.assertIsNone(dom_problem(entry["dom"], unicode))
@@ -776,11 +776,11 @@ class Robustness(unittest.TestCase):
 
         depth = 20_000
         unicode_hash = fnv1a64(bundled_text("data/unicode/unicode.txt") or "")
-        last = f"d{depth}.md"
+        last = f"grammars/test/d{depth}.md"
         include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
         def sources(end: str | None) -> dict[str, str]:
-            texts = {f"d{index}.md": f'```jbogenbau\n%include "d{index + 1}.md"\n```\n' for index in range(depth)}
+            texts = {f"grammars/test/d{index}.md": f'```jbogenbau\n%include "d{index + 1}.md"\n```\n' for index in range(depth)}
             doms = {
                 path: {**include, "directives": [{"name": "include", "args": [f"d{index + 1}.md"], "at": [2, 1]}]}
                 for index, path in enumerate(texts)
@@ -789,24 +789,24 @@ class Robustness(unittest.TestCase):
                 texts[last] = end
                 doms[last] = read_document(end, last)
             entries = {path: {"hash": fnv1a64(text), "dom": doms[path]} for path, text in texts.items()}
-            bootstrap = fnv1a64(bundled_text("grammars/notation/bootstrap.json") or "")
-            texts["grammars/compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": entries})
+            bootstrap = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
+            texts["data/preparsed/test.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": entries})
             return texts
 
         def load(end: str | None) -> gencmu.Dialect:
             texts = sources(end)
             with patch.object(NotationReader, "read", side_effect=AssertionError("the include fixture bypassed its preparsed DOMs")):
-                return gencmu.load_dialect_sources(texts, "d0.md")
+                return gencmu.load_dialect_sources(texts, "grammars/test/d0.md")
 
         dialect = load('```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text "a"\n```\n')
         self.assertTrue(dialect.parse("a").ok)
-        chain = " → ".join(f"d{index}.md" for index in range(depth + 1))
+        chain = " → ".join(f"grammars/test/d{index}.md" for index in range(depth + 1))
         with self.assertRaises(gencmu.GencmuError) as caught:
             load(None)
         self.assertEqual(caught.exception.message, f"{last} was not found ({chain})")
         with self.assertRaises(gencmu.GencmuError) as caught:
             load('```jbogenbau\n%include "d0.md"\n```\n')
-        self.assertEqual(caught.exception.message, f"d0.md includes itself ({chain} → d0.md)")
+        self.assertEqual(caught.exception.message, f"grammars/test/d0.md includes itself ({chain} → grammars/test/d0.md)")
 
     def test_deep_tree(self) -> None:
         dialect = gencmu.load_dialect_sources(self.grammar('%rule text text "a" | "a"'), "p.md")

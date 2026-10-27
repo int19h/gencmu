@@ -18,7 +18,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", document),
-        ("grammars/notation/bootstrap.json", bootstrap),
+        ("data/preparsed/gencmu.json", bootstrap),
     ];
     let kind = |debug: String| Value::String(debug.to_lowercase());
     let dialect = match gencmu::load_dialect_sources(sources, "p.md") {
@@ -54,17 +54,20 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
 #[test]
 fn notation_shapes() {
     let shapes = parse_json(&read(&["tests", "notation-shapes.json"])).expect("notation-shapes.json");
-    let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
-    let syntax_at = bootstrap.find(r#""path":"grammars/notation/syntax.md""#).expect("the syntax document");
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
+    let syntax_at = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
     let names: Vec<String> = parse_json(&bootstrap)
         .expect("bootstrap.json")
-        .get("stages")
-        .expect("stages")
+        .get("documents")
+        .unwrap()
+        .get("grammars/notation/syntax.md")
+        .unwrap()
+        .get("dom")
+        .unwrap()
+        .get("rules")
+        .unwrap()
         .array()
         .iter()
-        .flat_map(|stage| stage.get("documents").expect("documents").array().iter())
-        .filter(|document| document.get("path").and_then(Value::str) == Some("grammars/notation/syntax.md"))
-        .flat_map(|document| document.get("dom").expect("dom").get("rules").expect("rules").array().iter())
         .map(|rule| rule.get("name").and_then(Value::str).expect("a rule's name").to_string())
         .filter(|name| name != "text")
         .collect();
@@ -113,15 +116,15 @@ fn notation_shapes() {
 
 #[test]
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
-    let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
+    let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let bootstrap = bootstrap.replacen(
         r#""name":"symbol","op":"define","flags":[],"alternatives":["#,
         r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
-    let lexical = bootstrap.find(r#""path":"grammars/notation/lexical.md""#).expect("the lexical document");
-    let syntax = bootstrap.find(r#""path":"grammars/notation/syntax.md""#).expect("the syntax document");
+    let lexical = bootstrap.find(r#""grammars/notation/lexical.md":"#).expect("the lexical document");
+    let syntax = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
     let at = bootstrap.find(directive).expect("the directive");
     assert!(lexical < at && at < syntax, "the first directive is the lexical stage's");
     let elision = bootstrap.replacen(directive, r#""name":"ambiguity-resolution","args":["greedy","elision-only"]"#, 1);
@@ -129,7 +132,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
             ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n".to_string()),
-            ("grammars/notation/bootstrap.json", bootstrap),
+            ("data/preparsed/gencmu.json", bootstrap),
         ]
     };
     // The bundled bootstrap loads the same documents.
@@ -141,31 +144,33 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
 }
 
 fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tail: &str, expression: &str) -> Value {
-    for (stage, contents) in bootstrap.get("stages").unwrap().array().iter().enumerate() {
-        for (document, contents) in contents.get("documents").unwrap().array().iter().enumerate() {
-            if contents.get("path").and_then(Value::str) != Some("grammars/notation/syntax.md") {
-                continue;
-            }
-            for (rule, contents) in contents.get("dom").unwrap().get("rules").unwrap().array().iter().enumerate() {
-                if contents.get("name").and_then(Value::str) != Some(name) {
-                    continue;
-                }
-                let mut path = parse_json(&format!(
-                    r#"["stages",{stage},"documents",{document},"dom","rules",{rule},"alternatives",{alternative},"expr"]"#
-                ))
-                .unwrap()
-                .array()
-                .to_vec();
-                path.extend(parse_json(tail).unwrap().array().iter().cloned());
-                return common::apply_mutant(
-                    bootstrap,
-                    &Value::Object(vec![
-                        ("path".into(), Value::Array(path)),
-                        ("set".into(), parse_json(expression).unwrap()),
-                    ]),
-                );
-            }
+    for (rule, contents) in bootstrap
+        .get("documents")
+        .unwrap()
+        .get("grammars/notation/syntax.md")
+        .unwrap()
+        .get("dom")
+        .unwrap()
+        .get("rules")
+        .unwrap()
+        .array()
+        .iter()
+        .enumerate()
+    {
+        if contents.get("name").and_then(Value::str) != Some(name) {
+            continue;
         }
+        let mut path = parse_json(&format!(
+            r#"["documents","grammars/notation/syntax.md","dom","rules",{rule},"alternatives",{alternative},"expr"]"#
+        ))
+        .unwrap()
+        .array()
+        .to_vec();
+        path.extend(parse_json(tail).unwrap().array().iter().cloned());
+        return common::apply_mutant(
+            bootstrap,
+            &Value::Object(vec![("path".into(), Value::Array(path)), ("set".into(), parse_json(expression).unwrap())]),
+        );
     }
     panic!("no syntax rule {name}");
 }
@@ -175,7 +180,7 @@ fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Dialect,
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
             ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
-            ("grammars/notation/bootstrap.json", bootstrap.to_text()),
+            ("data/preparsed/gencmu.json", bootstrap.to_text()),
         ],
         "p.md",
     )
@@ -198,7 +203,7 @@ fn pattern_probe(rules: &str, bootstrap: &Value, tokens: &[&str]) -> String {
 
 #[test]
 fn pattern_string_terminal_constructors_and_tests() {
-    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    let bundled = parse_json(&read(&["data", "preparsed", "gencmu.json"])).unwrap();
     let changed =
         pattern_bootstrap_expr(&bundled, "pattern-atom", 0, r#"["seq",0,"choice",2]"#, r#"{"ref":"string-terminal"}"#);
     for rules in [
@@ -232,7 +237,7 @@ fn pattern_string_terminal_constructors_and_tests() {
 
 #[test]
 fn pattern_names_use_named_parts_or_tokens() {
-    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    let bundled = parse_json(&read(&["data", "preparsed", "gencmu.json"])).unwrap();
     for name in ["name", "reference"] {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
         let rules = "%const $P #child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";

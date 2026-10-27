@@ -126,7 +126,7 @@ class Parameters(unittest.TestCase):
         from gencmu._dialect import _Loader, _resources
         from .test_ranked import cached_sources, sources
         texts = sources('%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text = atom("a")')
-        dom = read_document(texts['g.md'], 'g.md')
+        dom = read_document(texts['grammars/test/g.md'], 'g.md')
         for valid in (True, False):
             mutated = deepcopy(dom)
             if valid:
@@ -135,8 +135,9 @@ class Parameters(unittest.TestCase):
                 mutated['rules'][0]['alternatives'][0]['expr'] = dict(param='Other', at=[3, 16])
             supplied = cached_sources(texts, mutated)
             loader = _Loader(lambda path: supplied.get(path), _resources(supplied))
+            loader.dom('grammars/test/g.md')
             self.assertEqual(bool(loader.preparsed), valid)
-            self.assertTrue(load_dialect_sources(supplied, 'p.md').parse('a').ok)
+            self.assertTrue(load_dialect_sources(supplied, 'grammars/test/p.md').parse('a').ok)
 
     def test_ranked_location_recovery_preserves_arrays(self):
         from gencmu._dialect import _resources, _reader
@@ -202,7 +203,7 @@ class ParameterStructure(unittest.TestCase):
                     self.assertIsNotNone(dom_problem(dom, unicode))
                     texts = sources('%ambiguity-resolution greedy\n' + case['grammar'])
                     supplied = cached_sources(texts, dom)
-                    self.assertTrue(load_dialect_sources(supplied, 'p.md').parse(case['input']).ok)
+                    self.assertTrue(load_dialect_sources(supplied, 'grammars/test/p.md').parse(case['input']).ok)
                     continue
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:

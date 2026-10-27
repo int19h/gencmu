@@ -48,7 +48,7 @@ export type DisplayValue = import("./output.js").DisplayValue;
 /**
  * A dialect from documents held in memory: a map, or a plain object, from
  * path to text, which must include `data/unicode/unicode.txt` and
- * `grammars/notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+ * `data/preparsed/gencmu.json` (`gencmu/node` fills them in from the bundled
  * grammars), and the path of the pipeline document among them.
  * @param {Map<string, string> | Record<string, string>} sources
  * @param {string} pipelinePath

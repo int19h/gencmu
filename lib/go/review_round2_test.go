@@ -34,9 +34,9 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
-			_, err := LoadDialectSources(reviewSources(c.grammar, bootstrap), "p.md")
+			_, err := LoadDialectSources(reviewSources(c.grammar, bootstrap), "grammars/test/p.md")
 			var e *Error
-			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "main.md" || e.Line != 3 || e.Column != c.column {
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
 				t.Fatalf("guard at 3:%d: %v", c.column, err)
 			}
 		})
@@ -143,16 +143,16 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
 			grammar := c.grammar
-			sources := reviewSources(grammar, bundled.sources["grammars/notation/bootstrap.json"])
-			_, fresh := LoadDialectSources(sources, "p.md")
+			sources := reviewSources(grammar, bundled.sources["data/preparsed/gencmu.json"])
+			_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
 			var e *Error
 			sourceLine := strings.Split(grammar, "\n")[c.line-3]
 			column := strings.Index(sourceLine, c.receiver) + 1
-			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
+			if !errors.As(fresh, &e) || e.Document != "grammars/test/main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
 				t.Fatalf("fresh recipe position: %v", fresh)
 			}
-			sources["grammars/compiled.json"] = reviewCache(t, sources)
-			_, cached := LoadDialectSources(sources, "p.md")
+			sources["data/preparsed/test.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "grammars/test/p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
 			}
@@ -165,30 +165,30 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A matching cache still owns the recipe, even when the source spells another value.
-	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["grammars/notation/bootstrap.json"])
+	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["data/preparsed/gencmu.json"])
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	dom, err := bundled.reader.readMode(original["main.md"], "main.md", true)
+	dom, err := bundled.reader.readMode(original["grammars/test/main.md"], "grammars/test/main.md", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["grammars/notation/bootstrap.json"])
-	sources["grammars/compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
-	_, failure := LoadDialectSources(sources, "p.md")
+	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["data/preparsed/gencmu.json"])
+	sources["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/main.md":{"hash":"` + fnv1a64(sources["grammars/test/main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, failure := LoadDialectSources(sources, "grammars/test/p.md")
 	var e *Error
 	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
 		t.Fatalf("cache semantics or location changed: %v", failure)
 	}
 	// A valid cached recipe needs no source reader for location recovery.
-	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["grammars/notation/bootstrap.json"])
+	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["data/preparsed/gencmu.json"])
 	cache := readPreparsed(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))
 	configured, loadErr := bundledLoader()
 	if loadErr != nil {
 		t.Fatal(loadErr)
 	}
 	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, preparsed: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
-	if _, err := l.dialect("p.md"); err != nil {
+	if _, err := l.dialect("grammars/test/p.md"); err != nil {
 		t.Fatalf("valid cache reparsed: %v", err)
 	}
 }
@@ -217,14 +217,14 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 %extend-rule text := $.emitted.image | "c"`, 5},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			sources := reviewSources(c.grammar, bundled.sources["grammars/notation/bootstrap.json"])
-			_, fresh := LoadDialectSources(sources, "p.md")
+			sources := reviewSources(c.grammar, bundled.sources["data/preparsed/gencmu.json"])
+			_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
 			var e *Error
-			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
+			if !errors.As(fresh, &e) || e.Document != "grammars/test/main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
 				t.Fatalf("production order: %v", fresh)
 			}
-			sources["grammars/compiled.json"] = reviewCache(t, sources)
-			_, cached := LoadDialectSources(sources, "p.md")
+			sources["data/preparsed/test.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "grammars/test/p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
 			}
@@ -232,19 +232,19 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 	}
 	t.Run("document order", func(t *testing.T) {
 		sources := map[string]string{
-			"p.md":                    block("%stage main", "%ambiguity-resolution greedy", `%include "base.md"`, `%include "earlier.md"`, `%include "later.md"`),
-			"base.md":                 block(`%rule text "a"`),
-			"earlier.md":              block(`%rule other := $.emitted.value | "b"`),
-			"later.md":                block(`%extend-rule text := $.emitted.image | "c"`),
-			"grammars/notation/bootstrap.json": bundled.sources["grammars/notation/bootstrap.json"],
+			"grammars/test/p.md":         block("%stage main", "%ambiguity-resolution greedy", `%include "base.md"`, `%include "earlier.md"`, `%include "later.md"`),
+			"grammars/test/base.md":      block(`%rule text "a"`),
+			"grammars/test/earlier.md":   block(`%rule other := $.emitted.value | "b"`),
+			"grammars/test/later.md":     block(`%extend-rule text := $.emitted.image | "c"`),
+			"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
 		}
-		_, fresh := LoadDialectSources(sources, "p.md")
+		_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
 		var e *Error
-		if !errors.As(fresh, &e) || e.Document != "earlier.md" || e.Line != 2 || e.Column != 16 {
+		if !errors.As(fresh, &e) || e.Document != "grammars/test/earlier.md" || e.Line != 2 || e.Column != 16 {
 			t.Fatalf("document order: %v", fresh)
 		}
-		sources["grammars/compiled.json"] = reviewCache(t, sources)
-		_, cached := LoadDialectSources(sources, "p.md")
+		sources["data/preparsed/test.json"] = reviewCache(t, sources)
+		_, cached := LoadDialectSources(sources, "grammars/test/p.md")
 		if !reflect.DeepEqual(fresh, cached) {
 			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)
 		}

@@ -7,6 +7,7 @@ export type PreparsedEntry = {
     hash: string;
     dom: GrammarDom;
     names?: Record<string, string>;
+    registry?: Record<string, string>;
 };
 export type RunOptions = {
     features: Set<string>;
@@ -19,7 +20,7 @@ export type RunOptions = {
 /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
  * A preparsed document of compiled.json.
- * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>}} PreparsedEntry
+ * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>, registry?: Record<string,string>}} PreparsedEntry
  */
 /**
  * The options one run of the stages takes.
@@ -39,10 +40,15 @@ export declare class Loader {
     unicodeHash: string;
     unicode: UnicodeTable;
     propertiesHash: string | null;
+    bootstrapText: string;
     bootstrapHash: string;
     notation: Dialect;
     /** @type {Map<string, PreparsedEntry>} */
     preparsed: Map<string, PreparsedEntry>;
+    /** @type {Set<string>} */
+    preparsedFiles: Set<string>;
+    /** @type {WeakMap<GrammarDom, Record<string,string> | null>} */
+    domRegistries: WeakMap<GrammarDom, Record<string, string> | null>;
     /** @type {Map<string, GrammarDom>} */
     cache: Map<string, GrammarDom>;
     /** @type {WeakMap<GrammarDom,Record<string,string>>} */
@@ -55,8 +61,11 @@ export declare class Loader {
      * Admit a cache envelope only under this loader's complete identity.
      * The playground uses the same gate for DOMs retained across workers.
      * @param {any} data
+     * @param {boolean} [replace]
      */
-    usePreparsed(data: any): void;
+    usePreparsed(data: any, replace?: boolean): void;
+    /** @param {string} path */
+    loadPreparsed(path: string): void;
     /**
      * A resource's text, or a grammar error when it is missing.
      * @param {string} path
@@ -82,8 +91,8 @@ export declare class Loader {
      * @returns {GrammarDom}
      */
     readDocument(markdown: string, path: string, deferEmission?: boolean, inherited?: string[]): GrammarDom;
-    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @returns {boolean} */
-    namesMatch(dependencies: Record<string, string> | undefined, extras: string[]): boolean;
+    /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @param {Record<string,string> | null} [registry] @returns {boolean} */
+    namesMatch(dependencies: Record<string, string> | undefined, extras: string[], registry?: Record<string, string> | null): boolean;
     /**
      * A dialect from its pipeline document's path.
      * @param {string} path
