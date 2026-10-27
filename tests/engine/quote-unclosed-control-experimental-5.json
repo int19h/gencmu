@@ -1,7 +1,7 @@
 {
   "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "sa'ai zei coi",

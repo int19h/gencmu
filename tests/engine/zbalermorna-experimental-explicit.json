@@ -1,7 +1,7 @@
 {
   "description": "Both zbalermorna encodings use the same explicit phoneme recipes in experimental. Mixed stress marks and shorthand preserve written source ownership.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": " 󲢠  󲢡  󲢢  󲢣  󲢤  󲢥  󲢦  󲢧  󲢨  󲢰  󲢱  󲢲  󲢳  󲢴  󲢵  󲢶  󲢷  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸    󲢸  󲢸  󲢸  󲢸 aa pt pt pt pt a 󲣀󲢸 󲣀 󲣀󲢸 󲣁 󲣁󲢸 󲣂 󲣂󲢸 󲣃 󲣃󲢸 󲣄 󲣄󲢸 󲣅 󲣅󲢸 󲣐 󲣐󲢸 󲣑 󲣑󲢸 󲣒 󲣒󲢸 󲣓 󲣓󲢸 󲣔 󲣔󲢸 󲣕 󲣕󲢸 󲣊 󲣋 󲣆 󲣆󲢸 󲣇 󲣇󲢸 󲣈 󲣈󲢸 󲣉 󲣉󲢸 a󲢪a p󲢬t p󲢹t p󲢺t p󲢻t 󲢫a 󲢫󲢸",

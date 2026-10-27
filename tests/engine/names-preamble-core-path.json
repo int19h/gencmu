@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%names \"‹LOCAL›xtra.txt\"\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
     "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
-    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nabbreviation 0065 LOCAL\n"
+    "data/unicode/unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nabbreviation 0065 LOCAL\n"
   },
   "pipelineDocument": "p.md",
   "tokens": [

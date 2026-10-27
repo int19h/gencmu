@@ -1,6 +1,6 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "description": "BAhE marks a whole quote. Indicators attach to it, except in Zantufa, whose syntax reads the following free modifiers.",

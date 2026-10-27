@@ -18,7 +18,7 @@ type notationAlias struct {
 func valueNotation(t *testing.T, aliases []notationAlias) string {
 	t.Helper()
 	var bootstrap map[string]any
-	if err := json.Unmarshal([]byte(bundled.sources["notation/bootstrap.json"]), &bootstrap); err != nil {
+	if err := json.Unmarshal([]byte(bundled.sources["grammars/notation/bootstrap.json"]), &bootstrap); err != nil {
 		t.Fatal(err)
 	}
 	var lexical map[string]any

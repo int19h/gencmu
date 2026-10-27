@@ -48,7 +48,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	if _, err := LoadDialectSources(sources, "p.md"); err != nil {
 		t.Fatalf("cache bypass control does not load: %v", err)
 	}
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["grammars/compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, cached := LoadDialectSources(sources, "p.md")
 	if plain == nil || !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("%+v\n%+v", plain, cached)

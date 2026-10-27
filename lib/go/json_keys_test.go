@@ -52,7 +52,7 @@ func TestSharedJSONKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unicode, err := os.ReadFile("../../grammars/unicode.txt")
+	unicode, err := os.ReadFile("../../data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestSharedJSONKeys(t *testing.T) {
 	for _, item := range fixtures.Bootstrap {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
-			s["notation/bootstrap.json"] = mutate(string(bundled), item.Find, item.Replace)
+			s["grammars/notation/bootstrap.json"] = mutate(string(bundled), item.Find, item.Replace)
 			d, err := LoadDialectSources(s, "p.md")
 			if item.Loads {
 				if err != nil {
@@ -97,7 +97,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				if !errors.As(err, &e) {
 					t.Fatalf("expected grammar error, got %v", err)
 				}
-				if e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "notation/bootstrap.json:") {
+				if e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "grammars/notation/bootstrap.json:") {
 					t.Fatalf("metadata: %#v", e)
 				}
 			}
@@ -106,16 +106,16 @@ func TestSharedJSONKeys(t *testing.T) {
 	for _, item := range fixtures.Compiled {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
-			s["unicode.txt"] = string(unicode)
+			s["data/unicode/unicode.txt"] = string(unicode)
 			if item.Document != "" {
 				delete(s, "g.md")
 				s[item.Document] = fixtures.Grammar
 				s["p.md"] = fmt.Sprintf("```jbogenbau\n%%stage main\n%%include %q\n```\n", item.Document)
 			}
-			s["compiled.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
+			s["grammars/compiled.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
 			for path, value := range item.Sources {
 				if value == "@bundled-names@" {
-					raw, err := os.ReadFile("../../grammars/unicode-names.txt")
+					raw, err := os.ReadFile("../../data/unicode/unicode-names.txt")
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -273,12 +273,12 @@ func BenchmarkReadCompiledJSON(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	table, err := os.ReadFile("../../grammars/unicode.txt")
+	table, err := os.ReadFile("../../data/unicode/unicode.txt")
 	if err != nil {
 		b.Fatal(err)
 	}
 	unicodeHash := fnv1a64(string(table))
-	properties, err := os.ReadFile("../../grammars/unicode-properties.txt")
+	properties, err := os.ReadFile("../../data/unicode/unicode-properties.txt")
 	if err != nil {
 		b.Fatal(err)
 	}

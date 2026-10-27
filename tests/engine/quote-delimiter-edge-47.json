@@ -1,7 +1,7 @@
 {
   "description": "A separate mark after the opening delimiter remains in the raw body.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. \" foo gy.",

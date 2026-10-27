@@ -1,4 +1,4 @@
-"""The character table of grammars/unicode.txt (engine §1): the records can
+"""The character table of data/unicode/unicode.txt (engine §1): the records can
 stand in any order, and a caller's table can leave scalar values out."""
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ import gencmu
 from gencmu._dialect import bundled_text, character_tokens
 from gencmu._unicode import UnicodeTable
 
-BUNDLED = bundled_text("unicode.txt") or ""
+BUNDLED = bundled_text("data/unicode/unicode.txt") or ""
 
 
 def _boundaries() -> list[int]:
@@ -65,14 +65,14 @@ class CallerTable(unittest.TestCase):
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {rule}\n```\n",
-                "unicode.txt": table,
+                "data/unicode/unicode.txt": table,
             }
 
         load = gencmu.load_dialect_sources
         self.assertFalse(load(sources("_General_Category_Letter"), "p.md").parse("a").ok)
         self.assertTrue(load(sources("_General_Category_Unassigned"), "p.md").parse("a").ok)
         bundled = sources("_General_Category_Letter")
-        del bundled["unicode.txt"]
+        del bundled["data/unicode/unicode.txt"]
         self.assertTrue(load(bundled, "p.md").parse("a").ok)
 
 

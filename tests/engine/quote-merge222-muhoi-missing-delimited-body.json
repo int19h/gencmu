@@ -1,7 +1,7 @@
 {
   "description": "MUhOI needs a complete delimited quote, so a bare marker rejects in words.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mu'oi coi",

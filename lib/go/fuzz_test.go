@@ -12,13 +12,13 @@ import (
 // searches further.
 func FuzzPrecompiledDOM(f *testing.F) {
 	loadBundled()
-	for _, doc := range []string{"notation/lexical.md", "notation/syntax.md"} {
+	for _, doc := range []string{"grammars/notation/lexical.md", "grammars/notation/syntax.md"} {
 		var c struct {
 			Documents map[string]struct {
 				Dom json.RawMessage `json:"dom"`
 			} `json:"documents"`
 		}
-		unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c)
+		unmarshalJSON([]byte(bundled.sources["grammars/compiled.json"]), &c)
 		f.Add(string(c.Documents[doc].Dom), "%rule text A")
 	}
 	format := `{"format":` + strconv.Itoa(domFormat)

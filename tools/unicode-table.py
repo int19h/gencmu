@@ -87,7 +87,7 @@ def names_records(derived_path, aliases_path):
 def write_names(records, catalog):
     """Write the separate names resource and the small core inspection catalog."""
     text = "\n".join(records) + "\n"
-    (ROOT / "grammars/unicode-names.txt").write_text(text, encoding="utf-8")
+    (ROOT / "data/unicode/unicode-names.txt").write_text(text, encoding="utf-8")
     fingerprint = 0xcbf29ce484222325
     for byte in text.encode("utf-8"):
         fingerprint = ((fingerprint ^ byte) * 0x100000001b3) & 0xffffffffffffffff
@@ -218,7 +218,7 @@ def main():
     write_digests(ROOT, ucd)
     if not args.properties_only:
         lines = ucd.core_records(abbreviations)
-        path = ROOT / "grammars/unicode.txt"
+        path = ROOT / "data/unicode/unicode.txt"
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"{path}: {len(lines)} lines, Unicode {ucd.version}", file=sys.stderr)
     audit_resources(ROOT)

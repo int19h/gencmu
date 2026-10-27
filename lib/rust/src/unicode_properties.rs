@@ -32,7 +32,7 @@ fn catalog() -> &'static Json {
 }
 
 fn error(line: Option<usize>) -> Error {
-    let mut error = Error::grammar("the property record is invalid").in_document("unicode-properties.txt");
+    let mut error = Error::grammar("the property record is invalid").in_document("data/unicode/unicode-properties.txt");
     error.line = line;
     error
 }

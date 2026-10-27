@@ -106,7 +106,7 @@ class NotationTies(unittest.TestCase):
         bootstrap = json.dumps(
             {"format": notation["format"], "stages": [{"name": "syntax", "documents": [{"path": "n.md", "dom": notation}]}]}
         )
-        sources = {"notation/bootstrap.json": bootstrap}
+        sources = {"grammars/notation/bootstrap.json": bootstrap}
         with self.assertRaises(gencmu.GencmuError) as caught:
             read_document("```jbogenbau\na\n```\n", "t.md", sources=sources)
         error = caught.exception

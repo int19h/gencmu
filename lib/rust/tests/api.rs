@@ -18,15 +18,15 @@ fn single(rules: &str) -> BTreeMap<String, String> {
     sources
 }
 
-/// A `compiled.json` of the current format whose entry for `g.md`, under
+/// A `grammars/compiled.json` of the current format whose entry for `g.md`, under
 /// the hash of the document of `rules`, holds `dom`.
 fn compiled(rules: &str, dom: &str) -> String {
     format!(
         "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::DOM_FORMAT,
         gencmu::tools::bootstrap_hash(),
-        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
-        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
+        gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         gencmu::tools::fnv1a64(&grammar(rules))
     )
 }
@@ -143,7 +143,7 @@ fn sources_may_bring_their_own_tables() {
     // A character table that knows no letters, only the white space that
     // the notation reads between tokens.
     let table = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n";
-    sources.insert("unicode.txt".to_string(), table.to_string());
+    sources.insert("data/unicode/unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(!dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     let dialect = gencmu::load_dialect_sources(
@@ -154,7 +154,7 @@ fn sources_may_bring_their_own_tables() {
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     // A scalar value that the caller's table omits is Cn (engine §1).
     let mut sources = single("%ambiguity-resolution greedy\n%rule text _General_Category_Unassigned");
-    sources.insert("unicode.txt".to_string(), table.to_string());
+    sources.insert("data/unicode/unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
     assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
 }
@@ -624,7 +624,7 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         let items = vec![r#"{"literal":{"string":"B"}}"#; count];
         let dom = changed_dom(text, r#"{"literal":{"string":"A"}}"#, &format!(r#"{{"and":[{}]}}"#, items.join(",")));
         let mut sources = single(text);
-        sources.insert("compiled.json".to_string(), compiled(text, &dom));
+        sources.insert("grammars/compiled.json".to_string(), compiled(text, &dom));
         gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
     };
     // The & reads "B" in sixteen ways, a tie, but the stage accepts it.
@@ -646,7 +646,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         let text = "%ambiguity-resolution greedy\n%rule text \"a\"";
         let load = |cache: String| {
             let mut sources = single(text);
-            sources.insert("compiled.json".to_string(), cache);
+            sources.insert("grammars/compiled.json".to_string(), cache);
             gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
         };
         // Each corrupt DOM starts from a DOM of this format, so that it
@@ -681,7 +681,7 @@ fn long_production(rules: &str, count: usize) -> gencmu::Dialect {
     let two = r#"{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"a"}}"#;
     let many = format!(r#"{{"seq":[{}"#, vec![r#"{"literal":{"string":"a"}}"#; count].join(","));
     let mut sources = single(&text);
-    sources.insert("compiled.json".to_string(), compiled(&text, &changed_dom(&text, two, &many)));
+    sources.insert("grammars/compiled.json".to_string(), compiled(&text, &changed_dom(&text, two, &many)));
     gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
 }
 
@@ -843,7 +843,7 @@ fn an_empty_zoi_body_contributes_empty_strings_to_a_letter_word() {
     assert_eq!(letter.value.as_str(), "zoi gy gy bu");
 }
 
-/// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+/// grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
 /// covers the mark, so a word that begins with the shorthand begins at it.
 #[test]
 fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
@@ -856,7 +856,7 @@ fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
     assert_eq!(word.value.as_str(), "u'i");
 }
 
-/// words/cll.md and words/forms.md: a Cy letter is never `continued`. So
+/// grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never `continued`. So
 /// the general join of `run-words`, a continued word before an onset, never
 /// joins a Cy letter to the word after it, and only the Cy rule joins two.
 #[test]
@@ -870,7 +870,7 @@ fn a_cy_letter_carries_cy_and_never_continued() {
     }
 }
 
-/// indicators/cll.md: the greedy ranking reads a `nai` after a leading
+/// grammars/indicators/cll.md: the greedy ranking reads a `nai` after a leading
 /// attitudinal into the leading run, with or without a `ba'e` before it, and
 /// after a text opener as at the start of the text. No condition decides it,
 /// so each of these texts has the verdict resolved in the indicator stage.
@@ -891,7 +891,7 @@ fn the_ranking_reads_a_nai_after_a_leading_attitudinal_into_the_run() {
     }
 }
 
-/// syntax/experimental.md: the grammar reads no LA, since no word of the
+/// grammars/syntax/experimental.md: the grammar reads no LA, since no word of the
 /// experimental lexicon has it. A probe document after the lexicon moves
 /// `la` from LE to LA, and then no rule reads `la mlatu ku`.
 #[test]
@@ -904,7 +904,7 @@ fn the_experimental_syntax_reads_no_la() {
             } else if path.extension().is_some_and(|extension| extension == "md") {
                 let relative = path.strip_prefix(root).unwrap().components();
                 let relative: Vec<_> = relative.map(|part| part.as_os_str().to_string_lossy().into_owned()).collect();
-                sources.insert(relative.join("/"), std::fs::read_to_string(&path).expect("a document"));
+                sources.insert(format!("grammars/{}", relative.join("/")), std::fs::read_to_string(&path).expect("a document"));
             }
         }
     }
@@ -912,14 +912,14 @@ fn the_experimental_syntax_reads_no_la() {
     let mut sources = BTreeMap::new();
     walk(&root, &root, &mut sources);
     let include = "%include \"../words/lexicon-experimental.md\"";
-    let pipeline = sources.get_mut("dialects/experimental.md").expect("the pipeline");
+    let pipeline = sources.get_mut("grammars/dialects/experimental.md").expect("the pipeline");
     assert!(pipeline.contains(include));
     *pipeline = pipeline.replace(include, &format!("{include}\n  %include \"../words/la-probe.md\""));
     sources.insert(
-        "words/la-probe.md".to_string(),
+        "grammars/words/la-probe.md".to_string(),
         "```jbogenbau\n%classifier lexicon\n  \"la\" ∉ LE\n  \"la\" ∈ LA\n```\n".to_string(),
     );
-    let probe = gencmu::load_dialect_sources(sources, "dialects/experimental.md").expect("the probe dialect");
+    let probe = gencmu::load_dialect_sources(sources, "grammars/dialects/experimental.md").expect("the probe dialect");
     let result = probe.parse("la mlatu ku cu klama", &ParseOptions::default()).expect("a result");
     let forms = result.stages.iter().find(|stage| stage.name == "forms").expect("the forms stage");
     let la = &forms.output.as_ref().expect("an output")[0];
@@ -1071,7 +1071,7 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
     let cache_source = text.replace(clause, &format!(":: ∅{padding}"));
     cached.insert("g.md".into(), grammar(&cache_source));
     gencmu::load_dialect_sources(&cached, "p.md").expect("the cache bypass control loads");
-    cached.insert("compiled.json".into(), compiled(&cache_source, &dom));
+    cached.insert("grammars/compiled.json".into(), compiled(&cache_source, &dom));
     let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
     let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
     assert_eq!(plain, cached);
@@ -1146,7 +1146,7 @@ fn recipe_cycle_positions_match_with_a_dom_cache() {
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
         let mut cached = sources;
-        cached.insert("compiled.json".into(), compiled(text, &dom));
+        cached.insert("grammars/compiled.json".into(), compiled(text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
         assert_eq!(plain, from_cache);
         assert_eq!((plain.line, plain.column), {
@@ -1176,7 +1176,7 @@ fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
         let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         let dom = gencmu::tools::read_grammar_document(&grammar(&text), "").unwrap();
         let mut cached = sources;
-        cached.insert("compiled.json".into(), compiled(&text, &dom));
+        cached.insert("grammars/compiled.json".into(), compiled(&text, &dom));
         let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
         assert_eq!(plain, from_cache, "{rules}");
         let marker_offset = if marker.starts_with(':') { 3 } else { 0 };
@@ -1222,7 +1222,7 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
                     .replace(r#"{"capture":"x","expr":{"ref":"B"}}"#, r#"{"ref":"B"}"#)
             }
         };
-        sources.insert("compiled.json".into(), compiled(&text, &dom));
+        sources.insert("grammars/compiled.json".into(), compiled(&text, &dom));
         let cached = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
         assert_eq!(plain, cached, "{text}");
         assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"), "{text}: {plain}");
@@ -1254,9 +1254,9 @@ fn inserted_tag_clauses_validate_rules_and_delimiters() {
 fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
     let rules = "%ambiguity-resolution greedy\n%rule text \"a\"";
     let dom = changed_dom(rules, r#"{"literal":{"string":"a"}}"#, r#"{"literal":{"string":"b"}}"#);
-    let properties = gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt"));
+    let properties = gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt"));
     let cache = compiled(rules, &dom).replace(&format!("\"properties\":\"{properties}\""), "\"properties\":null");
-    let bundled_table = include_str!("../grammars/unicode.txt");
+    let bundled_table = include_str!("../data/unicode/unicode.txt");
     let bundled_hash = gencmu::tools::fnv1a64(bundled_table);
     let custom_table = bundled_table.replace("decompose 00E9 0065 0301\n", "");
     assert_ne!(bundled_table, custom_table);
@@ -1268,8 +1268,8 @@ fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
         (bundled_table, cache.replace(&format!("\"unicode\":\"{bundled_hash}\","), ""), false),
     ] {
         let mut sources = single(rules);
-        sources.insert("unicode.txt".into(), table.into());
-        sources.insert("compiled.json".into(), cache);
+        sources.insert("data/unicode/unicode.txt".into(), table.into());
+        sources.insert("grammars/compiled.json".into(), cache);
         let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
         assert_eq!(dialect.parse("b", &ParseOptions::default()).unwrap().ok, hit);
         assert_eq!(dialect.parse("a", &ParseOptions::default()).unwrap().ok, !hit);

@@ -1,7 +1,7 @@
 {
   "description": "A borrowing rafsi uses an ordinary onset before its y hyphen. A consonant followed by a glide cannot fill that slot.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "spagetiybroda",

@@ -118,13 +118,13 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     let compiled = format!(
         r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         fnv1a64(&bootstrap),
-        fnv1a64(include_str!("../grammars/unicode.txt")),
-        fnv1a64(include_str!("../grammars/unicode-properties.txt")),
+        fnv1a64(include_str!("../data/unicode/unicode.txt")),
+        fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         fnv1a64(pipeline)
     );
     let sources = [
-        ("notation/bootstrap.json", bootstrap.clone()),
-        ("compiled.json", compiled),
+        ("grammars/notation/bootstrap.json", bootstrap.clone()),
+        ("grammars/compiled.json", compiled),
         ("p.md", pipeline.to_string()),
         ("t.md", "```jbogenbau\na\n```\n".to_string()),
     ];

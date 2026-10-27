@@ -42,7 +42,7 @@ def concurrent_tables(directory):
     fixtures = json.loads((ROOT / "tests/json-keys.json").read_text())
     hashes = {}
     for name, text in [("bootstrap", (ROOT / "grammars/notation/bootstrap.json").read_text()),
-                       ("unicode", (ROOT / "grammars/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
+                       ("unicode", (ROOT / "data/unicode/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
         value = 0xcbf29ce484222325
         for byte in text.encode():
             value = ((value ^ byte) * 0x100000001b3) & 0xffffffffffffffff
@@ -56,7 +56,7 @@ def concurrent_tables(directory):
         for name, fingerprint in hashes.items():
             cache = cache.replace("@" + name + "@", fingerprint)
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": fixtures["grammar"],
-                   "unicode.txt": (ROOT / "grammars/unicode.txt").read_text(), "compiled.json": cache, **case["sources"]}
+                   "data/unicode/unicode.txt": (ROOT / "data/unicode/unicode.txt").read_text(), "grammars/compiled.json": cache, **case["sources"]}
         path = directory / f"table-{index}.tsv"
         path.write_text("".join(hex_text(key) + "\t" + hex_text(value) + "\n" for key, value in sources.items()), encoding="ascii")
         rows.append(str(index) + "\t" + str(path) + "\n")
@@ -197,7 +197,7 @@ def main():
     baseline = baseline_tree(revision)
     if command("git", "status", "--porcelain", cwd=baseline):
         raise ValueError("The baseline worktree must be clean")
-    if (ROOT / "grammars/unicode.txt").read_bytes() != (baseline / "grammars/unicode.txt").read_bytes():
+    if (ROOT / "data/unicode/unicode.txt").read_bytes() != (baseline / "data/unicode/unicode.txt").read_bytes():
         raise ValueError("Both revisions must use identical core character data")
     cases = []
     for path in sorted((baseline / "tests/corpus").glob("*.jsonl")):
@@ -230,7 +230,7 @@ def main():
                   "cpu": command("lscpu"), "node": command("node", "--version"),
                   "go": command("go", "version"), "rust": command("rustc", "--version"),
                   "python": command(args.python, "--version")},
-              "coreSha256": hashlib.sha256((ROOT / "grammars/unicode.txt").read_bytes()).hexdigest(),
+              "coreSha256": hashlib.sha256((ROOT / "data/unicode/unicode.txt").read_bytes()).hexdigest(),
               "fullCorpusCount": len(cases), "libraries": {}, "complete": False, "passed": False}
     report_path = directory / "report.json"
     if args.resume and report_path.exists():

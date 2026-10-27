@@ -1,7 +1,7 @@
 {
   "description": "The first matching delimiter closes the quote. The opening delimiter and the later CgV word outside the quote both warn.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi atkuila. atkuila .atkuila.",

@@ -1,7 +1,7 @@
 {
   "description": "A foreign run keeps its decomposed value and original image through forms (grammars/phonemes/latin-strict.md and grammars/words/forms.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. mï .gy.",

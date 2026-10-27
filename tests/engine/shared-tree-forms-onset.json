@@ -1,7 +1,7 @@
 {
   "description": "The forms tree in grammars/words/experimental.md places the syllable-onset hook above ordinary and consonant-glide onsets.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "atkuila",

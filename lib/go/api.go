@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-//go:embed grammars
+//go:embed grammars data
 var bundledFS embed.FS
 
 var bundled struct {
@@ -36,7 +36,7 @@ var bundled struct {
 func loadBundled() error {
 	bundled.once.Do(func() {
 		bundled.sources = map[string]string{}
-		err := fs.WalkDir(bundledFS, "grammars", func(p string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(bundledFS, ".", func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
 			}
@@ -47,18 +47,18 @@ func loadBundled() error {
 			if err != nil {
 				return err
 			}
-			bundled.sources[strings.TrimPrefix(p, "grammars/")] = string(data)
+			bundled.sources[p] = string(data)
 			return nil
 		})
 		if err != nil {
 			bundled.err = err
 			return
 		}
-		if bundled.uni, err = parseUnicodeTable(bundled.sources["unicode.txt"]); err != nil {
+		if bundled.uni, err = parseUnicodeTable(bundled.sources["data/unicode/unicode.txt"]); err != nil {
 			bundled.err = err
 			return
 		}
-		if bundled.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], bundled.uni); err != nil {
+		if bundled.reader, err = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], bundled.uni); err != nil {
 			bundled.err = err
 			return
 		}
@@ -196,14 +196,14 @@ func (l *loader) readSource(p, text string, names *namesScope) (*domDoc, *Error)
 }
 
 func bundledNamesText(p string) (string, bool) {
-	if p == "unicode-names-reference.txt" {
-		p = "unicode-names.txt"
+	if p == "data/unicode/unicode-names-reference.txt" {
+		p = "data/unicode/unicode-names.txt"
 	}
-	data, err := bundledFS.ReadFile("grammars/" + p)
+	data, err := bundledFS.ReadFile(p)
 	return string(data), err == nil
 }
 func (l *loader) namesText(p string) (string, bool) {
-	if l.fromDisk && p == "unicode-names-reference.txt" {
+	if l.fromDisk && p == "data/unicode/unicode-names-reference.txt" {
 		return bundledNamesText(p)
 	}
 	if text, ok := l.read(p); ok {
@@ -426,9 +426,9 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 	var bundledNames map[string]string
 	if withProperties {
 		bundled.propertiesOnce.Do(func() {
-			text, ok := bundled.sources["unicode-properties.txt"]
+			text, ok := bundled.sources["data/unicode/unicode-properties.txt"]
 			if !ok {
-				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Message: "the bundled properties file is missing"}
+				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode-properties.txt", Message: "the bundled properties file is missing"}
 				return
 			}
 			copy := *bundled.uni
@@ -439,9 +439,9 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 			}
 			copy.propertiesHash = fnv1a64(text)
 			bundled.propertiesUni = &copy
-			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["notation/bootstrap.json"], &copy)
+			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], &copy)
 			if bundled.propertiesErr == nil {
-				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
+				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["grammars/compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
 			}
 		})
 		if bundled.propertiesErr != nil {
@@ -455,7 +455,7 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 			if text, ok := bundled.sources[p]; ok {
 				return text, true
 			}
-			data, err := bundledFS.ReadFile("grammars/" + p)
+			data, err := bundledFS.ReadFile(p)
 			return string(data), err == nil
 		},
 		uni:           uni,
@@ -475,11 +475,11 @@ func LoadDialect(name string) (*Dialect, error) {
 	if err != nil {
 		return nil, err
 	}
-	return l.dialect("dialects/" + name + ".md")
+	return l.dialect("grammars/dialects/" + name + ".md")
 }
 
 // LoadDialectFile loads a pipeline document from disk, whose grammar
-// documents are found relative to it. unicode.txt and the notation's
+// documents are found relative to it. data/unicode/unicode.txt and the notation's
 // bootstrap come from the bundled grammars.
 func LoadDialectFile(file string) (*Dialect, error) {
 	l, err := bundledLoader()
@@ -504,8 +504,8 @@ func LoadDialectFile(file string) (*Dialect, error) {
 
 // LoadDialectSources loads a dialect from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
-// it. The map may hold its own unicode.txt, notation/bootstrap.json and
-// compiled.json; those it lacks come from the bundled grammars.
+// it. The map may hold its own data/unicode/unicode.txt, grammars/notation/bootstrap.json and
+// grammars/compiled.json; those it lacks come from the bundled grammars.
 func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, error) {
 	return loadSources(sources, pipeline, false)
 }
@@ -516,9 +516,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	for p, t := range sources {
 		norm[path.Clean(p)] = t
 	}
-	_, customCore := norm["unicode.txt"]
-	_, customProperties := norm["unicode-properties.txt"]
-	_, customBootstrap := norm["notation/bootstrap.json"]
+	_, customCore := norm["data/unicode/unicode.txt"]
+	_, customProperties := norm["data/unicode/unicode-properties.txt"]
+	_, customBootstrap := norm["grammars/notation/bootstrap.json"]
 	l, lerr := loaderForBundled(!customCore && !customProperties)
 	if lerr != nil {
 		return nil, lerr
@@ -526,14 +526,14 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
 	l.noCache = noCache
 	l.namesOverride = func(p string) bool { _, ok := norm[p]; return ok }
-	if t, ok := norm["unicode.txt"]; ok {
+	if t, ok := norm["data/unicode/unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
-			problem := &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
-			_, _ = fmt.Sscanf(err.Error(), "unicode.txt line %d:", &problem.Line)
+			problem := &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode.txt", Message: err.Error()}
+			_, _ = fmt.Sscanf(err.Error(), "data/unicode/unicode.txt line %d:", &problem.Line)
 			return nil, problem
 		}
 	}
-	if text, ok := norm["unicode-properties.txt"]; ok {
+	if text, ok := norm["data/unicode/unicode-properties.txt"]; ok {
 		copy := *l.uni
 		l.uni = &copy
 		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
@@ -541,22 +541,22 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 		}
 	}
 	if customProperties {
-		l.uni.propertiesHash = fnv1a64(norm["unicode-properties.txt"])
+		l.uni.propertiesHash = fnv1a64(norm["data/unicode/unicode-properties.txt"])
 	}
-	if t, ok := norm["notation/bootstrap.json"]; ok {
+	if t, ok := norm["grammars/notation/bootstrap.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
 	} else if l.uni != l.reader.uni {
-		if l.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], l.uni); err != nil {
+		if l.reader, err = newNotationReader(bundled.sources["grammars/notation/bootstrap.json"], l.uni); err != nil {
 			return nil, err
 		}
 	}
 	l.bootstrapHash = l.reader.hash
-	if t, ok := norm["compiled.json"]; ok {
+	if t, ok := norm["grammars/compiled.json"]; ok {
 		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	} else if customCore || customProperties || customBootstrap {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["grammars/compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 	}
 	return l.dialect(path.Clean(pipeline))
 }

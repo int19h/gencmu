@@ -42,7 +42,7 @@ fn decomposed_source_text_uses_only_the_callers_table() {
         ("decompose 00E9 0065 0301\ncombining 230 0301 0301\ncombining 220 0323 0323\n", "e\u{323}\u{301}"),
     ] {
         let mut sources = sources("%rule text [{_}]\n%emits $ := $.decomposed-source-text :- $.source-text");
-        sources.insert("unicode.txt".into(), format!("{base}{records}"));
+        sources.insert("data/unicode/unicode.txt".into(), format!("{base}{records}"));
         let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
         let result = dialect.parse("é\u{323}", &Default::default()).unwrap();
         assert!(result.ok, "{:?}", result.error);

@@ -1,7 +1,7 @@
 {
   "description": "The standalone zero-width joiner is preserved quote material. ZO quotes that ignored character rather than skipping to coi.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo ‍ coi",

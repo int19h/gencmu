@@ -1040,13 +1040,13 @@ mod tests {
             r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
-            crate::json::fnv1a64(crate::loader::bundled("unicode.txt").unwrap()),
-            crate::json::fnv1a64(crate::loader::bundled("unicode-properties.txt").unwrap()),
+            crate::json::fnv1a64(crate::loader::bundled("data/unicode/unicode.txt").unwrap()),
+            crate::json::fnv1a64(crate::loader::bundled("data/unicode/unicode-properties.txt").unwrap()),
             crate::json::fnv1a64(&document),
             crate::json::fnv1a64(PIPELINE)
         );
         let tokens: Vec<&str> = (0..rng.below(5)).map(|_| TERMINALS[rng.below(4)]).collect();
-        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("compiled.json", compiled)];
+        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("grammars/compiled.json", compiled)];
         let dialect = crate::load_dialect_sources(sources, "p.md").ok()?;
         let g = dialect.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper)? as u32;

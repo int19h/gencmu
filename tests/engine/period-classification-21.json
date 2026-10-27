@@ -1,7 +1,7 @@
 {
   "description": "Whitespace attaches the mark to ZO. The following period separates broda as its target.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo\"  broda",

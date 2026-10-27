@@ -1,7 +1,7 @@
 {
   "description": "A phoneme foreign token preserves its original image and decomposes its value.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "fa'o café",

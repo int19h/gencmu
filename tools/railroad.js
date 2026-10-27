@@ -47,7 +47,7 @@ const TITLE_HEIGHT = 24;
 
 /** @param {string} text */
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicode.txt", import.meta.url), "utf8"));
 /** @param {string} text */
 const length = (text) => [...text].reduce((width, scalar) =>
   width + (unicode.hasEmoji("Emoji_Presentation", scalar.codePointAt(0)) ? 2 : 1), 0);
@@ -802,7 +802,7 @@ export function diagramNames(rules) {
 
 /**
  * The directory of a grammar document's SVG files, from the document's
- * path under grammars/, such as `syntax/cll.md`.
+ * path under grammars/, such as `grammars/syntax/cll.md`.
  * @param {string} file
  */
 export const diagramDirectory = (file) => `${DIAGRAMS}/${file.replace(/\.md$/, "")}`;

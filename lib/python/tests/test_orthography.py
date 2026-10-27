@@ -9,7 +9,7 @@ from gencmu._unicode import UnicodeTable
 
 class StageZero(unittest.TestCase):
     def test_expansion_and_reordering_preserve_sources(self) -> None:
-        table = UnicodeTable(bundled_text("unicode.txt") or "")
+        table = UnicodeTable(bundled_text("data/unicode/unicode.txt") or "")
         for text, values, origins in (
             ("á", "a\u0301", [0, 0]),
             ("a\u0301\u0323", "a\u0323\u0301", [0, 2, 1]),
@@ -46,7 +46,7 @@ class GrammarReading(unittest.TestCase):
         from gencmu._dialect import DOM_FORMAT, _compiled_index, _Loader, _resources
         from gencmu._hash import fnv1a64
 
-        table = bundled_text("unicode.txt") or ""
+        table = bundled_text("data/unicode/unicode.txt") or ""
         sparse = "\n".join(line for line in table.splitlines() if not line.startswith(("decompose ", "combining ")))
         grammar = document('%ambiguity-resolution greedy\n%rule text "é"')
         texts = {"p.md": document('%stage main\n%include "g.md"'), "g.md": grammar}
@@ -74,12 +74,12 @@ class GrammarReading(unittest.TestCase):
 
     def test_negated_operator_needs_its_decomposition_record(self) -> None:
         from gencmu._dialect import read_document
-        sparse = "\n".join(line for line in (bundled_text("unicode.txt") or "").splitlines()
+        sparse = "\n".join(line for line in (bundled_text("data/unicode/unicode.txt") or "").splitlines()
                            if not line.startswith(("decompose ", "combining ")))
         source = document('%rule r $a:A %conditions $a.value ≠ "a"')
         for use_cache in (False, True):
             with self.subTest(use_cache=use_cache), self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources({"unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
+                gencmu.load_dialect_sources({"data/unicode/unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
                                             "g.md": source}, "p.md", use_cache=use_cache)
             self.assertEqual((caught.exception.document, caught.exception.column), ("g.md", 35))
         self.assertEqual(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠")
@@ -91,7 +91,7 @@ class GrammarReading(unittest.TestCase):
 
     def test_diagnostics_read_back_as_exact_scalars(self) -> None:
         from gencmu._strings import spelling
-        table = UnicodeTable(bundled_text("unicode.txt") or "")
+        table = UnicodeTable(bundled_text("data/unicode/unicode.txt") or "")
         for value in ("é", "à", "ź", "한", "\u302e\u1b44"):
             with self.subTest(value=value):
                 texts = {"p.md": document('%stage main\n%include "g.md"'),
@@ -110,11 +110,11 @@ class GrammarReading(unittest.TestCase):
 
 class DecomposedSource(unittest.TestCase):
     def test_conditions_and_recipes_use_the_configured_table(self) -> None:
-        table = bundled_text("unicode.txt") or ""
+        table = bundled_text("data/unicode/unicode.txt") or ""
         sparse = "\n".join(line for line in table.splitlines() if not line.startswith(("decompose ", "combining ")))
         for data, expected in ((table, "e\u0301"), (sparse, "é")):
             with self.subTest(expected=expected):
-                texts = {"unicode.txt": data, "p.md": document('%stage main\n%include "g.md"'),
+                texts = {"data/unicode/unicode.txt": data, "p.md": document('%stage main\n%include "g.md"'),
                          "g.md": document('%ambiguity-resolution greedy\n%rule text $x:_\n%conditions $x.decomposed-source-text = "é"\n'
                                           '%emits\n$x := $x.decomposed-source-text :- $x.source-text')}
                 dialect = gencmu.load_dialect_sources(texts, "p.md")

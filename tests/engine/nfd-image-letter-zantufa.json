@@ -1,6 +1,6 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "description": "The accent recipe supplies image A while its value is a and preserves original text.",

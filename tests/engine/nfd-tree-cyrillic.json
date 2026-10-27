@@ -1,7 +1,7 @@
 {
   "description": "The phoneme tree reads decomposed scalars and retains original scalar sources.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "МАЙКЛАМА",

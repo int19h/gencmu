@@ -38,10 +38,10 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 					"before.md":               block("%const $P "+c.before, "%const $GOOD Extra", "%const $BAD Blocked"),
 					"after.md":                block("%const $P "+c.after, "%const $GOOD Extra", "%const $BAD Blocked"),
 					"shared.md":               block("%rule text "+c.body+" :: ("+condition+" ⟹ X)", "%emits $ :: (A Extra) ∪ ("+condition+" ⟹ X)"),
-					"notation/bootstrap.json": bundled.sources["notation/bootstrap.json"],
+					"grammars/notation/bootstrap.json": bundled.sources["grammars/notation/bootstrap.json"],
 				}
 				fresh := mustLoad(t, sources)
-				sources["compiled.json"] = reviewCache(t, sources)
+				sources["grammars/compiled.json"] = reviewCache(t, sources)
 				cached := mustLoad(t, sources)
 				var canonical string
 				for _, dialect := range []*Dialect{fresh, cached} {

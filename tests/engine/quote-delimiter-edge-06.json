@@ -1,7 +1,7 @@
 {
   "description": "The first matching delimiter closes the quote, including when marks surround it.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. \"gy\" no gy.",

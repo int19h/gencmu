@@ -14,14 +14,14 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
 		for _, value := range dom["rules"].([]any) {
 			rule := value.(map[string]any)
-			if path == "notation/lexical.md" && rule["name"] == "feature-character" {
+			if path == "grammars/notation/lexical.md" && rule["name"] == "feature-character" {
 				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
 			}
-			if path == "notation/syntax.md" && rule["name"] == "guard" {
+			if path == "grammars/notation/syntax.md" && rule["name"] == "guard" {
 				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
 			}
 		}
-		if path == "notation/syntax.md" {
+		if path == "grammars/notation/syntax.md" {
 			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})
@@ -109,7 +109,7 @@ func reviewCache(t *testing.T, sources map[string]string) string {
 		}
 		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
 	}
-	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["unicode-properties.txt"]), "documents": documents})
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": documents})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
 			grammar := c.grammar
-			sources := reviewSources(grammar, bundled.sources["notation/bootstrap.json"])
+			sources := reviewSources(grammar, bundled.sources["grammars/notation/bootstrap.json"])
 			_, fresh := LoadDialectSources(sources, "p.md")
 			var e *Error
 			sourceLine := strings.Split(grammar, "\n")[c.line-3]
@@ -151,7 +151,7 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
 				t.Fatalf("fresh recipe position: %v", fresh)
 			}
-			sources["compiled.json"] = reviewCache(t, sources)
+			sources["grammars/compiled.json"] = reviewCache(t, sources)
 			_, cached := LoadDialectSources(sources, "p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
@@ -165,7 +165,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A matching cache still owns the recipe, even when the source spells another value.
-	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["notation/bootstrap.json"])
+	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["grammars/notation/bootstrap.json"])
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -173,16 +173,16 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["notation/bootstrap.json"])
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["grammars/notation/bootstrap.json"])
+	sources["grammars/compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, failure := LoadDialectSources(sources, "p.md")
 	var e *Error
 	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
 		t.Fatalf("cache semantics or location changed: %v", failure)
 	}
 	// A valid cached recipe needs no source reader for location recovery.
-	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["notation/bootstrap.json"])
-	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))
+	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["grammars/notation/bootstrap.json"])
+	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))
 	configured, loadErr := bundledLoader()
 	if loadErr != nil {
 		t.Fatal(loadErr)
@@ -217,13 +217,13 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 %extend-rule text := $.emitted.image | "c"`, 5},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			sources := reviewSources(c.grammar, bundled.sources["notation/bootstrap.json"])
+			sources := reviewSources(c.grammar, bundled.sources["grammars/notation/bootstrap.json"])
 			_, fresh := LoadDialectSources(sources, "p.md")
 			var e *Error
 			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
 				t.Fatalf("production order: %v", fresh)
 			}
-			sources["compiled.json"] = reviewCache(t, sources)
+			sources["grammars/compiled.json"] = reviewCache(t, sources)
 			_, cached := LoadDialectSources(sources, "p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
@@ -236,14 +236,14 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 			"base.md":                 block(`%rule text "a"`),
 			"earlier.md":              block(`%rule other := $.emitted.value | "b"`),
 			"later.md":                block(`%extend-rule text := $.emitted.image | "c"`),
-			"notation/bootstrap.json": bundled.sources["notation/bootstrap.json"],
+			"grammars/notation/bootstrap.json": bundled.sources["grammars/notation/bootstrap.json"],
 		}
 		_, fresh := LoadDialectSources(sources, "p.md")
 		var e *Error
 		if !errors.As(fresh, &e) || e.Document != "earlier.md" || e.Line != 2 || e.Column != 16 {
 			t.Fatalf("document order: %v", fresh)
 		}
-		sources["compiled.json"] = reviewCache(t, sources)
+		sources["grammars/compiled.json"] = reviewCache(t, sources)
 		_, cached := LoadDialectSources(sources, "p.md")
 		if !reflect.DeepEqual(fresh, cached) {
 			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)

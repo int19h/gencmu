@@ -269,7 +269,7 @@ async function main() {
     await page.route("**/grammars/**", route => {
       const resource = decodeURIComponent(new URL(route.request().url()).pathname.split("/grammars/")[1]);
       namesFetches.push(resource);
-      if (resource === "unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"grammars/unicode-names.txt"),"utf8") });
+      if (resource === "data/unicode/unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"data/unicode/unicode-names.txt"),"utf8") });
       if (namesPaths.includes(resource)) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       if (resource === "smoke-extra-names.txt") return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       return route.fulfill({ status:404, body:"missing" });
@@ -278,9 +278,9 @@ async function main() {
       const g = self.gencmu;
       const block = text => "```jbogenbau\n" + text + "\n```\n";
       const source = block('%names "smoke-extra-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"');
-      const cache = JSON.parse(self.gencmuGrammars["compiled.json"]);
+      const cache = JSON.parse(self.gencmuGrammars["grammars/compiled.json"]);
       cache.bundledNames["smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
-      const dependencies = { "unicode-names.txt":cache.bundledNames["unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
+      const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
       cache.documents["smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
         rules:[{name:"text",op:"define",flags:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
@@ -293,11 +293,11 @@ async function main() {
         });
         client.start();
       });
-      const cached = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"b");
+      const cached = await proof({"smoke-names.md":source,"grammars/compiled.json":JSON.stringify(cache)},"b");
       cache.documents["smoke-names.md"].names["smoke-extra-names.txt"] = "0000000000000000";
-      const missed = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"\uE000");
+      const missed = await proof({"smoke-names.md":source,"grammars/compiled.json":JSON.stringify(cache)},"\uE000");
       const custom = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
-        "unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
+        "data/unicode/unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
       const numeric = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
       const core = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
       const missing = await proof({"smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
@@ -305,7 +305,7 @@ async function main() {
     });
     assert.deepEqual(namesProof,{cached:{ok:true,error:null},missed:{ok:true,error:null},custom:{ok:true,error:null},
       numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:"missing-names.txt"}});
-    assert.deepEqual(namesFetches,["unicode-names.txt","smoke-extra-names.txt","unicode-names.txt","unicode-names.txt","missing-names.txt"]);
+    assert.deepEqual(namesFetches,["data/unicode/unicode-names.txt","smoke-extra-names.txt","data/unicode/unicode-names.txt","data/unicode/unicode-names.txt","missing-names.txt"]);
     const pathProof = await run(async paths => {
       const results = [];
       for (const path of paths) {
@@ -325,7 +325,7 @@ async function main() {
       return results;
     },namesPaths);
     assert.deepEqual(pathProof,namesPaths.map(() => ({ok:true,stored:true,error:null})));
-    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["unicode-names.txt",path]));
+    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["data/unicode/unicode-names.txt",path]));
     await page.unroute("**/grammars/**");
     console.log(`lazy names fetching works in ${browser}`);
 
@@ -340,7 +340,7 @@ async function main() {
         if (status.dataset.state !== "ready") return;
         const text = document.getElementById("input").value;
         const dialect = document.getElementById("dialect").value;
-        if (result.dataset.for !== text || "dialects/" + result.dataset.dialect + ".md" !== dialect) {
+        if (result.dataset.for !== text || "grammars/dialects/" + result.dataset.dialect + ".md" !== dialect) {
           self.smokeStale.push({ shown: result.dataset.for, dialect: result.dataset.dialect, text, selected: dialect });
         }
       };
@@ -360,18 +360,18 @@ async function main() {
       { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
-        document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
+        document: "grammars/syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
         edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
-        document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
+        document: "grammars/syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
         edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
-        document: "syntax/experimental.md", rule: "%rule me-unit",
+        document: "grammars/syntax/experimental.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
-        document: "syntax/experimental.md", rule: "%rule me-unit" },
+        document: "grammars/syntax/experimental.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
+        document: "grammars/syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
         edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
@@ -467,7 +467,7 @@ async function main() {
 
     // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/dialects/cll-ebnf.md");
     const tokenText = "ba'e m,I ui nai klAma";
     await type(tokenText);
     await answerFor(tokenText);
@@ -519,8 +519,8 @@ async function main() {
     const navigationOutput = "(mi [{(se su'i) (pa re)} moi])";
     const setNavigationCase = (kind) => run((kind) => {
       const client = self.playground.client;
-      const syntax = self.gencmuGrammars["syntax/zantufa.md"];
-      const pipeline = self.gencmuGrammars["dialects/zantufa.md"];
+      const syntax = self.gencmuGrammars["grammars/syntax/zantufa.md"];
+      const pipeline = self.gencmuGrammars["grammars/dialects/zantufa.md"];
       let changed = syntax;
       let changedPipeline = pipeline;
       const marker = "%rule tanru-unit-1\n";
@@ -533,8 +533,8 @@ async function main() {
         changed = syntax.slice(0, start) + syntax.slice(end);
         changedPipeline += "\n```jbogenbau\n" + syntax.slice(start, end) + "\n```\n";
       }
-      client.setDocument("syntax/zantufa.md", changed);
-      client.setDocument("dialects/zantufa.md", changedPipeline);
+      client.setDocument("grammars/syntax/zantufa.md", changed);
+      client.setDocument("grammars/dialects/zantufa.md", changedPipeline);
     }, kind);
     for (const kind of ["prefix", "renamed", "moved", "reset"]) {
       await setNavigationCase(kind);
@@ -553,7 +553,7 @@ async function main() {
         if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
           throw new Error(`a missing rule was not explained at the document start: ${JSON.stringify(opened)}`);
         }
-      } else if (opened.path !== (kind === "moved" ? "dialects/zantufa.md" : "syntax/zantufa.md") ||
+      } else if (opened.path !== (kind === "moved" ? "grammars/dialects/zantufa.md" : "grammars/syntax/zantufa.md") ||
           opened.line !== "%rule tanru-unit-1" || opened.hint.includes("Cannot find rule")) {
         throw new Error(`${kind} rule navigation missed the exact definition: ${JSON.stringify(opened)}`);
       }
@@ -562,7 +562,7 @@ async function main() {
     console.log(`review regression cases work in ${browser}`);
     await page.locator("#tab-brackets").click();
 
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/dialects/cll-ebnf.md");
     const sentence = "mi klama le zarci";
     await type(sentence);
     const accepted = await answerFor(sentence);
@@ -581,9 +581,9 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
-    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="dialects/kihei.md"]').textContent);
+    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="grammars/dialects/kihei.md"]').textContent);
     if (kiheiLabel !== "kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
-    await choose("dialects/kihei.md");
+    await choose("grammars/dialects/kihei.md");
     const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
     await type(saFrame);
     const frameAnswer = await answerFor(saFrame);
@@ -592,9 +592,9 @@ async function main() {
     }
 
     // Discarded source still needs to parse and remains editable from its error link.
-    const patched = "dialects/zantufa.md";
-    const discarded = "phonemes/latin.md";
-    const extended = "syntax/zantufa.md";
+    const patched = "grammars/dialects/zantufa.md";
+    const discarded = "grammars/phonemes/latin.md";
+    const extended = "grammars/syntax/zantufa.md";
     await run(({patched, discarded, extended}) => {
       self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
       self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n```\n");
@@ -606,7 +606,7 @@ async function main() {
     await choose(patched);
     await type("b");
     await idle("the error in discarded source");
-    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "phonemes/latin.md"}).first();
+    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "grammars/phonemes/latin.md"}).first();
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
@@ -623,13 +623,13 @@ async function main() {
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
       [patched, discarded, extended]);
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/dialects/cll-ebnf.md");
     console.log(`stage patches and KIhEI work in ${browser}`);
 
     // A tie is an error, shown with its two readings and no tree. No text
     // ties in a bundled dialect, so an edited pipeline stands in for one: its
     // stage syntax reads "w" as either of two rules.
-    const tiedPipeline = "dialects/zantufa.md";
+    const tiedPipeline = "grammars/dialects/zantufa.md";
     await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
       "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a \"w\"\n%rule b \"w\"\n```\n"), tiedPipeline);
     await choose(tiedPipeline);
@@ -642,7 +642,7 @@ async function main() {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
-    await choose("dialects/experimental.md");
+    await choose("grammars/dialects/experimental.md");
 
     // Texts typed while earlier ones are still being parsed, one of them long
     // enough to be parsing when the next arrives.
@@ -651,9 +651,9 @@ async function main() {
       await type(text);
       await sleep(170 + Math.floor(Math.random() * 100));
     }
-    await choose("dialects/experimental.md");
+    await choose("grammars/dialects/experimental.md");
     await type("mi cu klama");
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/dialects/cll-ebnf.md");
     const last = "mi klama le zarci";
     await type(last);
     const settled = await answerFor(last);
@@ -682,7 +682,7 @@ async function main() {
     // rendering does not mean that the tree holds no tokens. In this
     // pipeline the first stage emits one token X with an empty image for the
     // empty text, and the second stage reads it.
-    const imageless = "dialects/zantufa.md";
+    const imageless = "grammars/dialects/zantufa.md";
     await run((path) => self.playground.client.setDocument(path, "# Empty images\n\n```jbogenbau\n" +
       "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits ε :: X\n" +
       "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), imageless);
@@ -698,7 +698,7 @@ async function main() {
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/dialects/cll-ebnf.md");
     await type(last);
     await answerFor(last);
 
@@ -713,12 +713,12 @@ async function main() {
     });
     await until("the edited word shapes to be read", () =>
       document.getElementById("status").textContent.includes("Reading words/shapes") ? true : null);
-    await choose("dialects/experimental.md");
+    await choose("grammars/dialects/experimental.md");
     const other = await until("an answer under the experimental dialect", () => {
       const status = document.getElementById("status");
       const result = document.getElementById("result");
       return status.dataset.state === "ready" && result.dataset.dialect === "experimental" && !result.hasAttribute("aria-busy")
-        ? { read: self.playground.client.doms.has("words/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
+        ? { read: self.playground.client.doms.has("grammars/words/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
     });
     // The worker hands the page every document it finishes reading, so the
     // document's being there means the switch waited for it.

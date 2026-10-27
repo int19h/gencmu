@@ -57,7 +57,7 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			_, err := LoadDialectSources(map[string]string{
 				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
 				"g.md":                    "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
-				"notation/bootstrap.json": bootstrap,
+				"grammars/notation/bootstrap.json": bootstrap,
 			}, "p.md")
 			var e *Error
 			if !errors.As(err, &e) {
@@ -83,7 +83,7 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 				column = *item.Column
 			}
 			if item.At != nil {
-				document, err := os.ReadFile("../../grammars/" + item.Context)
+				document, err := os.ReadFile("../../" + item.Context)
 				if err != nil {
 					t.Fatal(err)
 				}

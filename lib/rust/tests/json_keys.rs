@@ -35,7 +35,7 @@ fn shared_json_keys() {
     }
     for case in fixtures.get("bootstrap").unwrap().array() {
         let mut sources = sources();
-        sources.insert("notation/bootstrap.json".into(), mutate(&bundled, case));
+        sources.insert("grammars/notation/bootstrap.json".into(), mutate(&bundled, case));
         let outcome = gencmu::load_dialect_sources(sources, "p.md");
         // The shared case records Rust's existing integer limit explicitly.
         let loads = flag(case, if case.get("rustLoads").is_some() { "rustLoads" } else { "loads" });
@@ -46,25 +46,25 @@ fn shared_json_keys() {
             let e = outcome.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
             assert_eq!(
                 (e.kind, e.document.as_deref(), e.stage.as_deref(), e.line, e.column),
-                (gencmu::ErrorKind::Grammar, Some("notation/bootstrap.json"), None, None, None),
+                (gencmu::ErrorKind::Grammar, Some("grammars/notation/bootstrap.json"), None, None, None),
                 "{}: {e}",
                 text(case, "description")
             );
-            assert!(e.message.starts_with("notation/bootstrap.json:"));
+            assert!(e.message.starts_with("grammars/notation/bootstrap.json:"));
         }
     }
     for case in fixtures.get("compiled").unwrap().array() {
         let cache = mutate(text(&fixtures, "cache"), case)
             .replace("@bootstrap@", &gencmu::tools::fnv1a64(&bundled))
-            .replace("@unicode@", &gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")))
+            .replace("@unicode@", &gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")))
             .replace("@source@", &gencmu::tools::fnv1a64(text(&fixtures, "grammar")));
         let document = case.get("document").and_then(Value::str).unwrap_or("g.md");
         let mut sources = BTreeMap::from([
             ("p.md".to_string(), format!("```jbogenbau\n%stage main\n%include \"{document}\"\n```\n")),
             (document.to_string(), text(&fixtures, "grammar").to_string()),
         ]);
-        sources.insert("unicode.txt".into(), include_str!("../grammars/unicode.txt").to_string());
-        sources.insert("compiled.json".into(), cache);
+        sources.insert("data/unicode/unicode.txt".into(), include_str!("../data/unicode/unicode.txt").to_string());
+        sources.insert("grammars/compiled.json".into(), cache);
         let cached = flag(case, if case.get("rustCached").is_some() { "rustCached" } else { "cached" });
         if let Some(Value::Object(resources)) = case.get("sources") {
             for (path, value) in resources {
@@ -72,9 +72,9 @@ fn shared_json_keys() {
                 sources.insert(
                     path.clone(),
                     if value == "@bundled-names@" {
-                        include_str!("../grammars/unicode-names.txt").to_string()
+                        include_str!("../data/unicode/unicode-names.txt").to_string()
                     } else if value == "@unicode-16@" {
-                        include_str!("../grammars/unicode.txt").replace("unicode 15.1.0", "unicode 16.0.0")
+                        include_str!("../data/unicode/unicode.txt").replace("unicode 15.1.0", "unicode 16.0.0")
                     } else {
                         value.to_string()
                     },

@@ -1,7 +1,7 @@
 {
   "description": "The opening delimiter reads as a CgV word and warns. The different CgV body and raw closing delimiter add no warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi atkuila. zgiaca'a .atkuila.",

@@ -1,7 +1,7 @@
 {
-  "description": "The cll-ebnf dialect accepts kyx under pair-across-y in words/cll.md (Lujvo).",
+  "description": "The cll-ebnf dialect accepts kyx under pair-across-y in grammars/words/cll.md (Lujvo).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "pakyxrani",

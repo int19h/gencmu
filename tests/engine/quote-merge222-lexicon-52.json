@@ -1,7 +1,7 @@
 {
   "description": "The new LOhU word closes at LEhU and forms one quote token.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ba'e la'ai coi le'u ui cmavo",

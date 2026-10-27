@@ -28,7 +28,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 - `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
 - `LoadDialectFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
-- `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `grammars/notation/bootstrap.json` and `grammars/compiled.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
   For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 
@@ -106,7 +106,7 @@ Tests that use process-wide controls or allocation counts stay serial. These tes
 
 The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's configuration in turn.
 
-An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
+An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `grammars/compiled.json` with a fresh reading, with the cache both used and bypassed.
 
 `TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 

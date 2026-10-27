@@ -1,7 +1,7 @@
 {
   "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi,ta'ai ,coi,, do mi,ta'ai ⁠­coi⁠­, do",

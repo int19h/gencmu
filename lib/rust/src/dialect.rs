@@ -1249,7 +1249,7 @@ mod tests {
 
     #[test]
     fn stage_zero_preserves_original_sources() {
-        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap();
+        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap();
         let chars: Vec<char> = "á\u{323}\n한".chars().collect();
         let (internal, public) = super::character_tokens(&unicode, &mut crate::tags::Tags::new(), &chars);
         assert_eq!(public.iter().map(|t| t.value.as_str()).collect::<String>(), "a\u{323}\u{301}\n한");

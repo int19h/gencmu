@@ -1,7 +1,7 @@
 {
   "description": "A raw quote preserves foreign characters at either edge of its material.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi,zoi gy. 你好你好é .gy, do",

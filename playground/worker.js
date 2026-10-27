@@ -72,7 +72,7 @@
       for (const [path, entry] of Object.entries(message.compiled || {})) {
         loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
-      // Reading a document that compiled.json does not hold goes through the
+      // Reading a document that grammars/compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
       loader.readDocument = (markdown, path, deferEmission, inherited) => {
@@ -102,7 +102,7 @@
       dialects.clear();
       last = null;
       // Forget this document's earlier DOMs; the bundled one stays in
-      // compiled.json, so resetting a document costs nothing.
+      // grammars/compiled.json, so resetting a document costs nothing.
       for (const key of [...loader.cache.keys()]) if (key.startsWith(path + "\u0000")) loader.cache.delete(key);
     }
 
@@ -448,10 +448,10 @@
 
     async supplyNames(worker, message) {
       const path = message.path;
-      const resource = path === "unicode-names-reference.txt" ? "unicode-names.txt" : path;
+      const resource = path === "data/unicode/unicode-names-reference.txt" ? "data/unicode/unicode-names.txt" : path;
       try {
         if (!this.namesFetches.has(resource)) {
-          const url = new URL("grammars/" + resource.split("/").map(encodeURIComponent).join("/"), root.location.href);
+          const url = new URL(resource.split("/").map(encodeURIComponent).join("/"), root.location.href);
           const fetching = root.fetch(url).then(async response => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await response.arrayBuffer());
@@ -459,8 +459,8 @@
           this.namesFetches.set(resource,fetching);
         }
         const text = await this.namesFetches.get(resource);
-        const resources = resource === "unicode-names.txt"
-          ? { "unicode-names.txt": text, "unicode-names-reference.txt": text } : { [path]: text };
+        const resources = resource === "data/unicode/unicode-names.txt"
+          ? { "data/unicode/unicode-names.txt": text, "data/unicode/unicode-names-reference.txt": text } : { [path]: text };
         for (const [key,value] of Object.entries(resources)) this.namesResources.set(key,value);
         if (this.worker === worker) worker.postMessage({ kind: "names", id: message.id, resources });
       } catch (error) {

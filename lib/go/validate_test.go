@@ -9,7 +9,7 @@ import (
 )
 
 // One malformed DOM per rule the reader enforces (engine §9, docs/output.md
-// "A grammar DOM"): each is refused when decoded, and as a compiled.json
+// "A grammar DOM"): each is refused when decoded, and as a grammars/compiled.json
 // entry it is a miss, so the document is read instead.
 func TestDOMRules(t *testing.T) {
 	t.Parallel()
@@ -494,7 +494,7 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
+		src["grammars/compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)
@@ -547,7 +547,7 @@ func bootstrapError(t *testing.T, list, item string) error {
 	t.Helper()
 	loadBundled()
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
-	bootstrap := bundled.sources["notation/bootstrap.json"]
+	bootstrap := bundled.sources["grammars/notation/bootstrap.json"]
 	i := strings.Index(bootstrap, `"`+list+`":[`)
 	if i < 0 {
 		t.Fatalf("no %s in the bootstrap", list)
@@ -557,7 +557,7 @@ func bootstrapError(t *testing.T, list, item string) error {
 	if bootstrap[i] == ']' {
 		sep = ""
 	}
-	src["notation/bootstrap.json"] = bootstrap[:i] + item + sep + bootstrap[i:]
+	src["grammars/notation/bootstrap.json"] = bootstrap[:i] + item + sep + bootstrap[i:]
 	_, err := LoadDialectSources(src, "p.md")
 	return err
 }
@@ -600,7 +600,7 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 }
 
 // A constant nested too deeply is refused before any walk that recurses
-// (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
+// (engine §9): a grammars/compiled.json entry is a miss, and a bootstrap is an error
 // of the grammar.
 func TestDeepConstant(t *testing.T) {
 	t.Parallel()
@@ -612,7 +612,7 @@ func TestDeepConstant(t *testing.T) {
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
-	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+	src["grammars/compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 	d, err := LoadDialectSources(src, "p.md")
 	if err != nil {
 		t.Fatal(err)
@@ -620,8 +620,8 @@ func TestDeepConstant(t *testing.T) {
 	if res, err := d.Parse("ab", ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("the document was not read instead: %v %+v", err, res.Error)
 	}
-	delete(src, "compiled.json")
-	bootstrap := bundled.sources["notation/bootstrap.json"]
+	delete(src, "grammars/compiled.json")
+	bootstrap := bundled.sources["grammars/notation/bootstrap.json"]
 	i := strings.Index(bootstrap, `"constants":[`)
 	if i < 0 {
 		t.Fatal("no constants in the bootstrap")
@@ -631,7 +631,7 @@ func TestDeepConstant(t *testing.T) {
 	if bootstrap[i] == ']' {
 		sep = ""
 	}
-	src["notation/bootstrap.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
+	src["grammars/notation/bootstrap.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
 	_, err = LoadDialectSources(src, "p.md")
 	var e *Error
 	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
@@ -653,7 +653,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 	outcome := func(g string, entry string) string {
 		src := oneStage(g)
 		if entry != "" {
-			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+			src["grammars/compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
 		}
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
@@ -716,11 +716,11 @@ func TestGuardFeatureName(t *testing.T) {
 		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	// features is the dialect's features, each as name:kind, when its
-	// compiled.json holds a DOM of the document with rules and classifiers.
+	// grammars/compiled.json holds a DOM of the document with rules and classifiers.
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
+		src["grammars/compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
 			t.Fatalf("%s %s: %v", rules, classifiers, err)
@@ -764,7 +764,7 @@ func TestGuardFeatureName(t *testing.T) {
 }
 
 // An expression or a condition has exactly the members of one form, and a
-// reference is an identifier or one eligible emoji (engine §9). A compiled.json
+// reference is an identifier or one eligible emoji (engine §9). A grammars/compiled.json
 // entry that breaks this is a miss, and the document is read instead. A
 // bootstrap that breaks it is an error of the grammar. The order of the
 // members varies, as the other libraries read JSON in order.
@@ -795,7 +795,7 @@ func TestMixedForms(t *testing.T) {
 			s[k] = v
 		}
 		if dom != "" {
-			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
+			s["grammars/compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
 		}
 		d, err := LoadDialectSources(s, "p.md")
 		if err != nil {
@@ -857,7 +857,7 @@ func TestMixedForms(t *testing.T) {
 		}
 		err := bootstrapError(t, "rules", rule("unused-rule", expr, condition, m.emit, 9999))
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", m.name, err)
 		}
 	}

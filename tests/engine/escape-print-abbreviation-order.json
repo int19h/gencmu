@@ -17,7 +17,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+E000›\")\n%extend-rule one(\"‹ZZA›\") \"z\"\n```",
-    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nabbreviation E000 ZZLONGER\nabbreviation E000 ZZB\nabbreviation E000 ZZA\n"
+    "data/unicode/unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nabbreviation E000 ZZLONGER\nabbreviation E000 ZZB\nabbreviation E000 ZZA\n"
   },
   "pipelineDocument": "p.md"
 }

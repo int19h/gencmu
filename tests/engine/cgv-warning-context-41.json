@@ -1,7 +1,7 @@
 {
   "description": "The quote takes an opaque raw body. Its CgV spelling supplies no Lojban word read.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. mariam .gy.",

@@ -1,7 +1,7 @@
 {
   "description": "Forms marks each CgV word separately. Stopping before words produces no warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "la .mariam. cu atkuila",

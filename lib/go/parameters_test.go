@@ -481,8 +481,8 @@ func TestParameterSharedStructure(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
-				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["unicode-properties.txt"]), "documents": templateObject{"g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
-				sources := map[string]string{"g.md": source, "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "compiled.json": string(templateJSON(cache))}
+				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
+				sources := map[string]string{"g.md": source, "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "grammars/compiled.json": string(templateJSON(cache))}
 				dialect, err := LoadDialectSources(sources, "p.md")
 				if err != nil {
 					t.Fatal(err)

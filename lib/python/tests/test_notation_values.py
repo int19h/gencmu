@@ -14,7 +14,7 @@ from .test_notation_cases import check_notation_cache_paths
 
 
 def value_notation(aliases: list[dict[str, Any]]) -> str:
-    bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "")
+    bootstrap = json.loads(bundled_text("grammars/notation/bootstrap.json") or "")
     lexical = next(stage for stage in bootstrap["stages"] if stage["name"] == "lexical")["documents"][0]["dom"]
     piece = next(rule for rule in lexical["rules"] if rule["name"] == "piece")
     for index, alias in enumerate(aliases):
@@ -39,7 +39,7 @@ class NotationValues(unittest.TestCase):
     def check_case(self, case: dict[str, Any]) -> None:
         name = case["id"] + ".md"
         bootstrap = value_notation(case["aliases"])
-        sources = {"notation/bootstrap.json": bootstrap}
+        sources = {"grammars/notation/bootstrap.json": bootstrap}
         if "error" in case["expect"]:
             with self.assertRaises(GencmuError) as caught:
                 read_document(case["document"], name, sources=sources)

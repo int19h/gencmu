@@ -30,7 +30,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	if e.Document == "notation/bootstrap.json" && strings.HasPrefix(e.Message, "notation/bootstrap.json:") {
+	if e.Document == "grammars/notation/bootstrap.json" && strings.HasPrefix(e.Message, "grammars/notation/bootstrap.json:") {
 		return e.Message
 	}
 	var b strings.Builder

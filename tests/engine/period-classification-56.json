@@ -1,7 +1,7 @@
 {
   "description": "Whitespace ends the opening gy delimiter's formatting edge. The separate mark remains raw body text.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi \"gy \" gy",

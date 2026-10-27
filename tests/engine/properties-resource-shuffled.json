@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
-    "unicode-properties.txt": "\n unicode-properties\t15.1.0\r\nrange Script_Extensions 000030FC 0030FC Katakana Hiragana\r\nvalue Script_Extensions Hiragana\r\nvalue Script_Extensions Katakana\r\nrange Alphabetic 0041 0042\r\nrange Alphabetic 0041 0041\r\nbinary Alphabetic\r\nmultiple Script_Extensions Unknown\r\nvalue Script_Extensions Unknown\r\nenumerated Script Unknown\r\nvalue Script Unknown\r\nvalue Script Latin\r\nrange Script 0041 0043 Latin\r\nrange Script 0042 0044 Latin"
+    "data/unicode/unicode-properties.txt": "\n unicode-properties\t15.1.0\r\nrange Script_Extensions 000030FC 0030FC Katakana Hiragana\r\nvalue Script_Extensions Hiragana\r\nvalue Script_Extensions Katakana\r\nrange Alphabetic 0041 0042\r\nrange Alphabetic 0041 0041\r\nbinary Alphabetic\r\nmultiple Script_Extensions Unknown\r\nvalue Script_Extensions Unknown\r\nenumerated Script Unknown\r\nvalue Script Unknown\r\nvalue Script Latin\r\nrange Script 0041 0043 Latin\r\nrange Script 0042 0044 Latin"
   },
   "pipelineDocument": "p.md",
   "input": "a",

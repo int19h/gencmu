@@ -1,7 +1,7 @@
 {
   "description": "MUhOI needs a word delimiter, so standalone punctuation cannot precede its opening delimiter.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mu'oi @ gy. broda .gy.",

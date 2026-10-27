@@ -1,7 +1,7 @@
 {
   "description": "The new ZOhOI word forms one quote token and preserves its foreign payload.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ba'e ci'e'u 你好é~ ui cmavo",

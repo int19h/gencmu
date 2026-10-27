@@ -177,7 +177,7 @@ function repositoryDoms(base) {
  * documents. A dialect document belongs to its own dialect.
  * @param {string} [base] the repository
  * @param {{get: (file: string) => any}} [doms]
- *   the DOMs by path under grammars/; those of the source documents unless
+ *   the DOMs by package-relative path; those of the source documents unless
  *   given
  * @returns {Map<string, string[]>} keyed by the path in the repository
  */
@@ -186,12 +186,12 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
   const dialects = new Map();
   for (const document of dialectDocuments(base)) {
     const dialect = path.posix.basename(document, ".md");
-    // The documents to visit, each path under grammars/, in the order of a
+    // The documents to visit, each package-relative path, in the order of a
     // walk down the includes. An explicit stack, since a chain of includes
     // can be longer than the call stack is deep.
-    const stack = [document.slice("grammars/".length)];
+    const stack = [document];
     for (let file = stack.pop(); file !== undefined; file = stack.pop()) {
-      const key = `grammars/${file}`;
+      const key = file;
       if (!dialects.has(key)) dialects.set(key, []);
       if (dialects.get(key).includes(dialect)) continue;
       dialects.get(key).push(dialect);
@@ -565,7 +565,7 @@ export function rejectionWindows(caseText, text) {
  * @returns {string | null}
  */
 export function roleProblem(c, role, text, dialects, loader) {
-  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`dialects/${c.dialect}.md`));
+  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`grammars/dialects/${c.dialect}.md`));
   const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
   if (role === "reject") {
     if (result.ok) return `its dialect accepts it`;

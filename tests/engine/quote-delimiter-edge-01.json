@@ -1,7 +1,7 @@
 {
   "description": "Attached delimiter marks act as formatting at the delimiter boundaries. Raw body material retains its source spelling.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi «ty. @needs native check ty.»",

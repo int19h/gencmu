@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%rule text _<¬_Script_Latin>\n```",
-    "unicode-properties.txt": "unicode-properties 15.1.0\n"
+    "data/unicode/unicode-properties.txt": "unicode-properties 15.1.0\n"
   },
   "pipelineDocument": "p.md",
   "input": "a",

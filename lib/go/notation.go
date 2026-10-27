@@ -22,10 +22,10 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 	defer func() {
 		if e, ok := err.(*Error); ok {
 			embedded := e.Document
-			if embedded != "" && embedded != "notation/bootstrap.json" && !strings.Contains(e.Message, embedded) {
+			if embedded != "" && embedded != "grammars/notation/bootstrap.json" && !strings.Contains(e.Message, embedded) {
 				e.Message += " (embedded document: " + embedded + ")"
 			}
-			e.Document = "notation/bootstrap.json"
+			e.Document = "grammars/notation/bootstrap.json"
 			location := e.Document
 			if e.Line != 0 {
 				location += ":" + strconv.Itoa(e.Line)
@@ -55,14 +55,14 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		} `json:"stages"`
 	}
 	if err := unmarshalJSON([]byte(bootstrap), &b); err != nil {
-		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
+		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "cannot read the bootstrap: " + err.Error()}
 	}
 	if b.Format != domFormat {
-		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has an unknown format"}
+		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "the bootstrap has an unknown format"}
 	}
 	nr := &notationReader{uni: uni, hash: fnv1a64(bootstrap)}
 	if len(b.Stages) == 0 {
-		return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "the bootstrap has no stages"}
+		return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "the bootstrap has no stages"}
 	}
 	type stageInput struct {
 		name      string
@@ -72,23 +72,23 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 	names := map[string]bool{}
 	for _, s := range b.Stages {
 		if s.Name == nil || !isName(*s.Name) {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
+			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a stage of the bootstrap has no name"}
 		}
 		if names[*s.Name] {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a second stage named " + *s.Name}
+			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a second stage named " + *s.Name}
 		}
 		names[*s.Name] = true
 		if len(s.Documents) == 0 {
-			return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a bootstrap stage requires documents"}
+			return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a bootstrap stage requires documents"}
 		}
 		var docs []docDOM
 		for _, d := range s.Documents {
 			if d.Path == nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "a document of the bootstrap has no path"}
+				return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "a document of the bootstrap has no path"}
 			}
 			dom, err := decodeDOM(d.Dom, uni)
 			if err != nil {
-				return nil, &Error{Kind: ErrorGrammar, Document: "notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error(), Code: rankedDOMCode(err)}
+				return nil, &Error{Kind: ErrorGrammar, Document: "grammars/notation/bootstrap.json", Message: "cannot read the bootstrap's DOM of " + *d.Path + ": " + err.Error(), Code: rankedDOMCode(err)}
 			}
 			docs = append(docs, docDOM{path: *d.Path, dom: dom})
 		}

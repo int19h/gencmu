@@ -1,7 +1,7 @@
 {
   "description": "The word stream gives one unique words-stage reading (grammars/words/stream.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ni'o mi si su bu",

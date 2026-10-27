@@ -1,7 +1,7 @@
 {
   "description": "The first close leaves a foreign word outside the quote. A later close cannot hide it.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. \"gy\" foo gy.",

@@ -1,6 +1,6 @@
 {
   "kind": "grammar",
-  "document": "notation/bootstrap.json",
+  "document": "grammars/notation/bootstrap.json",
   "cases": [
     {
       "description": "Invalid bootstrap JSON",
@@ -75,7 +75,7 @@
       "find": "\"directives\":[",
       "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[900,1]},",
       "at": "%ambiguity-resolution greedy",
-      "context": "notation/lexical.md",
+      "context": "grammars/notation/lexical.md",
       "stage": "lexical"
     },
     {
@@ -83,7 +83,7 @@
       "find": "\"name\":\"text\",\"op\":\"define\"",
       "replace": "\"name\":\"word\",\"op\":\"define\"",
       "at": "%rule word",
-      "context": "notation/lexical.md",
+      "context": "grammars/notation/lexical.md",
       "stage": "lexical"
     },
     {
@@ -136,7 +136,7 @@
     },
     {
       "description": "Missing bootstrap document path",
-      "find": "\"path\":\"notation/lexical.md\",",
+      "find": "\"path\":\"grammars/notation/lexical.md\",",
       "replace": "",
       "line": null,
       "column": null,
@@ -144,7 +144,7 @@
     },
     {
       "description": "Bootstrap document path is null",
-      "find": "\"path\":\"notation/lexical.md\"",
+      "find": "\"path\":\"grammars/notation/lexical.md\"",
       "replace": "\"path\":null",
       "line": null,
       "column": null,
@@ -152,7 +152,7 @@
     },
     {
       "description": "Bootstrap document path is number",
-      "find": "\"path\":\"notation/lexical.md\"",
+      "find": "\"path\":\"grammars/notation/lexical.md\"",
       "replace": "\"path\":0",
       "line": null,
       "column": null,
@@ -160,7 +160,7 @@
     },
     {
       "description": "Bootstrap document path is boolean",
-      "find": "\"path\":\"notation/lexical.md\"",
+      "find": "\"path\":\"grammars/notation/lexical.md\"",
       "replace": "\"path\":false",
       "line": null,
       "column": null,
@@ -168,7 +168,7 @@
     },
     {
       "description": "Bootstrap document path is object",
-      "find": "\"path\":\"notation/lexical.md\"",
+      "find": "\"path\":\"grammars/notation/lexical.md\"",
       "replace": "\"path\":{}",
       "line": null,
       "column": null,
@@ -176,7 +176,7 @@
     },
     {
       "description": "Bootstrap document path is array",
-      "find": "\"path\":\"notation/lexical.md\"",
+      "find": "\"path\":\"grammars/notation/lexical.md\"",
       "replace": "\"path\":[]",
       "line": null,
       "column": null,

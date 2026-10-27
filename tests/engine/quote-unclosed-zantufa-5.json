@@ -1,7 +1,7 @@
 {
   "description": "An unfinished replacement quote reports its missing LEhAI at the end of the input.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi sa'ai klama",

@@ -4,7 +4,7 @@ import { loaderFromSources, resultJson, toBrackets, type ParseResult, type Resul
 import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
-const dialect = loader.dialect("dialects/notation.md");
+const dialect = loader.dialect("grammars/dialects/notation.md");
 const result: ParseResult = dialect.parse("%rule text A", { features: ["sa-su"], until: "syntax" });
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
@@ -42,7 +42,7 @@ if (result.error) {
   void kind, reason;
 }
 
-const inMemory = loaderFromSources({ "unicode.txt": "" });
+const inMemory = loaderFromSources({ "data/unicode/unicode.txt": "" });
 void inMemory;
 
 // @ts-expect-error a text is a string
@@ -52,7 +52,7 @@ dialect.parse("", { features: [1] });
 // @ts-expect-error a token node has no children
 if (result.tree && result.tree.kind === "token") void result.tree.children;
 // @ts-expect-error resources map paths to text
-loaderFromSources({ "unicode.txt": 1 });
+loaderFromSources({ "data/unicode/unicode.txt": 1 });
 
 void verdicts, brackets, format;
 

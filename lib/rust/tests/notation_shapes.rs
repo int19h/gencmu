@@ -18,7 +18,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", document),
-        ("notation/bootstrap.json", bootstrap),
+        ("grammars/notation/bootstrap.json", bootstrap),
     ];
     let kind = |debug: String| Value::String(debug.to_lowercase());
     let dialect = match gencmu::load_dialect_sources(sources, "p.md") {
@@ -55,7 +55,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
 fn notation_shapes() {
     let shapes = parse_json(&read(&["tests", "notation-shapes.json"])).expect("notation-shapes.json");
     let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
-    let syntax_at = bootstrap.find(r#""path":"notation/syntax.md""#).expect("the syntax document");
+    let syntax_at = bootstrap.find(r#""path":"grammars/notation/syntax.md""#).expect("the syntax document");
     let names: Vec<String> = parse_json(&bootstrap)
         .expect("bootstrap.json")
         .get("stages")
@@ -63,7 +63,7 @@ fn notation_shapes() {
         .array()
         .iter()
         .flat_map(|stage| stage.get("documents").expect("documents").array().iter())
-        .filter(|document| document.get("path").and_then(Value::str) == Some("notation/syntax.md"))
+        .filter(|document| document.get("path").and_then(Value::str) == Some("grammars/notation/syntax.md"))
         .flat_map(|document| document.get("dom").expect("dom").get("rules").expect("rules").array().iter())
         .map(|rule| rule.get("name").and_then(Value::str).expect("a rule's name").to_string())
         .filter(|name| name != "text")
@@ -120,8 +120,8 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
         1,
     );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
-    let lexical = bootstrap.find(r#""path":"notation/lexical.md""#).expect("the lexical document");
-    let syntax = bootstrap.find(r#""path":"notation/syntax.md""#).expect("the syntax document");
+    let lexical = bootstrap.find(r#""path":"grammars/notation/lexical.md""#).expect("the lexical document");
+    let syntax = bootstrap.find(r#""path":"grammars/notation/syntax.md""#).expect("the syntax document");
     let at = bootstrap.find(directive).expect("the directive");
     assert!(lexical < at && at < syntax, "the first directive is the lexical stage's");
     let elision = bootstrap.replacen(directive, r#""name":"ambiguity-resolution","args":["greedy","elision-only"]"#, 1);
@@ -129,7 +129,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
             ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n".to_string()),
-            ("notation/bootstrap.json", bootstrap),
+            ("grammars/notation/bootstrap.json", bootstrap),
         ]
     };
     // The bundled bootstrap loads the same documents.
@@ -143,7 +143,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
 fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tail: &str, expression: &str) -> Value {
     for (stage, contents) in bootstrap.get("stages").unwrap().array().iter().enumerate() {
         for (document, contents) in contents.get("documents").unwrap().array().iter().enumerate() {
-            if contents.get("path").and_then(Value::str) != Some("notation/syntax.md") {
+            if contents.get("path").and_then(Value::str) != Some("grammars/notation/syntax.md") {
                 continue;
             }
             for (rule, contents) in contents.get("dom").unwrap().get("rules").unwrap().array().iter().enumerate() {
@@ -175,7 +175,7 @@ fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Dialect,
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
             ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
-            ("notation/bootstrap.json", bootstrap.to_text()),
+            ("grammars/notation/bootstrap.json", bootstrap.to_text()),
         ],
         "p.md",
     )

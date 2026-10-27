@@ -13,12 +13,12 @@
   const bundled = self.gencmuGrammars;
   const status = $("status");
   try {
-    const url = new URL("grammars/unicode-properties.txt", document.baseURI);
+    const url = new URL("data/unicode/unicode-properties.txt", document.baseURI);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    bundled["unicode-properties.txt"] = new TextDecoder("utf-8", {fatal:true, ignoreBOM:true}).decode(await response.arrayBuffer());
+    bundled["data/unicode/unicode-properties.txt"] = new TextDecoder("utf-8", {fatal:true, ignoreBOM:true}).decode(await response.arrayBuffer());
   } catch (error) {
-    setStatus("error", `unicode-properties.txt did not load: ${error.message}`);
+    setStatus("error", `data/unicode/unicode-properties.txt did not load: ${error.message}`);
     return;
   }
 
@@ -43,8 +43,8 @@
   const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
   const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
-  const dialectName = (path) => path.replace(/^dialects\//, "").replace(/\.md$/, "");
-  const dialectPaths = Object.keys(bundled).filter((path) => /^dialects\/[^/]+\.md$/.test(path)).sort((a, b) => {
+  const dialectName = (path) => path.replace(/^grammars\/dialects\//, "").replace(/\.md$/, "");
+  const dialectPaths = Object.keys(bundled).filter((path) => /^grammars\/dialects\/[^/]+\.md$/.test(path)).sort((a, b) => {
     const rank = (path) => { const index = DIALECT_ORDER.indexOf(dialectName(path)); return index < 0 ? DIALECT_ORDER.length : index; };
     return rank(a) - rank(b) || (a < b ? -1 : 1);
   });
@@ -57,19 +57,19 @@
     { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", dialect: "cll-ebnf" },
     { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
     { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", dialect: "zantufa",
-      document: "syntax/zantufa.md", rule: "tanru-unit-1",
+      document: "grammars/syntax/zantufa.md", rule: "tanru-unit-1",
       hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie." },
     { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "experimental",
-      document: "syntax/experimental.md", rule: "tanru-unit-2",
+      document: "grammars/syntax/experimental.md", rule: "tanru-unit-2",
       hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace each ≻ with | in the open MOI group to see a tie." },
     { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "experimental", tab: "tree",
-      document: "syntax/experimental.md", rule: "me-unit",
+      document: "grammars/syntax/experimental.md", rule: "me-unit",
       hint: "A sumti is an argument. A mex is a mathematical expression. The condition excludes mex only when sumti reads the same words with the same boundaries. Remove the %conditions clause to see a tie." },
     { label: "ME accepts a number (experimental)", text: "mi me pa", dialect: "experimental", tab: "tree",
-      document: "syntax/experimental.md", rule: "me-unit",
+      document: "grammars/syntax/experimental.md", rule: "me-unit",
       hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex." },
     { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", dialect: "cll-ebnf",
-      document: "syntax/cll.md", rule: "simple-tense-modal",
+      document: "grammars/syntax/cll.md", rule: "simple-tense-modal",
       hint: "The leftmost-longest rule flag prefers the earlier tense pu va. Remove (leftmost-longest) from the open rule to see a tie." },
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
@@ -85,7 +85,7 @@
 
   const state = {
     text: $("input").value,
-    dialect: dialectPaths.includes("dialects/cll-ebnf.md") ? "dialects/cll-ebnf.md" : dialectPaths[0],
+    dialect: dialectPaths.includes("grammars/dialects/cll-ebnf.md") ? "grammars/dialects/cll-ebnf.md" : dialectPaths[0],
     // The features the page turns on, and those it turns off among the
     // ones the dialect turns on.
     features: new Set(),
@@ -112,7 +112,7 @@
     const params = new URLSearchParams(location.hash.slice(1));
     if (params.has("text")) state.text = params.get("text");
     const dialect = params.get("dialect");
-    if (dialect && dialectPaths.includes(`dialects/${dialect}.md`)) state.dialect = `dialects/${dialect}.md`;
+    if (dialect && dialectPaths.includes(`grammars/dialects/${dialect}.md`)) state.dialect = `grammars/dialects/${dialect}.md`;
     if (params.get("features")) state.features = new Set(params.get("features").split(",").filter(Boolean));
     if (params.get("without")) state.without = new Set(params.get("without").split(",").filter(Boolean));
     if (["on", "off"].includes(params.get("elision"))) state.elision = params.get("elision");
@@ -956,7 +956,7 @@
   });
 
   // A download of one document, named after its path so that the several
-  // cll.md documents stay apart: words/cll.md is words--cll.md.
+  // cll.md documents stay apart: grammars/words/cll.md is words--cll.md.
   function download(path) {
     const blob = new Blob([client.text(path)], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -994,7 +994,7 @@
       if (!example) return;
       state.text = example.text;
       $("input").value = example.text;
-      state.dialect = `dialects/${example.dialect}.md`;
+      state.dialect = `grammars/dialects/${example.dialect}.md`;
       state.elision = example.elision || "";
       state.until = "";
       const hint = $("example-hint");

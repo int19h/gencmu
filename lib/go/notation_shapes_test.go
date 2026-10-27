@@ -48,7 +48,7 @@ func TestNotationShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	bootstrap := string(bootstrapRaw)
-	syntaxAt := strings.Index(bootstrap, `"path":"notation/syntax.md"`)
+	syntaxAt := strings.Index(bootstrap, `"path":"grammars/notation/syntax.md"`)
 	var b struct {
 		Stages []struct {
 			Documents []struct {
@@ -67,7 +67,7 @@ func TestNotationShapes(t *testing.T) {
 	var names []string
 	for _, s := range b.Stages {
 		for _, d := range s.Documents {
-			if d.Path != "notation/syntax.md" {
+			if d.Path != "grammars/notation/syntax.md" {
 				continue
 			}
 			for _, r := range d.Dom.Rules {
@@ -81,7 +81,7 @@ func TestNotationShapes(t *testing.T) {
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
 	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
-		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "notation/bootstrap.json": boot}, "p.md")
+		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "grammars/notation/bootstrap.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
@@ -185,7 +185,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	}
 	for _, document := range parsed["stages"].([]any)[0].(map[string]any)["documents"].([]any) {
 		d := document.(map[string]any)
-		if d["path"] != "notation/lexical.md" {
+		if d["path"] != "grammars/notation/lexical.md" {
 			continue
 		}
 		for _, rule := range d["dom"].(map[string]any)["rules"].([]any) {
@@ -214,7 +214,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	elision := string(encoded)
 	sources := func(boot string) map[string]string {
 		return map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "notation/bootstrap.json": boot}
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "grammars/notation/bootstrap.json": boot}
 	}
 	// The bundled bootstrap loads the same documents.
 	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {

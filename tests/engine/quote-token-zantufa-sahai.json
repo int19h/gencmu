@@ -1,6 +1,6 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "description": "A complete quote emits one token with its opening class, original image, and decomposed value.",

@@ -1,7 +1,7 @@
 {
   "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "pu me'oi 你好",

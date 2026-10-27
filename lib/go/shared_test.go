@@ -174,7 +174,7 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 		}, "pipeline.md", noCache)
 	}
 	for _, text := range c.Documents {
-		if strings.Contains(text, `%include "../dialects/`) {
+		if strings.Contains(text, `%include "../grammars/dialects/`) {
 			documents := map[string]string{}
 			err := filepath.WalkDir("../../grammars", func(path string, entry os.DirEntry, err error) error {
 				if err != nil {

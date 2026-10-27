@@ -26,7 +26,7 @@ export declare class UnicodeTable {
     properties: Map<string, import("./unicode-properties.js").PropertyData>;
     /** @type {Map<number, readonly string[]>} */
     profiles: Map<number, readonly string[]>;
-    /** @param {string} text the contents of unicode.txt @param {string} [properties] */
+    /** @param {string} text the contents of data/unicode/unicode.txt @param {string} [properties] */
     constructor(text: string, properties?: string);
     /** @param {string} spelling @returns {string | null} */
     canonicalTag(spelling: string): string | null;

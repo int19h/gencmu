@@ -1,7 +1,7 @@
 {
   "description": "Quote images preserve written case and hesitation while ordinary hesitation contributes no word or normalized value. The word stream gives one unique words-stage reading (grammars/words/stream.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo SINdarin",

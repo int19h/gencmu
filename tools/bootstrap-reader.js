@@ -23,12 +23,12 @@ import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
 // and the marks that a character tag escapes (engine §1, §9).
-const unicode = new UnicodeTable(readResource("unicode.txt"), readResource("unicode-properties.txt"));
+const unicode = new UnicodeTable(readResource("data/unicode/unicode.txt"), readResource("data/unicode/unicode-properties.txt"));
 
 /** @param {string} key @returns {string} */
 export function readResource(key) {
   try {
-    const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
+    const bytes = fs.readFileSync(fileURLToPath(new URL("../", import.meta.url)) + (key === "data/unicode/unicode-names-reference.txt" ? "data/unicode/unicode-names.txt" : key));
     return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
   } catch (error) {
     throw new GencmuError("grammar", `${key}: reading the resource failed`, {document:key}, {cause:error});

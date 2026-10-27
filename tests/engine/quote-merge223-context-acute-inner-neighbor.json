@@ -1,7 +1,7 @@
 {
   "description": "The comma is ignored before the mark. The mark remains an interior apostrophe and joins the surrounding letters.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi,´zo'oi foo",

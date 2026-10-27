@@ -18,11 +18,11 @@ def sources(grammar):
 def cached_sources(texts, dom):
     return {
         **texts,
-        "compiled.json": json.dumps(
+        "grammars/compiled.json": json.dumps(
             {
                 "format": DOM_FORMAT,
-                "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json")),
-                "unicode": fnv1a64(bundled_text("unicode.txt")), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""),
+                "bootstrap": fnv1a64(bundled_text("grammars/notation/bootstrap.json")),
+                "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt")), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
                 "documents": {"g.md": {"hash": fnv1a64(texts["g.md"]), "dom": dom}},
             }
         ),

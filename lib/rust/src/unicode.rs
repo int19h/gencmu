@@ -1,4 +1,4 @@
-//! The character table of `grammars/unicode.txt` (engine §1): the
+//! The character table of `data/unicode/unicode.txt` (engine §1): the
 //! category, whitespace, decomposition and combining-class properties. Every library reads this
 //! table rather than its platform's Unicode data.
 
@@ -71,22 +71,22 @@ pub(crate) struct Decomposed {
 
 fn hex(field: &str, line: usize) -> Result<u32, String> {
     if field.is_empty() || !field.bytes().all(|c| c.is_ascii_hexdigit()) {
-        return Err(format!("unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
     }
     let digits = field.trim_start_matches('0');
     if digits.len() > 6 {
-        return Err(format!("unicode.txt line {line}: a bad code point {field:?}"));
+        return Err(format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"));
     }
     u32::from_str_radix(if digits.is_empty() { "0" } else { digits }, 16)
         .ok()
         .filter(|&code| code <= 0x10ffff)
-        .ok_or_else(|| format!("unicode.txt line {line}: a bad code point {field:?}"))
+        .ok_or_else(|| format!("data/unicode/unicode.txt line {line}: a bad code point {field:?}"))
 }
 
 fn range(first: &str, last: &str, line: usize) -> Result<(u32, u32), String> {
     let (first, last) = (hex(first, line)?, hex(last, line)?);
     if first > last {
-        return Err(format!("unicode.txt line {line}: a reversed range"));
+        return Err(format!("data/unicode/unicode.txt line {line}: a reversed range"));
     }
     Ok((first, last))
 }
@@ -129,7 +129,7 @@ impl Unicode {
                         || table.abbreviations.contains_key(*alias)
                         || pinned.is_some_and(|known| known != code)
                     {
-                        return Err(format!("unicode.txt line {number}: an invalid abbreviation"));
+                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid abbreviation"));
                     }
                     table.abbreviations.insert((*alias).into(), code);
                     if table
@@ -142,7 +142,7 @@ impl Unicode {
                 }
                 ["category", name, first, last] => {
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
-                        return Err(format!("unicode.txt line {number}: an unknown category {name:?}"));
+                        return Err(format!("data/unicode/unicode.txt line {number}: an unknown category {name:?}"));
                     };
                     let (first, last) = range(first, last, number)?;
                     table.categories.push((first, last, category));
@@ -158,13 +158,13 @@ impl Unicode {
                 ["decompose", code, scalars @ ..] if !scalars.is_empty() => {
                     let code = hex(code, number)?;
                     if char::from_u32(code).is_none() {
-                        return Err(format!("unicode.txt line {number}: an invalid scalar"));
+                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid scalar"));
                     }
                     let scalars = scalars
                         .iter()
                         .map(|field| {
                             char::from_u32(hex(field, number)?)
-                                .ok_or_else(|| format!("unicode.txt line {number}: an invalid scalar"))
+                                .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: an invalid scalar"))
                         })
                         .collect::<Result<Vec<_>, String>>()?;
                     table.decompositions.push((code, scalars));
@@ -172,17 +172,17 @@ impl Unicode {
                 ["combining", klass, first, last] => {
                     let digits = klass.trim_start_matches('0');
                     if digits.len() > 3 || !klass.bytes().all(|c| c.is_ascii_digit()) {
-                        return Err(format!("unicode.txt line {number}: a bad combining class"));
+                        return Err(format!("data/unicode/unicode.txt line {number}: a bad combining class"));
                     }
                     let klass = digits
                         .parse::<u8>()
                         .ok()
                         .filter(|&n| n > 0 && n < 255)
-                        .ok_or_else(|| format!("unicode.txt line {number}: a bad combining class"))?;
+                        .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: a bad combining class"))?;
                     let (first, last) = range(first, last, number)?;
                     table.combining.push((first, last, klass));
                 }
-                _ => return Err(format!("unicode.txt line {number}: an unreadable record")),
+                _ => return Err(format!("data/unicode/unicode.txt line {number}: an unreadable record")),
             }
         }
         table.categories.sort_unstable();
@@ -328,7 +328,7 @@ mod tests {
     use super::*;
 
     fn table() -> Unicode {
-        let text = crate::loader::bundled("unicode.txt").expect("unicode.txt");
+        let text = crate::loader::bundled("data/unicode/unicode.txt").expect("data/unicode/unicode.txt");
         Unicode::parse(text).expect("the bundled table")
     }
 
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn records_in_any_order_give_the_same_answers() {
-        let text = crate::loader::bundled("unicode.txt").expect("unicode.txt");
+        let text = crate::loader::bundled("data/unicode/unicode.txt").expect("data/unicode/unicode.txt");
         let bundled = table();
         let reversed_text: Vec<&str> = text.lines().rev().collect();
         let reversed = Unicode::parse(&reversed_text.join("\n")).expect("the reversed table");

@@ -10,7 +10,7 @@ from .shared import SHARED
 
 class Normalization(unittest.TestCase):
     def test_unicode_conformance(self) -> None:
-        table = UnicodeTable(bundled_text("unicode.txt") or "")
+        table = UnicodeTable(bundled_text("data/unicode/unicode.txt") or "")
         listed: set[int] = set()
         part = ""
         count = 0
@@ -34,7 +34,7 @@ class Normalization(unittest.TestCase):
             self.assertEqual(table.decompose(chr(code)), chr(code), f"unlisted U+{code:04X}")
 
     def test_origins_and_stable_order(self) -> None:
-        table = UnicodeTable(bundled_text("unicode.txt") or "")
+        table = UnicodeTable(bundled_text("data/unicode/unicode.txt") or "")
         self.assertEqual(table.decompose_with_origins("á\u0323"), [("a", 0), ("\u0323", 1), ("\u0301", 0)])
         self.assertEqual(table.decompose_with_origins("\u0301\u0300a\u0315\u0301"),
                          [("\u0301", 0), ("\u0300", 1), ("a", 2), ("\u0301", 4), ("\u0315", 3)])

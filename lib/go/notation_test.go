@@ -76,7 +76,7 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
-// TestFixpoint loads the notation's pipeline, dialects/notation.md, with
+// TestFixpoint loads the notation's pipeline, grammars/dialects/notation.md, with
 // the bootstrap, splices it, and compares the stages with the bootstrap
 // itself (engine §8): the same names, and the same runs of documents with
 // the same DOMs.
@@ -94,20 +94,20 @@ func TestFixpoint(t *testing.T) {
 			} `json:"documents"`
 		} `json:"stages"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["grammars/notation/bootstrap.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
 	// The repository's documents, each read with the bootstrap.
 	l := &loader{
 		read: func(p string) (string, bool) {
-			text, err := os.ReadFile(filepath.Join("..", "..", "grammars", filepath.FromSlash(p)))
+			text, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(p)))
 			return string(text), err == nil
 		},
 		uni:     bundled.uni,
 		reader:  bundled.reader,
 		noCache: true,
 	}
-	p, err := l.splice("dialects/notation.md")
+	p, err := l.splice("grammars/dialects/notation.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestFixpoint(t *testing.T) {
 	}
 }
 
-// TestCompiled checks that compiled.json agrees with a fresh reading of
+// TestCompiled checks that grammars/compiled.json agrees with a fresh reading of
 // every document it lists, and that it is the file of the grammars.
 func TestCompiled(t *testing.T) {
 	t.Parallel()
@@ -153,23 +153,23 @@ func TestCompiled(t *testing.T) {
 			Dom  json.RawMessage `json:"dom"`
 		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["grammars/compiled.json"]), &c); err != nil {
 		t.Fatal(err)
 	}
 	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash || c.Unicode != bundled.uni.hash {
-		t.Fatalf("compiled.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
+		t.Fatalf("grammars/compiled.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
 	}
 	if len(c.Documents) == 0 {
-		t.Fatal("compiled.json lists no documents")
+		t.Fatal("grammars/compiled.json lists no documents")
 	}
 	for p, d := range c.Documents {
 		text, ok := bundled.sources[p]
 		if !ok {
-			t.Errorf("%s: listed in compiled.json but not bundled", p)
+			t.Errorf("%s: listed in grammars/compiled.json but not bundled", p)
 			continue
 		}
 		if fnv1a64(text) != d.Hash {
-			t.Errorf("%s: compiled.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
+			t.Errorf("%s: grammars/compiled.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
 		}
 		dom, rerr := bundled.reader.read(text, p)
 		if rerr != nil {
@@ -177,13 +177,13 @@ func TestCompiled(t *testing.T) {
 		}
 		want, _ := decodeJSON(d.Dom)
 		if !equalJSON(domValue(t, dom), want) {
-			t.Errorf("%s: compiled.json's DOM differs from a fresh reading", p)
+			t.Errorf("%s: grammars/compiled.json's DOM differs from a fresh reading", p)
 		}
 	}
 	for p, text := range bundled.sources {
-		disk, err := os.ReadFile(filepath.Join("..", "..", "grammars", p))
+		disk, err := os.ReadFile(filepath.Join("..", "..", p))
 		if err != nil || string(disk) != text {
-			t.Errorf("lib/go/grammars/%s differs from grammars/%s; run node tools/sync.js", p, p)
+			t.Errorf("lib/go/%s differs from %s; run node tools/sync.js", p, p)
 		}
 	}
 }
@@ -199,10 +199,10 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	for p, text := range bundled.sources {
 		sources[p] = text
 	}
-	text := bundled.sources["notation/syntax.md"]
+	text := bundled.sources["grammars/notation/syntax.md"]
 	var outs [][]byte
 	for _, noCache := range []bool{false, true} {
-		d, err := loadSources(sources, "dialects/notation.md", noCache)
+		d, err := loadSources(sources, "grammars/dialects/notation.md", noCache)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -220,8 +220,8 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
-		t.Error("compiled.json was used with another bootstrap")
+	if got := readCompiled(bundled.sources["grammars/compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+		t.Error("grammars/compiled.json was used with another bootstrap")
 	}
 }
 
@@ -237,11 +237,11 @@ func TestBundledCacheSameStages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(configured.compiled) == 0 {
-		t.Fatal("compiled.json holds no DOMs for this bootstrap")
+		t.Fatal("grammars/compiled.json holds no DOMs for this bootstrap")
 	}
 	var names []string
 	for p := range bundled.sources {
-		if strings.HasPrefix(p, "dialects/") && strings.HasSuffix(p, ".md") {
+		if strings.HasPrefix(p, "grammars/dialects/") && strings.HasSuffix(p, ".md") {
 			names = append(names, p)
 		}
 	}
@@ -487,7 +487,7 @@ func TestCharacterTags(t *testing.T) {
 // search goes wrong first.
 func TestUnicodeTableOrder(t *testing.T) {
 	t.Parallel()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +561,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + rule + "\n```\n",
 		}
 		if table {
-			m["unicode.txt"] = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
+			m["data/unicode/unicode.txt"] = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
 		}
 		return m
 	}
@@ -584,11 +584,11 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 	}
 }
 
-// grammars/unicode.txt gives each scalar value its General_Category and
+// data/unicode/unicode.txt gives each scalar value its General_Category and
 // says which have White_Space (engine §1).
 func TestUnicodeTable(t *testing.T) {
 	t.Parallel()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,13 +625,13 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 1 {
-		t.Fatalf("a compiled.json of format %d is not used", domFormat)
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
+		t.Fatalf("a grammars/compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
-		t.Fatal("a compiled.json of format 17 is used")
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+		t.Fatal("a grammars/compiled.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
 		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {

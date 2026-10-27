@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹ZWJ›\"\n```",
-    "unicode-names.txt": "invalid"
+    "data/unicode/unicode-names.txt": "invalid"
   },
   "pipelineDocument": "p.md",
   "tokens": [

@@ -1,7 +1,7 @@
 {
   "description": "The new ZO word forms one quote token with whole-quote attachments.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ba'e doi'u coi ui cmavo",

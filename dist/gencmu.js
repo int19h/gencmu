@@ -1474,7 +1474,7 @@
 
   /** @param {number | undefined} line @returns {never} */
   function propertyResourceError(line) {
-    throw new GencmuError("grammar", "the property record is invalid", {document:"unicode-properties.txt", ...(line === undefined ? {} : {line})});
+    throw new GencmuError("grammar", "the property record is invalid", {document:"data/unicode/unicode-properties.txt", ...(line === undefined ? {} : {line})});
   }
 
   /**
@@ -1564,7 +1564,7 @@
 
 
 
-  // The character data of grammars/unicode.txt: the General_Category of a
+  // The character data of data/unicode/unicode.txt: the General_Category of a
   // character, whitespace, emoji properties and canonical decomposition.
   // Every library reads the same data (engine §1).
 
@@ -1577,7 +1577,7 @@
 
 
   class UnicodeTable {
-    /** @param {string} text the contents of unicode.txt @param {string} [properties] */
+    /** @param {string} text the contents of data/unicode/unicode.txt @param {string} [properties] */
     constructor(text, properties) {
       /** @type {string | null} */
       this.version = null;
@@ -1609,7 +1609,7 @@
         const fields = line.split(/[ \t]+/).filter(field => field !== "");
         if (!fields[0]) continue;
         const fail = () => {
-          throw new GencmuError("grammar", `unicode.txt:${index + 1}: an unreadable record`, {document: "unicode.txt", line: index + 1});
+          throw new GencmuError("grammar", `data/unicode/unicode.txt:${index + 1}: an unreadable record`, {document: "data/unicode/unicode.txt", line: index + 1});
         };
         const entry = fields[0];
         const count = entry === "unicode" ? 2 : entry === "category" || entry === "combining" ? 4
@@ -4409,7 +4409,7 @@
 
 
   // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a precompiled one from compiled.json, has the shape the
+  // bootstrap's or a precompiled one from grammars/compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
   // or hand-made one is refused rather than failing somewhere inside a parse.
 
@@ -19473,19 +19473,19 @@
     load() {
       if (this.tables !== null) return;
       const version = this.unicode.version;
-      if (this.unicode.versionCount !== 1 || version === null) namesFailure("unicode.txt", "names require exactly one Unicode version");
-      const text = this.read("unicode-names.txt");
+      if (this.unicode.versionCount !== 1 || version === null) namesFailure("data/unicode/unicode.txt", "names require exactly one Unicode version");
+      const text = this.read("data/unicode/unicode-names.txt");
       const hash = this.fingerprint(text);
-      const base = new UnicodeNames(text, "unicode-names.txt", version);
-      const reference = hash === PINNED_NAMES_HASH ? text : this.read("unicode-names-reference.txt");
-      if (this.fingerprint(reference) !== PINNED_NAMES_HASH) namesFailure("unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
-      if (version !== "15.1.0") namesFailure("unicode-names-reference.txt", "the reference version differs from the selected names version");
-      const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "unicode-names-reference.txt", "15.1.0");
+      const base = new UnicodeNames(text, "data/unicode/unicode-names.txt", version);
+      const reference = hash === PINNED_NAMES_HASH ? text : this.read("data/unicode/unicode-names-reference.txt");
+      if (this.fingerprint(reference) !== PINNED_NAMES_HASH) namesFailure("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data");
+      if (version !== "15.1.0") namesFailure("data/unicode/unicode-names-reference.txt", "the reference version differs from the selected names version");
+      const pinned = hash === PINNED_NAMES_HASH ? base : new UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0");
       base.inspect(pinned, this.unicode.abbreviations, false);
       const tables = [base];
       /** @type {Record<string,string>} */
       const dependencies = Object.create(null);
-      dependencies["unicode-names.txt"] = hash;
+      dependencies["data/unicode/unicode-names.txt"] = hash;
       for (const path of this.extras) {
         const text = this.read(path), table = new UnicodeNames(text, path, version);
         table.inspect(pinned, this.unicode.abbreviations, true);
@@ -19962,7 +19962,7 @@
    * @property {(tokens:Token[])=>void} [inspectLexical]
    */
 
-  // Resources: a function from a path relative to the grammars root to its
+  // Resources: a function from a path relative to the package root to its
   // text, or undefined. The bundled grammars, a directory on disk and a map
   // held in memory are all resources.
   class Loader {
@@ -19972,16 +19972,16 @@
       this.namesOverride = namesOverride;
       /** @type {Record<string,string> | undefined} */
       this.bundledNames = undefined;
-      const unicodeText = this.need("unicode.txt");
+      const unicodeText = this.need("data/unicode/unicode.txt");
       this.unicodeHash = fnv1a64(unicodeText);
-      const propertiesText = this.read("unicode-properties.txt");
+      const propertiesText = this.read("data/unicode/unicode-properties.txt");
       this.unicode = new UnicodeTable(unicodeText, propertiesText);
       this.propertiesHash = propertiesText === undefined ? null : fnv1a64(propertiesText);
       try {
-        const bootstrapText = this.need("notation/bootstrap.json");
+        const bootstrapText = this.need("grammars/notation/bootstrap.json");
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
         this.bootstrapHash = fnv1a64(bootstrapText);
-        this.notation = new Dialect("dialects/notation.md", bootstrap.stages.map((stage) => {
+        this.notation = new Dialect("grammars/dialects/notation.md", bootstrap.stages.map((stage) => {
           try {
             return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
           } catch (error) {
@@ -19993,10 +19993,10 @@
       } catch (error) {
         if (error instanceof GencmuError) {
           const embedded = error.where.document;
-          if (embedded && embedded !== "notation/bootstrap.json" && !error.message.includes(embedded)) {
+          if (embedded && embedded !== "grammars/notation/bootstrap.json" && !error.message.includes(embedded)) {
             error.message += ` (embedded document: ${embedded})`;
           }
-          error.where.document = "notation/bootstrap.json";
+          error.where.document = "grammars/notation/bootstrap.json";
           const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
           if (!error.message.startsWith(`${location}: `)) {
             const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
@@ -20009,7 +20009,7 @@
       this.compiled = new Map();
       // Precompiled DOMs are a cache: one that cannot be read, or an entry
       // that is not a DOM, is a miss, and the document is read instead.
-      const compiled = this.read("compiled.json");
+      const compiled = this.read("grammars/compiled.json");
       if (compiled !== undefined) {
         let data;
         try {
@@ -20050,7 +20050,7 @@
     need(path) {
       let text;
       try { text = this.read(path); } catch (error) {
-        if (path !== "notation/bootstrap.json" || error instanceof GencmuError) throw error;
+        if (path !== "grammars/notation/bootstrap.json" || error instanceof GencmuError) throw error;
         throw new GencmuError("grammar", `cannot read the bootstrap: ${error instanceof Error ? error.message : String(error)}`, { document: path }, { cause: error });
       }
       if (text === undefined) throw new GencmuError("grammar", `${path} was not found`, { document: path });
@@ -20133,12 +20133,12 @@
       if (dependencies === undefined) return true;
       if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)
         || Object.values(dependencies).some(hash => typeof hash !== "string" || !/^[0-9a-f]{16}$/.test(hash))) return false;
-      const paths = [...new Set(["unicode-names.txt",...extras])].sort(compareCodePoints);
+      const paths = [...new Set(["data/unicode/unicode-names.txt",...extras])].sort(compareCodePoints);
       if (Object.keys(dependencies).length !== paths.length || paths.some(path => !Object.hasOwn(dependencies,path))) return false;
       const registry = this.bundledNames;
       if (registry && paths.every(path => Object.hasOwn(registry,path) && !this.namesOverride(path))) {
         if (this.unicode.versionCount !== 1 || this.unicode.version !== "15.1.0") {
-          throw new GencmuError("grammar", "bundled names require Unicode version 15.1.0", {document:"unicode.txt"});
+          throw new GencmuError("grammar", "bundled names require Unicode version 15.1.0", {document:"data/unicode/unicode.txt"});
         }
         return paths.every(path => registry[path] === dependencies[path]);
       }
@@ -20518,20 +20518,20 @@
     try {
       data = JSON.parse(text);
     } catch (error) {
-      throw new GencmuError("grammar", `notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "notation/bootstrap.json" });
+      throw new GencmuError("grammar", `grammars/notation/bootstrap.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: "grammars/notation/bootstrap.json" });
     }
     const names = new Set();
     const stages = data && data.format === DOM_FORMAT && Array.isArray(data.stages) ? data.stages : null;
-    if (!stages || stages.length === 0) throw new GencmuError("grammar", "notation/bootstrap.json has no stages", { document: "notation/bootstrap.json" });
+    if (!stages || stages.length === 0) throw new GencmuError("grammar", "grammars/notation/bootstrap.json has no stages", { document: "grammars/notation/bootstrap.json" });
     for (const stage of stages) {
       if (!stage || typeof stage.name !== "string" || !CLASSIFIER_NAME.test(stage.name) || !Array.isArray(stage.documents) || stage.documents.length === 0) {
-        throw new GencmuError("grammar", "notation/bootstrap.json has a malformed stage", { document: "notation/bootstrap.json" });
+        throw new GencmuError("grammar", "grammars/notation/bootstrap.json has a malformed stage", { document: "grammars/notation/bootstrap.json" });
       }
-      if (names.has(stage.name)) throw new GencmuError("grammar", `notation/bootstrap.json: a second stage named ${stage.name}`, { document: "notation/bootstrap.json" });
+      if (names.has(stage.name)) throw new GencmuError("grammar", `grammars/notation/bootstrap.json: a second stage named ${stage.name}`, { document: "grammars/notation/bootstrap.json" });
       names.add(stage.name);
       for (const document of stage.documents) {
         const problem = document && typeof document.path === "string" ? domProblem(document.dom, unicode) : "a document without a path";
-        if (problem) throw new GencmuError("grammar", `notation/bootstrap.json: ${problem}`, { document: "notation/bootstrap.json", ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
+        if (problem) throw new GencmuError("grammar", `grammars/notation/bootstrap.json: ${problem}`, { document: "grammars/notation/bootstrap.json", ...(problem.startsWith("ranked-choice-syntax:") ? {code:"ranked-choice-syntax"} : {}) });
         document.dom = knownDomMembers(document.dom);
       }
     }
@@ -20625,8 +20625,8 @@
 
   /**
    * A dialect from documents held in memory: a map, or a plain object, from
-   * path to text, which must include `unicode.txt` and
-   * `notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+   * path to text, which must include `data/unicode/unicode.txt` and
+   * `grammars/notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
    * grammars), and the path of the pipeline document among them.
    * @param {Map<string, string> | Record<string, string>} sources
    * @param {string} pipelinePath

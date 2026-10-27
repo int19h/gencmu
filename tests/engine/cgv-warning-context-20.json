@@ -1,7 +1,7 @@
 {
   "description": "ZO quotes FAhO, so it does not truncate the text. The following CgV word still warns.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo fa'o atkuila",

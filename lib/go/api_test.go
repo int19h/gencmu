@@ -75,7 +75,7 @@ func TestLoadDialectBundled(t *testing.T) {
 		t.Fatal("a missing dialect loaded")
 	} else {
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "dialects/no-such-dialect.md" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/dialects/no-such-dialect.md" {
 			t.Fatalf("unexpected error %#v", err)
 		}
 	}
@@ -608,22 +608,22 @@ func TestDeepDerivations(t *testing.T) {
 func TestBootstrapNulls(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	bootstrap := bundled.sources["notation/bootstrap.json"]
-	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"notation/lexical.md"`, `"path":null`}} {
+	bootstrap := bundled.sources["grammars/notation/bootstrap.json"]
+	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"grammars/notation/lexical.md"`, `"path":null`}} {
 		if !strings.Contains(bootstrap, change[0]) {
 			t.Fatalf("no %s in the bootstrap", change[0])
 		}
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
-		src["notation/bootstrap.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
+		src["grammars/notation/bootstrap.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
 		_, err := LoadDialectSources(src, "p.md")
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", change[1], err)
 		}
 	}
 }
 
-// Malformed precompiled DOMs: a bad compiled.json entry is a miss, read
+// Malformed precompiled DOMs: a bad grammars/compiled.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
 func TestMalformedPrecompiled(t *testing.T) {
@@ -717,26 +717,26 @@ func TestMalformedPrecompiled(t *testing.T) {
 		if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 			t.Fatalf("a malformed DOM decodes: %s", dom)
 		}
-		// In compiled.json, with every hash matching: a miss.
+		// In grammars/compiled.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["grammars/compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
 		if err != nil {
-			t.Fatalf("%s in compiled.json: %v", expr, err)
+			t.Fatalf("%s in grammars/compiled.json: %v", expr, err)
 		}
 		res, err := d.Parse("ab", ParseOptions{})
 		if err != nil || !res.OK {
-			t.Fatalf("%s in compiled.json: the document was not read instead: %v %+v", expr, err, res)
+			t.Fatalf("%s in grammars/compiled.json: the document was not read instead: %v %+v", expr, err, res)
 		}
 		// In the bootstrap: a load error.
 		src = map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["grammars/notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"grammars/notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -746,7 +746,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 }
 
 // Malformed range and property nodes take the whole loading path: in
-// compiled.json each is a miss, read from the document instead, and in the
+// grammars/compiled.json each is a miss, read from the document instead, and in the
 // bootstrap each is an error of the bootstrap (engine §9). Each keeps the
 // range 'b'..'c' first, so an entry used by mistake would reject "ab".
 func TestMalformedCharacterClasses(t *testing.T) {
@@ -763,7 +763,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["grammars/compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		return src
 	}
 	bootstrap := func(dom string) error {
@@ -771,7 +771,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
+		src["grammars/notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"grammars/notation/lexical.md","dom":` + dom + `}]}]}`
 		_, err := LoadDialectSources(src, "p.md")
 		return err
 	}
@@ -793,7 +793,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		t.Fatal("the well-formed entry was not used")
 	}
 	var e *Error
-	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "notation/bootstrap.json" {
+	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "grammars/notation/bootstrap.json" {
 		t.Fatalf("the well-formed bootstrap was refused: %v", err)
 	}
 	for _, expr := range []string{
@@ -813,9 +813,9 @@ func TestMalformedCharacterClasses(t *testing.T) {
 			t.Errorf("a malformed DOM decodes: %s", expr)
 		}
 		if !parse(compiled(d)) {
-			t.Errorf("%s in compiled.json: the document was not read instead", expr)
+			t.Errorf("%s in grammars/compiled.json: the document was not read instead", expr)
 		}
-		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/notation/bootstrap.json" {
 			t.Errorf("%s in the bootstrap: expected an error of the bootstrap, got %v", expr, err)
 		}
 	}
@@ -1196,7 +1196,7 @@ func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	}
 }
 
-// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+// grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
 // covers the mark, so a word that begins with the shorthand begins at it.
 func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	t.Parallel()
@@ -1214,7 +1214,7 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	}
 }
 
-// words/cll.md and words/forms.md: a Cy letter is never continued. So the
+// grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never continued. So the
 // general join of run-words, a continued word before an onset, never joins a
 // Cy letter to the word after it, and only the Cy rule joins two letters.
 func TestCyLetterIsNeverContinued(t *testing.T) {
@@ -1234,7 +1234,7 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 	}
 }
 
-// indicators/cll.md: the greedy ranking reads a nai after a leading
+// grammars/indicators/cll.md: the greedy ranking reads a nai after a leading
 // attitudinal into the leading run, with or without a ba'e before it, and
 // after a quotation opener as at the start of the text. No condition decides it,
 // so each of these texts has the verdict resolved in the indicator stage.
@@ -1274,7 +1274,7 @@ func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	}
 }
 
-// syntax/experimental.md: the grammar reads no LA, since no word of the
+// grammars/syntax/experimental.md: the grammar reads no LA, since no word of the
 // experimental lexicon has it. A probe document after the lexicon moves la
 // from LE to LA, and then no rule reads la mlatu ku.
 func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
@@ -1297,12 +1297,12 @@ func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
 		t.Fatal(err)
 	}
 	include := `%include "../words/lexicon-experimental.md"`
-	if !strings.Contains(sources["dialects/experimental.md"], include) {
+	if !strings.Contains(sources["grammars/dialects/experimental.md"], include) {
 		t.Fatal("the pipeline no longer includes the lexicon")
 	}
-	sources["dialects/experimental.md"] = strings.Replace(sources["dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
-	sources["words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
-	probe, err := LoadDialectSources(sources, "dialects/experimental.md")
+	sources["grammars/dialects/experimental.md"] = strings.Replace(sources["grammars/dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
+	sources["grammars/words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
+	probe, err := LoadDialectSources(sources, "grammars/dialects/experimental.md")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
     bundled::BUNDLED.iter().find(|(name, _)| *name == path).map(|(_, text)| *text)
 }
 
-/// The precompiled DOMs of `compiled.json`, usable only when its format
+/// The precompiled DOMs of `grammars/compiled.json`, usable only when its format
 /// and fingerprints of the bootstrap and Unicode table match. Each DOM is shared by its two keys, not
 /// copied: a copy would recurse over the JSON before `dom_from_json` checks
 /// its depth.
@@ -142,8 +142,8 @@ fn grammar_error(message: String) -> Error {
 }
 
 fn unicode_error(message: String) -> Error {
-    let line = message.strip_prefix("unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
-    let mut error = Error::grammar(message).in_document("unicode.txt");
+    let line = message.strip_prefix("data/unicode/unicode.txt line ").and_then(|tail| tail.split(':').next()?.parse().ok());
+    let mut error = Error::grammar(message).in_document("data/unicode/unicode.txt");
     error.line = line;
     error
 }
@@ -151,12 +151,12 @@ fn unicode_error(message: String) -> Error {
 fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
     build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
-            if embedded != "notation/bootstrap.json" && !error.message.contains(embedded) {
+            if embedded != "grammars/notation/bootstrap.json" && !error.message.contains(embedded) {
                 error.message.push_str(&format!(" (embedded document: {embedded})"));
             }
         }
-        error.document = Some("notation/bootstrap.json".to_string());
-        let mut location = "notation/bootstrap.json".to_string();
+        error.document = Some("grammars/notation/bootstrap.json".to_string());
+        let mut location = "grammars/notation/bootstrap.json".to_string();
         if let Some(line) = error.line {
             location.push_str(&format!(":{line}"));
             if let Some(column) = error.column {
@@ -261,10 +261,10 @@ impl Context {
                         .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
                 };
                 Context::with_properties(
-                    file("unicode.txt")?,
-                    Some(file("unicode-properties.txt")?),
-                    file("notation/bootstrap.json")?,
-                    file("compiled.json")?,
+                    file("data/unicode/unicode.txt")?,
+                    Some(file("data/unicode/unicode-properties.txt")?),
+                    file("grammars/notation/bootstrap.json")?,
+                    file("grammars/compiled.json")?,
                 )
                 .map(Arc::new)
             })
@@ -308,7 +308,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str, path: &str) -> Resul
 }
 
 fn bundled_names(path: &str) -> Result<Option<String>, Error> {
-    let path = if path == "unicode-names-reference.txt" { "unicode-names.txt" } else { path };
+    let path = if path == "data/unicode/unicode-names-reference.txt" { "data/unicode/unicode-names.txt" } else { path };
     Ok(bundled(path).map(str::to_string))
 }
 
@@ -578,7 +578,7 @@ impl Sources for DiskSources {
         !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
-        if path == "unicode-names-reference.txt" {
+        if path == "data/unicode/unicode-names-reference.txt" {
             return bundled_names(path);
         }
         match self.read(path)? {
@@ -589,7 +589,7 @@ impl Sources for DiskSources {
     /// A document's bytes as strict UTF-8, which keeps a byte order mark as
     /// the character U+FEFF. Bytes that do not decode are a grammar error of
     /// the document, found before anything hashes it or looks it up in
-    /// `compiled.json` (engine §1).
+    /// `grammars/compiled.json` (engine §1).
     fn read(&self, path: &str) -> Result<Option<String>, Error> {
         let bytes = match std::fs::read(path) {
             Ok(bytes) => bytes,
@@ -703,7 +703,7 @@ fn load_mode(
 /// `grammars/dialects/NAME.md` of the grammars embedded in the crate.
 pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
     let context = Context::bundled()?;
-    let pipeline = format!("dialects/{name}.md");
+    let pipeline = format!("grammars/dialects/{name}.md");
     if bundled(&pipeline).is_none() {
         return Err(Error::usage(format!("there is no bundled dialect named {name}")));
     }
@@ -732,8 +732,8 @@ pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
 
 /// Loads a dialect from documents held in memory: a map from
 /// `/`-separated path to text, and the path of the pipeline document in it.
-/// The map may supply its own `unicode.txt`, `notation/bootstrap.json` and
-/// `compiled.json`; any it lacks come from the bundled grammars.
+/// The map may supply its own `data/unicode/unicode.txt`, `grammars/notation/bootstrap.json` and
+/// `grammars/compiled.json`; any it lacks come from the bundled grammars.
 pub fn load_dialect_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Dialect, Error>
 where
     I: IntoIterator<Item = (K, V)>,
@@ -742,10 +742,10 @@ where
 {
     let map: HashMap<String, String> = sources.into_iter().map(|(path, text)| (path.into(), text.into())).collect();
     let own = |path: &str| map.get(path).map(String::as_str);
-    let context = if own("unicode.txt").is_none()
-        && own("unicode-properties.txt").is_none()
-        && own("notation/bootstrap.json").is_none()
-        && own("compiled.json").is_none()
+    let context = if own("data/unicode/unicode.txt").is_none()
+        && own("data/unicode/unicode-properties.txt").is_none()
+        && own("grammars/notation/bootstrap.json").is_none()
+        && own("grammars/compiled.json").is_none()
     {
         Context::bundled()?
     } else {
@@ -755,16 +755,16 @@ where
                 .map(str::to_string)
                 .ok_or_else(|| grammar_error(format!("the bundled {path} is missing")).in_document(path))
         };
-        let properties = if own("unicode.txt").is_some() {
-            own("unicode-properties.txt").map(str::to_string)
+        let properties = if own("data/unicode/unicode.txt").is_some() {
+            own("data/unicode/unicode-properties.txt").map(str::to_string)
         } else {
-            Some(pick("unicode-properties.txt")?)
+            Some(pick("data/unicode/unicode-properties.txt")?)
         };
         Arc::new(Context::with_properties(
-            &pick("unicode.txt")?,
+            &pick("data/unicode/unicode.txt")?,
             properties.as_deref(),
-            &pick("notation/bootstrap.json")?,
-            &pick("compiled.json")?,
+            &pick("grammars/notation/bootstrap.json")?,
+            &pick("grammars/compiled.json")?,
         )?)
     };
     load(&context, &MapSources { map }, pipeline)
@@ -802,7 +802,7 @@ pub fn check_dom_with_unicode(json: &str, table: &str) -> Result<Option<String>,
 /// "dom":...}]}],"features":[...]}`: each stage's runs of one document's
 /// items, in the shape of `bootstrap.json`, and the features. With `cached`
 /// false, every document is read through the notation, bypassing
-/// `compiled.json`. For tests and tools.
+/// `grammars/compiled.json`. For tests and tools.
 pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error> {
     let bundled_context = Context::bundled()?;
     let uncached;
@@ -848,9 +848,9 @@ pub fn splice_bundled_pipeline(path: &str, cached: bool) -> Result<String, Error
     Ok(out)
 }
 
-/// The FNV-1a hash of the bundled `notation/bootstrap.json` (engine §8).
+/// The FNV-1a hash of the bundled `grammars/notation/bootstrap.json` (engine §8).
 pub fn bootstrap_hash() -> String {
-    fnv1a64(bundled("notation/bootstrap.json").unwrap_or(""))
+    fnv1a64(bundled("grammars/notation/bootstrap.json").unwrap_or(""))
 }
 
 #[cfg(test)]
@@ -1025,9 +1025,9 @@ mod ranked_location_tests {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
         let compiled = Compiled::parse(
-            super::bundled("compiled.json").unwrap(),
+            super::bundled("grammars/compiled.json").unwrap(),
             &bootstrap_hash(),
-            &fnv1a64(super::bundled("unicode.txt").unwrap()),
+            &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
             bundled.unicode.properties_fingerprint.as_deref(),
         )
         .unwrap();
@@ -1035,7 +1035,7 @@ mod ranked_location_tests {
         let sources = MapSources {
             map: bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect(),
         };
-        for path in sources.map.keys().filter(|path| path.starts_with("dialects/") && path.ends_with(".md")) {
+        for path in sources.map.keys().filter(|path| path.starts_with("grammars/dialects/") && path.ends_with(".md")) {
             load(&context, &sources, path).expect("the compiled grammar cache loads without notation stages");
         }
     }
@@ -1088,7 +1088,7 @@ mod notation_cache_tests {
         poisoned.rules[0].name = "cache-poison".into();
         let poisoned = dom_to_json(&poisoned);
         assert_eq!(dom_problem(&json::parse(&poisoned).unwrap(), &base.unicode), None, "{path}");
-        let unicode_hash = fnv1a64(super::bundled("unicode.txt").unwrap());
+        let unicode_hash = fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap());
         let document_hash = fnv1a64(text);
         let stale_bootstrap = fnv1a64("another bootstrap");
         let stale_unicode = fnv1a64("another unicode");
@@ -1175,7 +1175,7 @@ mod notation_cache_tests {
 
     /// Adds the lexical aliases exactly as tests/README.md specifies.
     fn value_notation(aliases: &[Json]) -> String {
-        let mut bootstrap = json::parse(super::bundled("notation/bootstrap.json").unwrap()).unwrap();
+        let mut bootstrap = json::parse(super::bundled("grammars/notation/bootstrap.json").unwrap()).unwrap();
         let lexical = array(field(&mut bootstrap, "stages"))
             .iter_mut()
             .find(|stage| stage.get("name").and_then(Json::as_str) == Some("lexical"))
@@ -1239,7 +1239,7 @@ mod notation_cache_tests {
             let id = case.get("id").and_then(Json::as_str).unwrap();
             assert!(ids.insert(id), "duplicate case ID: {id}");
             let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
-            let context = Context::new(super::bundled("unicode.txt").unwrap(), &bootstrap, "null").unwrap();
+            let context = Context::new(super::bundled("data/unicode/unicode.txt").unwrap(), &bootstrap, "null").unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
             if let Some(expected) = case.get("expect").and_then(|value| value.get("error")) {
                 let error = read_document(&context.notation, text, "").expect_err("a bad name must fail");

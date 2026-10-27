@@ -343,23 +343,23 @@ impl<'a> NamesScope<'a> {
             return Ok(());
         }
         if self.unicode.version_count != 1 || self.unicode.version.as_deref().unwrap_or("").is_empty() {
-            return Err(failure("unicode.txt", None, "names require exactly one Unicode version"));
+            return Err(failure("data/unicode/unicode.txt", None, "names require exactly one Unicode version"));
         }
         let version = self.unicode.version.as_deref().unwrap_or("");
-        let text = self.need("unicode-names.txt")?;
+        let text = self.need("data/unicode/unicode-names.txt")?;
         let hash = fnv1a64(&text);
-        let base = Names::parse(&text, "unicode-names.txt", version)?;
-        let reference = if hash == PINNED_NAMES_HASH { text } else { self.need("unicode-names-reference.txt")? };
+        let base = Names::parse(&text, "data/unicode/unicode-names.txt", version)?;
+        let reference = if hash == PINNED_NAMES_HASH { text } else { self.need("data/unicode/unicode-names-reference.txt")? };
         if fnv1a64(&reference) != PINNED_NAMES_HASH {
             return Err(failure(
-                "unicode-names-reference.txt",
+                "data/unicode/unicode-names-reference.txt",
                 None,
                 "the reference fingerprint differs from the pinned data",
             ));
         }
         if version != "15.1.0" {
             return Err(failure(
-                "unicode-names-reference.txt",
+                "data/unicode/unicode-names-reference.txt",
                 None,
                 "the reference version differs from the selected names version",
             ));
@@ -368,12 +368,12 @@ impl<'a> NamesScope<'a> {
         let inspection = if hash == PINNED_NAMES_HASH {
             &base
         } else {
-            pinned = Names::parse(&reference, "unicode-names-reference.txt", "15.1.0")?;
+            pinned = Names::parse(&reference, "data/unicode/unicode-names-reference.txt", "15.1.0")?;
             &pinned
         };
         base.inspect(inspection, &self.unicode.abbreviations, false)?;
         let mut extras = Vec::new();
-        let mut dependencies = BTreeMap::from([("unicode-names.txt".into(), hash)]);
+        let mut dependencies = BTreeMap::from([("data/unicode/unicode-names.txt".into(), hash)]);
         for path in self.extras.borrow().iter() {
             let text = self.need(path)?;
             let names = Names::parse(&text, path, version)?;
@@ -425,7 +425,7 @@ impl<'a> NamesScope<'a> {
             return Ok(false);
         };
         let mut paths = self.extras.borrow().clone();
-        paths.insert("unicode-names.txt".into());
+        paths.insert("data/unicode/unicode-names.txt".into());
         if fields.len() != paths.len() {
             return Ok(false);
         }
@@ -444,7 +444,7 @@ impl<'a> NamesScope<'a> {
             registry.filter(|registry| paths.iter().all(|p| registry.contains_key(p) && !(self.overridden)(p)))
         {
             if self.unicode.version_count != 1 || self.unicode.version.as_deref() != Some("15.1.0") {
-                return Err(failure("unicode.txt", None, "bundled names require Unicode version 15.1.0"));
+                return Err(failure("data/unicode/unicode.txt", None, "bundled names require Unicode version 15.1.0"));
             }
             let matching = fields.iter().all(|(path, value)| registry.get(path).map(String::as_str) == value.as_str());
             if matching {

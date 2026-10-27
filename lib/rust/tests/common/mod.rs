@@ -506,7 +506,7 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
         documents.insert(path.clone(), text.str().expect("a document").to_string());
     }
     let pipeline = case.get("pipelineDocument").and_then(Value::str).expect("a pipeline").to_string();
-    if documents.values().any(|d| d.contains("%include \"../dialects/")) {
+    if documents.values().any(|d| d.contains("%include \"../grammars/dialects/")) {
         let root = repository().join("grammars");
         let mut bundled = BTreeMap::new();
         let mut pending = vec![root.clone()];
@@ -517,7 +517,7 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
                     pending.push(path);
                 } else {
                     bundled.insert(
-                        path.strip_prefix(&root).unwrap().to_string_lossy().to_string(),
+                        format!("grammars/{}", path.strip_prefix(&root).unwrap().to_string_lossy()),
                         std::fs::read_to_string(path).expect("a grammar resource"),
                     );
                 }

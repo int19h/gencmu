@@ -1,7 +1,7 @@
 {
-  "description": "The kihei dialect accepts fx under permissible-run in words/shapes.md (Consonants).",
+  "description": "The kihei dialect accepts fx under permissible-run in grammars/words/shapes.md (Consonants).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/kihei.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": ".afxab.",

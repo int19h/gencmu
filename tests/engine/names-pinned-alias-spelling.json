@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
-    "unicode-names.txt": "unicode-names 15.1.0\nname E000 LINE FEED\n"
+    "data/unicode/unicode-names.txt": "unicode-names 15.1.0\nname E000 LINE FEED\n"
   },
   "pipelineDocument": "p.md",
   "tokens": [
@@ -16,7 +16,7 @@
   "expect": {
     "error": "grammar",
     "where": {
-      "document": "unicode-names.txt",
+      "document": "data/unicode/unicode-names.txt",
       "line": 2
     }
   }

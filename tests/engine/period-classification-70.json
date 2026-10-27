@@ -1,7 +1,7 @@
 {
   "description": "The ZO alias quotes the standalone mark before the script period. Broda remains outside the quote.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "go'oi\" broda",

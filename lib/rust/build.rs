@@ -1,6 +1,6 @@
-//! Embeds the crate's copy of the grammars, `grammars/`, which
-//! `tools/sync.js` generates from the repository's `grammars/`: every file
-//! under it becomes one entry of `BUNDLED`, keyed by its `/`-separated path.
+//! Embeds the crate's copies of `grammars/` and `data/`.
+//! `tools/sync.js` generates both trees. Each resource becomes one entry
+//! of `BUNDLED`, keyed by its package-relative path.
 
 use std::env;
 use std::fs;
@@ -28,14 +28,16 @@ fn collect(root: &Path, directory: &Path, files: &mut Vec<String>) {
 
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
-    let root = manifest.join("grammars");
+    let root = &manifest;
     println!("cargo:rerun-if-changed=grammars");
+    println!("cargo:rerun-if-changed=data");
     let mut files = Vec::new();
-    collect(&root, &root, &mut files);
-    let mut code = String::from("/// Every bundled grammar file, by path relative to `grammars/`.\n");
+    collect(root, &root.join("grammars"), &mut files);
+    collect(root, &root.join("data"), &mut files);
+    let mut code = String::from("/// Every bundled grammar file, by package-relative path.\n");
     code.push_str("pub(crate) static BUNDLED: &[(&str, &str)] = &[\n");
     for file in &files {
-        println!("cargo:rerun-if-changed=grammars/{file}");
+        println!("cargo:rerun-if-changed={file}");
         let absolute = root.join(file);
         code.push_str(&format!("    ({file:?}, include_str!({:?})),\n", absolute.to_string_lossy()));
     }

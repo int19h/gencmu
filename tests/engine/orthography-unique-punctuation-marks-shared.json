@@ -1,7 +1,7 @@
 {
   "description": "The experimental orthography emits the reviewed phonemes and source spans.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "=ा٣̀",

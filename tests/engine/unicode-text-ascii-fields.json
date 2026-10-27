@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
-    "unicode.txt": " \tunicode\t15.1.0 \t\n \t\n\twhite-space  0009\t000D \nwhite-space\t0020\t0020"
+    "data/unicode/unicode.txt": " \tunicode\t15.1.0 \t\n \t\n\twhite-space  0009\t000D \nwhite-space\t0020\t0020"
   },
   "pipelineDocument": "p.md",
   "input": "a",

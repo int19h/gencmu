@@ -1,7 +1,7 @@
 {
   "description": "Forms marks the CgV borrowing. Disabling the later warning preserves the same marked form.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi atkuila",

@@ -1,7 +1,7 @@
 {
   "description": "A period-only core keeps the opening ybu delimiter's mark attached. The quote body stays empty.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi \"ybu\" ybu",

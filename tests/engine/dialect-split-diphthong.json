@@ -1,7 +1,7 @@
 {
   "description": "A diphthong inserts its second token. Its stressed vowel has a lowercase value and an uppercase image (grammars/phonemes/latin-experimental.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ą́",

@@ -11,12 +11,12 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	text := bundled.sources["compiled.json"]
-	if len(readCompiled(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) == 0 {
+	text := bundled.sources["grammars/compiled.json"]
+	if len(readCompiled(text, bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) == 0 {
 		t.Fatal("bundled cache missed")
 	}
 	for _, hash := range []string{"", "0000000000000000"} {
-		if len(readCompiled(text, bundled.reader.hash, hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) != 0 {
+		if len(readCompiled(text, bundled.reader.hash, hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) != 0 {
 			t.Fatalf("used cache under Unicode hash %q", hash)
 		}
 	}
@@ -29,7 +29,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(readCompiled(string(old), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"]))) != 0 {
+	if len(readCompiled(string(old), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))) != 0 {
 		t.Fatal("used cache without Unicode identity")
 	}
 
@@ -39,15 +39,15 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 		t.Fatal(failure)
 	}
 	cache, err := json.Marshal(map[string]any{
-		"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["unicode-properties.txt"]),
+		"format": domFormat, "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]),
 		"documents": map[string]any{"g.md": map[string]any{"hash": fnv1a64(sources["g.md"]), "dom": json.RawMessage(dom.json())}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources["compiled.json"] = string(cache)
+	sources["grammars/compiled.json"] = string(cache)
 	// The replacement table deliberately omits all normalization records.
-	sources["unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
+	sources["data/unicode/unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
 	d := mustLoad(t, sources)
 	res, err := d.Parse("é", ParseOptions{})
 	if err != nil || !res.OK {
@@ -105,7 +105,7 @@ func TestNormalizationDecomposedSourceRecipes(t *testing.T) {
 		sources := oneStage(grammar)
 		want := "e\u0323\u0301"
 		if custom {
-			sources["unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
+			sources["data/unicode/unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
 			want = "é\u0323"
 		}
 		d := mustLoad(t, sources)

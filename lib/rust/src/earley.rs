@@ -3850,7 +3850,7 @@ mod tests {
     /// through as many tokens as the sound is long, not the suffix.
     #[test]
     fn sound_tests_skip_tokens_without_sound() {
-        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table"))
+        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table"))
             .expect("the bundled table");
         for n in [1000, 4000] {
             let mut tokens: Vec<Tok> = (0..n)

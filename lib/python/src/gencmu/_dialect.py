@@ -37,7 +37,7 @@ Dom = dict[str, Any]
 
 
 def _bundled_root() -> Any:
-    return resources.files("gencmu").joinpath("grammars")
+    return resources.files("gencmu")
 
 
 _bundled: dict[str, str | None] = {}
@@ -45,8 +45,8 @@ _bundled: dict[str, str | None] = {}
 
 def bundled_text(path: str) -> str | None:
     """A file of the bundled grammars, by its ``/``-separated path."""
-    if path == "unicode-names-reference.txt":
-        path = "unicode-names.txt"
+    if path == "data/unicode/unicode-names-reference.txt":
+        path = "data/unicode/unicode-names.txt"
     if path in _bundled:
         return _bundled[path]
     text = _read_bundled(path)
@@ -58,7 +58,7 @@ def _decode(data: bytes, document: str) -> str:
     """A file's bytes as strict UTF-8, which keeps a byte order mark as the
     character U+FEFF. Bytes that do not decode are a grammar error of the
     document, found before anything hashes it or looks it up in
-    compiled.json (engine §1)."""
+    grammars/compiled.json (engine §1)."""
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError as error:
@@ -69,9 +69,9 @@ def _decode(data: bytes, document: str) -> str:
 
 def _bootstrap_error(error: GencmuError) -> GencmuError:
     embedded = error.document
-    if embedded and embedded != "notation/bootstrap.json" and embedded not in error.message:
+    if embedded and embedded != "grammars/notation/bootstrap.json" and embedded not in error.message:
         error.message += f" (embedded document: {embedded})"
-    error.document = "notation/bootstrap.json"
+    error.document = "grammars/notation/bootstrap.json"
     location = error.where
     if not error.message.startswith(f"{location}: "):
         stage = f"stage {error.stage}: " if error.stage else ""
@@ -93,12 +93,12 @@ def _read_bundled(path: str) -> str | None:
     try:
         return _decode(data, path)
     except GencmuError as error:
-        # compiled.json is only a cache, so bytes of it that do not decode
+        # grammars/compiled.json is only a cache, so bytes of it that do not decode
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
-        if path == "compiled.json":
+        if path == "grammars/compiled.json":
             return None
-        if path == "notation/bootstrap.json":
+        if path == "grammars/notation/bootstrap.json":
             _bootstrap_error(error)
         raise
 
@@ -176,7 +176,7 @@ class NotationReader:
             raise
 
     def _bootstrap_stages(self, bootstrap: str, unicode: UnicodeTable) -> list[tuple[str, Lowered]]:
-        where = "notation/bootstrap.json"
+        where = "grammars/notation/bootstrap.json"
         try:
             data = json.loads(bootstrap)
         except (ValueError, RecursionError) as error:
@@ -386,7 +386,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
                     dom = known_dom_members(entry["dom"])
                     index[entry["hash"]] = NamesDom(dom, entry["names"]) if "names" in entry else dom
     except (ValueError, AttributeError, KeyError, TypeError, RecursionError):
-        # An unreadable compiled.json, one nested deeper than json.loads can
+        # An unreadable grammars/compiled.json, one nested deeper than json.loads can
         # follow included, is no cache: every document is read afresh.
         index = {}
     with _lock:
@@ -433,7 +433,7 @@ class _Loader:
         return text
 
     def names_text(self, path: str) -> str | None:
-        if self.from_disk and path == "unicode-names-reference.txt":
+        if self.from_disk and path == "data/unicode/unicode-names-reference.txt":
             return bundled_text(path)
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
@@ -522,23 +522,23 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
             return sources[path]
         return bundled_text(path)
 
-    unicode = get("unicode.txt")
-    bootstrap = get("notation/bootstrap.json")
+    unicode = get("data/unicode/unicode.txt")
+    bootstrap = get("grammars/notation/bootstrap.json")
     if unicode is None:
-        raise GencmuError("the bundled unicode.txt is missing", document="unicode.txt")
+        raise GencmuError("the bundled data/unicode/unicode.txt is missing", document="data/unicode/unicode.txt")
     if bootstrap is None:
         raise _bootstrap_error(GencmuError("the bundled bootstrap is missing"))
-    custom_core = sources is not None and "unicode.txt" in sources
-    properties = sources.get("unicode-properties.txt") if custom_core else get("unicode-properties.txt")
+    custom_core = sources is not None and "data/unicode/unicode.txt" in sources
+    properties = sources.get("data/unicode/unicode-properties.txt") if custom_core else get("data/unicode/unicode-properties.txt")
     if not custom_core and properties is None:
-        raise GencmuError("the bundled properties file is missing", document="unicode-properties.txt")
-    return _Resources(unicode, bootstrap, get("compiled.json"), properties)
+        raise GencmuError("the bundled properties file is missing", document="data/unicode/unicode-properties.txt")
+    return _Resources(unicode, bootstrap, get("grammars/compiled.json"), properties)
 
 
 def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
     """A dialect of the bundled grammars, by the name of its pipeline document
     under ``grammars/dialects/`` without ``.md``."""
-    path = f"dialects/{name}.md"
+    path = f"grammars/dialects/{name}.md"
     if "/" in name or bundled_text(path) is None:
         raise GencmuError(f"there is no bundled dialect {name}", kind="grammar", document=path)
     return _Loader(bundled_text, _resources(), use_cache, names_override=lambda path: False).load(path)
@@ -575,8 +575,8 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
 def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:
     """A dialect from documents held in memory: a mapping from ``/``-separated
     path to text, and the path of the pipeline document in it. The mapping
-    may hold its own ``unicode.txt``, ``notation/bootstrap.json`` and
-    ``compiled.json``; any it lacks come from the bundled grammars."""
+    may hold its own ``data/unicode/unicode.txt``, ``grammars/notation/bootstrap.json`` and
+    ``grammars/compiled.json``; any it lacks come from the bundled grammars."""
     documents = dict(sources)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 

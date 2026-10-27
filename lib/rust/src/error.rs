@@ -42,7 +42,7 @@ impl GroupSite {
 pub enum ErrorKind {
     /// A grammar or pipeline document is missing, is not valid UTF-8 on
     /// disk, does not parse as the notation, or does not stitch into a valid
-    /// grammar; or one of the shipped data files (`unicode.txt`,
+    /// grammar; or one of the shipped data files (`data/unicode/unicode.txt`,
     /// `bootstrap.json`) is malformed.
     Grammar,
     /// A file could not be read from disk, for a reason other than its
@@ -178,8 +178,8 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.document.as_deref() == Some("notation/bootstrap.json")
-            && self.message.starts_with("notation/bootstrap.json:")
+        if self.document.as_deref() == Some("grammars/notation/bootstrap.json")
+            && self.message.starts_with("grammars/notation/bootstrap.json:")
         {
             return write!(f, "{}", self.message);
         }

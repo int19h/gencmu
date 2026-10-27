@@ -1,7 +1,7 @@
 {
   "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "broda",

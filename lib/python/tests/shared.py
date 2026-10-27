@@ -983,9 +983,9 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
             },
             "p.md",
         )
-    if any("../dialects/" in text for text in case["documents"].values()):
+    if any("../grammars/dialects/" in text for text in case["documents"].values()):
         root = REPOSITORY / "grammars"
-        sources = {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*.md")}
+        sources = {"grammars/" + p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*.md")}
         sources.update({"case/" + name: text for name, text in case["documents"].items()})
         return sources, "case/" + case["pipelineDocument"]
     return dict(case["documents"]), case["pipelineDocument"]
@@ -1031,7 +1031,7 @@ def _whole_case_sources(documents: tuple[tuple[str, str], ...], pipeline: str) -
 def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
     """An engine case's loaded dialect, or the error of its load."""
     try:
-        if use_cache and "grammar" not in case and any("../dialects/" in text for text in case["documents"].values()):
+        if use_cache and "grammar" not in case and any("../grammars/dialects/" in text for text in case["documents"].values()):
             sources, pipeline = _whole_case_sources(tuple(sorted(case["documents"].items())), case["pipelineDocument"])
             return gencmu.load_dialect_sources(sources, pipeline), None
         sources, pipeline = case_sources(case)

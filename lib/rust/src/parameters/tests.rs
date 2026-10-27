@@ -4,7 +4,7 @@ fn j(s: &str) -> Json {
     crate::json::parse(s).unwrap()
 }
 fn unicode() -> Unicode {
-    Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap()
+    Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap()
 }
 fn read(s: &str) -> Dom {
     let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap();
@@ -380,15 +380,15 @@ fn shared_parameter_structure() {
             let hash = |s: &str| string(crate::json::fnv1a64(s));
             let cache = obj([
                 ("format", Json::Int(dom::DOM_FORMAT)),
-                ("bootstrap", hash(crate::loader::bundled("notation/bootstrap.json").unwrap())),
-                ("unicode", hash(crate::loader::bundled("unicode.txt").unwrap())),
-                ("properties", hash(crate::loader::bundled("unicode-properties.txt").unwrap())),
+                ("bootstrap", hash(crate::loader::bundled("grammars/notation/bootstrap.json").unwrap())),
+                ("unicode", hash(crate::loader::bundled("data/unicode/unicode.txt").unwrap())),
+                ("properties", hash(crate::loader::bundled("data/unicode/unicode-properties.txt").unwrap())),
                 ("documents", obj([("g.md", obj([("hash", hash(&source)), ("dom", raw)]))])),
             ]);
             let sources = vec![
                 ("g.md", source),
                 ("p.md", "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```".into()),
-                ("compiled.json", cache.to_json()),
+                ("grammars/compiled.json", cache.to_json()),
             ];
             let dialect = crate::load_dialect_sources(sources, "p.md").unwrap();
             assert!(dialect.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");

@@ -1,5 +1,5 @@
 //! A small JSON reader for the files the library ships (`bootstrap.json`,
-//! `compiled.json`), and the string escaping its hand-written JSON uses.
+//! `grammars/compiled.json`), and the string escaping its hand-written JSON uses.
 //! The standard library has neither.
 
 use std::collections::HashMap;

@@ -11,7 +11,7 @@ import (
 const domFormat = 40
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
-// §9), and what bootstrap.json and compiled.json hold.
+// §9), and what bootstrap.json and grammars/compiled.json hold.
 type domDoc struct {
 	namesDependencies map[string]string
 	Rules             []*domRule

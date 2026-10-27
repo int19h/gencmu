@@ -1,7 +1,7 @@
 {
   "description": "A punctuation apostrophe cannot join a digit expansion to the next vowel. The PAUSE tag keeps it outside word phonemes.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "2'a",

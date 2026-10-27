@@ -176,7 +176,7 @@ class Loaders(unittest.TestCase):
         """A map may supply the notation's bootstrap; the bundled one is used
         only when it does not."""
         broken = dict(SOURCES)
-        broken["notation/bootstrap.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
+        broken["grammars/notation/bootstrap.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
             gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
 
@@ -667,7 +667,7 @@ class Robustness(unittest.TestCase):
         ):
             with self.subTest(bootstrap=bootstrap[:40]):
                 sources = self.grammar('%rule text "a"')
-                sources["notation/bootstrap.json"] = bootstrap
+                sources["grammars/notation/bootstrap.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
                     gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
                 self.assertEqual(caught.exception.kind, "grammar")
@@ -678,8 +678,8 @@ class Robustness(unittest.TestCase):
         sources = self.grammar('%rule text "a"')
         compiled = {
             "format": DOM_FORMAT,
-            "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
-            "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""),
+            "bootstrap": fnv1a64(bundled_text("grammars/notation/bootstrap.json") or ""),
+            "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""),
             "documents": {
                 "g.md": {
                     "hash": fnv1a64(sources["g.md"]),
@@ -687,7 +687,7 @@ class Robustness(unittest.TestCase):
                 }
             },
         }
-        sources["compiled.json"] = json.dumps(compiled)
+        sources["grammars/compiled.json"] = json.dumps(compiled)
         dialect = gencmu.load_dialect_sources(sources, "p.md")
         self.assertTrue(dialect.parse("a").ok)
 
@@ -695,7 +695,7 @@ class Robustness(unittest.TestCase):
         for compiled in ("[" * 2000 + "]" * 2000, "not json", "[]"):
             with self.subTest(compiled=compiled[:10]):
                 sources = self.grammar('%rule text "a"')
-                sources["compiled.json"] = compiled
+                sources["grammars/compiled.json"] = compiled
                 dialect = gencmu.load_dialect_sources(sources, "p.md")
                 self.assertTrue(dialect.parse("a").ok)
 
@@ -703,8 +703,8 @@ class Robustness(unittest.TestCase):
         from gencmu._dialect import _unicode_table
         from gencmu._validate import dom_problem
 
-        unicode = _unicode_table(bundled_text("unicode.txt") or "")
-        compiled = json.loads(bundled_text("compiled.json") or "{}")
+        unicode = _unicode_table(bundled_text("data/unicode/unicode.txt") or "")
+        compiled = json.loads(bundled_text("grammars/compiled.json") or "{}")
         for path, entry in compiled["documents"].items():
             with self.subTest(document=path):
                 self.assertIsNone(dom_problem(entry["dom"], unicode))
@@ -775,7 +775,7 @@ class Robustness(unittest.TestCase):
         from gencmu._hash import fnv1a64
 
         depth = 20_000
-        unicode_hash = fnv1a64(bundled_text("unicode.txt") or "")
+        unicode_hash = fnv1a64(bundled_text("data/unicode/unicode.txt") or "")
         last = f"d{depth}.md"
         include = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
@@ -789,8 +789,8 @@ class Robustness(unittest.TestCase):
                 texts[last] = end
                 doms[last] = read_document(end, last)
             entries = {path: {"hash": fnv1a64(text), "dom": doms[path]} for path, text in texts.items()}
-            bootstrap = fnv1a64(bundled_text("notation/bootstrap.json") or "")
-            texts["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": entries})
+            bootstrap = fnv1a64(bundled_text("grammars/notation/bootstrap.json") or "")
+            texts["grammars/compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": entries})
             return texts
 
         def load(end: str | None) -> gencmu.Dialect:
@@ -851,7 +851,7 @@ class BundledGrammars(unittest.TestCase):
         self.assertEqual(letter.value, "zoi gy gy bu")
 
     def test_zbalermorna_shorthand(self) -> None:
-        """phonemes/zbalermorna.md: the token of the vowel after the shorthand
+        """grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand
         mark covers the mark, so a word that begins with the shorthand begins
         at it."""
         dialect = gencmu.load_dialect("bpfk")
@@ -862,7 +862,7 @@ class BundledGrammars(unittest.TestCase):
         self.assertEqual((word.text, word.source, word.value), (text, (0, 3), "u'i"))
 
     def test_cy_letter_is_never_continued(self) -> None:
-        """words/cll.md and words/forms.md: a Cy letter is never continued. So
+        """grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never continued. So
         the general join of run-words, a continued word before an onset,
         never joins a Cy letter to the word after it, and only the Cy rule
         joins two letters."""
@@ -872,7 +872,7 @@ class BundledGrammars(unittest.TestCase):
             self.assertTrue("Cy" in letter.tags and "Continued" not in letter.tags, letter.image)
 
     def test_ranking_reads_leading_nai_into_the_run(self) -> None:
-        """indicators/cll.md: the greedy ranking reads a nai after a leading
+        """grammars/indicators/cll.md: the greedy ranking reads a nai after a leading
         attitudinal into the leading run, with or without a ba'e before it,
         and after a text opener as at the start of the text. No condition
         decides it, so each of these texts has the verdict resolved in the
@@ -891,18 +891,18 @@ class BundledGrammars(unittest.TestCase):
             self.assertEqual([token.image for token in stage.output], labels, text)
 
     def test_experimental_syntax_reads_no_la(self) -> None:
-        """syntax/experimental.md: the grammar reads no LA, since no word of
+        """grammars/syntax/experimental.md: the grammar reads no LA, since no word of
         the experimental lexicon has it. A probe document after the lexicon
         moves la from LE to LA, and then no rule reads la mlatu ku."""
         root = Path(__file__).resolve().parents[1] / "src" / "gencmu" / "grammars"
-        sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8") for path in root.rglob("*.md")}
+        sources = {"grammars/" + path.relative_to(root).as_posix(): path.read_text(encoding="utf-8") for path in root.rglob("*.md")}
         include = '%include "../words/lexicon-experimental.md"'
-        self.assertIn(include, sources["dialects/experimental.md"])
-        sources["dialects/experimental.md"] = sources["dialects/experimental.md"].replace(
+        self.assertIn(include, sources["grammars/dialects/experimental.md"])
+        sources["grammars/dialects/experimental.md"] = sources["grammars/dialects/experimental.md"].replace(
             include, include + '\n  %include "../words/la-probe.md"'
         )
-        sources["words/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
-        probe = gencmu.load_dialect_sources(sources, "dialects/experimental.md")
+        sources["grammars/words/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
+        probe = gencmu.load_dialect_sources(sources, "grammars/dialects/experimental.md")
         result = probe.parse("la mlatu ku cu klama")
         forms = next(stage for stage in result.stages if stage.name == "forms").output
         assert forms is not None
@@ -1000,13 +1000,13 @@ class SharedCaches(unittest.TestCase):
     def test_unicode_tables_are_dropped(self) -> None:
         from gencmu import _dialect
 
-        unicode = bundled_text("unicode.txt")
+        unicode = bundled_text("data/unicode/unicode.txt")
         assert unicode is not None
         tables = []
         for index in range(6):
             sources, pipeline = case_sources({"grammar": '%rule text "a"'})
             # A different text, with the same table.
-            sources["unicode.txt"] = unicode + "\n" * (index + 1)
+            sources["data/unicode/unicode.txt"] = unicode + "\n" * (index + 1)
             dialect = gencmu.load_dialect_sources(sources, pipeline)
             self.assertTrue(dialect.parse("a").ok)
             tables.append(weakref.ref(dialect.unicode))

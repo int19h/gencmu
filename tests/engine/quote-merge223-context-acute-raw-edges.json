@@ -1,7 +1,7 @@
 {
   "description": "The marks bound a foreign raw stretch and have no exterior letter neighbors. The quote keeps both marks in its body.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo'oi ´你好´",

@@ -3,7 +3,7 @@
 // --check, fails if any of them is out of date:
 //
 //   grammars/compiled.json   the DOM of every grammar document, keyed by hash
-//   lib/js/grammars/         the npm package's copy of grammars/
+//   lib/js/{grammars,data}/ the npm package's bundled resources
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
 //   docs/diagrams/           a railroad diagram of each rule, as an SVG file
@@ -98,9 +98,9 @@ const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
 // A loader of grammars/ with the given bootstrap and no precompiled DOMs.
 /** @param {string} bootstrap */
 const loaderWith = (bootstrap) => new Loader((relative) => {
-  if (relative === "notation/bootstrap.json") return bootstrap;
-  if (relative === "compiled.json") return undefined;
-  const file = path.join(grammars, relative.split("/").join(path.sep));
+  if (relative === "grammars/notation/bootstrap.json") return bootstrap;
+  if (relative === "grammars/compiled.json") return undefined;
+  const file = path.join(root, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
 });
 /**
@@ -110,7 +110,7 @@ const loaderWith = (bootstrap) => new Loader((relative) => {
 function settle(bootstrap) {
   for (let round = 0; ; round++) {
     // The notation's own pipeline, spliced with the current bootstrap.
-    const { stages } = loaderWith(bootstrap).splice("dialects/notation.md");
+    const { stages } = loaderWith(bootstrap).splice("grammars/dialects/notation.md");
     const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
     const nextText = JSON.stringify(next) + "\n";
     if (nextText === bootstrap) return bootstrap;
@@ -134,14 +134,14 @@ const read = new Map();
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
+  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
 }
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each dialect that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
-  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
+  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(`grammars/${file}`));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
   if (next === text) continue;
   write(`grammars/${file}`, next);
@@ -177,12 +177,12 @@ for (const file of grammarFiles()) {
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
   const earlier = read.get(file);
-  const dom = !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, file);
+  const dom = !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, `grammars/${file}`);
   const names = loader.namesDependencies.get(dom);
-  documents[file] = { hash: fnv1a64(text), ...(names ? {names} : {}), dom };
+  documents[`grammars/${file}`] = { hash: fnv1a64(text), ...(names ? {names} : {}), dom };
 }
-const bundledNames = Object.fromEntries(grammarFiles().filter(file => file === "unicode-names.txt" || file.endsWith("-names.txt"))
-  .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(grammars,file),"utf8"))]));
+const bundledNames = Object.fromEntries(["data/unicode/unicode-names.txt", ...grammarFiles().filter(file => file.endsWith("-names.txt")).map(file => `grammars/${file}`)]
+  .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(root,file),"utf8"))]));
 const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
 
 // A rule whose alternatives are single symbols does not put one on each of
@@ -190,7 +190,7 @@ const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode:
 // (docs/notation.md, "Rules"; tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
-  for (const problem of layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file)) sprawling.push(problem);
+  for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
@@ -216,7 +216,7 @@ if (parserMissing && check) {
 } else {
   const unlinked = [];
   for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
-    const dom = includeEdges.get(file);
+    const dom = includeEdges.get(`grammars/${file}`);
     const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
       if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
@@ -298,10 +298,21 @@ for (const copy of copies) {
     if (!check) fs.unlinkSync(path.join(root, copy, file));
   }
 }
+// Copy engine data beside each package's grammar directory.
+const dataSources = Object.fromEntries(existing("data").map(file => [file, fs.readFileSync(path.join(root, file), "utf8")]));
+for (const copy of copies) {
+  const packageRoot = path.dirname(copy);
+  for (const [file, text] of Object.entries(dataSources)) write(`${packageRoot}/${file}`, text);
+  for (const relative of existing(`${packageRoot}/data`)) {
+    if (Object.hasOwn(dataSources, relative.slice(packageRoot.length + 1))) continue;
+    stale.push(relative);
+    if (!check) fs.unlinkSync(path.join(root, relative));
+  }
+}
 // Names and properties resources remain separate for playground requests.
-const browserSources = Object.fromEntries(Object.entries(sources).filter(([file, text]) =>
+const browserSources = Object.fromEntries(Object.entries({...Object.fromEntries(Object.entries(sources).map(([key,value]) => [`grammars/${key}`,value])), ...dataSources}).filter(([file, text]) =>
   !file.endsWith(".txt") || !/^[ \t\r\n]*unicode-(?:names|properties)[ \t]/.test(text)));
-write("dist/grammars.js", `// Generated by tools/sync.js from grammars/: grammar documents and eager resources, by path.
+write("dist/grammars.js", `// Generated by tools/sync.js from grammars/ and data/: eager resources, by package-relative path.
 (function (root) {
   "use strict";
   root.gencmuGrammars = ${JSON.stringify(browserSources)};

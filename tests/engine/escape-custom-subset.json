@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹COMBINING ACUTE ACCENT›\"\n```",
-    "unicode-names.txt": "unicode-names 15.1.0\nname 0301 COMBINING ACUTE ACCENT\n"
+    "data/unicode/unicode-names.txt": "unicode-names 15.1.0\nname 0301 COMBINING ACUTE ACCENT\n"
   },
   "pipelineDocument": "p.md",
   "tokens": [
