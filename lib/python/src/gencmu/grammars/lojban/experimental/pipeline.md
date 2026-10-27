@@ -223,7 +223,7 @@ ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the sa
 
 ### Quotes and indicators
 
-A replacement quote is one unit of raw words in the words stage (`../lojban/common/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
+A replacement quote is one unit of raw words in the words stage (`../common/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
 
 - `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.

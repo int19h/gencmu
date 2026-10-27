@@ -483,7 +483,7 @@ A `features` directive can add `"conditions":[COND,COND...]`, with at least one 
 
 An absent `conditions` member denotes an unconditional declaration. A present empty array is malformed.
 
-A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../lojban/common/stream.md"],"at":[4,3]}`.
+A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../common/stream.md"],"at":[4,3]}`.
 
 A library ignores unknown members of a directive. Its known members, `name`, `args`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 

@@ -19845,7 +19845,7 @@
   }
 
   /**
-   * A pipeline's pipeline as one jbogenbau text: its features in one %features,
+   * A pipeline's documents as one jbogenbau text: its features in one %features,
    * then every item of the spliced stream but %include, %names and global
    * %features. Strings use their canonical spelling. Other source text stays
    * as written, with a comment naming each document run (docs/notation.md).
@@ -20966,7 +20966,7 @@
   /**
    * @typedef {object} ParseOptions
    * @property {Iterable<string>} [features] the features to turn on, besides
-   *   those the pipeline's pipeline turns on
+   *   those the pipeline turns on
    * @property {Iterable<string>} [withoutFeatures] the features to turn off,
    *   including defaults. A holding conditional declaration for a disabled
    *   feature gives a feature-conflict result. A name in both lists is a
