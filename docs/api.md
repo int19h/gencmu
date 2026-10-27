@@ -36,7 +36,7 @@ The decoded include path resolves against its containing document, with `.` and 
 
 `%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
 
-Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
 
 Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `data/unicode/unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `data/unicode/unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
