@@ -6,7 +6,7 @@ The cases in `tests/engine/` and `tests/notation/` are part of the specification
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
-Grammar identifiers and tags in examples illustrate generic rules. They impose no dialect contract.
+Grammar identifiers and tags in examples illustrate generic rules. They impose no pipeline contract.
 
 ## 1. Tokens
 
@@ -281,7 +281,7 @@ Without either override, a library loads the bundled properties file with the co
 
 Custom subsets are valid. A declared binary property without ranges is supported and false everywhere. An omitted declaration makes the property unavailable, rather than false. Naming an unavailable property is a load error at the reference, including in otherwise unused source. A supplied DOM receives the same inspection.
 
-The playground fetches the pinned properties file at startup, before it loads any dialect. The browser grammar bundle excludes that file. A failed fetch prevents dialect loading and reports the missing resource. The portable JavaScript API receives the file through its source map.
+The playground fetches the pinned properties file at startup, before it loads any pipeline. The browser grammar bundle excludes that file. A failed fetch prevents pipeline loading and reports the missing resource. The portable JavaScript API receives the file through its source map.
 
 ### Property conformance and performance
 
@@ -318,7 +318,7 @@ Shared cases in `tests/engine/` and `tests/notation/` cover the following observ
 
 Shared cases also exercise property terminals, tag tests, patterns, conditions, filters, and canonical output for every declared value. A value without scalar assignments receives both a stage-zero rejection case and a positive caller-token case. Corpus comparisons record every changed outcome caused by complete initial tag sets.
 
-Complete profiles must not make dialects naming no additional property meaningfully slower. Shared storage must preserve every logical membership and every observation of the full set. The [performance gate](../tests/README.md#unicode-property-performance-gate) defines measurements, limits, and baseline comparisons. That gate cannot pass through omitted tags or different parse work.
+Complete profiles must not make pipelines naming no additional property meaningfully slower. Shared storage must preserve every logical membership and every observation of the full set. The [performance gate](../tests/README.md#unicode-property-performance-gate) defines measurements, limits, and baseline comparisons. That gate cannot pass through omitted tags or different parse work.
 
 ### Unicode names for string escapes
 
@@ -355,7 +355,7 @@ Duplicate or overlapping algorithm ranges for the same naming rule are errors. E
 
 Record order does not affect name lookup. Exact spellings, including case and spaces, determine name lookup. The records contain individual scalar names and aliases. A sequence of several scalars cannot supply one escape. Numeric escapes do not consult this file.
 
-If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A names-dependent cache entry can use bundled fingerprints without reading these files (§8). Printing never loads them because abbreviations belong to the core table. A dialect can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
+If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A names-dependent cache entry can use bundled fingerprints without reading these files (§8). Printing never loads them because abbreviations belong to the core table. A pipeline can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
 
 A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. The two files must declare the same version.
 
@@ -405,7 +405,7 @@ The DOM retains each `%names` directive and its decoded path. Its declaration or
 
 Pipeline splicing consumes these directives before stage stitching. They never enter a stitched grammar or bootstrap stage. Supplied DOMs follow the same preamble placement and path rules. Canonical stitching omits these directives because it prints decoded strings with core abbreviations or numeric escapes.
 
-The [zbalermorna grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) gives a bundled example of an extra names resource. The grammar document owns that resource's inventory, source pins, and dialect behavior.
+The [zbalermorna grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) gives a bundled example of an extra names resource. The grammar document owns that resource's inventory, source pins, and pipeline behavior.
 
 Shared string cases round-trip every bundled White_Space scalar through canonical printing and the ordinary reader. U+0020 stays literal, abbreviation aliases win when present, and every other whitespace scalar uses a numeric escape. Cases also use custom whitespace ranges and missing abbreviations.
 
@@ -497,7 +497,7 @@ After the loader stitches the stage, it makes sure that each rule definition tha
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
-A constant belongs to its stage, as a rule does. A document in several stages or dialects takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
+A constant belongs to its stage, as a rule does. A document in several stages or pipelines takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
 Each error of a constant is an error of the document. Reader errors follow §9.3, including engine-tag literals outside patterns. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition.
 
@@ -855,7 +855,7 @@ Lowering turns a grammar, given the set of enabled features, into a context-free
 
 Every production of a named rule records the stitched rule's flags. Productions from extensions, expanded alternatives and recursive chain levels all carry them. Helpers carry no flags. Flags change no recognition, nullability, symbol test or default tag. A close of a flagged production with one logical symbol does not affect the action comparison. Its occurrence still contributes to the rule profile (§6), in the part of its flag.
 
-A stage lowers its grammar when a parse gives it the enabled features. So a dialect whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
+A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
 The error has the kind `grammar` and the stage's name, and no position member, since its position is not one of the stage's input (`docs/output.md`). Its message begins with the document, the line and the column of the definition that wrote the alternative at fault, as `case/a.md:3:1:`. That definition is the `%rule`, `%redefine-rule` or `%extend-rule` that holds the alternative. It is not the place of the braces in it, and not another definition that makes an item of the braces empty. The errors of a classifier (§2) are reported in the same way, at their entry.
 
@@ -1372,9 +1372,9 @@ A second note names each target that no derivation of `text` can build, only a q
 
 A shared memo keeps ordinary query answers across parses. This cache is optional. Section 4.4 describes suffix sharing within one parse.
 
-One shared memo serves one stage of one loaded dialect, lowered for one set of features that are on. It also has that lowering's resolved classifiers (§2) and the dialect's Unicode table. Together these fix every input of a nested query except its content (§4). Two feature sets can share one memo where they turn on the same gates. These are the gates of alternatives (§3.1) and the gates of classifier entries. A feature that gates nothing changes neither.
+One shared memo serves one stage of one loaded pipeline, lowered for one set of features that are on. It also has that lowering's resolved classifiers (§2) and the pipeline's Unicode table. Together these fix every input of a nested query except its content (§4). Two feature sets can share one memo where they turn on the same gates. These are the gates of alternatives (§3.1) and the gates of classifier entries. A feature that gates nothing changes neither.
 
-The loaded dialect owns its shared memos, and a memo lives no longer than its dialect. Two loaded dialects never share a memo, even where they read the same documents. A memo goes with its lowering, so an implementation keeps no more memos than lowerings. The reader of the notation (§8) has grammars of its own, and their memos follow the same rules.
+The loaded pipeline owns its shared memos, and a memo lives no longer than its pipeline. Two loaded pipelines never share a memo, even where they read the same documents. A memo goes with its lowering, so an implementation keeps no more memos than lowerings. The reader of the notation (§8) has grammars of its own, and their memos follow the same rules.
 
 A conditional `%features` declaration (§13) holds or fails before its stage parses. The features it turns on select that stage's lowering, and so its shared memo. So the key needs no part for them.
 
@@ -1404,9 +1404,9 @@ A shared memo keeps its entries in two generations, a newer and an older set of 
 
 A key that the newer generation holds does not enter it again. Eviction can happen during a parse. It only decides whether a later query runs its nested parse again. This is the scheme of the libraries. Any other bounded scheme also keeps every result.
 
-The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The recorded measurements parse single words to the forms stage of the bpfk dialect, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
+The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The recorded measurements parse single words to the forms stage of the `lojban/bpfk` pipeline, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
 
-An entry never changes after it enters the shared memo. Parses on several threads can share one dialect. Each lookup is then one atomic step, with its move and its eviction. So is each insertion, with its eviction.
+An entry never changes after it enters the shared memo. Parses on several threads can share one pipeline. Each lookup is then one atomic step, with its move and its eviction. So is each insertion, with its eviction.
 
 ### 4.4 Backward token queries
 
@@ -1465,7 +1465,7 @@ An inserted `ε` token has no input parts. Its default strings are empty, and it
 
 Every emitted token stores a value and image, including empty strings. Stage-zero tokens store both too. Empty tag sets are legal. Implications alter tags without changing strings. No tag-to-string mapping exists.
 
-`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The engine supplies no lowercase mapping or comma removal. The [dialect guide](dialects.md#phoneme-values-and-stress) describes the bundled comparison policy.
+`span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. The engine supplies no lowercase mapping or comma removal. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes the bundled comparison policy.
 
 The input value keeps every character that its tokens store. A grammar can supply different value and image strings through recipes. Those mappings belong to the grammar, not comparison behavior.
 
@@ -1941,19 +1941,19 @@ A grammar document is Markdown. Its grammar text is the content of every fenced 
 
 The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only whitespace follows it. A `jbogenbau` block that is never closed is an error of the document, and the reader reports it at its opening fence. Any other unclosed block runs to the end of the document, as in CommonMark. The reader joins the blocks with a newline between them, and every character of the grammar text keeps its line and column in the document.
 
-The reader parses the grammar text with the notation dialect, `grammars/dialects/notation.md`, whose DOM ships as `grammars/notation/bootstrap.json`. The rules in §9 turn the tree that this parse produces into the document's DOM. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
+The reader parses the grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`, whose DOM ships as `grammars/bootstrap.json`. The rules in §9 turn the tree that this parse produces into the document's DOM. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
 
 The grammar text is a text like any other, so stage zero decomposes it. Line and column numbers still count the code points of the document as written.
 
-A tie in either stage of the notation dialect, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
+A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
-Every bootstrap failure names `notation/bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
+Every bootstrap failure names `bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
 A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, `names`, or `features` directives because pipeline splicing consumes them.
 
 Before the loader stitches any stage, it makes sure that every bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
 
-Next, the dialect validator makes sure that feature roles agree across all stitched stages. Finally, it lowers the stages in order. A later stitching error therefore precedes an earlier lowering error.
+Next, the pipeline validator makes sure that feature roles agree across all stitched stages. Finally, it lowers the stages in order. A later stitching error therefore precedes an earlier lowering error.
 
 A feature-role conflict names the stage and definition that introduce the conflicting role.
 
@@ -1985,7 +1985,7 @@ If any selected resource is overridden or lacks a registry entry, the loader rea
 
 Shared cases require bundled names-dependent hits with zero names-file reads, even for a zbalermorna pipeline. They also cover a missing registry, overridden resources, mismatched hashes, and lazy playground fetches after a miss.
 
-A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every dialect that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
+A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every pipeline that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
 
 ## 9. From notation tree to DOM
 
@@ -2053,7 +2053,7 @@ A range's identity is its resolved pair of scalar endpoints. Its diagnostic spel
 
 ### 9.2 Syntax forms
 
-The syntax stage recognizes forms that the reader rejects under §9.3. Recognition builds a notation tree for the whole document before reader validation starts. After lexical and escape inspection succeeds, a syntax error anywhere precedes every reader error. The productions below define recognition, not validity. They specify the syntax stage of `grammars/notation/syntax.md`.
+The syntax stage recognizes forms that the reader rejects under §9.3. Recognition builds a notation tree for the whole document before reader validation starts. After lexical and escape inspection succeeds, a syntax error anywhere precedes every reader error. The productions below define recognition, not validity. They specify the syntax stage of `grammars/gencmu/jbogenbau/syntax.md`.
 
 This metalanguage is descriptive EBNF, not an executable jbogenbau document. Quoted operators denote punctuation. Brackets denote optional syntax and braces denote zero or more syntax items. Lexical tokens follow §9.1. Constructor names and wrapper conversion follow §9.3.
 
@@ -3111,7 +3111,7 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 ## 12. The tree
 
-Warnings in this section are parse warnings. Loading diagnostics belong to §13 and the loaded dialect API.
+Warnings in this section are parse warnings. Loading diagnostics belong to §13 and the loaded pipeline API.
 
 The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 
@@ -3135,7 +3135,11 @@ Nothing else gives warnings. No warnings come from a reading of an `ambiguous` e
 
 ## 13. The pipeline
 
-A pipeline document (`docs/design.md`, "Pipelines") defines a dialect. The loader reads it into stages as follows.
+Bundled pipeline names are directory paths below `grammars/`, with two or more `/`-separated segments. Each segment matches `[a-z0-9][a-z0-9-]*`. The loader checks this spelling before any document lookup and accepts no short aliases. It reads `NAME/pipeline.md` for a valid name. Invalid names and absent bundled pipelines cause a `usage` error.
+
+`bundledPipelines()` enumerates the bundled paths ending in `/pipeline.md` and removes that suffix. Its result uses code-point order. The spelling for each language follows `docs/api.md`. A directory without `pipeline.md` defines no pipeline. Enumeration includes only valid pipeline names. This discovery uses no separate catalog file.
+
+A pipeline document (`docs/design.md`, "Pipelines") defines a pipeline. The loader reads it into stages as follows.
 
 To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves the include path `PATH` against the directory of the document that holds the `%include`.
 
@@ -3147,7 +3151,7 @@ Replacement clears rules, constants, classifiers, implications, local feature de
 
 The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2). This includes every feature check in this section. Discarded feature declarations and replaced rule alternatives undergo none of these checks. Source syntax, DOM shape and depth, and include errors still fail the load.
 
-A `%features` before the first stage selector declares global defaults. Every later `%features` belongs to the selected stage, including across include boundaries. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
+A `%features` before the first stage selector declares global defaults. Every later `%features` belongs to the selected stage, including across include boundaries. The loader stitches each stage's other items in order (§2). Each of these is an error of the pipeline, and the loader reports it at the item named:
 
 - An `%include` of a document that does not exist is an error at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
@@ -3211,11 +3215,11 @@ A rejection or an `ambiguous` error ends the run as usual.
 
 The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
 
-A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
+A pipeline's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 
 Local declarations also contribute their names to this inventory. An unconditional local declaration sets `default:true`, as a global declaration does, even when the caller stops before that stage. A conditional declaration sets no default.
 
-Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect. The loader finds this error when it loads the dialect. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether an unconditional `%features` declares it as a default. Conditional declarations contribute names, but no defaults.
+Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the pipeline. The loader finds this error when it loads the pipeline. A name that only `%features` declares is a gate. A pipeline lists its features, each with its kind and whether an unconditional `%features` declares it as a default. Conditional declarations contribute names, but no defaults.
 
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 

@@ -1,6 +1,6 @@
 # jbogenbau, the grammar notation
 
-Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
+Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/gencmu/jbogenbau/lexical.md` and `grammars/gencmu/jbogenbau/syntax.md`.
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar gives computed values to constituents. A constituent is the text that one rule matches. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
 
@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 Tokens include characters, phonemes and words. A transducer reads tokens and emits another sequence.
 
-Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
+Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A pipeline is a pipeline of these grammars, its stages, defined by one pipeline document.
 
 An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
@@ -130,7 +130,7 @@ A known property or value missing from the configured table is a load error at i
 
 The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
-Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
+Stage zero assigns the emoji properties in every pipeline. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
 
 Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
@@ -339,7 +339,7 @@ A gate, `name?`, keeps the alternative only while the feature `name` is on, and 
 
 A warning, `name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
 
-An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the dialect has an error. The two guards can be in any stages of the dialect. A warning has no negated form, because it keeps its alternative either way.
+An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the pipeline has an error. The two guards can be in any stages of the pipeline. A warning has no negated form, because it keeps its alternative either way.
 
 ```jbogenbau
 %rule tanru-unit-2
@@ -351,11 +351,11 @@ An alternative with several guards exists when all its gates hold. A name is a g
   | y-cmavo! Cmavo<Cmavo-Warning>
 ```
 
-A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The experimental dialect enables `experimental-cgv` by default. Callers enable other bundled warnings when they need them.
+A pipeline that extends another pipeline can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the pipeline accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The experimental pipeline enables `experimental-cgv` by default. Callers enable other bundled warnings when they need them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
+A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled dialects do not guard every change. The bundled warnings are `y-cmavo` in `cll-ebnf` and `experimental-cgv` in `experimental`. The experimental syntax additions carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
+The bundled pipelines do not guard every change. The bundled warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
 
 ## Stitching documents
 
@@ -378,7 +378,7 @@ A stage reads its input with one grammar. The loader assembles that grammar from
 
 So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error. So is a reference to a rule that no document defines. A misspelled `%rule` defines an additional rule that nothing reads, and the audit (gencmu's report on a grammar) reports it as unreachable.
 
-The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
+The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
 `%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` and `%redefine-rule(fewest)` replace both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
@@ -497,7 +497,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Quote marker classes enter through the marker constants. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. Other pipelines exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
@@ -513,7 +513,7 @@ Each declaration creates a version, an immutable definition of one constant. The
 
 A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition.
 
-The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
+The loader gives the constants their values when it stitches each stage. So a document that several pipelines include takes the values of each pipeline. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
 
 ### String literals and escapes
 
@@ -814,7 +814,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [dialect guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of lojban/cll.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -873,9 +873,9 @@ For an ordinary span, `matches` and `span.tags(rule)` parse the captured span al
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
+Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the experimental pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
@@ -1252,16 +1252,16 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Pipelines
 
-For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
+For a procedure with commands and tree examples, read [Implement a pipeline](dialects.md).
 
 A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
-A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
+A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
 
 ````markdown
-# The experimental dialect
+# The experimental pipeline
 
-... what the dialect is ...
+... what the pipeline is ...
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -1275,7 +1275,7 @@ A pipeline document, which is Markdown too, defines a dialect. Each stage is a h
 
 - [Latin orthography](../phonemes/latin.md): what this document contributes
   ```jbogenbau
-  %include "../phonemes/latin.md"
+  %include "../lojban/common/latin.md"
   ```
 
 ... what the stage receives, does and hands on ...
@@ -1340,7 +1340,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
@@ -1493,7 +1493,7 @@ Grammars that extend CLL can contain ambiguities unrelated to terminators. A sum
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
-The `experimental` and `zantufa` dialects do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `experimental` and `zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 
@@ -1512,7 +1512,7 @@ The diagrams draw the notation in this way:
 - A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
 - A ranked choice draws its options in a dashed frame, numbered from 1 in preferred order. The label `≻ same span` precedes the frame. Ordinary branches inside an option are unnumbered, and a nested ranked choice has its own frame. A note under the rule repeats the filter rule.
 - An optional has a bypass over its content. The bypass of an elidable optional has the label "elided".
-- A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the dialects that read the document disagree, the label adds "where its test allows".
+- A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the pipelines that read the document disagree, the label adds "where its test allows".
 - Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
 - The loop runs from right to left, so the separator is drawn from right to left too, with its text upright. In `{A / B C}`, the loop meets `B` first, at its right, and then `C`.
 - A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".

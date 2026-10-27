@@ -1,6 +1,6 @@
-# Implement a dialect
+# Implement a pipeline
 
-You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [kihei](../grammars/dialects/kihei.md). A dialect defines which grammar a parser uses.
+You will build `grammars/lojban/examples/my-kihei/pipeline.md` with the `ki'ei` construct from [kihei](../grammars/dialects/kihei.md). A pipeline defines which grammar a parser uses.
 
 A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
@@ -24,28 +24,29 @@ Unless a step names another directory, use the repository root as your working d
 
 Use example filenames that do not clash with your own files. The commands below create or overwrite those files.
 
-1. Create the dialect file.
+1. Create the pipeline file.
 
    CLL means *The Complete Lojban Language*. A literate grammar combines prose with fenced `jbogenbau` blocks.
 
    A directive is an instruction that starts with `%`. A rule describes which text a grammar can match. A parse applies grammar rules to a text.
 
-   Create `grammars/dialects/my-kihei.md` with this command:
+   Create `grammars/lojban/examples/my-kihei/pipeline.md` with this command:
 
    ````sh
-   cat > grammars/dialects/my-kihei.md <<'EOF'
+   mkdir -p grammars/lojban/examples/my-kihei
+   cat > grammars/lojban/examples/my-kihei/pipeline.md <<'EOF'
    # My discourse frames
 
-   This dialect adds frames to CLL.
+   This pipeline adds frames to CLL.
 
-   - [The CLL dialect](cll-ebnf.md)
+   - [The CLL pipeline](../../cll/pipeline.md)
      ```jbogenbau
-     %include "cll-ebnf.md"
+     %include "../../cll/pipeline.md"
      ```
    EOF
    ````
 
-   `%include` reads the base dialect before your additions. Its include path starts from the directory of the file that contains it.
+   `%include` reads the base pipeline before your additions. Its include path starts from the directory of the file that contains it.
 
    Keep the Markdown link and its `%include` together. The document tests require this layout for grammar files.
 
@@ -53,7 +54,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The pipeline maps phoneme values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
 
-   The included dialect creates all five stages. `%extend-stage` selects an existing stage and preserves its position.
+   The included pipeline creates all five stages. `%extend-stage` selects an existing stage and preserves its position.
 
 2. Add the word class in the forms stage.
 
@@ -61,10 +62,10 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with capitals and never start with `_`.
 
-   Append these rules to `grammars/dialects/my-kihei.md`:
+   Append these rules to `grammars/lojban/examples/my-kihei/pipeline.md`:
 
    ````sh
-   cat >> grammars/dialects/my-kihei.md <<'EOF'
+   cat >> grammars/lojban/examples/my-kihei/pipeline.md <<'EOF'
 
    ```jbogenbau
    %extend-stage forms
@@ -83,7 +84,7 @@ Use example filenames that do not clash with your own files. The commands below 
    Inspect the forms output with this command:
 
    ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --until forms --format tokens "ki'ei"
+   node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --until forms --format tokens "ki'ei"
    ````
 
    Output:
@@ -110,10 +111,10 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A terminal matches a token with a specified tag.
 
-   Append the kihei syntax rules to `grammars/dialects/my-kihei.md`:
+   Append the kihei syntax rules to `grammars/lojban/examples/my-kihei/pipeline.md`:
 
    ````sh
-   cat >> grammars/dialects/my-kihei.md <<'EOF'
+   cat >> grammars/lojban/examples/my-kihei/pipeline.md <<'EOF'
 
    ```jbogenbau
    %extend-stage syntax
@@ -140,14 +141,14 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
 
-4. Parse a text with your dialect.
+4. Parse a text with your pipeline.
 
    The CLI accepts commands from your terminal.
 
    Run the local file through `lib/js/cli.js`:
 
    ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md "ki'ei ko'a .i broda"
+   node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md "ki'ei ko'a .i broda"
    ````
 
    Output:
@@ -156,16 +157,16 @@ Use example filenames that do not clash with your own files. The commands below 
    ([ki'ei ko'a] i broda)
    ````
 
-   `--pipeline` reads your files from disk. `--dialect` reads the package's bundled copy.
+   `--pipeline-file` reads your files from disk. `--pipeline` reads the package's bundled copy.
 
-   Until you complete step 8, use `--pipeline` for changed grammar files.
+   Until you complete step 8, use `--pipeline-file` for changed grammar files.
 
    After you complete step 8, run `node tools/sync.js` after each grammar edit.
 
-   A feature is a named switch for a parse. List the features that the local dialect exposes:
+   A feature is a named switch for a parse. List the features that the local pipeline exposes:
 
    ````sh
-   node lib/js/cli.js features --pipeline grammars/dialects/my-kihei.md
+   node lib/js/cli.js features --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md
    ````
 
    Output:
@@ -187,10 +188,10 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A parse tree records which rules matched the text.
 
-   Parse the same CLL text in the base dialect:
+   Parse the same CLL text in the base pipeline:
 
    ````sh
-   node lib/js/cli.js parse --dialect cll-ebnf --format tree "broda .i brode"
+   node lib/js/cli.js parse --pipeline lojban/cll --format tree "broda .i brode"
    ````
 
    ````text
@@ -209,7 +210,7 @@ Use example filenames that do not clash with your own files. The commands below 
    Parse that text with your local trial:
 
    ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "broda .i brode"
+   node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "broda .i brode"
    ````
 
    ````text
@@ -225,14 +226,14 @@ Use example filenames that do not clash with your own files. The commands below 
          ⟨VAU⟩
    ````
 
-   The trial adds `utterance-sequence` below `paragraph`. Both dialects still accept the text. Their default bracket output hides this structural difference.
+   The trial adds `utterance-sequence` below `paragraph`. Both pipelines still accept the text. Their default bracket output hides this structural difference.
 
    `›` joins successive tree nodes on one line. An elided terminator is an omitted closing word. `⟨VAU⟩` marks one.
 
    Parse a frame with your local trial:
 
    ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "ki'ei ko'a .i broda"
+   node lib/js/cli.js parse --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md --format tree "ki'ei ko'a .i broda"
    ````
 
    ````text
@@ -249,10 +250,10 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `frame-group` contains `frame`, `.i`, and `utterance-sequence`. The `frame` contains `ki'ei` and its terms.
 
-   Try that frame in the base dialect:
+   Try that frame in the base pipeline:
 
    ````sh
-   node lib/js/cli.js parse --dialect cll-ebnf --format tree "ki'ei ko'a .i broda"
+   node lib/js/cli.js parse --pipeline lojban/cll --format tree "ki'ei ko'a .i broda"
    ````
 
    The command exits with `1`. Its error starts with these lines:
@@ -269,13 +270,13 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Open `index.html` from your checkout in a browser.
 
-   Select `kihei` in the Dialect menu.
+   Under `lojban/examples`, select `kihei` in the Pipeline menu.
 
    Enter `ki'ei ko'a .i broda` in Text.
 
    Select the Tree tab.
 
-   Under Grammar documents, open `dialects/kihei.md`.
+   Under Grammar documents, open `lojban/examples/kihei/pipeline.md`.
 
    Edit its `%extend-stage` blocks to try your change.
 
@@ -283,11 +284,11 @@ Use example filenames that do not clash with your own files. The commands below 
 
    If you want to keep an edit, click Download. Save the downloaded content to its corresponding file in your checkout.
 
-   The browser names that download `dialects--kihei.md`. Browser edits disappear when you reload the page.
+   The browser names that download `lojban--examples--kihei--pipeline.md`. Browser edits disappear when you reload the page.
 
-   The playground has no file upload or command that loads an arbitrary local dialect. You cannot load `my-kihei.md` directly into the shipped page.
+   The playground has no file upload or command that loads an arbitrary local pipeline. You cannot load a local `pipeline.md` directly into the shipped page.
 
-   If you want your additional dialect in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
+   If you want your additional pipeline in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
 
    `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
 
@@ -311,27 +312,27 @@ Use example filenames that do not clash with your own files. The commands below 
    Run both cases against your local file:
 
    ````sh
-   node lib/js/cli.js test my-kihei.jsonl --pipeline grammars/dialects/my-kihei.md
+   node lib/js/cli.js test my-kihei.jsonl --pipeline-file grammars/lojban/examples/my-kihei/pipeline.md
    ````
 
    ````text
    2 of 2 cases pass
    ````
 
-   These local cases omit `dialect`, so the CLI uses `--pipeline`. The shared corpus requires a bundled dialect name.
+   These local cases omit `pipeline`, so the CLI uses `--pipeline-file`. The shared corpus requires a bundled pipeline name.
 
-   For shared tests, add `"dialect":"my-kihei"` to each case. Save those cases to `tests/corpus/my-kihei.jsonl`.
+   For shared tests, add `"pipeline":"my-kihei"` to each case. Save those cases to `tests/corpus/my-kihei.jsonl`.
 
    Add their IDs to `tests/core.txt`. The core corpus runs in all four libraries on pull requests.
 
    Include an accepted case, a rejected case, and a base comparison. Inspect the output. Record the intended brackets.
 
-   The HOWTO also supplies five cases in `tests/corpus/dialects-howto.jsonl`. They cover the tree examples and the missing `.i`.
+   The HOWTO also supplies five cases in `tests/corpus/pipelines-howto.jsonl`. They cover the tree examples and the missing `.i`.
 
    Run those bundled cases:
 
    ````sh
-   node lib/js/cli.js test tests/corpus/dialects-howto.jsonl
+   node lib/js/cli.js test tests/corpus/pipelines-howto.jsonl
    ````
 
    ````text
@@ -340,32 +341,32 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Brackets do not record every rule node. If your change groups text differently, add tests for tree nodes like those in `lib/js/test/kihei.test.js`.
 
-8. Prepare the dialect for shared use.
+8. Prepare the pipeline for shared use.
 
-   The prose coverage tool requires a coverage decision for each additional grammar document. It automatically examines documents of `cll-ebnf` and `bpfk`.
+   The prose coverage tool requires a coverage decision for each additional grammar document. It automatically examines documents of `lojban/cll` and `lojban/bpfk`.
 
    For this trial, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
 
    ````js
-   "grammars/dialects/my-kihei.md": "the trial has local corpus cases in my-kihei.jsonl",
+   "grammars/lojban/examples/my-kihei/pipeline.md": "the trial has local corpus cases in my-kihei.jsonl",
    ````
 
    This entry records why the automatic CLL prose test excludes the trial. The tests must cover its claims.
 
-   For your own dialect, name its actual tests in that reason.
+   For your own pipeline, name its actual tests in that reason.
 
-   In `lib/js/test/quoted-texts.test.js`, add `my-kihei` to the expected list for `dialectNames()`.
+   In `lib/js/test/quoted-texts.test.js`, add `my-kihei` to the expected list for `pipelineNames()`.
 
-   Add `my-kihei` to the expected list for `documentDialects().get("grammars/syntax/cll.md")`.
+   Add `my-kihei` to the expected list for `documentPipelines().get("grammars/lojban/cll/syntax.md")`.
 
-   `quoted-texts.test.js` names every dialect and every dialect that includes CLL syntax. Keep each list in alphabetical order.
+   `quoted-texts.test.js` names every pipeline and every pipeline that includes CLL syntax. Keep each list in alphabetical order.
 
-   You maintain these dialect lists by hand.
+   You maintain these pipeline lists by hand.
 
    Add the additional grammar file to Git:
 
    ````sh
-   git add grammars/dialects/my-kihei.md
+   git add grammars/lojban/examples/my-kihei/pipeline.md
    ````
 
    Add your corpus files and test changes to Git.
@@ -557,7 +558,7 @@ Create `missing-include.md` with a nonexistent include:
 ````sh
 cat > missing-include.md <<'EOF'
 ```jbogenbau
-%include "grammars/dialects/missing.md"
+%include "grammars/lojban/missing/pipeline.md"
 ```
 EOF
 ````
@@ -565,16 +566,16 @@ EOF
 Run the file:
 
 ````sh
-node lib/js/cli.js parse --pipeline missing-include.md "broda"
+node lib/js/cli.js parse --pipeline-file missing-include.md "broda"
 ````
 
 The command exits with `2`:
 
 ````text
-gencmu: /path/to/gencmu/missing-include.md:2:1: /path/to/gencmu/grammars/dialects/missing.md was not found (/path/to/gencmu/missing-include.md → /path/to/gencmu/grammars/dialects/missing.md)
+gencmu: /path/to/gencmu/missing-include.md:2:1: /path/to/gencmu/grammars/lojban/missing/pipeline.md was not found (/path/to/gencmu/missing-include.md → /path/to/gencmu/grammars/lojban/missing/pipeline.md)
 ````
 
-If you see `was not found`, correct `%include` relative to its containing document. Before you select its stages, include the base dialect.
+If you see `was not found`, correct `%include` relative to its containing document. Before you select its stages, include the base pipeline.
 
 ### A rule extended in the wrong stage
 
@@ -583,7 +584,7 @@ Create `wrong-stage.md` with a syntax rule extension in forms:
 ````sh
 cat > wrong-stage.md <<'EOF'
 ```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
+%include "grammars/lojban/cll/pipeline.md"
 %extend-stage forms
 %extend-rule paragraph
   KIhEI
@@ -594,7 +595,7 @@ EOF
 Run the file:
 
 ````sh
-node lib/js/cli.js parse --pipeline wrong-stage.md "broda"
+node lib/js/cli.js parse --pipeline-file wrong-stage.md "broda"
 ````
 
 The command exits with `2`:
@@ -614,7 +615,7 @@ Create `tied.md` with an extra route to `statement`:
 ````sh
 cat > tied.md <<'EOF'
 ```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
+%include "grammars/lojban/cll/pipeline.md"
 %extend-stage syntax
 %extend-rule paragraph
   statement
@@ -625,7 +626,7 @@ EOF
 Run the file:
 
 ````sh
-node lib/js/cli.js parse --pipeline tied.md "broda"
+node lib/js/cli.js parse --pipeline-file tied.md "broda"
 ````
 
 The command exits with `1`. Its error starts with this line:
@@ -651,7 +652,7 @@ Create `unreachable.md` with a rule that nothing uses:
 ````sh
 cat > unreachable.md <<'EOF'
 ```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
+%include "grammars/lojban/cll/pipeline.md"
 %extend-stage syntax
 %rule unused-frame
   KOhA
@@ -662,7 +663,7 @@ EOF
 Run the audit, a report on the assembled grammar:
 
 ````sh
-node lib/js/cli.js audit --pipeline unreachable.md
+node lib/js/cli.js audit --pipeline-file unreachable.md
 ````
 
 The report includes this line:
@@ -673,11 +674,11 @@ The report includes this line:
 
 If your rule appears here, connect it to an existing rule. If its name is wrong, correct the definition.
 
-The Audit tab reports the same problem for the dialect selected in the playground. An audit can exit with `0` despite unreachable rules.
+The Audit tab reports the same problem for the pipeline selected in the playground. An audit can exit with `0` despite unreachable rules.
 
 ## Read further
 
-Read [Pipelines](notation.md#pipelines) for dialects, stage order, `%include`, `%extend-stage`, and `%redefine-stage`.
+Read [Pipelines](notation.md#pipelines) for pipelines, stage order, `%include`, `%extend-stage`, and `%redefine-stage`.
 
 Read [Stitching documents](notation.md#stitching-documents) for `%rule`, `%extend-rule`, and `%redefine-rule`.
 
@@ -693,8 +694,8 @@ Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for
 
 ## Zbalermorna names
 
-The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every dialect that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. Each Explicit rule row contributes both scalars to exactly the same grammar alternatives. Channels that these alternatives set by recipe have equal results for both encodings.
+The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every pipeline that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. Each Explicit rule row contributes both scalars to exactly the same grammar alternatives. Channels that these alternatives set by recipe have equal results for both encodings.
 
-Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the dialect's shared rules. BPFK and Zantufa read them as pause material, and experimental reads them as foreign material. Loading and parsing produce no warning about the older encoding.
+Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the pipeline's shared rules. BPFK and Zantufa read them as pause material, and experimental reads them as foreign material. Loading and parsing produce no warning about the older encoding.
 
 [The grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.

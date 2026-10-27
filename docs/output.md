@@ -2,7 +2,7 @@
 
 This document describes what a gencmu library returns, as data and as text. The shared tests compare the canonical JSON as parsed JSON values. So two libraries agree when their outputs parse to equal values. The renderings are for people to read.
 
-Grammar names, tags, features, and texts below are examples that illustrate the output forms. Grammar documents define their dialect behavior.
+Grammar names, tags, features, and texts below are examples that illustrate the output forms. Grammar documents define their pipeline behavior.
 
 JSON member names are case-sensitive. Names that differ in case are distinct members. If an exact name repeats, the last value replaces the earlier value. Escapes that decode to the same name identify the same member. Each schema decides whether it accepts unknown members. An accepted unknown member cannot overwrite a member with a different name.
 
@@ -47,7 +47,7 @@ The readings themselves are in the result's error (below), and the stage holds n
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or a failure before recognition, including a feature conflict or a feature-condition runtime error. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
-A token has this form. This one is the token of `mi` that the forms stage of the `cll-ebnf` dialect emits:
+A token has this form. This one is the token of `mi` that the forms stage of the `lojban/cll` pipeline emits:
 
 ```
 {"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],"span":[0,2],"source":[0,2]}
@@ -67,7 +67,7 @@ For a precomposed character, each stage-zero token keeps the original source and
 
 `insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
 
-`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicators stage of the `cll-ebnf` dialect emits:
+`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicators stage of the `lojban/cll` pipeline emits:
 
 ```
 {"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],
@@ -86,7 +86,7 @@ A node has one of these forms:
 
 A rule name is an output string, rather than an ASCII identifier. It can contain an emoji or a canonical call with punctuation, quotes, and spaces. Named instances use their public name without an extra node. Nodes, `insertedBy`, warnings, expected rules, and witness actions all use that same effective name. Engine §2.3 defines instance identity and canonical names.
 
-The [dialect guide](dialects.md#phoneme-values-and-stress) describes the bundled stage list and phoneme mappings.
+The [pipeline guide](dialects.md#phoneme-values-and-stress) describes the bundled stage list and phoneme mappings.
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
@@ -104,7 +104,7 @@ A warning has this form:
 {"stage":"words","feature":"y-cmavo","rule":"cmavo-token","span":[2,3],"source":[3,7]}
 ```
 
-As in a node, `span` counts the input tokens of the stage, and `source` counts the code points of the original text. The example is the warning for `ka'y` in `mi ka'y`, in the cll-ebnf dialect with the feature `y-cmavo` on.
+As in a node, `span` counts the input tokens of the stage, and `source` counts the code points of the original text. The example is the warning for `ka'y` in `mi ka'y`, in the lojban/cll pipeline with the feature `y-cmavo` on.
 
 An action in a witness is `{"read":{"token":4,"terminal":"KOhA"}}` or `{"close":{"rule":"sumti","production":57,"span":[2,5]}}`. The witness of an error of `elision-only` can also hold `{"elided":{"at":3,"terminal":"KU"}}`, a read of a terminator written back at that position (engine §7.10). The production is numbered from 0, as in engine §3. For a production of a helper, `rule` is the rule whose alternative introduced the helper.
 
@@ -147,7 +147,7 @@ A rejection can also name a failed boundary condition:
 
     The error also has `"witness":[ACTION,ACTION]` after its readings. It holds the actions at the first difference between the two derivations, visible if there is one, mapped to the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
 - `feature-conflict`: A conditional declaration holds for a feature that the caller disables. The error has `stage`, `feature`, and `message`, without a position.
-- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8).
+- `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation pipeline has the `document` and no `line` or `column` (engine §8).
 
   For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). An item of braces that can match no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.
 
@@ -483,7 +483,7 @@ A `features` directive can add `"conditions":[COND,COND...]`, with at least one 
 
 An absent `conditions` member denotes an unconditional declaration. A present empty array is malformed.
 
-A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
+A directive of any other name is malformed (engine §9). An argument is a name or, for `include` or `names`, the decoded path: `{"name":"include","args":["../lojban/common/stream.md"],"at":[4,3]}`.
 
 A library ignores unknown members of a directive. Its known members, `name`, `args`, `conditions`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 
@@ -650,7 +650,7 @@ On a hash-matched, valid entry, the loader trusts this member without scanning s
 
 If the member is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. The otherwise valid entry remains a hit, even when declared or inherited extras change. Those declarations still apply to nested includes. Engine §8 defines loading errors and cache misses.
 
-A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A precompiled DOM serves every stage, dialect, and feature set with matching resource dependencies (engine §2, §8).
+A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A precompiled DOM serves every stage, pipeline, and feature set with matching resource dependencies (engine §2, §8).
 
 ## Renderings
 
@@ -671,11 +671,11 @@ Tree patterns do not change bracket grouping. The renderer applies the rules bel
    If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
-In the `cll-ebnf` dialect, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
+In the `lojban/cll` pipeline, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
 
 ### Tree
 
-The renderer uses the result's originating core table for quoted images and abbreviations. The result retains that immutable context privately, beyond the dialect's lifetime. Canonical JSON omits this context. Without an originating context, tree rendering reports a usage error instead of selecting bundled or ambient data. Printing never needs the lazy names file.
+The renderer uses the result's originating core table for quoted images and abbreviations. The result retains that immutable context privately, beyond the pipeline's lifetime. Canonical JSON omits this context. Without an originating context, tree rendering reports a usage error instead of selecting bundled or ambient data. Printing never needs the lazy names file.
 
 The tree has one node per line, and children are indented two spaces under their parent. Each kind of node is written as follows:
 
@@ -686,7 +686,7 @@ The tree has one node per line, and children are indented two spaces under their
   An attachment is its classes, then its image in quotes with the same escapes. Its classes are its tags that start and end with a capital and never start with `_`, in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
-The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `cll-ebnf` dialect, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
+The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `lojban/cll` pipeline, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:
 
 ```
 KOhA "mi"

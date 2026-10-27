@@ -29,7 +29,7 @@ The corpus records full outcomes. These shared fixtures also express stage cutof
 
 The cases in `parameters.json` use the same case shape. All four libraries run these shared parameter cases.
 
-The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete dialects through the public loader.
+The cases in `parameter-structure.json` inspect parameter DOMs and expanded rules in all four libraries. Cases with `public:true` load complete pipelines through the public loader.
 
 Each case supplies `grammar` source or a complete `dom`. The optional `argument` matches the last source rule's first call argument. `order` lists the expanded rule names. `instances` gives the instance count. `flags` maps rule names to their final flags.
 
@@ -42,7 +42,7 @@ Each file is one case:
   "description": "what the case pins down, and which engine or grammar section defines it",
   "grammar": "%rule text A B",
   "documents": {"path.md": "Markdown text"},
-  "pipeline": "path.md",
+  "pipelineDocument": "path.md",
   "tokens": [{"text": "a", "tags": ["A"]}, {"text": "b", "tags": ["B", "C"]}],
   "input": "characters",
   "options": {"features": ["f"], "withoutFeatures": ["g"], "elisionOnly": true, "until": "words"},
@@ -51,7 +51,9 @@ Each file is one case:
 }
 ```
 
-The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` is rule text for a single stage named `main`. The document of this stage is those rules in one `jbogenbau` block. On a line of its own before the rules, the block has `%ambiguity-resolution greedy`, unless the text has its own `%ambiguity-resolution`. `pipeline` names a pipeline document among `documents`.
+The grammar comes from a bundled `pipeline`, from `grammar`, or from `documents` and `pipelineDocument`. `grammar` is rule text for a single stage named `main`. The document of this stage is those rules in one `jbogenbau` block. On a line of its own before the rules, the block has `%ambiguity-resolution greedy`, unless the text has its own `%ambiguity-resolution`. `pipelineDocument` names a pipeline document among `documents`. A bundled `pipeline` uses its full name, such as `lojban/cll`.
+
+Shared cases for bundled-name validation use `pipeline` and expect a `usage` load error for invalid or unknown names. `expect.bundledPipelines` compares the public enumeration with its ordered list of full names. These cases use the existing engine-case runner.
 
 The input is `input` or `tokens`. `input` supplies scalar characters as engine §1 states. `tokens` replaces the first stage input. With both members, `input` supplies the original source text. Without `input`, the runner joins token texts with single spaces. Each token gets these values:
 
@@ -72,7 +74,7 @@ The condition-loading cases stop before the condition's stage, so a runtime fail
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
-`options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
+`options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the pipeline is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
 A pattern describes required result fields. `expect.result` is a pattern matched against the format 15 canonical result of `docs/output.md`. A pattern matches in these ways:
 
@@ -88,23 +90,23 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `expect.enabledFeatures` compares the result's enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
 
-`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
+`expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the pipeline (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
-A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
+A case can also parse its input several times with the one loaded pipeline. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
 
 ```
 "parses": [{"options": {}, "expect": {"brackets": "a"}}, {"options": {"features": ["f"]}, "expect": {"error": "grammar"}}]
 ```
 
-The library loads the dialect once, and then parses the input with each item's configuration in order. Each result matches its item's `expect`. So a case can show that one loaded dialect gives each set of features its own result, whatever it parsed before.
+The library loads the pipeline once, and then parses the input with each item's configuration in order. Each result matches its item's `expect`. So a case can show that one loaded pipeline gives each set of features its own result, whatever it parsed before.
 
 `expect.error` is the error kind, when the case is about an error. For a grammar that cannot be loaded, the result is the error alone. For a mistake of the caller, `usage`, there is no result.
 
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
 
-For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
-An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
+An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
@@ -195,7 +197,7 @@ The `notation/layered-pattern-*.json` cases use the public reader and format-40 
 
 The `engine/layered-pattern-*.json` cases use the public loader. They cover exact matching, independent child searches, empty lists, seals, choices, constant binding, template families, and error positions.
 
-Canonical pattern cases in `parameter-structure.json` load complete dialects. They assert expanded names and instance counts. Repeated calls with equal arguments share one instance despite different source positions.
+Canonical pattern cases in `parameter-structure.json` load complete pipelines. They assert expanded names and instance counts. Repeated calls with equal arguments share one instance despite different source positions.
 
 Malformed pattern cases in `json-keys.json` exercise matching compiled entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
 
@@ -217,7 +219,7 @@ Ordinary controls require the concatenation type error without a recipe instruct
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
-Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
+Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
 
 ## Notation shapes: `notation-shapes.json`
 
@@ -225,11 +227,11 @@ Each case supplies bootstrap text or replaces the first place of `find` with `re
 {"description": "...", "document": "Markdown text", "inputs": ["b", "qs"], "control": [OUTCOME...], "loads": {"guard": [OUTCOME...]}}
 ```
 
-A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notation can give the reader a tree of another shape, and engine §9 says how the reader reads it. Each library loads `document` as the one document of a stage `main`, with a bootstrap made from the bundled one. It then parses each of `inputs`, with the default API configuration. The outcome of an input is its bracket rendering if it parses, or else the kind of its error. A load that fails gives only the kind of its error.
+A caller can supply its own `bootstrap.json` (`docs/api.md`). Its notation can give the reader a tree of another shape, and engine §9 says how the reader reads it. Each library loads `document` as the one document of a stage `main`, with a bootstrap made from the bundled one. It then parses each of `inputs`, with the default API configuration. The outcome of an input is its bracket rendering if it parses, or else the kind of its error. A load that fails gives only the kind of its error.
 
 - With the bundled bootstrap, the outcomes are `control`.
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
-- Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
+- Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a pipeline, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
 Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
@@ -293,17 +295,17 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 `python3 tools/unicode-table.py --audit` compares shipped data with `unicode/property-digests.json`. It reads both character resources independently of UCD generation. Each of the 82 properties receives all 1,112,064 scalar records, including defaults and extension sets. Generation also runs this audit after writing resources. The command writes no files and requires Go for the shared digest helper.
 
-The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for dialects naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
+The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for pipelines naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
 `python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
 A later change uses the revision before that change as its baseline. That revision must include the complete property profiles. Such a change measures only the workloads that it can affect.
 
-The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded dialects, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
+The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded pipelines, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
 
 `--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, `unicode.txt` data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
 
-The timed corpus sample contains 400 cll-ebnf cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
+The timed corpus sample contains 400 lojban/cll cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 
 The repeated-character workloads use this forwarding grammar:
 
@@ -321,7 +323,7 @@ Timings include stage-zero construction, parsing, and tag propagation. Each work
 
 Cold runs use new processes and include loading and one timed corpus-sample batch. They use the same nine-pair ordering. The median increase cannot exceed five percent or 25 milliseconds, whichever is larger. The report also records peak memory and separate JSON serialization time. Those two measurements have no separate numerical gate.
 
-Each revision also runs the full cll-ebnf corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
+Each revision also runs the full lojban/cll corpus once for outcome comparison. These runs are outside the timing protocol and need no warm-ups or paired repetitions. The comparison includes every case's acceptance, failure stage, verdict, bracket tree, emitted words, warnings, and error or witness data. Every changed outcome appears in the report with its cause. Unexplained changes fail the gate.
 
 Before comparing results, the baseline normalizes general-category names to their current long spellings. This includes tag sets, terminal identities, diagnostics, and canonical call names.
 
@@ -334,13 +336,13 @@ The harness records both revisions, environment, selection manifest, raw timings
 ## Growth cases: `growth.json`
 
 ```
-[{"description": "...", "dialect": DIALECT, "text": "mi {links} klama", "link": ".e do",
+[{"description": "...", "pipeline": PIPELINE, "text": "mi {links} klama", "link": ".e do",
   "small": 10, "large": 40, "most": 5}, ...]
 ```
 
-Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
+Each item says that a bundled pipeline's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
 
-Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the dialect. A library with a shared memo (engine §4.3) counts with the memo off, so that answers from the small text never shorten the large one. The count for `large` copies must be at most `most` times the count for `small` copies.
+Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the pipeline. A library with a shared memo (engine §4.3) counts with the memo off, so that answers from the small text never shorten the large one. The count for `large` copies must be at most `most` times the count for `small` copies.
 
 ## Notation growth cases: `notation-growth.json`
 
@@ -372,7 +374,7 @@ The Python tests need Python 3.14 or later. Their work counters use `sys.monitor
 
 Each item says that nested queries nest as deep as the input makes them, with no bound (engine §4). A grammar whose conditions start a query inside each nested parse makes a chain of active queries as long as the text. A library that runs each nested parse on its call stack runs out of stack on such a chain.
 
-The library loads `grammar` as the one stage of a dialect, which reads the text's characters. It parses `link` repeated `count` times, then `suffix`, and the parse must succeed. The parse uses an ordinary stack. JavaScript and Python use the main thread. Rust uses a test thread of default size. Go uses a goroutine whose stack is held to 1 MiB.
+The library loads `grammar` as the one stage of a pipeline, which reads the text's characters. It parses `link` repeated `count` times, then `suffix`, and the parse must succeed. The parse uses an ordinary stack. JavaScript and Python use the main thread. Rust uses a test thread of default size. Go uses a goroutine whose stack is held to 1 MiB.
 
 ## Query work cases: `query-work.json`
 
@@ -386,22 +388,22 @@ Each item bounds how often a step or term evaluates its parts when it starts man
 
 The library joins `item` for each i from 0 to `count` − 1 with `joiner`. It puts `head` before them and `tail` after them. It then appends `rule` once per i. In `item` and `rule`, `{i}` stands for i.
 
-It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
+It loads the grammar as the one stage of a pipeline and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
 
 ## Shared memo runs: `shared-memo.json`
 
 ```
-{"description": "...", "runs": [{"dialect": "bpfk", "texts": ["klama"], "options": [{}, {"until": "forms"}]},
+{"description": "...", "runs": [{"pipeline": "lojban/bpfk", "texts": ["klama"], "options": [{}, {"until": "forms"}]},
   {"grammar": "%rule text X", "inputs": [[{"text": "x", "tags": ["X"]}]], "options": [{}]}]}
 ```
 
-Each run tests that parses on one dialect do not depend on each other, which the shared memo of engine §4.3 must not change. A run names a bundled dialect, or gives `grammar` as an engine case does. Its inputs are `texts`, or `inputs`, which are token lists in the form of engine cases. Its options are option sets in the form of engine cases.
+Each run tests that parses on one pipeline do not depend on each other, which the shared memo of engine §4.3 must not change. A run names a bundled pipeline, or gives `grammar` as an engine case does. Its inputs are `texts`, or `inputs`, which are token lists in the form of engine cases. Its options are option sets in the form of engine cases.
 
-The parses of a run are each input under each option set, input by input. A library first makes each parse on a dialect whose shared memo holds nothing. These results are the reference. A library without a shared memo makes each reference parse on a fresh dialect.
+The parses of a run are each input under each option set, input by input. A library first makes each parse on a pipeline whose shared memo holds nothing. These results are the reference. A library without a shared memo makes each reference parse on a fresh pipeline.
 
-It then makes the parses on one dialect, in order, then in reverse order, then in order again. A library with a shared memo uses its default bound there. It repeats the parses on one dialect whose bound is one entry for each generation, so that eviction happens during each parse. Each result must equal its reference as canonical JSON. A parse that ends in an error must give the same error.
+It then makes the parses on one pipeline, in order, then in reverse order, then in order again. A library with a shared memo uses its default bound there. It repeats the parses on one pipeline whose bound is one entry for each generation, so that eviction happens during each parse. Each result must equal its reference as canonical JSON. A parse that ends in an error must give the same error.
 
-Where dialects can serve several threads, a library also makes the parses from several threads at once on one dialect. Each thread makes every parse of the run, from its own starting place, and the test checks that each parse runs. It compares each result in the same way. The Go library runs this threaded test under the race detector in continuous integration.
+Where pipelines can serve several threads, a library also makes the parses from several threads at once on one pipeline. Each thread makes every parse of the run, from its own starting place, and the test checks that each parse runs. It compares each result in the same way. The Go library runs this threaded test under the race detector in continuous integration.
 
 Some runs pin one field of the shared key each: a token's value, image, tags or source offsets, or the source text. The runs for the value, tags, offsets and source text ask one query in each parse. So the memo of one parse cannot hide a missing field there. The run for the image asks two queries in each parse, over spans that differ only in an image. No run pins a token's text, since no condition reads it.
 
@@ -479,22 +481,22 @@ So the four runners hold the same invariants, and no library keeps a list of its
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
-The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled dialects.
+The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled pipelines.
 
 Corpus identifiers stay stable when grammar rules change.
 
-Dialect and grammar documents define dialect behavior. Corpus cases pin their texts, verdicts, and images. Shared engine cases also test stage values, recipes, attachment ownership, and source gaps. Image equality alone does not establish equal structure or ownership. Structural comparisons use each stage's input coordinates and map positions when token counts differ between stages.
+Pipeline and grammar documents define pipeline behavior. Corpus cases pin their texts, verdicts, and images. Shared engine cases also test stage values, recipes, attachment ownership, and source gaps. Image equality alone does not establish equal structure or ownership. Structural comparisons use each stage's input coordinates and map positions when token counts differ between stages.
 
-`corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
+`corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for `lojban/cll` and `lojban/bpfk`. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
 
 ```
-{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "dialect": "cll-ebnf", "expect": "accept",
+{"id": "cll.5.1.c5e1d1", "text": "do mamta mi", "pipeline": "lojban/cll", "expect": "accept",
  "verdict": "unique", "words": ["do", "mamta", "mi"], "brackets": "(do [mamta mi])"}
 ```
 
-- `dialect` is the name of a bundled dialect. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
+- `pipeline` is the full name of a bundled pipeline. `features`, when present, lists the features that the case turns on. `withoutFeatures` lists those that it turns off.
 - `expect` is `accept` or `reject`. For an accepted text, `verdict` is the verdict of the last stage, and `brackets` is its tree, with elided terminators hidden. For a rejected one, `stage` names the stage that rejected it.
 - In a rejected case, `at` is the start of the error's `source` in the text. It counts code points from 0. At the end of the stage's input, `at` is the end of the source of its last token. That is the length of the text only when no pause, attached indicator or erased word follows that token. For example, `mi le ui` stops at 5, the end of `le`, which carries `ui`, and not at 8 (case `adhoc.syntax.at-end-after-attached-indicator`).
 
@@ -504,9 +506,9 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect's grammar recipes supply pause spaces and verbatim text.
+- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The pipeline's grammar recipes supply pause spaces and verbatim text.
 
-A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their pipeline, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 Every runner compares all of these fields, `at` included.
 
@@ -514,7 +516,7 @@ The runners differ on input that this format does not allow, such as a field who
 
 A case has only the fields above, and none of them is null. An accepted case has `verdict` and `brackets`. A rejected case has `stage`, and it has `at` exactly when it has no `error`.
 
-The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a dialect policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
+The optional `seeded` field records a reference fixture's verdict, `"accept"` or `"reject"`. When gencmu expects a different verdict, `reason` explains that expectation in terms of its grammar. A case can also have `reason` without `seeded`, to explain a grammar change or a pipeline policy. `node tools/corpus-departures.js` lists every such case, grouped by reason. A change to the `words` or `brackets` of a case needs no field of its own. It is a change to what gencmu produces, made in the same commit as the grammar change that causes it.
 
 `core.txt` lists the ids of the sample that every library runs on each pull request. It holds every case that pins a text that a checked document quotes ("Quoted texts" below). So a change that makes such prose false fails in every library. On a pull request, the JavaScript and Rust libraries also run the whole corpus, and the others run it nightly. To run every case in JavaScript, run `GENCMU_CORPUS=full node --test test/corpus.test.js` in `lib/js/`.
 
@@ -546,39 +548,39 @@ A quoted text is a code span in the prose of a document, outside code blocks, wi
 
 The check finds the code spans with the CommonMark and GFM parser of `tools/markdown.js`, so a code block holds none. Every prose block is one line, with its code spans ("Documents" in `docs/design.md`). So the line of a text's code span is the paragraph, heading or table row that quotes it.
 
-The check covers every document that the pipelines of the cll-ebnf and bpfk dialects include, at any depth, and the two dialect documents themselves. `CHECKED_DIALECTS` in `tools/quoted-texts.js` names these dialects. The includes come from the DOMs of the source documents, and each path resolves as the pipeline resolves it. A checked document has the dialects that its claims are about: those of the two that include it.
+The check covers every document that the `lojban/cll` and `lojban/bpfk` pipelines include, at any depth, and the two pipeline documents themselves. `CHECKED_PIPELINES` in `tools/quoted-texts.js` names these pipelines. The includes come from the DOMs of the source documents, and each path resolves as the pipeline resolves it. A checked document has the pipelines that its claims are about: those of the two that include it.
 
-The experimental and Zantufa dialects include some of these documents and layer their own over them. So a claim about one of them is checked only where the prose names it. Every other grammar document is left out with a reason. A document that only other dialects include has the reason that names them, read from their pipelines.
+The `lojban/experimental` and `lojban/zantufa` pipelines include some of these documents and layer their own over them. So a claim about one of them is checked only where the prose names it. Every other grammar document is left out with a reason. A document that only other pipelines include has the reason that names them, read from their pipelines.
 
-The dialect documents of those dialects, and any document that no dialect includes, have a reason in `UNCHECKED`. A grammar document with no reason is an error, so a new document is not left out in silence.
+The pipeline documents of those pipelines, and any document that no pipeline includes, have a reason in `UNCHECKED`. A grammar document with no reason is an error, so a new document is not left out in silence.
 
-The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. A quoted text needs a case of each dialect of its document. Its scope can name more dialects, as in "the bpfk dialect rejects it" or "In cll-ebnf and bpfk". The text then needs a case of each of those too.
+The words of a quoted text, joined by single spaces, are compared with the text of each corpus case, written the same way. A quoted text needs a case of each pipeline of its document. Its scope can name more pipelines, as in "the `lojban/bpfk` pipeline rejects it" or "In `lojban/cll` and `lojban/bpfk`". The text then needs a case of each of those too.
 
 The scope includes the list item that holds the text and every enclosing item, even inside a block quote. It excludes nested lists from each item. Outside a list item, the scope is the paragraph, heading or table row. A blank line inside an item changes no scope.
 
-A name in a nested item does not scope its parent. A name scopes all nested items. A name counts in any case, when it stands as a word in the prose or in the text of a link.
+A name in a nested item does not scope its parent. A name scopes all nested items. A full name counts when it stands in prose, a code span, or the text of a link. Matching uses its canonical spelling.
 
-A name in a code span or a link target does not count. The names are those of the dialect documents, less `notation`. In this prose, "experimental" always names the dialect.
+The checker matches full pipeline names, including names in code spans. Link destinations do not set scope. Bare `CLL`, `cll`, and `experimental` do not name a pipeline. `gencmu/jbogenbau` is outside the Lojban prose check.
 
-Each dialect that a text needs has one reading of it. A case of the whole text gives its verdict and brackets. A case of an entry (below) gives its verdict and role. The two kinds are compared apart.
+Each pipeline that a text needs has one reading of it. A case of the whole text gives its verdict and brackets. A case of an entry (below) gives its verdict and role. The two kinds are compared apart.
 
-The dialects that the scope does not name must read the text alike, since the sentence then speaks for all of them. A text with different readings in two dialects is an error unless its scope names one of them. Naming a third dialect does not change this. The sentence then says which dialect it is about, and what the other does. This compares only the cases, never the sentence.
+The pipelines that the scope does not name must read the text alike, since the sentence then speaks for all of them. A text with different readings in two pipelines is an error unless its scope names one of them. Naming a third pipeline does not change this. The sentence then says which pipeline it is about, and what the other does. This compares only the cases, never the sentence.
 
 A sentence that says how a text reads quotes that exact text. For example, it says "Here `le poi blabi gerku cu klama` parses", not "the text without `ku'o` parses". Then the check sees the text that the claim is about.
 
 The case pins what the sentence says about the text: its verdict, and its brackets or words where the sentence says how the text reads. Before you add a case, parse the quoted text to make sure that the claim holds. If the claim is false, correct the prose. No tool compares the verdict that a sentence states with the case.
 
-When a case fails, the JavaScript corpus runner names the lines that the case pins, as `quoted at grammars/syntax/cll.md:669`. These are the lines that quote the case's text, and those that quote a fragment that an entry of `quoted-allow.txt` pins with the case. The prose there can be false.
+When a case fails, the JavaScript corpus runner names the lines that the case pins, as `quoted at grammars/lojban/cll/syntax.md:669`. These are the lines that quote the case's text, and those that quote a fragment that an entry of `quoted-allow.txt` pins with the case. The prose there can be false.
 
 Every case that pins a quoted text, by its own text or through an entry of `quoted-allow.txt`, is in `core.txt`. So every library runs it on a pull request. The check reports a case that is not there.
 
-Each entry of `quoted-allow.txt` covers one quoted text in one document: every line that quotes it there, or the lines that the entry names. Its line is the text, then ` # `, then the document, with ` @ "PHRASE"` for each line where it names them. An example is `va pu # grammars/syntax/cll.md @ "Space can precede time"`. Then comes one of these:
+Each entry of `quoted-allow.txt` covers one quoted text in one document: every line that quotes it there, or the lines that the entry names. Its line is the text, then ` # `, then the document, with ` @ "PHRASE"` for each line where it names them. An example is `va pu # grammars/lojban/cll/syntax.md @ "Space can precede time"`. Then comes one of these:
 
 - ` = ` and cases, each as its id after its role. A role applies to the ids after it, and a role with no id after it is an error. A role is the name of a rule, `words` or `reject`. The check parses each case.
 
-  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect's grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
+  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The pipeline's grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
 
-  These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required dialect, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
+  These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the pipeline rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required pipeline, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
 
   This form is for a part of a text that the sentence makes a claim about: a special grouping, a rejection or a repair. An example is `na'e ka'e` as one `simple-tense-modal`. The author makes sure that the role is the one that the sentence gives the fragment.
 - ` # ` and the reason. This form is for notation, such as `nu'i terms nu'u`, and for a shape that a rule produces as written, such as `mi .e do`. It is also for a part of a reading that the grammar does not choose, where the whole text has its own case. A reason that begins with "deferred:" names the branch responsible for the text's pin.

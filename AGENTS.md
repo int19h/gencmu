@@ -4,8 +4,8 @@ gencmu is a Lojban parser. Its grammars are literate Markdown documents in the j
 
 ## Layout
 
-- `grammars/` holds the grammars. A dialect document in `grammars/dialects/` names the stages of its pipeline and the grammar documents of each stage.
-- `docs/` holds the specification: `notation.md`, `engine.md`, `output.md`, `api.md`, `design.md` and `dialects.md`. `experimental-cmavo-evidence.md` records the usage evidence for the experimental lexicon.
+- `grammars/` holds the grammars. Each `NAME/pipeline.md` names its stages and grammar documents. Directories group pipelines by language family, and root files belong to the engine.
+- `docs/` holds the specification: `notation.md`, `engine.md`, `output.md`, `api.md`, `design.md` and `pipelines.md`. `experimental-cmavo-evidence.md` records the usage evidence for the experimental lexicon.
 - `lib/js`, `lib/rust`, `lib/go` and `lib/python` are the four libraries. JavaScript is the reference library. If the libraries disagree, the specification decides.
 - `tests/` holds the shared conformance cases and the corpus. `tests/README.md` explains the corpus format.
 - Run `npm ci` in `lib/js` to install the development dependencies.
@@ -31,14 +31,15 @@ Grammar prose and documentation use simple English:
 - No semicolons and no em dashes.
 - One line per paragraph.
 - No history: describe what the grammar does, not how it got there.
+- Use pipeline for software objects, names, APIs, CLI commands, messages, logs, diagnostics, test fields, playground controls, and engine specifications. Use dialect only for a variety of a language in family-specific prose. Source quotations keep their words.
 - Grammar prose explains what each rule block does and why. Differences from the reference grammars go in the closing section of each document.
 
 ## Sources and authority
 
-- The cll-ebnf dialect follows the text of *The Complete Lojban Language* (CLL) 1.1. The official LLG parser and the YACC grammar are supporting evidence only.
-- Every dialect follows the left-to-right BPFK Magic Words model. Magic words include `si`, `sa`, `su`, `zo`, `zoi`, `zei` and `bu`. camxes-std is its reference implementation. CLL chapter 19 is not consistent on these words, so it is cited only where it agrees with Magic Words.
+- The `lojban/cll` pipeline follows the text of *The Complete Lojban Language* (CLL) 1.1. The official LLG parser and the YACC grammar are supporting evidence only.
+- Every pipeline follows the left-to-right BPFK Magic Words model. Magic words include `si`, `sa`, `su`, `zo`, `zoi`, `zei` and `bu`. camxes-std is its reference implementation. CLL chapter 19 is not consistent on these words, so it is cited only where it agrees with Magic Words.
 - A quote of any kind is one word unit, and indicators and `ba'e` mark it as a whole. DAhO, FUhE and FUhO stand wherever indicators can. FUhE opens a run of indicators.
-- The experimental dialect starts from camxes-exp, but camxes-exp is a baseline, not a ceiling. Do not copy a rejection that exists only because of PEG ordering. List every deliberate departure, with its reason.
+- The `lojban/experimental` pipeline starts from camxes-exp, but camxes-exp is a baseline, not a ceiling. Do not copy a rejection that exists only because of PEG ordering. List every deliberate departure, with its reason.
 - The Lojban corpus is the public repository [jbocirvei](https://github.com/int19h/jbocirvei). It holds CLL, the reference grammars, dictionary exports, wiki pages, mail and chat. Many of its sources are git submodules. It is one source, not the only one. If the corpus lacks something, use the original source.
 - The maintainers curate the experimental lexicon by hand from the dictionary. Its closing section states the policy and every exception.
 - Do not use Tatoeba sentences as test material. Their Lojban is generally poor.
