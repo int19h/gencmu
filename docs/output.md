@@ -195,7 +195,7 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 
 The authoritative constructor contract is [engine §9.3](engine.md#93-conversion-and-validation). It defines recognized syntax parts, required lookups, and conversion into these schemas.
 
-A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
+A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. The per-family preparsed files hold this data, including the entries that bootstrap the notation reader.
 
 Its envelope is `{"format":40,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
@@ -209,7 +209,7 @@ A written literal joins its decomposed text runs with exact decoded escapes. DOM
 
 DOM format 40 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 40 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":40,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 40 also applies to preparsed envelopes, including `data/preparsed/gencmu.json`. Each envelope holds document entries, not stitched stages. The loader splices the required notation entries before stitching the bootstrap stages. It rejects other bootstrap formats and skips other optional cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -634,23 +634,25 @@ For example, `mex MOI 🆓 ≻ SE 🆓 tanru-unit-1` produces this expression:
 
 The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
-### Precompiled DOMs
+### Preparsed DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":40,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`data/preparsed/FAMILY.json` holds the DOMs of all grammar documents under `grammars/FAMILY/`. `tools/sync.js` generates each file and copies it into every package. Its shape is `{"format":40,"bootstrap":HASH,"unicode":HASH,"properties":HASH_OR_NULL,"bundledNames":{RESOURCE:HASH},"documents":{PATH:{"hash":HASH,"names":{RESOURCE:HASH},"dom":DOM}}}`. `PATH` is relative to the package root, including the `grammars/` prefix. Each `HASH` is the FNV-1a hash of engine §8. `unicode` hashes the text of `data/unicode/unicode.txt`.
 
-A library always compares the format, bootstrap hash, core-table hash, properties fingerprint, and document hash. `properties` hashes the complete properties-file text. If a custom core has no companion, the fingerprint is `null`. Even for documents naming no additional property, the member is mandatory. A custom properties file causes unavoidable cache misses against bundled entries with a different fingerprint.
+The required `gencmu.json` omits the `bootstrap` header member. The hash of its complete text supplies that fingerprint for every other family. The notation reader uses its required entries without checking their source text hashes. Ordinary cache lookups still compare all other applicable identity members. A pipeline reads its own family file besides the required `gencmu.json`. Missing or malformed optional files give cache misses.
+
+For an ordinary entry, a library compares format, bootstrap fingerprint, core-table hash, properties fingerprint, and document hash. The bootstrap file supplies its own fingerprint implicitly. `properties` hashes the complete properties-file text. If a custom core has no companion, the fingerprint is `null`. Even for documents naming no additional property, the member is mandatory. A custom properties file causes unavoidable cache misses against bundled entries with a different fingerprint.
 
 `bundledNames` records the bundled standard names file and every bundled extra, with normalized paths in code-point order. Each value hashes the pinned resource text. Caller replacements never change this registry. Present resource keys require full comparison even if the supplied text matches a registered hash. Absent keys can use the registry even in a portable map.
 
 This optional cache metadata leaves the DOM and bootstrap format unchanged. A missing or malformed registry disables the shortcut in engine §8.
 
-If source conversion loads names data, the cache writer records `names` after `hash`. This nonempty map contains the standard file and every selected extra. Its keys are normalized resolved resource paths in code-point order. Each value hashes that file's text with FNV-1a. Core abbreviations require no names dependency. When `names` is present, the loader compares paths and hashes for `unicode-names.txt` plus the current inherited and local extras (engine §8).
+If source conversion loads names data, the cache writer records `names` after `hash`. This nonempty map contains the standard file and every selected extra. Its keys are normalized resolved resource paths in code-point order. Each value hashes that file's text with FNV-1a. Core abbreviations require no names dependency. When `names` is present, the loader compares paths and hashes for `data/unicode/unicode-names.txt` plus the current inherited and local extras (engine §8).
 
 On a hash-matched, valid entry, the loader trusts this member without scanning source tokens. If the member is present, all selected paths and fingerprints must match it. Unoverridden bundled resources use `bundledNames` without reading, parsing, or fetching names files. Any override or missing registry entry requires loading and inspecting the complete selected set. The reference file serves inspection only and never enters the dependency map.
 
 If the member is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. The otherwise valid entry remains a hit, even when declared or inherited extras change. Those declarations still apply to nested includes. Engine §8 defines loading errors and cache misses.
 
-A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A precompiled DOM serves every stage, pipeline, and feature set with matching resource dependencies (engine §2, §8).
+A preparsed DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. A preparsed DOM serves every stage, pipeline, and feature set with matching resource dependencies (engine §2, §8).
 
 ## Renderings
 

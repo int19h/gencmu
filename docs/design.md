@@ -23,11 +23,6 @@ gencmu ships these parts:
 index.html                 web playground, which GitHub Pages can serve from the root
 playground/                playground scripts and styles, relative paths only
 grammars/                  source grammars grouped by family
-  bootstrap.json           the notation reader for every family
-  unicode.txt              the core character table and abbreviations
-  unicode-properties.txt   pinned Unicode properties
-  unicode-names.txt        pinned character names
-  compiled.json            precompiled document DOMs
   lojban/
     cll/                   pipeline.md, latin, cyrillic, shapes, morphology, lexicon, stream, indicators, syntax
     bpfk/                  pipeline.md and morphology
@@ -36,6 +31,12 @@ grammars/                  source grammars grouped by family
     common/                latin, cyrillic, zbalermorna, names, forms, stream, lohai
     examples/kihei/         pipeline.md for the discourse-frame example
   gencmu/jbogenbau/         pipeline.md, lexical and syntax
+data/                      engine resources, independent of pipeline families
+  unicode/                 unicode.txt, unicode-properties.txt and unicode-names.txt
+  preparsed/               one JSON file per grammar family
+    gencmu.json            required DOMs that bootstrap the notation reader
+    lojban.json            optional DOMs that speed up Lojban loading
+    README.md              the role of these files
 docs/
   design.md                design choices and their reasons
   pipelines.md              the pipeline author guide
@@ -50,7 +51,7 @@ tests/
   notation/                small grammar documents with their expected DOMs and errors
   corpus/                  Lojban texts with expected verdicts and trees
   core.txt                 the ids of the corpus subset every language runs in CI
-lib/                       the four libraries, each with its own copy of grammars/
+lib/                       the four libraries, each with its own copies of grammars/ and data/
   js/                      npm package `gencmu`: library, CLI (`lib/js/cli.js`) and type declarations
   python/                  Python package `gencmu`
   go/                      Go module `github.com/int19h/gencmu/lib/go`, package `gencmu`
@@ -60,17 +61,19 @@ tools/sync.js              regenerates every generated file below
 .github/workflows/         CI
 ```
 
-A directory directly under `grammars/` is a family. Files directly under `grammars/` belong to the engine. Bundled families keep their grammar includes within their own subtrees. Each family can use the shared engine resources at the root.
+A directory directly under `grammars/` is a family. That directory holds only its family's source documents and names resources. Bundled families keep their grammar includes within their own subtrees. Engine resources live under `data/`, outside every family.
 
 A pipeline name is its directory path below `grammars/`. A directory is a pipeline exactly when it contains `pipeline.md`. Pipeline directories use flat role names, such as `syntax.md`, `lexicon.md`, and `morphology.md`. A document stays with the reference that defines it when another pipeline starts using it. Family conventions and shared machinery live under that family's `common/` directory.
 
 Use `pipeline` for software objects and names. The word `dialect` describes a variety of a language in family-specific prose. Source quotations keep their original words.
 
-`grammars/` is the single source of the grammars. The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. The copies are `lib/js/grammars/`, `lib/python/src/gencmu/grammars/`, `lib/go/grammars/`, `lib/rust/grammars/`, and `dist/grammars.js` for the browser.
+`grammars/` is the single source of the grammars. `data/unicode/` supplies the pinned Unicode resources. `data/preparsed/` holds generated document DOMs, one file per family.
 
-The browser grammar bundle excludes `unicode-properties.txt`. The playground fetches that pinned file at startup before loading pipelines. The core table, with printer abbreviations, comes from `dist/grammars.js`. Bundled names-dependent cache hits use the `bundledNames` registry from `compiled.json`, which `dist/grammars.js` includes. Such hits fetch no names files. Source names outside the core abbreviation map require a fetch of `grammars/unicode-names.txt`.
+The repository keeps all generated files checked in, and CI (automated tests for every change) makes sure that they are up to date. Each package needs its own copy, because the packaging of every ecosystem refuses files outside the package directory. Go's `embed` also refuses symbolic links. Each library package ships sibling `grammars/` and `data/` directories. The browser uses `dist/grammars.js`, which bundles resources under their package-relative keys.
 
-Declared extras use the same lazy path under `grammars/`, including `grammars/lojban/common/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
+The browser grammar bundle excludes `data/unicode/unicode-properties.txt`. The playground fetches that pinned file at startup before loading pipelines. The core table, with printer abbreviations, comes from `dist/grammars.js`. Bundled names-dependent cache hits use the `bundledNames` registry from `data/preparsed/FAMILY.json`, which `dist/grammars.js` includes. Such hits fetch no names files. Source names outside the core abbreviation map require a fetch of `data/unicode/unicode-names.txt`.
+
+Declared extras use lazy paths under `grammars/`, including `grammars/lojban/common/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
 
 `dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. A contributor edits `grammars/` and runs one command.
 
@@ -273,9 +276,9 @@ No directive lists the elidable terminators. An absent elidable optional, `[+KU]
 
 By convention, a directive stands in its own block. The preceding prose explains why the grammar needs it. gencmu does not enforce the convention.
 
-The notation is self-hosting: it is itself a pipeline of two stages. A lexical grammar reads characters into notation tokens, and a syntax grammar reads those tokens into a document tree. Both grammars are in `grammars/notation/`, and both are written in the notation. `docs/notation.md` explains the notation, and these documents define it.
+The notation is self-hosting: it is itself a pipeline of two stages. A lexical grammar reads characters into notation tokens, and a syntax grammar reads those tokens into a document tree. Both grammars are in `grammars/gencmu/jbogenbau/`, and both are written in the notation. `docs/notation.md` explains the notation, and these documents define it.
 
-The bootstrap supplies the grammar needed to read the notation. The DOM of the notation grammar is checked in as `grammars/bootstrap.json`. Every library loads it to read every grammar document, `notation/` included. CI makes sure that the fixpoint holds: reading the notation documents with the bootstrap reproduces the bootstrap exactly.
+The bootstrap supplies the grammar needed to read the notation. The notation documents have preparsed DOMs in `data/preparsed/gencmu.json`. Every library splices those DOMs to build the notation reader. It uses their entries without comparing source text hashes. CI makes sure that reading the notation documents reproduces those entries exactly, the bootstrap fixpoint.
 
 A maintainer changes the notation in its documents, and `tools/sync.js` regenerates the bootstrap from them. In each library, three steps of the reading are written by hand:
 
@@ -285,7 +288,7 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents include prose and diagram links. A character-level stage reads these documents quickly in Rust and JavaScript but slowly in pure Python. Each package ships those DOMs in `data/preparsed/FAMILY.json`. A pipeline loads its family's file, besides the required `gencmu.json`. Other families' files remain unread.
 
 The key of a DOM always has five parts:
 
@@ -844,7 +847,7 @@ pipeline.features                              # each feature: name, gate or war
 to_json(result); to_brackets(result)
 ```
 
-The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. In-memory sources are a map from path to text. The paths are `/`-separated and relative to a virtual root. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
+The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
 
 Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
@@ -911,7 +914,7 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
-The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. The grammar documents are a JavaScript object in the grammar bundle. At startup, the page fetches `grammars/unicode-properties.txt` relative to its own URL. It adds that text to the source map before loading a pipeline. Local use requires an HTTP server because the resource fetch must succeed.
+The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` loaded as classic scripts. The grammar documents are a JavaScript object in the grammar bundle. At startup, the page fetches `data/unicode/unicode-properties.txt` relative to its own URL. It adds that text to the source map before loading a pipeline. Local use requires an HTTP server because the resource fetch must succeed.
 
 The selector has one group per parent path, such as `lojban`, `lojban/examples`, or `gencmu`. Each option carries a full pipeline name. The URL parameter and worker protocol member are `pipeline`, and both carry that full name.
 
@@ -919,9 +922,9 @@ The preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojb
 
 The page builds its worker from a `Blob` containing the library source and grammar object. It passes the fetched properties text to that worker. The worker needs no separate properties fetch. A failed startup fetch reports the resource error instead of loading a core-only pipeline.
 
-For source names outside the core abbreviation map, the page fetches `grammars/unicode-names.txt` before it resumes loading. Bundled names-dependent cache hits use fingerprints from `compiled.json` without fetching any names file. Declared extras use their normalized grammar-relative paths under `grammars/`. Thus the zbalermorna declaration requests `grammars/lojban/common/zbalermorna-names.txt`. Names files stay outside `dist/grammars.js`.
+For source names outside the core abbreviation map, the page fetches `data/unicode/unicode-names.txt` before it resumes loading. Bundled names-dependent cache hits use fingerprints from `data/preparsed/FAMILY.json` without fetching any names file. Declared extras use their normalized grammar-relative paths under `grammars/`. Thus the zbalermorna declaration requests `grammars/lojban/common/zbalermorna-names.txt`. Names files stay outside `dist/grammars.js`.
 
-Names-file inspection uses the bundled standard names text, also fetched from `grammars/unicode-names.txt`. The page supplies that pinned text as `unicode-names-reference.txt`, even if the lookup base uses a replacement. It reuses one fetched copy for both purposes. Libraries embed only pinned one-word names and aliases for core inspection.
+Names-file inspection uses the bundled standard names text, also fetched from `data/unicode/unicode-names.txt`. The page supplies that pinned text as `data/unicode/unicode-names-reference.txt`, even if the lookup base uses a replacement. It reuses one fetched copy for both purposes. Libraries embed only pinned one-word names and aliases for core inspection.
 
 The page supplies each resource under its matching source-map key, and fetch errors prevent loading. It supplies that text to the worker's source map. Before fetching names files, the worker can compare absent names-resource keys through the bundled registry. After a fetch, supplied text requires full comparison. Edited names files count as overrides. Names loading remains separate from canonical rendering, which uses core abbreviations.
 

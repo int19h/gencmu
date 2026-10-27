@@ -4,7 +4,7 @@ This document is the specification that every gencmu library implements. It says
 
 The cases in `tests/engine/` and `tests/notation/` are part of the specification unless they load a bundled pipeline. A case that loads a bundled pipeline tests that pipeline's documents, not this specification. An implementation that disagrees with a case violates this specification or the pipeline's documents.
 
-`docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
+`docs/notation.md` explains the notation to grammar authors, and `grammars/gencmu/jbogenbau/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
 Grammar identifiers and tags in examples illustrate generic rules. They impose no pipeline contract.
 
@@ -59,9 +59,9 @@ Decomposition is canonical only. It applies no compatibility decomposition and n
 
 A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
 
-A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `compiled.json` (§8). A byte order mark stays in the text as the character U+FEFF.
+A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `data/preparsed/FAMILY.json` (§8). A byte order mark stays in the text as the character U+FEFF.
 
-`tools/unicode-table.py` generates `grammars/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
+`tools/unicode-table.py` generates `data/unicode/unicode.txt` from one version of the Unicode Character Database. Every library uses this file, not the Unicode data of its platform, so that the four libraries agree on every character. The file holds one entry on each line, with code points in hexadecimal:
 
 - `unicode 15.1.0` gives the version of the data.
 - `category Lu 0041 005A` gives a range of code points whose General_Category is `Lu`. The category is in its short form.
@@ -90,17 +90,17 @@ The records can stand in any order in a file. Each library sorts them when it lo
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
-The core loader inspects every abbreviation against an embedded catalog of pinned one-word names and aliases. These spellings match `[A-Z][A-Z0-9]*`. A record cannot bind one of those spellings to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `unicode.txt`.
+The core loader inspects every abbreviation against an embedded catalog of pinned one-word names and aliases. These spellings match `[A-Z][A-Z0-9]*`. A record cannot bind one of those spellings to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `data/unicode/unicode.txt`.
 
 If the record's line is known, the error includes it. Core inspection always uses the embedded Unicode 15.1 catalog, regardless of the core's declared version.
 
-The generator takes this catalog from pinned DerivedName.txt and NameAliases.txt. Libraries embed only the matching one-word spellings and their scalars. Core inspection reads neither `unicode-names.txt` nor an extra names file. A custom core cannot redefine those standard bindings.
+The generator takes this catalog from pinned DerivedName.txt and NameAliases.txt. Libraries embed only the matching one-word spellings and their scalars. Core inspection reads neither `data/unicode/unicode-names.txt` nor an extra names file. A custom core cannot redefine those standard bindings.
 
 The generator copies all 354 abbreviation aliases from pinned NameAliases.txt into the core table. Printing uses only this always-loaded map, with no names-file lookup. A custom core replaces this map without fallback. Without an abbreviation for a scalar, the printer uses its numeric escape.
 
 Core abbreviation escapes also decode through this map, without names data. Other source name escapes use the separate names file. This priority keeps canonical spelling readable through the ordinary reader.
 
-A caller can supply `unicode.txt` through the API. It replaces all bundled core data, including White_Space, Emoji_Presentation, Emoji_Component, and abbreviations, with no fallback. The table must list the whitespace used by its grammar documents. It must give `Emoji_Presentation` to every emoji name that those documents use. Those names must also lack `Emoji_Component`.
+A caller can supply `data/unicode/unicode.txt` through the API. It replaces all bundled core data, including White_Space, Emoji_Presentation, Emoji_Component, and abbreviations, with no fallback. The table must list the whitespace used by its grammar documents. It must give `Emoji_Presentation` to every emoji name that those documents use. Those names must also lack `Emoji_Component`.
 
 The table need not cover every scalar. An unlisted core scalar gets Cn and lacks White_Space, Emoji_Presentation, and Emoji_Component. For companion properties, explicit assignments and declared defaults still apply to that scalar. No table supplies comparison normalization.
 
@@ -226,9 +226,9 @@ If a filter removes `_General_Category_Letter` and keeps `_General_Category_Uppe
 
 ### Pinned properties file
 
-`tools/unicode-table.py` generates `grammars/unicode-properties.txt` from the pinned UCD. The bundled version is 15.1.0. Libraries read that file rather than host Unicode data. Character names remain in their separate, lazily loaded file.
+`tools/unicode-table.py` generates `data/unicode/unicode-properties.txt` from the pinned UCD. The bundled version is 15.1.0. Libraries read that file rather than host Unicode data. Character names remain in their separate, lazily loaded file.
 
-General_Category, Canonical_Combining_Class, White_Space, Emoji_Presentation, and Emoji_Component belong only to `unicode.txt`. The properties file cannot redeclare them. Their core records imply support, including the existing defaults in partial core tables. Combining-class tags use the same numeric map as canonical ordering, without a second assignment table.
+General_Category, Canonical_Combining_Class, White_Space, Emoji_Presentation, and Emoji_Component belong only to `data/unicode/unicode.txt`. The properties file cannot redeclare them. Their core records imply support, including the existing defaults in partial core tables. Combining-class tags use the same numeric map as canonical ordering, without a second assignment table.
 
 The properties file declares the other supported properties and their value domains. Its first nonblank line is `unicode-properties VERSION`. VERSION has three decimal components and must exactly match the core table's declared version. A properties file requires exactly one version header in each file. The catalog of accepted names and types is the pinned inventory above.
 
@@ -257,7 +257,7 @@ Property resources use only long property and value names, independently of acce
 
 Outside ranges, each property uses its declared default. Duplicate members within a set are malformed. Set order has no meaning. Equal overlapping assignments can merge. Conflicting enumerated values or extension sets at one scalar are grammar errors. Repeated binary ranges denote their union.
 
-The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
+The file is strict UTF-8. Line endings, blank lines, field separators, and number spellings follow `data/unicode/unicode.txt`. Every range contains only scalars and excludes surrogates. Records after the header can appear in any order. Unknown records, duplicate declarations, undeclared properties, invalid types, unavailable values, and malformed fields are grammar errors.
 
 Property and value names must belong to the pinned catalog. Custom files cannot invent properties or tag aliases. For a supported property, the bundled file declares every catalog value, including unused values. For core combining classes, an absent PropertyValueAliases.txt row requires the decimal spellings defined above. A row containing `CCC10` still supplies aliases and forbids decimal alternatives.
 
@@ -275,9 +275,9 @@ The generator and the shared data audit compare all 1,112,064 scalars with the p
 
 Each property digest uses 64-bit FNV-1a over ASCII records in increasing scalar order. A record has six uppercase hexadecimal digits, a colon, sorted canonical tag names separated by commas, and LF. Binary No contributes an empty tag list. General_Category includes its qualified long atomic and major tags. The digest uses 16 lowercase hexadecimal digits, like the file fingerprints of §8.
 
-A supplied `unicode-properties.txt` replaces the bundled properties file entirely. Omitted properties and values receive no bundled fallback. A custom core table without a companion file supports only its five core properties. A properties file without an overridden core uses the bundled core and must match its version.
+A supplied `data/unicode/unicode-properties.txt` replaces the bundled properties file entirely. Omitted properties and values receive no bundled fallback. A custom core table without a companion file supports only its five core properties. A properties file without an overridden core uses the bundled core and must match its version.
 
-Without either override, a library loads the bundled properties file with the core table. A missing bundled file is a grammar loading error. Even without an additional property reference, the loader reads and inspects every present properties file. An invalid or mismatched file names `unicode-properties.txt`. If the line is known, the error includes it.
+Without either override, a library loads the bundled properties file with the core table. A missing bundled file is a grammar loading error. Even without an additional property reference, the loader reads and inspects every present properties file. An invalid or mismatched file names `data/unicode/unicode-properties.txt`. If the line is known, the error includes it.
 
 Custom subsets are valid. A declared binary property without ranges is supported and false everywhere. An omitted declaration makes the property unavailable, rather than false. Naming an unavailable property is a load error at the reference, including in otherwise unused source. A supplied DOM receives the same inspection.
 
@@ -322,11 +322,11 @@ Complete profiles must not make pipelines naming no additional property meaningf
 
 ### Unicode names for string escapes
 
-`tools/unicode-table.py` also generates `grammars/unicode-names.txt` from the same pinned Unicode version. The bundled version is 15.1.0. This file supplies names and aliases for string escapes. It supplies no stage-zero property tags. Libraries never use host Unicode data for name lookup.
+`tools/unicode-table.py` also generates `data/unicode/unicode-names.txt` from the same pinned Unicode version. The bundled version is 15.1.0. This file supplies names and aliases for string escapes. It supplies no stage-zero property tags. Libraries never use host Unicode data for name lookup.
 
 The generator uses the pinned [Unicode name rules](https://www.unicode.org/reports/tr44/tr44-32.html) and [NameAliases.txt](https://www.unicode.org/Public/15.1.0/ucd/NameAliases.txt). It takes algorithmic ranges from [DerivedName.txt](https://www.unicode.org/Public/15.1.0/ucd/extracted/DerivedName.txt). An algorithmic name follows a scalar-based naming rule. The file stores those rules and ranges rather than one name per scalar.
 
-The names file is strict UTF-8. Its first nonblank line is `unicode-names VERSION`, with the version from `unicode.txt`. VERSION has three decimal components separated by dots. The version strings must match exactly. Remaining records have these forms:
+The names file is strict UTF-8. Its first nonblank line is `unicode-names VERSION`, with the version from `data/unicode/unicode.txt`. VERSION has three decimal components separated by dots. The version strings must match exactly. Remaining records have these forms:
 
 ```text
 unicode-names 15.1.0
@@ -349,7 +349,7 @@ Algorithmic formal names use algorithm records rather than explicit `name` recor
 
 LF ends each line, with an optional preceding CR. The final line can end at the file's end. Blank lines are ignored, and fields use ASCII spaces or tabs. After the fixed fields, the remaining words form the name or prefix, joined by single ASCII spaces. Names contain uppercase ASCII letters, digits, spaces, or hyphens. An empty name or prefix is malformed.
 
-Code point fields follow the numeric and scalar bounds of `unicode.txt`. Algorithmic ranges contain only scalars and cannot be reversed. Unknown records, alias kinds, repeated headers, and malformed fields are grammar errors. A scalar has at most one explicit formal name. Duplicate name or alias records are errors. One spelling cannot resolve to different scalars, including through algorithmic rules.
+Code point fields follow the numeric and scalar bounds of `data/unicode/unicode.txt`. Algorithmic ranges contain only scalars and cannot be reversed. Unknown records, alias kinds, repeated headers, and malformed fields are grammar errors. A scalar has at most one explicit formal name. Duplicate name or alias records are errors. One spelling cannot resolve to different scalars, including through algorithmic rules.
 
 Duplicate or overlapping algorithm ranges for the same naming rule are errors. Explicit and algorithmic names share one lookup namespace with aliases. The loader rejects any spelling that identifies different scalars. These requirements apply to custom names files too.
 
@@ -357,7 +357,7 @@ Record order does not affect name lookup. Exact spellings, including case and sp
 
 If the core abbreviation map does not resolve a source name escape, the library loads the selected names files. A names-dependent cache entry can use bundled fingerprints without reading these files (§8). Printing never loads them because abbreviations belong to the core table. A pipeline can share immutable names data for equal resource sets. Without such a source escape or cache dependency, declared names data remains unread and cannot cause a file error. Cached strings and supplied DOM strings already contain decoded scalars, so they need no name lookup.
 
-A caller can supply `unicode-names.txt` beside `unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. The two files must declare the same version.
+A caller can supply `data/unicode/unicode-names.txt` beside `data/unicode/unicode.txt` in the source map. That file replaces all bundled names data, with no fallback for missing entries. A custom file can omit standard names, aliases, and algorithms. The two files must declare the same version.
 
 A name is unknown only when neither the core abbreviation map nor the combined selected names files resolves it. Omission from the base file alone therefore does not make a name unknown. If lookup reaches names files, only the selected base file and declared extras can resolve it. No bundled fallback supplies omitted entries.
 
@@ -369,13 +369,13 @@ An added name starts with an uppercase ASCII letter. Its remaining characters ar
 
 It cannot conflict with an active core abbreviation or another selected file's name. Exact duplicate additions across different files are harmless, but conflicting names or two formal names for one scalar are loading errors.
 
-For names-file inspection, the reference is the complete bundled `unicode-names.txt`, including its algorithmic rules. A loader reads that reference whenever it reads a custom base file or an extra names file. The reference serves only inspection and never supplies omitted lookup entries. Libraries do not embed the complete catalog. Custom core tables do not change which names count as standard.
+For names-file inspection, the reference is the complete bundled `data/unicode/unicode-names.txt`, including its algorithmic rules. A loader reads that reference whenever it reads a custom base file or an extra names file. The reference serves only inspection and never supplies omitted lookup entries. Libraries do not embed the complete catalog. Custom core tables do not change which names count as standard.
 
-Disk and bundled loaders obtain the reference from the package's pinned `unicode-names.txt`, independently of any selected replacement. The portable source map supplies that same text under the reserved key `unicode-names-reference.txt`. Libraries embed its pinned FNV-1a fingerprint (§8) and reject different reference text. A selected base with that fingerprint can also serve as the reference, without a second read.
+Disk and bundled loaders obtain the reference from the package's pinned `data/unicode/unicode-names.txt`, independently of any selected replacement. The portable source map supplies that same text under the reserved key `data/unicode/unicode-names-reference.txt`. Libraries embed its pinned FNV-1a fingerprint (§8) and reject different reference text. A selected base with that fingerprint can also serve as the reference, without a second read.
 
-The reference declares Unicode 15.1.0. Names files require a reference with the same declared version. An unavailable reference, a different fingerprint, or a version mismatch is a grammar loading error naming `unicode-names-reference.txt`. No host database supplies the reference. The reference is not a selected lookup resource and adds no entry to a cache's `names` map.
+The reference declares Unicode 15.1.0. Names files require a reference with the same declared version. An unavailable reference, a different fingerprint, or a version mismatch is a grammar loading error naming `data/unicode/unicode-names-reference.txt`. No host database supplies the reference. The reference is not a selected lookup resource and adds no entry to a cache's `names` map.
 
-If bundled resources exist and versions match, an omitted names file selects the bundled file. If those resources are unavailable and names data is needed, the caller must supply the names file. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `unicode-names.txt`. If the line is known, the error includes it. These resource errors arise during source escape inspection or names-dependent cache loading, never from printing.
+If bundled resources exist and versions match, an omitted names file selects the bundled file. If those resources are unavailable and names data is needed, the caller must supply the names file. A version mismatch, missing required file, or malformed names data is a grammar loading error. The error names `data/unicode/unicode-names.txt`. If the line is known, the error includes it. These resource errors arise during source escape inspection or names-dependent cache loading, never from printing.
 
 If names data is needed, the core table must declare exactly one Unicode version. A missing or repeated version prevents names-file selection and causes a grammar loading error. Numeric escape parsing does not add that version requirement by itself.
 
@@ -1941,17 +1941,19 @@ A grammar document is Markdown. Its grammar text is the content of every fenced 
 
 The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only whitespace follows it. A `jbogenbau` block that is never closed is an error of the document, and the reader reports it at its opening fence. Any other unclosed block runs to the end of the document, as in CommonMark. The reader joins the blocks with a newline between them, and every character of the grammar text keeps its line and column in the document.
 
-The reader parses the grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`, whose DOM ships as `grammars/bootstrap.json`. The rules in §9 turn the tree that this parse produces into the document's DOM. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
+The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
+
+The rules in §9 turn the notation tree into a document DOM. The bootstrap can therefore read every grammar, including its own documents. Reading those documents must reproduce their preparsed entries exactly, the bootstrap fixpoint. `tools/sync.js` regenerates the entries until this holds.
 
 The grammar text is a text like any other, so stage zero decomposes it. Line and column numbers still count the code points of the document as written.
 
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
-Every bootstrap failure names `bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
+Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
-A bootstrap supplies already-spliced document runs, so its stages must have distinct valid names. Each stage requires at least one document run. Its runs cannot contain `stage`, `include`, `names`, or `features` directives because pipeline splicing consumes them.
+Bootstrap splicing follows the same include order and stage rules as any other pipeline. It consumes `stage`, `include`, `names`, and `features` directives before stitching.
 
-Before the loader stitches any stage, it makes sure that every bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
+Before the loader stitches any stage, it makes sure that every required bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
 
 Next, the pipeline validator makes sure that feature roles agree across all stitched stages. Finally, it lowers the stages in order. A later stitching error therefore precedes an earlier lowering error.
 
@@ -1961,21 +1963,25 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
+Each family has one preparsed file, `data/preparsed/FAMILY.json`, for the documents below `grammars/FAMILY/`. The required `gencmu.json` supplies the bootstrap. A loader reads only the selected family's optional file besides that required file. Missing, malformed, or mismatched optional files give cache misses.
+
+The bootstrap fingerprint is the 64-bit FNV-1a hash of the complete UTF-8 text of `data/preparsed/gencmu.json`. Its own header omits `bootstrap` to avoid a circular fingerprint. Every other family's header records that fingerprint as `bootstrap`. The required entries load even when custom Unicode resources differ from its header. Ordinary entries still require the full cache identity.
+
 An implementation can keep the DOMs that it built before. Its key includes document text hash, bootstrap hash, core-table fingerprint, properties fingerprint, and DOM format version. Any mismatch gives a cache miss. Each table fingerprint is the 64-bit FNV-1a hash of its UTF-8 text, written as the document hash is.
 
 Even without explicit property references, every document cache requires the properties fingerprint. With no companion for a custom core, it is `null`. An absent member or a different fingerprint gives a cache miss. Prepared stages and scalar-profile caches also distinguish the complete core and properties resources. A custom properties file therefore invalidates bundled cache entries with a different fingerprint, including entries for documents naming no additional property. This unavoidable cache cost preserves table-dependent notation semantics.
 
-When source conversion loads names data, the cache writer records a `names` map for that document. It maps `unicode-names.txt` and every selected extra's normalized resolved path to that resource's text hash. Paths use the same namespace as cached documents. Map keys use code-point order. Hashes use the same algorithm as document hashes. Numeric escapes and core abbreviation escapes alone require no names map.
+When source conversion loads names data, the cache writer records a `names` map for that document. It maps `data/unicode/unicode-names.txt` and every selected extra's normalized resolved path to that resource's text hash. Paths use the same namespace as cached documents. Map keys use code-point order. Hashes use the same algorithm as document hashes. Numeric escapes and core abbreviation escapes alone require no names map.
 
 After ordinary hash and DOM-shape inspection, the loader trusts the cache entry's dependency metadata. If `names` is present, it compares the selected paths and fingerprints before accepting the entry. Bundled resources can use the fingerprint registry below without file reads. If `names` is absent, the loader skips names-path and names-hash comparisons and loads no names data for that entry. A cache hit needs no source token scan or escape inspection.
 
-If `names` is present, the expected resource set contains `unicode-names.txt` plus the current inherited and local extras. Local declarations come from the shape-valid cached DOM. All paths use their normalized resolved form. This is the same set that the cache writer records. A path-set difference or required resource hash difference gives a cache miss.
+If `names` is present, the expected resource set contains `data/unicode/unicode-names.txt` plus the current inherited and local extras. Local declarations come from the shape-valid cached DOM. All paths use their normalized resolved form. This is the same set that the cache writer records. A path-set difference or required resource hash difference gives a cache miss.
 
 If `names` is absent, the loader skips this comparison and keeps the otherwise valid entry. Local and inherited declarations still supply the resource scope for nested includes. If the map is present and comparison requires file loading, missing or malformed names data is a loading error. Printer abbreviations affect the core-table fingerprint, rather than the names dependency.
 
 Shared cache cases require a hit when the complete base-and-extras set and all hashes match. If `names` is present, a changed extra path or hash gives a miss. An absent `names` member permits a hit despite changed or missing unused extras. These cases keep every other cache dependency equal.
 
-`compiled.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
+`data/preparsed/FAMILY.json` records the fingerprint of the bundled table and a `bundledNames` registry of bundled names resources. The generator records `data/unicode/unicode-names.txt` and every bundled extra by normalized path, with keys in code-point order. It hashes their pinned text, never a caller's replacement. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Each package ships the preparsed files beside its Unicode resources under `data/`.
 
 The shortcut requires the active core to declare the bundled names version, 15.1.0. A different version is a grammar loading error. For an unoverridden bundled resource, the loader takes its current fingerprint from `bundledNames`. It compares that fingerprint with the document entry's `names` value. If every selected resource uses this route, a cache hit reads, parses, and fetches no names file. Supplied resources count as overrides, even if their bytes match the bundle.
 
@@ -1985,7 +1991,7 @@ If any selected resource is overridden or lacks a registry entry, the loader rea
 
 Shared cases require bundled names-dependent hits with zero names-file reads, even for a zbalermorna pipeline. They also cover a missing registry, overridden resources, mismatched hashes, and lazy playground fetches after a miss.
 
-A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every pipeline that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
+A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every pipeline that includes its document. The values of the constants exist only in a stitched stage, and the preparsed files never hold them.
 
 ## 9. From notation tree to DOM
 

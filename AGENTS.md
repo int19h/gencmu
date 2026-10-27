@@ -4,12 +4,12 @@ gencmu is a Lojban parser. Its grammars are literate Markdown documents in the j
 
 ## Layout
 
-- `grammars/` holds the grammars. Each `NAME/pipeline.md` names its stages and grammar documents. Directories group pipelines by language family, and root files belong to the engine.
+- `grammars/` holds the grammars. Each `NAME/pipeline.md` names its stages and grammar documents. Directories group pipelines by language family. `data/` holds Unicode resources and preparsed grammars.
 - `docs/` holds the specification: `notation.md`, `engine.md`, `output.md`, `api.md`, `design.md` and `pipelines.md`. `experimental-cmavo-evidence.md` records the usage evidence for the experimental lexicon.
 - `lib/js`, `lib/rust`, `lib/go` and `lib/python` are the four libraries. JavaScript is the reference library. If the libraries disagree, the specification decides.
 - `tests/` holds the shared conformance cases and the corpus. `tests/README.md` explains the corpus format.
 - Run `npm ci` in `lib/js` to install the development dependencies.
-- `tools/sync.js` regenerates every generated file: the compiled grammar cache, the package copies of the grammars, the browser bundle and the diagrams. `node tools/sync.js --check` must pass before a commit.
+- `tools/sync.js` regenerates every generated file: the preparsed grammar cache, the package copies of `grammars/` and `data/`, the browser bundle and the diagrams. `node tools/sync.js --check` must pass before a commit.
 
 ## How changes are made
 

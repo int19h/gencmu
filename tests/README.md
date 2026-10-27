@@ -110,7 +110,7 @@ An error that lowering finds (engine §3), such as an item of braces that can ma
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 
-A resource error names the resource key. Its position omits an unknown line or column. The reserved keys include `unicode.txt`, `unicode-names.txt`, and `unicode-names-reference.txt`.
+A resource error names the resource key. Its position omits an unknown line or column. The reserved keys include `data/unicode/unicode.txt`, `data/unicode/unicode-names.txt`, and `data/unicode/unicode-names-reference.txt`.
 
 ### Result invariants and witness tests
 
@@ -179,7 +179,7 @@ Each library reads the document as a grammar document (engine §8, §9). The rea
 
 Message wording is not part of conformance. Error cases pin only their line and column.
 
-Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a compiled entry. A matching compiled entry must give the same DOM.
+Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
@@ -199,13 +199,13 @@ The `engine/layered-pattern-*.json` cases use the public loader. They cover exac
 
 Canonical pattern cases in `parameter-structure.json` load complete pipelines. They assert expanded names and instance counts. Repeated calls with equal arguments share one instance despite different source positions.
 
-Malformed pattern cases in `json-keys.json` exercise matching compiled entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
+Malformed pattern cases in `json-keys.json` exercise matching preparsed entries through the public loader. They require source fallback for invalid constructors, operands, and fixed range constraints. Valid controls require cache hits. Depth pairs cover child predicates, sibling items, and empty lists at the constructor limit.
 
 Small native tests retain state-reuse bounds, walk order, and codec preservation. They contain no shared conformance runners or prebound constant fixtures.
 
 ## Supplied notation values: `notation-values.json`
 
-Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
+Each case gives a document, lexical aliases, and a DOM pattern or an error expectation. Every library adds each alias as a rule in the lexical document of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and compares the DOM or error. A successful reading also exercises the cold, matching, and mismatched cache paths described above.
 
 An error expectation pins its line and column through `expect.error`. Message wording is not part of conformance. The invalid pattern-name cases cover constants, nested patterns and rule conditions.
 
@@ -219,7 +219,7 @@ Ordinary controls require the concatenation type error without a recipe instruct
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
-Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
+Each case supplies the preparsed bootstrap file or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `data/preparsed/gencmu.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.
 
 ## Notation shapes: `notation-shapes.json`
 
@@ -227,7 +227,7 @@ Each case supplies bootstrap text or replaces the first place of `find` with `re
 {"description": "...", "document": "Markdown text", "inputs": ["b", "qs"], "control": [OUTCOME...], "loads": {"guard": [OUTCOME...]}}
 ```
 
-A caller can supply its own `bootstrap.json` (`docs/api.md`). Its notation can give the reader a tree of another shape, and engine §9 says how the reader reads it. Each library loads `document` as the one document of a stage `main`, with a bootstrap made from the bundled one. It then parses each of `inputs`, with the default API configuration. The outcome of an input is its bracket rendering if it parses, or else the kind of its error. A load that fails gives only the kind of its error.
+A caller can supply its own `data/preparsed/gencmu.json` (`docs/api.md`). Its notation can give the reader a tree of another shape, and engine §9 says how the reader reads it. Each library loads `document` as the one document of a stage `main`, with a bootstrap made from the bundled one. It then parses each of `inputs`, with the default API configuration. The outcome of an input is its bracket rendering if it parses, or else the kind of its error. A load that fails gives only the kind of its error.
 
 - With the bundled bootstrap, the outcomes are `control`.
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
@@ -241,9 +241,9 @@ An extra part holds text that the reader refuses if it reads it. An outcome othe
 
 The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name. The cache template uses `@unicode@` for the fingerprint of the Unicode table.
 
-Each cache case names its core Unicode table, `unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
+Each cache case names its core Unicode table, `data/unicode/unicode.txt`, explicitly. Without a companion in `sources`, its properties fingerprint is `null`. Property cases compare exact companion text fingerprints, even when no grammar names an additional property. An absent properties member always gives a miss.
 
-Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
+Cache cases can supply resource text through `sources`. The value `@bundled-names@` selects pinned names text. The value `@unicode-16@` changes only the version line of the bundled `data/unicode/unicode.txt`. An `error` names the required resource position. A `portable` case also loads through the portable JavaScript entry point without bundled names text.
 
 The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
@@ -265,11 +265,11 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 40. The library tests it as a preparsed DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
-An optional `unicode` member supplies the contents of `unicode.txt` for that case. Without it, the case uses the bundled table.
+An optional `unicode` member supplies the contents of `data/unicode/unicode.txt` for that case. Without it, the case uses the bundled table.
 
-A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
+A library that refuses a malformed preparsed DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
 ## DOM depth cases: `dom-depth.json` and `dom-depth-source.json`
 
@@ -297,13 +297,13 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 The [engine guarantee](../docs/engine.md#property-conformance-and-performance) requires complete profiles without a meaningful slowdown for pipelines naming no additional property. This section defines the measurement policy. It separates timed samples from full-corpus outcome comparisons.
 
-`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
+`python3 tools/bench-unicode-properties.py --baseline REF --output DIRECTORY` compares all four libraries with baseline revision REF. DIRECTORY holds the selection manifest, measurements, and worker builds. Property-profile changes use the implementation before those profiles as their baseline. Both revisions use the same machine, runtime versions, character data from `data/unicode/unicode.txt`, build mode, corpus inputs, and parsing configuration. New abbreviation records remain available for candidate printing without changing the baseline's character classifications.
 
 A later change uses the revision before that change as its baseline. That revision must include the complete property profiles. Such a change measures only the workloads that it can affect.
 
 The command first runs the three concurrent table controls from `json-keys.json` through each public API. These controls require matching cache hits and each table's complete profile. `--conformance-only` runs those controls without timings. Native threads share loaded pipelines, and JavaScript workers load isolated tables. The separate worker processes keep this conformance work outside performance measurements.
 
-`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, `unicode.txt` data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
+`--library NAME` measures a selected library. Repeat the flag to select several libraries. `--resume` retains complete phases and continues an interrupted corpus comparison. It requires the same clean revision, baseline, `data/unicode/unicode.txt` data, and runtime versions. A partial report never passes the complete gate. Resume each remaining library into the same directory to complete that report.
 
 The timed corpus sample contains 400 lojban/cll cases. Selection takes the first 400 case IDs in ASCII order from the baseline corpus. The manifest records their IDs, texts, features, and disabled features. The candidate uses those exact records rather than selecting its own sample. A missing record or an incompatible configuration fails the comparison.
 

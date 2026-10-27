@@ -128,7 +128,7 @@ Even without explicit grammar references, every stage-zero token carries its dec
 
 A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
 
-The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
+The core data remains in `data/unicode/unicode.txt`. The separate pinned `data/unicode/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
 Stage zero assigns the emoji properties in every pipeline. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
 
