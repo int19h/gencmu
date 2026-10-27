@@ -93,7 +93,7 @@ def _read_bundled(path: str) -> str | None:
     try:
         return _decode(data, path)
     except GencmuError as error:
-        # data/preparsed/FAMILY.json is only a cache, so bytes of it that do not decode
+        # An optional preparsed family file is only a cache. Invalid bytes
         # make it absent, a miss for every document. Anything else that
         # does not decode stays an error.
         if path.startswith("data/preparsed/") and path != "data/preparsed/gencmu.json":
