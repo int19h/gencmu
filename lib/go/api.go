@@ -567,7 +567,7 @@ func BundledPipelines() []string {
 
 // LoadPipelineFile loads a pipeline document from disk, whose grammar
 // documents are found relative to it. data/unicode/unicode.txt and the notation's
-// bootstrap come from the bundled grammars.
+// bootstrap come from the bundled resources.
 func LoadPipelineFile(file string) (*Pipeline, error) {
 	l, err := bundledLoader()
 	if err != nil {
@@ -592,7 +592,7 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 // LoadPipelineSources loads a pipeline from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
 // it. The map may hold its own data/unicode/unicode.txt, data/preparsed/gencmu.json and
-// data/preparsed/lojban.json; those it lacks come from the bundled grammars.
+// data/preparsed/lojban.json; those it lacks come from the bundled resources.
 func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline, error) {
 	return loadSources(sources, pipeline, false)
 }

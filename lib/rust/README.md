@@ -85,7 +85,7 @@ A capture can stand anywhere in an alternative but inside braces or an elidable 
 
 ## Development
 
-The grammars of the crate, `grammars/`, are a copy of the grammars of the repository. `node tools/sync.js` writes this copy. To change the grammars, edit the `grammars/` of the repository. From the repository root, run `node tools/sync.js`.
+The crate's `grammars/` and `data/` directories are copies of those source trees in the repository. Do not edit these copies. After you change either source tree, run `node tools/sync.js` from the repository root.
 
 `cargo test` uses optimization level 3, both locally and in CI. The standard Rust test harness runs each shared engine and notation fixture as a separate test. The harness defaults to the number of available CPUs.
 

@@ -20,7 +20,7 @@ fn read(path: &str) -> String {
 /// names and their runs of one document's items (engine §8).
 #[test]
 fn bootstrap_is_a_fixpoint() {
-    let bootstrap = parse_json(&read("data/preparsed/gencmu.json")).expect("bootstrap.json");
+    let bootstrap = parse_json(&read("data/preparsed/gencmu.json")).expect("data/preparsed/gencmu.json");
     let started = std::time::Instant::now();
     let json = gencmu::tools::splice_bundled_pipeline("grammars/gencmu/jbogenbau/pipeline.md", false)
         .unwrap_or_else(|error| panic!("grammars/gencmu/jbogenbau/pipeline.md: {error}"));
@@ -248,7 +248,7 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
     // The syntax document is the bootstrap's last, and only its rules are
     // renamed.
     let start = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
-    let syntax = parse_json(&bootstrap).expect("bootstrap.json");
+    let syntax = parse_json(&bootstrap).expect("data/preparsed/gencmu.json");
     let names: Vec<String> = syntax
         .get("documents")
         .unwrap()

@@ -22,7 +22,7 @@ export declare function bundledPipelines(sources?: Map<string, string> | Record<
 /**
  * A pipeline from a pipeline document on disk; its grammar documents are
  * found relative to it, and the Unicode table and the bootstrap come from
- * the bundled grammars. Each document is known by its absolute path, with
+ * the bundled resources. Each document is known by its absolute path, with
  * `/` between the parts, so an error names the file wherever the process
  * runs.
  * @param {string} file

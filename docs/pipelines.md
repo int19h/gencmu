@@ -161,7 +161,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Until you complete step 8, use `--pipeline-file` for changed grammar files.
 
-   After you complete step 8, run `node tools/sync.js` after each grammar edit.
+   After you complete step 8, run `node tools/sync.js` after each edit to `grammars/` or `data/`.
 
    A feature is a named switch for a parse. List the features that the local pipeline exposes:
 
@@ -294,7 +294,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    If you want your additional pipeline in the local menu, complete step 8 first. After synchronization, reload `http://localhost:8000/index.html` from the server.
 
-   `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
+   `dist/grammars.js` bundles grammar documents and engine resources. `node tools/sync.js` rebuilds it from `grammars/` and `data/`. The hosted playground does not read your checkout.
 
 7. Add corpus cases.
 
@@ -382,7 +382,7 @@ Use example filenames that do not clash with your own files. The commands below 
    node tools/sync.js --check
    ````
 
-   `sync.js` copies grammars into the libraries, rebuilds browser files, and draws rule diagrams. `--check` fails when generated files or document conventions differ.
+   `sync.js` copies `grammars/` and `data/` into the libraries. It regenerates preparsed data, browser resources, and rule diagrams. `--check` fails when generated files or document conventions differ.
 
    Run the document tests in `lib/js`:
 

@@ -57,7 +57,7 @@ fn notation_shapes() {
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
     let syntax_at = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
     let names: Vec<String> = parse_json(&bootstrap)
-        .expect("bootstrap.json")
+        .expect("data/preparsed/gencmu.json")
         .get("documents")
         .unwrap()
         .get("grammars/gencmu/jbogenbau/syntax.md")

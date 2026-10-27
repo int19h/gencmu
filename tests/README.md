@@ -4,7 +4,7 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 ## Running the tests
 
-Run `node tools/sync.js` from the repository root after a grammar change. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
+After a change to `grammars/` or `data/`, run `node tools/sync.js` from the repository root. Each library runs all of its tests and the corpus sample in `core.txt` by default. Use `GENCMU_CORPUS=full` to select the whole corpus.
 
 Run each command from the named library directory:
 

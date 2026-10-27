@@ -88,9 +88,9 @@ The cache requires DOM format 40 and matching document, bootstrap, Unicode, prop
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
-## The grammar copy
+## The resource copies
 
-`node tools/sync.js`, run from the repository root, generates `grammars/` here from the `grammars/` of the repository. The copy exists because `embed` cannot reach outside the module and refuses symbolic links. Do not edit it. CI fails if it is out of date.
+`node tools/sync.js`, run from the repository root, copies the repository's `grammars/` and `data/` trees into this module. The copies exist because `embed` cannot reach outside the module and refuses symbolic links. Do not edit them. After you change either source tree, run `node tools/sync.js` from the repository root. CI fails if a copy is out of date.
 
 ## Tests
 

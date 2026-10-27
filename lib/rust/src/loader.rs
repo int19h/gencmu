@@ -849,7 +849,7 @@ pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
 /// Loads a pipeline from documents held in memory: a map from
 /// `/`-separated path to text, and the path of the pipeline document in it.
 /// The map may supply its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and
-/// `data/preparsed/FAMILY.json`; any it lacks come from the bundled grammars.
+/// `data/preparsed/FAMILY.json`; any it lacks come from the bundled resources.
 pub fn load_pipeline_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Pipeline, Error>
 where
     I: IntoIterator<Item = (K, V)>,

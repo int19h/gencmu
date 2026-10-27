@@ -33,7 +33,7 @@ Dom = dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
-# The bundled grammars
+# The bundled resources
 
 
 def _bundled_root() -> Any:
@@ -44,7 +44,7 @@ _bundled: dict[str, str | None] = {}
 
 
 def bundled_text(path: str) -> str | None:
-    """A file of the bundled grammars, by its ``/``-separated path."""
+    """A file of the bundled resources, by its ``/``-separated path."""
     if path == "data/unicode/unicode-names-reference.txt":
         path = "data/unicode/unicode-names.txt"
     if path in _bundled:
@@ -591,7 +591,7 @@ def load_pipeline(name: str, *, use_cache: bool = True) -> Pipeline:
 def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Pipeline:
     """A pipeline from a pipeline document on disk; its documents are found
     relative to it, and the Unicode table and the bootstrap come from the
-    bundled grammars. Each document is known by its absolute path, with
+    bundled resources. Each document is known by its absolute path, with
     ``/`` between the parts, so an error names the file wherever the
     process runs."""
     pipeline = os.path.abspath(os.fspath(path)).replace(os.sep, "/")
@@ -620,7 +620,7 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     """A pipeline from documents held in memory: a mapping from ``/``-separated
     path to text, and the path of the pipeline document in it. The mapping
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
-    ``data/preparsed/FAMILY.json``; any it lacks come from the bundled grammars."""
+    ``data/preparsed/FAMILY.json``; any it lacks come from the bundled resources."""
     documents = dict(sources)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 

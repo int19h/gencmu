@@ -75,7 +75,7 @@ The browser grammar bundle excludes `data/unicode/unicode-properties.txt`. The p
 
 Declared extras use lazy paths under `grammars/`, including `grammars/lojban/common/zbalermorna-names.txt`. Neither standard nor extra names files enter the grammar bundle. A failed fetch prevents loading and reports the resource error.
 
-`dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. A contributor edits `grammars/` and runs one command.
+`dist/gencmu.js`, the library as one classic script, is generated too. The playground works without a build step from an HTTP server, including GitHub Pages. One Node script, `node tools/sync.js`, writes all these files without extra dependencies. CI runs it and fails if anything changes. After a change to `grammars/` or `data/`, a contributor runs that command.
 
 ## Standard library only
 
@@ -795,7 +795,7 @@ For a new lexicon, bootstrap mode prints a fresh classifier to standard output. 
 node tools/peg-lexicon.js camxes-exp.peg --print-classifier
 ```
 
-After a hand edit, `node tools/sync.js` refreshes the generated files and package copies.
+After a hand edit to `grammars/` or `data/`, `node tools/sync.js` refreshes the generated files and package copies.
 
 ## The result, and why it has no types
 
