@@ -232,7 +232,7 @@ async function main() {
       const g=self.gencmu;
       const source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
       const sources={...self.gencmuGrammars,"smoke-parameters.md":source};
-      const dialect=g.loadDialectSources(sources,"smoke-parameters.md");
+      const dialect=g.loadPipelineSources(sources,"smoke-parameters.md");
       const result=dialect.parse("ab");
       const audit=g.audit(dialect)[0];
       return {ok:result.ok,rule:result.tree.rule,children:result.tree.children.map(child=>child.kind),

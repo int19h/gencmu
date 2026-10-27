@@ -71,7 +71,7 @@ func TestNotationShapes(t *testing.T) {
 	// its brackets, or the kind of its error. A load that fails gives the
 	// kind of its error, which must be an *Error.
 	outcomeAt := func(boot, document string, inputs []string, where *[3]any) any {
-		d, err := LoadDialectSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "data/preparsed/gencmu.json": boot}, "p.md")
+		d, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": document, "data/preparsed/gencmu.json": boot}, "p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
@@ -201,10 +201,10 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "data/preparsed/gencmu.json": boot}
 	}
 	// The bundled bootstrap loads the same documents.
-	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {
+	if _, err := LoadPipelineSources(sources(bootstrap), "p.md"); err != nil {
 		t.Fatal(err)
 	}
-	_, err = LoadDialectSources(sources(elision), "p.md")
+	_, err = LoadPipelineSources(sources(elision), "p.md")
 	e, ok := err.(*Error)
 	if !ok || e.Kind != ErrorGrammar || e.Line != 0 || !strings.Contains(e.Message, "lexical stage of the notation") {
 		t.Fatalf("%v", err)

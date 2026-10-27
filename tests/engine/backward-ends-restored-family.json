@@ -1,5 +1,5 @@
 {
-  "description": "A close-family view cannot supply a suffix receiver. (Engine \u00a74.4.)",
+  "description": "A close-family view cannot supply a suffix receiver. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

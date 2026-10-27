@@ -1,5 +1,5 @@
 {
-  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "description": "The new contextual apostrophe rule belongs only to experimental. This pipeline retains its existing phoneme reading and complete quote tokens.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```"
   },

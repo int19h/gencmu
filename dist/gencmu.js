@@ -7781,7 +7781,7 @@
   function characterTokens(text, unicode) {
     if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
     const tokens = [];
-    // Recognition treats these sets as immutable. The dialect gives each
+    // Recognition treats these sets as immutable. The pipeline gives each
     // public token its own set before returning a result.
     /** @type {Map<number,TagSet>} */
     const profiles = new Map();
@@ -13577,13 +13577,13 @@
   /**
    * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
-   * @import { Dialect } from "./dialect.js"
+   * @import { Pipeline } from "./pipeline.js"
    * @import { TraceEvent } from "./earley.js"
    * @import { StitchedAlternative } from "./grammar.js"
    */
 
   // Standalone formatting has no selected resource. A caller can supply its
-  // table, and traces retain the table of their loaded dialect.
+  // table, and traces retain the table of their loaded pipeline.
   const diagnosticUnicode = new UnicodeTable("unicode 15.1.0\n");
   /** @type {WeakMap<Trace, UnicodeTable>} */
   const traceUnicode = new WeakMap();
@@ -14488,14 +14488,14 @@
 
 
   /**
-   * What a grammar author should know about a dialect's grammars: per stage,
+   * What a grammar author should know about a pipeline's grammars: per stage,
    * the rules nothing reaches, every rule a later document replaced or
    * extended, and `%erased` that changes nothing.
-   * @param {Dialect} dialect
+   * @param {Pipeline} pipeline
    * @returns {StageAudit[]}
    */
-  function audit(dialect) {
-    return dialect.stages.map((stage) => {
+  function audit(pipeline) {
+    return pipeline.stages.map((stage) => {
       const grammar = stage.grammar;
       const resolution = grammar.resolution;
       /** @type {CaptureScopes} */
@@ -14682,13 +14682,13 @@
 
   /**
    * The parse failure that prevents a stage from being traced.
-   * @param {Dialect} dialect
+   * @param {Pipeline} pipeline
    * @param {import("./types.js").ParseResult} result
    * @param {string} name
    * @returns {string | null}
    */
-  function traceProblem(dialect, result, name) {
-    const index = dialect.stages.findIndex(stage => stage.name === name);
+  function traceProblem(pipeline, result, name) {
+    const index = pipeline.stages.findIndex(stage => stage.name === name);
     if (index < 0) throw new GencmuError("usage", `no stage is named ${name}`);
     const report = result.stages[index];
     if (result.error && (!report?.input || report.error && report.verdict === null && report.error.kind !== "rejected")) {
@@ -14702,31 +14702,31 @@
    * it predicted, advanced and completed there, and which advances a
    * condition refused, with the condition. This is the tool for "why does my
    * grammar not accept this text here".
-   * @param {Dialect} dialect
+   * @param {Pipeline} pipeline
    * @param {string} text
    * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>}} options
    * @returns {Trace}
    */
-  function trace(dialect, text, options) {
-    const index = dialect.stages.findIndex((stage) => stage.name === options.stage);
+  function trace(pipeline, text, options) {
+    const index = pipeline.stages.findIndex((stage) => stage.name === options.stage);
     if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
     // The parse the caller would get up to that stage, so that the traced
     // stage reads the same tokens under the same features, stage-local features
     // included.
-    const run = dialect.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage });
-    const problem = traceProblem(dialect, run, options.stage);
+    const run = pipeline.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage });
+    const problem = traceProblem(pipeline, run, options.stage);
     if (problem) throw new GencmuError("usage", problem);
     const report = run.stages[index];
     const tokens = /** @type {Token[]} */ (report.input);
     const features = new Set(run.features);
-    const stage = dialect.stages[index];
+    const stage = pipeline.stages[index];
     const lowered = stage.grammar.lower(features);
-    const context = new ParseContext(lowered, tokens, [...text], dialect.loader.unicode);
+    const context = new ParseContext(lowered, tokens, [...text], pipeline.loader.unicode);
     const position = Math.max(0, Math.min(options.position, tokens.length));
     context.trace = { position, events: [], depth: 0 };
     const chart = recognize(context, "text", 0, tokens.length);
     const traced = { stage: stage.name, position, tokens, events: context.trace.events, expected: expectedAt(chart, position) };
-    traceUnicode.set(traced, dialect.loader.unicode);
+    traceUnicode.set(traced, pipeline.loader.unicode);
     return traced;
   }
 
@@ -14787,21 +14787,6 @@
         method:atom.method,document:alternative.document,...alternative.at});
     }
     return notes;
-  }
-
-  // ---- resources.js
-  // Package-relative keys shared by resource loading and generation.
-  const BOOTSTRAP_PATH = "data/preparsed/gencmu.json";
-  const NOTATION_PATH = "grammars/gencmu/jbogenbau/pipeline.md";
-
-  /** @param {string} document @returns {string | undefined} */
-  function preparsedPath(document) {
-    if (!document.startsWith("grammars/")) return undefined;
-    const rest = document.slice("grammars/".length);
-    const slash = rest.indexOf("/");
-    if (slash < 1 || slash === rest.length - 1) return undefined;
-    const family = rest.slice(0, slash);
-    return /^[a-z0-9][a-z0-9-]*$/.test(family) ? `data/preparsed/${family}.json` : undefined;
   }
 
   // ---- emission-overlap.js
@@ -14890,6 +14875,65 @@
         }
       }
     }
+  }
+
+  // ---- hash.js
+  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
+  // the hash that keys the preparsed DOMs in every library.
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function fnv1a64(text) {
+    let high = 0xcbf29ce4;
+    let low = 0x84222325;
+    for (const byte of new TextEncoder().encode(text)) {
+      low = (low ^ byte) >>> 0;
+      // The prime is 2^40 + 435. The low product fits exactly in a Number.
+      // Its carry and the shifted low word supply the high product modulo 2^32.
+      const product = low * 435;
+      high = (Math.imul(high, 435) + (low << 8) + Math.floor(product / 0x100000000)) >>> 0;
+      low = product >>> 0;
+    }
+    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
+  }
+
+  // ---- resources.js
+  // Package-relative keys shared by resource loading and generation.
+  const BOOTSTRAP_PATH = "data/preparsed/gencmu.json";
+  const NOTATION_PATH = "grammars/gencmu/jbogenbau/pipeline.md";
+
+  /** @param {string} name @returns {boolean} */
+  function validPipelineName(name) {
+    const segments = name.split("/");
+    return segments.length >= 2 && segments.every(validSegment);
+  }
+
+  /** @param {string} segment */
+  function validSegment(segment) {
+    return /^[a-z0-9][a-z0-9-]*$/.exec(segment)?.[0] === segment;
+  }
+
+  /**
+   * Lists valid pipeline names without reading their documents.
+   * @param {Map<string,string> | Record<string,string>} [sources]
+   * @returns {string[]}
+   */
+  function bundledPipelines(sources) {
+    const paths = sources instanceof Map ? [...sources.keys()] : Object.keys(sources ?? {});
+    return paths.filter(path => path.startsWith("grammars/") && path.endsWith("/pipeline.md"))
+      .map(path => path.slice("grammars/".length, -"/pipeline.md".length))
+      .filter(validPipelineName).sort();
+  }
+
+  /** @param {string} document @returns {string | undefined} */
+  function preparsedPath(document) {
+    if (!document.startsWith("grammars/")) return undefined;
+    const rest = document.slice("grammars/".length);
+    const slash = rest.indexOf("/");
+    if (slash < 1 || slash === rest.length - 1) return undefined;
+    const family = rest.slice(0, slash);
+    return validSegment(family) ? `data/preparsed/${family}.json` : undefined;
   }
 
   // ---- rank.js
@@ -19619,27 +19663,6 @@
     }
   }
 
-  // ---- hash.js
-  // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
-  // the hash that keys the preparsed DOMs in every library.
-  /**
-   * @param {string} text
-   * @returns {string}
-   */
-  function fnv1a64(text) {
-    let high = 0xcbf29ce4;
-    let low = 0x84222325;
-    for (const byte of new TextEncoder().encode(text)) {
-      low = (low ^ byte) >>> 0;
-      // The prime is 2^40 + 435. The low product fits exactly in a Number.
-      // Its carry and the shifted low word supply the high product modulo 2^32.
-      const product = low * 435;
-      high = (Math.imul(high, 435) + (low << 8) + Math.floor(product / 0x100000000)) >>> 0;
-      low = product >>> 0;
-    }
-    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
-  }
-
   // ---- splice.js
   // A pipeline: the items of a pipeline document, with each %include replaced
   // by the items of the document it names, assigned to the selected stage
@@ -19822,15 +19845,15 @@
   }
 
   /**
-   * A dialect's pipeline as one jbogenbau text: its features in one %features,
+   * A pipeline's pipeline as one jbogenbau text: its features in one %features,
    * then every item of the spliced stream but %include, %names and global
    * %features. Strings use their canonical spelling. Other source text stays
    * as written, with a comment naming each document run (docs/notation.md).
-   * @param {{path: string, declared: string[], loader: import("./dialect.js").Loader}} dialect
+   * @param {{path: string, declared: string[], loader: import("./pipeline.js").Loader}} pipeline
    * @returns {string}
    */
-  function stitchText(dialect) {
-    const { loader, declared: features } = dialect;
+  function stitchText(pipeline) {
+    const { loader, declared: features } = pipeline;
     /** @type {string[]} */
     const out = features.length ? [`%features ${features.join(" ")}`, ""] : [];
     let selected = false;
@@ -19870,7 +19893,7 @@
       }
       frames.push({ path: documentPath, chars, index, items, next: 0, names:selectedNames(documentPath, dom, inherited), strings });
     };
-    enter(dialect.path, []);
+    enter(pipeline.path, []);
     while (frames.length > 0) {
       const frame = frames[frames.length - 1];
       const { path: documentPath, chars, index, items } = frame;
@@ -19931,14 +19954,14 @@
     return item.directive.at;
   }
 
-  // ---- dialect.js
+  // ---- pipeline.js
 
 
 
 
 
-  // Dialects: loading pipeline documents and their grammars, reading grammar
-  // documents with the notation dialect (engine §8), and running a text
+  // Pipelines: loading pipeline documents and their grammars, reading grammar
+  // documents with the notation pipeline (engine §8), and running a text
   // through the stages (engine §13).
 
 
@@ -19998,7 +20021,7 @@
         this.bootstrapText = bootstrapText;
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
         this.bootstrapHash = fnv1a64(bootstrapText);
-        this.notation = new Dialect(NOTATION_PATH, bootstrap.stages.map((stage) => {
+        this.notation = new Pipeline(NOTATION_PATH, bootstrap.stages.map((stage) => {
           try {
             return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
           } catch (error) {
@@ -20182,15 +20205,15 @@
     }
 
     /**
-     * A dialect from its pipeline document's path.
+     * A pipeline from its pipeline document's path.
      * @param {string} path
-     * @returns {Dialect}
+     * @returns {Pipeline}
      */
-    dialect(path) {
+    pipeline(path) {
       const pipeline = this.splice(path);
       const build = () => {
         const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));
-        return new Dialect(path, stages, this, pipeline.features);
+        return new Pipeline(path, stages, this, pipeline.features);
       };
       try { return build(); } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
@@ -20232,16 +20255,16 @@
   }
 
   /**
-   * A dialect's features (engine §13): every name a guard of any stage uses,
+   * A pipeline's features (engine §13): every name a guard of any stage uses,
    * and every name the pipeline's `%features` declares, in code point
    * order. A name used both as a gate and as a warning is an error of the
-   * dialect.
+   * pipeline.
    * @param {string} path
    * @param {Stage[]} stages
    * @param {string[]} declared
    * @returns {Feature[]}
    */
-  function dialectFeatures(path, stages, declared) {
+  function pipelineFeatures(path, stages, declared) {
     /** @type {Map<string, "gate" | "warning">} */
     const kinds = new Map();
     for (const stage of stages) {
@@ -20289,7 +20312,7 @@
     return index;
   }
 
-  class Dialect {
+  class Pipeline {
     /**
      * @param {string} path
      * @param {Stage[]} stages
@@ -20301,8 +20324,8 @@
       this.stages = stages;
       this.loader = loader;
       this.declared = declared;
-      /** @type {Feature[]} the dialect's features, with their kinds and defaults */
-      this.features = dialectFeatures(path, stages, declared);
+      /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
+      this.features = pipelineFeatures(path, stages, declared);
       for (const stage of stages) validateEmissionOverlap(stage.grammar.rules);
     }
 
@@ -20541,7 +20564,7 @@
   }
 
   /**
-   * The notation dialect spliced from the required preparsed file, or a grammar error saying
+   * The notation pipeline spliced from the required preparsed file, or a grammar error saying
    * what is wrong with it.
    * @param {string} text
    * @param {UnicodeTable} unicode
@@ -20631,6 +20654,7 @@
 
 
 
+
   /**
    * @typedef {import("./types.js").TagSet} TagSet
    * @typedef {import("./types.js").Span} Span
@@ -20654,16 +20678,16 @@
    */
 
   /**
-   * A dialect from documents held in memory: a map, or a plain object, from
+   * A pipeline from documents held in memory: a map, or a plain object, from
    * path to text, which must include `data/unicode/unicode.txt` and
    * `data/preparsed/gencmu.json` (`gencmu/node` fills them in from the bundled
    * grammars), and the path of the pipeline document among them.
    * @param {Map<string, string> | Record<string, string>} sources
    * @param {string} pipelinePath
-   * @returns {Dialect}
+   * @returns {Pipeline}
    */
-  function loadDialectSources(sources, pipelinePath) {
-    return loaderFromSources(sources).dialect(pipelinePath);
+  function loadPipelineSources(sources, pipelinePath) {
+    return loaderFromSources(sources).pipeline(pipelinePath);
   }
 
   // A loader over grammar documents held in memory: a map, or a plain object,
@@ -20904,7 +20928,7 @@
    */
 
   /**
-   * One of a dialect's features (engine §13).
+   * One of a pipeline's features (engine §13).
    * @typedef {object} Feature
    * @property {string} name
    * @property {"gate" | "warning"} kind
@@ -20942,7 +20966,7 @@
   /**
    * @typedef {object} ParseOptions
    * @property {Iterable<string>} [features] the features to turn on, besides
-   *   those the dialect's pipeline turns on
+   *   those the pipeline's pipeline turns on
    * @property {Iterable<string>} [withoutFeatures] the features to turn off,
    *   including defaults. A holding conditional declaration for a disabled
    *   feature gives a feature-conflict result. A name in both lists is a
@@ -21399,7 +21423,7 @@
 
 
 
-    return { version: "0.1.0", Loader, Dialect, fnv1a64, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, attachmentText, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadDialectSources, loaderFromSources };
+    return { version: "0.1.0", Loader, Pipeline, fnv1a64, bundledPipelines, stitchText, GencmuError, Token, resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, attachmentText, explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem, loadPipelineSources, loaderFromSources };
   }
   root.gencmuFactory = gencmuFactory;
   root.gencmu = gencmuFactory();

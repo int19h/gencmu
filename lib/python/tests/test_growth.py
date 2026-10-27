@@ -16,7 +16,7 @@ from unittest import mock
 
 import gencmu
 from gencmu import _dom, _trampoline
-from gencmu._dialect import read_document
+from gencmu._pipeline import read_document
 from gencmu._earley import Caps, Evaluator, Parser, StageContext
 
 from .shared import (
@@ -28,7 +28,7 @@ from .shared import (
     case_sources,
     code_of,
     count_work,
-    load_case_dialect,
+    load_case_pipeline,
     load_json,
     made_items,
     mutant,
@@ -49,13 +49,13 @@ class Growth(unittest.TestCase):
         cases = load_json(SHARED / "growth.json")
         self.assertTrue(cases, "no cases found")
         for case in cases:
-            with self.subTest(dialect=case["dialect"], link=case["link"]):
-                dialect = gencmu.load_dialect(case["dialect"])
+            with self.subTest(pipeline=case["pipeline"], link=case["link"]):
+                pipeline = gencmu.load_pipeline(case["pipeline"])
 
                 def items(n: int, budget: int | None = None) -> int:
                     text = case["text"].replace("{links}", " ".join([case["link"]] * n))
                     with count_work(made_items(), budget=budget) as work:
-                        result = dialect.parse(text)
+                        result = pipeline.parse(text)
                     self.assertTrue(result.ok, text)
                     return work.count
 
@@ -75,8 +75,8 @@ class ItemCount(unittest.TestCase):
     def test_the_budget_stops_the_parse_before_the_item_past_it_is_stored(self) -> None:
         # The count of items comes before each new item is stored, so the
         # parse that passes its budget stores exactly the budget's items.
-        dialect, error = load_case_dialect({"grammar": "%rule text {A}"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text {A}"})
+        assert pipeline is not None, error
         tokens = [{"text": "a", "tags": ["A"]}] * 50
         budget = 40
         # The parse's items, read from its frame as the budget stops it,
@@ -84,7 +84,7 @@ class ItemCount(unittest.TestCase):
         stored: list[int] = []
         try:
             with count_work(made_items(), budget=budget):
-                parse_case(dialect, {"tokens": tokens})
+                parse_case(pipeline, {"tokens": tokens})
         except OverBudget as error:
             trace = error.__traceback__
             while trace is not None:
@@ -107,9 +107,9 @@ class CaptureStorage(unittest.TestCase):
         tags = " ∪ ".join(f"$c{count - 1 - index}.tags" for index in range(count))
         grammar = f'%rule text :: X ∪ {tags} | {names}\n%conditions $c0.source-text = "a"\n%rule rest {{A}}'
         case = {"grammar": grammar, "tokens": [{"text": "a", "tags": ["A"]}] * count}
-        dialect, error = load_case_dialect(case)
+        pipeline, error = load_case_pipeline(case)
         self.assertIsNone(error)
-        assert dialect is not None
+        assert pipeline is not None
         with (
             count_work(captures, budget=count) as works["captures"],
             count_work(made_items(), budget=2 * count + 4) as works["items"],
@@ -120,7 +120,7 @@ class CaptureStorage(unittest.TestCase):
             # the walks' own budget to stop first.
             count_work(steps(Caps.parts, weight=reads), budget=5 * (2 * count + 4)) as works["lines"],
         ):
-            value, _, _ = parse_case(dialect, case)
+            value, _, _ = parse_case(pipeline, case)
         self.assertIsNotNone(value)
         assert value is not None
         self.assertTrue(value["ok"], f"{count} captures")
@@ -195,12 +195,12 @@ class CaptureStorage(unittest.TestCase):
         names = " ".join(f"$c{index}:A" for index in range(count))
         conditions = ", ".join(f"$c{index}.source-text = {far(index)}.source-text" for index in range(count))
         case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
-        dialect, error = load_case_dialect(case)
+        pipeline, error = load_case_pipeline(case)
         self.assertIsNone(error)
-        assert dialect is not None
+        assert pipeline is not None
         with count_work(*steps_, budget=budget) as work:
             works.append(work)
-            value, _, _ = parse_case(dialect, case)
+            value, _, _ = parse_case(pipeline, case)
         assert value is not None
         self.assertTrue(value["ok"], f"{count} captures")
 
@@ -258,14 +258,14 @@ class ConditionSelection(unittest.TestCase):
         names = " ".join(f"$c{index}:A" for index in range(count))
         conditions = ", ".join(f'$c{index}.source-text = "a"' for index in range(count))
         case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
-        dialect, error = load_case_dialect(case)
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline(case)
+        assert pipeline is not None, error
         # The watch is made here, so that it names a mutant's line where
         # one is in place.
         selection = steps(code_of(Parser.walk, "advance"), "conditions = production.conds_at")
         with count_work(selection, budget=count) as work:
             works.append(work)
-            value, _, _ = parse_case(dialect, case)
+            value, _, _ = parse_case(pipeline, case)
         assert value is not None
         self.assertTrue(value["ok"], f"{count} captures")
 
@@ -395,8 +395,8 @@ class QueryDepth(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case["name"]):
                 sources, pipeline = case_sources(case)
-                dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
-                result = dialect.parse(case["link"] * case["count"] + case["suffix"])
+                loaded = gencmu.load_pipeline_sources(sources, pipeline, use_cache=False)
+                result = loaded.parse(case["link"] * case["count"] + case["suffix"])
                 self.assertTrue(result.ok, result.error)
 
 
@@ -490,10 +490,10 @@ class QueryWork(unittest.TestCase):
             + "".join(case["rule"].replace("{i}", str(i)) for i in indices)
         )
         sources, pipeline = case_sources({"grammar": grammar})
-        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
+        loaded = gencmu.load_pipeline_sources(sources, pipeline, use_cache=False)
         with count_work(*watches, budget=case["most"] * case["count"]) as counted:
             work.append(counted)
-            result = dialect.parse(case["text"])
+            result = loaded.parse(case["text"])
         self.assertTrue(result.ok, result.error)
 
     def test_cases(self) -> None:

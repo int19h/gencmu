@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// notationReader reads grammar documents with the notation dialect, whose
+// notationReader reads grammar documents with the notation pipeline, whose
 // DOM is the bootstrap (engine §8), and turns the tree into the document's
 // DOM (engine §9).
 type notationReader struct {
@@ -104,7 +104,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 		}
 		nr.stages = append(nr.stages, g)
 	}
-	if _, err := newDialect(nr.stages, pipeline.features, uni); err != nil {
+	if _, err := newPipeline(nr.stages, pipeline.features, uni); err != nil {
 		return nil, err
 	}
 	for _, g := range nr.stages {

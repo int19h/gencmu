@@ -5,10 +5,10 @@ import json
 import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
-from gencmu import GencmuError, _testing, load_dialect_sources
-from gencmu._dialect import DOM_FORMAT, bundled_text, _reader, _resources, NotationReader
+from gencmu import GencmuError, _testing, load_pipeline_sources
+from gencmu._pipeline import DOM_FORMAT, bundled_text, _reader, _resources, NotationReader
 from gencmu._hash import fnv1a64
-from .shared import load_case_dialect, parse_case
+from .shared import load_case_pipeline, parse_case
 
 
 def sources(grammar):
@@ -52,14 +52,14 @@ def require_preparsed_cache(reader, texts):
 class Ranked(unittest.TestCase):
     def test_independent_slots_keep_a_linear_forest(self):
         case = {"grammar": "%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
-        dialect, error = load_case_dialect(case)
+        pipeline, error = load_case_pipeline(case)
         self.assertIsNone(error)
         for length in (1, 2, 4, 8, 16):
             stats = []
             token = _testing.slot_admission.set(stats.append)
             try:
                 result, _, _ = parse_case(
-                    dialect, {**case, "tokens": [{"text": tag.lower(), "tags": [tag]} for _ in range(length) for tag in ("X", "Y")]}
+                    pipeline, {**case, "tokens": [{"text": tag.lower(), "tags": [tag]} for _ in range(length) for tag in ("X", "Y")]}
                 )
             finally:
                 _testing.slot_admission.reset(token)
@@ -77,10 +77,10 @@ class Ranked(unittest.TestCase):
             patch.object(NotationReader, "located", side_effect=AssertionError("source-location recovery ran")),
             patch("gencmu._ranked.restore_locations", side_effect=AssertionError("source-location recovery ran")),
         ):
-            load_dialect_sources(texts, "grammars/test/p.md", use_cache=False)
+            load_pipeline_sources(texts, "grammars/test/p.md", use_cache=False)
             with require_preparsed_cache(reader, texts):
                 for _ in range(2):
-                    load_dialect_sources(cached_sources(texts, dom), "grammars/test/p.md")
+                    load_pipeline_sources(cached_sources(texts, dom), "grammars/test/p.md")
 
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources("""%const $K K
@@ -90,12 +90,12 @@ class Ranked(unittest.TestCase):
 %rule b U V
 %rule c R S""")
         with self.assertRaises(GencmuError) as plain:
-            load_dialect_sources(texts, "grammars/test/p.md", use_cache=False)
+            load_pipeline_sources(texts, "grammars/test/p.md", use_cache=False)
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode, found.properties)
         dom = reader.read(texts["grammars/test/g.md"], "grammars/test/g.md", True)
         with require_preparsed_cache(reader, texts), self.assertRaises(GencmuError) as cached:
-            load_dialect_sources(cached_sources(texts, dom), "grammars/test/p.md")
+            load_pipeline_sources(cached_sources(texts, dom), "grammars/test/p.md")
         error = plain.exception
         self.assertEqual(error.to_dict(), cached.exception.to_dict())
         self.assertEqual(error.code, "ranked-choice-export")
@@ -114,7 +114,7 @@ class Ranked(unittest.TestCase):
 %rule v Y
 %rule b :: ∅ | Z""")
         with self.assertRaises(GencmuError) as raised:
-            load_dialect_sources(texts, "grammars/test/p.md")
+            load_pipeline_sources(texts, "grammars/test/p.md")
         error = raised.exception
         self.assertEqual(error.code, "ranked-choice-tags")
         self.assertEqual([site["rule"] for site in error.inheritance], ["text", "a", "v"])

@@ -356,9 +356,9 @@ fn shared_parameter_structure() {
         if get(case, "public") == &Json::Bool(true) {
             let source =
                 format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{}\n```", text(get(case, "grammar")));
-            let dialect = crate::load_dialect_sources([("grammars/test/p.md", source)], "grammars/test/p.md")
+            let pipeline = crate::load_pipeline_sources([("grammars/test/p.md", source)], "grammars/test/p.md")
                 .unwrap_or_else(|e| panic!("{name}: {e}"));
-            let g = &dialect.stages[0];
+            let g = &pipeline.stages[0];
             assert_eq!(
                 names(g),
                 list(get(case, "order")).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(),
@@ -393,8 +393,8 @@ fn shared_parameter_structure() {
                 ),
                 ("data/preparsed/test.json", cache.to_json()),
             ];
-            let dialect = crate::load_dialect_sources(sources, "grammars/test/p.md").unwrap();
-            assert!(dialect.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");
+            let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").unwrap();
+            assert!(pipeline.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");
             continue;
         }
         let d = dom::dom_from_json(&raw, &uni).unwrap_or_else(|e| panic!("{name}: {e}"));

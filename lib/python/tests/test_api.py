@@ -12,11 +12,11 @@ import weakref
 from pathlib import Path
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, bundled_text
+from gencmu._pipeline import DOM_FORMAT, bundled_text
 
-from .shared import case_sources, case_tokens, load_case_dialect
+from .shared import case_sources, case_tokens, load_case_pipeline
 
-PIPELINE = """# A test dialect
+PIPELINE = """# A test pipeline
 
 ## Sounds
 
@@ -86,7 +86,7 @@ SYNTAX = """# Syntax
 ```
 """
 
-SOURCES = {"dialect.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "syntax.md": SYNTAX}
+SOURCES = {"pipeline.md": PIPELINE, "sounds.md": SOUNDS, "words.md": WORDS, "syntax.md": SYNTAX}
 
 ELIDING = {
     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
@@ -113,7 +113,7 @@ class Loaders(unittest.TestCase):
     def test_replacements_record_flag_changes(self) -> None:
         from gencmu._grammar import FlagChange
 
-        dialect = gencmu.load_dialect_sources(
+        pipeline = gencmu.load_pipeline_sources(
             {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": """```jbogenbau
@@ -130,7 +130,7 @@ class Loaders(unittest.TestCase):
             },
             "p.md",
         )
-        changes = dialect.grammars[0].changes
+        changes = pipeline.grammars[0].changes
         removed = FlagChange(["leftmost-longest"], [])
         added = FlagChange([], ["leftmost-longest"])
         self.assertEqual([change.flag_change for change in changes], [None, removed, added, None, removed, None])
@@ -139,37 +139,37 @@ class Loaders(unittest.TestCase):
             self.assertEqual(change.kind, "extend" if index == 0 else "replace")
 
     def test_bundled(self) -> None:
-        dialect = gencmu.load_dialect("gencmu/jbogenbau")
-        self.assertEqual(dialect.stage_names, ["lexical", "syntax"])
-        result = dialect.parse("%rule text A")
+        pipeline = gencmu.load_pipeline("gencmu/jbogenbau")
+        self.assertEqual(pipeline.stage_names, ["lexical", "syntax"])
+        result = pipeline.parse("%rule text A")
         self.assertTrue(result.ok)
         self.assertEqual(result.tree.rule if result.tree else None, "text")
 
-    def test_unknown_bundled_dialect(self) -> None:
+    def test_unknown_bundled_pipeline(self) -> None:
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect("no-such-dialect")
-        self.assertEqual(caught.exception.kind, "grammar")
+            gencmu.load_pipeline("no-such-pipeline")
+        self.assertEqual(caught.exception.kind, "usage")
 
     def test_sources(self) -> None:
-        dialect = gencmu.load_dialect_sources(SOURCES, "dialect.md")
-        self.assertEqual(dialect.stage_names, ["sounds", "words", "syntax"])
-        self.assertTrue(dialect.parse("mi mi").ok)
+        pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
+        self.assertEqual(pipeline.stage_names, ["sounds", "words", "syntax"])
+        self.assertTrue(pipeline.parse("mi mi").ok)
 
     def test_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "dialects").mkdir()
-            (root / "dialects" / "test.md").write_text(
+            (root / "pipelines").mkdir()
+            (root / "pipelines" / "test.md").write_text(
                 PIPELINE.replace("](", "](../grammars/").replace('%include "', '%include "../grammars/'), encoding="utf-8"
             )
             (root / "grammars").mkdir()
             for name in ("sounds.md", "words.md", "syntax.md"):
                 (root / "grammars" / name).write_text(SOURCES[name], encoding="utf-8")
-            dialect = gencmu.load_dialect_file(root / "dialects" / "test.md")
-            self.assertEqual(gencmu.to_brackets(dialect.parse("mi mi")), "(mi mi)")
+            pipeline = gencmu.load_pipeline_file(root / "pipelines" / "test.md")
+            self.assertEqual(gencmu.to_brackets(pipeline.parse("mi mi")), "(mi mi)")
             (root / "grammars" / "words.md").unlink()
             with self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_file(str(root / "dialects" / "test.md"))
+                gencmu.load_pipeline_file(str(root / "pipelines" / "test.md"))
             self.assertIn("words.md", str(caught.exception))
 
     def test_sources_bring_their_own_bootstrap(self) -> None:
@@ -178,23 +178,23 @@ class Loaders(unittest.TestCase):
         broken = dict(SOURCES)
         broken["data/preparsed/gencmu.json"] = json.dumps({"format": DOM_FORMAT, "stages": []})
         with self.assertRaises(gencmu.GencmuError):
-            gencmu.load_dialect_sources(broken, "dialect.md", use_cache=False)
+            gencmu.load_pipeline_sources(broken, "pipeline.md", use_cache=False)
 
     def test_missing_document(self) -> None:
         sources = dict(SOURCES)
         del sources["words.md"]
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_sources(sources, "dialect.md")
+            gencmu.load_pipeline_sources(sources, "pipeline.md")
         # The error stands at the %include of the missing document.
         error = caught.exception
-        self.assertEqual((error.document, error.line, error.column), ("dialect.md", 22, 3))
+        self.assertEqual((error.document, error.line, error.column), ("pipeline.md", 22, 3))
         self.assertIn("words.md", error.message)
 
     def test_grammar_error_position(self) -> None:
         sources = dict(SOURCES)
         sources["syntax.md"] = "# Syntax\n\n```jbogenbau\n%ambiguity-resolution greedy\n%rules text WORD\n```\n"
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_sources(sources, "dialect.md")
+            gencmu.load_pipeline_sources(sources, "pipeline.md")
         error = caught.exception
         self.assertEqual((error.kind, error.document), ("grammar", "syntax.md"))
         self.assertEqual(error.line, 5)
@@ -214,15 +214,15 @@ class Loaders(unittest.TestCase):
         ):
             with self.subTest(pipeline=pipeline):
                 with self.assertRaises(gencmu.GencmuError):
-                    gencmu.load_dialect_sources({"p.md": pipeline, "g.md": SYNTAX}, "p.md")
+                    gencmu.load_pipeline_sources({"p.md": pipeline, "g.md": SYNTAX}, "p.md")
 
 
 class Options(unittest.TestCase):
-    dialect: gencmu.Dialect
+    pipeline: gencmu.Pipeline
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.dialect = gencmu.load_dialect_sources(SOURCES, "dialect.md")
+        cls.pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
 
     def erasing(self, result: gencmu.ParseResult) -> bool:
         self.assertTrue(result.ok, result.error)
@@ -230,60 +230,60 @@ class Options(unittest.TestCase):
         return "ERASING" in result.tree.tags
 
     def test_features(self) -> None:
-        self.assertTrue(self.erasing(self.dialect.parse("mi mi", features={"sa-su"})))
-        self.assertTrue(self.erasing(self.dialect.parse("mi mi", features=["sa-su"])))
+        self.assertTrue(self.erasing(self.pipeline.parse("mi mi", features={"sa-su"})))
+        self.assertTrue(self.erasing(self.pipeline.parse("mi mi", features=["sa-su"])))
         with self.assertRaises(gencmu.GencmuError):
-            self.dialect.parse("mi", features="sa-su")
+            self.pipeline.parse("mi", features="sa-su")
 
     def test_pipeline_features(self) -> None:
         sources = dict(SOURCES)
-        sources["dialect.md"] = PIPELINE.replace("# A test dialect", "# A test dialect\n\n```jbogenbau\n%features sa-su\n```")
-        dialect = gencmu.load_dialect_sources(sources, "dialect.md")
-        self.assertEqual(dialect.features, (gencmu.Feature("sa-su", "gate", True),))
-        self.assertTrue(self.erasing(dialect.parse("mi mi")))
+        sources["pipeline.md"] = PIPELINE.replace("# A test pipeline", "# A test pipeline\n\n```jbogenbau\n%features sa-su\n```")
+        pipeline = gencmu.load_pipeline_sources(sources, "pipeline.md")
+        self.assertEqual(pipeline.features, (gencmu.Feature("sa-su", "gate", True),))
+        self.assertTrue(self.erasing(pipeline.parse("mi mi")))
         # A caller can turn off a feature the pipeline turns on.
-        self.assertFalse(self.erasing(dialect.parse("mi mi", without_features=["sa-su"])))
+        self.assertFalse(self.erasing(pipeline.parse("mi mi", without_features=["sa-su"])))
 
-    def test_dialect_features(self) -> None:
-        self.assertEqual(self.dialect.features, (gencmu.Feature("sa-su", "gate", False),))
+    def test_pipeline_features(self) -> None:
+        self.assertEqual(self.pipeline.features, (gencmu.Feature("sa-su", "gate", False),))
 
     def test_without_features(self) -> None:
         """A name both enabled and disabled is a caller error (engine §13)."""
-        self.assertFalse(self.erasing(self.dialect.parse("mi sa mi", without_features={"sa-su"})))
+        self.assertFalse(self.erasing(self.pipeline.parse("mi sa mi", without_features={"sa-su"})))
         for options in ({"features": ["sa-su"], "without_features": ("sa-su",)}, {"without_features": "sa-su"}):
             with self.subTest(options=options):
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    self.dialect.parse("mi", **options)  # type: ignore[arg-type]
+                    self.pipeline.parse("mi", **options)  # type: ignore[arg-type]
                 self.assertEqual(caught.exception.kind, "usage")
 
     def test_until(self) -> None:
-        result = self.dialect.parse("mi sa", until="words")
+        result = self.pipeline.parse("mi sa", until="words")
         self.assertTrue(result.ok)
         self.assertEqual([stage.name for stage in result.stages], ["sounds", "words"])
         words = result.stages[-1].output
         assert words is not None
         self.assertEqual([token.value for token in words], ["mi", "sa"])
         self.assertEqual([token.tags for token in words], [frozenset({"WORD"}), frozenset({"WORD"})])
-        only = self.dialect.parse("mi", until="sounds")
+        only = self.pipeline.parse("mi", until="sounds")
         self.assertEqual(len(only.stages), 1)
         with self.assertRaises(gencmu.GencmuError) as caught:
-            self.dialect.parse("mi", until="semantics")
+            self.pipeline.parse("mi", until="semantics")
         self.assertEqual(caught.exception.kind, "usage")
         # An empty name names no stage either (docs/api.md).
         with self.assertRaises(gencmu.GencmuError) as caught:
-            self.dialect.parse("mi", until="")
+            self.pipeline.parse("mi", until="")
         self.assertEqual(caught.exception.kind, "usage")
 
     def test_elision_only(self) -> None:
-        dialect = gencmu.load_dialect_sources(ELIDING, "p.md")
+        pipeline = gencmu.load_pipeline_sources(ELIDING, "p.md")
         tokens, text = elided_tokens()
-        declared = dialect.parse_tokens(tokens, text)
+        declared = pipeline.parse_tokens(tokens, text)
         self.assertFalse(declared.ok)
         assert declared.error is not None
         self.assertEqual(declared.error.kind, "ambiguous")
         self.assertEqual(len(declared.error.readings or []), 2)
-        self.assertTrue(dialect.parse_tokens(tokens, text, elision_only=False).ok)
-        plain = gencmu.load_dialect_sources({**ELIDING, "g.md": ELIDING["g.md"].replace(" elision-only", "")}, "p.md")
+        self.assertTrue(pipeline.parse_tokens(tokens, text, elision_only=False).ok)
+        plain = gencmu.load_pipeline_sources({**ELIDING, "g.md": ELIDING["g.md"].replace(" elision-only", "")}, "p.md")
         self.assertTrue(plain.parse_tokens(tokens, text).ok)
         self.assertFalse(plain.parse_tokens(tokens, text, elision_only=True).ok)
 
@@ -292,8 +292,8 @@ class Options(unittest.TestCase):
         inside, and its output is that of any elided node (engine §7,
         §12)."""
         grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [+KU="ku"]\n```\n'
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
-        result = dialect.parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a")], "a")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        result = pipeline.parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a")], "a")
         assert result.tree is not None
         elided = result.tree.children[1]
         self.assertEqual((elided.kind, elided.terminal, elided.value), ("elided", "KU", "ku"))
@@ -304,9 +304,9 @@ class Options(unittest.TestCase):
         """A supplied image survives input copying and covering emission.
         The caller's token stays as it is (engine §1, docs/api.md)."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:A\n%emits $a :: X\n```\n"
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), "a", image="CUSTOM")
-        result = dialect.parse_tokens([token], "a")
+        result = pipeline.parse_tokens([token], "a")
         self.assertEqual(result.stages[0].input[0].image, "CUSTOM")
         self.assertEqual(result.stages[0].output[0].image, "CUSTOM")
         self.assertEqual(gencmu.to_brackets(result), "CUSTOM")
@@ -318,7 +318,7 @@ class Options(unittest.TestCase):
         Either mistake is a usage error. Sources can overlap or lie out of
         order (docs/api.md, engine §11)."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A B\n%emits $\n```\n"
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
 
         def tokens(first: tuple[int, int], second: tuple[int, int], span: tuple[int, int] = (1, 2)) -> list[gencmu.Token]:
             return [gencmu.Token("a", frozenset({"A"}), (0, 1), first), gencmu.Token("b", frozenset({"B"}), span, second)]
@@ -326,16 +326,16 @@ class Options(unittest.TestCase):
         for source in ((0, 6), (-2, 1), (2, 1), (3, 3)):
             with self.subTest(source=source):
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    dialect.parse_tokens(tokens((0, 1), source), "ab")
+                    pipeline.parse_tokens(tokens((0, 1), source), "ab")
                 self.assertEqual(caught.exception.kind, "usage")
                 self.assertIn("source", str(caught.exception))
         for span in ((-1, 0), (2, 1)):
             with self.subTest(span=span):
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    dialect.parse_tokens(tokens((0, 1), (1, 2), span), "ab")
+                    pipeline.parse_tokens(tokens((0, 1), (1, 2), span), "ab")
                 self.assertEqual(caught.exception.kind, "usage")
                 self.assertIn("span", str(caught.exception))
-        result = dialect.parse_tokens(tokens((1, 2), (0, 2)), "ab")
+        result = pipeline.parse_tokens(tokens((1, 2), (0, 2)), "ab")
         self.assertTrue(result.ok, result.error)
         output = result.stages[0].output
         assert output is not None
@@ -346,18 +346,18 @@ class Options(unittest.TestCase):
         not empty is a usage error, and empty lists are dropped. The
         caller's tokens stay as they are (docs/api.md)."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:A\n%emits $a\n```\n"
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         attached = gencmu.Token("i", frozenset({"I"}), None, (2, 3))
         for side in ("before", "after"):
             with self.subTest(side=side):
                 token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), **{side: [attached]})
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    dialect.parse_tokens([token], "a i")
+                    pipeline.parse_tokens([token], "a i")
                 self.assertEqual(caught.exception.kind, "usage")
                 self.assertEqual(getattr(token, side), [attached], "the caller's token changed")
         empty: list[gencmu.Token] = []
         token = gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1), before=empty, after=[])
-        result = dialect.parse_tokens([token], "a")
+        result = pipeline.parse_tokens([token], "a")
         self.assertTrue(result.ok, result.error)
         self.assertIsNot(result.stages[0].input[0].before, empty)
         self.assertNotIn("before", gencmu.result_json(result)["stages"][0]["output"][0])
@@ -366,14 +366,14 @@ class Options(unittest.TestCase):
         """The message of a rejection writes a tested terminal with its
         test, as the expected list does (docs/output.md)."""
         grammar = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text LE="la" | LE="lai" C | LE<D C> D\n```\n'
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
-        result = dialect.parse_tokens([gencmu.Token("lo", frozenset({"LE"}), (0, 2), (0, 2), "lo")], "lo")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        result = pipeline.parse_tokens([gencmu.Token("lo", frozenset({"LE"}), (0, 2), (0, 2), "lo")], "lo")
         assert result.error is not None
         self.assertEqual([entry.terminal for entry in result.error.expected or []], ["LE<C D>", 'LE="la"', 'LE="lai"'])
         self.assertIn('it expected LE<C D> (text), LE="la" (text), LE="lai" (text)', result.error.message)
 
     def test_rejection(self) -> None:
-        result = self.dialect.parse("mi xa")
+        result = self.pipeline.parse("mi xa")
         self.assertFalse(result.ok)
         assert result.error is not None
         self.assertEqual((result.error.kind, result.error.stage, result.error.token), ("rejected", "sounds", 3))
@@ -384,8 +384,8 @@ class Options(unittest.TestCase):
 
 class Output(unittest.TestCase):
     def test_canonical_json(self) -> None:
-        dialect = gencmu.load_dialect_sources(SOURCES, "dialect.md")
-        result = dialect.parse("mi", until="words")
+        pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
+        result = pipeline.parse("mi", until="words")
         text = gencmu.to_json(result)
         self.assertEqual(json.loads(text), gencmu.result_json(result))
         tags = json.dumps(sorted(result.stages[0].output[0].tags), ensure_ascii=False, separators=(",", ":"))
@@ -403,8 +403,8 @@ class Output(unittest.TestCase):
         self.assertTrue(text.endswith(',"error":null}'))
 
     def test_error_json(self) -> None:
-        dialect = gencmu.load_dialect_sources(SOURCES, "dialect.md")
-        value = gencmu.result_json(dialect.parse("mx"))
+        pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
+        value = gencmu.result_json(pipeline.parse("mx"))
         self.assertEqual(
             list(value["error"]),
             ["kind", "stage", "token", "source", "line", "column", "expected", "message"],
@@ -442,9 +442,9 @@ class Output(unittest.TestCase):
         self.assertNotIn("code", error_json(gencmu.ParseError("grammar", "a defect", stage="main")))
 
     def test_brackets(self) -> None:
-        dialect = gencmu.load_dialect_sources(ELIDING, "p.md")
+        pipeline = gencmu.load_pipeline_sources(ELIDING, "p.md")
         tokens, text = elided_tokens()
-        result = dialect.parse_tokens(tokens, text, elision_only=False)
+        result = pipeline.parse_tokens(tokens, text, elision_only=False)
         self.assertEqual(gencmu.to_brackets(result), "(a b)")
         self.assertEqual(gencmu.to_brackets(result, show_elided=True), "([a b] ⟨ku⟩)")
 
@@ -453,9 +453,9 @@ class Output(unittest.TestCase):
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A s %rule s A t %rule t A u %rule u A A\n```\n",
         }
-        dialect = gencmu.load_dialect_sources(sources, "p.md")
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md")
         tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(5)]
-        result = dialect.parse_tokens(tokens, "0 1 2 3 4")
+        result = pipeline.parse_tokens(tokens, "0 1 2 3 4")
         self.assertEqual(gencmu.to_brackets(result), "(0 [1 {2 (3 4)}])")
 
     def test_brackets_images(self) -> None:
@@ -465,14 +465,14 @@ class Output(unittest.TestCase):
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A A A\n```\n",
         }
-        dialect = gencmu.load_dialect_sources(sources, "p.md")
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md")
         tokens = [
             gencmu.Token("klama bu", frozenset({"A"}), (0, 1), (0, 8), "klama.bu"),
             gencmu.Token("x.y", frozenset({"A"}), (1, 2), (9, 12), ""),
             gencmu.Token("ab", frozenset({"A"}), (2, 3), (13, 15), "ab", image="a..b"),
         ]
         self.assertEqual([token.image for token in tokens], ["klama bu", "x.y", "a..b"])
-        result = dialect.parse_tokens(tokens, "klama bu x.y ab")
+        result = pipeline.parse_tokens(tokens, "klama bu x.y ab")
         self.assertEqual(gencmu.to_brackets(result), "(klama bu x.y a..b)")
 
 
@@ -504,8 +504,8 @@ class Attachments(unittest.TestCase):
     docs/output.md)."""
 
     def test_attached_tokens(self) -> None:
-        dialect = gencmu.load_dialect_sources(ATTACHING, "p.md")
-        result = dialect.parse("bwinz")
+        pipeline = gencmu.load_pipeline_sources(ATTACHING, "p.md")
+        result = pipeline.parse("bwinz")
         self.assertTrue(result.ok, result.error)
         word = (result.stages[0].output or [])[0]
         self.assertEqual([token.image for token in word.before], ["b"])
@@ -525,9 +525,9 @@ class Attachments(unittest.TestCase):
         """Of two errors in one item, the before-attachment's comes first
         (engine §11)."""
         case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-order.json").read_text("utf-8"))
-        dialect = gencmu.load_dialect_sources(case["documents"], case["pipelineDocument"])
+        pipeline = gencmu.load_pipeline_sources(case["documents"], case["pipelineDocument"])
         supplied, text = case_tokens(case)
-        result = dialect.parse_tokens(supplied, text)
+        result = pipeline.parse_tokens(supplied, text)
         assert result.error is not None
         self.assertIn("uncovered text", result.error.message)
 
@@ -535,24 +535,24 @@ class Attachments(unittest.TestCase):
         """An inserted token's error comes after an earlier attachment's
         (engine §11)."""
         case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-insert-order.json").read_text("utf-8"))
-        dialect = gencmu.load_dialect_sources(*case_sources(case))
+        pipeline = gencmu.load_pipeline_sources(*case_sources(case))
         supplied, text = case_tokens(case)
-        result = dialect.parse_tokens(supplied, text)
+        result = pipeline.parse_tokens(supplied, text)
         assert result.error is not None
         self.assertIn("uncovered text", result.error.message)
 
     def test_deep_nesting(self) -> None:
         """Attachments as deep as the text is long need no recursion."""
         grammar = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text | $w:W | $w:W $a:text\n%emits $w ($a)\n```\n"
-        dialect = gencmu.load_dialect_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
+        pipeline = gencmu.load_pipeline_sources({"p.md": ELIDING["p.md"], "g.md": grammar}, "p.md")
         count = 1500
         tokens = [gencmu.Token("w", frozenset({"W"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(count)]
-        result = dialect.parse_tokens(tokens, " ".join(["w"] * count))
+        result = pipeline.parse_tokens(tokens, " ".join(["w"] * count))
         self.assertTrue(result.ok, result.error)
         self.assertEqual(len(result.stages[0].output or []), 1)
         self.assertTrue(gencmu.to_json(result))
         # So do the equality and the representation of a token.
-        again = dialect.parse_tokens(tokens, " ".join(["w"] * count))
+        again = pipeline.parse_tokens(tokens, " ".join(["w"] * count))
         self.assertEqual(result, again)
         self.assertEqual(repr(result.stages[0].output).count("Token(text='w'"), count)
 
@@ -585,8 +585,8 @@ class GrammarFaults(unittest.TestCase):
                     "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n",
                 }
-                dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
-                result = dialect.parse_tokens([gencmu.Token("x", frozenset({"W"}), (0, 1), (0, 1), "x")], "x")
+                pipeline = gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
+                result = pipeline.parse_tokens([gencmu.Token("x", frozenset({"W"}), (0, 1), (0, 1), "x")], "x")
                 if message is None:
                     self.assertTrue(result.ok, result.error)
                     self.assertIsNone(result.error)
@@ -597,35 +597,35 @@ class GrammarFaults(unittest.TestCase):
 
 
 class Warnings(unittest.TestCase):
-    def dialect(self, rules: str) -> gencmu.Dialect:
+    def pipeline(self, rules: str) -> gencmu.Pipeline:
         sources = {
             "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
             "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + rules + "\n```\n",
         }
-        return gencmu.load_dialect_sources(sources, "p.md")
+        return gencmu.load_pipeline_sources(sources, "p.md")
 
     def test_result_and_json(self) -> None:
         """A warning is a ParseWarning of the result, and in the canonical
         JSON after the error only when there is one (docs/output.md)."""
-        dialect = self.dialect("%rule text w! A | B")
+        pipeline = self.pipeline("%rule text w! A | B")
         tokens = [gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))]
-        result = dialect.parse_tokens(tokens, "a", features=["w"])
+        result = pipeline.parse_tokens(tokens, "a", features=["w"])
         self.assertEqual(result.warnings, [gencmu.ParseWarning("main", "w", "text", (0, 1), (0, 1))])
         self.assertTrue(
             gencmu.to_json(result).endswith(
                 ',"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,1],"source":[0,1]}]}'
             )
         )
-        quiet = dialect.parse_tokens(tokens, "a")
+        quiet = pipeline.parse_tokens(tokens, "a")
         self.assertEqual(quiet.warnings, [])
         self.assertNotIn("warnings", gencmu.result_json(quiet))
 
     def test_flat_braces(self) -> None:
         """A list of flat braces is no node of the tree, so its helper gives
         no warnings of its own (engine §3.2, §12)."""
-        dialect = self.dialect("%rule text w! {x}\n%rule x v! A")
+        pipeline = self.pipeline("%rule text w! {x}\n%rule x v! A")
         tokens = [gencmu.Token(str(n), frozenset({"A"}), (n, n + 1), (2 * n, 2 * n + 1)) for n in range(3)]
-        result = dialect.parse_tokens(tokens, "0 1 2", features=["v", "w"])
+        result = pipeline.parse_tokens(tokens, "0 1 2", features=["v", "w"])
         self.assertEqual(
             [(warning.feature, warning.rule, warning.span, warning.source) for warning in result.warnings],
             [("w", "text", (0, 3), (0, 5)), ("v", "x", (0, 1), (0, 1)), ("v", "x", (1, 2), (2, 3)), ("v", "x", (2, 3), (4, 5))],
@@ -635,9 +635,9 @@ class Warnings(unittest.TestCase):
 class Deep(unittest.TestCase):
     def test_long_left_recursion(self) -> None:
         """A derivation as deep as the text is long needs no recursion."""
-        dialect = gencmu.load_dialect_sources(SOURCES, "dialect.md")
+        pipeline = gencmu.load_pipeline_sources(SOURCES, "pipeline.md")
         text = " ".join(["mi"] * 1500)
-        result = dialect.parse(text)
+        result = pipeline.parse(text)
         self.assertTrue(result.ok, result.error)
         self.assertEqual(len(result.stages[1].output or []), 1500)
         self.assertTrue(gencmu.to_json(result))
@@ -669,7 +669,7 @@ class Robustness(unittest.TestCase):
                 sources = self.grammar('%rule text "a"')
                 sources["data/preparsed/gencmu.json"] = bootstrap
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+                    gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
                 self.assertEqual(caught.exception.kind, "grammar")
 
     def test_malformed_cache_entry_is_a_miss(self) -> None:
@@ -688,19 +688,19 @@ class Robustness(unittest.TestCase):
             },
         }
         sources["data/preparsed/test.json"] = json.dumps(preparsed)
-        dialect = gencmu.load_dialect_sources(sources, "grammars/test/p.md")
-        self.assertTrue(dialect.parse("a").ok)
+        pipeline = gencmu.load_pipeline_sources(sources, "grammars/test/p.md")
+        self.assertTrue(pipeline.parse("a").ok)
 
     def test_unreadable_cache_is_no_cache(self) -> None:
         for preparsed in ("[" * 2000 + "]" * 2000, "not json", "[]"):
             with self.subTest(preparsed=preparsed[:10]):
                 sources = {"grammars/test/" + path: text for path,text in self.grammar('%rule text "a"').items()}
                 sources["data/preparsed/test.json"] = preparsed
-                dialect = gencmu.load_dialect_sources(sources, "grammars/test/p.md")
-                self.assertTrue(dialect.parse("a").ok)
+                pipeline = gencmu.load_pipeline_sources(sources, "grammars/test/p.md")
+                self.assertTrue(pipeline.parse("a").ok)
 
     def test_bundled_doms_are_well_formed(self) -> None:
-        from gencmu._dialect import _unicode_table
+        from gencmu._pipeline import _unicode_table
         from gencmu._validate import dom_problem
 
         unicode = _unicode_table(bundled_text("data/unicode/unicode.txt") or "")
@@ -714,8 +714,8 @@ class Robustness(unittest.TestCase):
         depth = 250
         rules = f"""%rule text {"[" * depth}("a"){"]" * depth}"""
         rules += " :: " + "(" * depth + "T" + ")" * depth + " %conditions " + "¬" * depth + '"a" = "a"'
-        dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md")
-        result = dialect.parse("a")
+        pipeline = gencmu.load_pipeline_sources(self.grammar(rules), "p.md")
+        result = pipeline.parse("a")
         self.assertTrue(result.ok, result.error)
         self.assertEqual(gencmu.to_brackets(result), "a")
         assert result.tree is not None
@@ -732,10 +732,10 @@ class Robustness(unittest.TestCase):
         limit = sys.getrecursionlimit()
         self.addCleanup(sys.setrecursionlimit, limit)
         sys.setrecursionlimit(len(inspect.stack()) + 150)
-        dialect = gencmu.load_dialect_sources(self.grammar(f"%const $K Letter\n%rule text {expression} :: {term}"), "p.md", use_cache=False)
+        pipeline = gencmu.load_pipeline_sources(self.grammar(f"%const $K Letter\n%rule text {expression} :: {term}"), "p.md", use_cache=False)
         sys.setrecursionlimit(limit)
         tokens = [gencmu.Token("a", frozenset({"A", "Letter"}), (0, 1), (0, 1)), gencmu.Token("b", frozenset({"A"}), (1, 2), (2, 3))]
-        result = dialect.parse_tokens(tokens, "a b")
+        result = pipeline.parse_tokens(tokens, "a b")
         self.assertTrue(result.ok, result.error)
         assert result.tree is not None
         self.assertEqual(result.tree.tags, frozenset({"Letter"}))
@@ -751,8 +751,8 @@ class Robustness(unittest.TestCase):
             f'%rule text $x:s %emits $ :: T ∪ $x.tags(c)\n%rule s {{"a"}}\n{chain}',
         ):
             with self.subTest(rules=rules[:30]):
-                dialect = gencmu.load_dialect_sources(self.grammar(rules), "p.md", use_cache=False)
-                result = dialect.parse("a" * 3000)
+                pipeline = gencmu.load_pipeline_sources(self.grammar(rules), "p.md", use_cache=False)
+                result = pipeline.parse("a" * 3000)
                 self.assertTrue(result.ok, result.error)
 
     def test_too_deeply_nested_grammar(self) -> None:
@@ -763,7 +763,7 @@ class Robustness(unittest.TestCase):
         ):
             with self.subTest(rules=rules[:30]):
                 with self.assertRaises(gencmu.GencmuError) as caught:
-                    gencmu.load_dialect_sources(self.grammar(rules), "p.md")
+                    gencmu.load_pipeline_sources(self.grammar(rules), "p.md")
                 self.assertEqual((caught.exception.document, caught.exception.line, caught.exception.column), ("g.md", 4, 1))
 
     def test_deep_include_chain(self) -> None:
@@ -771,7 +771,7 @@ class Robustness(unittest.TestCase):
         errors name the whole chain. The DOMs come preparsed, since the
         notation reader would spend most of the run reading them."""
         from unittest.mock import patch
-        from gencmu._dialect import NotationReader, read_document
+        from gencmu._pipeline import NotationReader, read_document
         from gencmu._hash import fnv1a64
 
         depth = 20_000
@@ -793,13 +793,13 @@ class Robustness(unittest.TestCase):
             texts["data/preparsed/test.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap, "unicode": unicode_hash, "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": entries})
             return texts
 
-        def load(end: str | None) -> gencmu.Dialect:
+        def load(end: str | None) -> gencmu.Pipeline:
             texts = sources(end)
             with patch.object(NotationReader, "read", side_effect=AssertionError("the include fixture bypassed its preparsed DOMs")):
-                return gencmu.load_dialect_sources(texts, "grammars/test/d0.md")
+                return gencmu.load_pipeline_sources(texts, "grammars/test/d0.md")
 
-        dialect = load('```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text "a"\n```\n')
-        self.assertTrue(dialect.parse("a").ok)
+        pipeline = load('```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text "a"\n```\n')
+        self.assertTrue(pipeline.parse("a").ok)
         chain = " → ".join(f"grammars/test/d{index}.md" for index in range(depth + 1))
         with self.assertRaises(gencmu.GencmuError) as caught:
             load(None)
@@ -809,8 +809,8 @@ class Robustness(unittest.TestCase):
         self.assertEqual(caught.exception.message, f"grammars/test/d0.md includes itself ({chain} → grammars/test/d0.md)")
 
     def test_deep_tree(self) -> None:
-        dialect = gencmu.load_dialect_sources(self.grammar('%rule text text "a" | "a"'), "p.md")
-        result = dialect.parse("a" * 10000)
+        pipeline = gencmu.load_pipeline_sources(self.grammar('%rule text text "a" | "a"'), "p.md")
+        result = pipeline.parse("a" * 10000)
         self.assertTrue(result.ok)
         text = gencmu.to_json(result)
         self.assertEqual(text.count('"rule":"text"'), 10000)
@@ -818,7 +818,7 @@ class Robustness(unittest.TestCase):
         self.assertTrue(brackets.startswith("(" + "[{(" * 3) and brackets.endswith("a)"))
         # Equality and the representation of a tree walk it with a list for
         # a stack, as the dataclass's own methods would not.
-        again = dialect.parse("a" * 10000)
+        again = pipeline.parse("a" * 10000)
         self.assertEqual(result, again)
         assert again.tree is not None
         again.tree.children[0].children[0].children[0].span = (0, 0)
@@ -826,9 +826,9 @@ class Robustness(unittest.TestCase):
         self.assertEqual(repr(result.tree).count("Node(kind='rule'"), 10000)
 
 
-def stage_output(dialect: gencmu.Dialect, text: str, name: str) -> list[gencmu.Token]:
+def stage_output(pipeline: gencmu.Pipeline, text: str, name: str) -> list[gencmu.Token]:
     """The output of the stage NAME of a parse of TEXT, which must succeed."""
-    result = dialect.parse(text)
+    result = pipeline.parse(text)
     assert result.ok, (text, result.error)
     output = next(stage for stage in result.stages if stage.name == name).output
     assert output is not None
@@ -842,23 +842,23 @@ class BundledGrammars(unittest.TestCase):
     def test_empty_zoi_body(self) -> None:
         """An empty ZOI body adds no token or placeholder.
         The letter constructor keeps the quote spacing (engine §11)."""
-        dialect = gencmu.load_dialect("lojban/cll")
-        words = stage_output(dialect, "zoi gy gy", "words")
+        pipeline = gencmu.load_pipeline("lojban/cll")
+        words = stage_output(pipeline, "zoi gy gy", "words")
         self.assertEqual(len(words), 1)
         self.assertEqual((words[0].value, words[0].image), ("zoi gy gy", "zoi gy gy"))
         self.assertIsNone(words[0].inserted_by)
-        letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
+        letter = stage_output(pipeline, "zoi gy gy bu", "words")[0]
         self.assertEqual(letter.value, "zoi gy gy bu")
 
     def test_zbalermorna_shorthand(self) -> None:
         """grammars/lojban/common/zbalermorna.md: the token of the vowel after the shorthand
         mark covers the mark, so a word that begins with the shorthand begins
         at it."""
-        dialect = gencmu.load_dialect("lojban/bpfk")
+        pipeline = gencmu.load_pipeline("lojban/bpfk")
         text = ""
-        vowel = stage_output(dialect, text, "phonemes")[0]
+        vowel = stage_output(pipeline, text, "phonemes")[0]
         self.assertEqual((vowel.text, vowel.source), ("", (0, 2)))
-        word = stage_output(dialect, text, "forms")[0]
+        word = stage_output(pipeline, text, "forms")[0]
         self.assertEqual((word.text, word.source, word.value), (text, (0, 3), "u'i"))
 
     def test_cy_letter_is_never_continued(self) -> None:
@@ -866,7 +866,7 @@ class BundledGrammars(unittest.TestCase):
         the general join of run-words, a continued word before an onset,
         never joins a Cy letter to the word after it, and only the Cy rule
         joins two letters."""
-        letters = stage_output(gencmu.load_dialect("lojban/cll"), "cyky", "forms")
+        letters = stage_output(gencmu.load_pipeline("lojban/cll"), "cyky", "forms")
         self.assertEqual([token.image for token in letters], ["cy", "ky"])
         for letter in letters:
             self.assertTrue("Cy" in letter.tags and "Continued" not in letter.tags, letter.image)
@@ -877,13 +877,13 @@ class BundledGrammars(unittest.TestCase):
         and after a text opener as at the start of the text. No condition
         decides it, so each of these texts has the verdict resolved in the
         indicator stage."""
-        dialect = gencmu.load_dialect("lojban/cll")
+        pipeline = gencmu.load_pipeline("lojban/cll")
         for text, labels in [
             ("ui nai mi klama", ["ui", "nai", "mi", "klama"]),
             ("ui ba'e nai mi klama", ["ui", "nai", "mi", "klama"]),
             ("lu ui nai mi li'u", ["lu", "ui", "nai", "mi", "li'u"]),
         ]:
-            result = dialect.parse(text)
+            result = pipeline.parse(text)
             self.assertTrue(result.ok, text)
             stage = next(stage for stage in result.stages if stage.name == "indicators")
             self.assertEqual(stage.verdict, "resolved", text)
@@ -902,7 +902,7 @@ class BundledGrammars(unittest.TestCase):
             include, include + '\n  %include "la-probe.md"'
         )
         sources["grammars/lojban/experimental/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
-        probe = gencmu.load_dialect_sources(sources, "grammars/lojban/experimental/pipeline.md")
+        probe = gencmu.load_pipeline_sources(sources, "grammars/lojban/experimental/pipeline.md")
         result = probe.parse("la mlatu ku cu klama")
         forms = next(stage for stage in result.stages if stage.name == "forms").output
         assert forms is not None
@@ -914,48 +914,48 @@ class BundledGrammars(unittest.TestCase):
 
 
 class LoweringCaches(unittest.TestCase):
-    """A dialect keeps a lowered grammar for each set of a stage's gates that
+    """A pipeline keeps a lowered grammar for each set of a stage's gates that
     is on, and a bounded number of them (engine §3.1, §13)."""
 
     def test_unused_names_share_one_lowering(self) -> None:
-        dialect, error = load_case_dialect({"grammar": '%rule text f? "x" | "y"'})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": '%rule text f? "x" | "y"'})
+        assert pipeline is not None, error
         for index in range(50):
-            self.assertTrue(dialect.parse("y", features=[f"unused-{index}"]).ok)
-        self.assertEqual(len(dialect._lowered[0]), 1)
-        self.assertEqual(len(dialect.grammars[0]._classifier_tables), 1)
+            self.assertTrue(pipeline.parse("y", features=[f"unused-{index}"]).ok)
+        self.assertEqual(len(pipeline._lowered[0]), 1)
+        self.assertEqual(len(pipeline.grammars[0]._classifier_tables), 1)
 
     def test_bounded(self) -> None:
         names = ["a", "b", "c", "d", "e", "f", "g"]
         grammar = f'''%rule text {" | ".join((f'{name}? "x"' for name in names))} | "y"'''
-        dialect, error = load_case_dialect({"grammar": grammar})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": grammar})
+        assert pipeline is not None, error
         for number in range(1 << len(names)):
             features = [name for index, name in enumerate(names) if number & (1 << index)]
             # The stage accepts its input whenever a feature is on, and ties
             # when two are (engine §6).
-            result = dialect.parse("x", features=features)
+            result = pipeline.parse("x", features=features)
             self.assertEqual(result.stages[0].verdict is not None, bool(features), features)
             self.assertEqual(result.ok, len(features) == 1, features)
-        self.assertLessEqual(len(dialect._lowered[0]), 16)
-        self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline._lowered[0]), 16)
+        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
 
     def test_classifier_tables_bounded(self) -> None:
         """Every set of five classifier gates, twice: the second round
         resolves again the tables that the first round dropped."""
         names = ["a", "b", "c", "d", "e"]
         entries = "".join(f'\n  {name}? "x" ∈ {name.upper()}' for name in names)
-        dialect, error = load_case_dialect(
+        pipeline, error = load_case_pipeline(
             {"grammar": f'%classifier c\n  "x" ∈ X{entries}\n%rule text $w:"x" :: $w.source-text.classify(c)'}
         )
-        assert dialect is not None, error
+        assert pipeline is not None, error
         for _ in range(2):
             for number in range(1 << len(names)):
                 features = [name for index, name in enumerate(names) if number & (1 << index)]
-                result = dialect.parse("x", features=features)
+                result = pipeline.parse("x", features=features)
                 assert result.tree is not None
                 self.assertEqual(result.tree.tags, frozenset(["X"] + [name.upper() for name in features]))
-        self.assertLessEqual(len(dialect.grammars[0]._classifier_tables), 16)
+        self.assertLessEqual(len(pipeline.grammars[0]._classifier_tables), 16)
 
 
 class RepeatedFailures(unittest.TestCase):
@@ -964,13 +964,13 @@ class RepeatedFailures(unittest.TestCase):
     earlier one alive (engine §2, §13)."""
 
     def test_no_earlier_input_stays_reachable(self) -> None:
-        dialect, error = load_case_dialect(
+        pipeline, error = load_case_pipeline(
             {"grammar": '%classifier c\n  "a" ∈ A\n  "a" ∈ A\n%rule text $w:"a" :: $w.source-text.classify(c)'}
         )
-        assert dialect is not None, error
+        assert pipeline is not None, error
         tokens = []
         for _ in range(5):
-            result = dialect.parse("a")
+            result = pipeline.parse("a")
             self.assertFalse(result.ok)
             assert result.error is not None
             self.assertEqual(result.error.kind, "grammar")
@@ -982,7 +982,7 @@ class RepeatedFailures(unittest.TestCase):
 
 class SharedCaches(unittest.TestCase):
     """The caches that loads share keep a few entries, and only so many
-    characters of the texts that key them. A process that loads dialects
+    characters of the texts that key them. A process that loads pipelines
     from many texts does not keep them all."""
 
     def test_recent_bounds_count_and_size(self) -> None:
@@ -998,7 +998,7 @@ class SharedCaches(unittest.TestCase):
         self.assertEqual((len(recent), recent.size, recent.get("huge")), (0, 0, None))
 
     def test_unicode_tables_are_dropped(self) -> None:
-        from gencmu import _dialect
+        from gencmu import _pipeline
 
         unicode = bundled_text("data/unicode/unicode.txt")
         assert unicode is not None
@@ -1007,14 +1007,14 @@ class SharedCaches(unittest.TestCase):
             sources, pipeline = case_sources({"grammar": '%rule text "a"'})
             # A different text, with the same table.
             sources["data/unicode/unicode.txt"] = unicode + "\n" * (index + 1)
-            dialect = gencmu.load_dialect_sources(sources, pipeline)
-            self.assertTrue(dialect.parse("a").ok)
-            tables.append(weakref.ref(dialect.unicode))
-            del dialect
+            loaded = gencmu.load_pipeline_sources(sources, pipeline)
+            self.assertTrue(loaded.parse("a").ok)
+            tables.append(weakref.ref(loaded.unicode))
+            del loaded
         gc.collect()
-        self.assertLessEqual(len(_dialect._unicode_tables), _dialect._MAX_TEXTS)
-        self.assertLessEqual(len(_dialect._readers), _dialect._MAX_TEXTS)
-        self.assertLessEqual(sum(table() is not None for table in tables), _dialect._MAX_TEXTS)
+        self.assertLessEqual(len(_pipeline._unicode_tables), _pipeline._MAX_TEXTS)
+        self.assertLessEqual(len(_pipeline._readers), _pipeline._MAX_TEXTS)
+        self.assertLessEqual(sum(table() is not None for table in tables), _pipeline._MAX_TEXTS)
         self.assertIsNone(tables[0]())
 
 
@@ -1023,13 +1023,13 @@ class CallerTokens(unittest.TestCase):
     (docs/api.md)."""
 
     def test_no_shared_values(self) -> None:
-        dialect, error = load_case_dialect({"grammar": "%rule text A"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
         tags = {"A"}
         span = [0, 1]
         source = [0, 1]
         token = gencmu.Token("a", tags, span, source)  # type: ignore[arg-type]
-        result = dialect.parse_tokens([token], "a")
+        result = pipeline.parse_tokens([token], "a")
         self.assertTrue(result.ok)
         tags.add("Z")
         span[1] = 99

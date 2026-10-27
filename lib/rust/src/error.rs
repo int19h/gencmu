@@ -1,4 +1,4 @@
-//! The error a library call returns: a dialect that cannot be loaded, or a
+//! The error a library call returns: a pipeline that cannot be loaded, or a
 //! caller's mistake such as an unknown stage name.
 
 use crate::json::Json;
@@ -53,7 +53,7 @@ pub enum ErrorKind {
     Usage,
 }
 
-/// An error returned by the loaders and by [`Dialect::parse`](crate::Dialect::parse).
+/// An error returned by the loaders and by [`Pipeline::parse`](crate::Pipeline::parse).
 ///
 /// A text that does not parse is not an error: it is a
 /// [`ParseResult`](crate::ParseResult) whose `ok` is false.

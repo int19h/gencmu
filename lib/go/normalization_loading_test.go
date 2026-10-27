@@ -49,7 +49,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	sources["data/preparsed/test.json"] = string(cache)
 	// The replacement table deliberately omits all normalization records.
 	sources["data/unicode/unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
-	d, err := LoadDialectSources(sources, "grammars/test/p.md")
+	d, err := LoadPipelineSources(sources, "grammars/test/p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestNormalizationDecomposedSourceRecipes(t *testing.T) {
 		}
 	}
 	for _, recipe := range []string{"$.emitted.decomposed-source-text", "$.onward.decomposed-source-text"} {
-		if _, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); err == nil {
+		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); err == nil {
 			t.Fatalf("accepted invalid recipe: %s", recipe)
 		}
 	}

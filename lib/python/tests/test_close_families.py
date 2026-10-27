@@ -14,7 +14,7 @@ from gencmu import _testing
 from gencmu._families import FamilyMatcher
 
 from .family_oracle import FamilyOracle
-from .shared import case_features, load_case_dialect, parse_case, run_case
+from .shared import case_features, load_case_pipeline, parse_case, run_case
 from . import test_engine_cases as engine_cases
 
 
@@ -68,7 +68,7 @@ class CloseFamilies(unittest.TestCase):
                 run_case(case)
 
     def measure(self, case, limits, label):
-        dialect, error = load_case_dialect(case)
+        pipeline, error = load_case_pipeline(case)
         self.assertIsNone(error, label)
         original = _testing.count
 
@@ -82,10 +82,10 @@ class CloseFamilies(unittest.TestCase):
         start = perf_counter()
         try:
             with patch.object(_testing, "count", bounded):
-                value, result, error = parse_case(dialect, case)
+                value, result, error = parse_case(pipeline, case)
             elapsed = perf_counter() - start
             _, peak = tracemalloc.get_traced_memory()
-            engine_cases.EngineCases().check(label, case["expect"], value, result, error, case_features(dialect))
+            engine_cases.EngineCases().check(label, case["expect"], value, result, error, case_features(pipeline))
             counts = {name: _testing.work.get(name, 0) for name in (
                 "items", "packed_edges", "close_observation_states", "close_sequence_nodes",
                 "cycle_contexts", "family_summaries", "family_steps")}

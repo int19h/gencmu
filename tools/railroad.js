@@ -485,11 +485,11 @@ function holdsConstant(term) {
  * terminator alone. So the answer depends only on the test's value. That
  * value is a closed term, which holds no classify, capture or guard
  * (docs/notation.md, "Constants"). Only a constant in it takes a value from
- * the stage, so only then does this load the dialect: a constant can have
+ * the stage, so only then does this load the pipeline: a constant can have
  * another value in each stage that reads the document. Any other value is
  * the same in every stage, and is evaluated once, with no stage. With no
  * such optional in `documents`, this reads nothing at all.
- * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
+ * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, pipeline: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
  * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
  *   document, by its path under grammars/
@@ -510,7 +510,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
   for (const pipeline of pipelines) {
     const { stages } = loader.splice(pipeline);
     /** @type {{stages: {grammar: any}[]} | null} */
-    let dialect = null;
+    let pipeline = null;
     stages.forEach((stage, index) => {
       for (const { path: document, dom } of stage.documents) {
         if (!candidates.has(document)) continue;
@@ -519,7 +519,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             if (hasUnresolved(first)) return;
-            const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
+            const grammar = holdsConstant(first) ? (pipeline ??= loader.pipeline(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             let base = first;
             while (base.test) base = base.expr;

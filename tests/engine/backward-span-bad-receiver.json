@@ -1,5 +1,5 @@
 {
-  "description": "A preceding span requires a capture or span. (Engine \u00a74.4.)",
+  "description": "A preceding span requires a capture or span. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

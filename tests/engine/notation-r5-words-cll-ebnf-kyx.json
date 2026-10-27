@@ -1,5 +1,5 @@
 {
-  "description": "The cll-ebnf dialect accepts kyx under pair-across-y in grammars/lojban/cll/morphology.md (Lujvo).",
+  "description": "The cll-ebnf pipeline accepts kyx under pair-across-y in grammars/lojban/cll/morphology.md (Lujvo).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
   },

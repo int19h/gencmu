@@ -1,4 +1,4 @@
-# The CLL dialect, by its printed grammar
+# The CLL pipeline, by its printed grammar
 
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the printed CLL grammar[^cll-c21] and its word forms.[^cll-c3][^cll-c4] A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 

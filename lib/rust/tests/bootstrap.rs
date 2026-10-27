@@ -57,10 +57,10 @@ fn bootstrap_is_a_fixpoint() {
     assert_eq!(documents, 2);
 }
 
-/// Every bundled dialect splices to the same stages and features with the
+/// Every bundled pipeline splices to the same stages and features with the
 /// preparsed DOMs of `data/preparsed/lojban.json` and without them.
 #[test]
-fn dialects_splice_the_same_with_and_without_the_cache() {
+fn pipelines_splice_the_same_with_and_without_the_cache() {
     let mut names = Vec::new();
     for family in ["gencmu", "lojban"] {
         let entries = parse_json(&read(&format!("data/preparsed/{family}.json"))).expect("the family entries");
@@ -72,7 +72,7 @@ fn dialects_splice_the_same_with_and_without_the_cache() {
     }
     names.sort();
     assert!(names.len() >= 5, "{names:?}");
-    // Each dialect on a thread of its own: reading the Lojban grammars
+    // Each pipeline on a thread of its own: reading the Lojban grammars
     // through the notation is slow.
     let threads: Vec<_> = names
         .into_iter()
@@ -88,7 +88,7 @@ fn dialects_splice_the_same_with_and_without_the_cache() {
         })
         .collect();
     for thread in threads {
-        thread.join().expect("a dialect splices the same");
+        thread.join().expect("a pipeline splices the same");
     }
 }
 
@@ -168,14 +168,14 @@ fn bundled_sources(cached: bool) -> BTreeMap<String, String> {
 #[test]
 fn parsing_with_and_without_the_cache() {
     let started = std::time::Instant::now();
-    let cached = gencmu::load_dialect("gencmu/jbogenbau").expect("the notation dialect");
+    let cached = gencmu::load_pipeline("gencmu/jbogenbau").expect("the notation pipeline");
     let with_cache = started.elapsed();
     let started = std::time::Instant::now();
-    let fresh = gencmu::load_dialect_sources(bundled_sources(false), "grammars/gencmu/jbogenbau/pipeline.md")
+    let fresh = gencmu::load_pipeline_sources(bundled_sources(false), "grammars/gencmu/jbogenbau/pipeline.md")
         .expect("a fresh load");
     let without_cache = started.elapsed();
-    eprintln!("loading the notation dialect: {with_cache:?} with the cache, {without_cache:?} without");
-    let also_cached = gencmu::load_dialect_sources(bundled_sources(true), "grammars/gencmu/jbogenbau/pipeline.md")
+    eprintln!("loading the notation pipeline: {with_cache:?} with the cache, {without_cache:?} without");
+    let also_cached = gencmu::load_pipeline_sources(bundled_sources(true), "grammars/gencmu/jbogenbau/pipeline.md")
         .expect("a cached load");
     for (text, accepted) in [
         ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
@@ -223,15 +223,15 @@ const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 ```
 "#;
 
-/// Loads a dialect whose one document is `document`, read with `bootstrap`
+/// Loads a pipeline whose one document is `document`, read with `bootstrap`
 /// in place of the bundled one.
-fn load_with_bootstrap(bootstrap: String, document: &str) -> Result<gencmu::Dialect, gencmu::Error> {
+fn load_with_bootstrap(bootstrap: String, document: &str) -> Result<gencmu::Pipeline, gencmu::Error> {
     let sources = [
         ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ("g.md", document.to_string()),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    gencmu::load_dialect_sources(sources, "p.md")
+    gencmu::load_pipeline_sources(sources, "p.md")
 }
 
 /// A caller can supply its own bootstrap (docs/api.md), whose notation can

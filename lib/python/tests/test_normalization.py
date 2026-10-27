@@ -2,7 +2,7 @@
 
 import unittest
 
-from gencmu._dialect import bundled_text
+from gencmu._pipeline import bundled_text
 from gencmu._unicode import UnicodeTable
 
 from .shared import SHARED

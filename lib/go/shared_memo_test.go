@@ -13,7 +13,7 @@ import (
 
 // memoRun is one run of tests/shared-memo.json (tests/README.md).
 type memoRun struct {
-	Dialect string          `json:"dialect"`
+	Pipeline string          `json:"pipeline"`
 	Grammar string          `json:"grammar"`
 	Texts   []string        `json:"texts"`
 	Inputs  [][]caseToken   `json:"inputs"`
@@ -49,20 +49,20 @@ func memoRuns(t *testing.T) []memoRun {
 	return file.Runs
 }
 
-// memoDialect is a fresh dialect of a run, with a bound on its shared
+// memoPipeline is a fresh pipeline of a run, with a bound on its shared
 // memos.
-func memoDialect(t *testing.T, run memoRun, limit int) *Dialect {
+func memoPipeline(t *testing.T, run memoRun, limit int) *Pipeline {
 	t.Helper()
-	var d *Dialect
+	var d *Pipeline
 	var err error
-	if run.Dialect != "" {
-		d, err = LoadDialect(run.Dialect)
+	if run.Pipeline != "" {
+		d, err = LoadPipeline(run.Pipeline)
 	} else {
 		grammar := run.Grammar
 		if !strings.Contains(grammar, "%ambiguity-resolution") {
 			grammar = "%ambiguity-resolution greedy\n" + grammar
 		}
-		d, err = LoadDialectSources(oneStage(grammar), "p.md")
+		d, err = LoadPipelineSources(oneStage(grammar), "p.md")
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +96,7 @@ func memoParses(t *testing.T, run memoRun) []memoParse {
 	return out
 }
 
-func memoParseJSON(d *Dialect, p memoParse) string {
+func memoParseJSON(d *Pipeline, p memoParse) string {
 	var res *ParseResult
 	var err error
 	if p.tokens == nil {
@@ -112,19 +112,19 @@ func memoParseJSON(d *Dialect, p memoParse) string {
 }
 
 // TestSharedMemoRuns runs every order of the parses of each run on one
-// dialect, with the default bound and with a bound of one entry. Each
+// pipeline, with the default bound and with a bound of one entry. Each
 // result must equal the result with an empty shared memo (engine §4.3).
 func TestSharedMemoRuns(t *testing.T) {
 	t.Parallel()
 	for _, run := range memoRuns(t) {
 		parses := memoParses(t, run)
-		cold := memoDialect(t, run, 0)
+		cold := memoPipeline(t, run, 0)
 		reference := make([]string, len(parses))
 		for i, p := range parses {
 			reference[i] = memoParseJSON(cold, p)
 		}
 		for _, limit := range []int{defaultMemoLimit, 1} {
-			warm := memoDialect(t, run, limit)
+			warm := memoPipeline(t, run, limit)
 			order := make([]int, len(parses))
 			for i := range order {
 				order[i] = i
@@ -134,7 +134,7 @@ func TestSharedMemoRuns(t *testing.T) {
 			for _, o := range [][]int{order, backward, order} {
 				for _, i := range o {
 					if got := memoParseJSON(warm, parses[i]); got != reference[i] {
-						t.Fatalf("%s%s parse %d with bound %d:\n%.400s\nnot\n%.400s", run.Dialect, run.Grammar, i, limit, got, reference[i])
+						t.Fatalf("%s%s parse %d with bound %d:\n%.400s\nnot\n%.400s", run.Pipeline, run.Grammar, i, limit, got, reference[i])
 					}
 				}
 			}
@@ -143,19 +143,19 @@ func TestSharedMemoRuns(t *testing.T) {
 }
 
 // TestConcurrentSharedMemo makes the parses of each run from several
-// goroutines at once on one dialect. Continuous integration runs it
+// goroutines at once on one pipeline. Continuous integration runs it
 // under the race detector.
 func TestConcurrentSharedMemo(t *testing.T) {
 	t.Parallel()
 	for _, run := range memoRuns(t) {
 		parses := memoParses(t, run)
-		cold := memoDialect(t, run, 0)
+		cold := memoPipeline(t, run, 0)
 		reference := make([]string, len(parses))
 		for i, p := range parses {
 			reference[i] = memoParseJSON(cold, p)
 		}
 		for _, limit := range []int{defaultMemoLimit, 1} {
-			shared := memoDialect(t, run, limit)
+			shared := memoPipeline(t, run, limit)
 			var wg sync.WaitGroup
 			failures := make(chan string, 4*len(parses))
 			visited := make([][]bool, 4)
@@ -190,8 +190,8 @@ func TestConcurrentSharedMemo(t *testing.T) {
 }
 
 // memoRules lists the rules of the entries of every shared memo of a
-// dialect.
-func memoRules(d *Dialect) []string {
+// pipeline.
+func memoRules(d *Pipeline) []string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var out []string
@@ -219,7 +219,7 @@ func TestSharedMemoKeepsNoAlignedAnswer(t *testing.T) {
 			continue
 		}
 		runs++
-		d := memoDialect(t, run, defaultMemoLimit)
+		d := memoPipeline(t, run, defaultMemoLimit)
 		for _, p := range memoParses(t, run) {
 			memoParseJSON(d, p)
 		}
@@ -236,7 +236,7 @@ func TestSharedMemoKeepsNoAlignedAnswer(t *testing.T) {
 }
 
 // TestSharedMemoServesNothingWhileAligned makes each run twice on one
-// dialect, so that answers repeat. No shared answer may be served while an
+// pipeline, so that answers repeat. No shared answer may be served while an
 // aligned query is active (engine §4.3), and ordinary ones must be. The
 // test does not run in parallel, since it sets the package's hook.
 func TestSharedMemoServesNothingWhileAligned(t *testing.T) {
@@ -264,7 +264,7 @@ func TestSharedMemoServesNothingWhileAligned(t *testing.T) {
 	}
 	defer func() { memoHitHook, alignedQueryHook = nil, nil }()
 	for _, run := range memoRuns(t) {
-		d := memoDialect(t, run, defaultMemoLimit)
+		d := memoPipeline(t, run, defaultMemoLimit)
 		parses := memoParses(t, run)
 		for _, p := range append(slices.Clone(parses), parses...) {
 			memoParseJSON(d, p)
@@ -290,7 +290,7 @@ func TestSharedMemoServesNothingWhileAligned(t *testing.T) {
 // memoOne is a grammar of one query about one token.
 const memoOne = "%ambiguity-resolution greedy\n%rule text $x:_ %conditions $x.matches(probe)\n%rule probe W\n"
 
-func memoOneParse(t *testing.T, d *Dialect, text string, tags ...string) string {
+func memoOneParse(t *testing.T, d *Pipeline, text string, tags ...string) string {
 	t.Helper()
 	if len(tags) == 0 {
 		tags = []string{"W"}
@@ -310,7 +310,7 @@ func TestSharedMemoZeroBound(t *testing.T) {
 	var hits atomic.Int64
 	memoHitHook = func(int32, int) { hits.Add(1) }
 	defer func() { memoHitHook = nil }()
-	d, err := LoadDialectSources(oneStage(memoOne), "p.md")
+	d, err := LoadPipelineSources(oneStage(memoOne), "p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ func TestSharedMemoCeiling(t *testing.T) {
 	var hits atomic.Int64
 	memoHitHook = func(int32, int) { hits.Add(1) }
 	defer func() { memoHitHook = nil }()
-	d, err := LoadDialectSources(oneStage(memoOne), "p.md")
+	d, err := LoadPipelineSources(oneStage(memoOne), "p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestSharedMemoMatchesAndTagsShareOneEntry(t *testing.T) {
 		if !strings.Contains(run.Grammar, "$x.tags(probe) = ∅") {
 			continue
 		}
-		d := memoDialect(t, run, defaultMemoLimit)
+		d := memoPipeline(t, run, defaultMemoLimit)
 		for _, p := range memoParses(t, run) {
 			memoParseJSON(d, p)
 		}
@@ -385,16 +385,16 @@ func TestSharedMemoMatchesAndTagsShareOneEntry(t *testing.T) {
 	t.Fatal("no run asks matches and tags")
 }
 
-// TestSharedMemoTwoDialects parses in turn on two dialects whose probe
+// TestSharedMemoTwoPipelines parses in turn on two pipelines whose probe
 // reads other tags. Neither serves the other's answers.
-func TestSharedMemoTwoDialects(t *testing.T) {
+func TestSharedMemoTwoPipelines(t *testing.T) {
 	t.Parallel()
 	grammars := []string{memoOne, strings.Replace(memoOne, "%rule probe W", "%rule probe X", 1)}
 	tags := []string{"W", "X"}
 	var reference [2][2]string
-	var warm [2]*Dialect
+	var warm [2]*Pipeline
 	for g, grammar := range grammars {
-		cold, err := LoadDialectSources(oneStage(grammar), "p.md")
+		cold, err := LoadPipelineSources(oneStage(grammar), "p.md")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -402,7 +402,7 @@ func TestSharedMemoTwoDialects(t *testing.T) {
 		for i, tag := range tags {
 			reference[g][i] = memoOneParse(t, cold, "x", tag)
 		}
-		if warm[g], err = LoadDialectSources(oneStage(grammar), "p.md"); err != nil {
+		if warm[g], err = LoadPipelineSources(oneStage(grammar), "p.md"); err != nil {
 			t.Fatal(err)
 		}
 	}

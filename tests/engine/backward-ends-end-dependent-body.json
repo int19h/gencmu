@@ -1,5 +1,5 @@
 {
-  "description": "End observations flow through body references. (Engine \u00a74.4.)",
+  "description": "End observations flow through body references. (Engine §4.4.)",
   "grammar": "%rule text $p:A B\n%conditions \u00ac$p.ends(tail) \u2227 $.ends(tail)\n%rule tail unit\n%rule unit $a:A [B]\n%conditions $a.onward.value = \"ab\"",
   "tokens": [
     {

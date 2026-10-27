@@ -39,18 +39,18 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	t.Parallel()
 	sources := oneStage("%const $K K\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S")
 	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": sources["g.md"]}
-	_, plain := LoadDialectSources(sources, "grammars/test/p.md")
+	_, plain := LoadPipelineSources(sources, "grammars/test/p.md")
 	dom, e := bundled.reader.read(sources["grammars/test/g.md"], "grammars/test/g.md")
 	if e != nil {
 		t.Fatal(e)
 	}
 	// The source alone now loads. Only the cached DOM retains the export error.
 	sources["grammars/test/g.md"] = strings.Replace(sources["grammars/test/g.md"], ":: $x ⟹ ($x.tags ∪ $K)", ":: ∅"+strings.Repeat(" ", len([]rune(":: $x ⟹ ($x.tags ∪ $K)"))-4), 1)
-	if _, err := LoadDialectSources(sources, "grammars/test/p.md"); err != nil {
+	if _, err := LoadPipelineSources(sources, "grammars/test/p.md"); err != nil {
 		t.Fatalf("cache bypass control does not load: %v", err)
 	}
 	sources["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(sources["grammars/test/g.md"]) + `","dom":` + string(dom.json()) + `}}}`
-	_, cached := LoadDialectSources(sources, "grammars/test/p.md")
+	_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
 	if plain == nil || !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("%+v\n%+v", plain, cached)
 	}
@@ -71,7 +71,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 }
 func TestRankedShortestTagWitness(t *testing.T) {
 	t.Parallel()
-	_, err := LoadDialectSources(oneStage("%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
 	if err == nil {
 		t.Fatal("grammar loaded")
 	}
@@ -125,7 +125,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 	// A missing reader makes any source parse or location recovery fail.
 	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, preparsed: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}
 	for i := 0; i < 2; i++ {
-		if _, err := l.dialect("p.md"); err != nil {
+		if _, err := l.pipeline("p.md"); err != nil {
 			t.Fatal(err)
 		}
 		dom, err := l.document("g.md")

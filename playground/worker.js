@@ -41,7 +41,7 @@
     let loader = null;
     // Bumped whenever a document changes, so that cached results go stale.
     let version = 0;
-    // Dialects by pipeline path: { dialect, info, audit } or { error }.
+    // Pipelines by pipeline path: { dialect, info, audit } or { error }.
     const dialects = new Map();
     // The last parse, kept so that switching the output format, tracing or
     // auditing does not parse the text again.
@@ -119,12 +119,12 @@
       };
     }
 
-    function loadDialect(path) {
+    function loadPipeline(path) {
       let entry = dialects.get(path);
       if (entry) return entry;
       phase("loading", path);
       try {
-        const dialect = loader.dialect(path);
+        const dialect = loader.pipeline(path);
         entry = {
           dialect,
           info: {
@@ -309,7 +309,7 @@
     function run(id, request) {
       runId = id;
       const started = now();
-      const entry = loadDialect(request.dialect);
+      const entry = loadPipeline(request.dialect);
       const answer = { kind: "result", id, text: request.text, dialect: request.dialect, info: entry.info || null, loadError: entry.error || null };
       if (request.locateRule) {
         const stage = entry.dialect?.stages.find((stage) => stage.name === request.locateRule.stage);

@@ -57,7 +57,7 @@ func TestParameters(t *testing.T) {
 
 func parameterGrammar(t *testing.T, text string) *stageGrammar {
 	t.Helper()
-	d, e := caseDialect(&engineCase{Grammar: &text}, false)
+	d, e := casePipeline(&engineCase{Grammar: &text}, false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -129,7 +129,7 @@ func TestParameterNormalizationAndConstants(t *testing.T) {
 }
 func TestParameterBindingTree(t *testing.T) {
 	text := "%rule atom(@X) @X\n%rule text atom(\"a\")\n%rule named = atom(\"a\")"
-	d, e := caseDialect(&engineCase{Grammar: &text}, false)
+	d, e := casePipeline(&engineCase{Grammar: &text}, false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -349,7 +349,7 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 	} {
 		t.Run(c.source, func(t *testing.T) {
 			text := c.source + "\n%rule text \"a\""
-			_, e := caseDialect(&engineCase{Grammar: &text}, false)
+			_, e := casePipeline(&engineCase{Grammar: &text}, false)
 			if e == nil {
 				t.Fatal("accepted an invalid uncalled template")
 			}
@@ -360,7 +360,7 @@ func TestParameterUncalledTemplateValidation(t *testing.T) {
 	}
 	for _, good := range []string{`%rule unused(@X) $x:A | $x:@X`, `%rule unused(@X) $x:@X %emits $x :: @X`, `%rule unused(@X) [+@X]`} {
 		text := good + "\n%rule text \"a\""
-		if _, e := caseDialect(&engineCase{Grammar: &text}, false); e != nil {
+		if _, e := casePipeline(&engineCase{Grammar: &text}, false); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -386,7 +386,7 @@ func TestParameterPatternTestOperands(t *testing.T) {
 		t.Run(grammar, func(t *testing.T) {
 			input := "a"
 			c := engineCase{Grammar: &grammar, Input: &input}
-			d, e := caseDialect(&c, false)
+			d, e := casePipeline(&c, false)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -399,7 +399,7 @@ func TestParameterPatternTestOperands(t *testing.T) {
 	text := `%rule atom(@X) @X
 %rule unused(@X) @X %conditions $ ≅ #(atom("a")="a")
 %rule text "a"`
-	if _, e := caseDialect(&engineCase{Grammar: &text}, false); e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
+	if _, e := casePipeline(&engineCase{Grammar: &text}, false); e == nil || !strings.Contains(e.Error(), "invalid pattern test") {
 		t.Fatalf("tested exact call: %v", e)
 	}
 }
@@ -484,11 +484,11 @@ func TestParameterSharedStructure(t *testing.T) {
 				}
 				cache := templateObject{"format": float64(domFormat), "bootstrap": bundled.reader.hash, "unicode": bundled.uni.hash, "properties": fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]), "documents": templateObject{"grammars/test/g.md": templateObject{"hash": fnv1a64(source), "dom": value}}}
 				sources := map[string]string{"grammars/test/g.md": source, "grammars/test/p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```", "data/preparsed/test.json": string(templateJSON(cache))}
-				dialect, err := LoadDialectSources(sources, "grammars/test/p.md")
+				pipeline, err := LoadPipelineSources(sources, "grammars/test/p.md")
 				if err != nil {
 					t.Fatal(err)
 				}
-				result, err := dialect.Parse(c.Input, ParseOptions{})
+				result, err := pipeline.Parse(c.Input, ParseOptions{})
 				if err != nil || !result.OK {
 					t.Fatalf("cache fallback: %v, %v", err, result)
 				}

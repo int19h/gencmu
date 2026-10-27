@@ -1,5 +1,5 @@
 """The runs of tests/shared-memo.json (tests/README.md): parses that share
-one dialect, and so its shared memos (engine §4.3), give the results of
+one pipeline, and so its shared memos (engine §4.3), give the results of
 parses with an empty shared memo, in every order, with a bound of one entry,
 and from several threads at once."""
 
@@ -16,17 +16,17 @@ from unittest.mock import patch
 import gencmu
 from gencmu import _testing
 
-from .shared import SHARED, case_tokens, load_case_dialect, load_json
+from .shared import SHARED, case_tokens, load_case_pipeline, load_json
 
 RUNS = load_json(SHARED / "shared-memo.json")["runs"]
 
 
-def dialect_of(run: dict[str, Any]) -> gencmu.Dialect:
-    if "dialect" in run:
-        return gencmu.load_dialect(run["dialect"])
-    dialect, error = load_case_dialect({"grammar": run["grammar"]})
-    assert dialect is not None, error
-    return dialect
+def pipeline_of(run: dict[str, Any]) -> gencmu.Pipeline:
+    if "pipeline" in run:
+        return gencmu.load_pipeline(run["pipeline"])
+    pipeline, error = load_case_pipeline({"grammar": run["grammar"]})
+    assert pipeline is not None, error
+    return pipeline
 
 
 def parses_of(run: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
@@ -34,7 +34,7 @@ def parses_of(run: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]
     return [(item, options) for item in inputs for options in run["options"]]
 
 
-def parse(dialect: gencmu.Dialect, item: dict[str, Any], options: dict[str, Any]) -> str:
+def parse(pipeline: gencmu.Pipeline, item: dict[str, Any], options: dict[str, Any]) -> str:
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
@@ -44,25 +44,25 @@ def parse(dialect: gencmu.Dialect, item: dict[str, Any], options: dict[str, Any]
     try:
         if "tokens" in item:
             tokens, text = case_tokens(item)
-            result = dialect.parse_tokens(tokens, text, **kwargs)
+            result = pipeline.parse_tokens(tokens, text, **kwargs)
         else:
-            result = dialect.parse(item["input"], **kwargs)
+            result = pipeline.parse(item["input"], **kwargs)
     except gencmu.GencmuError as error:
         return f"error {error.kind} {error}"
     return gencmu.to_json(result)
 
 
-def shared_rules(dialect: gencmu.Dialect) -> list[str]:
-    """The rules of the entries of every shared memo of a dialect."""
+def shared_rules(pipeline: gencmu.Pipeline) -> list[str]:
+    """The rules of the entries of every shared memo of a pipeline."""
     rules: list[str] = []
-    for lowered in dialect._lowered_grammars():
+    for lowered in pipeline._lowered_grammars():
         rules.extend(lowered.memo.rules())
     return rules
 
 
 class SharedMemo(unittest.TestCase):
     def references(self, run: dict[str, Any]) -> list[str]:
-        cold = dialect_of(run)
+        cold = pipeline_of(run)
         with patch.object(_testing, "memo_limit", 0):
             return [parse(cold, *item) for item in parses_of(run)]
 
@@ -72,7 +72,7 @@ class SharedMemo(unittest.TestCase):
             reference = self.references(run)
             for limit in (None, 1):
                 with patch.object(_testing, "memo_limit", limit):
-                    warm = dialect_of(run)
+                    warm = pipeline_of(run)
                     forward = list(range(len(parses)))
                     for order in (forward, forward[::-1], forward):
                         for i in order:
@@ -84,7 +84,7 @@ class SharedMemo(unittest.TestCase):
             reference = self.references(run)
             for limit in (None, 1):
                 with patch.object(_testing, "memo_limit", limit):
-                    shared = dialect_of(run)
+                    shared = pipeline_of(run)
 
                     def work(worker: int) -> tuple[list[str], set[int]]:
                         # Every parse of the run, from a starting place of
@@ -111,10 +111,10 @@ class SharedMemo(unittest.TestCase):
         runs = [run for run in RUNS if "without-elision" in run.get("grammar", "")]
         self.assertEqual(len(runs), 2)
         for run in runs:
-            dialect = dialect_of(run)
+            pipeline = pipeline_of(run)
             for item in parses_of(run):
-                parse(dialect, *item)
-            rules = shared_rules(dialect)
+                parse(pipeline, *item)
+            rules = shared_rules(pipeline)
             self.assertIn("tail", rules)
             self.assertNotIn("driver", rules)
             self.assertNotIn("wrap", rules)
@@ -122,21 +122,21 @@ class SharedMemo(unittest.TestCase):
     def test_a_zero_bound_keeps_nothing(self) -> None:
         for limit, entries in ((None, True), (0, False)):
             with patch.object(_testing, "memo_limit", limit):
-                dialect = gencmu.load_dialect("lojban/bpfk")
-                dialect.parse("bairsazdanti", until="forms")
-                self.assertEqual(bool(shared_rules(dialect)), entries, f"bound {limit}")
+                pipeline = gencmu.load_pipeline("lojban/bpfk")
+                pipeline.parse("bairsazdanti", until="forms")
+                self.assertEqual(bool(shared_rules(pipeline)), entries, f"bound {limit}")
 
     def test_a_callers_string_runs_no_code_under_the_memo_lock(self) -> None:
         # A token's text of a str subclass, whose hash parses through the
-        # same dialect. The shared memo holds plain strings only, so the
+        # same pipeline. The shared memo holds plain strings only, so the
         # hash never runs under its lock, and the parse ends.
-        dialect, error = load_case_dialect({"grammar": "%rule text $x:W %conditions $x.matches(probe)\n%rule probe W\n"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W %conditions $x.matches(probe)\n%rule probe W\n"})
+        assert pipeline is not None, error
         plain = gencmu.Token("x", frozenset({"W"}), (0, 1), (0, 1))
 
         class Callback(str):
             def __hash__(self) -> int:
-                dialect.parse_tokens([plain], "x")
+                pipeline.parse_tokens([plain], "x")
                 return str.__hash__(self)
 
         token = gencmu.Token(Callback("x"), frozenset({"W"}), (0, 1), (0, 1))
@@ -144,7 +144,7 @@ class SharedMemo(unittest.TestCase):
 
         def work() -> None:
             try:
-                dialect.parse_tokens([token], "x")
+                pipeline.parse_tokens([token], "x")
             except BaseException as caught:
                 errors.append(caught)
 
@@ -156,13 +156,13 @@ class SharedMemo(unittest.TestCase):
 
     def test_eviction_runs_no_finalizer_under_the_memo_lock(self) -> None:
         # A caller's finalizer on the tags of a served answer parses through
-        # the same dialect. A hit gives a copy, and eviction releases the
+        # the same pipeline. A hit gives a copy, and eviction releases the
         # dropped entries after the lock, so the parses end.
-        dialect, error = load_case_dialect({"grammar": "%rule text $x:W :: $x.tags(probe)\n%rule probe W :: T\n"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text $x:W :: $x.tags(probe)\n%rule probe W :: T\n"})
+        assert pipeline is not None, error
 
         def one(text: str) -> gencmu.ParseResult:
-            return dialect.parse_tokens([gencmu.Token(text, frozenset({"W"}), (0, 1), (0, len(text)))], text)
+            return pipeline.parse_tokens([gencmu.Token(text, frozenset({"W"}), (0, 1), (0, len(text)))], text)
 
         errors: list[BaseException] = []
         with patch.object(_testing, "memo_limit", 1):
@@ -189,7 +189,7 @@ class SharedMemo(unittest.TestCase):
         self.assertFalse(finalizer.alive)
 
     def test_no_shared_answer_while_an_aligned_query_is_active(self) -> None:
-        # Each run twice on one dialect, so that answers repeat. The guard of
+        # Each run twice on one pipeline, so that answers repeat. The guard of
         # engine §4.3 must hold, and ordinary hits must still happen. The test
         # keeps its own count of the aligned queries active, from the start
         # and end of their nested parses, apart from the library's count.
@@ -213,9 +213,9 @@ class SharedMemo(unittest.TestCase):
 
         with patch.object(_testing, "memo_hit", seen), patch.object(_testing, "aligned_query", changed):
             for run in RUNS:
-                dialect = dialect_of(run)
+                pipeline = pipeline_of(run)
                 for item in parses_of(run) * 2:
-                    parse(dialect, *item)
+                    parse(pipeline, *item)
         self.assertEqual(active[0], 0)
         self.assertGreater(starts[0], 0)
         self.assertEqual(desync, [])
@@ -228,7 +228,7 @@ class SharedMemo(unittest.TestCase):
         # The settled bound of engine §4.3, written out so that a changed
         # default fails here.
         bound = 8192
-        dialect = one_query_dialect()
+        pipeline = one_query_pipeline()
         hits = [0]
 
         def seen(rule: str, active: int) -> None:
@@ -236,45 +236,45 @@ class SharedMemo(unittest.TestCase):
 
         with patch.object(_testing, "memo_hit", seen):
             for i in range(3 * bound):
-                self.assertTrue(one_token(dialect, f"t{i}").ok)
+                self.assertTrue(one_token(pipeline, f"t{i}").ok)
             hits[0] = 0
             for i in range(2 * bound, 3 * bound):
-                one_token(dialect, f"t{i}")
+                one_token(pipeline, f"t{i}")
             self.assertEqual(hits[0], bound)
             hits[0] = 0
             for i in range(bound):
-                one_token(dialect, f"t{i}")
+                one_token(pipeline, f"t{i}")
             self.assertEqual(hits[0], 0)
 
     def test_matches_and_tags_share_one_entry(self) -> None:
         run = next(run for run in RUNS if "$x.tags(probe) = ∅" in run.get("grammar", ""))
-        dialect = dialect_of(run)
+        pipeline = pipeline_of(run)
         for item in parses_of(run):
-            parse(dialect, *item)
-        self.assertEqual(shared_rules(dialect).count("probe"), 1)
+            parse(pipeline, *item)
+        self.assertEqual(shared_rules(pipeline).count("probe"), 1)
 
-    def test_two_loaded_dialects_never_share_answers(self) -> None:
+    def test_two_loaded_pipelines_never_share_answers(self) -> None:
         # Two grammars whose probe reads other tags, parsed in turn.
         grammars = [ONE, ONE.replace("%rule probe W", "%rule probe X")]
         tags = ["W", "X"]
         with patch.object(_testing, "memo_limit", 0):
-            reference = [[gencmu.to_json(one_token(one_query_dialect(grammar), "x", tag)) for tag in tags] for grammar in grammars]
-        warm = [one_query_dialect(grammar) for grammar in grammars]
+            reference = [[gencmu.to_json(one_token(one_query_pipeline(grammar), "x", tag)) for tag in tags] for grammar in grammars]
+        warm = [one_query_pipeline(grammar) for grammar in grammars]
         for _ in range(2):
             for i, tag in enumerate(tags):
-                for g, dialect in enumerate(warm):
-                    self.assertEqual(gencmu.to_json(one_token(dialect, "x", tag)), reference[g][i], f"grammar {g}, input {i}")
+                for g, pipeline in enumerate(warm):
+                    self.assertEqual(gencmu.to_json(one_token(pipeline, "x", tag)), reference[g][i], f"grammar {g}, input {i}")
 
 
 ONE = "%rule text $x:_ %conditions $x.matches(probe)\n%rule probe W\n"
 """A grammar of one query about one token."""
 
 
-def one_query_dialect(grammar: str = ONE) -> gencmu.Dialect:
-    dialect, error = load_case_dialect({"grammar": grammar})
-    assert dialect is not None, error
-    return dialect
+def one_query_pipeline(grammar: str = ONE) -> gencmu.Pipeline:
+    pipeline, error = load_case_pipeline({"grammar": grammar})
+    assert pipeline is not None, error
+    return pipeline
 
 
-def one_token(dialect: gencmu.Dialect, text: str, tag: str = "W") -> gencmu.ParseResult:
-    return dialect.parse_tokens([gencmu.Token(text, frozenset({tag}), (0, 1), (0, len(text)))], text)
+def one_token(pipeline: gencmu.Pipeline, text: str, tag: str = "W") -> gencmu.ParseResult:
+    return pipeline.parse_tokens([gencmu.Token(text, frozenset({tag}), (0, 1), (0, len(text)))], text)

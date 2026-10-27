@@ -1,5 +1,5 @@
 {
-  "description": "The prefix ends at the captured start and its last token is the immediate predecessor. (Engine \u00a74.4.)",
+  "description": "The prefix ends at the captured start and its last token is the immediate predecessor. (Engine §4.4.)",
   "grammar": "%rule text A B $x:C\n%conditions $x.preceding-tokens.value = \"ab\", $x.preceding-tokens.last-token.value = \"b\"",
   "tokens": [
     {

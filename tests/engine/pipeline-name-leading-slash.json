@@ -1,0 +1,8 @@
+{
+  "description": "Names are relative to grammars/.",
+  "pipeline": "/lojban/cll",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

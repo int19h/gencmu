@@ -1,5 +1,5 @@
 {
-  "description": "A suffix target cannot be a constant. (Engine \u00a74.4.)",
+  "description": "A suffix target cannot be a constant. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

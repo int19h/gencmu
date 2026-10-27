@@ -1,5 +1,5 @@
 {
-  "description": "A target choice cannot be grouped as one argument. (Engine \u00a74.4.)",
+  "description": "A target choice cannot be grouped as one argument. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

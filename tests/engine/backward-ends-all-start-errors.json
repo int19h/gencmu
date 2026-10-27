@@ -1,5 +1,5 @@
 {
-  "description": "An error at any target start aborts suffix recognition despite a successful suffix. (Engine \u00a74.4.)",
+  "description": "An error at any target start aborts suffix recognition despite a successful suffix. (Engine §4.4.)",
   "grammar": "%rule text B A\n%conditions $.ends(tail)\n%rule tail A | bad\n%rule bad B $e:nothing\n%conditions \"x\".split($e.value) = \u2205\n%rule nothing \u03b5",
   "tokens": [
     {

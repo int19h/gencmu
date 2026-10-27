@@ -11,7 +11,7 @@ from typing import Any
 
 from gencmu import _testing
 
-from .shared import REPOSITORY, case_features, cases, load_case, load_case_dialect, parse_case, run_case
+from .shared import REPOSITORY, case_features, cases, load_case, load_case_pipeline, parse_case, run_case
 from . import shared, test_engine_cases
 
 RESULT = "result"
@@ -46,12 +46,12 @@ def fails(fault: str, case: dict[str, Any], hook: bool = True) -> bool:
     shared.HOOK[0] = hook
     try:
         if "parses" in case:
-            dialect, error = load_case_dialect(case, False)
-            if dialect is None:
+            pipeline, error = load_case_pipeline(case, False)
+            if pipeline is None:
                 return True
-            features = case_features(dialect)
+            features = case_features(pipeline)
             for run in case["parses"]:
-                value, result, error = parse_case(dialect, case, run)
+                value, result, error = parse_case(pipeline, case, run)
                 checker.check("", run["expect"], value, result, error, features)
         else:
             value, result, error, features = run_case(case, False)
@@ -70,11 +70,11 @@ def fails_hook(fault: str, case: dict[str, Any]) -> bool:
     _testing.faults.add(fault)
     try:
         if "parses" in case:
-            dialect, _ = load_case_dialect(case, False)
-            if dialect is None:
+            pipeline, _ = load_case_pipeline(case, False)
+            if pipeline is None:
                 return False
             for run in case["parses"]:
-                parse_case(dialect, case, run)
+                parse_case(pipeline, case, run)
         else:
             run_case(case, False)
     except shared.WitnessLost:

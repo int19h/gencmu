@@ -15,7 +15,7 @@ func TestCapturedOptionalQueryPriority(t *testing.T) {
 %rule run { _ }
 %rule r "a" ` + optional + ` [+T] "u"
 %rule b "u" "b"`
-		d, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+		d, err := casePipeline(&engineCase{Grammar: &grammar}, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -34,7 +34,7 @@ func TestCapturedOptionalQueryPriority(t *testing.T) {
 func TestStackedOmissionPredicates(t *testing.T) {
 	t.Parallel()
 	grammar := `%rule text [+T<U>="saved"] %emits`
-	d, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+	d, err := casePipeline(&engineCase{Grammar: &grammar}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestExactStoredStrings(t *testing.T) {
 // (engine §9). A capture from another branch cannot supply that carrier.
 func TestAttachmentRequiresItsCarrier(t *testing.T) {
 	t.Parallel()
-	_, err := LoadDialectSources(oneStage(`%ambiguity-resolution greedy
+	_, err := LoadPipelineSources(oneStage(`%ambiguity-resolution greedy
 %rule text r
 %rule r $e:empty | $a:word
 %emits $, $e ($a)

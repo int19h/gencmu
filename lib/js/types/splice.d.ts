@@ -63,15 +63,15 @@ export declare function splicePipeline(path: string, domOf: (path: string, names
     features: string[];
 };
 /**
- * A dialect's pipeline as one jbogenbau text: its features in one %features,
+ * A pipeline's pipeline as one jbogenbau text: its features in one %features,
  * then every item of the spliced stream but %include, %names and global
  * %features. Strings use their canonical spelling. Other source text stays
  * as written, with a comment naming each document run (docs/notation.md).
- * @param {{path: string, declared: string[], loader: import("./dialect.js").Loader}} dialect
+ * @param {{path: string, declared: string[], loader: import("./pipeline.js").Loader}} pipeline
  * @returns {string}
  */
-export declare function stitchText(dialect: {
+export declare function stitchText(pipeline: {
     path: string;
     declared: string[];
-    loader: import("./dialect.js").Loader;
+    loader: import("./pipeline.js").Loader;
 }): string;

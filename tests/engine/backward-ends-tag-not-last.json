@@ -1,5 +1,5 @@
 {
-  "description": "A terminal target cannot accept an earlier token. (Engine \u00a74.4.)",
+  "description": "A terminal target cannot accept an earlier token. (Engine §4.4.)",
   "grammar": "%rule text A B\n%conditions \u00ac$.ends(A)",
   "tokens": [
     {

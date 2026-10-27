@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { domOfTree, fnv1a64 } from "../lib/js/src/dialect.js";
+import { domOfTree, fnv1a64 } from "../lib/js/src/pipeline.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { run } from "../lib/js/src/trampoline.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";

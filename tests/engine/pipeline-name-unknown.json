@@ -1,0 +1,8 @@
+{
+  "description": "A syntactically valid name must identify a bundled pipeline.",
+  "pipeline": "lojban/not-bundled",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

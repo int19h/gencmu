@@ -17,7 +17,7 @@ from unittest import mock
 import gencmu
 from gencmu import _clauses, _grammar, _splice, _tags, _types
 from gencmu._clauses import definition_problem
-from gencmu._dialect import DOM_FORMAT
+from gencmu._pipeline import DOM_FORMAT
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
 from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, lower, stitch
 from gencmu._model import Token
@@ -26,7 +26,7 @@ from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
 
-from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_dialect, mutant, parse_case, reads, steps
+from .shared import OverBudget, Watch, Work, calls, code_of, count_work, load_case_pipeline, mutant, parse_case, reads, steps
 
 MOST = 6
 """How many times the work at n the work at 4n may cost."""
@@ -84,9 +84,9 @@ def tag_copies() -> list[Watch]:
 
 
 def stage_context(tokens: list[Token]) -> StageContext:
-    dialect, error = load_case_dialect({"grammar": "%rule text A"})
-    assert dialect is not None, error
-    return StageContext(dialect.lowered(0, frozenset()), tokens, "a" * len(tokens), dialect.unicode)
+    pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+    assert pipeline is not None, error
+    return StageContext(pipeline.lowered(0, frozenset()), tokens, "a" * len(tokens), pipeline.unicode)
 
 
 class SpanReads(Linear):
@@ -118,14 +118,14 @@ class SpanReads(Linear):
             tokens = [{"text": "a", "tags": ["A"], "value": "" if index else "a"} for index in range(n)]
             return {"grammar": '%rule text {... A}\n%conditions $.value = "a"', "tokens": tokens}
 
-        dialect, error = load_case_dialect(case_of(1))
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline(case_of(1))
+        assert pipeline is not None, error
 
         def make(n: int) -> Callable[[], object]:
             case = case_of(n)
 
             def work() -> None:
-                value, _, _ = parse_case(dialect, case)
+                value, _, _ = parse_case(pipeline, case)
                 assert value is not None and value["ok"], value
 
             return work
@@ -333,10 +333,10 @@ def unit_chain(n: int) -> Forest:
     and so on, each a unit production of the next. Each completion of one
     rule over the token is the child of the next over the same span."""
     rules = "".join(f"\n%rule r{index} {f'r{index + 1}' if index + 1 < n else 'A'}" for index in range(1, n))
-    dialect, error = load_case_dialect({"grammar": "%rule text r1" + rules})
-    assert dialect is not None, error
+    pipeline, error = load_case_pipeline({"grammar": "%rule text r1" + rules})
+    assert pipeline is not None, error
     tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1))]
-    context = StageContext(dialect.lowered(0, frozenset()), tokens, "a", dialect.unicode)
+    context = StageContext(pipeline.lowered(0, frozenset()), tokens, "a", pipeline.unicode)
     return Parser(context).parse(context.lowered.rule_ids["text"])
 
 
@@ -357,10 +357,10 @@ class ItemAdds(Linear):
         # after u has n edges, one for each completed alternative of u.
         alternatives = " | ".join(f"v{index}" for index in range(n))
         rules = "".join(f"\n%rule v{index} A" for index in range(n))
-        dialect, error = load_case_dialect({"grammar": f"%rule text u B\n%rule u {alternatives}{rules}"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": f"%rule text u B\n%rule u {alternatives}{rules}"})
+        assert pipeline is not None, error
         tokens = [Token("a", frozenset({"A"}), (0, 1), (0, 1)), Token("b", frozenset({"B"}), (1, 2), (1, 2))]
-        context = StageContext(dialect.lowered(0, frozenset()), tokens, "ab", dialect.unicode)
+        context = StageContext(pipeline.lowered(0, frozenset()), tokens, "ab", pipeline.unicode)
         number = context.lowered.rule_ids["text"]
         return lambda: Parser(context).parse(number)
 
@@ -463,8 +463,8 @@ class SharedClauses(Linear):
         # n alternatives that share a %tags term of n parts, one of them a
         # constant, and n conditions: the loader checks and resolves each
         # rule-level clause once, not once for each alternative.
-        dialect, error = load_case_dialect({"grammar": "%rule text A"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
 
         def make(n: int) -> Callable[[], object]:
             rule = {
@@ -491,15 +491,15 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], dialect.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
 
         self.assert_linear(loading_steps, make, 200)
 
     def test_resolving_the_tests_of_a_deep_expression_walks_it_once(self) -> None:
         # n tested symbols inside n nested optionals, within the depth limit
         # of 256: whether a node holds a test is found once for each node.
-        dialect, error = load_case_dialect({"grammar": "%rule text A"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
 
         def make(n: int) -> Callable[[], object]:
             expr: dict[str, Any] = {"seq": [{"test": "=", "value": {"string": "a"}, "expr": {"ref": "A"}} for _ in range(n)]}
@@ -521,7 +521,7 @@ class SharedClauses(Linear):
                 "classifiers": [],
                 "implications": [],
             }
-            return lambda: stitch("s", [("t.md", dom)], dialect.unicode)
+            return lambda: stitch("s", [("t.md", dom)], pipeline.unicode)
 
         self.assert_linear(loading_steps, make, 60)
 
@@ -617,10 +617,10 @@ class GuardedClauses(Linear):
         """The budget at n: the constant times n and the size of the
         lowered clauses, which a lowering of the grammar's own finds, since
         preparing a clause once is part of the work counted."""
-        dialect, error = load_case_dialect({"grammar": "%rule text A"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
         _, dom = self.documents(n, clause)
-        lowered = lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
+        lowered = lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
         output = sum(
             nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit)
             for production in lowered.productions
@@ -628,13 +628,13 @@ class GuardedClauses(Linear):
         return GUARDED_MOST * (n + output)
 
     def make(self, n: int, clause: Callable[[int], dict[str, Any]]) -> Callable[[], object]:
-        dialect, error = load_case_dialect({"grammar": "%rule text A"})
-        assert dialect is not None, error
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
         rule, dom = self.documents(n, clause)
 
         def work() -> None:
             self.assertIsNone(_clauses.definition_problem(rule))
-            lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
+            lower(stitch("s", [("t.md", dom)], pipeline.unicode), frozenset())
 
         return work
 

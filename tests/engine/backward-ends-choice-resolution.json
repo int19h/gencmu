@@ -1,5 +1,5 @@
 {
-  "description": "Every suffix target resolves even after a target that succeeds. (Engine \u00a74.4.)",
+  "description": "Every suffix target resolves even after a target that succeeds. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

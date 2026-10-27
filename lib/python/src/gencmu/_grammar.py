@@ -613,7 +613,7 @@ class _Constants:
     def resolve(self, rules: dict[str, Rule]) -> None:
         """Gives every reference to a constant in the stitched rules its
         final value, in copies of the clauses: the documents' DOMs are
-        shared by every stage and dialect that includes them. Clauses that
+        shared by every stage and pipeline that includes them. Clauses that
         alternatives share stay shared."""
         # Each node's copy, or the node itself where it holds no constant,
         # by identity: the rule-level clauses that alternatives share are
@@ -951,7 +951,7 @@ expression, that holds its test with its value (engine §2, §4)."""
 def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
     """Gives every test of a body in the stitched rules its value, from the
     constants' final values, made once for every lowering. The documents'
-    DOMs are shared by every stage and dialect that includes them, so the
+    DOMs are shared by every stage and pipeline that includes them, so the
     tests go into copies of the expressions that hold them."""
     copies: dict[int, Any] = {}
     # Whether each node holds a test, by identity, found once: a walk of a

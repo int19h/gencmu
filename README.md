@@ -19,9 +19,9 @@ You need Node 24 or later, and nothing else installed. Run these commands in a c
 ```sh
 node lib/js/cli.js parse mi klama le zarci
 node lib/js/cli.js parse --format tree lo mlatu cu citka lo finpe
-node lib/js/cli.js parse --dialect lojban/experimental mi cu klama
+node lib/js/cli.js parse --pipeline lojban/experimental mi cu klama
 node lib/js/cli.js parse --trace syntax:2 mi le le zarci
-node lib/js/cli.js audit --dialect lojban/zantufa
+node lib/js/cli.js audit --pipeline lojban/zantufa
 node lib/js/cli.js help
 ```
 
@@ -44,7 +44,7 @@ Open `index.html` in a browser, from the clone or from GitHub Pages. This page i
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
-A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled dialect. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
+A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled dialect. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --pipeline NAME` prints a dialect as one jbogenbau text.
 
 ## The libraries
 
@@ -56,13 +56,13 @@ Four libraries implement one specification. Each library has no dependency beyon
 - Rust: [`lib/rust/`](lib/rust), the crate `gencmu`
 
 ```js
-import { loadDialect, toBrackets } from "gencmu/node";
-console.log(toBrackets(loadDialect("lojban/cll").parse("mi klama")));
+import { loadPipeline, toBrackets } from "gencmu/node";
+console.log(toBrackets(loadPipeline("lojban/cll").parse("mi klama")));
 ```
 
 ## Documents
 
-- [`docs/dialects.md`](docs/dialects.md): implement a dialect, with a worked example
+- [`docs/pipelines.md`](docs/pipelines.md): implement a dialect, with a worked example
 - [`docs/notation.md`](docs/notation.md): jbogenbau, the grammar notation, for grammar authors
 - [`docs/engine.md`](docs/engine.md): the engine specification, for implementers
 - [`docs/api.md`](docs/api.md): the library API in each language

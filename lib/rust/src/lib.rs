@@ -3,15 +3,15 @@
 //!
 //! Every layer of the language, from characters to value, value to
 //! words and words to a parse tree, is a grammar document in one notation.
-//! A *dialect* is a pipeline document that lists the stages and the grammar
+//! A *pipeline* is a pipeline document that lists the stages and the grammar
 //! documents stitched into each. This crate implements the engine that
 //! reads those documents and runs them, as `docs/engine.md` in the gencmu
 //! repository specifies it; the grammars it bundles are embedded in the
 //! crate, so it needs no files beside it.
 //!
 //! ```
-//! let dialect = gencmu::load_dialect("gencmu/jbogenbau")?;
-//! let result = dialect.parse("%rule text A", &gencmu::ParseOptions::default())?;
+//! let pipeline = gencmu::load_pipeline("gencmu/jbogenbau")?;
+//! let result = pipeline.parse("%rule text A", &gencmu::ParseOptions::default())?;
 //! assert!(result.ok);
 //! let json = gencmu::to_json(&result);
 //! let brackets = gencmu::to_brackets(&result, false);
@@ -20,16 +20,16 @@
 //! ```
 //!
 //! A text that does not parse is not an [`Error`]: it is a [`ParseResult`]
-//! whose `ok` is false and whose `error` says why. An `Error` is a dialect
+//! whose `ok` is false and whose `error` says why. An `Error` is a pipeline
 //! that cannot be loaded, or a caller's mistake.
 //!
 //! Positions in a result count Unicode code points, whatever Rust's own
 //! string indexing: a character outside the Basic Multilingual Plane is one
 //! position.
 //!
-//! A [`Dialect`] is `Send` and `Sync`, so one may be shared between threads
+//! A [`Pipeline`] is `Send` and `Sync`, so one may be shared between threads
 //! and used for any number of parses at once. A [`ParseResult`] owns its
-//! data, borrowing neither the text nor the dialect.
+//! data, borrowing neither the text nor the pipeline.
 //!
 //! The crate has no dependencies, not even for its tests, and its minimum
 //! supported Rust version is 1.75.
@@ -45,7 +45,6 @@ mod test_common;
 
 mod boundary;
 mod clauses;
-mod dialect;
 mod dom;
 mod earley;
 mod eligible;
@@ -62,6 +61,7 @@ mod notation;
 mod output;
 mod parameters;
 mod patterns;
+mod pipeline;
 mod rank;
 mod ranked;
 mod recent;
@@ -79,13 +79,13 @@ mod unicode_properties;
 mod witness;
 mod work;
 
-pub use dialect::{Dialect, Feature, InputToken, ParseOptions};
 pub use dom::FeatureKind;
 pub use error::{Error, ErrorKind, GroupSite, RankedDiagnostic};
 pub use grammar::{Change, FlagChange};
 pub use json::Json as GrammarValue;
-pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
+pub use loader::{bundled_pipelines, load_pipeline, load_pipeline_file, load_pipeline_sources};
 pub use output::{node_to_json, to_brackets, to_json};
+pub use pipeline::{Feature, InputToken, ParseOptions, Pipeline};
 pub use result::{
     Action, AmbiguityReason, Attachment, BoundaryFailure, ErrorCode, Expected, Node, NodeKind, ParseError,
     ParseErrorKind, ParseResult, Restoration, Stage, Tags, Token, Verdict, Warning,
@@ -119,8 +119,8 @@ mod send_sync {
     fn assert_send_sync<T: Send + Sync>() {}
 
     #[test]
-    fn dialect_is_send_and_sync() {
-        assert_send_sync::<crate::Dialect>();
+    fn pipeline_is_send_and_sync() {
+        assert_send_sync::<crate::Pipeline>();
         assert_send_sync::<crate::ParseResult>();
     }
 }

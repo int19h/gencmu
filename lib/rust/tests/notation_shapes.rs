@@ -21,8 +21,8 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
         ("data/preparsed/gencmu.json", bootstrap),
     ];
     let kind = |debug: String| Value::String(debug.to_lowercase());
-    let dialect = match gencmu::load_dialect_sources(sources, "p.md") {
-        Ok(dialect) => dialect,
+    let pipeline = match gencmu::load_pipeline_sources(sources, "p.md") {
+        Ok(pipeline) => pipeline,
         Err(error) => {
             if let Some(place) = place {
                 let expected = (
@@ -41,7 +41,7 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
         inputs
             .iter()
             .map(|input| {
-                let result = dialect.parse(input.str().expect("an input"), &Default::default()).expect("a parse");
+                let result = pipeline.parse(input.str().expect("an input"), &Default::default()).expect("a parse");
                 match &result.error {
                     None => Value::String(gencmu::to_brackets(&result, false)),
                     Some(error) => kind(format!("{:?}", error.kind)),
@@ -136,8 +136,8 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
         ]
     };
     // The bundled bootstrap loads the same documents.
-    gencmu::load_dialect_sources(sources(bootstrap), "p.md").expect("the bundled bootstrap");
-    let error = gencmu::load_dialect_sources(sources(elision), "p.md").expect_err("the check of the lexical stage");
+    gencmu::load_pipeline_sources(sources(bootstrap), "p.md").expect("the bundled bootstrap");
+    let error = gencmu::load_pipeline_sources(sources(elision), "p.md").expect_err("the check of the lexical stage");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{error}");
     assert!(error.to_string().contains("lexical stage of the notation"), "{error}");
     assert_eq!(error.line, None, "{error}");
@@ -175,8 +175,8 @@ fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tai
     panic!("no syntax rule {name}");
 }
 
-fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Dialect, gencmu::Error> {
-    gencmu::load_dialect_sources(
+fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Pipeline, gencmu::Error> {
+    gencmu::load_pipeline_sources(
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
             ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
@@ -187,7 +187,7 @@ fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Dialect,
 }
 
 fn pattern_probe(rules: &str, bootstrap: &Value, tokens: &[&str]) -> String {
-    let dialect = load_pattern_probe(rules, bootstrap).unwrap_or_else(|error| panic!("{rules}: {error}"));
+    let pipeline = load_pattern_probe(rules, bootstrap).unwrap_or_else(|error| panic!("{rules}: {error}"));
     let tokens = tokens
         .iter()
         .map(|text| gencmu::InputToken {
@@ -196,7 +196,7 @@ fn pattern_probe(rules: &str, bootstrap: &Value, tokens: &[&str]) -> String {
             ..Default::default()
         })
         .collect::<Vec<_>>();
-    let result = dialect.parse_tokens(&tokens, &Default::default()).expect("a parse");
+    let result = pipeline.parse_tokens(&tokens, &Default::default()).expect("a parse");
     assert!(result.ok, "{rules}: {:?}", result.error);
     gencmu::to_json(&result)
 }

@@ -283,12 +283,12 @@ func guard(kind string, err *error) {
 	}
 }
 
-func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
+func (l *loader) pipeline(pipelinePath string) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	return l.load(pipelinePath)
 }
 
-func (l *loader) load(pipelinePath string) (*Dialect, error) {
+func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 	d, err := l.loadMode(pipelinePath)
 	if failure, ok := err.(*Error); ok {
 		// Retry only a failed load, retaining the cached DOM's semantics.
@@ -308,12 +308,12 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	return d, err
 }
 
-func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
+func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
 	p, perr := l.splice(pipelinePath)
 	if perr != nil {
 		return nil, perr
 	}
-	d := &Dialect{uni: l.uni, declared: p.features}
+	d := &Pipeline{uni: l.uni, declared: p.features}
 	for _, s := range p.stages {
 		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
@@ -325,11 +325,11 @@ func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
-	dialect, err := newDialect(d.stages, p.features, l.uni)
+	pipeline, err := newPipeline(d.stages, p.features, l.uni)
 	if err != nil {
 		return nil, err
 	}
-	return dialect, nil
+	return pipeline, nil
 }
 
 // pipeline splices the pipeline document at pipelinePath: its stages, each
@@ -355,22 +355,22 @@ func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 	})
 }
 
-// newDialect applies the validation shared by normal and bootstrap dialects.
-func newDialect(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Dialect, *Error) {
-	features, err := dialectFeatures(stages, declared)
+// newPipeline applies the validation shared by normal and bootstrap pipelines.
+func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Pipeline, *Error) {
+	features, err := pipelineFeatures(stages, declared)
 	if err != nil {
 		return nil, err
 	}
-	return &Dialect{uni: uni, stages: stages, declared: declared, features: features}, nil
+	return &Pipeline{uni: uni, stages: stages, declared: declared, features: features}, nil
 }
 
-// dialectFeatures lists a dialect's features (engine §13): every name that a
+// pipelineFeatures lists a pipeline's features (engine §13): every name that a
 // guard of a stage's stitched rules or a gate of its classifiers' entries
 // uses, whatever features are on, and
 // every name the pipeline's %features declares, in code point order. A
 // name only %features declares is a gate; a name that one guard uses as a
-// gate and another as a warning is an error of the dialect.
-func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
+// gate and another as a warning is an error of the pipeline.
+func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
 	kinds := map[string]string{}
 	firstIn := map[string]string{} // the document of a name's first guard
 	for _, g := range stages {
@@ -507,20 +507,62 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 	}, nil
 }
 
-// LoadDialect loads a dialect bundled with the package by name: the file
+// LoadPipeline loads a pipeline bundled with the package by name: the file
 // directory path NAME of grammars/NAME/pipeline.md.
-func LoadDialect(name string) (*Dialect, error) {
+func LoadPipeline(name string) (*Pipeline, error) {
+	names := BundledPipelines()
+	at := sort.SearchStrings(names, name)
+	if !validPipelineName(name) || at == len(names) || names[at] != name {
+		return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("there is no bundled pipeline named %q", name)}
+	}
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
 	}
-	return l.dialect("grammars/" + name + "/pipeline.md")
+	return l.pipeline("grammars/" + name + "/pipeline.md")
 }
 
-// LoadDialectFile loads a pipeline document from disk, whose grammar
+func validPipelineName(name string) bool {
+	segments := strings.Split(name, "/")
+	if len(segments) < 2 {
+		return false
+	}
+	for _, segment := range segments {
+		if segment == "" {
+			return false
+		}
+		for i, c := range segment {
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || i > 0 && c == '-') {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// BundledPipelines lists valid bundled pipeline names in code-point order.
+func BundledPipelines() []string {
+	names := []string{}
+	_ = fs.WalkDir(bundledFS, "grammars", func(p string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && strings.HasSuffix(p, "/pipeline.md") {
+			name := strings.TrimSuffix(strings.TrimPrefix(p, "grammars/"), "/pipeline.md")
+			if validPipelineName(name) {
+				names = append(names, name)
+			}
+		}
+		return nil
+	})
+	sort.Strings(names)
+	return names
+}
+
+// LoadPipelineFile loads a pipeline document from disk, whose grammar
 // documents are found relative to it. data/unicode/unicode.txt and the notation's
 // bootstrap come from the bundled grammars.
-func LoadDialectFile(file string) (*Dialect, error) {
+func LoadPipelineFile(file string) (*Pipeline, error) {
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
@@ -538,18 +580,18 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		_, err := os.Stat(filepath.FromSlash(p))
 		return !os.IsNotExist(err)
 	}
-	return l.dialect(filepath.ToSlash(abs))
+	return l.pipeline(filepath.ToSlash(abs))
 }
 
-// LoadDialectSources loads a dialect from documents held in memory: a map
+// LoadPipelineSources loads a pipeline from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
 // it. The map may hold its own data/unicode/unicode.txt, data/preparsed/gencmu.json and
 // data/preparsed/lojban.json; those it lacks come from the bundled grammars.
-func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, error) {
+func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline, error) {
 	return loadSources(sources, pipeline, false)
 }
 
-func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Dialect, err error) {
+func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	norm := make(map[string]string, len(sources))
 	for p, t := range sources {
@@ -599,13 +641,13 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	}
 	l.families = nil
 
-	return l.dialect(path.Clean(pipeline))
+	return l.pipeline(path.Clean(pipeline))
 }
 
-// Dialect is a loaded pipeline. A *Dialect is safe for concurrent use by
+// Pipeline is a loaded pipeline. A *Pipeline is safe for concurrent use by
 // several goroutines: every parse keeps its own state, and the grammars
 // lowered for a set of features are cached under a mutex.
-type Dialect struct {
+type Pipeline struct {
 	stages   []*stageGrammar
 	declared []string  // the features the pipeline's %features turns on
 	features []Feature // every feature, with its kind and default (§13)
@@ -630,7 +672,7 @@ type lowerEntry struct {
 }
 
 // ParseOptions are the options of a parse (docs/api.md). The zero value
-// parses with the dialect's own features, every stage,
+// parses with the pipeline's own features, every stage,
 // and each grammar's own elision-only setting.
 type ParseOptions struct {
 	// Features to turn on for every stage, besides those the pipeline turns
@@ -651,8 +693,8 @@ type ParseOptions struct {
 	private *privateOptions
 }
 
-// StageNames lists the dialect's stages in order.
-func (d *Dialect) StageNames() []string {
+// StageNames lists the pipeline's stages in order.
+func (d *Pipeline) StageNames() []string {
 	out := make([]string, len(d.stages))
 	for i, s := range d.stages {
 		out[i] = s.name
@@ -660,17 +702,17 @@ func (d *Dialect) StageNames() []string {
 	return out
 }
 
-// Features lists the dialect's features in code point order of their names
+// Features lists the pipeline's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
 // pipeline declares it unconditionally, globally or locally.
-func (d *Dialect) Features() []Feature {
+func (d *Pipeline) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }
 
 // lower is a stage's grammar lowered for a set of features. Only the guarded
 // features that are on change the productions. So two sets of features with
 // the same guarded features on share one lowered grammar.
-func (d *Dialect) lower(stage int, features map[string]bool) *lowered {
+func (d *Pipeline) lower(stage int, features map[string]bool) *lowered {
 	g := d.stages[stage]
 	on, guarded := namesOn(g.guarded, features)
 	key := lowerKey{guarded}
@@ -697,7 +739,7 @@ func (d *Dialect) lower(stage int, features map[string]bool) *lowered {
 // false; the error is for a caller's mistake, such as an unknown stage, a
 // feature named both to turn on and to turn off, or a text that is not valid
 // UTF-8, and is a *Error of kind "usage".
-func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error) {
+func (d *Pipeline) Parse(text string, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
 	}
@@ -714,7 +756,7 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // supply attachments: a token with a non-empty Before or After is a usage
 // error, and empty ones are dropped (docs/api.md). The parse copies the
 // tokens and leaves the caller's unchanged.
-func (d *Dialect) ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error) {
+func (d *Pipeline) ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
 	}
@@ -775,7 +817,7 @@ func textProblem(text string) error {
 	return nil
 }
 
-func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {
+func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {
 	defer func() {
 		if err != nil {
 			res = nil
@@ -791,7 +833,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 			}
 		}
 		if last < 0 {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the dialect has no stage %q", options.Until)}
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
 		}
 	}
 	// The features on are the pipeline's and the caller's, less those the
@@ -845,7 +887,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 	return res, nil
 }
 
-func (d *Dialect) runStages(ps *parseState, features map[string]bool, options ParseOptions, tokens []Token, from, to int) []stageOutcome {
+func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options ParseOptions, tokens []Token, from, to int) []stageOutcome {
 	var out []stageOutcome
 	for i := from; i <= to; i++ {
 		g := d.stages[i]

@@ -1,5 +1,5 @@
 {
-  "description": "The kihei dialect accepts bz under permissible-run in grammars/lojban/cll/shapes.md (Consonants).",
+  "description": "The kihei pipeline accepts bz under permissible-run in grammars/lojban/cll/shapes.md (Consonants).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```"
   },

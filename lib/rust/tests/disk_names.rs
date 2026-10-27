@@ -13,7 +13,7 @@ fn selected_disk_names() {
             std::fs::write(root.join(path), text.str().unwrap()).unwrap();
         }
         std::env::set_current_dir(&root).unwrap();
-        let result = gencmu::load_dialect_file(root.join("p.md"));
+        let result = gencmu::load_pipeline_file(root.join("p.md"));
         std::env::set_current_dir(&home).unwrap();
         let error = result.expect_err(case.get("description").unwrap().str().unwrap());
         assert_eq!(error.kind, ErrorKind::Grammar);

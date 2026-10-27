@@ -1,0 +1,8 @@
+{
+  "description": "Names use canonical lowercase spelling.",
+  "pipeline": "lojban/CLL",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

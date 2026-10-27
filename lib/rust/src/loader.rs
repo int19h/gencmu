@@ -1,4 +1,4 @@
-//! Loading a dialect (docs/api.md): its pipeline document and the documents
+//! Loading a pipeline (docs/api.md): its pipeline document and the documents
 //! it includes, read through the notation or taken from the DOM cache,
 //! spliced into stages and stitched stage by stage.
 
@@ -6,13 +6,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
-use crate::dialect::{Dialect, ParseOptions};
 use crate::dom::{dom_from_json, dom_problem, dom_to_json, Dom, DOM_FORMAT};
 use crate::error::{Error, ErrorKind};
 use crate::grammar::stitch;
 use crate::json::{self, fnv1a64, Json};
 use crate::markdown::{grammar_text, resolve};
 use crate::notation::Reader;
+use crate::pipeline::{ParseOptions, Pipeline};
 use crate::result::ParseErrorKind;
 use crate::splice::{splice, Documents, Spliced};
 use crate::string_escapes::DocumentStrings;
@@ -150,10 +150,10 @@ impl Preparsed {
 }
 
 /// What reading grammar documents needs: the character table, the
-/// notation dialect built from the bootstrap, and the DOM cache.
+/// notation pipeline built from the bootstrap, and the DOM cache.
 struct Context {
     unicode: Arc<Unicode>,
-    notation: Arc<Dialect>,
+    notation: Arc<Pipeline>,
     preparsed: Preparsed,
     bootstrap_hash: String,
     unicode_hash: String,
@@ -178,8 +178,8 @@ fn unicode_error(message: String) -> Error {
     error
 }
 
-fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
-    build_notation_dialect(bootstrap, unicode).map_err(|mut error| {
+fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline, Error> {
+    build_notation_pipeline(bootstrap, unicode).map_err(|mut error| {
         if let Some(embedded) = &error.document {
             if embedded != "data/preparsed/gencmu.json" && !error.message.contains(embedded) {
                 error.message.push_str(&format!(" (embedded document: {embedded})"));
@@ -201,7 +201,7 @@ fn notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, E
     })
 }
 
-fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dialect, Error> {
+fn build_notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline, Error> {
     let value = json::parse(bootstrap).map_err(grammar_error)?;
     if value.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Err(grammar_error("an unsupported bootstrap format".to_string()));
@@ -233,12 +233,12 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
             crate::markdown::resolve(base, target)
         }
     }
-    let pipeline =
+    let spliced =
         splice(NOTATION_PATH, &mut BootstrapDocuments { entries, unicode: &unicode }).map_err(|mut error| {
             error.stage = None;
             error
         })?;
-    let inputs: Vec<_> = pipeline
+    let inputs: Vec<_> = spliced
         .stages
         .into_iter()
         .map(|stage| {
@@ -254,9 +254,9 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
     for (name, documents) in inputs {
         stages.push(stitch(&name, &documents, &unicode).map_err(|error| error.in_stage(&name))?);
     }
-    let dialect = Dialect::new(stages, pipeline.features, unicode)?;
-    dialect.prepare_bootstrap()?;
-    Ok(dialect)
+    let pipeline = Pipeline::new(stages, spliced.features, unicode)?;
+    pipeline.prepare_bootstrap()?;
+    Ok(pipeline)
 }
 
 impl Context {
@@ -280,7 +280,7 @@ impl Context {
             unicode.properties_fingerprint = Some(fnv1a64(properties));
         }
         let unicode = Arc::new(unicode);
-        let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
+        let notation = Arc::new(notation_pipeline(bootstrap, unicode.clone())?);
         let preparsed = Preparsed::parse_implicit(
             preparsed,
             &fnv1a64(bootstrap),
@@ -359,8 +359,8 @@ impl Context {
     }
 }
 
-/// Reads a grammar document through the notation dialect (engine §8, §9).
-pub(crate) fn read_document(notation: &Dialect, text: &str, path: &str) -> Result<Dom, Error> {
+/// Reads a grammar document through the notation pipeline (engine §8, §9).
+pub(crate) fn read_document(notation: &Pipeline, text: &str, path: &str) -> Result<Dom, Error> {
     let names = NamesScope::new(&bundled_names, &notation.unicode, []).in_document(path, &crate::markdown::resolve);
     read_document_named(notation, text, false, &names)
 }
@@ -370,7 +370,7 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
     Ok(bundled(path).map(str::to_string))
 }
 
-fn read_document_named(notation: &Dialect, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
+fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
     let position = |index: usize| grammar.position(index);
     let strings =
@@ -748,7 +748,7 @@ fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Resu
     )
 }
 
-fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Dialect, Error> {
+fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Pipeline, Error> {
     match load_mode(context, sources, pipeline_path, None) {
         Err(error)
             if error.code.as_deref().is_some_and(|code| code.starts_with("ranked-choice-"))
@@ -775,7 +775,7 @@ fn load_mode(
     sources: &dyn Sources,
     pipeline_path: &str,
     diagnostic_document: Option<&str>,
-) -> Result<Dialect, Error> {
+) -> Result<Pipeline, Error> {
     let pipeline = splice(
         pipeline_path,
         &mut Reading { context, sources, read: HashMap::new(), diagnostic_document, families: HashMap::new() },
@@ -787,27 +787,54 @@ fn load_mode(
         stages.push(stitch(&stage.name, &documents, &context.unicode).map_err(|error| error.in_stage(&stage.name))?);
     }
     // A name used both as a gate and as a warning, in any of the stages, is
-    // an error of the dialect as a whole (engine §13).
-    Dialect::new(stages, pipeline.features, context.unicode.clone()).map_err(|error| error.in_document(pipeline_path))
+    // an error of the pipeline as a whole (engine §13).
+    Pipeline::new(stages, pipeline.features, context.unicode.clone()).map_err(|error| error.in_document(pipeline_path))
 }
 
-/// Loads a bundled dialect by name: the pipeline document
+/// Loads a bundled pipeline by name: the pipeline document
 /// `grammars/NAME/pipeline.md` of the grammars embedded in the crate.
-pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
-    let context = Context::bundled()?;
-    let pipeline = format!("grammars/{name}/pipeline.md");
-    if bundled(&pipeline).is_none() {
-        return Err(Error::usage(format!("there is no bundled dialect named {name}")));
+pub fn load_pipeline(name: &str) -> Result<Pipeline, Error> {
+    let path = format!("grammars/{name}/pipeline.md");
+    if !valid_pipeline_name(name) || bundled(&path).is_none() {
+        return Err(Error::usage(format!("there is no bundled pipeline named {name:?}")));
     }
-    load(&context, &BundledSources, &pipeline)
+    let context = Context::bundled()?;
+    load(&context, &BundledSources, &path)
 }
 
-/// Loads a dialect from a pipeline document on disk. Each document it
+fn valid_pipeline_name(name: &str) -> bool {
+    let mut count = 0;
+    for segment in name.split('/') {
+        if segment.is_empty()
+            || !segment.as_bytes()[0].is_ascii_alphanumeric()
+            || !segment.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+        {
+            return false;
+        }
+        count += 1;
+    }
+    count >= 2
+}
+
+/// Lists valid bundled pipeline names in code-point order.
+pub fn bundled_pipelines() -> Vec<String> {
+    let mut names: Vec<_> = bundled::BUNDLED
+        .iter()
+        .filter_map(|(path, _)| {
+            let name = path.strip_prefix("grammars/")?.strip_suffix("/pipeline.md")?;
+            valid_pipeline_name(name).then(|| name.to_string())
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+/// Loads a pipeline from a pipeline document on disk. Each document it
 /// includes is found relative to the document that includes it; the
 /// character table and the notation's bootstrap come from the bundled
 /// grammars. Each document is known by its absolute path, so an error
 /// names the file wherever the process runs.
-pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
+pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
     let context = Context::bundled()?;
     let path = path.as_ref();
     let absolute = if path.is_absolute() {
@@ -822,11 +849,11 @@ pub fn load_dialect_file(path: impl AsRef<Path>) -> Result<Dialect, Error> {
     load(&context, &DiskSources, &absolute.to_string_lossy())
 }
 
-/// Loads a dialect from documents held in memory: a map from
+/// Loads a pipeline from documents held in memory: a map from
 /// `/`-separated path to text, and the path of the pipeline document in it.
 /// The map may supply its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and
 /// `data/preparsed/lojban.json`; any it lacks come from the bundled grammars.
-pub fn load_dialect_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Dialect, Error>
+pub fn load_pipeline_sources<I, K, V>(sources: I, pipeline: &str) -> Result<Pipeline, Error>
 where
     I: IntoIterator<Item = (K, V)>,
     K: Into<String>,
@@ -1086,13 +1113,13 @@ mod tests {
             std::thread::Builder::new()
                 .stack_size(2 << 20)
                 .spawn(move || {
-                    let dialect = crate::load_dialect_sources(
+                    let pipeline = crate::load_pipeline_sources(
                         [("p.md", "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" text | \"b\"\n```\n")],
                         "p.md",
                     ).expect("the recursive grammar");
                     let mut parse = |n| {
                         let text = format!("{}b", "a".repeat(n));
-                        let result = dialect.parse(&text, &crate::ParseOptions::default()).expect("a parse");
+                        let result = pipeline.parse(&text, &crate::ParseOptions::default()).expect("a parse");
                         assert!(result.ok);
                     };
                     assert_linear(Work::Walked, 250, &mut parse);
@@ -1117,7 +1144,7 @@ mod ranked_location_tests {
     #[test]
     fn bundled_cached_grammars_never_read_source() {
         let bundled = Context::bundled().unwrap();
-        let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
+        let notation = Arc::new(Pipeline::new(vec![], vec![], bundled.unicode.clone()).unwrap());
         let mut preparsed = Preparsed::parse(
             super::bundled("data/preparsed/lojban.json").unwrap(),
             &bootstrap_hash(),
@@ -1171,7 +1198,7 @@ mod ranked_location_tests {
             );
         }
         // No notation stages can parse a document if the preparsed cache is bypassed.
-        let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
+        let notation = Arc::new(Pipeline::new(vec![], vec![], bundled.unicode.clone()).unwrap());
         let context = Context {
             unicode: bundled.unicode.clone(),
             notation,
@@ -1247,7 +1274,7 @@ mod notation_cache_tests {
             }
             // A matching entry must work even without a notation reader.
             let notation = if mismatch.is_none() {
-                Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
+                Arc::new(Pipeline::new(vec![], vec![], base.unicode.clone()).unwrap())
             } else {
                 base.notation.clone()
             };
@@ -1451,7 +1478,7 @@ mod parameter_cache_tests {
                 .by_path
                 .insert("g.md".into(), (fnv1a64(text), PreparsedEntry { dom: Arc::new(raw.clone()), names: None }));
             let notation = if valid {
-                Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
+                Arc::new(Pipeline::new(vec![], vec![], base.unicode.clone()).unwrap())
             } else {
                 base.notation.clone()
             };

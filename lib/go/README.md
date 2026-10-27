@@ -7,7 +7,7 @@ CI runs automated tests for every change. The module states Go 1.22, and CI test
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("lojban/cll")
+dialect, err := gencmu.LoadPipeline("lojban/cll")
 if err != nil {
 	log.Fatal(err) // a *gencmu.Error, with document, line and column
 }
@@ -26,19 +26,19 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Loading a dialect
 
-- `LoadDialect(name)` loads a bundled dialect. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
-- `LoadDialectFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
-- `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `LoadPipeline(name)` loads a bundled dialect. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
+- `LoadPipelineFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
+- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
   For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 
 ## Parsing
 
-`(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
+`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
 
 A `feature-conflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `Stage` and `Feature` fields identify the conflict.
 
-`(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
+`(*Pipeline).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
 Grammar document object model (DOM) format 40 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
@@ -48,7 +48,7 @@ A close family is a set of rules. `F` names that family through its written rule
 
 Tree conditions `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors in the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
-For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
+For tests and tools, `(*Pipeline).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
 
 The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 

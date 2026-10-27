@@ -8,7 +8,7 @@ import json
 
 
 class GencmuError(Exception):
-    """A dialect that cannot be loaded, or a caller's mistake.
+    """A pipeline that cannot be loaded, or a caller's mistake.
 
     ``kind`` is ``"grammar"`` for a grammar or pipeline document that cannot
     be read, stitched or lowered, and ``"usage"`` for a mistake in a call,

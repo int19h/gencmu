@@ -7,7 +7,7 @@ import unittest
 from typing import Any
 from gencmu import GencmuError
 
-from gencmu._dialect import _Resources, _resources, bundled_text, read_document
+from gencmu._pipeline import _Resources, _resources, bundled_text, read_document
 
 from .shared import SHARED, load_json, mismatch, write_json
 from .test_notation_cases import check_notation_cache_paths

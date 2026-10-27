@@ -2787,9 +2787,9 @@ mod tests {
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
             ("g.md", format!("```jbogenbau\n{grammar}```\n")),
         ];
-        match crate::load_dialect_sources(sources, "p.md") {
+        match crate::load_pipeline_sources(sources, "p.md") {
             Err(error) => format!("error: {error:?}"),
-            Ok(dialect) => format!("{:?}", dialect.lowered_stage(0).prods),
+            Ok(pipeline) => format!("{:?}", pipeline.lowered_stage(0).prods),
         }
     }
 

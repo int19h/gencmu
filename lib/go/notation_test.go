@@ -223,7 +223,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !res.OK {
-			t.Fatalf("the notation dialect does not parse syntax.md (cache bypassed: %v): %s", noCache, res.Error.Message)
+			t.Fatalf("the notation pipeline does not parse syntax.md (cache bypassed: %v): %s", noCache, res.Error.Message)
 		}
 		data, _ := MarshalResult(res)
 		outs = append(outs, data)
@@ -238,7 +238,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	}
 }
 
-// TestBundledCacheSameStages loads each bundled dialect with the preparsed
+// TestBundledCacheSameStages loads each bundled pipeline with the preparsed
 // DOMs and without them, and the two give the same stages and features.
 func TestBundledCacheSameStages(t *testing.T) {
 	t.Parallel()
@@ -260,10 +260,10 @@ func TestBundledCacheSameStages(t *testing.T) {
 		}
 	}
 	if len(names) == 0 {
-		t.Fatal("no bundled dialects")
+		t.Fatal("no bundled pipelines")
 	}
 	for _, name := range names {
-		var loaded [2]*Dialect
+		var loaded [2]*Pipeline
 		for i, noCache := range []bool{false, true} {
 			l, err := bundledLoader()
 			if err != nil {
@@ -274,7 +274,7 @@ func TestBundledCacheSameStages(t *testing.T) {
 				// A cache miss fails because this loader cannot read notation.
 				l.reader = nil
 			}
-			if loaded[i], err = l.dialect(name); err != nil {
+			if loaded[i], err = l.pipeline(name); err != nil {
 				t.Fatalf("%s (cache bypassed: %v): %v", name, noCache, err)
 			}
 		}
@@ -403,7 +403,7 @@ func sameValue(a, b reflect.Value) bool {
 func TestNotationLexicalTags(t *testing.T) {
 	// The quoted scalar-shaped text tests literal dollars.
 	t.Parallel()
-	d, err := LoadDialect("gencmu/jbogenbau")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +457,7 @@ func TestNotationTie(t *testing.T) {
 // them (grammars/gencmu/jbogenbau/lexical.md).
 func TestNotationLexicalConstants(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("gencmu/jbogenbau")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,7 +584,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 		table bool
 		ok    bool
 	}{{`_General_Category_Letter`, true, false}, {`_General_Category_Unassigned`, true, true}, {`_General_Category_Letter`, false, true}} {
-		d, err := LoadDialectSources(sources(c.rule, c.table), "p.md")
+		d, err := LoadPipelineSources(sources(c.rule, c.table), "p.md")
 		if err != nil {
 			t.Fatal(err)
 		}

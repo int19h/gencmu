@@ -1,5 +1,5 @@
 {
-  "description": "A string-set constant cannot supply a terminal atom inside a tree pattern (engine \u00a710).",
+  "description": "A string-set constant cannot supply a terminal atom inside a tree pattern (engine §10).",
   "grammar": "%const $S \"a\" \u222a \"b\"\n%const $P #$S\n%rule text \u03b5",
   "input": "",
   "expect": {

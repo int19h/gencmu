@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 )
 
-// Error is a dialect that cannot be loaded: a document is missing, does not
+// Error is a pipeline that cannot be loaded: a document is missing, does not
 // parse as the notation, or does not stitch into a valid grammar. Document,
 // Line and Column say where, when known; Line and Column count from 1, in
 // code points.

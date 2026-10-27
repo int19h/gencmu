@@ -7,7 +7,7 @@ import unittest
 from itertools import permutations
 
 from gencmu import GencmuError
-from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._grammar import stitch
 from gencmu._validate import dom_problem
 

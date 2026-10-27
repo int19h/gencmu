@@ -42,7 +42,7 @@ export declare class Loader {
     propertiesHash: string | null;
     bootstrapText: string;
     bootstrapHash: string;
-    notation: Dialect;
+    notation: Pipeline;
     /** @type {Map<string, PreparsedEntry>} */
     preparsed: Map<string, PreparsedEntry>;
     /** @type {Set<string>} */
@@ -94,11 +94,11 @@ export declare class Loader {
     /** @param {Record<string,string> | undefined} dependencies @param {string[]} extras @param {Record<string,string> | null} [registry] @returns {boolean} */
     namesMatch(dependencies: Record<string, string> | undefined, extras: string[], registry?: Record<string, string> | null): boolean;
     /**
-     * A dialect from its pipeline document's path.
+     * A pipeline from its pipeline document's path.
      * @param {string} path
-     * @returns {Dialect}
+     * @returns {Pipeline}
      */
-    dialect(path: string): Dialect;
+    pipeline(path: string): Pipeline;
     /**
      * The stages of the pipeline document at `path`, each a list of runs of
      * one document's items, and the features the pipeline turns on (engine
@@ -111,12 +111,12 @@ export declare class Loader {
         features: string[];
     };
 }
-export declare class Dialect {
+export declare class Pipeline {
     path: string;
     stages: Stage[];
     loader: Loader;
     declared: string[];
-    /** @type {Feature[]} the dialect's features, with their kinds and defaults */
+    /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
     features: Feature[];
     /**
      * @param {string} path

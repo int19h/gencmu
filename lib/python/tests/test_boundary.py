@@ -5,17 +5,17 @@ from gencmu._boundary import Records, Annotations, Source, dominates
 
 class BoundaryTests(unittest.TestCase):
     def test_nested_queries_discover_boundary_targets_once_per_stage(self):
-        from .shared import calls, count_work, load_case_dialect, parse_case
+        from .shared import calls, count_work, load_case_pipeline, parse_case
         for boundary in ('', '\n%conditions ¬$.followed-by(A)'):
             grammar = ('%rule text {piece}\n%rule piece A\n'
                        '%conditions $.matches(one), $.begins(two), Seen ⊆ $.tags(three)\n'
                        '%rule one A' + boundary + '\n%rule two A\n%rule three A :: Seen')
-            dialect, error = load_case_dialect({'grammar': grammar})
+            pipeline, error = load_case_pipeline({'grammar': grammar})
             self.assertIsNone(error)
             case = {'tokens': [{'text': 'a', 'tags': ['A']}] * 10}
             for _ in range(2):
                 with self.subTest(boundary=boundary), count_work(calls(Records.__init__)) as work:
-                    value, _, error = parse_case(dialect, case)
+                    value, _, error = parse_case(pipeline, case)
                 self.assertIsNone(error)
                 self.assertTrue(value['ok'], value)
                 self.assertEqual(work.count, 1)
@@ -45,7 +45,7 @@ class BoundaryTests(unittest.TestCase):
 
     def test_cached_target_locations_follow_the_reader(self):
         import gencmu
-        from gencmu._dialect import read_document
+        from gencmu._pipeline import read_document
         from .test_ranked import sources, cached_sources
         for method in ('followed-by', 'preceded-by'):
             for clause in ('%conditions $.METHOD(((a)) | (A) | z)',
@@ -58,21 +58,21 @@ class BoundaryTests(unittest.TestCase):
                     errors = []
                     for values in (texts, cached):
                         with self.assertRaises(gencmu.GencmuError) as caught:
-                            gencmu.load_dialect_sources(values, 'grammars/test/p.md')
+                            gencmu.load_pipeline_sources(values, 'grammars/test/p.md')
                         errors.append(caught.exception)
                     self.assertEqual((errors[0].line, errors[0].column), (errors[1].line, errors[1].column))
                     self.assertEqual(errors[1].line, 6)
 
     def test_cached_private_boundary_error_preserves_expression(self):
         import gencmu
-        from gencmu._dialect import read_document
+        from gencmu._pipeline import read_document
         from .test_ranked import sources, cached_sources
         texts = sources('%const $OK A\n%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r C ($a:aa ≻ bb) :: ∅\n%conditions $a.tags = $OK ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A')
         dom = read_document(texts['grammars/test/g.md'], 'g.md')
         errors = []
         for values in (texts, cached_sources(texts, dom)):
             with self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources(values, 'grammars/test/p.md')
+                gencmu.load_pipeline_sources(values, 'grammars/test/p.md')
             errors.append(caught.exception)
         self.assertEqual(errors[0].code, 'ranked-choice-boundary')
         for field in ('code', 'group', 'option', 'expression', 'line', 'column'):
@@ -80,28 +80,28 @@ class BoundaryTests(unittest.TestCase):
 
     def test_equal_literals_keep_both_condition_sources(self):
         from gencmu._earley import Parser, StageContext
-        from .shared import load_case_dialect, case_tokens
-        dialect, error = load_case_dialect({'grammar': '%rule text r B\n%rule r A\n%conditions ¬$.followed-by(B), ¬$.followed-by(B)'})
+        from .shared import load_case_pipeline, case_tokens
+        pipeline, error = load_case_pipeline({'grammar': '%rule text r B\n%rule r A\n%conditions ¬$.followed-by(B), ¬$.followed-by(B)'})
         self.assertIsNone(error)
         tokens, text = case_tokens({'tokens': [{'text': 'a', 'tags': ['A']}, {'text': 'b', 'tags': ['B']}]})
         for token in tokens:
             token.tags = frozenset(token.tags)
-        lowered = dialect.lowered(0, frozenset())
-        forest = Parser(StageContext(lowered, tokens, text, dialect.unicode)).parse(lowered.rule_ids['text'])
+        lowered = pipeline.lowered(0, frozenset())
+        forest = Parser(StageContext(lowered, tokens, text, pipeline.unicode)).parse(lowered.rule_ids['text'])
         sites = {(condition, rule) for _, _, _, source in forest.boundary_failures if source is not None
                  for order, condition, rule in source.sites}
         self.assertEqual(sites, {(0, 'r'), (1, 'r')})
 
     def test_admission_reports_a_split_once(self):
         from gencmu import _testing
-        from .shared import load_case_dialect, parse_case
+        from .shared import load_case_pipeline, parse_case
         grammar = '%rule text (p ≻ q ≻ r) :: ∅ | B\n%rule p A\n%conditions ¬$.followed-by(B)\n%rule q A\n%rule r A'
-        dialect, error = load_case_dialect({'grammar': grammar})
+        pipeline, error = load_case_pipeline({'grammar': grammar})
         self.assertIsNone(error)
         stats = []
         handle = _testing.slot_admission.set(stats.append)
         try:
-            parse_case(dialect, {'tokens': [{'text': 'a', 'tags': ['A']}]})
+            parse_case(pipeline, {'tokens': [{'text': 'a', 'tags': ['A']}]})
         finally:
             _testing.slot_admission.reset(handle)
         splits = [split for result in stats for split in result['boundary_splits']]
@@ -109,13 +109,13 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual((splits[0]['start'], splits[0]['end']), (0, 1))
 
     def test_query_settles_a_witness_after_its_ancestors_complete(self):
-        from .shared import load_case_dialect, parse_case
+        from .shared import load_case_pipeline, parse_case
         for query in ('$.matches(r)', '$.begins(r)', 'Seen ⊆ $.tags(r)'):
             grammar = ('%rule text A\n%conditions ' + query +
                        '\n%rule r :: Seen\n | a\n | q\n%rule q r\n%rule a $e:empty A'
                        '\n%conditions $e.followed-by(q)\n%rule empty ε')
-            dialect, error = load_case_dialect({'grammar': grammar})
+            pipeline, error = load_case_pipeline({'grammar': grammar})
             self.assertIsNone(error)
             with self.subTest(query=query):
-                value, _, _ = parse_case(dialect, {'tokens': [{'text': 'a', 'tags': ['A']}]})
+                value, _, _ = parse_case(pipeline, {'tokens': [{'text': 'a', 'tags': ['A']}]})
                 self.assertTrue(value['ok'], value)

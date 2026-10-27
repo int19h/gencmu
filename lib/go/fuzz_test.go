@@ -53,11 +53,11 @@ func FuzzPreparsedDOM(f *testing.F) {
 		if gerr != nil {
 			return
 		}
-		features, ferr := dialectFeatures([]*stageGrammar{g}, nil)
+		features, ferr := pipelineFeatures([]*stageGrammar{g}, nil)
 		if ferr != nil {
 			return
 		}
-		d := &Dialect{stages: []*stageGrammar{g}, features: features, uni: bundled.uni}
+		d := &Pipeline{stages: []*stageGrammar{g}, features: features, uni: bundled.uni}
 		// With no feature on, and with every one on: every warning, and the
 		// gates that are not negated.
 		var all []string

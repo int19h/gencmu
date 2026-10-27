@@ -4,7 +4,7 @@ import unittest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-from gencmu import _dialect
+from gencmu import _pipeline
 
 import gencmu
 from .shared import REPOSITORY, find_places, position_of, substitute
@@ -22,7 +22,7 @@ class BootstrapErrors(unittest.TestCase):
                     self.assertTrue(find_places(bundled, item["find"]), "the mutation is absent")
                     bootstrap = substitute(bundled, item["find"], item["replace"])
                 with self.assertRaises(gencmu.GencmuError) as raised:
-                    gencmu.load_dialect_sources({
+                    gencmu.load_pipeline_sources({
                         "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
                         "data/preparsed/gencmu.json": bootstrap,
@@ -59,9 +59,9 @@ class BootstrapErrors(unittest.TestCase):
                     if failure == "invalid UTF-8":
                         file.rmdir()
                         file.write_bytes(b"\xff")
-                    with patch.object(_dialect, "_bundled_root", return_value=root), patch.dict(_dialect._bundled, {}, clear=True):
+                    with patch.object(_pipeline, "_bundled_root", return_value=root), patch.dict(_pipeline._bundled, {}, clear=True):
                         with self.assertRaises(gencmu.GencmuError) as raised:
-                            gencmu.load_dialect_sources({"p.md": "%stage main"}, "p.md")
+                            gencmu.load_pipeline_sources({"p.md": "%stage main"}, "p.md")
                     self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
                     self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
                     self.assertEqual(str(raised.exception), raised.exception.message)

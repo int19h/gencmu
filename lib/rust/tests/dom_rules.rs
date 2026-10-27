@@ -59,7 +59,7 @@ fn with_tags(term: &str) -> String {
     ))
 }
 
-/// Parses "a" with a dialect whose `data/preparsed/test.json` holds `dom` for the
+/// Parses "a" with a pipeline whose `data/preparsed/test.json` holds `dom` for the
 /// document: true when the document itself was read.
 fn document_was_read(dom: &str) -> bool {
     document_was_read_from(DOM_FORMAT, dom)
@@ -80,11 +80,11 @@ fn document_was_read_from(format: i64, dom: &str) -> bool {
         ("data/preparsed/test.json", preparsed),
     ];
     // A load error means the entry was used, and refused too late.
-    let Ok(dialect) = gencmu::load_dialect_sources(sources, "grammars/test/p.md") else {
+    let Ok(pipeline) = gencmu::load_pipeline_sources(sources, "grammars/test/p.md") else {
         return false;
     };
     let options = gencmu::ParseOptions::default();
-    dialect.parse("a", &options).expect("a parse").ok
+    pipeline.parse("a", &options).expect("a parse").ok
 }
 
 #[test]
@@ -316,7 +316,7 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
             ("grammars/test/g.md", DOCUMENT.to_string()),
             ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
@@ -817,7 +817,7 @@ fn a_malformed_bootstrap_is_an_error() {
         ("grammars/test/g.md", DOCUMENT.to_string()),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
+    let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
 }
 
@@ -836,7 +836,7 @@ fn a_refused_bootstrap_test_is_an_error() {
             ("grammars/test/g.md", DOCUMENT.to_string()),
             ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
@@ -873,7 +873,7 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
             ("grammars/test/g.md", DOCUMENT.to_string()),
             ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
@@ -1075,9 +1075,9 @@ fn a_preparsed_constant_serves_the_parse() {
             );
             sources.push(("data/preparsed/test.json", preparsed));
         }
-        let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect("a dialect");
+        let pipeline = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect("a pipeline");
         let options = gencmu::ParseOptions::default();
-        let result = dialect.parse("a", &options).expect("a parse");
+        let result = pipeline.parse("a", &options).expect("a parse");
         let tree = result.tree.expect("a tree");
         tree.tags.iter().cloned().collect::<Vec<String>>()
     };
@@ -1108,7 +1108,7 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
             ("grammars/test/g.md", DOCUMENT.to_string()),
             ("data/preparsed/gencmu.json", bootstrap),
         ];
-        let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
             .expect_err("a notation that cannot read grammars/test/g.md");
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
         error
@@ -1156,7 +1156,8 @@ fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
         ("grammars/test/g.md", DOCUMENT.to_string()),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a bootstrap nested too deeply");
+    let error =
+        gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a bootstrap nested too deeply");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("nested too deeply"), "{}", error.message);
 }
@@ -1190,10 +1191,10 @@ fn a_preparsed_clause_with_a_constant_waits_for_its_value() {
             );
             sources.push(("data/preparsed/test.json", preparsed));
         }
-        let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+        let pipeline = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
             .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
         let options = gencmu::ParseOptions::default();
-        let result = dialect.parse("a", &options).expect("a parse");
+        let result = pipeline.parse("a", &options).expect("a parse");
         Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
     };
     let empty = document("B", "$E ∖ B");
@@ -1310,7 +1311,7 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
         ("grammars/test/g.md", DOCUMENT.to_string()),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
+    let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a malformed bootstrap");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     assert!(error.message.contains("a string term is required"), "{}", error.message);
 }
@@ -1326,7 +1327,7 @@ fn bootstrap_refusal(dom: &str) -> Option<String> {
         ("grammars/test/g.md", DOCUMENT.to_string()),
         ("data/preparsed/gencmu.json", bootstrap),
     ];
-    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md")
+    let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md")
         .expect_err("a notation that cannot read grammars/test/g.md");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     error
@@ -1374,7 +1375,7 @@ fn a_classifier_name_stands_only_in_classify() {
 
 /// A gate of a classifier's entry follows the notation's name syntax
 /// (engine §9). A cached entry with another feature is a miss, so it never
-/// changes the dialect's features.
+/// changes the pipeline's features.
 #[test]
 fn a_gate_of_an_entry_names_a_feature() {
     let gated = |feature: &str| {
@@ -1385,14 +1386,14 @@ fn a_gate_of_an_entry_names_a_feature() {
     };
     let refused = ["", "!", "bad name"].map(gated);
     assert_refused(&gated("f"), &refused, "a malformed classifier entry");
-    // The control's gate is a feature of the dialect, and no refused one is.
+    // The control's gate is a feature of the pipeline, and no refused one is.
     assert_eq!(cached_features(&gated("f")), [("f".to_string(), gencmu::FeatureKind::Gate)]);
     for dom in &refused {
         assert!(cached_features(dom).is_empty(), "{dom}");
     }
 }
 
-/// The features of a dialect whose `data/preparsed/test.json` holds `dom` for the
+/// The features of a pipeline whose `data/preparsed/test.json` holds `dom` for the
 /// document, each with its kind.
 fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
     let preparsed = format!(
@@ -1407,13 +1408,13 @@ fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
         ("grammars/test/g.md", DOCUMENT.to_string()),
         ("data/preparsed/test.json", preparsed),
     ];
-    let dialect = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect("a dialect");
-    dialect.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
+    let pipeline = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect("a pipeline");
+    pipeline.features().iter().map(|feature| (feature.name.clone(), feature.kind)).collect()
 }
 
 /// A guard of a rule's alternative, a gate or a warning, follows the
 /// notation's name syntax (engine §9). A cached entry with another feature
-/// is a miss, so it never changes the dialect's features.
+/// is a miss, so it never changes the pipeline's features.
 #[test]
 fn a_guard_of_an_alternative_names_a_feature() {
     for (kind, feature_kind) in [("gate", gencmu::FeatureKind::Gate), ("warning", gencmu::FeatureKind::Warning)] {

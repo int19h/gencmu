@@ -1,4 +1,4 @@
-# The notation dialect
+# The notation pipeline
 
 The notation dialect lets gencmu read its own grammar documents. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. This dialect is an ordinary one, and the same engine runs it as runs the Lojban ones. So the notation's definition is the same kind of thing as any grammar it defines.
 

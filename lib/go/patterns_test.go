@@ -44,10 +44,10 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 				sources["data/preparsed/lojban.json"] = reviewCache(t, sources)
 				cached := mustLoad(t, sources)
 				var canonical string
-				for _, dialect := range []*Dialect{fresh, cached} {
+				for _, pipeline := range []*Pipeline{fresh, cached} {
 					// Repeated parses also retain the stage's original binding.
 					for repeat := 0; repeat < 2; repeat++ {
-						result, err := dialect.ParseTokens("a", []InputToken{{Text: "a", Tags: []string{"A", "Extra"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
+						result, err := pipeline.ParseTokens("a", []InputToken{{Text: "a", Tags: []string{"A", "Extra"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
 						if err != nil || !result.OK || len(result.Stages) != 2 || result.Tree == nil {
 							t.Fatalf("stage parse: %v %+v", err, result)
 						}

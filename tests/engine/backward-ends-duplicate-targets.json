@@ -1,5 +1,5 @@
 {
-  "description": "Repeated suffix targets are accepted. (Engine \u00a74.4.)",
+  "description": "Repeated suffix targets are accepted. (Engine §4.4.)",
   "grammar": "%rule text A\n%conditions $.ends(B | B | A | A)",
   "tokens": [
     {

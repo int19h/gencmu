@@ -201,7 +201,7 @@ func runFamilyGrowth(t *testing.T, bound familyGrowthBounds, n int, depth, witne
 			grammar = strings.ReplaceAll(grammar, "$x.without-elision", "¬$x.without-elision")
 			c.Grammar = &grammar
 		}
-		d, err := caseDialect(c, true)
+		d, err := casePipeline(c, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -291,7 +291,7 @@ func runFamilyGrowth(t *testing.T, bound familyGrowthBounds, n int, depth, witne
 
 // Only the input length changes in a growth fixture. Its result's language
 // assertions stay in force without pinning the original token spans.
-func checkGrowthParse(d *Dialect, c *engineCase) error {
+func checkGrowthParse(d *Pipeline, c *engineCase) error {
 	result, err := runCase(d, c, &c.Options)
 	if err != nil {
 		return err

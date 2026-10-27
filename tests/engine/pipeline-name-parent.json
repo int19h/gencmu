@@ -1,0 +1,8 @@
+{
+  "description": "A parent segment is not a pipeline name.",
+  "pipeline": "lojban/../cll",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

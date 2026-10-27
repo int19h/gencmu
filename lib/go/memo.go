@@ -104,9 +104,9 @@ func (m *sharedMemo) rules() []int32 {
 	return out
 }
 
-// memoBound is the bound of the dialect's shared memos: the default where
+// memoBound is the bound of the pipeline's shared memos: the default where
 // the library's own tests set none, and 0 where they turn the memos off.
-func (d *Dialect) memoBound() int {
+func (d *Pipeline) memoBound() int {
 	switch n := d.memoLimit.Load(); {
 	case n == 0:
 		return defaultMemoLimit
@@ -117,9 +117,9 @@ func (d *Dialect) memoBound() int {
 	}
 }
 
-// setMemoLimit sets the bound of the dialect's shared memos, for the
+// setMemoLimit sets the bound of the pipeline's shared memos, for the
 // library's own tests. A bound of 0 turns them off.
-func (d *Dialect) setMemoLimit(n int) {
+func (d *Pipeline) setMemoLimit(n int) {
 	if n == 0 {
 		d.memoLimit.Store(-1)
 	} else {

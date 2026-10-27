@@ -1,4 +1,4 @@
-"""Loading dialects (docs/api.md), reading grammar documents through the
+"""Loading pipelines (docs/api.md), reading grammar documents through the
 notation (engine §8), and running the pipeline (engine §13)."""
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ def _read_bundled(path: str) -> str | None:
 _lock = threading.Lock()
 # The caches that loads share. They are keyed by the texts themselves: a
 # string caches its own hash, so a text read once is found again at no
-# cost. A process can load many dialects from texts that callers supply.
+# cost. A process can load many pipelines from texts that callers supply.
 # So each cache keeps only a few entries, and only so many characters of
 # the texts that key them. The least recently used goes first.
 _MAX_TEXTS = 4
@@ -170,7 +170,7 @@ def _preparsed_path(document: str) -> str | None:
 
 
 class NotationReader:
-    """Reads grammar documents with the notation dialect's bootstrap DOM."""
+    """Reads grammar documents with the notation pipeline's bootstrap DOM."""
 
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
@@ -219,7 +219,7 @@ class NotationReader:
             except GencmuError as error:
                 error.stage = name
                 raise
-        _dialect_features(where, stages, pipeline.features)
+        _pipeline_features(where, stages, pipeline.features)
         lowered = []
         for grammar in stages:
             try:
@@ -400,7 +400,7 @@ def _preparsed_index(preparsed: str | None, bootstrap_hash: str, unicode_text: s
 
 
 # ---------------------------------------------------------------------------
-# Dialects
+# Pipelines
 
 
 @dataclass
@@ -496,7 +496,7 @@ class _Loader:
             return self.reader.located(dom, self.text(path), path, NamesScope(self.names_text, self.unicode, inherited)) if path == diagnostic_document else dom
         return splice_pipeline(pipeline_path, document, document)
 
-    def load(self, pipeline_path: str) -> Dialect:
+    def load(self, pipeline_path: str) -> Pipeline:
         try:
             return self._load(pipeline_path)
         except GencmuError as error:
@@ -524,7 +524,7 @@ class _Loader:
             # Retry only a failed load, with locations for its diagnostic document.
             return self._load(pipeline_path, error.group['document'])
 
-    def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Dialect:
+    def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Pipeline:
         pipeline = self.splice(pipeline_path, diagnostic_document)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
@@ -534,7 +534,7 @@ class _Loader:
                 if error.stage is None:
                     error.stage = stage.name
                 raise
-        return Dialect(pipeline_path, pipeline, stages, self.unicode)
+        return Pipeline(pipeline_path, pipeline, stages, self.unicode)
 
 
 def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
@@ -556,17 +556,38 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
     return _Resources(unicode, bootstrap, get, properties)
 
 
-def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
-    """A dialect of the bundled grammars, by the directory path NAME of
-    ``grammars/NAME/pipeline.md``."""
+def _valid_pipeline_name(name: str) -> bool:
+    return re.fullmatch(r"[a-z0-9][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+", name) is not None
+
+
+def bundled_pipelines() -> list[str]:
+    """The package's valid pipeline names in code-point order."""
+    root = _bundled_root().joinpath("grammars")
+    pending = [("", root)]
+    found = []
+    while pending:
+        prefix, directory = pending.pop()
+        if not directory.is_dir():
+            continue
+        for entry in directory.iterdir():
+            path = f"{prefix}/{entry.name}" if prefix else entry.name
+            if entry.is_dir():
+                pending.append((path, entry))
+            elif entry.name == "pipeline.md" and _valid_pipeline_name(prefix):
+                found.append(prefix)
+    return sorted(found)
+
+
+def load_pipeline(name: str, *, use_cache: bool = True) -> Pipeline:
+    """A bundled pipeline, by its full directory path under grammars/."""
+    if not _valid_pipeline_name(name) or name not in bundled_pipelines():
+        raise GencmuError(f"there is no bundled pipeline {name!r}", kind="usage")
     path = f"grammars/{name}/pipeline.md"
-    if bundled_text(path) is None:
-        raise GencmuError(f"there is no bundled dialect {name}", kind="grammar", document=path)
     return _Loader(bundled_text, _resources(), use_cache, names_override=lambda path: False).load(path)
 
 
-def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Dialect:
-    """A dialect from a pipeline document on disk; its documents are found
+def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) -> Pipeline:
+    """A pipeline from a pipeline document on disk; its documents are found
     relative to it, and the Unicode table and the bootstrap come from the
     bundled grammars. Each document is known by its absolute path, with
     ``/`` between the parts, so an error names the file wherever the
@@ -593,8 +614,8 @@ def load_dialect_file(path: str | os.PathLike[str], *, use_cache: bool = True) -
     return _Loader(lookup, _resources(), use_cache, from_disk=True, names_override=names_override).load(pipeline)
 
 
-def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Dialect:
-    """A dialect from documents held in memory: a mapping from ``/``-separated
+def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cache: bool = True) -> Pipeline:
+    """A pipeline from documents held in memory: a mapping from ``/``-separated
     path to text, and the path of the pipeline document in it. The mapping
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
     ``data/preparsed/lojban.json``; any it lacks come from the bundled grammars."""
@@ -602,12 +623,12 @@ def load_dialect_sources(sources: Mapping[str, str], pipeline: str, *, use_cache
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 
-def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
-    """A dialect's features (engine §13): every name a guard of a stage's
+def _pipeline_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
+    """A pipeline's features (engine §13): every name a guard of a stage's
     stitched rules or a gate of its classifiers' entries uses, and every
     name the pipeline's ``%features`` declares, in code point order. Each is
     a gate or a warning as its guards use it, and a gate if only declared; a
-    name used both ways is an error of the dialect."""
+    name used both ways is an error of the pipeline."""
     kinds: dict[str, str] = {}
     for grammar in grammars:
         guards = [(guard, alternative.document, alternative.at) for rule in grammar.rules.values() for alternative in rule.alternatives for guard in alternative.guards]
@@ -639,16 +660,16 @@ def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[st
     return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted(kinds.keys() | declared | local))
 
 
-class Dialect:
-    """A loaded dialect: a pipeline of stages, each a stitched grammar, and
-    its ``features``, each a :class:`Feature`. A dialect may be used for any
+class Pipeline:
+    """A loaded pipeline: a pipeline of stages, each a stitched grammar, and
+    its ``features``, each a :class:`Feature`. A pipeline may be used for any
     number of parses, and shared between threads."""
 
     def __init__(self, path: str, pipeline: SplicedPipeline, stages: list[Grammar], unicode: UnicodeTable) -> None:
         self.path = path
         # The features the pipeline turns on, and every feature with its kind.
         self.declared = pipeline.features
-        self.features = _dialect_features(path, stages, pipeline.features)
+        self.features = _pipeline_features(path, stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on, or
@@ -668,7 +689,7 @@ class Dialect:
         return [grammar.stage for grammar in self.grammars]
 
     def _lowered_grammars(self) -> list[Lowered]:
-        """Every lowered grammar the dialect holds, for the library's own
+        """Every lowered grammar the pipeline holds, for the library's own
         tests."""
         with self._lock:
             return [found for cache in self._lowered for found in cache.values() if isinstance(found, Lowered)]
@@ -705,7 +726,7 @@ class Dialect:
         elif until in names:
             last = names.index(until)
         else:
-            raise GencmuError(f"the dialect has no stage {until}; its stages are {', '.join(names)}", kind="usage")
+            raise GencmuError(f"the pipeline has no stage {until}; its stages are {', '.join(names)}", kind="usage")
         on = frozenset(features)
         off = frozenset(without_features)
         if on & off:

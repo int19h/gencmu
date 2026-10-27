@@ -20,10 +20,10 @@ class JsonKeys(unittest.TestCase):
                 self.assertIn(item["find"], bundled)
                 bootstrap = bundled.replace(item["find"], item["replace"], 1)
                 if item["loads"]:
-                    self.assertTrue(gencmu.load_dialect_sources({**sources, "data/preparsed/gencmu.json": bootstrap}, "p.md").parse("a").ok)
+                    self.assertTrue(gencmu.load_pipeline_sources({**sources, "data/preparsed/gencmu.json": bootstrap}, "p.md").parse("a").ok)
                 else:
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        gencmu.load_dialect_sources({**sources, "data/preparsed/gencmu.json": bootstrap}, "p.md")
+                        gencmu.load_pipeline_sources({**sources, "data/preparsed/gencmu.json": bootstrap}, "p.md")
                     error = caught.exception
                     self.assertEqual((error.kind, error.document, error.stage, error.line, error.column), ("grammar", "data/preparsed/gencmu.json", None, None, None))
                     self.assertTrue(error.message.startswith("data/preparsed/gencmu.json:"))
@@ -40,12 +40,12 @@ class JsonKeys(unittest.TestCase):
                         case_sources[resource] = fixtures["cache"].replace("@bootstrap@",fnv1a64(bundled)).replace("@source@",fnv1a64(fixtures["grammar"])).replace("@unicode@",fnv1a64(case_sources["data/unicode/unicode.txt"]))
                 if "error" in item:
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        gencmu.load_dialect_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
+                        gencmu.load_pipeline_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
                     self.assertEqual((caught.exception.kind, caught.exception.document, caught.exception.line),
                                      ("grammar", item["error"]["document"], item["error"].get("line")))
                     continue
-                dialect = gencmu.load_dialect_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
-                self.assertEqual(dialect.parse("a").ok, not item["cached"])
-                self.assertEqual(dialect.parse("b").ok, item["cached"])
+                pipeline = gencmu.load_pipeline_sources({**case_sources, "data/preparsed/test.json": cache}, "grammars/test/p.md")
+                self.assertEqual(pipeline.parse("a").ok, not item["cached"])
+                self.assertEqual(pipeline.parse("b").ok, item["cached"])
                 if "tags" in item:
-                    self.assertEqual(sorted(dialect.parse("b").tree.tags), item["tags"])
+                    self.assertEqual(sorted(pipeline.parse("b").tree.tags), item["tags"])

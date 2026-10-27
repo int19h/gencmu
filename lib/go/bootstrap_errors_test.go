@@ -54,7 +54,7 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 				}
 				bootstrap = replaced
 			}
-			_, err := LoadDialectSources(map[string]string{
+			_, err := LoadPipelineSources(map[string]string{
 				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
 				"g.md":                    "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
 				"data/preparsed/gencmu.json": bootstrap,

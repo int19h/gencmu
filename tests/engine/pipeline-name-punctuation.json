@@ -1,0 +1,8 @@
+{
+  "description": "Segment characters are lowercase ASCII letters, digits, and hyphens.",
+  "pipeline": "lojban/cll_",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

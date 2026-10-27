@@ -112,9 +112,9 @@ func tagUnion(n int) *domTerm {
 	return union
 }
 
-// domStage loads a one-stage dialect whose grammar is a DOM, given as
+// domStage loads a one-stage pipeline whose grammar is a DOM, given as
 // JSON, so that a large grammar costs no reading of its notation.
-func domStage(t *testing.T, dom string) *Dialect {
+func domStage(t *testing.T, dom string) *Pipeline {
 	t.Helper()
 	l, err := bundledLoader()
 	if err != nil {
@@ -124,7 +124,7 @@ func domStage(t *testing.T, dom string) *Dialect {
 	l.read = func(p string) (string, bool) { s, ok := src[p]; return s, ok }
 	l.preparsedRead = nil
 	l.preparsed = map[domCacheKey]json.RawMessage{{fnv1a64(src["g.md"]), l.reader.hash, l.uni.hash, l.uni.propertiesHash, domFormat}: json.RawMessage(dom)}
-	d, err := l.dialect("p.md")
+	d, err := l.pipeline("p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func domStage(t *testing.T, dom string) *Dialect {
 // a run of inserted tags before them finds each part and each anchor
 // without a scan of the production or of the items (engine §11).
 func TestEmissionLinear(t *testing.T) {
-	dialect := func(n int) *Dialect {
+	pipeline := func(n int) *Pipeline {
 		seq := make([]string, n)
 		items := make([]string, 0, 4*n)
 		for i := range seq {
@@ -148,7 +148,7 @@ func TestEmissionLinear(t *testing.T) {
 		return domStage(t, fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[%s]}}],"emit":{"items":[%s]},"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`, domFormat, strings.Join(seq, ","), strings.Join(items, ",")))
 	}
 	for _, n := range []int{1000, 4000} {
-		d := dialect(n)
+		d := pipeline(n)
 		toks := make([]Token, n)
 		for i := range toks {
 			toks[i] = Token{Text: "a", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}

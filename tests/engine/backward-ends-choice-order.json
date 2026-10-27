@@ -1,5 +1,5 @@
 {
-  "description": "A successful first target prevents evaluation of a later target error. (Engine \u00a74.4.)",
+  "description": "A successful first target prevents evaluation of a later target error. (Engine §4.4.)",
   "grammar": "%rule text B A\n%conditions $.ends(A | bad)\n%rule bad B A $e:nothing\n%conditions \"x\".split($e.value) = \u2205\n%rule nothing \u03b5",
   "tokens": [
     {

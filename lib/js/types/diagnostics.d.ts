@@ -1,7 +1,7 @@
 import { UnicodeTable } from "./unicode.js";
 import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
-import type { Dialect } from "./dialect.js";
+import type { Pipeline } from "./pipeline.js";
 import type { TraceEvent } from "./earley.js";
 import type { StitchedAlternative } from "./grammar.js";
 export type LineIndex = {
@@ -185,13 +185,13 @@ export type CaptureStructure = {
 };
 export type CaptureScopes = WeakMap<StitchedAlternative, CaptureStructure>;
 /**
- * What a grammar author should know about a dialect's grammars: per stage,
+ * What a grammar author should know about a pipeline's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
  * extended, and `%erased` that changes nothing.
- * @param {Dialect} dialect
+ * @param {Pipeline} pipeline
  * @returns {StageAudit[]}
  */
-export declare function audit(dialect: Dialect): StageAudit[];
+export declare function audit(pipeline: Pipeline): StageAudit[];
 /**
  * An audit as text.
  * @param {StageAudit[]} stages
@@ -227,23 +227,23 @@ export type Trace = {
  */
 /**
  * The parse failure that prevents a stage from being traced.
- * @param {Dialect} dialect
+ * @param {Pipeline} pipeline
  * @param {import("./types.js").ParseResult} result
  * @param {string} name
  * @returns {string | null}
  */
-export declare function traceProblem(dialect: Dialect, result: import("./types.js").ParseResult, name: string): string | null;
+export declare function traceProblem(pipeline: Pipeline, result: import("./types.js").ParseResult, name: string): string | null;
 /**
  * What one stage's recognizer did at one position of its input: which items
  * it predicted, advanced and completed there, and which advances a
  * condition refused, with the condition. This is the tool for "why does my
  * grammar not accept this text here".
- * @param {Dialect} dialect
+ * @param {Pipeline} pipeline
  * @param {string} text
  * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>}} options
  * @returns {Trace}
  */
-export declare function trace(dialect: Dialect, text: string, options: {
+export declare function trace(pipeline: Pipeline, text: string, options: {
     stage: string;
     position: number;
     features?: Iterable<string>;

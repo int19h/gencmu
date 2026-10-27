@@ -3,7 +3,7 @@
 import unittest
 
 import gencmu
-from gencmu._dialect import bundled_text, character_tokens
+from gencmu._pipeline import bundled_text, character_tokens
 from gencmu._unicode import UnicodeTable
 
 
@@ -43,7 +43,7 @@ class GrammarReading(unittest.TestCase):
     def test_cache_identity_includes_exact_table_text(self) -> None:
         import json
         from unittest.mock import patch
-        from gencmu._dialect import DOM_FORMAT, _preparsed_index, _Loader, _resources
+        from gencmu._pipeline import DOM_FORMAT, _preparsed_index, _Loader, _resources
         from gencmu._hash import fnv1a64
 
         table = bundled_text("data/unicode/unicode.txt") or ""
@@ -73,13 +73,13 @@ class GrammarReading(unittest.TestCase):
             self.assertIs(cached.dom("g.md"), cached.preparsed[fnv1a64(grammar)])
 
     def test_negated_operator_needs_its_decomposition_record(self) -> None:
-        from gencmu._dialect import read_document
+        from gencmu._pipeline import read_document
         sparse = "\n".join(line for line in (bundled_text("data/unicode/unicode.txt") or "").splitlines()
                            if not line.startswith(("decompose ", "combining ")))
         source = document('%rule r $a:A %conditions $a.value ≠ "a"')
         for use_cache in (False, True):
             with self.subTest(use_cache=use_cache), self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources({"data/unicode/unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
+                gencmu.load_pipeline_sources({"data/unicode/unicode.txt": sparse, "p.md": document('%stage main\n%include "g.md"'),
                                             "g.md": source}, "p.md", use_cache=use_cache)
             self.assertEqual((caught.exception.document, caught.exception.column), ("g.md", 35))
         self.assertEqual(read_document(source, "g.md")["rules"][0]["conditions"][0]["op"], "≠")
@@ -87,7 +87,7 @@ class GrammarReading(unittest.TestCase):
     def test_include_preserves_original_filename(self) -> None:
         texts = {"p.md": document('%stage main\n%include "café.md"'),
                  "café.md": document('%ambiguity-resolution greedy\n%rule text "a"')}
-        self.assertTrue(gencmu.load_dialect_sources(texts, "p.md").parse("a").ok)
+        self.assertTrue(gencmu.load_pipeline_sources(texts, "p.md").parse("a").ok)
 
     def test_diagnostics_read_back_as_exact_scalars(self) -> None:
         from gencmu._strings import spelling
@@ -96,16 +96,16 @@ class GrammarReading(unittest.TestCase):
             with self.subTest(value=value):
                 texts = {"p.md": document('%stage main\n%include "g.md"'),
                          "g.md": document('%ambiguity-resolution greedy\n%const $S ' + spelling(value, table) + '\n%rule text $S')}
-                dialect = gencmu.load_dialect_sources(texts, "p.md")
+                pipeline = gencmu.load_pipeline_sources(texts, "p.md")
                 token = gencmu.Token("", frozenset(), (0, 1), (0, 0), value=value)
-                self.assertTrue(dialect.parse_tokens([token], "").ok)
+                self.assertTrue(pipeline.parse_tokens([token], "").ok)
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text "‹U+00E0›".."‹U+017A›"')
-        dialect = gencmu.load_dialect_sources(texts, "p.md")
-        terminal = dialect.parse("").error.expected[0].terminal
+        pipeline = gencmu.load_pipeline_sources(texts, "p.md")
+        terminal = pipeline.parse("").error.expected[0].terminal
         self.assertEqual(terminal, '"‹U+00E0›".."‹U+017A›"')
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text ' + terminal)
-        dialect = gencmu.load_dialect_sources(texts, "p.md")
-        self.assertTrue(dialect.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)
+        pipeline = gencmu.load_pipeline_sources(texts, "p.md")
+        self.assertTrue(pipeline.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)
 
 
 class DecomposedSource(unittest.TestCase):
@@ -117,9 +117,9 @@ class DecomposedSource(unittest.TestCase):
                 texts = {"data/unicode/unicode.txt": data, "p.md": document('%stage main\n%include "g.md"'),
                          "g.md": document('%ambiguity-resolution greedy\n%rule text $x:_\n%conditions $x.decomposed-source-text = "é"\n'
                                           '%emits\n$x := $x.decomposed-source-text :- $x.source-text')}
-                dialect = gencmu.load_dialect_sources(texts, "p.md")
+                pipeline = gencmu.load_pipeline_sources(texts, "p.md")
                 token = gencmu.Token("é", frozenset(), (0, 1), (0, 1), value="untouched")
-                result = dialect.parse_tokens([token], "é")
+                result = pipeline.parse_tokens([token], "é")
                 self.assertTrue(result.ok, result.error)
                 output = result.stages[0].output[0]
                 self.assertEqual((output.value, output.image, output.text, output.source), (expected, "é", "é", (0, 1)))
@@ -128,10 +128,10 @@ class DecomposedSource(unittest.TestCase):
     def test_an_observed_source_is_decomposed_alone(self) -> None:
         texts = {"p.md": document('%stage main\n%include "g.md"'),
                  "g.md": document('%ambiguity-resolution greedy\n%rule text $x:_\n%emits\n$x := $x.decomposed-source-text')}
-        dialect = gencmu.load_dialect_sources(texts, "p.md")
+        pipeline = gencmu.load_pipeline_sources(texts, "p.md")
         # The token covers the acute alone, outside the preceding cluster.
         token = gencmu.Token("\u0301", frozenset(), (0, 1), (1, 2), value="x")
-        result = dialect.parse_tokens([token], "á\u0301\u0323")
+        result = pipeline.parse_tokens([token], "á\u0301\u0323")
         self.assertTrue(result.ok, result.error)
         self.assertEqual(result.stages[0].output[0].value, "\u0301")
 
@@ -140,12 +140,12 @@ class StageZero(unittest.TestCase):
     def test_stage_zero_runs_once(self) -> None:
         from unittest.mock import patch
 
-        dialect = gencmu.load_dialect("lojban/experimental")
+        pipeline = gencmu.load_pipeline("lojban/experimental")
         for options in ({}, {"until": "words"}):
             with self.subTest(options=options):
-                with patch.object(dialect.unicode, "decompose_with_origins", wraps=dialect.unicode.decompose_with_origins) as decompose:
-                    with patch.object(dialect, "_run", wraps=dialect._run) as run:
-                        result = dialect.parse("mi klama", **options)
+                with patch.object(pipeline.unicode, "decompose_with_origins", wraps=pipeline.unicode.decompose_with_origins) as decompose:
+                    with patch.object(pipeline, "_run", wraps=pipeline._run) as run:
+                        result = pipeline.parse("mi klama", **options)
                 self.assertTrue(result.ok, result.error)
                 self.assertEqual(decompose.call_args_list, [unittest.mock.call("mi klama")])
                 self.assertEqual(run.call_count, 1)

@@ -1,5 +1,5 @@
 {
-  "description": "A suffix query does not evaluate errors beyond its fixed window. (Engine \u00a74.4.)",
+  "description": "A suffix query does not evaluate errors beyond its fixed window. (Engine §4.4.)",
   "grammar": "%rule text $p:A B\n%conditions $p.ends(tail)\n%rule tail A | bad\n%rule bad B $e:nothing\n%conditions \"x\".split($e.value) = \u2205\n%rule nothing \u03b5",
   "tokens": [
     {

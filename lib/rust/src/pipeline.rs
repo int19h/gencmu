@@ -1,4 +1,4 @@
-//! A loaded dialect and the pipeline that runs it (engine §7, §11, §13).
+//! A loaded pipeline and the pipeline that runs it (engine §7, §11, §13).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,7 +19,7 @@ use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMa
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
-/// The options of [`Dialect::parse`].
+/// The options of [`Pipeline::parse`].
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseOptions {
     /// Features to turn on for every stage, besides those the pipeline's
@@ -35,7 +35,7 @@ pub struct ParseOptions {
     pub elision_only: Option<bool>,
 }
 
-/// One of a dialect's features (engine §13), as [`Dialect::features`]
+/// One of a pipeline's features (engine §13), as [`Pipeline::features`]
 /// lists them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Feature {
@@ -129,15 +129,15 @@ fn names_on(names: &[String], features: &BTreeSet<String>) -> Vec<String> {
     names.iter().filter(|name| features.contains(*name)).cloned().collect()
 }
 
-/// A loaded dialect: a pipeline of stages, each a stitched grammar.
+/// A loaded pipeline: a pipeline of stages, each a stitched grammar.
 ///
-/// A `Dialect` is `Send` and `Sync`: one may be shared between threads and
+/// A `Pipeline` is `Send` and `Sync`: one may be shared between threads and
 /// used for any number of parses at once. The grammars it lowers for a set
 /// of features, and the classifiers it resolves for them, are kept behind
 /// a mutex and shared by later parses. Only a new set of the gates that are
 /// on makes a new one. It keeps a bounded number of them, and builds each
 /// one once, outside the mutex.
-pub struct Dialect {
+pub struct Pipeline {
     pub(crate) stages: Vec<StageGrammar>,
     /// The features the pipeline's `%features` turns on.
     pub(crate) declared: Vec<String>,
@@ -148,9 +148,9 @@ pub struct Dialect {
     caches: Vec<StageCache>,
 }
 
-impl std::fmt::Debug for Dialect {
+impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Dialect").field("stages", &self.stage_names()).field("features", &self.features).finish()
+        f.debug_struct("Pipeline").field("stages", &self.stage_names()).field("features", &self.features).finish()
     }
 }
 
@@ -165,12 +165,12 @@ struct Run {
     warnings: Vec<Warning>,
 }
 
-/// A dialect's features (engine §13): every name a guard of a stage's
+/// A pipeline's features (engine §13): every name a guard of a stage's
 /// stitched rules uses, every gate of its classifiers' entries, and every
 /// name the pipeline's `%features` declares, in code point order. A name
 /// that one guard uses as a gate and another as a warning is an error of
-/// the dialect; one that only `%features` declares is a gate.
-fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
+/// the pipeline; one that only `%features` declares is a gate.
+fn pipeline_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<Feature>, Error> {
     let mut kinds: BTreeMap<&str, FeatureKind> = BTreeMap::new();
     for stage in stages {
         let rules = stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alternative| {
@@ -259,19 +259,19 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
     (line, column)
 }
 
-impl Dialect {
-    /// A dialect of stitched stages, whose pipeline's `%features` turns
+impl Pipeline {
+    /// A pipeline of stitched stages, whose pipeline's `%features` turns
     /// on `declared`; a feature used both as a gate and as a warning is an
-    /// error of the dialect (engine §13).
+    /// error of the pipeline (engine §13).
     pub(crate) fn new(
         stages: Vec<StageGrammar>,
         declared: Vec<String>,
         unicode: Arc<Unicode>,
-    ) -> Result<Dialect, Error> {
-        let features = dialect_features(&stages, &declared)?;
+    ) -> Result<Pipeline, Error> {
+        let features = pipeline_features(&stages, &declared)?;
         let changes = stages.iter().flat_map(|stage| stage.changes.iter().cloned()).collect();
         let caches = stages.iter().map(StageCache::new).collect();
-        Ok(Dialect { stages, declared, features, unicode, changes, caches })
+        Ok(Pipeline { stages, declared, features, unicode, changes, caches })
     }
 
     pub(crate) fn prepare_bootstrap(&self) -> Result<(), Error> {
@@ -287,7 +287,7 @@ impl Dialect {
         self.stages.iter().map(|stage| stage.name.as_str()).collect()
     }
 
-    /// The dialect's features (engine §13), each with its kind and whether
+    /// The pipeline's features (engine §13), each with its kind and whether
     /// the pipeline turns it on for every parse, in code point order of
     /// their names. The gates of the classifiers' entries are among them.
     pub fn features(&self) -> &[Feature] {
@@ -456,7 +456,7 @@ impl Dialect {
                 .stages
                 .iter()
                 .position(|stage| &stage.name == name)
-                .ok_or_else(|| Error::usage(format!("the dialect has no stage named {name}")))?,
+                .ok_or_else(|| Error::usage(format!("the pipeline has no stage named {name}")))?,
         };
         let mut shared = Shared::new(&self.unicode, &chars);
         let (mut input, public_input) = first(&mut shared.tags, &chars);
@@ -1218,7 +1218,7 @@ fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[ch
 /// For the tests inside the crate: a stage's grammar lowered with no
 /// features on.
 #[cfg(test)]
-impl Dialect {
+impl Pipeline {
     pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {
         self.lowered(stage, &BTreeSet::new()).unwrap_or_else(|error| panic!("{}", error.message))
     }
@@ -1226,22 +1226,22 @@ impl Dialect {
 
 #[cfg(test)]
 mod tests {
-    use super::{Dialect, ParseOptions, MAX_LOWERED};
+    use super::{ParseOptions, Pipeline, MAX_LOWERED};
 
-    fn dialect(rules: &str) -> Dialect {
+    fn pipeline(rules: &str) -> Pipeline {
         let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
-        crate::load_dialect_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+        crate::load_pipeline_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
     }
 
     #[test]
     fn stage_zero_runs_once() {
         use crate::work::{counted, reset, Work};
-        let dialect = crate::load_dialect("lojban/experimental").unwrap();
+        let pipeline = crate::load_pipeline("lojban/experimental").unwrap();
         for until in [None, Some("words")] {
             reset();
             let options = ParseOptions { until: until.map(str::to_string), ..Default::default() };
-            assert!(dialect.parse("mi klama", &options).unwrap().ok);
+            assert!(pipeline.parse("mi klama", &options).unwrap().ok);
             assert_eq!(counted(Work::StageZero), 1);
             assert_eq!(counted(Work::Decompositions), 1);
         }
@@ -1273,19 +1273,19 @@ mod tests {
         assert_eq!(sources.of(4, 7), (3, 4));
     }
 
-    fn cached(dialect: &Dialect) -> (usize, usize) {
-        let cache = &dialect.caches[0];
+    fn cached(pipeline: &Pipeline) -> (usize, usize) {
+        let cache = &pipeline.caches[0];
         (cache.lowered.lock().unwrap().len(), cache.classifiers.lock().unwrap().len())
     }
 
     #[test]
     fn unused_names_share_one_lowering() {
-        let dialect = dialect("%rule text f? \"x\" | \"y\"");
+        let pipeline = pipeline("%rule text f? \"x\" | \"y\"");
         for index in 0..50 {
             let options = ParseOptions { features: vec![format!("unused-{index}")], ..ParseOptions::default() };
-            assert!(dialect.parse("y", &options).unwrap().ok);
+            assert!(pipeline.parse("y", &options).unwrap().ok);
         }
-        assert_eq!(cached(&dialect), (1, 1));
+        assert_eq!(cached(&pipeline), (1, 1));
     }
 
     #[test]
@@ -1296,8 +1296,9 @@ mod tests {
         let entries: Vec<String> =
             names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
         let entries = entries.concat();
-        let dialect =
-            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w:\"x\" :: $w.source-text.classify(c)"));
+        let pipeline = pipeline(&format!(
+            "%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w:\"x\" :: $w.source-text.classify(c)"
+        ));
         for _ in 0..2 {
             for set in 0..1usize << names.len() {
                 let features: Vec<String> = names
@@ -1310,19 +1311,19 @@ mod tests {
                 want.push("X".to_string());
                 want.sort();
                 let options = ParseOptions { features, ..ParseOptions::default() };
-                let result = dialect.parse("x", &options).unwrap();
+                let result = pipeline.parse("x", &options).unwrap();
                 let tags: Vec<String> = result.tree.as_ref().expect("a tree").tags.iter().cloned().collect();
                 assert_eq!(tags, want);
             }
         }
-        assert!(cached(&dialect).1 <= MAX_LOWERED);
+        assert!(cached(&pipeline).1 <= MAX_LOWERED);
     }
 
     #[test]
     fn lowered_grammars_are_bounded() {
         let names = ["a", "b", "c", "d", "e", "f", "g"];
         let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? \"x\"")).collect();
-        let dialect = dialect(&format!("%rule text {} | \"y\"", alternatives.join(" | ")));
+        let pipeline = pipeline(&format!("%rule text {} | \"y\"", alternatives.join(" | ")));
         for set in 0..1usize << names.len() {
             let features: Vec<String> = names
                 .iter()
@@ -1334,11 +1335,11 @@ mod tests {
             // when two are.
             let count = features.len();
             let options = ParseOptions { features, ..ParseOptions::default() };
-            let result = dialect.parse("x", &options).unwrap();
+            let result = pipeline.parse("x", &options).unwrap();
             assert_eq!(result.stages[0].verdict.is_some(), count > 0);
             assert_eq!(result.ok, count == 1);
         }
-        let (lowered, classifiers) = cached(&dialect);
+        let (lowered, classifiers) = cached(&pipeline);
         assert!(lowered <= MAX_LOWERED && classifiers <= MAX_LOWERED, "{lowered} {classifiers}");
     }
 }

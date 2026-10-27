@@ -1,5 +1,5 @@
 {
-  "description": "A capture at the context start has an empty preceding span. (Engine \u00a74.4.)",
+  "description": "A capture at the context start has an empty preceding span. (Engine §4.4.)",
   "grammar": "%rule text $x:A B\n%conditions $x.preceding-tokens.value = \"\", $x.preceding-tokens.last-token.value = \"\"",
   "tokens": [
     {

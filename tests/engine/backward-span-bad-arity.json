@@ -1,5 +1,5 @@
 {
-  "description": "A preceding span takes no arguments. (Engine \u00a74.4.)",
+  "description": "A preceding span takes no arguments. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

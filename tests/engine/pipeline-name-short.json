@@ -1,0 +1,8 @@
+{
+  "description": "Short names have no aliases.",
+  "pipeline": "cll",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

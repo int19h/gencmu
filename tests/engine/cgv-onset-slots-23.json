@@ -1,5 +1,5 @@
 {
-  "description": "The dialect keeps its consonant-before-glide ban. The iy name therefore remains foreign.",
+  "description": "The pipeline keeps its consonant-before-glide ban. The iy name therefore remains foreign.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },

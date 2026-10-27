@@ -1,5 +1,5 @@
 {
-  "description": "A suffix target cannot be an engine tag. (Engine \u00a74.4.)",
+  "description": "A suffix target cannot be an engine tag. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

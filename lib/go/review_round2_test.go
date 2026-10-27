@@ -34,7 +34,7 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
-			_, err := LoadDialectSources(reviewSources(c.grammar, bootstrap), "grammars/test/p.md")
+			_, err := LoadPipelineSources(reviewSources(c.grammar, bootstrap), "grammars/test/p.md")
 			var e *Error
 			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
 				t.Fatalf("guard at 3:%d: %v", c.column, err)
@@ -72,7 +72,7 @@ func TestReviewPrivateRecipeExports(t *testing.T) {
 		{`%rule text :: ∅ | ($x:A ≻ B) [$carrier:C] %emits $carrier := $x.value`, "items"},
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
-			_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 			var e *Error
 			if !errors.As(err, &e) || e.Code != "ranked-choice-export" || e.Group == nil || e.Group.Path != "" && e.Group.Path != "/seq/0" || e.Option == nil || *e.Option != 0 || !strings.Contains(string(e.Expression), `"`+c.expression+`"`) {
 				t.Fatalf("private recipe load diagnostic: %v %+v", err, e)
@@ -84,12 +84,12 @@ func TestReviewPrivateRecipeExports(t *testing.T) {
 		`%rule text :: ∅ | $before:C (A ≻ B) := $before.value %emits $`,
 		`%rule text :: ∅ | (A ≻ B) $after:C := $after.image %emits ε := $.value`,
 	} {
-		if _, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+grammar), "p.md"); err != nil {
+		if _, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+grammar), "p.md"); err != nil {
 			t.Fatalf("common recipe capture: %v", err)
 		}
 	}
 	// Earlier local constructors still reject invalid recipe methods.
-	_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+`%rule text ($x:A ≻ B) := $x.tags %emits`), "p.md")
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+`%rule text ($x:A ≻ B) := $x.tags %emits`), "p.md")
 	var e *Error
 	if !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
 		t.Fatalf("local recipe constructor: %v", err)
@@ -144,7 +144,7 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 		t.Run(c.grammar, func(t *testing.T) {
 			grammar := c.grammar
 			sources := reviewSources(grammar, bundled.sources["data/preparsed/gencmu.json"])
-			_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
+			_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
 			var e *Error
 			sourceLine := strings.Split(grammar, "\n")[c.line-3]
 			column := strings.Index(sourceLine, c.receiver) + 1
@@ -152,7 +152,7 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 				t.Fatalf("fresh recipe position: %v", fresh)
 			}
 			sources["data/preparsed/test.json"] = reviewCache(t, sources)
-			_, cached := LoadDialectSources(sources, "grammars/test/p.md")
+			_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
 			}
@@ -175,7 +175,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	}
 	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["data/preparsed/gencmu.json"])
 	sources["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/main.md":{"hash":"` + fnv1a64(sources["grammars/test/main.md"]) + `","dom":` + string(dom.json()) + `}}}`
-	_, failure := LoadDialectSources(sources, "grammars/test/p.md")
+	_, failure := LoadPipelineSources(sources, "grammars/test/p.md")
 	var e *Error
 	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
 		t.Fatalf("cache semantics or location changed: %v", failure)
@@ -188,7 +188,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 		t.Fatal(loadErr)
 	}
 	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, preparsed: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
-	if _, err := l.dialect("grammars/test/p.md"); err != nil {
+	if _, err := l.pipeline("grammars/test/p.md"); err != nil {
 		t.Fatalf("valid cache reparsed: %v", err)
 	}
 }
@@ -218,13 +218,13 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			sources := reviewSources(c.grammar, bundled.sources["data/preparsed/gencmu.json"])
-			_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
+			_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
 			var e *Error
 			if !errors.As(fresh, &e) || e.Document != "grammars/test/main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
 				t.Fatalf("production order: %v", fresh)
 			}
 			sources["data/preparsed/test.json"] = reviewCache(t, sources)
-			_, cached := LoadDialectSources(sources, "grammars/test/p.md")
+			_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
 			if !reflect.DeepEqual(fresh, cached) {
 				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
 			}
@@ -238,13 +238,13 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 			"grammars/test/later.md":     block(`%extend-rule text := $.emitted.image | "c"`),
 			"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
 		}
-		_, fresh := LoadDialectSources(sources, "grammars/test/p.md")
+		_, fresh := LoadPipelineSources(sources, "grammars/test/p.md")
 		var e *Error
 		if !errors.As(fresh, &e) || e.Document != "grammars/test/earlier.md" || e.Line != 2 || e.Column != 16 {
 			t.Fatalf("document order: %v", fresh)
 		}
 		sources["data/preparsed/test.json"] = reviewCache(t, sources)
-		_, cached := LoadDialectSources(sources, "grammars/test/p.md")
+		_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
 		if !reflect.DeepEqual(fresh, cached) {
 			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)
 		}

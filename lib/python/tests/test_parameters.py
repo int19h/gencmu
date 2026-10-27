@@ -5,20 +5,20 @@ import json
 from pathlib import Path
 import unittest
 
-from gencmu._dialect import read_document
+from gencmu._pipeline import read_document
 from gencmu._templates import canonical_argument, expand_templates, template_audit
 from gencmu._validate import dom_problem
-from .shared import load_case_dialect, run_case
+from .shared import load_case_pipeline, run_case
 
 
 CASES = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameters.json').read_text())
 
 
 def grammar_of(text):
-    dialect, error = load_case_dialect(dict(grammar=text))
+    pipeline, error = load_case_pipeline(dict(grammar=text))
     if error:
         raise error
-    return dialect.grammars[0]
+    return pipeline.grammars[0]
 
 
 class Parameters(unittest.TestCase):
@@ -48,9 +48,9 @@ class Parameters(unittest.TestCase):
         self.assertEqual(list(grammar.rules), ['text', 'atom("a")', 'atom($A)'])
 
     def test_binding_adds_no_tree_node(self):
-        dialect, error = load_case_dialect(dict(grammar='%rule atom(@X) @X\n%rule text atom("a")\n%rule named = atom("a")'))
+        pipeline, error = load_case_pipeline(dict(grammar='%rule atom(@X) @X\n%rule text atom("a")\n%rule named = atom("a")'))
         self.assertIsNone(error)
-        tree = dialect.parse('a').tree
+        tree = pipeline.parse('a').tree
         self.assertEqual(tree.children[0].rule, 'named')
         self.assertEqual(tree.children[0].children[0].kind, 'token')
 
@@ -122,8 +122,8 @@ class Parameters(unittest.TestCase):
         self.assertTrue(all(p.elided_owner == 'tail(KU)' for p in productions))
 
     def test_cached_arguments_and_invalid_parameters(self):
-        from gencmu import load_dialect_sources
-        from gencmu._dialect import _Loader, _resources
+        from gencmu import load_pipeline_sources
+        from gencmu._pipeline import _Loader, _resources
         from .test_ranked import cached_sources, sources
         texts = sources('%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text = atom("a")')
         dom = read_document(texts['grammars/test/g.md'], 'g.md')
@@ -137,10 +137,10 @@ class Parameters(unittest.TestCase):
             loader = _Loader(lambda path: supplied.get(path), _resources(supplied))
             loader.dom('grammars/test/g.md')
             self.assertEqual(bool(loader.preparsed), valid)
-            self.assertTrue(load_dialect_sources(supplied, 'grammars/test/p.md').parse('a').ok)
+            self.assertTrue(load_pipeline_sources(supplied, 'grammars/test/p.md').parse('a').ok)
 
     def test_ranked_location_recovery_preserves_arrays(self):
-        from gencmu._dialect import _resources, _reader
+        from gencmu._pipeline import _resources, _reader
         from gencmu._model import Token
         from gencmu._ranked import restore_locations
         from gencmu._template_nodes import nodes
@@ -154,7 +154,7 @@ class Parameters(unittest.TestCase):
         self.assertEqual([n.ranked_at for n in nodes(located) if hasattr(n, 'ranked_at')], [(3, 42)])
 
     def test_ranked_body_argument_keeps_its_location_after_substitution(self):
-        from gencmu._dialect import _resources, _reader
+        from gencmu._pipeline import _resources, _reader
         from gencmu._model import Token
         from gencmu._ranked import restore_locations, expression_locations
         found = _resources()
@@ -198,12 +198,12 @@ class ParameterStructure(unittest.TestCase):
                     continue
                 dom = case.get('dom') or read_document('```jbogenbau\n' + case['grammar'] + '\n```')
                 if case.get('cacheFallback'):
-                    from gencmu import load_dialect_sources
+                    from gencmu import load_pipeline_sources
                     from .test_ranked import cached_sources, sources
                     self.assertIsNotNone(dom_problem(dom, unicode))
                     texts = sources('%ambiguity-resolution greedy\n' + case['grammar'])
                     supplied = cached_sources(texts, dom)
-                    self.assertTrue(load_dialect_sources(supplied, 'grammars/test/p.md').parse(case['input']).ok)
+                    self.assertTrue(load_pipeline_sources(supplied, 'grammars/test/p.md').parse(case['input']).ok)
                     continue
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:

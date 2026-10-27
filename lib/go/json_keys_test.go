@@ -83,7 +83,7 @@ func TestSharedJSONKeys(t *testing.T) {
 		t.Run(item.Description, func(t *testing.T) {
 			s := sources()
 			s["data/preparsed/gencmu.json"] = mutate(string(bundled), item.Find, item.Replace)
-			d, err := LoadDialectSources(s, "p.md")
+			d, err := LoadPipelineSources(s, "p.md")
 			if item.Loads {
 				if err != nil {
 					t.Fatal(err)
@@ -136,7 +136,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				}
 				family[key] = value
 			}
-			d, err := LoadDialectSources(family, "grammars/test/p.md")
+			d, err := LoadPipelineSources(family, "grammars/test/p.md")
 			if item.Error != nil {
 				e, ok := err.(*Error)
 				if !ok || e.Kind != ErrorGrammar || e.Document != item.Error.Document || e.Line != item.Error.Line {

@@ -18,12 +18,12 @@ import (
 // The shared Lojban corpus (tests/README.md, "Corpus cases"): the core
 // sample by default, every case with GENCMU_CORPUS=full. Cases run on
 // GENCMU_CORPUS_WORKERS goroutines (the number of CPUs by default), which
-// share one *Dialect per dialect.
+// share one *Pipeline per pipeline.
 
 type corpusCase struct {
 	ID              string         `json:"id"`
 	Text            string         `json:"text"`
-	Dialect         string         `json:"dialect"`
+	Pipeline         string         `json:"pipeline"`
 	Features        []string       `json:"features"`
 	WithoutFeatures []string       `json:"withoutFeatures"`
 	fields          map[string]any // the fields compared
@@ -79,7 +79,7 @@ func readCorpus(t *testing.T) []*corpusCase {
 }
 
 // corpusOutcome is what gencmu makes of a case, in the case's own terms.
-func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
+func corpusOutcome(d *Pipeline, c *corpusCase) (map[string]any, error) {
 	return corpusOutcomeLosing(d, c, "")
 }
 
@@ -87,7 +87,7 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 // the witness of each check of elision-only, or "" for none. A result with
 // the error elision-witness-lost fails, whatever the case expects, and so
 // does a check that did not keep its witness (tests/README.md).
-func corpusOutcomeLosing(d *Dialect, c *corpusCase, lose string) (map[string]any, error) {
+func corpusOutcomeLosing(d *Pipeline, c *corpusCase, lose string) (map[string]any, error) {
 	opts := ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures}
 	log := withChecks(&opts)
 	opts.private.slotAdmission = func(stats slotStatistics) {
@@ -169,7 +169,7 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 
 // The corpus runner refuses a result that breaks an invariant, whatever the
 // case expects: each shared mutant (tests/README.md, "Result mutants"). No
-// text ties in a bundled dialect, so the tied corpus cases, if any, only
+// text ties in a bundled pipeline, so the tied corpus cases, if any, only
 // pass as they are.
 func TestCorpusRunnerInvariants(t *testing.T) {
 	for _, m := range loadResultMutants(t) {
@@ -183,18 +183,18 @@ func TestCorpusRunnerInvariants(t *testing.T) {
 			t.Errorf("%s: the corpus runner accepts it", m.Name)
 		}
 	}
-	dialects := map[string]*Dialect{}
+	pipelines := map[string]*Pipeline{}
 	for _, c := range readCorpus(t) {
 		if _, ok := c.fields["ties"]; !ok {
 			continue
 		}
-		d := dialects[c.Dialect]
+		d := pipelines[c.Pipeline]
 		if d == nil {
 			var err error
-			if d, err = LoadDialect(c.Dialect); err != nil {
+			if d, err = LoadPipeline(c.Pipeline); err != nil {
 				t.Fatal(err)
 			}
-			dialects[c.Dialect] = d
+			pipelines[c.Pipeline] = d
 		}
 		if f := checkCorpusCase(d, c); f != "" {
 			t.Fatal(f)
@@ -225,14 +225,14 @@ func TestCorpus(t *testing.T) {
 		}
 		cases = sample
 	}
-	dialects := map[string]*Dialect{}
+	pipelines := map[string]*Pipeline{}
 	for _, c := range cases {
-		if dialects[c.Dialect] == nil {
-			d, err := LoadDialect(c.Dialect)
+		if pipelines[c.Pipeline] == nil {
+			d, err := LoadPipeline(c.Pipeline)
 			if err != nil {
-				t.Fatalf("%s: %v", c.Dialect, err)
+				t.Fatalf("%s: %v", c.Pipeline, err)
 			}
-			dialects[c.Dialect] = d
+			pipelines[c.Pipeline] = d
 		}
 	}
 	// The longest texts first, so that the pool is not left waiting on one.
@@ -274,7 +274,7 @@ func TestCorpus(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for c := range jobs {
-				failure := checkCorpusCase(dialects[c.Dialect], c)
+				failure := checkCorpusCase(pipelines[c.Pipeline], c)
 				if failure != "" {
 					mu.Lock()
 					failures = append(failures, failure)
@@ -303,7 +303,7 @@ func TestCorpus(t *testing.T) {
 	}
 }
 
-func checkCorpusCase(d *Dialect, c *corpusCase) (failure string) {
+func checkCorpusCase(d *Pipeline, c *corpusCase) (failure string) {
 	defer func() {
 		if x := recover(); x != nil {
 			failure = fmt.Sprintf("%s: panic: %v", c.ID, x)
@@ -327,7 +327,7 @@ func checkCorpusCase(d *Dialect, c *corpusCase) (failure string) {
 			if !inGot {
 				h = "(absent)"
 			}
-			return fmt.Sprintf("%s (%s): %s expected %s, got %s", c.ID, c.Dialect, k, w, h)
+			return fmt.Sprintf("%s (%s): %s expected %s, got %s", c.ID, c.Pipeline, k, w, h)
 		}
 	}
 	return ""

@@ -8,7 +8,7 @@ The minimum supported Rust version is 1.75.
 
 ```rust
 // in a function that returns Result<_, gencmu::Error>
-let dialect = gencmu::load_dialect("lojban/cll")?;
+let dialect = gencmu::load_pipeline("lojban/cll")?;
 let result = dialect.parse("mi klama le zarci", &gencmu::ParseOptions::default())?;
 if result.ok {
     println!("{}", gencmu::to_brackets(&result, true));
@@ -22,7 +22,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Loading a dialect
 
-`load_dialect(name)` loads a bundled dialect, the pipeline document `grammars/NAME/pipeline.md`. `load_dialect_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_dialect_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.
+`load_pipeline(name)` loads a bundled dialect, the pipeline document `grammars/NAME/pipeline.md`. `load_pipeline_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_pipeline_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.
 
 ## Parsing
 
@@ -61,7 +61,7 @@ The method `.decomposed-source-text` decomposes the original source text of a sp
 
 Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The dialect loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
 
-`Dialect` is `Send` and `Sync`, so threads can share one dialect freely.
+`Pipeline` is `Send` and `Sync`, so threads can share one dialect freely.
 
 ## Tools
 

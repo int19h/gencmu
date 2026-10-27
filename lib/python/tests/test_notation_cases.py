@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, _Loader, _Resources, _resources, read_document
+from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, read_document
 from gencmu._hash import fnv1a64
 
 from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, write_json
@@ -112,10 +112,10 @@ class NotationTies(unittest.TestCase):
         error = caught.exception
         self.assertEqual((error.kind, error.document, error.line, error.column), ("grammar", "t.md", None, None))
         self.assertEqual(str(error), "t.md: the grammar text is ambiguous: the syntax stage of the notation reads it in two ways")
-        # A dialect whose document ties in the notation does not load, with
+        # A pipeline whose document ties in the notation does not load, with
         # the same error.
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_sources({**sources, "t.md": "```jbogenbau\na\n```\n"}, "t.md", use_cache=False)
+            gencmu.load_pipeline_sources({**sources, "t.md": "```jbogenbau\na\n```\n"}, "t.md", use_cache=False)
         error = caught.exception
         self.assertEqual((error.kind, error.document, error.line, error.column), ("grammar", "t.md", None, None))
 

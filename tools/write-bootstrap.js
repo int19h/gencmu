@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument, readResource } from "./bootstrap-reader.js";
 import { splicePipeline } from "../lib/js/src/splice.js";
-import { Loader } from "../lib/js/src/dialect.js";
+import { Loader } from "../lib/js/src/pipeline.js";
 import { fnv1a64 } from "../lib/js/src/hash.js";
 import { BOOTSTRAP_PATH, NOTATION_PATH } from "../lib/js/src/resources.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";

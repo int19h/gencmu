@@ -1,5 +1,5 @@
 {
-  "description": "A recipe cannot read a preceding span. (Engine \u00a74.4.)",
+  "description": "A recipe cannot read a preceding span. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

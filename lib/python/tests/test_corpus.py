@@ -2,7 +2,7 @@
 
 The core sample of tests/core.txt runs by default; GENCMU_CORPUS=full runs
 every case. Each case is a separate unittest method, which pytest-xdist schedules.
-Each worker caches its bundled dialects. GENCMU_CORPUS_REPORT names a file
+Each worker caches its bundled pipelines. GENCMU_CORPUS_REPORT names a file
 that records every case's outcome and time.
 """
 
@@ -20,7 +20,7 @@ from .shared import (
     SHARED,
     apply_mutant,
     load_case,
-    load_case_dialect,
+    load_case_pipeline,
     parse_case,
     parse_checked,
     read_json,
@@ -32,7 +32,7 @@ from .shared import (
 
 FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
-_dialects: dict[str, Any] = {}
+_pipelines: dict[str, Any] = {}
 
 
 def all_cases() -> list[dict[str, Any]]:
@@ -56,13 +56,13 @@ def outcome(
     import gencmu
 
     if result is None:
-        dialect = _dialects.get(case["dialect"])
-        if dialect is None:
-            dialect = _dialects[case["dialect"]] = gencmu.load_dialect(case["dialect"])
+        pipeline = _pipelines.get(case["pipeline"])
+        if pipeline is None:
+            pipeline = _pipelines[case["pipeline"]] = gencmu.load_pipeline(case["pipeline"])
         # Every check of elision-only that ran keeps its witness
         # (tests/README.md).
         result = parse_checked(
-            lambda: dialect.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
+            lambda: pipeline.parse(case["text"], features=case.get("features", []), without_features=case.get("withoutFeatures", []))
         )
     # A tied stage emits nothing and ends the run with its error
     # (tests/README.md).
@@ -115,7 +115,7 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
         if key not in case and key not in got:
             continue
         if case.get(key) != got.get(key):
-            return f"{case['id']} ({case['dialect']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
+            return f"{case['id']} ({case['pipeline']}): {key} expected {write_json(case.get(key))}, got {write_json(got.get(key))}"
     return None
 
 
@@ -163,14 +163,14 @@ class Corpus(unittest.TestCase):
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
         """The runner checks the invariants on the canonical result of each
         corpus case, and refuses each shared mutant (tests/README.md,
-        "Result mutants"). No text ties in a bundled dialect, so the tied
+        "Result mutants"). No text ties in a bundled pipeline, so the tied
         corpus cases, if any, only pass as they are."""
         for mutant in result_mutants():
             with self.subTest(mutant=mutant["name"]):
-                dialect, load_error = load_case_dialect(mutant["engine_case"])
+                pipeline, load_error = load_case_pipeline(mutant["engine_case"])
                 self.assertIsNone(load_error)
-                assert dialect is not None
-                result = parse_case(dialect, mutant["engine_case"])[1]
+                assert pipeline is not None
+                result = parse_case(pipeline, mutant["engine_case"])[1]
                 assert result is not None
                 outcome({}, result=result)
                 with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
@@ -191,7 +191,7 @@ class Corpus(unittest.TestCase):
 
         from .shared import WitnessLost
 
-        case = {"id": "lost", "dialect": "lojban/cll", "text": "le sutra tavla"}
+        case = {"id": "lost", "pipeline": "lojban/cll", "text": "le sutra tavla"}
         clean = outcome(case)
         self.assertEqual(clean.get("verdict"), "resolved")
         reconstruct = _stage._reconstruct
@@ -203,9 +203,9 @@ class Corpus(unittest.TestCase):
 
         with mock.patch.object(_stage, "_reconstruct", no_roots), self.assertRaises(WitnessLost):
             outcome(case)
-        dialect = _dialects["lojban/cll"]
+        pipeline = _pipelines["lojban/cll"]
         with mock.patch.object(_stage, "_rank_check", lambda forest, marks=None: None):
-            result = dialect.parse(case["text"])
+            result = pipeline.parse(case["text"])
         with self.assertRaisesRegex(AssertionError, "elision-witness-lost"):
             outcome(case, result=result)
 

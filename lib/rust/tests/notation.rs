@@ -130,14 +130,14 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
         ("grammars/test/p.md", pipeline.to_string()),
         ("grammars/test/t.md", "```jbogenbau\na\n```\n".to_string()),
     ];
-    let error = gencmu::load_dialect_sources(sources, "grammars/test/p.md").expect_err("a tie");
+    let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a tie");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{error}");
     assert_eq!(
         (error.document.as_deref(), error.line, error.column),
         (Some("grammars/test/t.md"), None, None),
         "{error}"
     );
-    // The loader names the stage of the dialect that includes t.md, and
+    // The loader names the stage of the pipeline that includes t.md, and
     // the message names the stage of the notation.
     assert_eq!(error.stage.as_deref(), Some("main"));
     assert_eq!(error.message, "the grammar text is ambiguous: the syntax stage of the notation reads it in two ways");

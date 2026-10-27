@@ -217,7 +217,7 @@ func TestWithoutElisionSharedDoublingBound(t *testing.T) {
 			}
 			c := *fixture
 			c.Grammar = &grammar
-			d, err := caseDialect(&c, true)
+			d, err := casePipeline(&c, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -236,7 +236,7 @@ func TestWithoutElisionSharedDoublingBound(t *testing.T) {
 		c := loadCase(t, filepath.Join("../../tests/engine", file))
 		grammar := *c.Grammar + "\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε"
 		c.Grammar = &grammar
-		d, err := caseDialect(c, true)
+		d, err := casePipeline(c, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -288,7 +288,7 @@ func TestWithoutElisionUndemandedRankedSibling(t *testing.T) {
 				rules = strings.ReplaceAll(rules, "$x.without-elision", "$x")
 			}
 			c.Grammar = &rules
-			d, err := caseDialect(&c, true)
+			d, err := casePipeline(&c, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -360,7 +360,7 @@ func TestWithoutElisionCallerScope(t *testing.T) {
 	}
 	for _, shared := range []bounds{growth.CallerScope, growth.ImpossiblePrefix} {
 		fixture := loadCase(t, filepath.Join("../../tests", shared.Case))
-		d, err := caseDialect(fixture, true)
+		d, err := casePipeline(fixture, true)
 		if err != nil {
 			t.Fatal(err)
 		}

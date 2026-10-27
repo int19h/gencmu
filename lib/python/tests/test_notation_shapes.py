@@ -29,7 +29,7 @@ def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | Non
     inputs = SHAPES["inputs"] if inputs is None else inputs
     sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document, "data/preparsed/gencmu.json": bootstrap}
     try:
-        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
     except gencmu.GencmuError as error:
         if where is not None:
             found = {"document": error.document, "line": error.line, "column": error.column}
@@ -38,7 +38,7 @@ def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | Non
     assert where is None, "the document loaded, but the item gives where its error stands"
     results = []
     for text in inputs:
-        result = dialect.parse(text)
+        result = pipeline.parse(text)
         if result.ok:
             results.append(gencmu.to_brackets(result))
         else:
@@ -112,9 +112,9 @@ class NotationShapes(unittest.TestCase):
             }
 
         # The bundled bootstrap loads the same documents.
-        gencmu.load_dialect_sources(sources(bootstrap), "p.md", use_cache=False)
+        gencmu.load_pipeline_sources(sources(bootstrap), "p.md", use_cache=False)
         with self.assertRaises(gencmu.GencmuError) as raised:
-            gencmu.load_dialect_sources(sources(elision), "p.md", use_cache=False)
+            gencmu.load_pipeline_sources(sources(elision), "p.md", use_cache=False)
         self.assertEqual(raised.exception.kind, "grammar")
         self.assertIsNone(raised.exception.line)
         self.assertIn("lexical stage of the notation", raised.exception.message)

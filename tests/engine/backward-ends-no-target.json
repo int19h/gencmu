@@ -1,5 +1,5 @@
 {
-  "description": "A suffix query requires a nonempty target choice. (Engine \u00a74.4.)",
+  "description": "A suffix query requires a nonempty target choice. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

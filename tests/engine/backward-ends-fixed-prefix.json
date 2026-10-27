@@ -1,5 +1,5 @@
 {
-  "description": "A suffix target sees the preceding tokens of the whole window. (Engine \u00a74.4.)",
+  "description": "A suffix target sees the preceding tokens of the whole window. (Engine §4.4.)",
   "grammar": "%rule text A B\n%conditions $.ends(tail)\n%rule tail B\n%conditions $.preceding-tokens.value = \"a\"",
   "tokens": [
     {

@@ -146,7 +146,7 @@ for (const file of grammarFiles()) {
   read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
 }
 // Whether a test on an elided terminator allows its omission, in each
-// stage of each dialect that reads the document. With no such test, this
+// stage of each pipeline that reads the document. With no such test, this
 // costs nothing.
 const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
@@ -277,7 +277,7 @@ if (parserMissing && check) {
     console.error(badCllFootnotes.join("\n"));
     process.exit(1);
   }
-  // The DOMs and the dialects of the sources, as this run reads them.
+  // The DOMs and the pipelines of the sources, as this run reads them.
   const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));

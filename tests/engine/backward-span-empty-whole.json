@@ -1,5 +1,5 @@
 {
-  "description": "An empty whole constituent reads the prefix at its position. (Engine \u00a74.4.)",
+  "description": "An empty whole constituent reads the prefix at its position. (Engine §4.4.)",
   "grammar": "%rule text A nothing B\n%rule nothing \u03b5\n%conditions $.preceding-tokens.last-token.value = \"a\"",
   "tokens": [
     {

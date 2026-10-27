@@ -2,13 +2,13 @@
 
 The JavaScript library of gencmu parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these documents at runtime. An API is the operations that a library exposes. The library needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
 
-`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadDialectSources`. `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
+`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadPipelineSources`. `gencmu/node` adds `loadPipeline`, for the grammars shipped with the package, and `loadPipelineFile`, for a pipeline document on disk.
 
 ```js
-import { loadDialect } from "gencmu/node";
+import { loadPipeline } from "gencmu/node";
 import { toBrackets } from "gencmu";
 
-const dialect = loadDialect("lojban/cll");
+const dialect = loadPipeline("lojban/cll");
 const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```

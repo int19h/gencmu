@@ -1,5 +1,5 @@
 {
-  "description": "An uncalled template still rejects a restored suffix receiver. (Engine \u00a74.4.)",
+  "description": "An uncalled template still rejects a restored suffix receiver. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

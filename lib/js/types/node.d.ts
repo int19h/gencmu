@@ -1,4 +1,4 @@
-import { Loader, Dialect } from "./dialect.js";
+import { Loader, Pipeline } from "./pipeline.js";
 export * from "./index.js";
 /** @returns {string} */
 export declare function bundledGrammarsDirectory(): string;
@@ -8,28 +8,34 @@ export declare function bundledGrammarsDirectory(): string;
  */
 export declare function loaderFromDirectory(directory?: string): Loader;
 /**
- * A bundled dialect by name: `grammars/NAME/pipeline.md`.
+ * A bundled pipeline by name: `grammars/NAME/pipeline.md`.
  * @param {string} name
- * @returns {Dialect}
+ * @returns {Pipeline}
  */
-export declare function loadDialect(name: string): Dialect;
+export declare function loadPipeline(name: string): Pipeline;
 /**
- * A dialect from a pipeline document on disk; its grammar documents are
+ * Lists the package's pipelines, or those of a supplied source map.
+ * @param {Map<string,string> | Record<string,string>} [sources]
+ * @returns {string[]}
+ */
+export declare function bundledPipelines(sources?: Map<string, string> | Record<string, string>): string[];
+/**
+ * A pipeline from a pipeline document on disk; its grammar documents are
  * found relative to it, and the Unicode table and the bootstrap come from
  * the bundled grammars. Each document is known by its absolute path, with
  * `/` between the parts, so an error names the file wherever the process
  * runs.
  * @param {string} file
- * @returns {Dialect}
+ * @returns {Pipeline}
  */
-export declare function loadDialectFile(file: string): Dialect;
+export declare function loadPipelineFile(file: string): Pipeline;
 /**
- * A dialect from documents held in memory, a map or a plain object from path
+ * A pipeline from documents held in memory, a map or a plain object from path
  * to text, and the path of the pipeline document among them. The Unicode
  * table, the bootstrap and the preparsed DOMs come from the bundled
  * grammars unless the map has its own.
  * @param {Map<string, string> | Record<string, string>} sources
  * @param {string} pipelinePath
- * @returns {Dialect}
+ * @returns {Pipeline}
  */
-export declare function loadDialectSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): Dialect;
+export declare function loadPipelineSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): Pipeline;

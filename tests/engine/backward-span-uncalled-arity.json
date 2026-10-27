@@ -1,5 +1,5 @@
 {
-  "description": "An uncalled template still enforces the fixed arity of preceding-tokens. (Engine \u00a74.4.)",
+  "description": "An uncalled template still enforces the fixed arity of preceding-tokens. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

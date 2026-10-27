@@ -36,12 +36,12 @@ fn shared_json_keys() {
     for case in fixtures.get("bootstrap").unwrap().array() {
         let mut sources = sources();
         sources.insert("data/preparsed/gencmu.json".into(), mutate(&bundled, case));
-        let outcome = gencmu::load_dialect_sources(sources, "p.md");
+        let outcome = gencmu::load_pipeline_sources(sources, "p.md");
         // The shared case records Rust's existing integer limit explicitly.
         let loads = flag(case, if case.get("rustLoads").is_some() { "rustLoads" } else { "loads" });
         if loads {
-            let dialect = outcome.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
-            assert!(dialect.parse("a", &Default::default()).unwrap().ok, "{}", text(case, "description"));
+            let pipeline = outcome.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
+            assert!(pipeline.parse("a", &Default::default()).unwrap().ok, "{}", text(case, "description"));
         } else {
             let e = outcome.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
             assert_eq!(
@@ -86,7 +86,7 @@ fn shared_json_keys() {
                 );
             }
         }
-        let result = gencmu::load_dialect_sources(sources, "grammars/test/p.md");
+        let result = gencmu::load_pipeline_sources(sources, "grammars/test/p.md");
         if let Some(expected) = case.get("error") {
             let error = result.err().unwrap_or_else(|| panic!("{} loaded", text(case, "description")));
             assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
@@ -94,11 +94,11 @@ fn shared_json_keys() {
             assert_eq!(error.line, expected.get("line").map(|v| v.number().unwrap() as usize));
             continue;
         }
-        let dialect = result.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
-        assert_eq!(dialect.parse("a", &Default::default()).unwrap().ok, !cached, "{}", text(case, "description"));
-        assert_eq!(dialect.parse("b", &Default::default()).unwrap().ok, cached, "{}", text(case, "description"));
+        let pipeline = result.unwrap_or_else(|e| panic!("{}: {e}", text(case, "description")));
+        assert_eq!(pipeline.parse("a", &Default::default()).unwrap().ok, !cached, "{}", text(case, "description"));
+        assert_eq!(pipeline.parse("b", &Default::default()).unwrap().ok, cached, "{}", text(case, "description"));
         if let Some(tags) = case.get("tags") {
-            let result = dialect.parse("b", &Default::default()).unwrap();
+            let result = pipeline.parse("b", &Default::default()).unwrap();
             let actual: Vec<_> = result.tree.as_ref().unwrap().tags.iter().cloned().collect();
             let expected: Vec<_> = tags.array().iter().map(|tag| tag.str().unwrap().to_owned()).collect();
             assert_eq!(actual, expected, "{}", text(case, "description"));

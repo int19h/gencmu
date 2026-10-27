@@ -3888,15 +3888,15 @@ mod tests {
             ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let chars: Vec<char> = Vec::new();
         // The tokens and the terms are made apart, so that only their
         // evaluation is counted.
         let mut made: Vec<_> = [10_000usize, 40_000]
             .into_iter()
             .map(|n| {
-                let mut shared = Shared::new(&dialect.unicode, &chars);
+                let mut shared = Shared::new(&pipeline.unicode, &chars);
                 // Names that share their first byte, which the table's hash
                 // must still spread (fxhash.rs).
                 let names: Vec<String> = (0..n).map(|index| format!("t{index}")).collect();
@@ -3944,8 +3944,8 @@ mod tests {
         });
     }
 
-    /// A dialect of one production of n captures with a condition at each.
-    fn condition_at_each_capture(n: usize) -> crate::Dialect {
+    /// A pipeline of one production of n captures with a condition at each.
+    fn condition_at_each_capture(n: usize) -> crate::Pipeline {
         let names: Vec<String> = (0..n).map(|index| format!("$c{index}:\"a\"")).collect();
         let conditions: Vec<String> = (0..n).map(|index| format!("($c{index}).source-text = \"a\"")).collect();
         let grammar = format!(
@@ -3954,7 +3954,7 @@ mod tests {
             conditions.join(", ")
         );
         let sources = [("g.md", grammar), ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string())];
-        crate::load_dialect_sources(sources, "p.md").expect("the dialect")
+        crate::load_pipeline_sources(sources, "p.md").expect("the pipeline")
     }
 
     /// A production of n captures with a condition at each finds the
@@ -3963,13 +3963,13 @@ mod tests {
     #[test]
     fn each_dot_finds_its_conditions_at_once() {
         for n in [200usize, 800] {
-            let dialect = condition_at_each_capture(n);
+            let pipeline = condition_at_each_capture(n);
             reset();
             budget(Work::Conditions, 4 * n as u64 + 8);
-            let result = dialect.parse(&"a".repeat(n), &crate::ParseOptions::default()).expect("a result");
+            let result = pipeline.parse(&"a".repeat(n), &crate::ParseOptions::default()).expect("a result");
             assert!(result.ok, "{n} captures");
             let steps = counted(Work::Conditions);
-            // The next dialect's grammar is read with no budget.
+            // The next pipeline's grammar is read with no budget.
             reset();
             assert!(steps <= 4 * n as u64 + 8, "{steps} conditions looked at for {n} captures");
         }
@@ -3981,11 +3981,11 @@ mod tests {
     #[test]
     fn scanning_every_condition_stops_at_the_budget() {
         let n = 800;
-        let dialect = condition_at_each_capture(n);
+        let pipeline = condition_at_each_capture(n);
         let text = "a".repeat(n);
         let _mutation = Mutation::on(Mutant::ScanConditions);
         assert_stops(Work::Conditions, 4 * n as u64 + 8, || {
-            let _ = dialect.parse(&text, &crate::ParseOptions::default());
+            let _ = pipeline.parse(&text, &crate::ParseOptions::default());
         });
     }
 
@@ -3997,11 +3997,11 @@ mod tests {
             ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let chars: Vec<char> = Vec::new();
         assert_linear(Work::Listed, 20_000, &mut |n| {
-            let mut shared = Shared::new(&dialect.unicode, &chars);
+            let mut shared = Shared::new(&pipeline.unicode, &chars);
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
             let names: Vec<String> = (0..n).map(|i| format!("Tag-{i}")).collect();
@@ -4041,12 +4041,12 @@ mod tests {
             ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let t = g.rules.iter().position(|rule| rule.name == "t" && !rule.helper).expect("t") as u32;
         let pair = g.prods.iter().position(|prod| prod.rule == t && prod.syms.len() == 2).expect("t's pair") as u32;
         let chars: Vec<char> = vec![' '; n * 2];
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = (0..n)
             .map(|index| Tok {
                 text: "a".to_string(),
@@ -4080,8 +4080,8 @@ mod tests {
         }
     }
 
-    /// A dialect of one grammar document `g.md`, written in a single block.
-    fn single(rules: &str) -> crate::Dialect {
+    /// A pipeline of one grammar document `g.md`, written in a single block.
+    fn single(rules: &str) -> crate::Pipeline {
         single_document(&format!("%ambiguity-resolution greedy\n{rules}"))
     }
 
@@ -4100,10 +4100,10 @@ mod tests {
             let string = |name: &str| case.get(name).and_then(crate::json::Json::as_str).expect(name).to_string();
             let count = case.get("count").and_then(crate::json::Json::as_int).expect("count") as usize;
             let (name, grammar) = (string("name"), string("grammar"));
-            let dialect = single_document(&grammar);
+            let pipeline = single_document(&grammar);
             let text = format!("{}{}", string("link").repeat(count), string("suffix"));
             let options = crate::ParseOptions::default();
-            let result = dialect.parse(&text, &options).expect("a result");
+            let result = pipeline.parse(&text, &options).expect("a result");
             assert!(result.ok, "{name}: {:?}", result.error);
         }
     }
@@ -4132,27 +4132,27 @@ mod tests {
                 string("tail"),
                 each("rule").concat()
             );
-            let dialect = single_document(&grammar);
+            let pipeline = single_document(&grammar);
             let options = crate::ParseOptions::default();
             reset();
             budget(Work::Visits, most * count);
-            let result = dialect.parse(&string("text"), &options).expect("a result");
+            let result = pipeline.parse(&string("text"), &options).expect("a result");
             let visits = counted(Work::Visits);
-            // The next dialect's grammar is read with no budget.
+            // The next pipeline's grammar is read with no budget.
             reset();
             assert!(result.ok, "{}: {:?}", string("name"), result.error);
             assert!(visits > 0, "{}: no visits counted", string("name"));
         }
     }
 
-    /// A dialect of one grammar document `g.md` whose block holds `rules`
+    /// A pipeline of one grammar document `g.md` whose block holds `rules`
     /// as they are, its directives included.
-    fn single_document(rules: &str) -> crate::Dialect {
+    fn single_document(rules: &str) -> crate::Pipeline {
         let sources = [
             ("g.md", format!("```jbogenbau\n{rules}\n```\n")),
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
         ];
-        crate::load_dialect_sources(sources, "p.md").expect("the dialect")
+        crate::load_pipeline_sources(sources, "p.md").expect("the pipeline")
     }
 
     /// One production of C captures over C tokens: each item shares the
@@ -4166,7 +4166,7 @@ mod tests {
             let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             // A tag term that reads every capture, the first last.
             let tags: Vec<String> = (0..count).map(|index| format!("($c{}).tags", count - 1 - index)).collect();
-            let dialect = single(&format!(
+            let pipeline = single(&format!(
                 "%rule text :: Tag-x ∪ {} |  {}\n%conditions $c0.source-text = \"a\"",
                 tags.join(" ∪ "),
                 names.join(" ")
@@ -4177,12 +4177,12 @@ mod tests {
             budget(Work::CaptureSteps, steps);
             // An entry past the bound stops the parse as it is stored.
             budget(Work::Captures, count as u64);
-            let result = dialect.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
+            let result = pipeline.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
             assert!(result.ok, "{count} captures");
             assert_eq!(counted(Work::Captures), count as u64, "{count} captures");
             assert!(counted(Work::Items) <= items, "{} items for {count} captures", counted(Work::Items));
             assert!(counted(Work::CaptureSteps) <= steps, "{} steps for {count} captures", counted(Work::CaptureSteps));
-            // The next dialect's grammar is read with no budget.
+            // The next pipeline's grammar is read with no budget.
             reset();
         }
     }
@@ -4194,11 +4194,11 @@ mod tests {
     fn storing_each_prefix_again_stops_at_the_bound() {
         let count = 100usize;
         let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
-        let dialect = single(&format!("%rule text {}", names.join(" ")));
+        let pipeline = single(&format!("%rule text {}", names.join(" ")));
         let text = "a".repeat(count);
         let _copying = Copying::on();
         assert_stops(Work::Captures, count as u64, || {
-            let _ = dialect.parse(&text, &crate::ParseOptions::default());
+            let _ = pipeline.parse(&text, &crate::ParseOptions::default());
         });
     }
 
@@ -4245,10 +4245,10 @@ mod tests {
             ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let chars: Vec<char> = vec!['a'; n];
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         let tokens: Vec<Tok> = (0..n)
             .map(|index| Tok {
                 text: "a".to_string(),
@@ -4302,10 +4302,10 @@ mod tests {
             ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let chars: Vec<char> = vec!['a'; 4000];
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         let matchers = matchers(&g, &mut shared.tags);
         let recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
         assert_linear(Work::Spanned, 1000, &mut |n| {
@@ -4322,7 +4322,7 @@ mod tests {
                     after: Vec::new(),
                 })
                 .collect();
-            mark_quiet(&mut tokens, &dialect.unicode);
+            mark_quiet(&mut tokens, &pipeline.unicode);
             for start in 0..n {
                 assert_eq!(recognizer.value(&tokens, start, n), "a");
             }
@@ -4339,10 +4339,10 @@ mod tests {
             ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let pipeline = crate::load_pipeline_sources(sources, "p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let chars: Vec<char> = Vec::new();
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         // The tags, the strings and the terms are made apart, so that only
         // their evaluation is counted.
         let made: Vec<_> = [1000usize, 4000]
@@ -4388,13 +4388,13 @@ mod tests {
             let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             let conditions: Vec<String> =
                 (0..count).map(|index| format!("($c{index}).source-text = ({}).source-text", far(index))).collect();
-            let dialect = single(&format!("%rule text {}\n%conditions {}", names.join(" "), conditions.join(", ")));
+            let pipeline = single(&format!("%rule text {}\n%conditions {}", names.join(" "), conditions.join(", ")));
             reset();
             budget(Work::CaptureSteps, most);
-            let result = dialect.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
+            let result = pipeline.parse(&"a".repeat(count), &crate::ParseOptions::default()).expect("a result");
             assert!(result.ok, "{count} captures");
             let steps = counted(Work::CaptureSteps);
-            // The next dialect's grammar is read with no budget.
+            // The next pipeline's grammar is read with no budget.
             reset();
             steps
         };

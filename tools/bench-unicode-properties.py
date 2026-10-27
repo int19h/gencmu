@@ -202,14 +202,14 @@ def main():
     cases = []
     for path in sorted((baseline / "tests/corpus").glob("*.jsonl")):
         cases.extend(case for line in path.read_text().splitlines() if line.strip()
-                     if (case := json.loads(line))["dialect"] == "lojban/cll")
+                     if (case := json.loads(line))["pipeline"] == "lojban/cll")
     cases.sort(key=lambda case: case["id"].encode("ascii"))
     if len(cases) < 400 or len({c["id"] for c in cases}) != len(cases):
         raise ValueError("The baseline requires 400 distinct cll-ebnf IDs")
     candidate_cases = {}
     for path in (ROOT / "tests/corpus").glob("*.jsonl"):
         for line in path.read_text().splitlines():
-            if line.strip() and (case := json.loads(line))["dialect"] == "lojban/cll":
+            if line.strip() and (case := json.loads(line))["pipeline"] == "lojban/cll":
                 candidate_cases[case["id"]] = case
     for case in cases:
         other = candidate_cases.get(case["id"])
@@ -276,7 +276,7 @@ def main():
             for key, sources in [("corpus", "-"), ("forward", source)]:
                 loaded = [worker.request("load", key, sources) for worker in workers]
                 if loaded[0] != loaded[1]:
-                    raise ValueError(library + ": incompatible dialect features")
+                    raise ValueError(library + ": incompatible pipeline features")
             for name, inputs in workloads.items():
                 if "passed" in record["workloads"].get(name, {}):
                     continue

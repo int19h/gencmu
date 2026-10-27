@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readDocument } from "./bootstrap-reader.js";
 import fs from "node:fs";
-import { Loader } from "../lib/js/src/dialect.js";
+import { Loader } from "../lib/js/src/pipeline.js";
 
 const read = (source) => readDocument(`\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`, "case.md");
 

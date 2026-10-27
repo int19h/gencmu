@@ -1,5 +1,5 @@
 {
-  "description": "A suffix query requires a capture or span. (Engine \u00a74.4.)",
+  "description": "A suffix query requires a capture or span. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",

@@ -1,4 +1,4 @@
-# The Zantufa dialect
+# The Zantufa pipeline
 
 The dialect follows Guskant's Zantufa 1.9999, a PEG (parsing expression grammar) of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, a PEG grammar of Lojban. It has no termsets and no `tense` rule, and most tense words are modals. Free modifiers can follow almost any word, and a statement can take terms after it.
 
