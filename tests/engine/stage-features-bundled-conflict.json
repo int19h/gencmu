@@ -43,5 +43,5 @@
   "documents": {
     "p.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },
-  "pipeline": "p.md"
+  "pipelineDocument": "p.md"
 }

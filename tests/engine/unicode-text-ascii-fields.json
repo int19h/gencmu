@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
     "unicode.txt": " \tunicode\t15.1.0 \t\n \t\n\twhite-space  0009\t000D \nwhite-space\t0020\t0020"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "result": {

@@ -14059,7 +14059,7 @@
    * @property {string} resolution
    * @property {any[]} boundaryNotes
    * @property {FamilyAudit[]} families close families in first-call order
-   * @property {import("./pipeline.js").StageChange[]} stageChanges
+   * @property {import("./splice.js").StageChange[]} stageChanges
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string,
@@ -16904,7 +16904,7 @@
     /**
      * @param {string} name
      * @param {Grammar} grammar
-     * @param {import("./pipeline.js").StageChange[]} [stageChanges]
+     * @param {import("./splice.js").StageChange[]} [stageChanges]
      */
     constructor(name, grammar, stageChanges = []) {
       this.name = name;
@@ -19625,7 +19625,7 @@
     return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
   }
 
-  // ---- pipeline.js
+  // ---- splice.js
   // A pipeline: the items of a pipeline document, with each %include replaced
   // by the items of the document it names, assigned to the selected stage
   // (engine §13).
@@ -20153,7 +20153,7 @@
      * @returns {Dialect}
      */
     dialect(path) {
-      const pipeline = this.pipeline(path);
+      const pipeline = this.splice(path);
       const build = () => {
         const stages = pipeline.stages.map((stage) => new Stage(stage.name, new Grammar(stage.name, stage.documents, this.unicode), stage.changes));
         return new Dialect(path, stages, this, pipeline.features);
@@ -20190,9 +20190,9 @@
      * one document's items, and the features the pipeline turns on (engine
      * §13).
      * @param {string} path
-     * @returns {{stages: import("./pipeline.js").SplicedStage[], features: string[]}}
+     * @returns {{stages: import("./splice.js").SplicedStage[], features: string[]}}
      */
-    pipeline(path) {
+    splice(path) {
       return splicePipeline(path, (documentPath, inherited) => (this.read(documentPath) === undefined ? undefined : this.documentDom(documentPath,inherited)));
     }
   }

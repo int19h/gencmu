@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%features f\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

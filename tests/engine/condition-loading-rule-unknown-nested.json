@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n\n%rule text A\n%conditions $.value = \"never\" ∧ $.value.split($Missing) = ∅\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

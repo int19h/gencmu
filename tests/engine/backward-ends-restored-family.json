@@ -14,7 +14,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text {_}\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text $x:unit\n%conditions $x.without-elision-except(unit).ends(unit)\n%rule unit A [+T]\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "options": {
     "until": "first"
   }

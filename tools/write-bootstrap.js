@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument, readResource } from "./bootstrap-reader.js";
-import { splicePipeline } from "../lib/js/src/pipeline.js";
+import { splicePipeline } from "../lib/js/src/splice.js";
 import { Loader } from "../lib/js/src/dialect.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
@@ -28,7 +28,7 @@ const loader = new Loader(relative => {
   const file = path.join(root, relative);
   return fs.existsSync(file) ? readResource(relative) : undefined;
 });
-const reread = loader.pipeline("dialects/notation.md");
+const reread = loader.splice("dialects/notation.md");
 const engine = JSON.stringify({ format: DOM_FORMAT, stages: reread.stages.map(stage => ({ name: stage.name, documents: stage.documents })) }) + "\n";
 if (engine !== bootstrap) throw new Error("the bootstrap reader and engine reader disagree");
 // Exercise constructors that the notation documents do not need themselves.

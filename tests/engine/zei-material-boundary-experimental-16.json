@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "lo'u mi @ zei mlauca le'u",
   "options": {
     "until": "words"

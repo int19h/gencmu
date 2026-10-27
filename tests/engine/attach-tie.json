@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:ii) %emits $w ($a)\n\n\n\n%rule word \"l\" :: LE | \"b\" :: BRIVLA | \"c\" :: BRIVLA | \"a\" :: A | \"d\" :: B | \"w\" :: W\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a $w:W %emits $w :: X\n\n\n\n%rule b $w:W %emits $w :: Y\n\n\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "wi",
   "expect": {
     "result": {

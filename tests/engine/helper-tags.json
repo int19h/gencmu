@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text w\n%rule w [A] %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

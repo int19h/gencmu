@@ -107,7 +107,7 @@ func TestFixpoint(t *testing.T) {
 		reader:  bundled.reader,
 		noCache: true,
 	}
-	p, err := l.pipeline("dialects/notation.md")
+	p, err := l.splice("dialects/notation.md")
 	if err != nil {
 		t.Fatal(err)
 	}

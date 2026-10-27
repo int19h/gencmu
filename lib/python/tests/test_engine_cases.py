@@ -48,7 +48,7 @@ class EngineCases(unittest.TestCase):
             "memo-a.md": '```jbogenbau\n%include "../dialects/notation.md"\n```\n',
             "memo-b.md": '```jbogenbau\n%include "../dialects/bpfk.md"\n```\n',
         }
-        case = {"documents": documents, "pipeline": "memo-a.md"}
+        case = {"documents": documents, "pipelineDocument": "memo-a.md"}
         with patch.object(gencmu, "load_dialect_sources", wraps=gencmu.load_dialect_sources) as load:
             first, error = load_case_dialect(case)
             self.assertIsNone(error)
@@ -58,7 +58,7 @@ class EngineCases(unittest.TestCase):
             self.assertIsNot(again, first)
             self.assertEqual(load.call_count, 2)
             self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
-            other, error = load_case_dialect({**case, "pipeline": "memo-b.md"})
+            other, error = load_case_dialect({**case, "pipelineDocument": "memo-b.md"})
             self.assertIsNone(error)
             self.assertNotEqual(other.stage_names, first.stage_names)
             changed, error = load_case_dialect({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})

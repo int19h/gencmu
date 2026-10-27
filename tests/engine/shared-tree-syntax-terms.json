@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "nu'i ge mi ti gi do nu'u nu'u klama",
   "options": {
     "until": "syntax"

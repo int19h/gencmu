@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text $a:A %emits $a, ε :: T\n\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (A q<T> [+U])\n%rule q [+T]\n%rule b (A q [+U] [+U])\n%rule c (A T U)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

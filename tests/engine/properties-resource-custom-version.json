@@ -6,7 +6,7 @@
     "unicode.txt": "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n",
     "unicode-properties.txt": "unicode-properties 0.0.0\nbinary Alphabetic\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "result": {

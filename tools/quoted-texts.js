@@ -197,7 +197,7 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
       dialects.get(key).push(dialect);
       const directives = (doms.get(file) || { directives: [] }).directives;
       for (let index = directives.length - 1; index >= 0; index--) {
-        // The path as the pipeline resolves it (lib/js/src/pipeline.js), so
+        // The path as the pipeline resolves it (lib/js/src/splice.js), so
         // a `..` above the grammars drops out there as here.
         if (directives[index].name === "include") stack.push(resolvePath(file, directives[index].args[0]));
       }

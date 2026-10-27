@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:w [$i:i]\n%emits $w ($i)\n%rule w \"a\" :: A | \"b\" :: B\n%rule i \"i\"\n%stage second\n%ambiguity-resolution greedy\n%rule text a b\n%rule a A\n%conditions $.followed-by(b)\n%rule b B\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "expect": {
     "result": {
       "ok": true,

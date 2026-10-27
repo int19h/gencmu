@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%rule unused(@X) :: (@X ∖ _Lu) ∪ _Lu | $x:@X\n%rule text \"a\"\n```"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

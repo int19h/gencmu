@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%names \"extra.txt\"\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
     "extra.txt": "unicode-names 15.1.0\nname 0041 LATIN CAPITAL LETTER A\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "",

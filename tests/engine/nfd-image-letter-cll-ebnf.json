@@ -2,7 +2,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "The foreign phoneme recipe keeps the original image while its default value remains decomposed.",
   "options": {
     "until": "phonemes"

@@ -6,7 +6,7 @@
     "g.md": "```jbogenbau\n%rule text [{c}]\n%rule c \"a\" :: Sound-0061-s := \"a\" %emits $\n```\n",
     "h.md": "```jbogenbau\n%rule text (Sound-0061-s Sound-0061-s)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "aa",
   "expect": {
     "result": {

@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part vowel | shorthand\n%rule vowel \"\" :: Sound-0075-s := \"u\" | \"\" :: Sound-0069-s := \"i\" %emits $\n\n%rule shorthand (\"\" $v:vowel) %emits $v, ε :: Sound-0027-s := \"'\"\n\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:word %emits $w :: W\n\n%rule word [{phoneme}]\n%rule phoneme Sound-0075-s | Sound-0069-s | Sound-0027-s\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "",
   "expect": {
     "result": {

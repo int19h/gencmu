@@ -28,7 +28,7 @@ class SplicedStage:
 
 
 @dataclass
-class Pipeline:
+class SplicedPipeline:
     """A spliced pipeline: its stages, and the features it turns on."""
 
     stages: list[SplicedStage]
@@ -65,7 +65,7 @@ def items_in_order(dom: Dom) -> list[tuple[str, Dom]]:
     return items
 
 
-def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_of=None) -> Pipeline:
+def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_of=None) -> SplicedPipeline:
     """Splice the pipeline document at ``path``. ``dom_of`` gives a
     document's DOM, or ``None`` when the document does not exist."""
     stages: list[SplicedStage] = []
@@ -194,4 +194,4 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
             if owner != stage:
                 raise GencmuError(f"feature {name} is local to both {owner} and {stage}", document=document,
                                   line=directive["at"][0], column=directive["at"][1], stage=stage)
-    return Pipeline(stages, frozenset(features))
+    return SplicedPipeline(stages, frozenset(features))

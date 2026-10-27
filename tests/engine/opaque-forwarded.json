@@ -6,7 +6,7 @@
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{item}]\n%rule item word | P\n%rule word $w:V %emits $w :: W\n\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{x}]\n%rule x W\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "-a..b-a..b",
   "expect": {
     "result": {

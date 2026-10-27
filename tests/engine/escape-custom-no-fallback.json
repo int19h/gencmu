@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LATIN CAPITAL LETTER A›\"\n```",
     "unicode-names.txt": "unicode-names 15.1.0\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

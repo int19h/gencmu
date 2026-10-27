@@ -95,10 +95,10 @@ export declare class Loader {
      * one document's items, and the features the pipeline turns on (engine
      * §13).
      * @param {string} path
-     * @returns {{stages: import("./pipeline.js").SplicedStage[], features: string[]}}
+     * @returns {{stages: import("./splice.js").SplicedStage[], features: string[]}}
      */
-    pipeline(path: string): {
-        stages: import("./pipeline.js").SplicedStage[];
+    splice(path: string): {
+        stages: import("./splice.js").SplicedStage[];
         features: string[];
     };
 }

@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%rule unused(@X) _Script_Latin\n%rule text \"a\"\n```",
     "unicode-properties.txt": "unicode-properties 15.1.0\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

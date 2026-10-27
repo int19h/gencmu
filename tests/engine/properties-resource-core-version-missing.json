@@ -6,7 +6,7 @@
     "unicode-properties.txt": "unicode-properties 15.1.0\n",
     "unicode.txt": "white-space 0020 0020\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

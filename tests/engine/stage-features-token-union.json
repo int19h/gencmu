@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage only\n%features f\n%conditions $.classes = A ∪ B\n%ambiguity-resolution greedy\n%rule text f? A B\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

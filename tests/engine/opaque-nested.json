@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter \"a\" :: (L ∪ Sound-0061-s) := \"a\" | \"b\" :: (L ∪ Sound-0062-s) := \"b\" | \"c\" :: (L ∪ Sound-0063-s) := \"c\" | \"d\" :: (L ∪ Sound-0064-s) := \"d\" %emits $\n\n%rule pause \" \" :: (P ∪ Sound-002E-s) := \".\" :- \" \" %emits $\n\n%rule mark \"!\"\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($o:outer P $w:whole) %emits $o :: O, $w :: W\n\n%rule outer :- $.verbatim-text | (inner L)\n\n%rule inner :- $.verbatim-text | (L L)\n\n%rule whole (inner inner) %emits $\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "abc abcd",
   "expect": {
     "result": {

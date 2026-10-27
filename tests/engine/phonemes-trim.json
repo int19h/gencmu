@@ -6,7 +6,7 @@
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{any}] %emits $ :: X\n\n%rule any Sound-002E-s | Sound-0061-s | Sound-00A0-s | Sound-0020-s\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "e",

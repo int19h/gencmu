@@ -14,14 +14,14 @@ import (
 // The shared cases of tests/README.md.
 
 type engineCase struct {
-	Description string            `json:"description"`
-	Grammar     *string           `json:"grammar"`
-	Documents   map[string]string `json:"documents"`
-	Pipeline    string            `json:"pipeline"`
-	Tokens      []caseToken       `json:"tokens"`
-	Input       *string           `json:"input"`
-	Options     caseOptions       `json:"options"`
-	Expect      caseExpect        `json:"expect"`
+	Description      string            `json:"description"`
+	Grammar          *string           `json:"grammar"`
+	Documents        map[string]string `json:"documents"`
+	PipelineDocument string            `json:"pipelineDocument"`
+	Tokens           []caseToken       `json:"tokens"`
+	Input            *string           `json:"input"`
+	Options          caseOptions       `json:"options"`
+	Expect           caseExpect        `json:"expect"`
 	// Parses, when present, parses the input several times with the one
 	// loaded dialect, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
@@ -199,10 +199,10 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 			for name, text := range c.Documents {
 				documents["case/"+name] = text
 			}
-			return loadSources(documents, "case/"+c.Pipeline, noCache)
+			return loadSources(documents, "case/"+c.PipelineDocument, noCache)
 		}
 	}
-	return loadSources(c.Documents, c.Pipeline, noCache)
+	return loadSources(c.Documents, c.PipelineDocument, noCache)
 }
 
 // runCase parses a case's input with a loaded dialect, under the options

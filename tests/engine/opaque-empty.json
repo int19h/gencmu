@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | comma\n%rule letter \"a\" | \"b\" %emits $ :: L\n\n%rule comma \",\"\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($a:L $e:nothing $b:L) %emits $a :: A, $e :: E, $b :: B\n\n%rule nothing :- $.verbatim-text | ε\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a,b",
   "expect": {
     "result": {

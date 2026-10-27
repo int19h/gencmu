@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi \"ybu \" ybu",
   "options": {
     "until": "words"

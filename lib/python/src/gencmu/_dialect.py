@@ -18,7 +18,7 @@ from ._grammar import MAX_LOWERED, Grammar, Lowered, lower, stitch
 from ._hash import fnv1a64
 from ._markdown import jbogenbau_text
 from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage, Token
-from ._pipeline import Pipeline, splice_pipeline
+from ._splice import SplicedPipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
 from ._tags import is_tag
@@ -464,7 +464,7 @@ class _Loader:
             self.reader.doms.put(key, dom, len(text))
         return dom
 
-    def pipeline(self, pipeline_path: str, diagnostic_document: str | None = None) -> Pipeline:
+    def splice(self, pipeline_path: str, diagnostic_document: str | None = None) -> SplicedPipeline:
         """The stages of the pipeline document at ``pipeline_path``, each a
         list of runs of one document's items, and the features the pipeline
         turns on (engine §13)."""
@@ -504,7 +504,7 @@ class _Loader:
             return self._load(pipeline_path, error.group['document'])
 
     def _load(self, pipeline_path: str, diagnostic_document: str | None = None) -> Dialect:
-        pipeline = self.pipeline(pipeline_path, diagnostic_document)
+        pipeline = self.splice(pipeline_path, diagnostic_document)
         stages: list[Grammar] = []
         for stage in pipeline.stages:
             try:
@@ -623,7 +623,7 @@ class Dialect:
     its ``features``, each a :class:`Feature`. A dialect may be used for any
     number of parses, and shared between threads."""
 
-    def __init__(self, path: str, pipeline: Pipeline, stages: list[Grammar], unicode: UnicodeTable) -> None:
+    def __init__(self, path: str, pipeline: SplicedPipeline, stages: list[Grammar], unicode: UnicodeTable) -> None:
         self.path = path
         # The features the pipeline turns on, and every feature with its kind.
         self.declared = pipeline.features

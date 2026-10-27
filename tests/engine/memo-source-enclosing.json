@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($x:triple $y:triple) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule triple (X Y Z)\n%rule probe (X $p:pair) %conditions $p.source-text = \"a\"\n\n%rule pair (Y Z)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "ab",
   "expect": {
     "result": {

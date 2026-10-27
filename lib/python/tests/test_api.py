@@ -525,7 +525,7 @@ class Attachments(unittest.TestCase):
         """Of two errors in one item, the before-attachment's comes first
         (engine §11)."""
         case = json.loads((Path(__file__).resolve().parents[3] / "tests" / "engine" / "attach-error-order.json").read_text("utf-8"))
-        dialect = gencmu.load_dialect_sources(case["documents"], case["pipeline"])
+        dialect = gencmu.load_dialect_sources(case["documents"], case["pipelineDocument"])
         supplied, text = case_tokens(case)
         result = dialect.parse_tokens(supplied, text)
         assert result.error is not None

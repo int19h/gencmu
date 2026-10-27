@@ -19,5 +19,5 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule one(@X) @X\n%rule text one(\"‹U+000A›\")\n%extend-rule one(\"‹LF›\") \"z\"\n```",
     "unicode-names.txt": "invalid"
   },
-  "pipeline": "p.md"
+  "pipelineDocument": "p.md"
 }

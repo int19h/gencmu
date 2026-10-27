@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "ra'oi broda",
   "options": {
     "until": "words"

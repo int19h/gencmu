@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "lo'ai broda .y. le'ai bu",
   "options": {
     "until": "words"

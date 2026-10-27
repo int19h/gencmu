@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n%include \"missing.md\"\n```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

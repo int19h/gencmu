@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%include \"features.md\"\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n",
     "features.md": "```jbogenbau\n%features f\n%conditions $.classes ∩ A ≠ ∅\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

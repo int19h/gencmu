@@ -32,7 +32,7 @@ CASE: dict[str, Any] = {
 ```
 """,
     },
-    "pipeline": "p.md",
+    "pipelineDocument": "p.md",
     "tokens": [{"text": "a", "tags": ["A"]}],
 }
 

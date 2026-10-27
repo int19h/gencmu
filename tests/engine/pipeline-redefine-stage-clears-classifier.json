@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%classifier lex  \"a\" ∈ A\n%redefine-stage first\n%ambiguity-resolution greedy\n%rule text \"a\" :: \"a\".classify(lex)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar"

@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n%redefine-stage phonemes\n%ambiguity-resolution greedy\n%rule text {forward}\n%rule forward $t:_\n%emits\n  $t\n%redefine-stage forms\n%ambiguity-resolution greedy\n%rule text {forward}\n%rule forward $t:_\n%emits\n  $t\n%extend-stage words\n%redefine-rule text\n  Silent quiet-pause Cmavo\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "tokens": [
     {
       "text": ",",

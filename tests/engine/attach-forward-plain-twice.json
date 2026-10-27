@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W %emits $ :: T, $ :: U\n\n\n\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (T U)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "w",
   "expect": {
     "error": "grammar",

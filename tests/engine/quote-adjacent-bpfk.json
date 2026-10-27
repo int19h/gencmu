@@ -2,7 +2,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"

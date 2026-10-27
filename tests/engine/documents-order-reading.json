@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule x [ + KU = \"K\" ]\n```\n",
     "b.md": "```jbogenbau\n%rule y $x:A$x:B\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

@@ -90,7 +90,7 @@ class WithoutElision(unittest.TestCase):
                             "first.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {body}\n%emits {captured} :: {captured}.without-elision.tags(rival)\n%rule candidate X [+T]\n%rule rival X [+T] :: KEPT\n```",
                             "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text KEPT\n```",
                         },
-                        "pipeline": "p.md",
+                        "pipelineDocument": "p.md",
                         "tokens": tokens("X"),
                     }
                 )

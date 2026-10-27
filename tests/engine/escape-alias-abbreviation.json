@@ -6,7 +6,7 @@
     "unicode-names.txt": "unicode-names 15.1.0\nalias abbreviation 000A LF\n",
     "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "\n",

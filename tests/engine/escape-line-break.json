@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹U+00\n41›\"\n```"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

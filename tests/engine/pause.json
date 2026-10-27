@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c \"a\" :: Sound-0061-s := \"a\" | _White_Space :: Sound-002E-s := \".\" :- \" \" %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:run %conditions $w.value = \"a..a\", \"a\" ∈ $w.value.split(\".\"), \"\" ∉ $w.value.split(\".\")\n%rule run (Sound-0061-s Sound-002E-s Sound-002E-s Sound-0061-s)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a  a",
   "expect": {
     "result": {

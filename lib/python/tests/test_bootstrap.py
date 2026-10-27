@@ -37,7 +37,7 @@ class Fixpoint(unittest.TestCase):
             except OSError:
                 return None
 
-        pipeline = _Loader(lookup, _resources(), use_cache=False).pipeline("dialects/notation.md")
+        pipeline = _Loader(lookup, _resources(), use_cache=False).splice("dialects/notation.md")
         stages = [
             {"name": stage.name, "documents": [{"path": path, "dom": dom} for path, dom in stage.documents]} for stage in pipeline.stages
         ]

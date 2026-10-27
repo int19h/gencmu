@@ -1,6 +1,6 @@
 {
   "description": "The Zantufa structural family preserves its constructor and witness during reconstruction. Its independent input queries remain unchanged.",
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
   },

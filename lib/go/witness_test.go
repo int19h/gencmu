@@ -71,9 +71,9 @@ func lostCase(t *testing.T) (*Dialect, *engineCase) {
 		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
 			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: X\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text X\n```\n"},
-		Pipeline: "p.md",
-		Tokens:   []caseToken{{Text: "a", Tags: []string{"A"}}},
-		Options:  caseOptions{Features: []string{"w"}},
+		PipelineDocument: "p.md",
+		Tokens:           []caseToken{{Text: "a", Tags: []string{"A"}}},
+		Options:          caseOptions{Features: []string{"w"}},
 	}
 	d, err := caseDialect(c, true)
 	if err != nil {

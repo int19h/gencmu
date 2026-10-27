@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:quote) %emits $w ($a)\n\n\n\n%rule word \"w\" :: W\n\n%rule quote fq %emits $ :: Q\n\n\n\n%rule fq :- $.verbatim-text | \"q\" | (fq \"q\")\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {W}\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "wqq",
   "expect": {
     "result": {

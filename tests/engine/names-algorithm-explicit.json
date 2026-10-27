@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"‹LOCAL NAME›\"\n```",
     "unicode-names.txt": "unicode-names 15.1.0\nalgorithm hex 3400 4DBF CJK UNIFIED IDEOGRAPH-\nname 3400 CJK UNIFIED IDEOGRAPH-3400\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

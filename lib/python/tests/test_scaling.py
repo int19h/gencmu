@@ -15,13 +15,13 @@ from typing import Any, Callable, ContextManager
 from unittest import mock
 
 import gencmu
-from gencmu import _clauses, _grammar, _pipeline, _tags, _types
+from gencmu import _clauses, _grammar, _splice, _tags, _types
 from gencmu._clauses import definition_problem
 from gencmu._dialect import DOM_FORMAT
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
 from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, lower, stitch
 from gencmu._model import Token
-from gencmu._pipeline import splice_pipeline
+from gencmu._splice import splice_pipeline
 from gencmu._rank import Summaries
 from gencmu._stage import implied
 from gencmu._trampoline import run
@@ -749,10 +749,10 @@ class Pipelines(Linear):
         def make(n: int) -> Callable[[], object]:
             doms = {f"d{index}.md": pipeline_dom([{"name": "include", "args": [f"d{index + 1}.md"]}]) for index in range(n)}
             doms[f"d{n}.md"] = pipeline_dom([{"name": "stage", "args": ["s"]}], rules=1)
-            resolve = _pipeline.resolve
+            resolve = _splice.resolve
 
             def work() -> None:
-                with mock.patch.object(_pipeline, "resolve", lambda base, target: Path(resolve(base, target))):
+                with mock.patch.object(_splice, "resolve", lambda base, target: Path(resolve(base, target))):
                     splice_pipeline("d0.md", doms.get)
 
             return work

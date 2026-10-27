@@ -6,7 +6,7 @@
     "e.md": "```jbogenbau\n%extend-rule r ¬later? A\n%conditions $.followed-by(B)\n```",
     "f.md": "```jbogenbau\n%extend-rule r later? A\n%conditions $.followed-by(C)\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "tokens": [
     {
       "text": "a",

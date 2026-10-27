@@ -263,7 +263,7 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 }
 
 func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
-	p, perr := l.pipeline(pipelinePath)
+	p, perr := l.splice(pipelinePath)
 	if perr != nil {
 		return nil, perr
 	}
@@ -289,7 +289,7 @@ func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 // pipeline splices the pipeline document at pipelinePath: its stages, each
 // a list of runs of one document's items, and the features it turns on
 // (engine §13). A document included more than once is read once.
-func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
+func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
 	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
 		encoded, _ := json.Marshal(names)

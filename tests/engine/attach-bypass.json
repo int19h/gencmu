@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($b:bb $w:wrap) %emits ($b) $w\n\n\n%rule wrap :: V | ($x:xx $y:yy) %emits $x, $y\n\n\n\n\n\n%rule xx \"x\" :: X\n\n%rule yy \"y\" :: Y\n\n%rule bb \"b\" :: B %emits $\n\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text V\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "bxy",
   "expect": {
     "result": {

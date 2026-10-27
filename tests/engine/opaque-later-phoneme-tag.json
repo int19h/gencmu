@@ -6,7 +6,7 @@
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:body %emits $b :: B\n\n%rule body :- $.verbatim-text | L | (body L)\n\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:B %emits $b :: (C ∪ Sound-0071-s) := \"q\"\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "ab",
   "expect": {
     "result": {

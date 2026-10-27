@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (z w)\n%rule z inner %emits $ :: Z\n\n%rule w inner-erased %emits $ :: W\n\n%rule inner ($a:A B) %emits $a\n\n%rule inner-erased ($a:A erased) %emits $a\n\n%rule erased B %erased\n\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (Z W)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

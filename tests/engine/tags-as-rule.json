@@ -4,7 +4,7 @@
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:word :: $w.tags(lexicon)\n%rule word {L}\n%rule lexicon (L L) :: PAIR | L :: ONE\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "l",

@@ -489,7 +489,7 @@ function holdsConstant(term) {
  * another value in each stage that reads the document. Any other value is
  * the same in every stage, and is evaluated once, with no stage. With no
  * such optional in `documents`, this reads nothing at all.
- * @param {{unicode: any, pipeline: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
+ * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
  * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
  *   document, by its path under grammars/
@@ -508,7 +508,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
   // Its Unicode table, for a range, is the one that every stage shares.
   const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", flags: [], alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", args: ["greedy"], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
   for (const pipeline of pipelines) {
-    const { stages } = loader.pipeline(pipeline);
+    const { stages } = loader.splice(pipeline);
     /** @type {{stages: {grammar: any}[]} | null} */
     let dialect = null;
     stages.forEach((stage, index) => {

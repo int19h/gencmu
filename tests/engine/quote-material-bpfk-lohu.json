@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mi,lo'u ,coi, le'u, do mi,lo'u ⁠­coi⁠­ le'u, do",
   "options": {
     "until": "words"

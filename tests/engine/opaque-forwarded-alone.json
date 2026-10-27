@@ -7,7 +7,7 @@
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:B %emits $b :: C\n\n```\n",
     "m.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:wrap %emits $c :: D\n\n%rule wrap :- $.verbatim-text | C\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": " ab ",
   "expect": {
     "result": {

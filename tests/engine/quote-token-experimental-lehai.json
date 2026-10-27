@@ -2,7 +2,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "A complete quote emits one token with its opening class, original image, and decomposed value.",
   "options": {
     "until": "words"

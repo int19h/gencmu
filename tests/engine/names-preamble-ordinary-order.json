@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%rule text \"‹›\"\n%names \"‹LATIN SMALL LETTER E›xtra.txt\"\n```",
     "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "",

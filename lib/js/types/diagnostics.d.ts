@@ -99,7 +99,7 @@ export type StageAudit = {
      * close families in first-call order
      */
     families: FamilyAudit[];
-    stageChanges: import("./pipeline.js").StageChange[];
+    stageChanges: import("./splice.js").StageChange[];
     rules: number;
     /**
      * rules no derivation of `text` can reach

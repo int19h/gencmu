@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($b:bb $w:word) | ($w:word $a:ii) | ($b:bb $w:word $a:ii) %emits ($b) $w ($a)\n\n\n\n%rule word \"w\" :: W | \"z\" :: Z\n\n%rule bb \"b\" :: B %emits $\n\n\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:pair %emits $x\n\n\n%rule pair :: P | (W fz)\n\n\n\n%rule fz :- $.verbatim-text | Z\n\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "wiz",
   "expect": {
     "result": {

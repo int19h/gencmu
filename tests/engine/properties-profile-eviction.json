@@ -6,7 +6,7 @@
     "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\ncategory Ll 0062 0062\ncategory Co E000 F100\n",
     "unicode-properties.txt": "unicode-properties 15.1.0\nenumerated Script Unknown\nvalue Script Unknown\nvalue Script Latin\nrange Script 0062 0062 Latin\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "parses": [
     {
       "options": {},

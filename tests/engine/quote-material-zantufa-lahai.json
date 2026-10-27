@@ -3,7 +3,7 @@
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mi,la'ai ,coi, le'u, do mi,la'ai ⁠­coi⁠­ le'u, do",
   "options": {
     "until": "words"

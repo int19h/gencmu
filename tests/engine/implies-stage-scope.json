@@ -5,7 +5,7 @@
     "first.md": "```jbogenbau\n%ambiguity-resolution greedy\n%implies A ⟹ M\n%rule text [{word}]\n%rule word $w:W :: A %emits $\n\n\n```\n",
     "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{word}]\n%rule word $w:A :: ($w.tags ∖ M) %emits $\n\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "x",

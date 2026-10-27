@@ -110,7 +110,7 @@ const loaderWith = (bootstrap) => new Loader((relative) => {
 function settle(bootstrap) {
   for (let round = 0; ; round++) {
     // The notation's own pipeline, spliced with the current bootstrap.
-    const { stages } = loaderWith(bootstrap).pipeline("dialects/notation.md");
+    const { stages } = loaderWith(bootstrap).splice("dialects/notation.md");
     const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
     const nextText = JSON.stringify(next) + "\n";
     if (nextText === bootstrap) return bootstrap;
