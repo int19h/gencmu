@@ -76,7 +76,7 @@ def check_notation_cache_paths(
     cached = loader(envelope)
     with patch.object(cached.reader, "read", side_effect=AssertionError("preparsed cache was bypassed")):
         test.assertEqual(cached.dom(name), expected)
-        test.assertIn(fnv1a64(document), cached.preparsed)
+        test.assertIn((name, fnv1a64(document)), cached.preparsed)
         test.assertEqual(cached.dom(name), expected)
     for key in ("document", "bootstrap", "unicode", "format"):
         with test.subTest(cache_mismatch=key):
