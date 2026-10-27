@@ -16,8 +16,8 @@ from .shared import SHARED, REPOSITORY, find_places, load_json, read_json, subst
 SHAPES: dict[str, Any] = load_json(SHARED / "notation-shapes.json")
 with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as _file:
     BOOTSTRAP = _file.read()
-SYNTAX_AT = BOOTSTRAP.index('"grammars/notation/syntax.md":')
-NAMES = [rule["name"] for rule in read_json(BOOTSTRAP)["documents"]["grammars/notation/syntax.md"]["dom"]["rules"] if rule["name"] != "text"]
+SYNTAX_AT = BOOTSTRAP.index('"grammars/gencmu/jbogenbau/syntax.md":')
+NAMES = [rule["name"] for rule in read_json(BOOTSTRAP)["documents"]["grammars/gencmu/jbogenbau/syntax.md"]["dom"]["rules"] if rule["name"] != "text"]
 
 
 def outcome(bootstrap: str, document: str | None = None, inputs: list[str] | None = None, where: dict[str, Any] | None = None) -> Any:
@@ -56,11 +56,11 @@ class NotationShapes(unittest.TestCase):
     def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
         parsed = json.loads(BOOTSTRAP)
         documents = {path:entry["dom"] for path,entry in parsed["documents"].items()}
-        lexical = documents["grammars/notation/lexical.md"]
+        lexical = documents["grammars/gencmu/jbogenbau/lexical.md"]
         next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
             {"guards": [], "expr": {"literal": {"string": "_"}}}
         )
-        syntax = documents["grammars/notation/syntax.md"]
+        syntax = documents["grammars/gencmu/jbogenbau/syntax.md"]
         next(rule for rule in syntax["rules"] if rule["name"] == "guard")["alternatives"][0]["expr"] = {
             "seq": [{"ref": "padding"}, {"ref": "Guard"}]
         }
@@ -93,15 +93,15 @@ class NotationShapes(unittest.TestCase):
         the lexical stage, the check finds the ambiguity that greedy settled
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
-        lexical_dom = parsed["documents"]["grammars/notation/lexical.md"]["dom"]
+        lexical_dom = parsed["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
         next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
             {"guards": [], "expr": {"literal": {"string": "."}}}
         )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
-        lexical = bootstrap.index('"grammars/notation/lexical.md":')
+        lexical = bootstrap.index('"grammars/gencmu/jbogenbau/lexical.md":')
         at = bootstrap.index(directive)
-        self.assertTrue(lexical < at < bootstrap.index('"grammars/notation/syntax.md":'), "the first directive is the lexical stage's")
+        self.assertTrue(lexical < at < bootstrap.index('"grammars/gencmu/jbogenbau/syntax.md":'), "the first directive is the lexical stage's")
         elision = bootstrap.replace(directive, '"name":"ambiguity-resolution","args":["greedy","elision-only"]', 1)
 
         def sources(bootstrap: str) -> dict[str, str]:

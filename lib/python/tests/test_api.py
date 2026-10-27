@@ -139,7 +139,7 @@ class Loaders(unittest.TestCase):
             self.assertEqual(change.kind, "extend" if index == 0 else "replace")
 
     def test_bundled(self) -> None:
-        dialect = gencmu.load_dialect("notation")
+        dialect = gencmu.load_dialect("gencmu/jbogenbau")
         self.assertEqual(dialect.stage_names, ["lexical", "syntax"])
         result = dialect.parse("%rule text A")
         self.assertTrue(result.ok)
@@ -842,7 +842,7 @@ class BundledGrammars(unittest.TestCase):
     def test_empty_zoi_body(self) -> None:
         """An empty ZOI body adds no token or placeholder.
         The letter constructor keeps the quote spacing (engine §11)."""
-        dialect = gencmu.load_dialect("cll-ebnf")
+        dialect = gencmu.load_dialect("lojban/cll")
         words = stage_output(dialect, "zoi gy gy", "words")
         self.assertEqual(len(words), 1)
         self.assertEqual((words[0].value, words[0].image), ("zoi gy gy", "zoi gy gy"))
@@ -851,10 +851,10 @@ class BundledGrammars(unittest.TestCase):
         self.assertEqual(letter.value, "zoi gy gy bu")
 
     def test_zbalermorna_shorthand(self) -> None:
-        """grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand
+        """grammars/lojban/common/zbalermorna.md: the token of the vowel after the shorthand
         mark covers the mark, so a word that begins with the shorthand begins
         at it."""
-        dialect = gencmu.load_dialect("bpfk")
+        dialect = gencmu.load_dialect("lojban/bpfk")
         text = ""
         vowel = stage_output(dialect, text, "phonemes")[0]
         self.assertEqual((vowel.text, vowel.source), ("", (0, 2)))
@@ -862,22 +862,22 @@ class BundledGrammars(unittest.TestCase):
         self.assertEqual((word.text, word.source, word.value), (text, (0, 3), "u'i"))
 
     def test_cy_letter_is_never_continued(self) -> None:
-        """grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never continued. So
+        """grammars/lojban/cll/morphology.md and grammars/lojban/common/forms.md: a Cy letter is never continued. So
         the general join of run-words, a continued word before an onset,
         never joins a Cy letter to the word after it, and only the Cy rule
         joins two letters."""
-        letters = stage_output(gencmu.load_dialect("cll-ebnf"), "cyky", "forms")
+        letters = stage_output(gencmu.load_dialect("lojban/cll"), "cyky", "forms")
         self.assertEqual([token.image for token in letters], ["cy", "ky"])
         for letter in letters:
             self.assertTrue("Cy" in letter.tags and "Continued" not in letter.tags, letter.image)
 
     def test_ranking_reads_leading_nai_into_the_run(self) -> None:
-        """grammars/indicators/cll.md: the greedy ranking reads a nai after a leading
+        """grammars/lojban/cll/indicators.md: the greedy ranking reads a nai after a leading
         attitudinal into the leading run, with or without a ba'e before it,
         and after a text opener as at the start of the text. No condition
         decides it, so each of these texts has the verdict resolved in the
         indicator stage."""
-        dialect = gencmu.load_dialect("cll-ebnf")
+        dialect = gencmu.load_dialect("lojban/cll")
         for text, labels in [
             ("ui nai mi klama", ["ui", "nai", "mi", "klama"]),
             ("ui ba'e nai mi klama", ["ui", "nai", "mi", "klama"]),
@@ -891,18 +891,18 @@ class BundledGrammars(unittest.TestCase):
             self.assertEqual([token.image for token in stage.output], labels, text)
 
     def test_experimental_syntax_reads_no_la(self) -> None:
-        """grammars/syntax/experimental.md: the grammar reads no LA, since no word of
+        """grammars/lojban/experimental/syntax.md: the grammar reads no LA, since no word of
         the experimental lexicon has it. A probe document after the lexicon
         moves la from LE to LA, and then no rule reads la mlatu ku."""
         root = Path(__file__).resolve().parents[1] / "src" / "gencmu" / "grammars"
         sources = {"grammars/" + path.relative_to(root).as_posix(): path.read_text(encoding="utf-8") for path in root.rglob("*.md")}
-        include = '%include "../words/lexicon-experimental.md"'
-        self.assertIn(include, sources["grammars/dialects/experimental.md"])
-        sources["grammars/dialects/experimental.md"] = sources["grammars/dialects/experimental.md"].replace(
-            include, include + '\n  %include "../words/la-probe.md"'
+        include = '%include "lexicon.md"'
+        self.assertIn(include, sources["grammars/lojban/experimental/pipeline.md"])
+        sources["grammars/lojban/experimental/pipeline.md"] = sources["grammars/lojban/experimental/pipeline.md"].replace(
+            include, include + '\n  %include "la-probe.md"'
         )
-        sources["grammars/words/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
-        probe = gencmu.load_dialect_sources(sources, "grammars/dialects/experimental.md")
+        sources["grammars/lojban/experimental/la-probe.md"] = '```jbogenbau\n%classifier lexicon\n  "la" ∉ LE\n  "la" ∈ LA\n```\n'
+        probe = gencmu.load_dialect_sources(sources, "grammars/lojban/experimental/pipeline.md")
         result = probe.parse("la mlatu ku cu klama")
         forms = next(stage for stage in result.stages if stage.name == "forms").output
         assert forms is not None

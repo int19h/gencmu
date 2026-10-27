@@ -23,89 +23,89 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md @ "The plain joik reading remains" @ "The official lexer makes" = selbri-5 adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
-se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
-na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
-pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
-ci su'i vo pi'i mu # grammars/syntax/cll.md = mex-chain adhoc.syntax.mex-chain-left-grouping adhoc.syntax.mex-chain-left-grouping.bpfk
-va pu # grammars/syntax/cll.md @ "illustrate this whole branch" @ "Space can precede time" = simple-tense-modal adhoc.syntax.space-time-single-tense adhoc.syntax.space-time-single-tense.bpfk
-pu va # grammars/syntax/cll.md @ "illustrate this whole branch" @ "stays outside the connective" = simple-tense-modal adhoc.syntax.tag-stag-gek.sumti-time-space adhoc.syntax.tag-stag-gek.sumti-time-space.bpfk
-pu ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-caha adhoc.syntax.simple-tense-modal-time-caha.bpfk
-ba za ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
-na'e ka'e # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-kahe adhoc.syntax.simple-tense-modal-nahe-kahe.bpfk
-pu ki # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-ki adhoc.syntax.simple-tense-modal-time-ki.bpfk
-na'e ca'a # grammars/syntax/cll.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-caha adhoc.syntax.simple-tense-modal-nahe-caha.bpfk
-se farvi # grammars/dialects/cll-ebnf.md = selbri corpus.camxes.12997
-fy no # grammars/dialects/bpfk.md = words adhoc.words.cy.cy-before-number-needs-pause.bpfk
-se farvi # grammars/dialects/bpfk.md = selbri corpus.camxes.12997.bpfk
-mi klama # grammars/indicators/cll.md = words adhoc.prose.indicators.mi-ui-klama adhoc.prose.indicators.mi-ui-klama.bpfk
-mi klama # grammars/phonemes/latin.md = words adhoc.words.foreign.punctuation-at-pause-edge.bpfk
-ky yy kerlo # grammars/words/bpfk.md = words adhoc.words.peg.kyyykerlo.bpfk
-bu klama # grammars/words/cll.md = words adhoc.words.magic-rules.buklama
-a klama # grammars/words/cll.md = words adhoc.prose.words-cll.aklama
+ke brode ke'e bo brodi # grammars/lojban/cll/syntax.md @ "The plain joik reading remains" @ "The official lexer makes" = selbri-5 adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+se se broda # grammars/lojban/cll/syntax.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
+na'e se broda # grammars/lojban/cll/syntax.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
+pa xy. # grammars/lojban/cll/syntax.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk
+ci su'i vo pi'i mu # grammars/lojban/cll/syntax.md = mex-chain adhoc.syntax.mex-chain-left-grouping adhoc.syntax.mex-chain-left-grouping.bpfk
+va pu # grammars/lojban/cll/syntax.md @ "illustrate this whole branch" @ "Space can precede time" = simple-tense-modal adhoc.syntax.space-time-single-tense adhoc.syntax.space-time-single-tense.bpfk
+pu va # grammars/lojban/cll/syntax.md @ "illustrate this whole branch" @ "stays outside the connective" = simple-tense-modal adhoc.syntax.tag-stag-gek.sumti-time-space adhoc.syntax.tag-stag-gek.sumti-time-space.bpfk
+pu ka'e # grammars/lojban/cll/syntax.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-caha adhoc.syntax.simple-tense-modal-time-caha.bpfk
+ba za ki # grammars/lojban/cll/syntax.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-space-ki adhoc.syntax.simple-tense-modal-time-space-ki.bpfk
+na'e ka'e # grammars/lojban/cll/syntax.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-kahe adhoc.syntax.simple-tense-modal-nahe-kahe.bpfk
+pu ki # grammars/lojban/cll/syntax.md = simple-tense-modal adhoc.syntax.simple-tense-modal-time-ki adhoc.syntax.simple-tense-modal-time-ki.bpfk
+na'e ca'a # grammars/lojban/cll/syntax.md = simple-tense-modal adhoc.syntax.simple-tense-modal-nahe-caha adhoc.syntax.simple-tense-modal-nahe-caha.bpfk
+se farvi # grammars/lojban/cll/pipeline.md = selbri corpus.camxes.12997
+fy no # grammars/lojban/bpfk/pipeline.md = words adhoc.words.cy.cy-before-number-needs-pause.bpfk
+se farvi # grammars/lojban/bpfk/pipeline.md = selbri corpus.camxes.12997.bpfk
+mi klama # grammars/lojban/cll/indicators.md = words adhoc.prose.indicators.mi-ui-klama adhoc.prose.indicators.mi-ui-klama.bpfk
+mi klama # grammars/lojban/common/latin.md = words adhoc.words.foreign.punctuation-at-pause-edge.bpfk
+ky yy kerlo # grammars/lojban/bpfk/morphology.md = words adhoc.words.peg.kyyykerlo.bpfk
+bu klama # grammars/lojban/cll/morphology.md = words adhoc.words.magic-rules.buklama
+a klama # grammars/lojban/cll/morphology.md = words adhoc.prose.words-cll.aklama
 
 # Parts of readings that the grammar does not choose; each whole text has
 # its own case.
-ke cadzu ke'e # grammars/syntax/cll.md # the selbri of the reading that the gihek condition removes
-bo brodi # grammars/syntax/cll.md # the words after a ke group that the ke form cannot take, no constituent
-ke pi'i ke'e # grammars/syntax/cll.md # the operator group that the joik form reads together with its joik, so no rule spans it alone
-le sutra # grammars/syntax/cll.md # the description of the parse of le sutra tavla that the ranking rejects
+ke cadzu ke'e # grammars/lojban/cll/syntax.md # the selbri of the reading that the gihek condition removes
+bo brodi # grammars/lojban/cll/syntax.md # the words after a ke group that the ke form cannot take, no constituent
+ke pi'i ke'e # grammars/lojban/cll/syntax.md # the operator group that the joik form reads together with its joik, so no rule spans it alone
+le sutra # grammars/lojban/cll/syntax.md # the description of the parse of le sutra tavla that the ranking rejects
 
-doi bu # grammars/words/bpfk.md # the PEG's reading, which the word stage does not share
-ba jy kla # grammars/words/bpfk.md # the split that CVCy_lujvo prevents; bajykla has its own case
-pa slinku'i # grammars/words/cll.md # the words that the slinku'i test keeps apart; paslinku'i has its own case
-bai klama # grammars/words/cll.md # the two words that the borrowing test finds in ba,iklama
-a kru,a # grammars/words/cll.md # the reading that akru,a does not have; akru,a has its own case
+doi bu # grammars/lojban/bpfk/morphology.md # the PEG's reading, which the word stage does not share
+ba jy kla # grammars/lojban/bpfk/morphology.md # the split that CVCy_lujvo prevents; bajykla has its own case
+pa slinku'i # grammars/lojban/cll/morphology.md # the words that the slinku'i test keeps apart; paslinku'i has its own case
+bai klama # grammars/lojban/cll/morphology.md # the two words that the borrowing test finds in ba,iklama
+a kru,a # grammars/lojban/cll/morphology.md # the reading that akru,a does not have; akru,a has its own case
 
 # Notation, and parts of texts that show the shape of a rule.
-terms zo'u # grammars/syntax/cll.md # notation: a rule name before the cmavo
-.i ja nai # grammars/syntax/cll.md # a connective between sentences
-.i joi # grammars/syntax/cll.md # a connective between sentences
-.i bo # grammars/syntax/cll.md @ "groups to the right" @ "This restriction also applies" # a part of the pinned text quoted after it on its line
-gi'e ke # grammars/syntax/cll.md @ "The official lexer makes" @ "GIhEK_KE" # the words of one token of the official parser's lexer
-joi ke # grammars/syntax/cll.md @ "reads only the first parse" @ "one token there too" # the words of one token of the official parser's lexer
-ca lo nu broda # grammars/syntax/cll.md # the shape of a tense with its sumti
-fi mi # grammars/syntax/cll.md # the shape of a place marker with its sumti
-pu ku # grammars/syntax/cll.md @ "a place marker" # the shape of a tense with an elided sumti
-na ku # grammars/syntax/cll.md # the shape of a negation as a term
-mi ce'e do # grammars/syntax/cll.md # the shape of a termset
-nu'i gek terms nu'u gik terms nu'u # grammars/syntax/cll.md # notation: rule names between the cmavo
-nu'i terms nu'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
-mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connection
-mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
-ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
-re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md @ "qualifies another sumti" @ "A qualifier, `la'e` or `na'e bo`, before an operand" # the shape of a NAhE sumti
-le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
-lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
-mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
-le zdani pe mi # grammars/syntax/cll.md # the shape of a pe clause
-sutra co tavla # grammars/syntax/cll.md # the shape of a co inversion
-barda je melbi # grammars/syntax/cll.md # the shape of an afterthought jek in a selbri
-gu'e barda gi melbi # grammars/syntax/cll.md # the shape of a guhek in a selbri
-klama cei broda # grammars/syntax/cll.md # the shape of a cei assignment
-me sumti me'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
-nu je ka # grammars/syntax/cll.md # the shape of connected abstraction words
-pu je ca # grammars/syntax/cll.md # the shape of a connected tense
-fi'o selbri fe'u # grammars/syntax/cll.md # notation: a rule name between the cmavo
-sei mi cusku # grammars/syntax/cll.md # the shape of a discursive bridi
-pa mai # grammars/syntax/cll.md # the shape of an utterance ordinal
-a e i o u # grammars/words/cll.md # notation: the vowel letters
-a e i o u # grammars/words/shapes.md @ "A vowel of a word form" @ "counts the syllables" # notation: the vowel letters
-c j s z # grammars/words/shapes.md # notation: a set of consonant letters
-ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
-ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
+terms zo'u # grammars/lojban/cll/syntax.md # notation: a rule name before the cmavo
+.i ja nai # grammars/lojban/cll/syntax.md # a connective between sentences
+.i joi # grammars/lojban/cll/syntax.md # a connective between sentences
+.i bo # grammars/lojban/cll/syntax.md @ "groups to the right" @ "This restriction also applies" # a part of the pinned text quoted after it on its line
+gi'e ke # grammars/lojban/cll/syntax.md @ "The official lexer makes" @ "GIhEK_KE" # the words of one token of the official parser's lexer
+joi ke # grammars/lojban/cll/syntax.md @ "reads only the first parse" @ "one token there too" # the words of one token of the official parser's lexer
+ca lo nu broda # grammars/lojban/cll/syntax.md # the shape of a tense with its sumti
+fi mi # grammars/lojban/cll/syntax.md # the shape of a place marker with its sumti
+pu ku # grammars/lojban/cll/syntax.md @ "a place marker" # the shape of a tense with an elided sumti
+na ku # grammars/lojban/cll/syntax.md # the shape of a negation as a term
+mi ce'e do # grammars/lojban/cll/syntax.md # the shape of a termset
+nu'i gek terms nu'u gik terms nu'u # grammars/lojban/cll/syntax.md # notation: rule names between the cmavo
+nu'i terms nu'u # grammars/lojban/cll/syntax.md # notation: a rule name between the cmavo
+mi .e do # grammars/lojban/cll/syntax.md # the shape of an afterthought sumti connection
+mi joi do # grammars/lojban/cll/syntax.md # the shape of a joik sumti connection
+ge mi gi do # grammars/lojban/cll/syntax.md # the shape of a forethought sumti connection
+re lo gerku # grammars/lojban/cll/syntax.md # the shape of an outer quantifier
+na'e bo # grammars/lojban/cll/syntax.md @ "qualifies another sumti" @ "A qualifier, `la'e` or `na'e bo`, before an operand" # the shape of a NAhE sumti
+le mi zdani # grammars/lojban/cll/syntax.md # the shape of a possessive inner sumti
+lo re lo gerku # grammars/lojban/cll/syntax.md # the shape of a quantifier and a sumti after a descriptor
+mi goi ko'a # grammars/lojban/cll/syntax.md # the shape of a goi clause
+le zdani pe mi # grammars/lojban/cll/syntax.md # the shape of a pe clause
+sutra co tavla # grammars/lojban/cll/syntax.md # the shape of a co inversion
+barda je melbi # grammars/lojban/cll/syntax.md # the shape of an afterthought jek in a selbri
+gu'e barda gi melbi # grammars/lojban/cll/syntax.md # the shape of a guhek in a selbri
+klama cei broda # grammars/lojban/cll/syntax.md # the shape of a cei assignment
+me sumti me'u # grammars/lojban/cll/syntax.md # notation: a rule name between the cmavo
+nu je ka # grammars/lojban/cll/syntax.md # the shape of connected abstraction words
+pu je ca # grammars/lojban/cll/syntax.md # the shape of a connected tense
+fi'o selbri fe'u # grammars/lojban/cll/syntax.md # notation: a rule name between the cmavo
+sei mi cusku # grammars/lojban/cll/syntax.md # the shape of a discursive bridi
+pa mai # grammars/lojban/cll/syntax.md # the shape of an utterance ordinal
+a e i o u # grammars/lojban/cll/morphology.md # notation: the vowel letters
+a e i o u # grammars/lojban/cll/shapes.md @ "A vowel of a word form" @ "counts the syllables" # notation: the vowel letters
+c j s z # grammars/lojban/cll/shapes.md # notation: a set of consonant letters
+ai ei oi au # grammars/lojban/cll/shapes.md # notation: the falling diphthongs
+ia ie ii io iu ua ue ui uo uu # grammars/lojban/cll/shapes.md # notation: the rising diphthongs
 
-zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
-zu'a nu'i la'u lo mitre be li mu # grammars/syntax/cll.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
-tag termset # grammars/syntax/cll.md @ "govern the whole termset" @ "In `term`" # These are names of grammar rules in an alternative, not Lojban words.
-gi'a brodi # grammars/syntax/cll.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
-pu ku # grammars/syntax/cll.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
-na'e ke # grammars/syntax/cll.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
-nu'u fa'u # grammars/syntax/cll.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
-pe'e fa'u # grammars/syntax/cll.md @ "The errata page instead proposes" # The words of the wiki's alternative correction, rather than a complete text.
-ractu du # grammars/syntax/cll.md @ "omits CU before `du`" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
-kanla viska # grammars/syntax/cll.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
-pu ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
-ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
-joi ke # grammars/dialects/bpfk.md = operator adhoc.connective.operator-joi-ke.bpfk
+zu'a nu'i la djordj. la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.1.cll-ebnf adhoc.syntax.tag-termset.9.bpfk
+zu'a nu'i la'u lo mitre be li mu # grammars/lojban/cll/syntax.md = term adhoc.syntax.tag-termset.2.cll-ebnf adhoc.syntax.tag-termset.10.bpfk
+tag termset # grammars/lojban/cll/syntax.md @ "govern the whole termset" @ "In `term`" # These are names of grammar rules in an alternative, not Lojban words.
+gi'a brodi # grammars/lojban/cll/syntax.md @ "keeps plain `gi'e` inside" = words adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+pu ku # grammars/lojban/cll/syntax.md @ "The official parser needs written" = term adhoc.syntax.gek-term.3.cll-ebnf adhoc.syntax.gek-term.4.bpfk
+na'e ke # grammars/lojban/cll/syntax.md @ "prints `nake`" = words adhoc.syntax.negation-scope.2.cll-ebnf adhoc.syntax.negation-scope.4.bpfk
+nu'u fa'u # grammars/lojban/cll/syntax.md @ "cannot join its halves" = words adhoc.syntax.errata.5.cll-ebnf adhoc.syntax.errata.6.bpfk
+pe'e fa'u # grammars/lojban/cll/syntax.md @ "The errata page instead proposes" # The words of the wiki's alternative correction, rather than a complete text.
+ractu du # grammars/lojban/cll/syntax.md @ "omits CU before `du`" = words corpus.camxes.1112 adhoc.syntax.errata-controls.19.bpfk
+kanla viska # grammars/lojban/cll/syntax.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
+pu ca gi # grammars/lojban/cll/syntax.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
+ca gi # grammars/lojban/cll/syntax.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
+joi ke # grammars/lojban/bpfk/pipeline.md = operator adhoc.connective.operator-joi-ke.bpfk

@@ -1,7 +1,7 @@
 {
   "description": "The period leaves the mark as ZOhOI's whole raw target. Broda remains outside that one-word quote.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo'oi\" broda",

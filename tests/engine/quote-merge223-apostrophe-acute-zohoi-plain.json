@@ -1,7 +1,7 @@
 {
   "description": "The phoneme grammar reads an interior mark between eligible letters as an apostrophe. The complete quote keeps its written marks and whole-quote attachments.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo´oi l´amour",

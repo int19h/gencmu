@@ -1,7 +1,7 @@
 {
   "description": "A quote of Lojban words rejects foreign characters at either edge of its material.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/kihei.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi,lo'u coi你好 le'u, do",

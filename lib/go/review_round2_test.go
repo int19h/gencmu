@@ -14,14 +14,14 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
 		for _, value := range dom["rules"].([]any) {
 			rule := value.(map[string]any)
-			if path == "grammars/notation/lexical.md" && rule["name"] == "feature-character" {
+			if path == "grammars/gencmu/jbogenbau/lexical.md" && rule["name"] == "feature-character" {
 				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
 			}
-			if path == "grammars/notation/syntax.md" && rule["name"] == "guard" {
+			if path == "grammars/gencmu/jbogenbau/syntax.md" && rule["name"] == "guard" {
 				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
 			}
 		}
-		if path == "grammars/notation/syntax.md" {
+		if path == "grammars/gencmu/jbogenbau/syntax.md" {
 			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
 		}
 	})

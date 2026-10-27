@@ -170,15 +170,15 @@ func TestCheckGrammarErrorHasNoCode(t *testing.T) {
 
 // The corpus runner refuses the error elision-witness-lost. The check of le
 // sutra tavla runs in cll-ebnf, since the ranking chooses the fragment
-// (grammars/syntax/cll.md). The private switch loses its witness after
+// (grammars/lojban/cll/syntax.md). The private switch loses its witness after
 // recognition.
 func TestCorpusRunnerWitnessLost(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadDialect("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &corpusCase{Dialect: "cll-ebnf", Text: "le sutra tavla"}
+	c := &corpusCase{Dialect: "lojban/cll", Text: "le sutra tavla"}
 	got, err := corpusOutcome(d, c)
 	if err != nil || got["verdict"] != VerdictResolved {
 		t.Fatalf("%v %v", got, err)

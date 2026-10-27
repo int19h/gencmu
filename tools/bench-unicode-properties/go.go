@@ -49,7 +49,7 @@ func main() {
 		case "load":
 			var dialect *gencmu.Dialect
 			if fields[2] == "-" {
-				dialect = must(gencmu.LoadDialect("cll-ebnf"))
+				dialect = must(gencmu.LoadDialect("lojban/cll"))
 			} else {
 				sources := map[string]string{}
 				for _, row := range rows(fields[2]) {

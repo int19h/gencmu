@@ -506,7 +506,7 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
         documents.insert(path.clone(), text.str().expect("a document").to_string());
     }
     let pipeline = case.get("pipelineDocument").and_then(Value::str).expect("a pipeline").to_string();
-    if documents.values().any(|d| d.contains("%include \"../grammars/dialects/")) {
+    if documents.values().any(|d| d.contains("%include \"../grammars/")) {
         let root = repository().join("grammars");
         let mut bundled = BTreeMap::new();
         let mut pending = vec![root.clone()];

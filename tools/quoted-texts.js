@@ -25,7 +25,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
  * dialects layer their own documents over these, so the check holds a
  * claim about one of them only where the prose names it.
  */
-export const CHECKED_DIALECTS = ["cll-ebnf", "bpfk"];
+export const CHECKED_DIALECTS = ["lojban/cll", "lojban/bpfk"];
 
 /**
  * The reasons that the check leaves out the dialect documents of the
@@ -37,10 +37,10 @@ export const CHECKED_DIALECTS = ["cll-ebnf", "bpfk"];
  * @type {Record<string, string>}
  */
 export const UNCHECKED = {
-  "grammars/dialects/kihei.md": "the kihei example uses dedicated syntax tests instead of the CLL prose corpus",
-  "grammars/dialects/experimental.md": "the experimental dialect: its texts are not pinned yet",
-  "grammars/dialects/zantufa.md": "the Zantufa dialect: its texts are not pinned yet",
-  "grammars/dialects/notation.md": "the notation dialect reads jbogenbau, not Lojban",
+  "grammars/lojban/examples/kihei/pipeline.md": "the kihei example uses dedicated syntax tests instead of the CLL prose corpus",
+  "grammars/lojban/experimental/pipeline.md": "the experimental dialect: its texts are not pinned yet",
+  "grammars/lojban/zantufa/pipeline.md": "the Zantufa dialect: its texts are not pinned yet",
+  "grammars/gencmu/jbogenbau/pipeline.md": "the notation dialect reads jbogenbau, not Lojban",
 };
 
 /** The least number of words that makes a code span a quoted text. */
@@ -71,7 +71,7 @@ export function quotedText(content) {
  * @returns {string[]}
  */
 export function dialectNames(base = root) {
-  return dialectDocuments(base).map((document) => path.posix.basename(document, ".md")).filter((name) => name !== "notation");
+  return dialectDocuments(base).map((document) => document.slice("grammars/".length, -"/pipeline.md".length)).filter((name) => name !== "gencmu/jbogenbau");
 }
 
 /**
@@ -157,7 +157,7 @@ export function namedDialects(prose, dialects = dialectNames()) {
  * @returns {string[]}
  */
 function dialectDocuments(base) {
-  return markdownFiles(base).filter((file) => /^grammars\/dialects\/[^/]+\.md$/.test(file));
+  return markdownFiles(base).filter((file) => /^grammars\/.+\/pipeline\.md$/.test(file));
 }
 
 /**
@@ -185,7 +185,7 @@ export function documentDialects(base = root, doms = repositoryDoms(base)) {
   /** @type {Map<string, string[]>} */
   const dialects = new Map();
   for (const document of dialectDocuments(base)) {
-    const dialect = path.posix.basename(document, ".md");
+    const dialect = document.slice("grammars/".length, -"/pipeline.md".length);
     // The documents to visit, each package-relative path, in the order of a
     // walk down the includes. An explicit stack, since a chain of includes
     // can be longer than the call stack is deep.
@@ -565,7 +565,7 @@ export function rejectionWindows(caseText, text) {
  * @returns {string | null}
  */
 export function roleProblem(c, role, text, dialects, loader) {
-  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`grammars/dialects/${c.dialect}.md`));
+  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`grammars/${c.dialect}/pipeline.md`));
   const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
   if (role === "reject") {
     if (result.ok) return `its dialect accepts it`;

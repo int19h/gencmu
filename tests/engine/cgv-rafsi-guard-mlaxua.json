@@ -1,7 +1,7 @@
 {
   "description": "A non-r consonant and glide after a short rafsi remain an invalid compound-like prefix.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mlaxua",

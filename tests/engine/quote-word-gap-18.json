@@ -1,7 +1,7 @@
 {
   "description": "The rafsi quote leaves an interword mark in spacing, so BU keeps its separating space.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ra'oi klama\"bu",

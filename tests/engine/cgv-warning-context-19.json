@@ -1,7 +1,7 @@
 {
   "description": "The CgV word precedes active FAhO. Its word read keeps the warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "atkuila fa'o broda",

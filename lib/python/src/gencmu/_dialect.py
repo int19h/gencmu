@@ -159,11 +159,9 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
 def _preparsed_path(document: str) -> str | None:
     if not document.startswith("grammars/"):
         return None
-    family = document.split("/")[1]
-    if document == "grammars/dialects/notation.md" or family == "notation":
-        return "data/preparsed/gencmu.json"
-    if family in ("dialects", "phonemes", "words", "indicators", "syntax"):
-        return "data/preparsed/lojban.json"
+    family, separator, child = document[len("grammars/"):].partition("/")
+    if not separator or not child:
+        return None
     return f"data/preparsed/{family}.json" if re.fullmatch(r"[a-z0-9][a-z0-9-]*", family) else None
 
 
@@ -208,7 +206,7 @@ class NotationReader:
                                   code="ranked-choice-syntax" if problem.startswith("ranked-choice-syntax:") else None)
             return known_dom_members(entry["dom"])
 
-        pipeline = splice_pipeline("grammars/dialects/notation.md", dom_of)
+        pipeline = splice_pipeline("grammars/gencmu/jbogenbau/pipeline.md", dom_of)
         self.bootstrap_features = pipeline.features
         stages: list[Grammar] = []
         inputs = [(stage.name, stage.documents) for stage in pipeline.stages]
@@ -559,10 +557,10 @@ def _resources(sources: Mapping[str, str] | None = None) -> _Resources:
 
 
 def load_dialect(name: str, *, use_cache: bool = True) -> Dialect:
-    """A dialect of the bundled grammars, by the name of its pipeline document
-    under ``grammars/dialects/`` without ``.md``."""
-    path = f"grammars/dialects/{name}.md"
-    if "/" in name or bundled_text(path) is None:
+    """A dialect of the bundled grammars, by the directory path NAME of
+    ``grammars/NAME/pipeline.md``."""
+    path = f"grammars/{name}/pipeline.md"
+    if bundled_text(path) is None:
         raise GencmuError(f"there is no bundled dialect {name}", kind="grammar", document=path)
     return _Loader(bundled_text, _resources(), use_cache, names_override=lambda path: False).load(path)
 

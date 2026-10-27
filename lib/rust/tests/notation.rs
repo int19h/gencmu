@@ -109,9 +109,9 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     )
     .expect("the notation's document");
     let boot_pipeline =
-        read_grammar_document("```jbogenbau\n%stage syntax\n%include \"../../n.md\"\n```\n", "").unwrap();
+        read_grammar_document("```jbogenbau\n%stage syntax\n%include \"../../../n.md\"\n```\n", "").unwrap();
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{boot_pipeline}}},"n.md":{{"hash":"0","dom":{notation}}}}}}}"#
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{boot_pipeline}}},"n.md":{{"hash":"0","dom":{notation}}}}}}}"#
     );
     // The pipeline comes from the cache, so that only t.md is read with
     // that notation.

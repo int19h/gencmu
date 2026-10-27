@@ -1,7 +1,7 @@
 {
   "description": "GOhOI quotes the standalone punctuation target instead of skipping it before broda.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "go'oi :) broda",

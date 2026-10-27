@@ -28,16 +28,13 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 }
 
 const BOOTSTRAP_PATH: &str = "data/preparsed/gencmu.json";
-const NOTATION_PATH: &str = "grammars/dialects/notation.md";
+const NOTATION_PATH: &str = "grammars/gencmu/jbogenbau/pipeline.md";
 
 fn preparsed_path(document: &str) -> Option<String> {
     let rest = document.strip_prefix("grammars/")?;
-    let family = rest.split('/').next()?;
-    if document == NOTATION_PATH || family == "notation" {
-        return Some(BOOTSTRAP_PATH.into());
-    }
-    if ["dialects", "phonemes", "words", "indicators", "syntax"].contains(&family) {
-        return Some("data/preparsed/lojban.json".into());
+    let (family, child) = rest.split_once('/')?;
+    if child.is_empty() {
+        return None;
     }
     let valid = !family.is_empty()
         && family.as_bytes()[0].is_ascii_alphanumeric()
@@ -795,10 +792,10 @@ fn load_mode(
 }
 
 /// Loads a bundled dialect by name: the pipeline document
-/// `grammars/dialects/NAME.md` of the grammars embedded in the crate.
+/// `grammars/NAME/pipeline.md` of the grammars embedded in the crate.
 pub fn load_dialect(name: &str) -> Result<Dialect, Error> {
     let context = Context::bundled()?;
-    let pipeline = format!("grammars/dialects/{name}.md");
+    let pipeline = format!("grammars/{name}/pipeline.md");
     if bundled(&pipeline).is_none() {
         return Err(Error::usage(format!("there is no bundled dialect named {name}")));
     }
@@ -961,8 +958,8 @@ mod tests {
     fn leading_parents_are_kept() {
         let normal = |path: &str| normalize(Path::new(path)).to_string_lossy().replace('\\', "/");
         assert_eq!(
-            normal("../../w/rust/grammars/dialects/../notation/lexical.md"),
-            "../../w/rust/grammars/notation/lexical.md"
+            normal("../../w/rust/grammars/gencmu/jbogenbau/../jbogenbau/lexical.md"),
+            "../../w/rust/grammars/gencmu/jbogenbau/lexical.md"
         );
         assert_eq!(normal("a/../../b"), "../b");
         assert_eq!(normal("./a/./b/.."), "a");
@@ -1121,13 +1118,23 @@ mod ranked_location_tests {
     fn bundled_cached_grammars_never_read_source() {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
-        let preparsed = Preparsed::parse(
+        let mut preparsed = Preparsed::parse(
             super::bundled("data/preparsed/lojban.json").unwrap(),
             &bootstrap_hash(),
             &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
             bundled.unicode.properties_fingerprint.as_deref(),
         )
         .unwrap();
+        let notation_entries = Preparsed::parse_implicit(
+            super::bundled(BOOTSTRAP_PATH).unwrap(),
+            &bootstrap_hash(),
+            &bundled.unicode_hash,
+            bundled.unicode.properties_fingerprint.as_deref(),
+            true,
+        )
+        .unwrap();
+        preparsed.by_path.extend(notation_entries.by_path);
+        preparsed.by_hash.extend(notation_entries.by_hash);
         let context = Context {
             unicode: bundled.unicode.clone(),
             notation,
@@ -1139,7 +1146,7 @@ mod ranked_location_tests {
         let sources = MapSources {
             map: bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect(),
         };
-        for path in sources.map.keys().filter(|path| path.starts_with("grammars/dialects/") && path.ends_with(".md")) {
+        for path in sources.map.keys().filter(|path| path.starts_with("grammars/") && path.ends_with("/pipeline.md")) {
             load(&context, &sources, path).expect("the preparsed grammar cache loads without notation stages");
         }
     }
@@ -1303,7 +1310,7 @@ mod notation_cache_tests {
     /// Adds the lexical aliases exactly as tests/README.md specifies.
     fn value_notation(aliases: &[Json]) -> String {
         let mut bootstrap = json::parse(super::bundled("data/preparsed/gencmu.json").unwrap()).unwrap();
-        let document = field(field(&mut bootstrap, "documents"), "grammars/notation/lexical.md");
+        let document = field(field(&mut bootstrap, "documents"), "grammars/gencmu/jbogenbau/lexical.md");
         let rules = array(field(field(document, "dom"), "rules"));
         for (index, alias) in aliases.iter().enumerate() {
             let name = format!("value-alias-{index}");

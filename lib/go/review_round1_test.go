@@ -40,7 +40,7 @@ func reviewSources(grammar, bootstrap string) map[string]string {
 func TestReviewGuardValidation(t *testing.T) {
 	t.Parallel()
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
-		if path != "grammars/notation/lexical.md" {
+		if path != "grammars/gencmu/jbogenbau/lexical.md" {
 			return
 		}
 		for _, value := range dom["rules"].([]any) {
@@ -91,7 +91,7 @@ func TestReviewGuardValidation(t *testing.T) {
 func TestReviewPropertyWrapper(t *testing.T) {
 	t.Parallel()
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
-		if path != "grammars/notation/syntax.md" {
+		if path != "grammars/gencmu/jbogenbau/syntax.md" {
 			return
 		}
 		for _, value := range dom["rules"].([]any) {

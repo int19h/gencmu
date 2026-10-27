@@ -58,7 +58,7 @@
   }
 
   // The characters the notation reads as spaces: the White_Space property
-  // (engine §1, grammars/notation/lexical.md).
+  // (engine §1, grammars/gencmu/jbogenbau/lexical.md).
   const SPACE = /^[\t-\r \u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]$/;
 
   // Keywords, names and quoted tokens used by pipeline directives (§9.1).

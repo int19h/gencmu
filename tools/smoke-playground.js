@@ -340,7 +340,7 @@ async function main() {
         if (status.dataset.state !== "ready") return;
         const text = document.getElementById("input").value;
         const dialect = document.getElementById("dialect").value;
-        if (result.dataset.for !== text || "grammars/dialects/" + result.dataset.dialect + ".md" !== dialect) {
+        if (result.dataset.for !== text || "grammars/" + result.dataset.dialect + "/pipeline.md" !== dialect) {
           self.smokeStale.push({ shown: result.dataset.for, dialect: result.dataset.dialect, text, selected: dialect });
         }
       };
@@ -360,18 +360,18 @@ async function main() {
       { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
-        document: "grammars/syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
+        document: "grammars/lojban/zantufa/syntax.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
         edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
-        document: "grammars/syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
+        document: "grammars/lojban/experimental/syntax.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
         edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
-        document: "grammars/syntax/experimental.md", rule: "%rule me-unit",
+        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
-        document: "grammars/syntax/experimental.md", rule: "%rule me-unit" },
+        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "grammars/syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
+        document: "grammars/lojban/cll/syntax.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
         edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
@@ -467,7 +467,7 @@ async function main() {
 
     // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
-    await choose("grammars/dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const tokenText = "ba'e m,I ui nai klAma";
     await type(tokenText);
     await answerFor(tokenText);
@@ -519,8 +519,8 @@ async function main() {
     const navigationOutput = "(mi [{(se su'i) (pa re)} moi])";
     const setNavigationCase = (kind) => run((kind) => {
       const client = self.playground.client;
-      const syntax = self.gencmuGrammars["grammars/syntax/zantufa.md"];
-      const pipeline = self.gencmuGrammars["grammars/dialects/zantufa.md"];
+      const syntax = self.gencmuGrammars["grammars/lojban/zantufa/syntax.md"];
+      const pipeline = self.gencmuGrammars["grammars/lojban/zantufa/pipeline.md"];
       let changed = syntax;
       let changedPipeline = pipeline;
       const marker = "%rule tanru-unit-1\n";
@@ -533,8 +533,8 @@ async function main() {
         changed = syntax.slice(0, start) + syntax.slice(end);
         changedPipeline += "\n```jbogenbau\n" + syntax.slice(start, end) + "\n```\n";
       }
-      client.setDocument("grammars/syntax/zantufa.md", changed);
-      client.setDocument("grammars/dialects/zantufa.md", changedPipeline);
+      client.setDocument("grammars/lojban/zantufa/syntax.md", changed);
+      client.setDocument("grammars/lojban/zantufa/pipeline.md", changedPipeline);
     }, kind);
     for (const kind of ["prefix", "renamed", "moved", "reset"]) {
       await setNavigationCase(kind);
@@ -553,7 +553,7 @@ async function main() {
         if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
           throw new Error(`a missing rule was not explained at the document start: ${JSON.stringify(opened)}`);
         }
-      } else if (opened.path !== (kind === "moved" ? "grammars/dialects/zantufa.md" : "grammars/syntax/zantufa.md") ||
+      } else if (opened.path !== (kind === "moved" ? "grammars/lojban/zantufa/pipeline.md" : "grammars/lojban/zantufa/syntax.md") ||
           opened.line !== "%rule tanru-unit-1" || opened.hint.includes("Cannot find rule")) {
         throw new Error(`${kind} rule navigation missed the exact definition: ${JSON.stringify(opened)}`);
       }
@@ -562,7 +562,7 @@ async function main() {
     console.log(`review regression cases work in ${browser}`);
     await page.locator("#tab-brackets").click();
 
-    await choose("grammars/dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const sentence = "mi klama le zarci";
     await type(sentence);
     const accepted = await answerFor(sentence);
@@ -581,9 +581,9 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
-    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="grammars/dialects/kihei.md"]').textContent);
+    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="grammars/lojban/examples/kihei/pipeline.md"]').textContent);
     if (kiheiLabel !== "kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
-    await choose("grammars/dialects/kihei.md");
+    await choose("grammars/lojban/examples/kihei/pipeline.md");
     const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
     await type(saFrame);
     const frameAnswer = await answerFor(saFrame);
@@ -592,21 +592,21 @@ async function main() {
     }
 
     // Discarded source still needs to parse and remains editable from its error link.
-    const patched = "grammars/dialects/zantufa.md";
-    const discarded = "grammars/phonemes/latin.md";
-    const extended = "grammars/syntax/zantufa.md";
+    const patched = "grammars/lojban/zantufa/pipeline.md";
+    const discarded = "grammars/lojban/common/latin.md";
+    const extended = "grammars/lojban/zantufa/syntax.md";
     await run(({patched, discarded, extended}) => {
       self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
       self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n```\n");
-      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../phonemes/latin.md\"\n" +
+      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../lojban/common/latin.md\"\n" +
         "%stage b\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage a\n" +
         "%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%extend-stage a\n" +
-        "%include \"../syntax/zantufa.md\"\n```\n");
+        "%include \"../lojban/zantufa/syntax.md\"\n```\n");
     }, {patched, discarded, extended});
     await choose(patched);
     await type("b");
     await idle("the error in discarded source");
-    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "grammars/phonemes/latin.md"}).first();
+    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "grammars/lojban/common/latin.md"}).first();
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
@@ -623,13 +623,13 @@ async function main() {
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
       [patched, discarded, extended]);
-    await choose("grammars/dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     console.log(`stage patches and KIhEI work in ${browser}`);
 
     // A tie is an error, shown with its two readings and no tree. No text
     // ties in a bundled dialect, so an edited pipeline stands in for one: its
     // stage syntax reads "w" as either of two rules.
-    const tiedPipeline = "grammars/dialects/zantufa.md";
+    const tiedPipeline = "grammars/lojban/zantufa/pipeline.md";
     await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
       "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a \"w\"\n%rule b \"w\"\n```\n"), tiedPipeline);
     await choose(tiedPipeline);
@@ -642,7 +642,7 @@ async function main() {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
-    await choose("grammars/dialects/experimental.md");
+    await choose("grammars/lojban/experimental/pipeline.md");
 
     // Texts typed while earlier ones are still being parsed, one of them long
     // enough to be parsing when the next arrives.
@@ -651,9 +651,9 @@ async function main() {
       await type(text);
       await sleep(170 + Math.floor(Math.random() * 100));
     }
-    await choose("grammars/dialects/experimental.md");
+    await choose("grammars/lojban/experimental/pipeline.md");
     await type("mi cu klama");
-    await choose("grammars/dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const last = "mi klama le zarci";
     await type(last);
     const settled = await answerFor(last);
@@ -682,14 +682,14 @@ async function main() {
     // rendering does not mean that the tree holds no tokens. In this
     // pipeline the first stage emits one token X with an empty image for the
     // empty text, and the second stage reads it.
-    const imageless = "grammars/dialects/zantufa.md";
+    const imageless = "grammars/lojban/zantufa/pipeline.md";
     await run((path) => self.playground.client.setDocument(path, "# Empty images\n\n```jbogenbau\n" +
       "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits ε :: X\n" +
       "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), imageless);
     await choose(imageless);
     await emptyRendering("a token with an empty image");
     const shownFor = await run(() => document.getElementById("result").dataset.dialect);
-    if (shownFor !== "zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
+    if (shownFor !== "lojban/zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
     assert.deepEqual(await tokenTable(), {header: tokenHeader,
@@ -698,7 +698,7 @@ async function main() {
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
-    await choose("grammars/dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     await type(last);
     await answerFor(last);
 
@@ -713,12 +713,12 @@ async function main() {
     });
     await until("the edited word shapes to be read", () =>
       document.getElementById("status").textContent.includes("Reading words/shapes") ? true : null);
-    await choose("grammars/dialects/experimental.md");
+    await choose("grammars/lojban/experimental/pipeline.md");
     const other = await until("an answer under the experimental dialect", () => {
       const status = document.getElementById("status");
       const result = document.getElementById("result");
-      return status.dataset.state === "ready" && result.dataset.dialect === "experimental" && !result.hasAttribute("aria-busy")
-        ? { read: self.playground.client.doms.has("grammars/words/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
+      return status.dataset.state === "ready" && result.dataset.dialect === "lojban/experimental" && !result.hasAttribute("aria-busy")
+        ? { read: self.playground.client.doms.has("grammars/lojban/cll/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
     });
     // The worker hands the page every document it finishes reading, so the
     // document's being there means the switch waited for it.

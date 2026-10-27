@@ -2,7 +2,7 @@
   "description": "The Zantufa structural family preserves its constructor and witness during reconstruction. Its independent input queries remain unchanged.",
   "pipelineDocument": "pipeline.md",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```"
   },
   "input": "mi pe'o se su'i pa re ku'e roi klama",
   "options": {

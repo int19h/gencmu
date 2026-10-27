@@ -1,7 +1,7 @@
 {
   "description": "The opening delimiter reads as a CgV word and warns. Its raw closing delimiter adds no warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi mariam. foo .mariam.",

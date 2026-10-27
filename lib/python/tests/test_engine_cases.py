@@ -45,8 +45,8 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 class EngineCases(unittest.TestCase):
     def test_whole_dialect_cases_share_sources_but_load_fresh_dialects(self) -> None:
         documents = {
-            "memo-a.md": '```jbogenbau\n%include "../dialects/notation.md"\n```\n',
-            "memo-b.md": '```jbogenbau\n%include "../dialects/bpfk.md"\n```\n',
+            "memo-a.md": '```jbogenbau\n%include "../grammars/gencmu/jbogenbau/pipeline.md"\n```\n',
+            "memo-b.md": '```jbogenbau\n%include "../grammars/lojban/bpfk/pipeline.md"\n```\n',
         }
         case = {"documents": documents, "pipelineDocument": "memo-a.md"}
         with patch.object(gencmu, "load_dialect_sources", wraps=gencmu.load_dialect_sources) as load:

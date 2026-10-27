@@ -4,7 +4,7 @@ import { loaderFromSources, resultJson, toBrackets, type ParseResult, type Resul
 import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
-const dialect = loader.dialect("grammars/dialects/notation.md");
+const dialect = loader.dialect("grammars/gencmu/jbogenbau/pipeline.md");
 const result: ParseResult = dialect.parse("%rule text A", { features: ["sa-su"], until: "syntax" });
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);

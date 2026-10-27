@@ -1,7 +1,7 @@
 {
   "description": "Attached punctuation marks the quoted word. A quiet boundary makes punctuation a standalone target.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo « jai cmavo",

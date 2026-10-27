@@ -55,12 +55,12 @@ fn outcome(shapes: &Value, bootstrap: String) -> Value {
 fn notation_shapes() {
     let shapes = parse_json(&read(&["tests", "notation-shapes.json"])).expect("notation-shapes.json");
     let bootstrap = read(&["data", "preparsed", "gencmu.json"]);
-    let syntax_at = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
+    let syntax_at = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
     let names: Vec<String> = parse_json(&bootstrap)
         .expect("bootstrap.json")
         .get("documents")
         .unwrap()
-        .get("grammars/notation/syntax.md")
+        .get("grammars/gencmu/jbogenbau/syntax.md")
         .unwrap()
         .get("dom")
         .unwrap()
@@ -123,8 +123,8 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
         1,
     );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
-    let lexical = bootstrap.find(r#""grammars/notation/lexical.md":"#).expect("the lexical document");
-    let syntax = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
+    let lexical = bootstrap.find(r#""grammars/gencmu/jbogenbau/lexical.md":"#).expect("the lexical document");
+    let syntax = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
     let at = bootstrap.find(directive).expect("the directive");
     assert!(lexical < at && at < syntax, "the first directive is the lexical stage's");
     let elision = bootstrap.replacen(directive, r#""name":"ambiguity-resolution","args":["greedy","elision-only"]"#, 1);
@@ -147,7 +147,7 @@ fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tai
     for (rule, contents) in bootstrap
         .get("documents")
         .unwrap()
-        .get("grammars/notation/syntax.md")
+        .get("grammars/gencmu/jbogenbau/syntax.md")
         .unwrap()
         .get("dom")
         .unwrap()
@@ -161,7 +161,7 @@ fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tai
             continue;
         }
         let mut path = parse_json(&format!(
-            r#"["documents","grammars/notation/syntax.md","dom","rules",{rule},"alternatives",{alternative},"expr"]"#
+            r#"["documents","grammars/gencmu/jbogenbau/syntax.md","dom","rules",{rule},"alternatives",{alternative},"expr"]"#
         ))
         .unwrap()
         .array()

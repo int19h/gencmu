@@ -3,7 +3,7 @@
 // notation ever leaves the current bootstrap unable to read the notation
 // documents. The libraries never use it: they read every grammar, the
 // notation's own included, with the bootstrap. Its lexer and parser follow
-// grammars/notation/lexical.md and syntax.md, and build the tree that the
+// grammars/gencmu/jbogenbau/lexical.md and syntax.md, and build the tree that the
 // notation's syntax stage gives, with its rules and tokens; the library's
 // reader then reads that tree, so both readers check a document in the one
 // order of docs/engine.md §9 and give the same DOM or the same error. The
@@ -60,7 +60,7 @@ function syntaxError(message, at) {
 
 const isCapital = (text) => /^[A-Z]/.test(text);
 
-// The tokens of grammars/notation/lexical.md, each with its kind: the tag
+// The tokens of grammars/gencmu/jbogenbau/lexical.md, each with its kind: the tag
 // that the lexical stage gives it, or the symbol itself. The lexical stage
 // reads the whole text as pieces, and under `greedy` the first piece where
 // two readings differ is the longer one (engine §6). So the lexer takes,
@@ -269,7 +269,7 @@ const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string"
 const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
-// (grammars/notation/syntax.md). It builds a node for each rule that the
+// (grammars/gencmu/jbogenbau/syntax.md). It builds a node for each rule that the
 // reader reads by name, with the rule's parts as its children, and leaves
 // out a wrapper rule, whose parts the reader reads in its place. Where the
 // grammar reads a token sequence in more than one way at first, the

@@ -1,7 +1,7 @@
 {
   "description": "The raw one-word quote takes FAhO as its body. The following CgV word remains outside and warns.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo'oi fa'o mariam",

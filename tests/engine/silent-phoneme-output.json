@@ -1,7 +1,7 @@
 {
   "description": "An ignored stretch between quiet pause cores emits a pause token that preserves raw material.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi , klama",

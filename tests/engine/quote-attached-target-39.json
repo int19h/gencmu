@@ -1,7 +1,7 @@
 {
   "description": "The rafsi quote accepts attached marks and quiet gaps, but cannot skip standalone material.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ra'oi :) broda",

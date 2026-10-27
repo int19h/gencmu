@@ -183,7 +183,7 @@ class Corpus(unittest.TestCase):
         """The runner fails a corpus case whose result is the error
         elision-witness-lost, or whose check loses its witness
         (tests/README.md). The check of le sutra tavla runs in cll-ebnf,
-        since the ranking chooses the fragment (grammars/syntax/cll.md). A
+        since the ranking chooses the fragment (grammars/lojban/cll/syntax.md). A
         replaced step of the check loses its witness after recognition."""
         from unittest import mock
 
@@ -191,7 +191,7 @@ class Corpus(unittest.TestCase):
 
         from .shared import WitnessLost
 
-        case = {"id": "lost", "dialect": "cll-ebnf", "text": "le sutra tavla"}
+        case = {"id": "lost", "dialect": "lojban/cll", "text": "le sutra tavla"}
         clean = outcome(case)
         self.assertEqual(clean.get("verdict"), "resolved")
         reconstruct = _stage._reconstruct
@@ -203,7 +203,7 @@ class Corpus(unittest.TestCase):
 
         with mock.patch.object(_stage, "_reconstruct", no_roots), self.assertRaises(WitnessLost):
             outcome(case)
-        dialect = _dialects["cll-ebnf"]
+        dialect = _dialects["lojban/cll"]
         with mock.patch.object(_stage, "_rank_check", lambda forest, marks=None: None):
             result = dialect.parse(case["text"])
         with self.assertRaisesRegex(AssertionError, "elision-witness-lost"):

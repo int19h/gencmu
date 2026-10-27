@@ -10,7 +10,7 @@
 //! crate, so it needs no files beside it.
 //!
 //! ```
-//! let dialect = gencmu::load_dialect("notation")?;
+//! let dialect = gencmu::load_dialect("gencmu/jbogenbau")?;
 //! let result = dialect.parse("%rule text A", &gencmu::ParseOptions::default())?;
 //! assert!(result.ok);
 //! let json = gencmu::to_json(&result);

@@ -122,7 +122,7 @@ class SharedMemo(unittest.TestCase):
     def test_a_zero_bound_keeps_nothing(self) -> None:
         for limit, entries in ((None, True), (0, False)):
             with patch.object(_testing, "memo_limit", limit):
-                dialect = gencmu.load_dialect("bpfk")
+                dialect = gencmu.load_dialect("lojban/bpfk")
                 dialect.parse("bairsazdanti", until="forms")
                 self.assertEqual(bool(shared_rules(dialect)), entries, f"bound {limit}")
 

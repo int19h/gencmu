@@ -1,7 +1,7 @@
 {
   "description": "Whitespace attaches the mark to ZOhOI. The following period separates broda as its raw target.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo'oi\"  broda",

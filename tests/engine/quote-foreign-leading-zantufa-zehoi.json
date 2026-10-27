@@ -1,7 +1,7 @@
 {
   "description": "A quote of Lojban words rejects foreign characters at either edge of its material.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi,ze'oi 你好coi, do",

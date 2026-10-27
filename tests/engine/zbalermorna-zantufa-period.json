@@ -1,7 +1,7 @@
 {
   "description": "Both zbalermorna period scalars form one quiet period pause in zantufa.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "󲢩",

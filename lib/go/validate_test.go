@@ -550,7 +550,7 @@ func bootstrapError(t *testing.T, list, item string) error {
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
 	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
-	start := strings.Index(bootstrap, `"grammars/notation/lexical.md":`)
+	start := strings.Index(bootstrap, `"grammars/gencmu/jbogenbau/lexical.md":`)
 	i := start + strings.Index(bootstrap[start:], `"`+list+`":[`)
 	if i < 0 {
 		t.Fatalf("no %s in the bootstrap", list)

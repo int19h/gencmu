@@ -8,7 +8,7 @@ export declare function bundledGrammarsDirectory(): string;
  */
 export declare function loaderFromDirectory(directory?: string): Loader;
 /**
- * A bundled dialect by name: `grammars/dialects/NAME.md`.
+ * A bundled dialect by name: `grammars/NAME/pipeline.md`.
  * @param {string} name
  * @returns {Dialect}
  */

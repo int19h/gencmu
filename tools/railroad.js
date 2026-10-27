@@ -802,7 +802,7 @@ export function diagramNames(rules) {
 
 /**
  * The directory of a grammar document's SVG files, from the document's
- * path under grammars/, such as `grammars/syntax/cll.md`.
+ * path under grammars/, such as `grammars/lojban/cll/syntax.md`.
  * @param {string} file
  */
 export const diagramDirectory = (file) => `${DIAGRAMS}/${file.replace(/\.md$/, "")}`;

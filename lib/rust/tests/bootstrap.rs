@@ -22,15 +22,15 @@ fn read(path: &str) -> String {
 fn bootstrap_is_a_fixpoint() {
     let bootstrap = parse_json(&read("data/preparsed/gencmu.json")).expect("bootstrap.json");
     let started = std::time::Instant::now();
-    let json = gencmu::tools::splice_bundled_pipeline("grammars/dialects/notation.md", false)
-        .unwrap_or_else(|error| panic!("grammars/dialects/notation.md: {error}"));
+    let json = gencmu::tools::splice_bundled_pipeline("grammars/gencmu/jbogenbau/pipeline.md", false)
+        .unwrap_or_else(|error| panic!("grammars/gencmu/jbogenbau/pipeline.md: {error}"));
     eprintln!("spliced the notation's pipeline through the notation in {:?}", started.elapsed());
     let spliced = parse_json(&json).expect("the spliced pipeline");
     assert_eq!(spliced.get("format"), bootstrap.get("format"));
     let stages = spliced.get("stages").expect("stages");
     let entries = bootstrap.get("documents").expect("documents");
     let expected_names: Vec<_> = entries
-        .get("grammars/dialects/notation.md")
+        .get("grammars/gencmu/jbogenbau/pipeline.md")
         .unwrap()
         .get("dom")
         .unwrap()
@@ -61,11 +61,15 @@ fn bootstrap_is_a_fixpoint() {
 /// preparsed DOMs of `data/preparsed/lojban.json` and without them.
 #[test]
 fn dialects_splice_the_same_with_and_without_the_cache() {
-    let mut names: Vec<String> = std::fs::read_dir(grammars().join("dialects"))
-        .expect("the bundled dialects")
-        .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
-        .filter_map(|name| name.strip_suffix(".md").map(str::to_string))
-        .collect();
+    let mut names = Vec::new();
+    for family in ["gencmu", "lojban"] {
+        let entries = parse_json(&read(&format!("data/preparsed/{family}.json"))).expect("the family entries");
+        names.extend(
+            entries.get("documents").unwrap().object().iter().filter_map(|(path, _)| {
+                path.strip_prefix("grammars/")?.strip_suffix("/pipeline.md").map(str::to_owned)
+            }),
+        );
+    }
     names.sort();
     assert!(names.len() >= 5, "{names:?}");
     // Each dialect on a thread of its own: reading the Lojban grammars
@@ -74,7 +78,7 @@ fn dialects_splice_the_same_with_and_without_the_cache() {
         .into_iter()
         .map(|name| {
             std::thread::spawn(move || {
-                let path = format!("grammars/dialects/{name}.md");
+                let path = format!("grammars/{name}/pipeline.md");
                 let cached = gencmu::tools::splice_bundled_pipeline(&path, true).expect("a cached splice");
                 let fresh = gencmu::tools::splice_bundled_pipeline(&path, false).expect("a fresh splice");
                 assert!(cached == fresh, "{path} splices differently without data/preparsed/lojban.json");
@@ -95,9 +99,9 @@ fn the_grammar_copy_is_current() {
         "data/preparsed/lojban.json",
         "data/unicode/unicode.txt",
         "data/preparsed/gencmu.json",
-        "grammars/notation/lexical.md",
-        "grammars/notation/syntax.md",
-        "grammars/dialects/notation.md",
+        "grammars/gencmu/jbogenbau/lexical.md",
+        "grammars/gencmu/jbogenbau/syntax.md",
+        "grammars/gencmu/jbogenbau/pipeline.md",
     ] {
         let original = std::fs::read_to_string(repository().join(path)).expect("the repository's grammars");
         assert!(original == read(path), "lib/rust/grammars/{path} is out of date; run node tools/sync.js");
@@ -146,9 +150,9 @@ fn bundled_sources(cached: bool) -> BTreeMap<String, String> {
         "data/unicode/unicode.txt",
         "data/unicode/unicode-properties.txt",
         "data/preparsed/gencmu.json",
-        "grammars/notation/lexical.md",
-        "grammars/notation/syntax.md",
-        "grammars/dialects/notation.md",
+        "grammars/gencmu/jbogenbau/lexical.md",
+        "grammars/gencmu/jbogenbau/syntax.md",
+        "grammars/gencmu/jbogenbau/pipeline.md",
     ] {
         sources.insert(path.to_string(), read(path));
     }
@@ -164,15 +168,15 @@ fn bundled_sources(cached: bool) -> BTreeMap<String, String> {
 #[test]
 fn parsing_with_and_without_the_cache() {
     let started = std::time::Instant::now();
-    let cached = gencmu::load_dialect("notation").expect("the notation dialect");
+    let cached = gencmu::load_dialect("gencmu/jbogenbau").expect("the notation dialect");
     let with_cache = started.elapsed();
     let started = std::time::Instant::now();
-    let fresh =
-        gencmu::load_dialect_sources(bundled_sources(false), "grammars/dialects/notation.md").expect("a fresh load");
+    let fresh = gencmu::load_dialect_sources(bundled_sources(false), "grammars/gencmu/jbogenbau/pipeline.md")
+        .expect("a fresh load");
     let without_cache = started.elapsed();
     eprintln!("loading the notation dialect: {with_cache:?} with the cache, {without_cache:?} without");
-    let also_cached =
-        gencmu::load_dialect_sources(bundled_sources(true), "grammars/dialects/notation.md").expect("a cached load");
+    let also_cached = gencmu::load_dialect_sources(bundled_sources(true), "grammars/gencmu/jbogenbau/pipeline.md")
+        .expect("a cached load");
     for (text, accepted) in [
         ("%rule text [{piece}] {... A / B} [+KU 🆓] %rule piece word | \"x\" :: Sound-x %emits $", true),
         ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
@@ -243,12 +247,12 @@ fn a_bootstrap_of_another_shape_is_an_error_and_never_a_panic() {
     }
     // The syntax document is the bootstrap's last, and only its rules are
     // renamed.
-    let start = bootstrap.find(r#""grammars/notation/syntax.md":"#).expect("the syntax document");
+    let start = bootstrap.find(r#""grammars/gencmu/jbogenbau/syntax.md":"#).expect("the syntax document");
     let syntax = parse_json(&bootstrap).expect("bootstrap.json");
     let names: Vec<String> = syntax
         .get("documents")
         .unwrap()
-        .get("grammars/notation/syntax.md")
+        .get("grammars/gencmu/jbogenbau/syntax.md")
         .unwrap()
         .get("dom")
         .unwrap()

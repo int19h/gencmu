@@ -309,7 +309,7 @@ const MALFORMED_BESIDE_A_SEQUENCE: [&str; 4] =
 fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
     let refusal = |dom: String| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
         );
         let sources = [
             ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -322,7 +322,7 @@ fn a_bootstrap_with_a_malformed_range_or_property_is_an_error() {
         error
             .message
             .strip_prefix(
-                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
             .map(str::to_string)
     };
@@ -809,7 +809,7 @@ fn every_malformed_dom_is_a_cache_miss() {
 #[test]
 fn a_malformed_bootstrap_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_emission(r#"{"items":[{"capture":""},{"tags":{"tag":"X"},"insert":true}]}"#)
     );
     let sources = [
@@ -828,7 +828,7 @@ fn a_refused_bootstrap_test_is_an_error() {
     let refusal = |expr: &str| {
         let alternative = format!(r#"{{"guards":[],"expr":{expr}}}"#);
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_alternative(&alternative)
         );
         let sources = [
@@ -842,7 +842,7 @@ fn a_refused_bootstrap_test_is_an_error() {
         error
             .message
             .strip_prefix(
-                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
             .map(str::to_string)
     };
@@ -865,7 +865,7 @@ fn a_refused_bootstrap_test_is_an_error() {
 fn a_bootstrap_term_of_two_forms_is_an_error() {
     let refusal = |term: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_tags(term)
         );
         let sources = [
@@ -879,7 +879,7 @@ fn a_bootstrap_term_of_two_forms_is_an_error() {
         error
             .message
             .strip_prefix(
-                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
             .map(str::to_string)
     };
@@ -1100,7 +1100,7 @@ fn a_preparsed_constant_serves_the_parse() {
 fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     let refusal = |constants: &str| {
         let bootstrap = format!(
-            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+            r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
             with_constants(constants, "")
         );
         let sources = [
@@ -1114,7 +1114,7 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
         error
             .message
             .strip_prefix(
-                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ",
+                "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
             )
             .map(str::to_string)
     };
@@ -1148,7 +1148,7 @@ fn a_preparsed_constant_nested_too_deeply_is_a_miss() {
 #[test]
 fn a_bootstrap_constant_nested_too_deeply_is_an_error() {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_constants(&constant("K", "define", &deep_value(500), 5), "")
     );
     let sources = [
@@ -1302,7 +1302,7 @@ fn a_preparsed_classifier_and_implication_are_checked() {
 fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
     let bad = r#"{"name":"lex","entries":[{"guards":[],"keys":[{"capture":"x"}],"op":"∈","class":"KOhA","at":[6,3]}],"at":[5,1]}"#;
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{}}}}}}}"#,
         with_classifiers("", bad, "")
     );
     let sources = [
@@ -1319,7 +1319,7 @@ fn a_bootstrap_with_a_malformed_classifier_is_an_error() {
 /// the grammar, or `None` when the bootstrap is read.
 fn bootstrap_refusal(dom: &str) -> Option<String> {
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/dialects/notation.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/notation/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{{"format":{DOM_FORMAT},"rules":[],"directives":[{{"name":"stage","args":["lexical"],"at":[1,1]}},{{"name":"include","args":["lexical.md"],"at":[2,1]}}],"constants":[],"classifiers":[],"implications":[]}}}},"grammars/gencmu/jbogenbau/lexical.md":{{"hash":"0","dom":{dom}}}}}}}"#
     );
     let sources = [
         ("grammars/test/p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
@@ -1331,7 +1331,9 @@ fn bootstrap_refusal(dom: &str) -> Option<String> {
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
     error
         .message
-        .strip_prefix("data/preparsed/gencmu.json: the bootstrap's DOM of grammars/notation/lexical.md is malformed: ")
+        .strip_prefix(
+            "data/preparsed/gencmu.json: the bootstrap's DOM of grammars/gencmu/jbogenbau/lexical.md is malformed: ",
+        )
         .map(str::to_string)
 }
 

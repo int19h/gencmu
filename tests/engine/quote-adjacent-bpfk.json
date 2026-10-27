@@ -1,6 +1,6 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",

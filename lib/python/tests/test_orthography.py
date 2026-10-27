@@ -140,7 +140,7 @@ class StageZero(unittest.TestCase):
     def test_stage_zero_runs_once(self) -> None:
         from unittest.mock import patch
 
-        dialect = gencmu.load_dialect("experimental")
+        dialect = gencmu.load_dialect("lojban/experimental")
         for options in ({}, {"until": "words"}):
             with self.subTest(options=options):
                 with patch.object(dialect.unicode, "decompose_with_origins", wraps=dialect.unicode.decompose_with_origins) as decompose:

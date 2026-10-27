@@ -53,7 +53,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 	if b.Format != domFormat || b.Documents == nil {
 		return nil, &Error{Kind: ErrorGrammar, Message: "the bootstrap requires a document map of the current format"}
 	}
-	pipeline, failure := splicePipeline("grammars/dialects/notation.md", func(p string) (*domDoc, *Error) {
+	pipeline, failure := splicePipeline("grammars/gencmu/jbogenbau/pipeline.md", func(p string) (*domDoc, *Error) {
 		raw, ok := b.Documents[p]
 		if !ok {
 			return nil, nil

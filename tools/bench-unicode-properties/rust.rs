@@ -33,7 +33,7 @@ fn main() {
         match fields[0] {
             "load" => {
                 let dialect = if fields[2] == "-" {
-                    gencmu::load_dialect("cll-ebnf").unwrap()
+                    gencmu::load_dialect("lojban/cll").unwrap()
                 } else {
                     let sources: BTreeMap<_, _> = rows(fields[2])
                         .iter()

@@ -57,7 +57,7 @@ func TestReplacementsRecordFlagChanges(t *testing.T) {
 
 func TestLoadDialectBundled(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadDialect("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestLoadDialectBundled(t *testing.T) {
 		t.Fatal("a missing dialect loaded")
 	} else {
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/dialects/no-such-dialect.md" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/no-such-dialect/pipeline.md" {
 			t.Fatalf("unexpected error %#v", err)
 		}
 	}
@@ -269,7 +269,7 @@ func TestLoweringFaultOrder(t *testing.T) {
 // features is the caller's own copy.
 func TestDialectFeatures(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"cll-ebnf", "bpfk", "experimental", "zantufa"} {
+	for _, name := range []string{"lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"} {
 		d, err := LoadDialect(name)
 		if err != nil {
 			t.Fatal(err)
@@ -284,7 +284,7 @@ func TestDialectFeatures(t *testing.T) {
 			t.Errorf("%s: sa-su is not a gate off by default: %+v", name, d.Features())
 		}
 	}
-	d, err := LoadDialect("zantufa")
+	d, err := LoadDialect("lojban/zantufa")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestDialectFeatures(t *testing.T) {
 	if d.Features()[0].Name == "changed" {
 		t.Fatal("changing the list changed the dialect's")
 	}
-	if d, _ := LoadDialect("notation"); d.Features() == nil || len(d.Features()) != 0 {
+	if d, _ := LoadDialect("gencmu/jbogenbau"); d.Features() == nil || len(d.Features()) != 0 {
 		t.Fatalf("the notation has features %#v", d.Features())
 	}
 }
@@ -429,7 +429,7 @@ func TestSplitKeepsSpaces(t *testing.T) {
 // -race.
 func TestConcurrentParses(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadDialect("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -608,7 +608,7 @@ func TestBootstrapNulls(t *testing.T) {
 	t.Parallel()
 	loadBundled()
 	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
-	for _, change := range [][2]string{{`"documents":{`, `"documents":null,"ignored":{`}, {`"grammars/notation/lexical.md":{`, `"grammars/notation/lexical.md":null,"ignored-entry":{`}} {
+	for _, change := range [][2]string{{`"documents":{`, `"documents":null,"ignored":{`}, {`"grammars/gencmu/jbogenbau/lexical.md":{`, `"grammars/gencmu/jbogenbau/lexical.md":null,"ignored-entry":{`}} {
 		if !strings.Contains(bootstrap, change[0]) {
 			t.Fatalf("no %s in the bootstrap", change[0])
 		}
@@ -735,7 +735,7 @@ func TestMalformedPreparsed(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/notation/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err = LoadDialectSources(src, "p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
@@ -770,7 +770,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["../notation/lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/notation/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
 		_, err := LoadDialectSources(src, "p.md")
 		return err
 	}
@@ -1098,7 +1098,7 @@ func TestCallerAttachments(t *testing.T) {
 // (docs/output.md).
 func TestAttachmentsRendered(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadDialect("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1182,7 +1182,7 @@ func hasTag(token Token, tag string) bool {
 // An empty ZOI body adds no token or placeholder. Gap recipes keep the spacing.
 func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadDialect("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1195,11 +1195,11 @@ func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	}
 }
 
-// grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+// grammars/lojban/common/zbalermorna.md: the token of the vowel after the shorthand mark
 // covers the mark, so a word that begins with the shorthand begins at it.
 func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("bpfk")
+	d, err := LoadDialect("lojban/bpfk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1213,12 +1213,12 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	}
 }
 
-// grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never continued. So the
+// grammars/lojban/cll/morphology.md and grammars/lojban/common/forms.md: a Cy letter is never continued. So the
 // general join of run-words, a continued word before an onset, never joins a
 // Cy letter to the word after it, and only the Cy rule joins two letters.
 func TestCyLetterIsNeverContinued(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadDialect("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1233,13 +1233,13 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 	}
 }
 
-// grammars/indicators/cll.md: the greedy ranking reads a nai after a leading
+// grammars/lojban/cll/indicators.md: the greedy ranking reads a nai after a leading
 // attitudinal into the leading run, with or without a ba'e before it, and
 // after a quotation opener as at the start of the text. No condition decides it,
 // so each of these texts has the verdict resolved in the indicator stage.
 func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadDialect("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1273,7 +1273,7 @@ func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	}
 }
 
-// grammars/syntax/experimental.md: the grammar reads no LA, since no word of the
+// grammars/lojban/experimental/syntax.md: the grammar reads no LA, since no word of the
 // experimental lexicon has it. A probe document after the lexicon moves la
 // from LE to LA, and then no rule reads la mlatu ku.
 func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
@@ -1295,13 +1295,13 @@ func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	include := `%include "../words/lexicon-experimental.md"`
-	if !strings.Contains(sources["grammars/dialects/experimental.md"], include) {
+	include := `%include "lexicon.md"`
+	if !strings.Contains(sources["grammars/lojban/experimental/pipeline.md"], include) {
 		t.Fatal("the pipeline no longer includes the lexicon")
 	}
-	sources["grammars/dialects/experimental.md"] = strings.Replace(sources["grammars/dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
-	sources["grammars/words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
-	probe, err := LoadDialectSources(sources, "grammars/dialects/experimental.md")
+	sources["grammars/lojban/experimental/pipeline.md"] = strings.Replace(sources["grammars/lojban/experimental/pipeline.md"], include, include+"\n  %include \"la-probe.md\"", 1)
+	sources["grammars/lojban/experimental/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
+	probe, err := LoadDialectSources(sources, "grammars/lojban/experimental/pipeline.md")
 	if err != nil {
 		t.Fatal(err)
 	}

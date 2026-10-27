@@ -1237,7 +1237,7 @@ mod tests {
     #[test]
     fn stage_zero_runs_once() {
         use crate::work::{counted, reset, Work};
-        let dialect = crate::load_dialect("experimental").unwrap();
+        let dialect = crate::load_dialect("lojban/experimental").unwrap();
         for until in [None, Some("words")] {
             reset();
             let options = ParseOptions { until: until.map(str::to_string), ..Default::default() };

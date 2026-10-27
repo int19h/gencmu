@@ -19,9 +19,9 @@ You need Node 24 or later, and nothing else installed. Run these commands in a c
 ```sh
 node lib/js/cli.js parse mi klama le zarci
 node lib/js/cli.js parse --format tree lo mlatu cu citka lo finpe
-node lib/js/cli.js parse --dialect experimental mi cu klama
+node lib/js/cli.js parse --dialect lojban/experimental mi cu klama
 node lib/js/cli.js parse --trace syntax:2 mi le le zarci
-node lib/js/cli.js audit --dialect zantufa
+node lib/js/cli.js audit --dialect lojban/zantufa
 node lib/js/cli.js help
 ```
 
@@ -44,7 +44,7 @@ Open `index.html` in a browser, from the clone or from GitHub Pages. This page i
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
-A document under [`grammars/dialects/`](grammars/dialects) defines each bundled dialect. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
+A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled dialect. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --dialect NAME` prints a dialect as one jbogenbau text.
 
 ## The libraries
 
@@ -57,7 +57,7 @@ Four libraries implement one specification. Each library has no dependency beyon
 
 ```js
 import { loadDialect, toBrackets } from "gencmu/node";
-console.log(toBrackets(loadDialect("cll-ebnf").parse("mi klama")));
+console.log(toBrackets(loadDialect("lojban/cll").parse("mi klama")));
 ```
 
 ## Documents

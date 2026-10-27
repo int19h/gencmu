@@ -12,7 +12,7 @@ import (
 // searches further.
 func FuzzPreparsedDOM(f *testing.F) {
 	loadBundled()
-	for _, doc := range []string{"grammars/notation/lexical.md", "grammars/notation/syntax.md"} {
+	for _, doc := range []string{"grammars/gencmu/jbogenbau/lexical.md", "grammars/gencmu/jbogenbau/syntax.md"} {
 		var c struct {
 			Documents map[string]struct {
 				Dom json.RawMessage `json:"dom"`

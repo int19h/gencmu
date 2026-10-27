@@ -14792,15 +14792,15 @@
   // ---- resources.js
   // Package-relative keys shared by resource loading and generation.
   const BOOTSTRAP_PATH = "data/preparsed/gencmu.json";
-  const NOTATION_PATH = "grammars/dialects/notation.md";
+  const NOTATION_PATH = "grammars/gencmu/jbogenbau/pipeline.md";
 
   /** @param {string} document @returns {string | undefined} */
   function preparsedPath(document) {
     if (!document.startsWith("grammars/")) return undefined;
-    const family = document.split("/")[1];
-    // The family move replaces these stage directories in the next step.
-    if (document === NOTATION_PATH || family === "notation") return BOOTSTRAP_PATH;
-    if (["dialects", "phonemes", "words", "indicators", "syntax"].includes(family)) return "data/preparsed/lojban.json";
+    const rest = document.slice("grammars/".length);
+    const slash = rest.indexOf("/");
+    if (slash < 1 || slash === rest.length - 1) return undefined;
+    const family = rest.slice(0, slash);
     return /^[a-z0-9][a-z0-9-]*$/.test(family) ? `data/preparsed/${family}.json` : undefined;
   }
 

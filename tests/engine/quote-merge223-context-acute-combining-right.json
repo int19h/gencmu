@@ -1,7 +1,7 @@
 {
   "description": "The accented right vowel remains an eligible neighbor for the interior apostrophe. The quote image keeps the written accent and mark.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo la´ó",

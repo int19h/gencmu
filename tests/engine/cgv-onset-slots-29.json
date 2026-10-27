@@ -1,7 +1,7 @@
 {
   "description": "CLL permits iy in names. The CLL family therefore accepts the name with its existing rules.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/kihei.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "la .niys.",

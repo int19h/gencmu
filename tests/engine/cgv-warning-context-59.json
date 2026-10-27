@@ -1,7 +1,7 @@
 {
   "description": "The foreign qqq run makes the words stage fail. That stage publishes no warning from its incomplete derivation.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mariam qqq",

@@ -1,7 +1,7 @@
 {
   "description": "The spelling zei restricts punctuation in active gaps. Ordinary si and quoted contents retain their readings.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "@ si mlauca",

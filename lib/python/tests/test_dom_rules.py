@@ -510,7 +510,7 @@ class PreparsedDomRules(unittest.TestCase):
         "x" with its quotes, which no DOM has. The reader passes it, and the
         check refuses it at the rule (engine §9)."""
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-        syntax = bootstrap["documents"]["grammars/notation/syntax.md"]
+        syntax = bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]
         next(rule for rule in syntax["dom"]["rules"] if rule["name"] == "rule-name")["alternatives"].append(
             {"guards": [], "expr": {"ref": "String"}}
         )
@@ -529,7 +529,7 @@ class PreparsedDomRules(unittest.TestCase):
         """In a bootstrap, where there is no document to read instead, a
         broken DOM is a GencmuError."""
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-        bootstrap["documents"]["grammars/notation/syntax.md"]["dom"]["rules"][0]["conditions"] = [
+        bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]["dom"]["rules"][0]["conditions"] = [
             {"receiver": {"method": [], "receiver": {"emptySet": True}}, "args": [{"rule": "text"}], "method": "matches"}
         ]
         sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": DOCUMENT, "grammars/test/h.md": NEXT, "data/preparsed/gencmu.json": json.dumps(bootstrap)}
@@ -543,7 +543,7 @@ class PreparsedDomRules(unittest.TestCase):
         def tagged(term: Any) -> str:
             # Give the first alternative of the bootstrap a tag term.
             bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-            bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["rules"][0]["alternatives"][0]["tags"] = term
+            bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["rules"][0]["alternatives"][0]["tags"] = term
             return json.dumps(bootstrap)
 
         def refused(bootstrap: str) -> bool:
@@ -1111,7 +1111,7 @@ class CharacterClassLoading(unittest.TestCase):
             }
             if change is not None:
                 change({"rules": [added]})
-            bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["rules"].insert(0, added)
+            bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["rules"].insert(0, added)
             return json.dumps(bootstrap)
 
         def refused(bootstrap: str) -> bool:
@@ -1273,7 +1273,7 @@ class MixedFormLoading(unittest.TestCase):
             }
             if change is not None:
                 change({"rules": [added]})
-            bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["rules"].insert(0, added)
+            bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["rules"].insert(0, added)
             return json.dumps(bootstrap)
 
         def refused(bootstrap: str) -> bool:
@@ -1387,7 +1387,7 @@ class Constants(unittest.TestCase):
 
     def test_a_bootstrap_with_a_malformed_constant_is_an_error(self) -> None:
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-        bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["constants"].append(
+        bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["constants"].append(
             {"name": "k", "op": "define", "value": {"tag": "A"}, "at": [1, 1]}
         )
         with self.assertRaisesRegex(gencmu.GencmuError, "malformed constant") as caught:
@@ -1422,7 +1422,7 @@ class Constants(unittest.TestCase):
         """The bound on nesting holds before any walk that recurses (engine
         §9), so the bootstrap is an error of the grammar."""
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-        bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["constants"].append(
+        bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["constants"].append(
             {"name": "K", "op": "define", "value": "@VALUE@", "at": [99999, 1]}
         )
         text = json.dumps(bootstrap).replace('"@VALUE@"', self.deep_value_json(2000))
@@ -1475,8 +1475,8 @@ class Constants(unittest.TestCase):
 
     def test_lexical_tokens(self) -> None:
         """The notation's lexical stage tags constants and the keywords that
-        define them (grammars/notation/lexical.md)."""
-        notation = gencmu.load_dialect("notation")
+        define them (grammars/gencmu/jbogenbau/lexical.md)."""
+        notation = gencmu.load_dialect("gencmu/jbogenbau")
         result = notation.parse("%const $SU-STOPS %redefine-const $x $ $K1", until="lexical")
         output = result.stages[0].output
         assert output is not None
@@ -1586,7 +1586,7 @@ class Classifiers(unittest.TestCase):
     def test_a_bootstrap_with_a_malformed_classifier_is_an_error(self) -> None:
         bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
         bad = {"guards": [], "keys": [1], "op": "∈", "class": "KOhA", "at": [9999, 3]}
-        bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]["classifiers"].append({"name": "lex", "entries": [bad], "at": [9999, 1]})
+        bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]["classifiers"].append({"name": "lex", "entries": [bad], "at": [9999, 1]})
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_dialect_sources({**CONSTANT_SOURCES, "data/preparsed/gencmu.json": json.dumps(bootstrap)}, "grammars/test/p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "grammar")
@@ -1702,7 +1702,7 @@ class Classifiers(unittest.TestCase):
                 self.assertTrue(dialect.parse_tokens([token], "a").ok, "the document was read instead")
                 self.assertEqual(dialect.features, (), "no feature of the refused entry")
                 bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "{}")
-                first = bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]
+                first = bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
                 if slot == "entry":
                     first["classifiers"].append(classifier(part, [9999, 1]))
                 else:
@@ -1714,8 +1714,8 @@ class Classifiers(unittest.TestCase):
 
     def test_lexical_tokens(self) -> None:
         """The notation's lexical stage tags the keywords of classifiers and
-        implications (grammars/notation/lexical.md)."""
-        notation = gencmu.load_dialect("notation")
+        implications (grammars/gencmu/jbogenbau/lexical.md)."""
+        notation = gencmu.load_dialect("gencmu/jbogenbau")
         result = notation.parse("%classifier %implies %classifiers", until="lexical")
         output = result.stages[0].output
         assert output is not None

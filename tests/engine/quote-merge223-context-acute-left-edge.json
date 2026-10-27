@@ -1,7 +1,7 @@
 {
   "description": "The leading mark has no letter before it and acts as punctuation. The raw one-word body keeps the trailing mark.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi ´zo'oi foo´",

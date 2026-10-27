@@ -226,7 +226,7 @@ jobs:
           )
 
           func main() {
-              dialect, err := gencmu.LoadDialect("notation")
+              dialect, err := gencmu.LoadDialect("gencmu/jbogenbau")
               if err != nil {
                   log.Fatal(err)
               }

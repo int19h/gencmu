@@ -1,7 +1,7 @@
 {
   "description": "RAhOI cannot skip the standalone mark before the period. Its rafsi quote therefore fails in the words stage.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ra'oi\" broda",

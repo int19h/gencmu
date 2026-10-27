@@ -1,7 +1,7 @@
 {
   "description": "The standalone comma is preserved quote material. ZO quotes it rather than skipping to broda.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo , broda",

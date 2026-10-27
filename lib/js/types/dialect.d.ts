@@ -19,7 +19,7 @@ export type RunOptions = {
 };
 /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 /**
- * A preparsed document of compiled.json.
+ * A preparsed document of data/preparsed/FAMILY.json.
  * @typedef {{hash: string, dom: GrammarDom, names?: Record<string,string>, registry?: Record<string,string>}} PreparsedEntry
  */
 /**

@@ -8,7 +8,7 @@ The JavaScript library of gencmu parses Lojban. A literate grammar document mixe
 import { loadDialect } from "gencmu/node";
 import { toBrackets } from "gencmu";
 
-const dialect = loadDialect("cll-ebnf");
+const dialect = loadDialect("lojban/cll");
 const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```

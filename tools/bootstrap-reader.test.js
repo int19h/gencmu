@@ -90,7 +90,7 @@ test("ranked syntax diagnostics follow the failing token and group", () => {
 
 test("the bootstrap and engine readers agree on the notation documents", () => {
   const loader = notationLoader();
-  for (const file of ["grammars/notation/lexical.md", "grammars/notation/syntax.md", "grammars/dialects/notation.md"]) {
+  for (const file of ["grammars/gencmu/jbogenbau/lexical.md", "grammars/gencmu/jbogenbau/syntax.md", "grammars/gencmu/jbogenbau/pipeline.md"]) {
     const text = fs.readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     assert.deepEqual(loader.readDocument(text, file), readDocument(text, file), file);
   }

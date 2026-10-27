@@ -171,7 +171,7 @@ def write_zbalermorna_names():
         for row in ZBALERMORNA.splitlines():
             code, suffix = row.split(" ", 1)
             records.append(f"name {int(code, 16) + offset:04X} ZBALERMORNA {encoding} {suffix}")
-    path = ROOT / "grammars/phonemes/zbalermorna-names.txt"
+    path = ROOT / "grammars/lojban/common/zbalermorna-names.txt"
     path.write_text("\n".join(records) + "\n", encoding="utf-8")
 
 

@@ -2,7 +2,7 @@
   "description": "An unsegmentable run takes its decomposed source as its value and keeps its phoneme image. Its tree preserves closes, tags and sources.",
   "pipelineDocument": "pipeline.md",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
   },
   "input": "ro'Inre'o",
   "options": {

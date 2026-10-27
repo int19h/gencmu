@@ -1,7 +1,7 @@
 {
   "description": "The palochka period immediately follows the mark after ZO. ZO quotes the standalone mark, and broda remains outside.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo\"ӏ broda",

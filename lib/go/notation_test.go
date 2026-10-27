@@ -76,7 +76,7 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
-// TestFixpoint loads the notation's pipeline, grammars/dialects/notation.md, with
+// TestFixpoint loads the notation's pipeline, grammars/gencmu/jbogenbau/pipeline.md, with
 // the bootstrap, splices it, and compares the stages with the bootstrap
 // itself (engine §8): the same names, and the same runs of documents with
 // the same DOMs.
@@ -103,11 +103,11 @@ func TestFixpoint(t *testing.T) {
 		reader:  bundled.reader,
 		noCache: true,
 	}
-	p, err := l.splice("grammars/dialects/notation.md")
+	p, err := l.splice("grammars/gencmu/jbogenbau/pipeline.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pipelineDOM, derr := decodeDOM(b.Documents["grammars/dialects/notation.md"].Dom, l.uni)
+	pipelineDOM, derr := decodeDOM(b.Documents["grammars/gencmu/jbogenbau/pipeline.md"].Dom, l.uni)
 	if derr != nil {
 		t.Fatal(derr)
 	}
@@ -211,10 +211,10 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	for p, text := range bundled.sources {
 		sources[p] = text
 	}
-	text := bundled.sources["grammars/notation/syntax.md"]
+	text := bundled.sources["grammars/gencmu/jbogenbau/syntax.md"]
 	var outs [][]byte
 	for _, noCache := range []bool{false, true} {
-		d, err := loadSources(sources, "grammars/dialects/notation.md", noCache)
+		d, err := loadSources(sources, "grammars/gencmu/jbogenbau/pipeline.md", noCache)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -249,13 +249,13 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configured.activatePreparsed("grammars/dialects/cll-ebnf.md")
+	configured.activatePreparsed("grammars/lojban/cll/pipeline.md")
 	if len(configured.preparsed) == 0 {
 		t.Fatal("data/preparsed/lojban.json holds no DOMs for this bootstrap")
 	}
 	var names []string
 	for p := range bundled.sources {
-		if strings.HasPrefix(p, "grammars/dialects/") && strings.HasSuffix(p, ".md") {
+		if strings.HasPrefix(p, "grammars/") && strings.HasSuffix(p, "/pipeline.md") {
 			names = append(names, p)
 		}
 	}
@@ -403,7 +403,7 @@ func sameValue(a, b reflect.Value) bool {
 func TestNotationLexicalTags(t *testing.T) {
 	// The quoted scalar-shaped text tests literal dollars.
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadDialect("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +439,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
@@ -454,10 +454,10 @@ func TestNotationTie(t *testing.T) {
 }
 
 // The notation's lexical stage tags constants and the keywords that define
-// them (grammars/notation/lexical.md).
+// them (grammars/gencmu/jbogenbau/lexical.md).
 func TestNotationLexicalConstants(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadDialect("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}

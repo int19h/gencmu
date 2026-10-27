@@ -2,7 +2,7 @@
   "description": "The experimental structural families preserve their witnesses during reconstruction. The head, operand, wrapper, and omitted-boundary cases retain their expected trees.",
   "pipelineDocument": "pipeline.md",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
   "input": "mi xi la'e pa lu'u to do toi klama",
   "options": {

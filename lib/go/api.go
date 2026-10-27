@@ -118,13 +118,9 @@ func preparsedPath(document string) string {
 	if !strings.HasPrefix(document, "grammars/") {
 		return ""
 	}
-	family := strings.Split(strings.TrimPrefix(document, "grammars/"), "/")[0]
-	if document == "grammars/dialects/notation.md" || family == "notation" {
-		return "data/preparsed/gencmu.json"
-	}
-	switch family {
-	case "dialects", "phonemes", "words", "indicators", "syntax":
-		return "data/preparsed/lojban.json"
+	family, child, ok := strings.Cut(strings.TrimPrefix(document, "grammars/"), "/")
+	if !ok || child == "" {
+		return ""
 	}
 	if family == "" {
 		return ""
@@ -512,13 +508,13 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 }
 
 // LoadDialect loads a dialect bundled with the package by name: the file
-// name of a pipeline document under grammars/dialects/ without .md.
+// directory path NAME of grammars/NAME/pipeline.md.
 func LoadDialect(name string) (*Dialect, error) {
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
 	}
-	return l.dialect("grammars/dialects/" + name + ".md")
+	return l.dialect("grammars/" + name + "/pipeline.md")
 }
 
 // LoadDialectFile loads a pipeline document from disk, whose grammar

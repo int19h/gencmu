@@ -22,7 +22,7 @@ for line in sys.stdin:
     try:
         command, key, *args = line.rstrip("\n").split("\t")
         if command == "load":
-            dialect = gencmu.load_dialect("cll-ebnf") if args[0] == "-" else gencmu.load_dialect_sources(
+            dialect = gencmu.load_dialect("lojban/cll") if args[0] == "-" else gencmu.load_dialect_sources(
                 {decode(k): decode(v) for k, v in rows(args[0])}, "p.md")
             dialects[key] = dialect
             answer = {"features": [[f.name, f.kind, f.default] for f in dialect.features]}

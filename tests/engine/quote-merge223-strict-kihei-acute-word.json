@@ -1,7 +1,7 @@
 {
   "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/kihei.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo la´o",

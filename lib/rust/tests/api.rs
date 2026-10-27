@@ -61,7 +61,7 @@ fn replacements_record_flag_changes() {
 
 #[test]
 fn a_bundled_dialect_loads_by_name() {
-    let dialect = gencmu::load_dialect("notation").expect("the notation dialect");
+    let dialect = gencmu::load_dialect("gencmu/jbogenbau").expect("the notation dialect");
     assert_eq!(dialect.stage_names(), ["lexical", "syntax"]);
     let result = dialect.parse("%rule text A", &ParseOptions::default()).expect("a parse");
     assert!(result.ok);
@@ -73,8 +73,8 @@ fn a_bundled_dialect_loads_by_name() {
 
 #[test]
 fn a_dialect_loads_from_disk() {
-    let bundled = gencmu::load_dialect("notation").expect("bundled");
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars/dialects/notation.md");
+    let bundled = gencmu::load_dialect("gencmu/jbogenbau").expect("bundled");
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars/gencmu/jbogenbau/pipeline.md");
     let from_disk = gencmu::load_dialect_file(path).expect("from disk");
     let text = "%rule a $x:B :: T %conditions $x.source-text ≠ \"q\" %emits $";
     assert_eq!(
@@ -404,14 +404,14 @@ fn positions_are_code_points() {
 #[test]
 fn results_outlive_the_dialect_and_cross_threads() {
     let result = {
-        let dialect = gencmu::load_dialect("notation").unwrap();
+        let dialect = gencmu::load_dialect("gencmu/jbogenbau").unwrap();
         let text = String::from("%rule x A");
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
     assert!(json.starts_with("{\"format\":15,\"ok\":true"));
 
-    let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
+    let dialect = std::sync::Arc::new(gencmu::load_dialect("gencmu/jbogenbau").unwrap());
     let threads: Vec<_> = (0..4)
         .map(|index| {
             let dialect = dialect.clone();
@@ -595,7 +595,7 @@ fn deep_attachments_do_not_overflow() {
 #[test]
 fn a_long_name_through_the_notation_does_not_overflow() {
     small_stack(|| {
-        let dialect = gencmu::load_dialect("notation").unwrap();
+        let dialect = gencmu::load_dialect("gencmu/jbogenbau").unwrap();
         let name = "a".repeat(150);
         let started = std::time::Instant::now();
         let result = dialect.parse(&format!("%rule {name} B"), &ParseOptions::default()).unwrap();
@@ -751,7 +751,8 @@ fn relative_paths_keep_their_leading_parents() {
         .and_then(|lib| lib.parent())
         .and_then(|repository| repository.file_name())
         .expect("a checkout directory");
-    let relative = std::path::Path::new("../../..").join(checkout).join("lib/rust/grammars/dialects/notation.md");
+    let relative =
+        std::path::Path::new("../../..").join(checkout).join("lib/rust/grammars/gencmu/jbogenbau/pipeline.md");
     std::env::set_current_dir(crate_directory).unwrap();
     let dialect =
         gencmu::load_dialect_file(&relative).unwrap_or_else(|error| panic!("{}: {error}", relative.display()));
@@ -824,7 +825,7 @@ fn an_implication_error_stands_at_its_constant() {
 /// the syntax reads the word alone (engine §11, docs/output.md).
 #[test]
 fn attachments_follow_their_token_into_the_result_and_the_brackets() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let dialect = gencmu::load_dialect("lojban/cll").expect("the CLL dialect");
     let options = ParseOptions::default();
     let brackets = |text: &str| {
         let result = dialect.parse(text, &options).expect("a result");
@@ -860,7 +861,7 @@ fn stage_output(dialect: &gencmu::Dialect, text: &str, name: &str) -> Vec<gencmu
 /// concatenates its ordinary parts without a foreign placeholder (engine §5).
 #[test]
 fn an_empty_zoi_body_contributes_empty_strings_to_a_letter_word() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let dialect = gencmu::load_dialect("lojban/cll").expect("the CLL dialect");
     let words = stage_output(&dialect, "zoi gy gy", "words");
     assert_eq!(words.len(), 1);
     assert_eq!(words[0].value.as_str(), "zoi gy gy");
@@ -870,11 +871,11 @@ fn an_empty_zoi_body_contributes_empty_strings_to_a_letter_word() {
     assert_eq!(letter.value.as_str(), "zoi gy gy bu");
 }
 
-/// grammars/phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+/// grammars/lojban/common/zbalermorna.md: the token of the vowel after the shorthand mark
 /// covers the mark, so a word that begins with the shorthand begins at it.
 #[test]
 fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
-    let dialect = gencmu::load_dialect("bpfk").expect("the bpfk dialect");
+    let dialect = gencmu::load_dialect("lojban/bpfk").expect("the bpfk dialect");
     let text = "\u{ED8B}\u{EDA4}\u{EDA2}";
     let vowel = &stage_output(&dialect, text, "phonemes")[0];
     assert_eq!((vowel.text.as_str(), vowel.source.clone()), ("\u{ED8B}\u{EDA4}", 0..2));
@@ -883,12 +884,12 @@ fn the_zbalermorna_shorthand_vowel_token_covers_its_mark() {
     assert_eq!(word.value.as_str(), "u'i");
 }
 
-/// grammars/words/cll.md and grammars/words/forms.md: a Cy letter is never `continued`. So
+/// grammars/lojban/cll/morphology.md and grammars/lojban/common/forms.md: a Cy letter is never `continued`. So
 /// the general join of `run-words`, a continued word before an onset, never
 /// joins a Cy letter to the word after it, and only the Cy rule joins two.
 #[test]
 fn a_cy_letter_carries_cy_and_never_continued() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let dialect = gencmu::load_dialect("lojban/cll").expect("the CLL dialect");
     let letters = stage_output(&dialect, "cyky", "forms");
     assert_eq!(letters.iter().map(|token| token.image.as_str()).collect::<Vec<_>>(), ["cy", "ky"]);
     for letter in &letters {
@@ -897,13 +898,13 @@ fn a_cy_letter_carries_cy_and_never_continued() {
     }
 }
 
-/// grammars/indicators/cll.md: the greedy ranking reads a `nai` after a leading
+/// grammars/lojban/cll/indicators.md: the greedy ranking reads a `nai` after a leading
 /// attitudinal into the leading run, with or without a `ba'e` before it, and
 /// after a text opener as at the start of the text. No condition decides it,
 /// so each of these texts has the verdict resolved in the indicator stage.
 #[test]
 fn the_ranking_reads_a_nai_after_a_leading_attitudinal_into_the_run() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
+    let dialect = gencmu::load_dialect("lojban/cll").expect("the CLL dialect");
     for (text, labels) in [
         ("ui nai mi klama", &["ui", "nai", "mi", "klama"][..]),
         ("ui ba'e nai mi klama", &["ui", "nai", "mi", "klama"][..]),
@@ -918,7 +919,7 @@ fn the_ranking_reads_a_nai_after_a_leading_attitudinal_into_the_run() {
     }
 }
 
-/// grammars/syntax/experimental.md: the grammar reads no LA, since no word of the
+/// grammars/lojban/experimental/syntax.md: the grammar reads no LA, since no word of the
 /// experimental lexicon has it. A probe document after the lexicon moves
 /// `la` from LE to LA, and then no rule reads `la mlatu ku`.
 #[test]
@@ -941,15 +942,16 @@ fn the_experimental_syntax_reads_no_la() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammars");
     let mut sources = BTreeMap::new();
     walk(&root, &root, &mut sources);
-    let include = "%include \"../words/lexicon-experimental.md\"";
-    let pipeline = sources.get_mut("grammars/dialects/experimental.md").expect("the pipeline");
+    let include = "%include \"lexicon.md\"";
+    let pipeline = sources.get_mut("grammars/lojban/experimental/pipeline.md").expect("the pipeline");
     assert!(pipeline.contains(include));
-    *pipeline = pipeline.replace(include, &format!("{include}\n  %include \"../words/la-probe.md\""));
+    *pipeline = pipeline.replace(include, &format!("{include}\n  %include \"la-probe.md\""));
     sources.insert(
-        "grammars/words/la-probe.md".to_string(),
+        "grammars/lojban/experimental/la-probe.md".to_string(),
         "```jbogenbau\n%classifier lexicon\n  \"la\" ∉ LE\n  \"la\" ∈ LA\n```\n".to_string(),
     );
-    let probe = gencmu::load_dialect_sources(sources, "grammars/dialects/experimental.md").expect("the probe dialect");
+    let probe =
+        gencmu::load_dialect_sources(sources, "grammars/lojban/experimental/pipeline.md").expect("the probe dialect");
     let result = probe.parse("la mlatu ku cu klama", &ParseOptions::default()).expect("a result");
     let forms = result.stages.iter().find(|stage| stage.name == "forms").expect("the forms stage");
     let la = &forms.output.as_ref().expect("an output")[0];

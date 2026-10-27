@@ -1,7 +1,7 @@
 {
-  "description": "The ZEI constructor in grammars/words/stream.md reads cmavo-token without a separate word wrapper.",
+  "description": "The ZEI constructor in grammars/lojban/common/stream.md reads cmavo-token without a separate word wrapper.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "mi zei do",

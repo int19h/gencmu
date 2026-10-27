@@ -7,7 +7,7 @@ CI runs automated tests for every change. The module states Go 1.22, and CI test
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("cll-ebnf")
+dialect, err := gencmu.LoadDialect("lojban/cll")
 if err != nil {
 	log.Fatal(err) // a *gencmu.Error, with document, line and column
 }
@@ -26,7 +26,7 @@ A caller can enable or disable an unknown feature name. Unknown names do not cha
 
 ## Loading a dialect
 
-- `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
+- `LoadDialect(name)` loads a bundled dialect. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
 - `LoadDialectFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
 - `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 

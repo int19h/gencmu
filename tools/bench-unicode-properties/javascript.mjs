@@ -19,7 +19,7 @@ if (!isMainThread) {
   try {
     const [command, key, ...args] = line.split('\t');
     if (command === 'load') {
-      const dialect = args[0] === '-' ? api.loadDialect('cll-ebnf')
+      const dialect = args[0] === '-' ? api.loadDialect('lojban/cll')
         : fromSources(args[0]);
       dialects.set(key, dialect);
       process.stdout.write(JSON.stringify({features:dialect.features.map(f => [f.name,f.kind,f.default])})+'\n');

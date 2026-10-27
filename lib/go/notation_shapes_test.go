@@ -48,7 +48,7 @@ func TestNotationShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	bootstrap := string(bootstrapRaw)
-	syntaxAt := strings.Index(bootstrap, `"grammars/notation/syntax.md":`)
+	syntaxAt := strings.Index(bootstrap, `"grammars/gencmu/jbogenbau/syntax.md":`)
 	var b struct {
 		Documents map[string]struct {
 			Dom struct {
@@ -62,7 +62,7 @@ func TestNotationShapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var names []string
-	for _, rule := range b.Documents["grammars/notation/syntax.md"].Dom.Rules {
+	for _, rule := range b.Documents["grammars/gencmu/jbogenbau/syntax.md"].Dom.Rules {
 		if rule.Name != "text" {
 			names = append(names, rule.Name)
 		}
@@ -173,7 +173,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		t.Fatal(err)
 	}
-	lexicalDOM := parsed["documents"].(map[string]any)["grammars/notation/lexical.md"].(map[string]any)["dom"].(map[string]any)
+	lexicalDOM := parsed["documents"].(map[string]any)["grammars/gencmu/jbogenbau/lexical.md"].(map[string]any)["dom"].(map[string]any)
 	for _, rule := range lexicalDOM["rules"].([]any) {
 		r := rule.(map[string]any)
 		if r["name"] == "symbol" {

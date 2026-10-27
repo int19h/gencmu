@@ -204,8 +204,8 @@
     },
     {
       "description": "Bootstrap ignores a 400-digit integer in a preparsed entry",
-      "find": "\"grammars/dialects/notation.md\":{",
-      "replace": "\"grammars/dialects/notation.md\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,",
+      "find": "\"grammars/gencmu/jbogenbau/pipeline.md\":{",
+      "replace": "\"grammars/gencmu/jbogenbau/pipeline.md\":{\"ignored\":9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999,",
       "loads": true,
       "rustLoads": false,
       "note": "Rust rejects ignored integers outside signed 64-bit range. Sol records this existing limit outside the numbers branch."
@@ -248,7 +248,7 @@
     },
     {
       "description": "Bootstrap requires its exact pipeline key",
-      "find": "\"grammars/dialects/notation.md\":",
+      "find": "\"grammars/gencmu/jbogenbau/pipeline.md\":",
       "replace": "\"GRAMMARS/DIALECTS/NOTATION.MD\":",
       "loads": false
     },
@@ -1855,6 +1855,16 @@
         "grammars/test/p.md": "```jbogenbau\n%stage main\n%include \"../unrelated/empty.md\"\n%include \"g.md\"\n```\n"
       },
       "cached": false
+    },
+    {
+      "description": "A file at the grammar root selects no family cache.",
+      "find": "\"grammars/test/g.md\":",
+      "replace": "\"grammars/test\":",
+      "document": "../test",
+      "cached": false,
+      "sources": {
+        "grammars/test": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n"
+      }
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",

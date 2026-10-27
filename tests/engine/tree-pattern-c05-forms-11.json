@@ -1,8 +1,8 @@
 {
-  "description": "The forms tree preserves named closes, stored tags, and source spans. The phoneme stage supplies comparison values and preserves stress in images (grammars/phonemes/latin-strict.md).",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The phoneme stage supplies comparison values and preserves stress in images (grammars/lojban/cll/latin.md).",
   "pipelineDocument": "pipeline.md",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/cll-ebnf.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
   },
   "input": "ro'inrai",
   "options": {

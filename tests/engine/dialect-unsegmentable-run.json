@@ -1,7 +1,7 @@
 {
-  "description": "Forms makes one FOREIGN token of a phoneme run that divides into no words (grammars/words/forms.md).",
+  "description": "Forms makes one FOREIGN token of a phoneme run that divides into no words (grammars/lojban/common/forms.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi gy. bcd .gy.",

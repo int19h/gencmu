@@ -814,7 +814,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of lojban/cll.
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/lojban/cll/morphology.md#commas) define the comma restrictions of lojban/cll.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -881,7 +881,7 @@ A lookahead tests a rule without reading the input. A PEG is a grammar that trie
 
 `$f.following-tokens.begins(post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.begins(cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
-The [BPFK word grammar](../grammars/words/bpfk.md) derives from a PEG and states the morphology's rules directly. BPFK is a Lojban committee for language definitions. That grammar retains lookaheads that state morphology rules and [lists its departures](../grammars/words/bpfk.md#differences-from-cll-and-the-reference-peg). The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
+The [BPFK word grammar](../grammars/lojban/bpfk/morphology.md) derives from a PEG and states the morphology's rules directly. BPFK is a Lojban committee for language definitions. That grammar retains lookaheads that state morphology rules and [lists its departures](../grammars/lojban/bpfk/morphology.md#differences-from-cll-and-the-reference-peg). The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
 
 `.starts-input` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins. So an alternative that starts with `text-start` is read there and nowhere else. The parser evaluates the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `.starts-input` holds at the span's start.
 
@@ -1273,7 +1273,7 @@ A pipeline document, which is Markdown too, defines a pipeline. Each stage is a 
 %stage phonemes
 ```
 
-- [Latin orthography](../phonemes/latin.md): what this document contributes
+- [Latin orthography](../lojban/common/latin.md): what this document contributes
   ```jbogenbau
   %include "../lojban/common/latin.md"
   ```

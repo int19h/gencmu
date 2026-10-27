@@ -21,7 +21,7 @@ func valueNotation(t *testing.T, aliases []notationAlias) string {
 	if err := json.Unmarshal([]byte(bundled.sources["data/preparsed/gencmu.json"]), &bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	lexical := bootstrap["documents"].(map[string]any)["grammars/notation/lexical.md"].(map[string]any)["dom"].(map[string]any)
+	lexical := bootstrap["documents"].(map[string]any)["grammars/gencmu/jbogenbau/lexical.md"].(map[string]any)["dom"].(map[string]any)
 	if lexical == nil {
 		t.Fatal("the bootstrap has no lexical stage")
 	}

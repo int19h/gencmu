@@ -247,12 +247,12 @@ fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
 
 /// The corpus runner refuses the error elision-witness-lost, and a check
 /// that loses its witness. The check of `le sutra tavla` runs in cll-ebnf,
-/// since the ranking chooses the fragment (grammars/syntax/cll.md), and a
+/// since the ranking chooses the fragment (grammars/lojban/cll/syntax.md), and a
 /// private switch loses its witness after recognition.
 #[test]
 fn the_corpus_runner_refuses_the_error_elision_witness_lost() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("cll-ebnf");
-    let case = parse_json(r#"{"dialect": "cll-ebnf", "text": "le sutra tavla"}"#).unwrap();
+    let dialect = gencmu::load_dialect("lojban/cll").expect("lojban/cll");
+    let case = parse_json(r#"{"dialect": "lojban/cll", "text": "le sutra tavla"}"#).unwrap();
     let clean = outcome(&dialect, &case).expect("a clean outcome");
     assert_eq!(clean.get("verdict"), Some(&string("resolved")));
     let (_, checks) = gencmu::tools::with_elision_checks(|| outcome(&dialect, &case));

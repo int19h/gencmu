@@ -1,7 +1,7 @@
 {
   "description": "A mark before another word remains spacing. BU keeps the same value as the plain-pause form.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo mi\"bu bu",

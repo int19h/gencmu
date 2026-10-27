@@ -517,7 +517,7 @@ A pipeline document is Markdown too, and literate. Each stage is a heading, foll
 %stage phonemes
 ```
 
-- [Latin orthography](../phonemes/latin.md): what this document contributes
+- [Latin orthography](../lojban/common/latin.md): what this document contributes
   ```jbogenbau
   %include "../lojban/common/latin.md"
   ```
@@ -694,7 +694,7 @@ A constituent is the text read by one grammar rule. A candidate is one construct
 
 TO, SEI, and XOI bodies compete as ordinary constituents. Late elision selects complete readings with fewer omissions at the first differing boundary. A longer body usually wins when it leaves a complete reading. Written terminators retain their ordinary grammatical force.
 
-Zantufa uses patterns and aligned category queries to remove duplicate constructions without moving the candidate's closes. Its following-input conditions reserve words after the selected constituent. In `cy to roi toi klama`, the aligned tag query keeps ROI inside the letter's written parenthesis. It cannot invent an outside ROI by moving TOI. Its [syntax comparison](../grammars/syntax/zantufa.md#early-closure) records the three early-close departures and their written-terminator controls.
+Zantufa uses patterns and aligned category queries to remove duplicate constructions without moving the candidate's closes. Its following-input conditions reserve words after the selected constituent. In `cy to roi toi klama`, the aligned tag query keeps ROI inside the letter's written parenthesis. It cannot invent an outside ROI by moving TOI. Its [syntax comparison](../grammars/lojban/zantufa/syntax.md#early-closure) records the three early-close departures and their written-terminator controls.
 
 ### Where an elided terminator can fall
 
@@ -728,9 +728,9 @@ The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no co
 
 The dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
 
-The CLL grammar also applies the condition that the official parser's lexer applies with `GIhEK_KE`, in the rule `bridi-tail-1-final` of the CLL grammar. The `ke` form of `bridi-tail` groups the tails after a gihek, as in `mi broda gi'e ke brode ke'e`. A plain gihek can read the same words. "Sentences and bridi-tails" in [the CLL grammar](../grammars/syntax/cll.md) states the condition, which removes the plain reading in some of these texts. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the grammar keeps it, as the printed grammar does. The official parser rejects that text.
+The CLL grammar also applies the condition that the official parser's lexer applies with `GIhEK_KE`, in the rule `bridi-tail-1-final` of the CLL grammar. The `ke` form of `bridi-tail` groups the tails after a gihek, as in `mi broda gi'e ke brode ke'e`. A plain gihek can read the same words. "Sentences and bridi-tails" in [the CLL grammar](../grammars/lojban/cll/syntax.md) states the condition, which removes the plain reading in some of these texts. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the grammar keeps it, as the printed grammar does. The official parser rejects that text.
 
-The `lojban/experimental` pipeline redefines `selbri-4` and `operator`, with the same ranked KE preference. It also redefines `bridi-tail`, `bridi-tail-1`, and `bridi-tail-1-final`. At a final connection, its whole-tail condition prefers a connective-owned KE group when that group reads the same words. An earlier connection or a continuing tail keeps the plain reading. The same condition applies with or without a free modifier. The [syntax closing section](../grammars/syntax/experimental.md#bridi-tail-connections) explains that preference and its difference from camxes-exp.
+The `lojban/experimental` pipeline redefines `selbri-4` and `operator`, with the same ranked KE preference. It also redefines `bridi-tail`, `bridi-tail-1`, and `bridi-tail-1-final`. At a final connection, its whole-tail condition prefers a connective-owned KE group when that group reads the same words. An earlier connection or a continuing tail keeps the plain reading. The same condition applies with or without a free modifier. The [syntax closing section](../grammars/lojban/experimental/syntax.md#bridi-tail-connections) explains that preference and its difference from camxes-exp.
 
 The pipeline also states three conventions as rules:
 
@@ -738,9 +738,9 @@ The pipeline also states three conventions as rules:
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 
-A preference for each connective or argument can misread natural texts. Form alone does not determine the intended meaning. The `lojban/experimental` pipeline keeps the whole-reading count. Written `kei ku` after the first description selects parallel descriptions, while `gi'e` explicitly marks a bridi-tail link. The [syntax closing section](../grammars/syntax/experimental.md#terms-and-descriptions) gives both choices and their written forms in plain words.
+A preference for each connective or argument can misread natural texts. Form alone does not determine the intended meaning. The `lojban/experimental` pipeline keeps the whole-reading count. Written `kei ku` after the first description selects parallel descriptions, while `gi'e` explicitly marks a bridi-tail link. The [syntax closing section](../grammars/lojban/experimental/syntax.md#terms-and-descriptions) gives both choices and their written forms in plain words.
 
-The `leftmost-longest` flag on `free` settles a free modifier's span before the `fewest` ranking. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/syntax/experimental.md) gives examples with omitted and written `toi`.
+The `leftmost-longest` flag on `free` settles a free modifier's span before the `fewest` ranking. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/lojban/experimental/syntax.md) gives examples with omitted and written `toi`.
 
 The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
 
@@ -982,7 +982,7 @@ A railroad diagram draws a grammar rule as a track. A reader follows the track f
 
 `node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document.
 
-So the diagram of `sumti` in `grammars/lojban/cll/syntax.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files. An emoji filename uses `_u` followed by lowercase hexadecimal, without unnecessary leading zeros.
+So the diagram of `sumti` in `grammars/lojban/cll/syntax.md` is `docs/diagrams/lojban/cll/syntax/sumti.svg`. The packages do not ship these files. An emoji filename uses `_u` followed by lowercase hexadecimal, without unnecessary leading zeros.
 
 Thus `🆓` uses `_u1f193.svg`. Generated names cannot collide with ASCII rule names because those start lowercase.
 

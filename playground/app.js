@@ -42,38 +42,38 @@
   // The documents of a pipeline, stage by stage (playground/pipeline.js).
   const pipelineOf = (path) => self.gencmuPipeline.pipelineStages(path, (document) => client.text(document), (document, names) => client.documentDirectives.get(JSON.stringify([document, names])));
 
-  const DIALECT_ORDER = ["cll-ebnf", "bpfk", "experimental", "zantufa", "notation"];
-  const dialectName = (path) => path.replace(/^grammars\/dialects\//, "").replace(/\.md$/, "");
-  const dialectPaths = Object.keys(bundled).filter((path) => /^grammars\/dialects\/[^/]+\.md$/.test(path)).sort((a, b) => {
+  const DIALECT_ORDER = ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "gencmu/jbogenbau"];
+  const dialectName = (path) => path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, "");
+  const dialectPaths = Object.keys(bundled).filter((path) => /^grammars\/.+\/pipeline\.md$/.test(path)).sort((a, b) => {
     const rank = (path) => { const index = DIALECT_ORDER.indexOf(dialectName(path)); return index < 0 ? DIALECT_ORDER.length : index; };
     return rank(a) - rank(b) || (a < b ? -1 : 1);
   });
 
   const EXAMPLES = [
-    { label: "A sentence", text: "mi klama le zarci", dialect: "cll-ebnf" },
-    { label: "A text with omitted endings", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", dialect: "cll-ebnf" },
-    { label: "A repeated le is rejected", text: "mi klama le le", dialect: "cll-ebnf" },
-    { label: "sa erases the earlier words", text: "mi klama sa do", dialect: "cll-ebnf" },
-    { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", dialect: "cll-ebnf" },
-    { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "bpfk" },
-    { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", dialect: "zantufa",
-      document: "grammars/syntax/zantufa.md", rule: "tanru-unit-1",
+    { label: "A sentence", text: "mi klama le zarci", dialect: "lojban/cll" },
+    { label: "A text with omitted endings", text: "lo lojbo cu tavla fi lo nu mi klama le zarci .i do pu tavla mi", dialect: "lojban/cll" },
+    { label: "A repeated le is rejected", text: "mi klama le le", dialect: "lojban/cll" },
+    { label: "sa erases the earlier words", text: "mi klama sa do", dialect: "lojban/cll" },
+    { label: "Lojban written in Cyrillic", text: "ми клама ле зарши", dialect: "lojban/cll" },
+    { label: "BPFK accepts an omitted ending", text: "le lojbo se farvi le loglo gi'enai mintu ja dunli le logla", dialect: "lojban/bpfk" },
+    { label: "A whole MOI expression wins (Zantufa)", text: "mi se su'i pa re moi", dialect: "lojban/zantufa",
+      document: "grammars/lojban/zantufa/syntax.md", rule: "tanru-unit-1",
       hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie." },
-    { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "experimental",
-      document: "grammars/syntax/experimental.md", rule: "tanru-unit-2",
+    { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "lojban/experimental",
+      document: "grammars/lojban/experimental/syntax.md", rule: "tanru-unit-2",
       hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace each ≻ with | in the open MOI group to see a tie." },
-    { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "experimental", tab: "tree",
-      document: "grammars/syntax/experimental.md", rule: "me-unit",
+    { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "lojban/experimental", tab: "tree",
+      document: "grammars/lojban/experimental/syntax.md", rule: "me-unit",
       hint: "A sumti is an argument. A mex is a mathematical expression. The condition excludes mex only when sumti reads the same words with the same boundaries. Remove the %conditions clause to see a tie." },
-    { label: "ME accepts a number (experimental)", text: "mi me pa", dialect: "experimental", tab: "tree",
-      document: "grammars/syntax/experimental.md", rule: "me-unit",
+    { label: "ME accepts a number (experimental)", text: "mi me pa", dialect: "lojban/experimental", tab: "tree",
+      document: "grammars/lojban/experimental/syntax.md", rule: "me-unit",
       hint: "Here pa qualifies only as a mathematical expression. No sumti reads it with the same boundaries, so the condition permits mex." },
-    { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", dialect: "cll-ebnf",
-      document: "grammars/syntax/cll.md", rule: "simple-tense-modal",
+    { label: "The earliest, longest tense wins (CLL)", text: "mi viska pu va ca gi do gi la djan", dialect: "lojban/cll",
+      document: "grammars/lojban/cll/syntax.md", rule: "simple-tense-modal",
       hint: "The leftmost-longest rule flag prefers the earlier tense pu va. Remove (leftmost-longest) from the open rule to see a tie." },
-    { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
+    { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "gencmu/jbogenbau", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
-    { label: "A rule with tree tests (notation)", dialect: "notation", tab: "tree",
+    { label: "A rule with tree tests (notation)", dialect: "gencmu/jbogenbau", tab: "tree",
       text: "%rule text $x:pair\n%conditions\n  $x ≅ #« A ⋯ B »,\n  $x ≇ #(⋮ C),\n  $x ≅ #(A ⋰),\n  $x ≅ #(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
@@ -85,7 +85,7 @@
 
   const state = {
     text: $("input").value,
-    dialect: dialectPaths.includes("grammars/dialects/cll-ebnf.md") ? "grammars/dialects/cll-ebnf.md" : dialectPaths[0],
+    dialect: dialectPaths.includes("grammars/lojban/cll/pipeline.md") ? "grammars/lojban/cll/pipeline.md" : dialectPaths[0],
     // The features the page turns on, and those it turns off among the
     // ones the dialect turns on.
     features: new Set(),
@@ -112,7 +112,7 @@
     const params = new URLSearchParams(location.hash.slice(1));
     if (params.has("text")) state.text = params.get("text");
     const dialect = params.get("dialect");
-    if (dialect && dialectPaths.includes(`grammars/dialects/${dialect}.md`)) state.dialect = `grammars/dialects/${dialect}.md`;
+    if (dialect && dialectPaths.includes(`grammars/${dialect}/pipeline.md`)) state.dialect = `grammars/${dialect}/pipeline.md`;
     if (params.get("features")) state.features = new Set(params.get("features").split(",").filter(Boolean));
     if (params.get("without")) state.without = new Set(params.get("without").split(",").filter(Boolean));
     if (["on", "off"].includes(params.get("elision"))) state.elision = params.get("elision");
@@ -956,7 +956,7 @@
   });
 
   // A download of one document, named after its path so that the several
-  // cll.md documents stay apart: grammars/words/cll.md is words--cll.md.
+  // cll.md documents stay apart: grammars/lojban/cll/morphology.md is words--cll.md.
   function download(path) {
     const blob = new Blob([client.text(path)], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -994,7 +994,7 @@
       if (!example) return;
       state.text = example.text;
       $("input").value = example.text;
-      state.dialect = `grammars/dialects/${example.dialect}.md`;
+      state.dialect = `grammars/${example.dialect}/pipeline.md`;
       state.elision = example.elision || "";
       state.until = "";
       const hint = $("example-hint");

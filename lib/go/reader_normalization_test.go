@@ -85,7 +85,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 
 func TestStageZeroOnce(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("experimental")
+	d, err := LoadDialect("lojban/experimental")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,7 @@
 {
   "description": "One-word quote and opening delimiter gaps cannot skip raw material. Body spacing and quiet boundaries retain their readings.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/kihei.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "ra'oi :) broda",

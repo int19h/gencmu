@@ -29,7 +29,7 @@
 //
 // # Parsing
 //
-//	dialect, err := gencmu.LoadDialect("notation")
+//	dialect, err := gencmu.LoadDialect("gencmu/jbogenbau")
 //	result, err := dialect.Parse("%rule text A [{B}]", gencmu.ParseOptions{})
 //	if result.OK { fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{})) }
 //	data, err := gencmu.MarshalResult(result) // the canonical JSON

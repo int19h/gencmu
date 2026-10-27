@@ -1,7 +1,7 @@
 {
   "description": "An unfinished replacement quote reports its missing LEhAI at the end of the input.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "lo'ai mi",

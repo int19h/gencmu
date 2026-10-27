@@ -1,7 +1,7 @@
 {
   "description": "A whole quote token keeps original spelling and decomposed values.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zoi klama. klamá .klama.",

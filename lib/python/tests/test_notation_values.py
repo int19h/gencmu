@@ -15,7 +15,7 @@ from .test_notation_cases import check_notation_cache_paths
 
 def value_notation(aliases: list[dict[str, Any]]) -> str:
     bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "")
-    lexical = bootstrap["documents"]["grammars/notation/lexical.md"]["dom"]
+    lexical = bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
     piece = next(rule for rule in lexical["rules"] if rule["name"] == "piece")
     for index, alias in enumerate(aliases):
         name = f"value-alias-{index}"

@@ -104,7 +104,7 @@ class NotationTies(unittest.TestCase):
             "n.md",
         )
         bootstrap = json.dumps(
-            {"format":notation["format"],"documents":{"grammars/dialects/notation.md":{"hash":"0","dom":read_document('```jbogenbau\n%stage syntax\n%include "../../n.md"\n```\n',"boot.md")},"n.md":{"hash":"0","dom":notation}}}
+            {"format":notation["format"],"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":read_document('```jbogenbau\n%stage syntax\n%include "../../../n.md"\n```\n',"boot.md")},"n.md":{"hash":"0","dom":notation}}}
         )
         sources = {"data/preparsed/gencmu.json": bootstrap}
         with self.assertRaises(gencmu.GencmuError) as caught:

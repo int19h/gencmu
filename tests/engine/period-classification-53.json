@@ -1,7 +1,7 @@
 {
   "description": "Whitespace attaches the mark to the ZO marker. The following period separates broda as the target.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "zo\" broda",

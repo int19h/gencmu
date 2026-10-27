@@ -66,7 +66,7 @@ function grammarFiles(directory = grammars, prefix = "") {
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
     if (entry.isDirectory()) for (const file of grammarFiles(path.join(directory, entry.name), relative + "/")) files.push(file);
-    else if (relative !== "compiled.json") files.push(relative);
+    else files.push(relative);
   }
   return files;
 }
@@ -116,7 +116,7 @@ function settle(bootstrap) {
   for (let round = 0; ; round++) {
     const loader = loaderWith(bootstrap);
     const documents = {};
-    for (const file of grammarFiles().filter(file => (file === "dialects/notation.md" || file.startsWith("notation/")) && file.endsWith(".md"))) {
+    for (const file of grammarFiles().filter(file => file.startsWith("gencmu/") && file.endsWith(".md"))) {
       const text = fs.readFileSync(path.join(grammars,file),"utf8");
       documents[`grammars/${file}`] = {hash:fnv1a64(text), dom:loader.readDocument(text,`grammars/${file}`)};
     }
@@ -148,7 +148,7 @@ for (const file of grammarFiles()) {
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each dialect that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(`grammars/${file}`));
   for (const [relative, svg] of files) diagrams.set(relative, svg);

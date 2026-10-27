@@ -7,7 +7,7 @@ The library is pure Python, uses the standard library only, and needs Python 3.1
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("cll-ebnf")
+dialect = gencmu.load_dialect("lojban/cll")
 result = dialect.parse("mi klama le zarci")
 result.ok, result.tree, result.error, result.warnings
 gencmu.to_json(result)

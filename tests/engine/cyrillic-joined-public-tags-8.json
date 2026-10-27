@@ -1,7 +1,7 @@
 {
   "description": "Experimental joined Cyrillic vowels retain their public stress and syllable tags. Both orthography choices keep their values and source ranges.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../grammars/dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
   "pipelineDocument": "pipeline.md",
   "input": "БА,ИБА",

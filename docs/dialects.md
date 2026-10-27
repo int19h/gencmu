@@ -1,6 +1,6 @@
 # Implement a pipeline
 
-You will build `grammars/lojban/examples/my-kihei/pipeline.md` with the `ki'ei` construct from [kihei](../grammars/dialects/kihei.md). A pipeline defines which grammar a parser uses.
+You will build `grammars/lojban/examples/my-kihei/pipeline.md` with the `ki'ei` construct from [kihei](../grammars/lojban/examples/kihei/pipeline.md). A pipeline defines which grammar a parser uses.
 
 A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
@@ -441,7 +441,7 @@ The bundled Lojban pipelines run `phonemes`, `forms`, `words`, `indicators`, and
 
 A stressed vowel has its plain lowercase value and the `Stressed` tag. Its image retains visible stress. A syllable comma has empty value, image `,`, and tag `Syllable-Break`. Empty values retain their input coverage.
 
-The `syllable-break` rule in [latin-strict.md](../grammars/phonemes/latin-strict.md) reads `commas`. Its covering emission sets the comparison value:
+The `syllable-break` rule in [latin-strict.md](../grammars/lojban/cll/latin.md) reads `commas`. Its covering emission sets the comparison value:
 
 ```jbogenbau
 %rule syllable-break
@@ -491,23 +491,23 @@ This parent emits `xb`. An alternative recipe serves only that alternative. An i
 
 ## Quote images
 
-[The word stream](../grammars/words/stream.md#quotes) defines quote values, images, and boundaries. Its [raw payload rules](../grammars/words/stream.md#raw-payloads) explain verbatim images and `.emitted.image`.
+[The word stream](../grammars/lojban/common/stream.md#quotes) defines quote values, images, and boundaries. Its [raw payload rules](../grammars/lojban/common/stream.md#raw-payloads) explain verbatim images and `.emitted.image`.
 
 ## Carry decisions through tags
 
 The gap-tag invariant governs facts that recipes cannot inspect. If a recipe needs a branching decision, compute that fact during recognition and carry it upward as a tag. State the tag's origin, forwarding rules, readers, and end in grammar prose.
 
-[The spacing rules](../grammars/words/stream.md#spacing-and-hesitation) define `Gap-Pause` and its surviving pauses. [The compound rules](../grammars/words/stream.md#compounds) define the origin, forwarding, readers, and end of `Trailing-Pause`.
+[The spacing rules](../grammars/lojban/common/stream.md#spacing-and-hesitation) define `Gap-Pause` and its surviving pauses. [The compound rules](../grammars/lojban/common/stream.md#compounds) define the origin, forwarding, readers, and end of `Trailing-Pause`.
 
 Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
 
 ## Rules of the words stage
 
-[Shared word gaps](../grammars/words/stream.md#shared-word-gaps) distinguish hesitation, pauses, and empty gaps inside quotes. [Compounds](../grammars/words/stream.md#compounds) define gap classification for BU and ZEI.
+[Shared word gaps](../grammars/lojban/common/stream.md#shared-word-gaps) distinguish hesitation, pauses, and empty gaps inside quotes. [Compounds](../grammars/lojban/common/stream.md#compounds) define gap classification for BU and ZEI.
 
-[SA and SU erasure](../grammars/words/stream.md#erasure-by-sa-and-su) defines surviving boundary units. The compound rules describe their trailing-space state and its end.
+[SA and SU erasure](../grammars/lojban/common/stream.md#erasure-by-sa-and-su) defines surviving boundary units. The compound rules describe their trailing-space state and its end.
 
-[The Latin phoneme grammar](../grammars/phonemes/latin.md#punctuation) defines non-Lojban character runs. [The forms grammar](../grammars/words/forms.md#runs) defines foreign tokens and unsegmentable runs. [Closing delimiter runs](../grammars/words/stream.md#closing-delimiter-runs) define the fixed Y keys.
+[The Latin phoneme grammar](../grammars/lojban/common/latin.md#punctuation) defines non-Lojban character runs. [The forms grammar](../grammars/lojban/common/forms.md#runs) defines foreign tokens and unsegmentable runs. [Closing delimiter runs](../grammars/lojban/common/stream.md#closing-delimiter-runs) define the fixed Y keys.
 
 ## Other changes
 
@@ -698,4 +698,4 @@ The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` befor
 
 Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the pipeline's shared rules. BPFK and Zantufa read them as pause material, and experimental reads them as foreign material. Loading and parsing produce no warning about the older encoding.
 
-[The grammar's encoding section](../grammars/phonemes/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.
+[The grammar's encoding section](../grammars/lojban/common/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.
