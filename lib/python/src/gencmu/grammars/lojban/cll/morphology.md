@@ -359,7 +359,7 @@ A borrowing, or fu'ivla, is a brivla that is neither a gismu nor a lujvo (CLL[^c
 
 A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerndjamo` of CLL[^cll-s4-7]).
 
-Its vowels can stand in any run, with apostrophes or commas between two of them. The [vowel choice](#names-and-vowels) explains adjacent vowels that form no diphthong. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
+A borrowing's vowels can stand in any run, with apostrophes or commas between two of them. The [vowel choice](#names-and-vowels) explains adjacent vowels that form no diphthong. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
 
 A borrowing is also not "any combination of cmavo, gismu, and lujvo". The `denpabu` of CLL[^cll-s17-4] shows what that means: the same spoken word, with its syllables and stress, read as those words under the pause rules. Only one such reading is possible. It is one or more cmavo followed by one brivla, because a second brivla needs a second stress. The last word must begin with a consonant, and it can be a borrowing too, as in `abaspageti`, which is `a ba spageti`.
 

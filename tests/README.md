@@ -114,7 +114,9 @@ A resource error names the resource key. Its position omits an unknown line or c
 
 ### Zbalermorna conformance
 
-Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the tone mappings. Every Explicit rule pair stands in the same alternatives and gives equal results for channels that those alternatives set by recipe. Shared rules that copy source text retain the written scalar in values and images. All text and source metadata retain that scalar.
+The [Two encodings table](../grammars/lojban/common/zbalermorna.md#two-encodings) supplies the Explicit rule and No explicit rule labels for the character pairs.
+
+Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the tone mappings. Each Explicit rule pair shares grammar alternatives. Cases compare the token values and images that those alternatives set by recipe. Shared rules that copy source text retain the written scalar in values and images. All text and source metadata retain that scalar.
 
 Cases preserve the shared pause and foreign readings for the seven No explicit rule pairs. No case warns about the older encoding.
 

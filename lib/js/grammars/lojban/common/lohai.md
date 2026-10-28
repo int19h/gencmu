@@ -12,7 +12,7 @@ The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stre
 
 A free modifier adds information outside predicate arguments. The syntax reads the quote as a free modifier.
 
-A tag marks a token by an identifier. The quote token carries its opening class and the tag `Quote`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. So in the experimental pipeline, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
+A tag marks a token by an identifier. The quote token carries its opening class and the tag `Quote`. So in the experimental pipeline, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. The words inside carry no class, so none of them is a boundary for `su`.
 
 In the experimental pipeline, an unfinished marker carries `Fault` unless a [`constructor-word`](stream.md#compounds) takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors.
 
