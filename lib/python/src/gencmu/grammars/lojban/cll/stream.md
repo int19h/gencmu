@@ -1,6 +1,6 @@
 # The CLL word stream
 
-This document is part of the words stage in the [CLL](pipeline.md) pipeline. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. Each pipeline includes this document after [../common/stream.md](../common/stream.md). [The notation document](../../../docs/notation.md) explains the notation.
+This document is part of the words stage in the [CLL](pipeline.md) pipeline. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The CLL pipeline includes this document after [../common/stream.md](../common/stream.md). [The notation document](../../../docs/notation.md) explains the notation.
 
 The rules follow *The Complete Lojban Language* (CLL). A cmavo is a particle, a short structure word. A letteral is a letter word of class BY, as [../common/stream.md](../common/stream.md) defines it. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
 
@@ -42,7 +42,7 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 ## Differences from CLL and BPFK
 
-The `y`-cmavo forms extend those that CLL gives, as [morphology.md](morphology.md) explains. The BPFK word forms omit those forms and the CLL-specific pause test for names before BU. BPFK is the Lojban language planning committee.
+The `y`-cmavo forms extend those that CLL gives, as [morphology.md](morphology.md) explains. The BPFK word forms omit those forms. The `lojban/bpfk` pipeline does not include this document. It therefore has neither the `y-cmavo` warning nor the words-stage name test before BU. BPFK is the Lojban language planning committee.
 
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 

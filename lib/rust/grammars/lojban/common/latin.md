@@ -1,10 +1,10 @@
 # Latin conventions
 
-This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The pipelines of the [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read them after [../cll/latin.md](../cll/latin.md). BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The pipelines of the [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read this document after [../cll/latin.md](../cll/latin.md). BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-Most conventions here admit spellings that [../cll/latin.md](../cll/latin.md) rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The working morphology is the word-form grammar that [the BPFK morphology](../bpfk/morphology.md) states directly, with [listed departures](../bpfk/morphology.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
+Most conventions here admit spellings that [../cll/latin.md](../cll/latin.md) rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -417,20 +417,20 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 <p><img src="../../../docs/diagrams/lojban/common/latin/decimal-point.svg" alt="Railroad diagram of the rule decimal-point"></p>
 </details>
 
-## Differences from CLL and the working morphology
+## Differences from CLL and the reference PEG
 
-These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and material preserved between pauses change readings that [../cll/latin.md](../cll/latin.md) also permits.
+The reference PEG is the morphology in [camxes.peg](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and material preserved between pauses change readings that [../cll/latin.md](../cll/latin.md) also permits.
 
-The working morphology's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the working morphology rejects. It also accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`.
+The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the PEG rejects. It also accepts `mi "klama"`, which the PEG rejects. Both read `jy?,sai` as `jy` and `sai`.
 
 camxes-std, the standard grammar of the camxes parser, also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. This stage preserves the punctuation as material, so the words stage can keep it inside a quote.
 
-The working morphology ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
+The PEG ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
 
-CLL does not use `h` for the apostrophe. The working morphology accepts lowercase `h` through `h <- comma* ['h] &nucleus`. This document also reads capital `H` as an apostrophe, so `koHa` is `ko'a`, which the working morphology rejects.
+CLL does not use `h` for the apostrophe. The PEG accepts lowercase `h` through `h <- comma* ['h] &nucleus`. This document also reads capital `H` as an apostrophe, so `koHa` is `ko'a`, which the PEG rejects.
 
-CLL does not define capital folding, accented vowels or breve glides. The working morphology lacks these conventions too, and marks stress only with capital `A`, `E`, `I`, `O` and `U`. This document accepts those conventions, so it reads `KLAMA` as `klama`, while camxes-std rejects it. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
+CLL does not define capital folding, accented vowels or breve glides. The PEG lacks these conventions too, and marks stress only with capital `A`, `E`, `I`, `O` and `U`. This document accepts those conventions, so it reads `KLAMA` as `klama`, while camxes-std rejects it. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
 
-PA is the number selma'o. The working morphology reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
+PA is the number selma'o. The PEG reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
 
 [^cll-c3]: [CLL 1.1, chapter 3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html).

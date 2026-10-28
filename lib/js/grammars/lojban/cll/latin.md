@@ -187,7 +187,7 @@ In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll
 <p><img src="../../../docs/diagrams/lojban/cll/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
 </details>
 
-A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value concatenates its characters as stage zero decomposed them, without applying the phoneme mappings. Its image is the run's source text, the original spelling. Different foreign runs therefore need not compare equally.
+A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value concatenates its characters as stage zero decomposed them, without applying the phoneme mappings. Its image is the run's source text, the original spelling. So two foreign runs are equal only when their decomposed characters are equal: `ko’a?` and `ko'a?` differ.
 
 A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run never starts or ends with a comma, which emits nothing on its own at that edge. A run character is any character but whitespace and the period. `run-char` reads it with `_`, then excludes those pause characters through conditions.
 
@@ -238,11 +238,11 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 The stage emits each consonant as its lowercase Latin letter. Each consonant mapping sets its value and image to the same Latin phoneme letter. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed`, a lowercase value, and an uppercase image. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
-A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So in lojban/cll, a capital `Y` cannot stand in a brivla. The other pipelines ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
+A brivla is a predicate word. CLL[^cll-s3-9] requires weak stress on every `y`, but also permits free stress in names and cmavo. This grammar applies the weak-stress rule only in brivla, as the [morphology choice](morphology.md#stress-and-syllables) explains. So in lojban/cll, a capital `Y` cannot stand in a brivla. The other pipelines ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
 
-`stressed-vowel-with` gives each stressed vowel `Stressed`, a lowercase value and an uppercase image. Its six arguments are the patterns that read the six vowels in one script. Named instances keep each script's vowel rule in the phoneme tree.
+`stressed-vowel-with` takes six patterns, one for each vowel in a script. Named instances keep each script's vowel rule in the phoneme tree.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [../common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 

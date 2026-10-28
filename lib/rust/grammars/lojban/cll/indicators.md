@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The [CLL](pipeline.md), [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) pipelines include these rules as their fourth stage. BPFK is the Lojban language planning committee.
 
-This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
+This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word = [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
 A cmavo is a particle, a short structure word. An attitudinal expresses an attitude. A discursive comments on the discourse.
 
@@ -40,7 +40,7 @@ The stage preserves the initial indicators of the quoted text. So `lu ui mi klam
 
 The words stage supplies one token for each finished quote, including `zo`, `lo'u ... le'u`, and `zoi`. This stage cannot read inside that token. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
 
-A leading indicator run also stays in the stream at the start of the whole text. Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
+Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
 
 ```jbogenbau
 %const $INDICATOR-BOUNDARIES

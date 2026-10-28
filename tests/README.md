@@ -112,6 +112,12 @@ An error that lowering finds (engine §3), such as an item of braces that can ma
 
 A resource error names the resource key. Its position omits an unknown line or column. The reserved keys include `data/unicode/unicode.txt`, `data/unicode/unicode-names.txt`, and `data/unicode/unicode-names-reference.txt`.
 
+### Zbalermorna conformance
+
+Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the tone mappings. Every Explicit rule pair stands in the same alternatives and gives equal results for channels that those alternatives set by recipe. Shared rules that copy source text retain the written scalar in values and images. All text and source metadata retain that scalar.
+
+Cases preserve the shared pause and foreign readings for the seven No explicit rule pairs. No case warns about the older encoding.
+
 ### Result invariants and witness tests
 
 An invariant is a required property of every result. Every runner also makes sure that each canonical result meets these invariants, whatever the case expects. A case cannot turn them off, and its pattern need not repeat them:

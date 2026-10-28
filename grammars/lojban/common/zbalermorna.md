@@ -12,7 +12,7 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 - Four diphthong diacritics
 - A stress mark, placed after the vowel
 - An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
-- Glide radicals for `i` and `u`, which read as plain vowels without a following vowel
+- Glide radicals for `i` and `u`, which read as plain vowels even when no vowel follows
 
 The phoneme explanations use Humbert code points. The mapping in [Two encodings](#two-encodings) gives their UCSUR counterparts. This document writes each character as a named escape, so that a reader can read the rule without the font. The names come from [zbalermorna-names.txt](zbalermorna-names.txt).
 
@@ -68,7 +68,7 @@ The diphthong instances use `two-phonemes` for their two output strings. The `st
 
 A vowel diacritic and its full-vowel form are the same phoneme. BAHEBU (U+ED98) after either form or a diphthong diacritic makes it stressed. A repeated stress mark is one mark. SEMIVOWEL IY (U+EDAA) and SEMIVOWEL UY (U+EDAB) read as plain vowels `i` and `u`, even without a following vowel.
 
-A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. That token has a lowercase value and an uppercase image.
+A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. In a stressed diphthong, only the first token carries `Stressed`. That token has a lowercase value and an uppercase image.
 
 CNIMAHO BU (U+ED8B) followed by a plain or stressed vowel is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
@@ -298,17 +298,13 @@ Shared rules that copy source text keep the written scalar in values and images,
 
 For every paired scalar, the UCSUR code point equals the older code point plus hexadecimal E3B20. The individual rows define the mapping. No older character inside U+ED80–U+EDB9 lacks a UCSUR counterpart. Unlisted slots in either interval are gaps, without character names or implied mappings.
 
-The full diphthong letters at U+EDB6–U+EDB9 belong to the older encoding. Their UCSUR counterparts are U+F28D6–U+F28D9. Both sets receive encoding-qualified names in this resource. Every character occurs in both encodings, so no character belongs to only one encoding.
+The full diphthong letters have code points U+EDB6–U+EDB9 and U+F28D6–U+F28D9 in the two encodings. Both sets receive encoding-qualified names in this resource. Every character occurs in both encodings.
 
 These alternatives cover 43 character pairs. The seven No explicit rule pairs have no zbalermorna alternative. They are three tone marks and four full diphthong letters. The pipeline's shared rules still read these characters in both encodings. A names declaration alone adds no phoneme rule. Escape decoding never converts between the encodings.
 
 At the phoneme stage, `lojban/bpfk` and `lojban/zantufa` read these seven pairs as pause material tagged `PAUSE`, `Punctuation-Material`, and `Quote-Material`. The experimental pipeline reads them as `FOREIGN`. Shared recipes retain the written scalar in each value and image.
 
 The names resource supplies no categories, combining classes, or decompositions from either script source. The pinned Unicode tables still decide those properties. The names file never supplies printer abbreviations. With bundled core data, private-use scalars print with numeric escapes. The grammar's ordinary value, image, and source rules remain in force.
-
-Bundled cases decode all 100 zbalermorna names and distinguish both encodings. They cover every pair, both encodings of all four full diphthong letters, reserved gaps, and the corrected tone rows. Every Explicit rule pair stands in the same alternatives and gives equal results for channels that those alternatives set by recipe. Shared rules that copy source text retain the written scalar in values and images. All text and source metadata retain that scalar.
-
-Cases preserve the shared pause and foreign readings for the seven No explicit rule pairs. No case warns about the older encoding.
 
 ## Differences from CLL and jbotci
 

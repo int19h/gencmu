@@ -116,7 +116,7 @@ The stage covers every input token. It preserves pause boundaries, images and ta
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image concatenates its phoneme images. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
 
-The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
+The stage tests only a whole run, and it tests the run in isolation. No rule except the two lookaheads reads past the run, so the isolated test agrees with a test in place. A `yy` that the y lookahead splits divides into words either way.
 
 The rule `word-run` is a run that divides into words. A pipeline that divides a run in another way extends `word-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
 
@@ -244,7 +244,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 
 ## Words
 
-A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's normalized value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
 
 ```jbogenbau
 %rule source-word

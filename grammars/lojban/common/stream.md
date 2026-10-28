@@ -249,7 +249,7 @@ The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its 
 
 Quoted Lojban keeps its written case instead of each word's normalized image. For example, `SINdarin` has image `sIndarin` alone, but `zo SINdarin` keeps its capitals.
 
-The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Ordinary hesitation contributes no word or normalized value. The quote image keeps its written form, including `.y.` in `zo .y. coi` and `lo'u .y. coi le'u`.
+The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Ordinary hesitation contributes no word or value. The quote image keeps its written form, including `.y.` in `zo .y. coi` and `lo'u .y. coi le'u`.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and pipeline quote kinds follow the same opacity rule.
 
@@ -724,7 +724,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 ## Compounds
 
-The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each pipeline one place to name its constructors.
+The `constructor-word` rule lists BU and ZEI for the replacement-quote fallback. That fallback uses the rule after an unfinished marker. A pipeline that adds a constructor must also extend `constructor-word`.
 
 The warnings of `cmavo-token` apply to every operator that it reads.
 
@@ -783,7 +783,7 @@ SI erases the preceding live unit. Quotes and compounds each count as one unit. 
 
 SI skips hesitation and erased regions. It never erases an already executed SA or SU as a word. A fault unit is an ordinary operand for erasure.
 
-When the word `zei` has class SI, it also refuses punctuation in its following gap. Other SI words keep their ordinary spacing.
+The [Zantufa lexicon](../zantufa/lexicon.md) gives `zei` class SI. The `si-word` reader therefore checks its spelling and refuses punctuation in the following gap. Other SI words keep their ordinary spacing.
 
 ```jbogenbau
 %rule si-erasure
@@ -1001,7 +1001,7 @@ The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not ca
 
 ### Final markers and Zantufa exceptions
 
-The pipelines keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg)).
+The pipelines keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L672)).
 
 Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The pipeline document](../zantufa/pipeline.md) defines both exceptions.
 
@@ -1021,7 +1021,7 @@ Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skip
 
 ZO can quote standalone punctuation or ignored material instead of moving to a later word. This extends the shared reader because material has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words. A mark between the target and a following word remains spacing. BU therefore keeps its separating space after a quoted word.
 
-The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across pipeline lexicons.
+The [Zantufa lexicon](../zantufa/lexicon.md) gives `zei` class SI. The word `zei` rejects surviving punctuation on either side, even with that class. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across pipeline lexicons.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 

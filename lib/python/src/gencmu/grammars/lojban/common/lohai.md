@@ -8,11 +8,11 @@ A magic word acts on other words. The words inside are plain words, whatever the
 
 So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral, a letter word of class BY, as [stream.md](stream.md) defines it.
 
-The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. `lohai-stream` also joins two words with no gap. The first alternative of `lohai-run` reads a bare marker, so a stream always holds a run.
+The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. `lohai-stream` also joins two words with no gap. The first alternative of `lohai-run` reads a bare marker, so `lohai-stream` always holds at least one word.
 
 A free modifier adds information outside predicate arguments. The syntax reads the quote as a free modifier.
 
-The quote token carries its opening class and the tag `Quote`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. A tag marks a token by an identifier. So in the experimental pipeline, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
+A tag marks a token by an identifier. The quote token carries its opening class and the tag `Quote`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. So in the experimental pipeline, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
 
 In the experimental pipeline, an unfinished marker carries `Fault` unless a [`constructor-word`](stream.md#compounds) takes it as a base. That rule names `bu` and `zei`, with `ze'ei` added in `lojban/experimental`. The named rule keeps the fallback test consistent with the pipeline's constructors.
 
