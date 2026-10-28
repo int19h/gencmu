@@ -125,6 +125,8 @@ The CLL grammar settles two connective ambiguities, one with a ranked choice and
 
 ## Differences from CLL, BPFK proposals and camxes-std
 
+The stage documents compare [CLL Latin](../cll/latin.md#choices-beyond-cll), [Latin](../common/latin.md#differences-from-cll-and-the-reference-peg), [CLL Cyrillic](../cll/cyrillic.md#choices-beyond-cll), [Cyrillic](../common/cyrillic.md#differences-from-cll), [zbalermorna](../common/zbalermorna.md#differences-from-cll-and-jbotci), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#differences-from-cll-and-the-reference-peg), [lexicon](../cll/lexicon.md#differences-from-the-cll-dictionary), [word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [indicators](../cll/indicators.md#differences-from-cll-and-camxes-std), and [syntax](../cll/syntax.md#differences-from-the-printed-cll-grammar) with their sources.
+
 ### Sources and word forms
 
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. CLL 1.3.4[^cll-later-a3-1] keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.

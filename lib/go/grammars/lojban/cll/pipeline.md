@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to the `elision-only` check (see ["Stage 5: syntax"](#stage-5-syntax)).
+The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to the ranking and the `elision-only` check of [Stage 5](#stage-5-syntax).
 
 `docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This pipeline turns on `cll-cyrillic` and `su-boundary`.
 
@@ -132,6 +132,8 @@ The printed grammar also reads `joi` before a tanru unit that begins with `ke`. 
 In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. `late-elision` ties the two readings or prefers the plain one. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the pipeline keeps it.
 
 ## Differences from CLL and the official parser
+
+The stage documents compare [Latin](latin.md#choices-beyond-cll), [Cyrillic](cyrillic.md#choices-beyond-cll), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#where-the-book-leaves-a-choice), [lexicon](lexicon.md#differences-from-the-cll-dictionary), [shared word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [CLL word processing](stream.md#differences-from-cll-and-bpfk), [indicators](indicators.md#differences-from-cll-and-camxes-std), and [syntax](syntax.md#differences-from-the-printed-cll-grammar) with their sources.
 
 The enabled `su-boundary` feature makes SU stop at the last surviving NIhO, LU, TUhE, or TO word. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. With the feature off, SU erases the whole text before it. Magic Words and camxes-std supply the boundaries.
 
