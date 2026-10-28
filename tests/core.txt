@@ -6439,3 +6439,6 @@ followups.lexicon.lohai-repeated-marker
 followups.nohoi.nested-kuho-term
 followups.nohoi.nested-control-term
 followups.nohoi.outer-noi-resolved
+adhoc.syntax.gihek-ke-elided-before-vau
+adhoc.kihei.initial-empty-position
+adhoc.kihei.initial-empty-positions-only
