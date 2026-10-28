@@ -1494,7 +1494,7 @@ A reconstruction is a second parse with terminators restored. These are the omit
 
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The check fails when filtering excludes the restored chosen derivation, or it is not the only best admitted reading of the written-back text. Failure gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Failure gives an ambiguity error, never a replacement chosen parse.
 
 Its rule profiles hold both parts. An occurrence with an empty projected span counts in neither part.
 
