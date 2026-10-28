@@ -966,8 +966,7 @@ impl Pipeline {
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
-                Ranker::new(g, &chart, &tokens, shared, Lean::Neither)
-                    .unfiltered()
+                Ranker::new_unfiltered(g, &chart, &tokens, shared, Lean::Neither)
                     .observing(input, &recon.project)
                     .checking(marks)
                     .rank()
