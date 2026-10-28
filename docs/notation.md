@@ -86,11 +86,11 @@ The sections below explain these forms.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one eligible emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one valid emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
 
 An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
 
-Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent eligible scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
+Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent such scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
 
 `#` introduces patterns, and `@` introduces parameters. Neither is a rule name. `/` remains the separator inside braces. `~` and `^` have no syntax role.
 
@@ -132,7 +132,7 @@ The core data remains in `data/unicode/unicode.txt`. The separate pinned `data/u
 
 Stage zero assigns the emoji properties in every pipeline. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
 
-Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
+Case matters. Aliases such as `_Letter`, without a property name, are errors. Engine §1 lists every name and its assignment rule.
 
 A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_General_Category_Letter`. A grammar can forward or filter engine tags but never introduce them.
 
@@ -309,7 +309,7 @@ Ranked options have no local guard, tag clause, or emission clause. Ordinary alt
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
-`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. A higher option excludes a lower option over the same span when its open literals are a subset and its offers are equal. This comparison applies at each edge ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. This uses the same dominance rule as above.
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
@@ -497,7 +497,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. Other pipelines exclude LOhAI and LEhAI because the experimental pipeline reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. The `lojban/experimental` pipeline leaves LOhAI and LEhAI out, because it reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
@@ -742,9 +742,9 @@ A capture cannot wrap braces, and braces cannot hold a capture. A list is not a 
 
 An elidable optional cannot hold a capture, at any depth. gencmu restores an elided terminator as the terminator alone (see "Elided terminators"), and it keeps the optional as one unit for that. A part inside it is there in some readings of one omission and not in others.
 
-gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative. It reads one branch of each choice and one subsequence of each `&`, and reads each optional or not. A plain optional that holds a capture is expanded in place, as if it were `(ε | x)`. The production without it comes first, then those with it. So `A [$b:B] [$c:C]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`.
+gencmu expands each alternative into productions, as engine §3 says. A production is one way to read the alternative. It reads one branch of each choice and one subsequence of each `&`, and reads each optional or not. gencmu expands a plain optional that holds a capture in place, as if it were `(ε | x)`. The production without it comes first, then those with it. So `A [$b:B] [$c:C]` gives four productions, in this order: `A`, `A C`, `A B` and `A B C`.
 
-A plain optional without a capture stays one optional. It is not expanded into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
+A plain optional without a capture stays one optional. gencmu does not expand it into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
 
 Either way, a rule node holds the parts that its production reads, and an optional adds no node. A helper is an unnamed rule for an expression.
 
@@ -752,7 +752,7 @@ A logical symbol is one symbol of a production as written, before captures expan
 
 A query gives a written terminator priority over an omission. For a preceding plain optional, it checks both absence and presence when looking for the written terminator. `a [$b:b] [+KU]` therefore follows the same query rule as `a [b] [+KU]`. An omission names no separate constituent that it ends. Diagnostic production numbers and recorded parse actions can follow expansion. [Engine §4](engine.md#4-recognition) defines the complete query rule.
 
-A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b:B]` doubles the productions of its alternative, `[($a:A | B | C)]` contributes four, and `[A [$b:B]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading, so readings that differ only in where a captured part ends are not merged. So a capture whose span can end in many places costs much more than one that reads a single token.
+A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b:B]` doubles the productions of its alternative, `[($a:A | B | C)]` contributes four, and `[A [$b:B]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading. The parser does not merge readings that differ only in where a captured part ends. So a capture whose span can end in many places costs much more than one that reads a single token.
 
 The clauses of a rule serve all its productions, and the productions need not capture the same parts. gencmu knows whether a production captured a part when it reads the grammar. A clause can refer to a capture that a production lacks. What happens then depends on the kind of clause.
 
@@ -999,12 +999,15 @@ A condition with such a test holds or fails as any condition does. So `¬$.follo
 The test reads the actual neighbor, which a lookahead cannot do. In the experimental grammar, a bare `na` omits its `ku` only where its place closes, or before a term in the same reading:
 
 ```jbogenbau
+%const $BARE-NA #« NA [🆓] KU="" [🆓] »
 %rule bare-na
-  $n:NA 🆓
+  $n:NA 🆓 [+KU] 🆓
 %conditions
   ¬$n.onward.begins(na-connective),
-  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 ```
+
+`$BARE-NA` matches the bare form with an omitted KU. Other forms bypass the closing-place test.
 
 `$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a term can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
 
@@ -1016,7 +1019,7 @@ A terminal target of `.begins`, `.ends`, or `.matches` makes its tag buildable, 
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 
-These tests can stand in a `%conditions` list and in the tag clause of an emission item. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind `%conditions` only. They cannot stand in a header or alternative tag term, a test, a recipe, a constant, an implication, a pattern or a query argument. A list capture and its methods, such as `$s.first`, cannot be receivers.
+These tests can stand in a `%conditions` list and in the tag clause of an emission item. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind `%conditions` only. They cannot stand in a header or alternative tag term, a test, a recipe, a constant, an implication, a pattern or a query argument.
 
 One condition of the list holds at most one such test. It can combine that test with other conditions through `¬`, `∧`, `∨` and `⟹`. If the receiver is a capture `$x`, the condition reads no other capture and no `$`. These rules keep each test on one boundary of one step ([engine §4.2](engine.md#42-boundary-obligations)).
 
@@ -1400,7 +1403,9 @@ Among parses with the greatest rule profile, `late-elision` compares the termina
 
 Two parses with equal rule profiles and equal counts at every position tie, whatever else differs. Without flagged rules, several parses that elide nothing always tie. A token read under two tags does not decide anything, and neither do two different closes. The name of an elided terminator, and the constituent that it ends, do not count either.
 
-For example, the experimental grammar can read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`.
+For this example, ignore the experimental `free` rule's `leftmost-longest` flag. The grammar can then read `to mi klama` in two ways. One ends the parenthesis `to` after `mi`, with `vau` and `toi` elided there, and `klama` is the main predicate. The other puts `mi klama` inside the parenthesis and elides terminators only at the end. `late-elision` takes the second, because the first leaves out a terminator earlier. `greedy` leaves the two readings tied, so the text is an error under `greedy`.
+
+With that flag, the bundled experimental pipeline resolves `to mi klama` as `(to [mi klama])` under either directive. Rule flags rank before the directive.
 
 The syntax stages of the bundled Lojban grammars use `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
 
@@ -1489,7 +1494,7 @@ The check retains the rule flags, but applies no stage preference. It counts fla
 
 Its rule profiles hold both parts. An occurrence with an empty projected span counts in neither part.
 
-With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. Only its absence there reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
+With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. If a library loses it, the library has a defect and reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
 Grammars that extend CLL can contain ambiguities unrelated to terminators. A sumti is an argument of the selbri. A term includes sumti and other kinds of arguments. The experimental grammar gives sumti connections priority over term connections. It therefore reads `mi .e do` in `mi .e do klama` as two connected sumti.
 

@@ -56,9 +56,7 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 40 supports templates, parameters, calls, named instances, argument lists, and backward queries. It also supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Literal text runs decompose, while decoded string escapes keep their exact scalars. Parse-result format 15 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
-
-The compatibility boundary is the format number and the notation contract. Callers supply format-40 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+[Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -105,7 +103,7 @@ The result also has `features`, the enabled feature names in code point order, w
 
 It includes caller-enabled names, including unknown names, and global defaults, except names that the caller disables. It also includes features enabled by declarations in stages that the run reaches. A cutoff before a stage excludes its declarations.
 
-A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand can enable features before that declaration reports a conflict. Each parse starts with a fresh feature set.
+A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand do enable features before that declaration reports a conflict (engine §13). Each parse starts with a fresh feature set.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
@@ -116,14 +114,6 @@ The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundl
 A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
-
-Result format 15 defines these result values:
-
-- Rule-name strings admit punctuation, quotes, and emoji, including canonical call spellings.
-- A scalar of general category Cf requires an escape in canonical terminal spellings, as in `"‹ZWSP›"` (engine §1).
-- Stage-zero tokens carry complete profiles for every supported property. Forwarding can retain any of those tags, including `_Emoji_Presentation` and `_Emoji_Component`. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
-
-Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
 
 A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
