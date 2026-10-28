@@ -78,7 +78,7 @@ In the bundled file, each `category` range is a longest run of one category. Tog
 
 LF (U+000A) ends a line. The final line can end at the end of the file. The reader removes one CR (U+000D) immediately before LF. A final CR without LF stays in its field.
 
-Fields are separated only by runs of spaces (U+0020) or tabs (U+0009). Leading and trailing spaces or tabs do not make fields. Every other character, including a byte order mark (U+FEFF), stays inside its field.
+Only runs of spaces (U+0020) or tabs (U+0009) separate fields. Leading and trailing spaces or tabs do not make fields. Every other character, including a byte order mark (U+FEFF), stays inside its field.
 
 Blank lines are ignored. An unknown entry name or a malformed record is a grammar error. Each record requires the fields shown above, with one or more decomposition scalars for `decompose`.
 
@@ -100,7 +100,7 @@ The generator copies all 354 abbreviation aliases from pinned NameAliases.txt in
 
 Core abbreviation escapes also decode through this map, without names data. Other source name escapes use the separate names file. This priority keeps canonical spelling readable through the ordinary reader.
 
-A caller can supply `data/unicode/unicode.txt` through the API. It replaces all bundled core data, including White_Space, Emoji_Presentation, Emoji_Component, and abbreviations, with no fallback. The table must list the whitespace used by its grammar documents. It must give `Emoji_Presentation` to every emoji name that those documents use. Those names must also lack `Emoji_Component`.
+A caller can supply `data/unicode/unicode.txt` through the API. It replaces all bundled core data, including White_Space, Emoji_Presentation, Emoji_Component, and abbreviations, with no fallback. The table must list the whitespace that its grammar documents use. It must give `Emoji_Presentation` to every emoji name that those documents use. Those names must also lack `Emoji_Component`.
 
 The table need not cover every scalar. An unlisted core scalar gets Cn and lacks White_Space, Emoji_Presentation, and Emoji_Component. For companion properties, explicit assignments and declared defaults still apply to that scalar. No table supplies comparison normalization.
 
@@ -265,7 +265,7 @@ The generator reads the pinned UCD files, including PropertyAliases.txt and Prop
 
 Enumerated sources include Scripts.txt, Blocks.txt, DerivedAge.txt, BidiBrackets.txt, HangulSyllableType.txt, IndicPositionalCategory.txt, IndicSyllabicCategory.txt, and VerticalOrientation.txt. Break data comes from GraphemeBreakProperty.txt, WordBreakProperty.txt, and SentenceBreakProperty.txt under `auxiliary/`, plus LineBreak.txt under the UCD root.
 
-The generator uses DerivedBidiClass.txt, DerivedEastAsianWidth.txt, DerivedJoiningType.txt, DerivedJoiningGroup.txt, DerivedDecompositionType.txt, DerivedNumericType.txt, DerivedGeneralCategory.txt, and DerivedCombiningClass.txt under `extracted/`. DerivedCoreProperties.txt supplies Indic_Conjunct_Break. DerivedNormalizationProps.txt supplies the four Quick_Check properties. UnicodeData.txt supplies the canonical decomposition mappings used by the core table.
+The generator uses DerivedBidiClass.txt, DerivedEastAsianWidth.txt, DerivedJoiningType.txt, DerivedJoiningGroup.txt, DerivedDecompositionType.txt, DerivedNumericType.txt, DerivedGeneralCategory.txt, and DerivedCombiningClass.txt under `extracted/`. DerivedCoreProperties.txt supplies Indic_Conjunct_Break. DerivedNormalizationProps.txt supplies the four Quick_Check properties. UnicodeData.txt supplies the canonical decomposition mappings that the core table uses.
 
 The generator resolves every applicable `@missing` default before it compresses ranges. It follows [UAX #44](https://www.unicode.org/reports/tr44/tr44-32.html#Missing_Values). Later, more specific UCD defaults override earlier general defaults. Explicit assignments override those defaults. This includes nondefault values in unassigned bidi and East_Asian_Width regions. Omitted scalar rows never imply a generic default without those rules.
 
@@ -545,7 +545,7 @@ Record each group's start in every virtual expansion. Its prefix can read tokens
 
 Private captures cannot feed tag terms, emission items, or recipes. Inspect carriers, attachments, guards, and every nested receiver before absent-carrier pruning. A forbidden export reports `ranked-choice-export`. Common prefix and suffix captures, and whole-parent `$` emission, remain legal.
 
-A seal is an opaque leaf supplied by a ranked choice (§4.1). Private conditions keep their evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature guards and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.
+A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep their evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature guards and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.
 
 The ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
@@ -944,7 +944,7 @@ Before lowering attaches a clause, it simplifies the clause for the production, 
 - A constant is its value here. So a constant whose value is the empty set is an empty set.
 - Lowering drops a term's empty set, written `∅` or left by a guard, from a union. A union of nothing but empty sets is the empty set, as is an intersection with one. A difference whose first part is empty is empty. If its second part is empty, the difference is its first part. A guarded term whose term is the empty set is the empty set.
 
-Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). A capture that is still mentioned after simplification is used by the clause. Then the simplified clauses attach as follows:
+Since the engine never evaluates a reduced part, the reduction is part of the order of evaluation (§10). The clause uses each capture that it still mentions after simplification. Then the simplified clauses attach as follows:
 
 - A condition applies to a production if it did not simplify to true and the production has every capture that it uses. Otherwise lowering drops it for that production. A condition that simplifies to false applies, and removes the production. So `%conditions $x` keeps the alternatives that capture `x` and removes the others.
 - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
@@ -1206,7 +1206,7 @@ But such a key costs time in proportion to the span, and the span of `.onward` o
 
 The recognition of §7 is not a query and has no entry.
 
-`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. A memo that outlives the parse of one stage must also be keyed by what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
+`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` and `ends` need separate entries, since `begins` of a span can hold where `matches` of it does not. The key of a memo that outlives one stage parse must also include what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
 
 An ordinary nested parse uses its span as the context for all position and surrounding-token methods. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
@@ -1262,7 +1262,7 @@ Private option captures retain their real completed states for ready gates. The 
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
-Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `.without-elision` or `.without-elision-except`, and their dependencies, need these observations. Only the witnesses of a family query carry permission marks, and each mark is relative to that query's family. Candidates, strict queries and ordinary recognition carry none.
+Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only the captures that `.without-elision` or `.without-elision-except` demand, and their dependencies, need these observations. Only the witnesses of a family query carry permission marks, and each mark is relative to that query's family. Candidates, strict queries and ordinary recognition carry none.
 
 The deletion test of §4 is the rule for a family witness. At each boundary through `min(b,c)`, the witness's group must reduce to the candidate's group by that test. A recognizer can compute the test as the witness grows. A family query fixes its candidate for the whole witness chart, so the candidate's group at each boundary is known.
 
@@ -1288,7 +1288,7 @@ This shortcut requires a nonempty capture with no possible leading omission. An 
 
 A ranked group contributes one opaque block outside its options. The block identifies its written occurrence, original span, and common entry observations. It excludes the option index, private captures, private closes, and proof identity. Wrappers and outside captures retain the block. Empty completed options also supply a block.
 
-An aligned witness must carry that same block through the same written group occurrence. It cannot replace the block with unrelated syntax or finish inside it. Compare original positions and common entry observations, rather than unrelated runtime parser identifiers. Every proof represented by one block supplies the same outside answer. The query does not ask admission which option wins. Private captures inside an option retain their own real observations for ready conditions.
+An aligned witness must carry that same block through the same written group occurrence. It cannot replace the block with unrelated syntax or finish inside it. Compare original positions and common entry observations, rather than unrelated runtime parser identifiers. All proofs that one block represents supply the same outside answer. The query does not ask admission which option wins. Private captures inside an option retain their own real observations for ready conditions.
 
 Candidates and aligned witnesses use finite noncyclic observation proofs. Named-rule cycle exclusion uses original positions, including during restoration. A repeated named rule over one original span supplies no additional aligned observation. Synthetic positions and different observations cannot excuse that cycle. Ordinary unmarked queries keep their proof policy.
 
@@ -1342,7 +1342,7 @@ Each step applies these rules after the order of §4, which they extend. A token
 5. A nonempty item of rule R completes. If R is a forward target, it joins the first offers. If R is a backward target, it joins the last offers. The forward start literals meet the first offers, and the backward end literals meet the last offers. Then the obligations on `$` join: backward ones the start literals, and forward ones the end literals.
 6. An empty item completes. The obligations on `$` join its pending literals.
 
-A ranked helper can evaluate a condition owned by an enclosing group. It keeps the ordinary evaluations and their error order. It introduces a whole-rule literal only when the written condition reads a private capture that its group binds, including an absent descendant capture. Determine that ownership before capture-presence simplification. A nested helper never moves an enclosing group's literal to its own start. A common whole-rule condition introduces its literal at the named completion.
+A ranked helper can evaluate a condition that an enclosing group owns. It keeps the ordinary evaluations and their error order. It introduces a whole-rule literal only when the written condition reads a private capture that its group binds, including an absent descendant capture. Determine that ownership before capture-presence simplification. A nested helper never moves an enclosing group's literal to its own start. A common whole-rule condition introduces its literal at the named completion.
 
 A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles its witness root's remaining literals in the same way before it counts the witness. An inner completion can receive boundary offers from its ancestors. The witness's span stands in for the input. In an aligned query, the witness reads restored terminators as synthetic tokens (§7). Its atoms read projected spans, as §7.5 says for the check.
 
@@ -1431,7 +1431,7 @@ On the two tokens with values `b` and `a`, `.ends(start-a)` is false. The target
 
 All target starts belong to one recognition computation. Written-terminator priority and finite eligible proofs follow §4. Ranked admission, rule flags, and stage preferences do not rank query proofs.
 
-The query selects no longest suffix. A grammar error reached by that computation remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
+The query selects no longest suffix. A grammar error that this computation reaches remains an error even when another suffix succeeds. Within one shared recognition, an error first raised at input boundary p fails its requests ending at p or later. It does not fail a request ending before p.
 
 `.ends` requires a capture or ordinary span. A restored receiver causes a load error, including after `.onward`, which preserves restoration. This includes `.without-elision-except(F)` views. Restored suffix queries can be added when a grammar needs them.
 
@@ -1475,7 +1475,7 @@ Every comparison is exact.
 
 `span.source-text` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 
-`span.decomposed-source-text` is the canonical decomposition of `span.source-text`, by the algorithm of §1 and the configured Unicode table. The source text is decomposed alone: each scalar becomes its decomposition, and each run of marks of nonzero combining class is sorted by class. It is the empty string for an empty span. Where the span covers whole clusters, it equals the concatenation of the stage-zero values over the span's source.
+`span.decomposed-source-text` is the canonical decomposition of `span.source-text`. The algorithm of §1 decomposes that source text alone, with the configured Unicode table. It replaces each scalar with its decomposition. It sorts each run of marks with nonzero combining class by their classes in that table. An empty span gives the empty string. For whole clusters, the result equals the concatenation of the stage-zero values over the span's source.
 
 In §7, `.value`, `.image`, `.source-text`, and `.decomposed-source-text` read projected original tokens. Synthetic tokens add no input string or text. Terminal tests can read their saved recognition value, while omitted pattern leaves always observe empty strings.
 
@@ -1509,7 +1509,7 @@ Compare components by increasing p and, within one p, decreasing q. At the first
 
 Only a `leftmost-longest` occurrence makes a component nonzero. A sparse map stores only nonzero components. A shared sorted list with one entry per occurrence is another representation, since equal spans count separately. With no flagged rule, one shared zero profile serves every derivation, with a zero count.
 
-A `leftmost-longest` occurrence beats its absence, and equal spans count separately. A `fewest` occurrence loses to its absence, among equal span vectors. With no flagged rule, every rule profile is zero, so the directive alone ranks.
+A nonempty `leftmost-longest` occurrence beats its absence, and equal spans count separately. A nonempty `fewest` occurrence loses to its absence, among equal span vectors. With no flagged rule, every rule profile is zero, so the directive alone ranks.
 
 The stage retains every derivation with the greatest rule profile before applying its directive. The admitted total, before rule-profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
 
@@ -1573,7 +1573,7 @@ A distinct derivation `d` is tied with `m` when `m` does not beat `d`. So `m` is
 
 For example, take `text → A C D | p D | B q`, `p → B C` and `q → C D`, over the tokens `A B`, `C` and `D`. Under `greedy`, `m` reads the first token as `A`. The derivation through `p` is tied with it, but loses to the one through `q`, which reads `D` where it closes `p`.
 
-Of the distinct derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. Several that diverge at the same point are ordered by *T*. That derivation, `t`, is best.
+Of the distinct derivations tied with `m`, the second reading is the one that diverges from `m` earliest. It has the fewest visible actions before its first visible difference with `m`. A derivation whose visible sequence is a proper prefix or an extension of `m`'s diverges where the shorter ends. One whose visible sequence equals `m`'s diverges last. *T* orders those that diverge at the same point. That derivation, `t`, is best.
 
 Since `m` does not beat `t`, both have the same rule profile. A derivation with a greater rule profile than `t` also precedes `m` in *T*. Nothing precedes `m`, so no such derivation exists.
 
@@ -2031,7 +2031,7 @@ An Integer token is a nonempty run of ASCII decimal digits. Section 9.3 defines 
 
 String delimiters are straight double quotes. Dollar signs and backslashes are ordinary characters. A string contains literal runs and `‹…›` escapes. Literal runs use stage-zero decomposition, while decoded escape scalars remain exact. The reader joins those parts without further normalization.
 
-Lexical string tokens retain their quotes and escape spellings. The lexical grammar accepts their raw interiors without interpreting escapes. A separate inspection step resolves escapes after successful lexical recognition, before syntax recognition. During DOM conversion, the reader removes the quotes and decodes the original escapes exactly once. Include-path tokens follow the same rule, with original literal runs. Token source positions and texts retain the written spelling.
+Lexical string tokens retain their quotes and escape spellings. The lexical grammar accepts their raw interiors without interpreting escapes. A separate inspection step validates escapes after successful lexical recognition, before syntax recognition, and loads names data when needed. During DOM conversion, the reader removes the quotes and decodes the original escapes exactly once. Include-path tokens follow the same rule, with original literal runs. Token source positions and texts retain the written spelling.
 
 An escape starts at `‹` and ends at the next `›`. It contains `U+` and four to six hexadecimal digits, a formal Unicode name, or a name alias. Non-numeric lookup first tries the core abbreviation map. Other names require the selected lazy names resources.
 
@@ -2262,7 +2262,7 @@ An include path is not a method receiver. Directive recognition does not constra
 
 Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
 
-Empty flags or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees supplied by another bootstrap.
+Empty flags or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees that another bootstrap supplies.
 
 Valid-form productions:
 
@@ -2531,7 +2531,7 @@ The following complete document reports a capture error at line 2, column 9. The
 ```
 ````
 
-With an incomplete second rule, its syntax error precedes the first rule's capture error. The reader reports the furthest position reached by syntax recognition, rather than line 2, column 9.
+With an incomplete second rule, its syntax error precedes the first rule's capture error. The reader reports the furthest position that syntax recognition reaches, rather than line 2, column 9.
 
 ````markdown
 ```jbogenbau
@@ -2611,7 +2611,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A test with the wrong operand type is a document error at its operand. `LE=Word` and `LE<"la">` are invalid. A symbol can combine a tag test followed by a value test. Repeated kinds and reversed order are errors at the second test.
 - An unknown method, wrong arity, or wrong receiver type is a document error at the method. Section 10 lists all signatures.
 
-  `.without-elision` takes exactly one bare capture, including `$`. Reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`. `.without-elision-except` takes the same receiver and exactly one argument, a rule name. Reject `$x.onward.without-elision-except(F)` and direct the author to `$x.without-elision-except(F).onward`. Neither restoration method can take the other's result as its receiver. Capture-use analysis and private readiness follow captures through nested span calls.
+  `.without-elision` takes exactly one bare capture, including `$`. Reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`. `.without-elision-except` takes the same receiver and one argument: an ordinary rule name or exact instance. Reject `$x.onward.without-elision-except(F)` and direct the author to `$x.without-elision-except(F).onward`. Neither restoration method can take the other's result as its receiver. Capture-use analysis and private readiness follow captures through nested span calls.
 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
@@ -2717,7 +2717,7 @@ Initially, every string, range, wildcard, or tag terminal is consuming. `ε` is 
 
 Propagate consuming marks until none changes, starting with terminals alone. Recursive references without a reachable terminal remain unmarked. Recursion with a reachable terminal becomes consuming. This does not require a finite successful derivation. Thus `z → z` is unmarked, but `"a" z` is consuming even though its branch is unproductive.
 
-Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means unmarked by this analysis. An absent carrier drops before overlap comparison, while an inserted item has no input span.
+Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means that this analysis does not mark it. An absent carrier drops before overlap comparison, while an inserted item has no input span.
 
 For each production, two whole carriers conflict if its expression is consuming. A whole carrier conflicts with every consuming named carrier or attachment capture in that production. Distinct named carriers and attachment captures remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
 
@@ -2896,7 +2896,7 @@ A tree comparison has operator `≅` or `≇`, a bare capture on the left and a 
 
 Pattern union, intersection and difference combine predicates. Contextual `∅` supplies the always-false predicate. Pattern values do not support ordinary equality or implicit string conversion.
 
-For a bare name after either tree comparator, report at that name. Use `tree comparison requires a pattern; write #NAME, not NAME`. Substitute the actual name, including KEhE, before generic parse or type errors. Other wrong operand types receive the ordinary expected-pattern error.
+For a bare name after either tree comparator, use the diagnostic of §9.3. Other wrong operand types receive the ordinary expected-pattern error.
 
 ### Method signatures
 
@@ -2918,7 +2918,7 @@ For a bare name after either tree comparator, report at that name. Use `tree com
 | `.split(d)` | String, or converted capture or span | String set |
 | `.ngrams(n)` | String, or converted capture or span | String set, with a positive integer literal argument |
 | `.without-elision` | Bare capture only | Restored span |
-| `.without-elision-except(F)` | Bare capture only, with one rule name | Restored span with a close family |
+| `.without-elision-except(F)` | Bare capture only, with one ordinary rule name or exact instance | Restored span with a close family |
 | `.verbatim-text` | Bare capture only, in a recipe | String (§11) |
 | `.emitted.value`, `.emitted.image` | Bare capture only, in a recipe | Reconstructed string (§11) |
 
@@ -3067,7 +3067,7 @@ A selected recipe runs only when an emitted string or another evaluated recipe n
 
 A cycle exists when a requested constituent channel depends on that same occurrence's active channel before returning. `:= $.emitted.value ++ "x"` cycles directly. `:= $.emitted.image` without an explicit image recipe cycles through the implied image. Cross-channel references alone do not establish a cycle, as `r` and `s` show.
 
-The loader analyzes each production's effective constituent recipes after alternative and definition channel selection. It validates these two channels before considering item overrides. Overridden definition recipes remain inactive on the channels replaced by alternative recipes. Tests and feature gates excuse no active document cycle.
+The loader analyzes each production's effective constituent recipes after alternative and definition channel selection. It validates these two channels before considering item overrides. Overridden definition recipes remain inactive on the channels that alternative recipes replace. Tests and feature gates excuse no active document cycle.
 
 Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports a cycle as a document error.
 
@@ -3230,7 +3230,7 @@ A stage-local feature is a loading error if a surviving earlier stage tests it, 
 
 Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
 
-The loader examines rule guards and classifier guards before feature filtering. This includes classifiers used by conditions.
+The loader examines rule guards and classifier guards before feature filtering. This includes classifiers that conditions use.
 
 A rejection or an `ambiguous` error ends the run as usual.
 

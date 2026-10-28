@@ -1,6 +1,8 @@
 # The library API
 
-Every gencmu library offers the same operations on the same data. An API is the operations that a library exposes. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
+The common API gives every gencmu library the same operations on the same data. An API is the operations that a library exposes. Each library spells them the way its language spells things. This document says what the operations are. The engine specification, `docs/engine.md`, says what they compute. `docs/output.md` says what the results look like as JSON.
+
+The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
 
 ## What every library offers
 
@@ -93,7 +95,7 @@ A check that cannot recognize its chosen reconstruction before filtering reports
 
 Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
 
-Parsing is synchronous, and you can use a loaded pipeline for any number of parses. In Python, Go and Rust, any number of threads can share one pipeline and parse at once. JavaScript has one thread, and the worker of the playground has its own pipelines.
+Parsing is synchronous, and you can use a loaded pipeline for any number of parses. In Python, Go and Rust, any number of threads can share one pipeline and parse at once. Each JavaScript pipeline runs on one thread, and the playground worker has its own pipelines.
 
 ### The result
 
@@ -101,7 +103,7 @@ The result has the fields of `docs/output.md`, in the data types of the language
 
 The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
 
-It includes caller-enabled names, including unknown names, and global defaults, except names that the caller disables. It also includes features enabled by declarations in stages that the run reaches. A cutoff before a stage excludes its declarations.
+It includes caller-enabled names, including unknown names, and global defaults, except names that the caller disables. It also includes the features that declarations enable in stages that the run reaches. A cutoff before a stage excludes its declarations.
 
 A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand do enable features before that declaration reports a conflict (engine §13). Each parse starts with a fresh feature set.
 

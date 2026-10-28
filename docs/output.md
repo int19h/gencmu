@@ -84,7 +84,7 @@ A list that flat braces read has no node of its own. Each level of a chain is a 
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
-An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. All other nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
+An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. All other nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value that an omitted pattern leaf observes.
 
 ```json
 {"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}
@@ -255,7 +255,7 @@ A TARGET is `{"rule":"r"}`, `{"terminal":"T"}`, a call, or, before expansion, a 
 
 A target-choice argument has at least two TARGET values. Requirement lists retain signed requirement records and can be empty. Neither list is a tag set. Captures and capture methods are invalid anywhere inside ARG.
 
-Calls and parameters can occupy expression, term, pattern, and method-argument positions that engine §2.3 permits. Parameters can also occupy STRINGTERM and a requirement's `value` before expansion. A bare rule argument converts to the constructor required by its use.
+Calls and parameters can occupy expression, term, pattern, and method-argument positions that engine §2.3 permits. Parameters can also occupy STRINGTERM and a requirement's `value` before expansion. A bare rule argument converts to the constructor that its use requires.
 
 Before the loader computes keys, it inspects every rule-valued argument and target inside a pattern call for read-back validity. It also visits nested calls and body arguments. Each nominal reference must read back as a rule in its actual syntactic position under the loaded Unicode table. A supplied rule argument cannot become a tag argument through canonical spelling. Unused arguments receive the same inspection.
 
@@ -691,6 +691,6 @@ A token node whose token has attachments is `{"terminal":"T","image":"L","before
 The display JSON is pretty-printed so that nesting costs no indentation where nothing is gained:
 
 - A scalar is written as JSON.
-- An empty array is `[]`. A non-empty array is `[`, a newline, each item, a newline, and `]` at the indentation of the array. Each item is indented two more spaces than the array, and each item except the last is followed by `,`.
+- An empty array is `[]`. A non-empty array is `[`, a newline, each item, a newline, and `]` at the indentation of the array. Each item is indented two more spaces than the array. A comma follows each item except the last.
 - An object with one member is `{"name": ` followed by the value, then `}`. The value is written at the same indentation as the object. So `{"a": {"b": {"c": "x"}}}` stays on one line, and a long chain adds no indentation.
 - An object with several members is written like an array, as `"key": value` lines between `{` and `}`.

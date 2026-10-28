@@ -38,7 +38,7 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
 A rule can carry one flag, written in parentheses after the keyword. There are two flags. A flagged occurrence is a flagged rule's constituent.
 
 - `%rule(leftmost-longest) NAME` prefers earlier starts, then longer nonempty occurrences at one start. A parse with a nonempty occurrence beats one without any.
-- `%rule(fewest) NAME` prefers fewer nonempty occurrences. A parse with fewer occurrences of `fewest` rules beats one with more.
+- `%rule(fewest) NAME` prefers fewer nonempty occurrences. A parse with fewer nonempty occurrences of `fewest` rules beats one with more.
 
 "Ambiguity" gives the full comparison.
 
@@ -86,7 +86,7 @@ The sections below explain these forms.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one valid emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule name can also be one valid emoji scalar, as defined below. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word that the lexicon tags.
 
 An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
 
@@ -282,7 +282,7 @@ An earlier option can exclude a later option even when intervening options are a
 
 Binding, from strongest to weakest, is primary expressions, sequence, `&`, then choice. At a choice level, the separator is either `|` or `≻`. Mixing them at that level is a reader error. Parentheses start another level.
 
-A seal is an opaque leaf supplied by a ranked choice. Outside patterns cannot inspect the selected option through this leaf.
+A ranked choice supplies a seal, an opaque leaf. Outside patterns cannot inspect the selected option through this leaf.
 
 | Text | Meaning |
 | --- | --- |
@@ -325,7 +325,7 @@ An action reads one token or closes a constituent. Internal named rules and read
 
 The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
-`begins`, `matches`, and `.tags` with a rule argument inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
+`begins`, `matches`, and `.tags` with a rule argument inspect the readings that recognition allows before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
 
 After admission, rule flags take precedence over the stage directive. With no flagged rule, the stage directive alone ranks the admitted parses.
 
@@ -943,7 +943,7 @@ Engine §4 gives the exact bounds, proof rules, and cache identity.
 
 `$x.without-elision-except(family)` is `$x.without-elision` with one exception. Inside the shared stretch, the witness can add closes that the named family permits.
 
-A family is an ordinary rule. Its members are the rule itself and, transitively, every rule that a member reaches through a member edge. A member edge is one written way to read exactly one rule reference in an alternative. It can pass through captures, tests, parentheses and the branches of choices. It cannot pass through a sequence, an optional, braces, `&` or a ranked group. So `m`, `$z:m` and `(m | z)` make `m` a member, while `[m]`, `[$z:m]` and `m Z` do not.
+A family is an ordinary rule or one exact instance. Its members are the rule itself and, transitively, every rule that a member reaches through a member edge. A member edge is one written way to read exactly one rule reference in an alternative. It can pass through captures, tests, parentheses and the branches of choices. It cannot pass through a sequence, an optional, braces, `&` or a ranked group. So `m`, `$z:m` and `(m | z)` make `m` a member, while `[m]`, `[$z:m]` and `m Z` do not.
 
 The members come from the rules as written. Guards do not matter, so every alternative counts.
 
@@ -972,7 +972,7 @@ In `le ke my .e gy ke'e broda`, the inner sumti `ke my .e gy ke'e` omits no KUhE
 
 In `le ke my .e gy broda`, the KE group omits its own KEhE at the capture's end. The quantifier's KUhE comes just before that KEhE, so it still lies inside the shared stretch, and the description takes the quantifier again.
 
-The receiver and composition rules of `.without-elision` apply unchanged. `$x.onward.without-elision-except(math)` is an error. The argument is exactly one rule name. A family whose members own no elidable optional permits nothing, and its queries answer as `.without-elision` does.
+The receiver and composition rules of `.without-elision` apply unchanged. `$x.onward.without-elision-except(math)` is an error. The argument is one ordinary rule name or exact instance. A family whose members own no elidable optional permits nothing, and its queries answer as `.without-elision` does.
 
 ### Fixed-window suffix queries
 
@@ -1079,7 +1079,7 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 
 ```
 
-Sometimes no tags are written at all, neither on the alternative nor on its header. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
+Sometimes no tags are written at all, neither on the alternative nor on its header. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. The chain of rules that builds a `mi` gives it tags for the next stage.
 
 Each optional, flat braces, and a ranked group count as one logical symbol here. If an optional or flat braces reads one logical symbol, it has that symbol's tags. Otherwise it has none. Ranked groups follow the restrictions in "Ranked choices". So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
 
@@ -1353,11 +1353,11 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 Ranked choices filter parses before the ranking below.
 
-Filtering only removes parses and never adds one. Compared with the same grammar without this filtering, a tie can become `resolved` or `unique`. A `resolved` result can become `unique` or a tie. Filtering never changes a unique result.
+With sealing fixed, filtering only removes parses and never adds one. Compared with the same sealed grammar without filtering, a tie can become `resolved` or `unique`. A `resolved` verdict can become `unique` or a tie. Filtering never changes a unique verdict. These comparisons concern the verdict before emission and the elision-only check.
 
-Ranked choices supply seals as well as filtering. A unique tree can differ between grammars with and without these seals.
+Ranked choices supply seals as well as filtering. Adding or removing a seal changes the grammar. It can change outside pattern answers and therefore the unique tree.
 
-A newly unique or resolved result reaches emission. The enabled elision-only check then runs under [Elided terminators](#elided-terminators). A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+A unique or resolved verdict reaches emission. The enabled elision-only check then runs for `resolved`, or for `unique` when the chosen tree holds an elided node. [Elided terminators](#elided-terminators) defines the check. A tied verdict reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
 A grammar ranks every admitted parse. A rule profile has two parts. Its span vector counts the occurrences of `leftmost-longest` rules over each nonempty span. Its fewest count is the number of nonempty occurrences of `fewest` rules. A flagged span is the span of a `leftmost-longest` occurrence.
 

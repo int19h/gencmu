@@ -13,9 +13,9 @@ The users of gencmu want to read a grammar, change it, and see at once what the 
 gencmu ships these parts:
 
 - There are four libraries, in JavaScript, Python, Go and Rust. A clean-room implementation uses the specification alone. Each library implements one engine specification without using another library's code. No library has dependencies beyond the standard library of its language.
-- The grammar documents and pipelines are shared by all four.
+- All four libraries share the grammar documents and pipelines.
 - There is one command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
-- There is one test corpus, shared by all four libraries. Its expectations are what gencmu itself is meant to produce.
+- All four libraries share one test corpus. Its expectations are what gencmu itself is meant to produce.
 
 ## Repository layout
 
@@ -108,11 +108,11 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
    Nested parses for `span.matches(rule)`, `span.begins(rule)`, `span.ends(rule)`, and `span.tags(rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. Ordinary answers of short spans can also outlive the parse, in the shared memo of engine §4.3. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
 
-4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts `leftmost-longest` occurrences over each nonempty input span, and it counts `fewest` occurrences.
+4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts `leftmost-longest` occurrences over each nonempty input span, and it counts nonempty `fewest` occurrences.
 
    Rule flags compare rule profiles first. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares elided terminators (see "Ambiguity" below).
 
-5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. Attachments are tokens owned by another token and unread by later stages.
+5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. An attachment is a token that another token owns and that later stages never read.
 
 6. The pipeline runs the stages in order, and stops at the first rejection or error.
 
@@ -125,7 +125,7 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
 Every span and every source range in a result is half-open: the range holds its start but not its end. Source positions count Unicode code points, not bytes or UTF-16 units, so that the four languages agree on non-ASCII text. Each library converts at its edge (JavaScript from UTF-16, Go and Rust from UTF-8). The libraries derive line and column in diagnostics from code points. Lines split at `\n`, `\r\n` and `\r`.
 
-A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
+A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token that an emission clause inserts has an empty span and an empty source range at its insertion point. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
 A verbatim image recipe can include adjacent text that no input token covers. It never changes source or text metadata. A constituent's image can extend beyond its source interval. An enclosing source-text recipe limits the token's image to its own source interval.
 
@@ -165,7 +165,7 @@ The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that 
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
-A rule is a keyword, its optional flags, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator, and nothing is recognized by its position on a line:
+A rule is a keyword, its optional flags, its name and its body, followed by its clauses. Each clause is a keyword and what it says. A rule ends where the next item begins: a rule, a directive, a constant, a classifier or an implication. So a rule needs no terminator. No part of a rule depends on its position on a line:
 
 ```jbogenbau
 %rule term-connective
@@ -280,7 +280,7 @@ The notation is self-hosting: it is itself a pipeline of two stages. A lexical g
 
 The bootstrap supplies the grammar needed to read the notation. The notation documents have preparsed DOMs in `data/preparsed/gencmu.json`. Every library splices those DOMs to build the notation reader. It uses their entries without comparing source text hashes. CI makes sure that reading the notation documents reproduces those entries exactly, the bootstrap fixpoint.
 
-A maintainer changes the notation in its documents, and `tools/sync.js` regenerates the bootstrap from them. In each library, three steps of the reading are written by hand:
+A maintainer changes the notation in its documents, and `tools/sync.js` regenerates the bootstrap from them. Each library writes three steps of the reading by hand:
 
 - The search for the `jbogenbau` blocks of a Markdown document
 - The walk from a document tree to its grammar objects
@@ -304,7 +304,7 @@ A document that loads names data also requires the paths and fingerprints of its
 
 A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
-The fixpoint alone proves only that the notation reads itself consistently. So `tests/notation/` also holds direct cases, run by every library: small documents with their expected DOMs and their expected errors.
+The fixpoint alone proves only that the notation reads itself consistently. So every library also runs the direct cases in `tests/notation/`: small documents with their expected DOMs and their expected errors.
 
 ## Phoneme values and stress
 
@@ -434,7 +434,7 @@ An elidable optional permits an omitted closing word. A grammar marks each elida
 
 A marked optional has one form, with a user tag or parameter directly after the marker. A parameter must become exactly one bare user tag after argument conversion. A group there, even `[+(KU) 🆓]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
-An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the exact value saved by an equality test. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
+An omission has an elided node and contributes to its boundary's elision count. It does not record which constituent it closes. `elision-only` reconstructs its defined routes and preserves the exact value that an equality test saves. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
 A capture can stand anywhere except inside braces or inside an elidable optional. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
@@ -591,7 +591,7 @@ The words stage declares `sa-su` with conditions on its input classes. It enable
 
 ## Ambiguity
 
-Ranked choices filter parses allowed by recognition before ranking. The parses that survive are admitted. The engine ranks admitted parses by rule profile, first by `leftmost-longest` and then by `fewest`, and then by the stage directive. A parse is best if no other admitted parse beats it.
+Ranked choices filter the parses that recognition allows before ranking. The parses that survive are admitted. The engine ranks admitted parses by rule profile, first by `leftmost-longest` and then by `fewest`, and then by the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
@@ -621,7 +621,7 @@ The flag ranks first so an author can state grouping independently of terminator
 
 With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The flag ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
-The notation writes `leftmost-longest` in parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. `fewest` favors absence. It counts occurrences and ignores their spans, because a disfavored construct has no natural position to prefer. So it composes by addition, as an elision count does, and it cannot form a comparison cycle.
+The notation writes `leftmost-longest` in parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. `fewest` favors absence. It counts nonempty occurrences and ignores their span lengths, because a disfavored construct has no natural position to prefer. So it composes by addition, as an elision count does, and it cannot form a comparison cycle.
 
 ### Ties are errors
 
@@ -697,13 +697,13 @@ A strict alignment misses one kind of rival. The rival reads a new construct ins
 
 An implicit rule for new constructs fails in two ways. Closes inside the shared words can be early closes of existing constructs, as in `my .e cy to roi klama`. And a rule that matches constructs by their named owners is fragile. Inlining one rule of the grammar changes its answers.
 
-So the grammar names the permission. `.without-elision-except(family)` lets a rival add closes whose optionals a family's members own. Ownership is static, and the family is an ordinary rule. The grammar states the exception at the query and names the constructs at their definitions. The permission does not test that a construct is new. A grammar that names a family accepts every early close of its members that priority allows.
+So the grammar names the permission. `.without-elision-except(family)` lets a rival add closes whose optionals a family's members own. Ownership is static, and the family is an ordinary rule or one exact instance. The grammar states the exception at the query and names the constructs at their definitions. The permission does not test that a construct is new. A grammar that names a family accepts every early close of its members that priority allows.
 
 Permission marks belong only to the witnesses of a family query. A witness item keeps sets of deletion-test states, never marked closes. The number of such sets depends on the size of the candidate's close groups, so a larger candidate group can cost more work.
 
 ### Early closure and candidate ownership
 
-A constituent is the text read by one grammar rule. A candidate is one constructed reading of a constituent. A pattern tests that candidate's actual children and boundaries. A query parses an input range again.
+A constituent is the text that one grammar rule reads. A candidate is one constructed reading of a constituent. A pattern tests that candidate's actual children and boundaries. A query parses an input range again.
 
 TO, SEI, and XOI bodies compete as ordinary constituents. Late elision selects complete readings with fewer omissions at the first differing boundary. A longer body usually wins when it leaves a complete reading. Written terminators retain their ordinary grammatical force.
 
@@ -747,7 +747,7 @@ The `lojban/experimental` pipeline redefines `selbri-4` and `operator`, with the
 
 The pipeline also states three conventions as rules:
 
-- A sumti connection takes priority over a term connection. After span ranking, `fewest` prefers fewer links built by `bridi-tail-connective` and `gi-stag-connective` across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
+- A sumti connection takes priority over a term connection. After span ranking, `fewest` prefers fewer links that `bridi-tail-connective` and `gi-stag-connective` build across the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 
@@ -877,6 +877,8 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 ## Diagnostics and debugging
 
+The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
+
 The product provides these diagnostics and debugging tools:
 
 - A rejection names the stage, and shows the source line with a caret under the failing character or word. It lists what can continue at that point as grammar terms, grouped by rule, not as a set of tag names.
@@ -884,7 +886,7 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
@@ -1064,4 +1066,4 @@ Rust and Go use their standard test harnesses to schedule independent tests and 
 
 Rust tests use optimization level 3 through `[profile.test]`. The runner controls are `--test-threads` or `RUST_TEST_THREADS`, Go's `-parallel`, pytest's `-n`, and Node's `--test-concurrency`. Rust, Go, and JavaScript keep the separate `GENCMU_CORPUS_WORKERS` control for their corpus pools. Python uses its pytest worker count for corpus cases too. The library READMEs and `tests/README.md` give local commands, including serial runs and Rust debug builds.
 
-The Python build backend is a build dependency. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.
+The Python build backend is a build dependency. Commit hashes pin third-party actions. GitHub Pages serves `main` from the root with no workflow.
