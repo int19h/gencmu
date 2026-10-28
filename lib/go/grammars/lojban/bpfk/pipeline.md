@@ -159,7 +159,7 @@ SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in lojban
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 
-"Elision policy and CLL advice" in [the CLL grammar](../cll/syntax.md#elision-policy-and-cll-advice) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. The elision policy disagrees with no specific text of CLL.
+"Elision policy and CLL advice" in [the CLL grammar](../cll/syntax.md#elision-policy-and-cll-advice) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. CLL 1.1 section 8.6[^cll-e8-48] calls the omitted `ku'o` in `le poi blabi gerku cu klama` ungrammatical. This pipeline accepts the text because the merged reading cannot complete the outer description under the printed rules.
 
 A PEG commits to choices before it knows whether the whole text parses. This pipeline follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
