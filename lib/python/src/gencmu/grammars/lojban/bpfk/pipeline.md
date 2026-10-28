@@ -111,7 +111,7 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
 
 The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The enabled `elision-only` check runs after `resolved`, or after `unique` when the chosen tree holds an elided node.
 
-The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
+The check restores that parse's omitted terminators and parses the restored text again. The check fails when filtering excludes the restored chosen derivation, or it is not the only best admitted reading of the written-back text.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
@@ -121,7 +121,7 @@ A constituent can end wherever a parse of the whole text needs it. Numbers and l
 
 A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
 
-A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities, one with a ranked choice and one with a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
+The CLL grammar settles two connective ambiguities, one with a ranked choice and one with a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 ## Differences from CLL, BPFK proposals and camxes-std
 

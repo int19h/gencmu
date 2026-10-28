@@ -160,7 +160,7 @@ A requirement list and a target choice retain their distinct categories. Parenth
 
 A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and each sequence contains one or more primaries.
 
-A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and eligible emoji names reference rules. Uppercase names and engine tags read tagged tokens.
+A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and valid emoji names reference rules. Uppercase names and engine tags read tagged tokens.
 
 Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
 

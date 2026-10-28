@@ -8,7 +8,7 @@ A phoneme is a unit of sound. A Lojban pipeline has five stages: phonemes, forms
 
 Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has a lowercase value and an uppercase image.
 
-Rule names can use one eligible emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table.
+Rule names can use one valid emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table.
 
 A free modifier is a word or phrase that can stand almost anywhere. `🆓` names the rule for free modifiers. A tree pattern describes the shape of a parse tree. `#` starts a tree pattern, and `@` starts a template parameter.
 

@@ -309,7 +309,7 @@ Ranked options have no local guard, tag clause, or emission clause. Ordinary alt
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
-`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. This uses the same dominance rule as above.
+`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns.
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
@@ -752,7 +752,9 @@ A logical symbol is one symbol of a production as written, before captures expan
 
 A query gives a written terminator priority over an omission. For a preceding plain optional, it checks both absence and presence when looking for the written terminator. `a [$b:b] [+KU]` therefore follows the same query rule as `a [b] [+KU]`. An omission names no separate constituent that it ends. Diagnostic production numbers and recorded parse actions can follow expansion. [Engine §4](engine.md#4-recognition) defines the complete query rule.
 
-A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b:B]` doubles the productions of its alternative, `[($a:A | B | C)]` contributes four, and `[A [$b:B]]` three, not four. Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading. The parser does not merge readings that differ only in where a captured part ends. So a capture whose span can end in many places costs much more than one that reads a single token.
+A plain optional that holds a capture, whose content has k expansions, contributes 1 + k: the empty one and those k. A sequence multiplies these counts. So `[$b:B]` doubles the productions of its alternative, `[($a:A | B | C)]` contributes four, and `[A [$b:B]]` three, not four.
+
+Each capture can also multiply the work of the parser. The parser keeps a captured part's span with each partial reading. The parser does not merge readings that differ only in where a captured part ends. So a capture whose span can end in many places costs much more than one that reads a single token.
 
 The clauses of a rule serve all its productions, and the productions need not capture the same parts. gencmu knows whether a production captured a part when it reads the grammar. A clause can refer to a capture that a production lacks. What happens then depends on the kind of clause.
 
@@ -1492,7 +1494,7 @@ A reconstruction is a second parse with terminators restored. These are the omit
 
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
-The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
+The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The check fails when filtering excludes the restored chosen derivation, or it is not the only best admitted reading of the written-back text. Failure gives an ambiguity error, never a replacement chosen parse.
 
 Its rule profiles hold both parts. An occurrence with an empty projected span counts in neither part.
 
@@ -1502,7 +1504,7 @@ Grammars that extend CLL can contain ambiguities unrelated to terminators. A sum
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
-The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on to require the restored chosen reading as the only best admitted reading of the written-back text. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 
