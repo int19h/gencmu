@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage. The pipelines of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read it. The [CLL](../cll/pipeline.md) pipeline omits this script. CLL is *The Complete Lojban Language*. The stage reads both private-use encodings defined in [Two encodings](#two-encodings).
+This document adds the zbalermorna script to the phoneme stage. The pipelines of the [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read it. BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline omits this script. CLL is *The Complete Lojban Language*. The stage reads both private-use encodings defined in [Two encodings](#two-encodings).
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

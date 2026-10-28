@@ -1,6 +1,6 @@
 # Latin conventions
 
-This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The pipelines of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee, [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read them after [../cll/latin.md](../cll/latin.md). The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
+This document adds to [../cll/latin.md](../cll/latin.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The pipelines of the [BPFK](../bpfk/pipeline.md), [experimental](../experimental/pipeline.md) and [Zantufa](../zantufa/pipeline.md) read them after [../cll/latin.md](../cll/latin.md). BPFK is the Lojban language planning committee. The [CLL](../cll/pipeline.md) pipeline does not. [The notation document](../../../docs/notation.md) explains the notation.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

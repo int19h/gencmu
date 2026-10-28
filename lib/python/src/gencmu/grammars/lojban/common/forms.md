@@ -27,7 +27,7 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
-A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
+A lookahead tests following input without consuming it. The BPFK word forms look ahead only as far as the next pause. BPFK is the Lojban language planning committee. This stage reads each run on its own, except for two lookaheads.
 
 A prolonged y run tests for `bu` across one pause. In the BPFK word family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL word family, it tests only the letters `bu`, even at the start of another word.
 

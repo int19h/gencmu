@@ -42,7 +42,7 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 ## Differences from CLL and BPFK
 
-The `y`-cmavo forms extend those that CLL gives, as [morphology.md](morphology.md) explains. The word forms of the BPFK, the Lojban language planning committee, omit those forms and the CLL-specific pause test for names before BU.
+The `y`-cmavo forms extend those that CLL gives, as [morphology.md](morphology.md) explains. The BPFK word forms omit those forms and the CLL-specific pause test for names before BU. BPFK is the Lojban language planning committee.
 
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 
