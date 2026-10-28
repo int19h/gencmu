@@ -167,8 +167,8 @@ The redefined `run-words` keeps the join conditions of [../common/forms.md](../c
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule only-hesitation
-  (* A run of hesitation or silent text preserves a pending quote opener for the next run. *)
-  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation | silent-token
+  (* A run of hesitation preserves a pending quote opener for the next run. *)
+  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation
 
 %rule(leftmost-longest) rahoi-form
   (* The quote takes the longest rafsi or gismu form in a complete reading. Stress separates

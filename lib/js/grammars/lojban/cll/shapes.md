@@ -4,7 +4,9 @@ This document is part of the forms stage in the [CLL](pipeline.md) pipeline. A s
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [../common/forms.md](../common/forms.md) and before [morphology.md](morphology.md), which builds the words from these parts. The BPFK, experimental, and Zantufa pipelines use [../bpfk/morphology.md](../bpfk/morphology.md), the word forms of the BPFK, the Lojban language planning committee, and use nothing here. [The notation document](../../../docs/notation.md) explains the notation.
+The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [../common/forms.md](../common/forms.md) and before [morphology.md](morphology.md), which builds the words from these parts.
+
+The BPFK, experimental, and Zantufa pipelines use the word forms in [../bpfk/morphology.md](../bpfk/morphology.md) and do not use this document. BPFK is the Lojban language planning committee. [The notation document](../../../docs/notation.md) explains the notation.
 
 The phoneme stage folds consonants to lowercase and writes each apostrophe with value `'`. It gives every vowel a lowercase value and marks stress with `Stressed`. It gives the syllable comma an empty value and the tag `Syllable-Break`.
 
@@ -194,7 +196,7 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 
 The syllable scans read commas by their `Syllable-Break` tag, because a comma token has an empty value. `brivla-item` permits only unstressed `y`. `name-item` permits stressed `y` too.
 
-A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL[^cll-s3-5]). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
+A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL[^cll-s3-5]). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`. The [vowel choice](morphology.md#names-and-vowels) follows CLL's rule that commas are never required.
 
 A syllabic consonant is a consonant pronounced as a syllable. The stress of a word depends on its syllables. CLL[^cll-s3-9] counts the syllables of `a e i o u` and their diphthongs. It does not count a syllable of `y`, `iy` or `uy`, or of a syllabic consonant. A syllabic consonant is still a consonant here, so it adds no syllable at all.
 

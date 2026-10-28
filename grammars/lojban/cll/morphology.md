@@ -148,7 +148,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 
 
 
-These rules read lowercase vowel values with or without `Stressed`. The lexicon looks a cmavo up by its normalized value, so a stressed vowel finds the same entry as a plain vowel.
+These rules read lowercase vowel values with or without `Stressed`. A stressed vowel has the plain vowel as its value, so the lexicon finds the same entry.
 
 ## Brivla
 
@@ -357,7 +357,9 @@ An initial CC leaves no cmavo to take. An initial CVCC or CVV rafsi leaves, afte
 
 A borrowing, or fu'ivla, is a brivla that is neither a gismu nor a lujvo (CLL[^cll-s4-7]). It has no `y`, and it ends in a vowel. It has a consonant cluster among its first five letters, not counting apostrophes and commas.
 
-A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerndjamo` of CLL[^cll-s4-7]). Its vowels can stand in any run, with apostrophes or commas between two of them. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
+A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerndjamo` of CLL[^cll-s4-7]).
+
+A borrowing's vowels can stand in any run, with apostrophes or commas between two of them. The [vowel choice](#names-and-vowels) explains adjacent vowels that form no diphthong. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
 
 A borrowing is also not "any combination of cmavo, gismu, and lujvo". The `denpabu` of CLL[^cll-s17-4] shows what that means: the same spoken word, with its syllables and stress, read as those words under the pause rules. Only one such reading is possible. It is one or more cmavo followed by one brivla, because a second brivla needs a second stress. The last word must begin with a consonant, and it can be a borrowing too, as in `abaspageti`, which is `a ba spageti`.
 
@@ -546,7 +548,7 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 ### Names and vowels
 
 - Names: CLL forbids embedded `la`, `lai` or `doi` "unless the sequence is immediately preceded by a consonant".[^cll-s4-8] This grammar rejects them only at the start or after a vowel or `y`. Its `name-vowel` test excludes the apostrophe.
-- Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`.
+- Vowels: CLL[^cll-s3-5] uses an apostrophe between vowels that form no diphthong. CLL[^cll-s4-7] writes `bang,r,kore,a` and uses commas because `ea` is not a diphthong. CLL[^cll-s3-3] also says that commas are never required. This grammar therefore permits adjacent vowels that form no diphthong in names and borrowings. Each vowel forms its own syllable, as in `.aab.` and `paarku`.
 - Vowels in a cmavo: A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL[^cll-s4-1][^cll-s4-2]). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.
 
 ### Commas and written boundaries

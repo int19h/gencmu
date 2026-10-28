@@ -27,7 +27,7 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
-A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
+A lookahead tests following input without consuming it. The BPFK word forms look ahead only as far as the next pause. BPFK is the Lojban language planning committee. This stage reads each run on its own, except for two lookaheads.
 
 A prolonged y run tests for `bu` across one pause. In the BPFK word family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL word family, it tests only the letters `bu`, even at the start of another word.
 
@@ -35,7 +35,7 @@ In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` be
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme. A supplied `Silent` token also keeps its strings and receives `Run-Initial` and `Run-Final`.
+A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
@@ -64,12 +64,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   $ :: $.tags := " " :- $.image
 
 %rule run
-  word-run | foreign-token | unsegmentable-run | silent-token
-
-%rule silent-token
-  $s:Silent
-%emits
-  $ :: $s.tags ∪ Run-Initial ∪ Run-Final
+  word-run | foreign-token | unsegmentable-run
 
 %rule word-run
   run-words
@@ -96,13 +91,12 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-part.svg" alt="Railroad diagram of the rule pause-part"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/run.svg" alt="Railroad diagram of the rule run"></p>
-<p><img src="../../../docs/diagrams/lojban/common/forms/silent-token.svg" alt="Railroad diagram of the rule silent-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
@@ -116,7 +110,7 @@ The stage covers every input token. It preserves pause boundaries, images and ta
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image concatenates its phoneme images. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
 
-The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
+The stage tests only a whole run, and it tests the run in isolation. No rule except the two lookaheads reads past the run, so the isolated test agrees with a test in place. A `yy` that the y lookahead splits divides into words either way.
 
 The rule `word-run` is a run that divides into words. A pipeline that divides a run in another way extends `word-run`, as [../zantufa/morphology.md](../zantufa/morphology.md) does for `ra'oi`. So `unsegmentable-run` never takes a run that one of these ways reads.
 
@@ -219,7 +213,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   [pause-run] bu-form
 
 %rule pause-run
-  PAUSE | pause-run PAUSE | pause-run Silent PAUSE
+  PAUSE | pause-run PAUSE
 
 %rule bu-form
   cmavo-shape="bu"
@@ -244,7 +238,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
 
 ## Words
 
-A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's normalized value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
 
 ```jbogenbau
 %rule source-word

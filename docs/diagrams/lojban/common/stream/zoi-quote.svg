@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="798" height="298" viewBox="0 0 798 298" role="img" aria-label="Railroad diagram of the rule zoi-quote">
+<svg xmlns="http://www.w3.org/2000/svg" width="798" height="210" viewBox="0 0 798 210" role="img" aria-label="Railroad diagram of the rule zoi-quote">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="75.6" lengthAdjust="spacingAndGlyphs">zoi-quote</text>
@@ -56,32 +56,5 @@
 <path d="M363 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H517a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
 <path d="M537 188H740"/>
 <path d="M740 188H758a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V212a10 10 0 0 0 10 10"/>
-<path d="M40 222h20"/>
-<g class="rule"><rect x="60" y="210" width="100" height="24" rx="0"/><text x="110" y="227" textLength="84" lengthAdjust="spacingAndGlyphs">zoi-marker</text></g>
-<path d="M160 222h10"/>
-<g class="rule"><rect x="170" y="210" width="126" height="24" rx="0"/><text x="233" y="227" textLength="109.2" lengthAdjust="spacingAndGlyphs">delimiter-gap</text></g>
-<path d="M296 222h10"/>
-<g class="rule"><rect x="306" y="210" width="92" height="24" rx="0"/><text x="352" y="227" textLength="75.6" lengthAdjust="spacingAndGlyphs">delimiter</text></g>
-<path d="M398 222h10"/>
-<g class="rule"><rect x="408" y="210" width="168" height="24" rx="0"/><text x="492" y="227" textLength="151.2" lengthAdjust="spacingAndGlyphs">delimiter-body-gap</text></g>
-<path d="M576 222h10"/>
-<g class="rule"><rect x="586" y="210" width="109" height="24" rx="0"/><text x="640.5" y="227" textLength="92.4" lengthAdjust="spacingAndGlyphs">silent-body</text></g>
-<path d="M695 222H695a10 10 0 0 1 10 10V234a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V266a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="60" y="264" width="109" height="24" rx="0"/><text x="114.5" y="281" textLength="92.4" lengthAdjust="spacingAndGlyphs">quiet-pause</text></g>
-<path d="M169 276h10"/>
-<path d="M179 276h20"/>
-<g class="rule"><rect x="199" y="264" width="151" height="24" rx="0"/><text x="274.5" y="281" textLength="134.4" lengthAdjust="spacingAndGlyphs">quote-attachment</text></g>
-<path d="M350 276H370"/>
-<path d="M179 276a10 10 0 0 0 10 -10V264a10 10 0 0 1 10 -10H350a10 10 0 0 1 10 10V266a10 10 0 0 0 10 10"/>
-<path d="M370 276h10"/>
-<g class="rule"><rect x="380" y="264" width="92" height="24" rx="0"/><text x="426" y="281" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-close</text></g>
-<path d="M472 276h10"/>
-<path d="M482 276h20"/>
-<g class="rule"><rect x="502" y="264" width="134" height="24" rx="0"/><text x="569" y="281" textLength="117.6" lengthAdjust="spacingAndGlyphs">quote-end-mark</text></g>
-<path d="M636 276H656"/>
-<path d="M482 276a10 10 0 0 0 10 -10V264a10 10 0 0 1 10 -10H636a10 10 0 0 1 10 10V266a10 10 0 0 0 10 10"/>
-<path d="M656 276H715"/>
-<path d="M715 276H758a10 10 0 0 0 10 -10V110a10 10 0 0 1 10 -10"/>
 <path d="M778 100h6m0 -8v16m4 -16v16"/>
 </svg>

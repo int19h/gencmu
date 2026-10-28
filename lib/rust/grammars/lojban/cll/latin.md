@@ -21,7 +21,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma, with empty value, image `,`, and tag `Syllable-Break`
 
-In lojban/cll, a comma run emits one token with empty value, image `,`, and tag `Syllable-Break`. Forms tests syllable boundaries through that tag. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
+In `lojban/cll`, a comma run emits one token only between vowel groups. The token has an empty value, the image `,`, and the tag `Syllable-Break`. Elsewhere, commas emit nothing on their own. Forms tests syllable boundaries through that tag. The other Lojban pipelines discard commas through [../common/latin.md](../common/latin.md#the-comma). Every Lojban pipeline retains stress tags for forms.
 
 In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](../common/latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
@@ -56,7 +56,7 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 <p><img src="../../../docs/diagrams/lojban/cll/latin/run.svg" alt="Railroad diagram of the rule run"></p>
 </details>
 
-In this strict reading, a pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
+In this strict reading, a pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma between core characters belongs to the pause token, as in `mi , klama`. A comma that only touches the core belongs to no token. A quote image keeps such commas from the source text.
 
 `period-char` reads a core character that is not whitespace. Script extensions of `core-char` therefore supply their own periods. `Period-Initial` marks a core that starts with a period. `Period-Only` marks a core of periods without whitespace or ignored characters. Later stages preserve these tags for quote boundaries.
 
@@ -111,7 +111,7 @@ An ordinary run is letters. A run of adjacent vowel letters is one vowel group, 
 
 A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [../common/cyrillic.md](../common/cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
-In lojban/cll, a comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with an empty value, image `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+In `lojban/cll`, a comma between two vowels marks the syllable break of CLL[^cll-s3-3]. Its token has an empty value, image `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run
@@ -187,9 +187,9 @@ In lojban/cll, a comma stands only between two letters of a run. Between two vow
 <p><img src="../../../docs/diagrams/lojban/cll/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
 </details>
 
-A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value concatenates its characters as stage zero decomposed them, without applying the phoneme mappings. Its image is the run's source text, the original spelling. Different foreign runs therefore need not compare equally.
+A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value concatenates its characters as stage zero decomposed them, without applying the phoneme mappings. Its image is the run's source text, the original spelling. So two foreign runs are equal only when their decomposed characters are equal: `ko’a?` and `ko'a?` differ.
 
-A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period. `run-char` reads it with `_`, then excludes those pause characters through conditions.
+A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run never starts or ends with a comma, which emits nothing on its own at that edge. A run character is any character but whitespace and the period. `run-char` reads it with `_`, then excludes those pause characters through conditions.
 
 ```jbogenbau
 %rule non-lojban-char-run
@@ -238,11 +238,11 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 The stage emits each consonant as its lowercase Latin letter. Each consonant mapping sets its value and image to the same Latin phoneme letter. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed`, a lowercase value, and an uppercase image. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
-A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So in lojban/cll, a capital `Y` cannot stand in a brivla. The other pipelines ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
+A brivla is a predicate word. CLL[^cll-s3-9] requires weak stress on every `y`, but also permits free stress in names and cmavo. This grammar applies the weak-stress rule only in brivla, as the [morphology choice](morphology.md#stress-and-syllables) explains. So in lojban/cll, a capital `Y` cannot stand in a brivla. The other pipelines ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
 
-`stressed-vowel-with` gives each stressed vowel `Stressed`, a lowercase value and an uppercase image. Its six arguments are the patterns that read the six vowels in one script. Named instances keep each script's vowel rule in the phoneme tree.
+`stressed-vowel-with` takes six patterns, one for each vowel in a script. Named instances keep each script's vowel rule in the phoneme tree.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [../common/latin.md](../common/latin.md) reads `h` as the apostrophe.
 

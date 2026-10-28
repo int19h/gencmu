@@ -111,7 +111,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
-`pause-run` groups consecutive pause tokens. Its gap recipe contributes one space. The rule emits no token of its own. It also accepts a supplied `Silent` token between pauses. A raw quote body keeps punctuation and ignored characters.
+`pause-run` groups consecutive pause tokens. Its gap recipe contributes one space. The rule emits no token of its own. A raw quote body keeps punctuation and ignored characters.
 
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
@@ -129,7 +129,6 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 %rule pause-run
   | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
   | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
-  | $s:pause-run Silent $q:PAUSE :: ($s.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
@@ -249,7 +248,7 @@ The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its 
 
 Quoted Lojban keeps its written case instead of each word's normalized image. For example, `SINdarin` has image `sIndarin` alone, but `zo SINdarin` keeps its capitals.
 
-The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Ordinary hesitation contributes no word or normalized value. The quote image keeps its written form, including `.y.` in `zo .y. coi` and `lo'u .y. coi le'u`.
+The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Ordinary hesitation contributes no word or value. The quote image keeps its written form, including `.y.` in `zo .y. coi` and `lo'u .y. coi le'u`.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and pipeline quote kinds follow the same opacity rule.
 
@@ -447,7 +446,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-y-quote :: $m.tags :- $.source-text
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:silent-body quiet-pause [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊆ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -461,7 +459,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-quote :: $m.tags :- $.source-text
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:silent-body quiet-pause [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊈ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -525,28 +522,16 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule empty-zoi-body
   ε
 
-%rule zoi-body
-  | [silent-before] raw-tokens [silent-after]
+%rule zoi-body :: ∅
+  | raw-tokens
 %conditions
   PAUSE ⊈ $.last-token.tags ∨ Quote-Material ⊆ $.last-token.tags
-
-%rule silent-before
-  | Silent quiet-pause
-  | silent-before Silent quiet-pause
-
-%rule silent-after
-  | quiet-pause Silent
-  | silent-after quiet-pause Silent
-
-%rule silent-body := ""
-  | Silent
-  | silent-body PAUSE Silent
 
 %rule quiet-pause
   PAUSE<¬Quote-Material> := ""
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
@@ -561,9 +546,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 <p><img src="../../../docs/diagrams/lojban/common/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-body.svg" alt="Railroad diagram of the rule zoi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-before.svg" alt="Railroad diagram of the rule silent-before"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-after.svg" alt="Railroad diagram of the rule silent-after"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-body.svg" alt="Railroad diagram of the rule silent-body"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
 </details>
 
@@ -690,8 +672,6 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 `raw-tokens` and `zohoi-payload` keep word and FOREIGN values. Their material-token recipes recover punctuation and ignored characters from source text. Delimited quotes take their images from their whole source intervals.
 
-The `Silent` routes also require quiet pauses at their boundaries.
-
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
 ```jbogenbau
@@ -704,10 +684,10 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
   | zohoi-payload quote-run-token
 
 %rule quote-run-token
-  payload-token | Silent
+  payload-token
 
 %rule any-token
-  payload-token | PAUSE<¬Quote-Material> | Silent
+  payload-token | PAUSE<¬Quote-Material>
 
 %rule payload-token
   | Word | Hesitation | FOREIGN
@@ -724,7 +704,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 ## Compounds
 
-The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each pipeline one place to name its constructors.
+The `constructor-word` rule lists BU and ZEI for the replacement-quote fallback. That fallback uses the rule after an unfinished marker. A pipeline that adds a constructor must also extend `constructor-word`.
 
 The warnings of `cmavo-token` apply to every operator that it reads.
 
@@ -783,7 +763,7 @@ SI erases the preceding live unit. Quotes and compounds each count as one unit. 
 
 SI skips hesitation and erased regions. It never erases an already executed SA or SU as a word. A fault unit is an ordinary operand for erasure.
 
-When the word `zei` has class SI, it also refuses punctuation in its following gap. Other SI words keep their ordinary spacing.
+The [Zantufa lexicon](../zantufa/lexicon.md) gives `zei` class SI. The `si-word` reader therefore checks its spelling and refuses punctuation in the following gap. Other SI words keep their ordinary spacing.
 
 ```jbogenbau
 %rule si-erasure
@@ -1001,7 +981,7 @@ The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not ca
 
 ### Final markers and Zantufa exceptions
 
-The pipelines keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg)).
+The pipelines keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L672)).
 
 Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The pipeline document](../zantufa/pipeline.md) defines both exceptions.
 
@@ -1021,7 +1001,7 @@ Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skip
 
 ZO can quote standalone punctuation or ignored material instead of moving to a later word. This extends the shared reader because material has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words. A mark between the target and a following word remains spacing. BU therefore keeps its separating space after a quoted word.
 
-The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across pipeline lexicons.
+The [Zantufa lexicon](../zantufa/lexicon.md) gives `zei` class SI. The word `zei` rejects surviving punctuation on either side, even with that class. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across pipeline lexicons.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
