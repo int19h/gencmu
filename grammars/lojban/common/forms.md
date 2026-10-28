@@ -37,8 +37,6 @@ A run is a sequence of words or a foreign run. A foreign run is a stretch that t
 
 A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
 
-Callers can supply `Silent` as a user tag through the [pre-built token API](../../../docs/api.md#tokens-for-tests-and-tools). A replacement phoneme stage can forward these tokens to this layer. No bundled phoneme grammar emits `Silent`. The `silent-token` reader preserves its token's strings and adds `Run-Initial` and `Run-Final`.
-
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
 In `lojban/cll`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban pipelines drop commas in the phoneme stage.
