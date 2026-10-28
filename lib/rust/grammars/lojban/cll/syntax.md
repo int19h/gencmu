@@ -875,7 +875,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
    In `mi broda joi ke brode ke'e bo brodi`, the group cannot take `bo brodi`, so only the plain reading parses. There `joi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official lexer makes `joi ke` one token there too, so it rejects the text. This grammar keeps the plain reading, as the printed grammar does.
 
-7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
+7. Without a free modifier after the gihek, the last tail in `bridi-tail-1-final` cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
    `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires written KEhE, its own written VAU, and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
 
