@@ -725,7 +725,9 @@ A public name cannot equal a template name.
 
 An edit written with NAME applies to the key bound at that statement's source position. Earlier edits remain on the old key after rebinding. Later edits by NAME apply to the new key. Every reference to NAME, except the head of an edit, uses its final binding. Exact calls continue to name their own instance keys.
 
-A binding accepts no flags, clauses, conditions, or output directive. An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
+A binding accepts no flags, clauses, conditions, or output directive. Flags on a recognized binding are validity errors. A `%conditions` or `%emits` clause after a binding is a syntax error. The validity ban also applies to supplied binding DOMs.
+
+An instance receives these from its effective definition. Instance-specific edits use a later ordinary body statement.
 
 An unnamed instance uses its canonical call spelling. The printer preserves the normalized argument DOM, without expanding constants or named instances. It joins arguments with `, `, places `(` directly after the template name, and writes `)` after the last argument.
 
@@ -2072,8 +2074,8 @@ Recognition productions:
 ```text
 document = {statement}
 statement = rule | directive | constant-definition | classifier | implication-declaration
-rule = definer [flags] rule-head (body | clauses headed-body | "=" call)
-       [conditions] [output]
+rule = definer [flags] rule-head ("=" call
+       | (body | clauses headed-body) [conditions] [output])
 definer = "%rule" | "%redefine-rule" | "%extend-rule"
 flags = "(" name {"," name} ")"
 rule-head = rule-name | call
@@ -2091,7 +2093,7 @@ clauses = tags-clause [value-clause] [image-clause]
 tags-clause = "::" term
 value-clause = ":=" recipe
 image-clause = ":-" recipe
-headed-body = "|" ordinary-body
+headed-body = "|" (ordinary-body | ranked-body)
 body = ["|"] ordinary-body | ranked-body
 ordinary-body = alternative {"|" alternative}
 ranked-body = {guard} ranked-choice [clauses]
@@ -2232,7 +2234,7 @@ Recognition names describe productions. The following mapping specifies the name
 | Bare names in value positions | `name` or `tag` by initial case |
 | Names or capture references in token positions | Direct lexical tokens |
 
-A method receiver retains a `term-atom` constructor. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordered alternatives.
+A method receiver retains a `term-atom` constructor. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordinary alternatives or its single ranked alternative.
 
 Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the unwrapped base constructor and every following test in written order.
 
@@ -2290,7 +2292,9 @@ Every rule reference, including an emoji reference, accepts tests and captures. 
 
 `item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. An empty tag test is legal and holds vacuously. An empty tag constant also supplies no requirements. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
 
-A ranked body has at least two conjunction options joined by `≻`. Its guards and clauses apply to the complete ranked expression. A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires a user tag or parameter directly after `+`, optionally carrying both tests. A parameter head must become exactly one bare user tag after argument conversion.
+A ranked body has at least two conjunction options joined by `≻`. Its guards and clauses apply to the complete ranked expression. After header clauses, `|` can introduce that ranked body without parentheses.
+
+A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires a user tag or parameter directly after `+`, optionally carrying both tests. A parameter head must become exactly one bare user tag after argument conversion.
 
 Its remainder is a sequence of primaries. It cannot contain captures.
 
@@ -2357,7 +2361,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `rule-flags` | One or more `rule-flag` parts | Ordered flags. Reject extension flags before reading flag tokens. |
 | `rule-flag` | One flag token | Flag string. Unknown precedes duplicate-value error. |
 | `body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list |
-| `headed-body` | One or more `alternative` | Ordered alternative list, like an ordinary `body` |
+| `headed-body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list, like `body` |
 | `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
 | `ranked-alternative` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
 | `guard` | One guard token from §9.1 | `feature`, `kind`, `negated`. Reject invalid feature names or negated warnings at the guard. |

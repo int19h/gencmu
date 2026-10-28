@@ -297,9 +297,9 @@ A seal is an opaque leaf supplied by a ranked choice. Outside patterns cannot in
 | `{(a ≻ b)}` | Repeat ranked items that must read at least one token. |
 | `(ε ≻ a)` | Compare empty options only against other empty options. |
 
-Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. A leading `|` starts the ordinary alternative list, so `| a ≻ b` also requires parentheses.
+Thus `a | b ≻ c` and `a ≻ b | c` require parentheses. A whole rule body can be `a ≻ b`. Without header clauses, a leading `|` starts the ordinary alternative list.
 
-A rule with header clauses writes a ranked body as `| (a ≻ b)`. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
+After header clauses, `|` introduces an ordinary body or one ranked alternative. A rule with header clauses can therefore write `| a ≻ b` without parentheses. Its document object model (DOM) contains the same ranked expression as `a ≻ b`.
 
 Every ranked expression needs at least two operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 

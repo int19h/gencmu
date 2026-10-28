@@ -16,7 +16,7 @@ A bundled name has two or more segments separated by `/`. Each segment matches `
 
 `bundledPipelines()` lists the package's bundled names in code-point order. Python and Rust call it `bundled_pipelines()`, and Go calls it `BundledPipelines()`. A directory defines a bundled pipeline exactly when it holds `pipeline.md`. Discovery removes the `grammars/` prefix and `/pipeline.md` suffix from each matching resource path. Enumeration includes only valid pipeline names. No separate catalog file defines the list.
 
-The bundled names are `gencmu/jbogenbau`, `lojban/bpfk`, `lojban/cll`, `lojban/examples/kihei`, `lojban/experimental`, and `lojban/zantufa`.
+The [README table](../README.md#the-pipelines) describes the language pipelines and the notation pipeline.
 
 Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
 
@@ -120,7 +120,7 @@ An `ε` item records its inserting rule and has empty source text. A token can c
 Result format 15 defines these result values:
 
 - Rule-name strings admit punctuation, quotes, and emoji, including canonical call spellings.
-- A format scalar has general category Cf. Canonical terminal spellings escape it, as in `"‹ZWSP›"` (engine §9.1).
+- A scalar of general category Cf requires an escape in canonical terminal spellings, as in `"‹ZWSP›"` (engine §1).
 - Stage-zero tokens carry complete profiles for every supported property. Forwarding can retain any of those tags, including `_Emoji_Presentation` and `_Emoji_Component`. ASCII digits, `#`, and `*` can therefore carry `_Emoji_Component`.
 
 Expected entries keep their terminal and rule lists in code point order. Other result members and their canonical member order remain unchanged.
