@@ -701,6 +701,7 @@
     },
     "F27:order": {
       "reparse-incompatible-optional-sound.json": "result+hook",
+      "reparse-memo-features.json": "result+hook",
       "reparse-projected-cycle.json": "result+hook",
       "reparse-root-ordinary-markers.json": "result+hook",
       "reparse-root-ordinary-terminal.json": "result+hook",
