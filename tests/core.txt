@@ -6442,3 +6442,4 @@ followups.nohoi.outer-noi-resolved
 adhoc.syntax.gihek-ke-elided-before-vau
 adhoc.kihei.initial-empty-position
 adhoc.kihei.initial-empty-positions-only
+adhoc.syntax.gihek-ke-elided-before-vau.bpfk

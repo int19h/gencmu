@@ -173,7 +173,7 @@ A ranked choice over the whole `bridi-tail` span filters readings before `late-e
 
 Unlike a whole `bridi-tail` choice, the `selbri-4` and `operator` choices share their left operand, so they cannot move connections outside it.
 
-The `ke` form of `bridi-tail` overlaps a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition.
+The `ke` form overlaps a plain gihek when the last tail is one `ke` group with one run of tail terms. With omitted KEhE, the group can also contain a written VAU before its outer terms. In `mi broda gi'e ke brode vau do`, the group keeps the written VAU inside KE and the final argument outside it. The condition removes the plain reading in both cases. The tails before the last one are in `bridi-tail-1`, which has no condition.
 
 So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective.
 
@@ -193,8 +193,8 @@ The plain parse remains where the group cannot read the same words. The [experim
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
-- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case with `{free}`, which requires at least one free modifier.
-- The tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after KEhE. `$KE-TAIL-WITH-VAU` tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` captures the slot as `$f:🆓`. A nonempty slot satisfies the condition.
+- After written KEhE, the tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after written KEhE. `$KE-TAIL-WITH-VAU` requires that written KEhE and tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
 
   The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf value empty.
 
@@ -208,8 +208,10 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 %const $KE-SELBRI #« [$STAG-TAG] $KE-UNIT »
 %const $KE-GEK #« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »
 %const $KE-TAIL #« $KE-SELBRI tail-terms » ∪ $KE-GEK
+%const $WRITTEN-KE-UNIT #« KE ⋯ KEhE≠"" [🆓] »
+%const $WRITTEN-KE-SELBRI #« [$STAG-TAG] $WRITTEN-KE-UNIT »
 %const $WRITTEN-VAU #« [terms] VAU≠"" [🆓] »
-%const $KE-TAIL-WITH-VAU #« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
+%const $KE-TAIL-WITH-VAU #« $WRITTEN-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
 %rule sentence
   [terms [CU 🆓]] bridi-tail
@@ -226,10 +228,9 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 %rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 gihek {free} bridi-tail-2 tail-terms
-  | bridi-tail-1 gihek $t:bridi-tail-2 $v:tail-terms
+  | bridi-tail-1 gihek $f:🆓 $t:bridi-tail-2 $v:tail-terms
 %conditions
-  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
+  $f.source-text ≠ "" ∨ $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO 🆓 bridi-tail-2 tail-terms]
@@ -876,7 +877,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires written KEhE, its own written VAU, and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. Without the condition, both parses tie when `ke'e` is elided at the end. When `ke'e` is written, `late-elision` takes the tanru. The condition removes this plain reading, so each text has only the group parse.
 

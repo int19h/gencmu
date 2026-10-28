@@ -36,7 +36,7 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
   (statement | fragment) [{I 🆓 [statement | fragment]}]
 
 %rule frame-group
-  frame [I 🆓 [utterance-sequence]]
+  frame [I 🆓 [{I 🆓}] [utterance-sequence]]
 
 %rule frame
   KIhEI 🆓 [terms]
@@ -51,7 +51,7 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
 
 In `ki'ei ko'a .i broda .i brode ki'ei ko'e .i brodi`, the first group contains two utterances. The second group contains one. An earlier utterance can precede the first group, as in `broda ki'ei ko'a .i brode`.
 
-The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
+The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. Consecutive separators permit empty sentence positions before the first utterance, as in CLL paragraphs. Thus, `ki'ei ko'a .i .i broda` and `ki'ei ko'a .i .i` both parse. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
 
 The CLL rules place `ni'o` outside each paragraph. This pipeline places each frame above the `.i` sequence inside that paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
 
