@@ -159,7 +159,7 @@ The bridi-tail levels state how sentences share a head under a gihek, the connec
 
 `late-elision` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
 
-After a plain gihek, `ke` can begin either a group of tails or a tanru unit of the next tail. Elided terminators cannot reliably choose between those readings. The printed rules give the following results before the condition below applies.
+After a plain gihek, `ke` can begin either a group of tails or a tanru unit of the next tail. Elided terminators cannot reliably choose between those readings.
 
 In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`. The tanru parse elides nothing there, so `late-elision` takes it. The condition removes that plain reading, so both texts have one parse, the group.
 
