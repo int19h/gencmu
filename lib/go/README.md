@@ -48,7 +48,9 @@ A close family is a set of rules. `F` names that family through its written rule
 
 `.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 15. Go exposes no audit API.
 
-Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
+Boundary atoms `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors of the parse that the condition belongs to. These boundary conditions filter candidate derivations before ranking. In an emission item, they read the chosen tree. Their target accepts rule names and terminal names.
+
+`.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
 For tests and tools, `(*Pipeline).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
 

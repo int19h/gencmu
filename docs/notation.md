@@ -90,7 +90,7 @@ Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifie
 
 An emoji rule name contains exactly one code point with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode table supplies both properties. Host Unicode data never determines this repertoire. The bundled table pins it to Unicode 15.1.0.
 
-Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent such scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
+Variation selectors, modifiers, regional-indicator pairs, and ZWJ sequences cannot form names. Adjacent valid emoji scalars form separate name tokens. Emoji names work in template declarations, calls, tests, patterns, and query targets. An emoji rule reference can be a captured symbol, as in `$x:🆓`. A capture binder remains a lowercase name. Other identifier kinds keep their ASCII naming rules.
 
 `#` introduces patterns, and `@` introduces parameters. Neither is a rule name. `/` remains the separator inside braces. `~` and `^` have no syntax role.
 

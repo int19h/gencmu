@@ -146,8 +146,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 %rule call-name
   lower-name | _Emoji_Presentation<¬_Emoji_Component>
 %conditions
-  $.following-tokens.begins(call-open),
-  ¬$.following-tokens.begins(name-character)
+  $.following-tokens.begins(call-open)
 %emits
   $ :: Call-Name
 
