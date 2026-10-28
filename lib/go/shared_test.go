@@ -432,7 +432,7 @@ func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseEx
 // is tie has no output, is the last stage, and has the result's ambiguous
 // error with the reason tie, its name and two readings. An ambiguous error
 // has no token or source. An error that loses the witness of elision-only
-// is a grammar error of the last stage, which is resolved and has no
+// is a grammar error of the last stage, which is unique or resolved and has no
 // output, with its chosen tree and completion and no position, reason or
 // readings (engine §7.9). No result has it, whatever the case expects, since
 // engine §7.8 proves that no grammar gives it.
@@ -776,8 +776,8 @@ func witnessLostProblems(e map[string]any, stages []any) []string {
 		last, _ = stages[len(stages)-1].(map[string]any)
 	}
 	_, output := last["output"]
-	if last == nil || last["name"] != stage || last["verdict"] != VerdictResolved || output {
-		problems = append(problems, "the stage of the elision-witness-lost error is not the last, resolved, with no output")
+	if last == nil || last["name"] != stage || (last["verdict"] != VerdictUnique && last["verdict"] != VerdictResolved) || output {
+		problems = append(problems, "the stage of the elision-witness-lost error is not the last, unique or resolved, with no output")
 	}
 	return problems
 }

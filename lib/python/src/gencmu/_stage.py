@@ -624,9 +624,8 @@ class StageRunner:
         try:
             if self.emit:
                 outcome.output = emitter.emit()
-            # The check runs only for a stage that chose one of several
-            # derivations (engine §7.1).
-            if elision_only and ranking.verdict == "resolved":
+            if elision_only and (ranking.verdict == "resolved" or
+                                 ranking.verdict == "unique" and elided_nodes(tree.root)):
                 # The stage accepted its input, so it has its output; the
                 # check makes the parse fail, and the result has no tree.
                 error = self.check_elision(context, root, tree.root)

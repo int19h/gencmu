@@ -1192,7 +1192,7 @@ The [experimental lexicon](lexicon.md) keeps camxes-exp's words and adds diction
 
 The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
 
-The layer omits `elision-only`, the option that applies CLL's rule that a terminator can be omitted only where no ambiguity results.[^cll-s21-1] Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
+The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
 
 ### Text and sentence connections
 

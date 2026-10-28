@@ -179,7 +179,7 @@ In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is in the outer tail terms
 
 The tree still shows the whole left grouping of plain giheks[^cll-s14-10], since `bridi-tail-1` groups to the left. So four tails group as `((A gi'e B) gi'a C) gi'u D`.
 
-`elision-only` rejects ranked parses whose restored terminators leave ambiguity. ["Choosing among parses"](#choosing-among-parses) defines this test.
+`elision-only` tests the chosen parse with its omitted terminators written back. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. ["Choosing among parses"](#choosing-among-parses) defines this test.
 
 A lookahead tests the input that follows a construct. The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition tests that tail's structure and the text of its tail terms. The `elision-only` test writes back elided terminators, but these tests still read the original words.
 
@@ -833,7 +833,9 @@ In this base grammar, the flag described under ["Tenses and modals"](#tenses-and
 
 The [experimental layer](../experimental/syntax.md#the-experimental-grammar) instead ranks spans, counted connective links and elision boundaries, in that order.
 
-In `lojban/cll` and `lojban/bpfk`, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
+In `lojban/cll` and `lojban/bpfk`, `elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
+
+It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
 
 The `lojban/cll` and `lojban/bpfk` pipelines let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
 

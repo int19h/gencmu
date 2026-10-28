@@ -908,8 +908,8 @@ def result_problems(value: dict[str, Any]) -> list[str]:
             if member in error:
                 problems.append(f"the elision-witness-lost error has a member {member}")
         last = stages[-1] if stages else None
-        if last is None or last["name"] != error.get("stage") or last["verdict"] != "resolved" or "output" in last:
-            problems.append("the stage of the elision-witness-lost error is not the last, resolved, with no output")
+        if last is None or last["name"] != error.get("stage") or last["verdict"] not in ("unique", "resolved") or "output" in last:
+            problems.append("the stage of the elision-witness-lost error is not the last, unique or resolved, with no output")
     for index, stage in enumerate(stages):
         if "tied" in stage:
             problems.append(f"stage {stage['name']} has a tied tree")

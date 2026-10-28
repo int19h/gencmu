@@ -1,5 +1,5 @@
 {
-  "description": "The check of elision-only does not run for the verdict unique. On A, text → A [T] is the one derivation. Written back, A T would parse through both alternatives, and the check would fail. But the verdict is unique, so the text parses (engine §6, §7).",
+  "description": "A unique parse with an elided node needs the check. On A, only the marked optional parses. Restoring T also enables z, so elision-only reports ambiguity with verdict unique.",
   "grammar": "%ambiguity-resolution greedy elision-only\n%rule text (A [+T]) | (A z)\n%rule z T",
   "tokens": [
     {
@@ -10,9 +10,14 @@
     }
   ],
   "expect": {
+    "error": "ambiguous",
     "result": {
-      "ok": true,
-      "error": null,
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "stage": "main"
+      },
       "stages": [
         {
           "name": "main",

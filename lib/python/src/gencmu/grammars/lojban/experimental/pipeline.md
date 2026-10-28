@@ -133,7 +133,7 @@ A ranked choice orders alternatives at one written position. An earlier option c
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
-The pipeline does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
+The pipeline does not declare `elision-only`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
 
 The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
 

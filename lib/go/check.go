@@ -254,9 +254,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	preferred := len(g.rankedHelpers) > 0
 	rawCounted := true
 	if preferred {
-		raw := newRanker(r, "")
-		raw.admission = nil
-		raw.views = nil
+		raw := newUnfilteredRanker(r, "")
 		raw.check, raw.marks = true, marks
 		rawRes := raw.rank(top)
 		rawCounted = rawRes != nil && rawRes.witnessCounted

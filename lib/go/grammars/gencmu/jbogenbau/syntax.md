@@ -47,7 +47,7 @@ A rule defines, redefines, or extends a name. Optional flags precede the name, a
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
-An ordinary body separates alternatives with `|`. A ranked body joins at least two options with `≻`. Guards and clauses on a ranked body apply to the complete ranked choice.
+An ordinary body separates alternatives with `|`. A ranked body joins at least two options with `≻`. Guards and clauses on a ranked body apply to the complete ranked choice. After header clauses, a leading `|` can introduce either body without parentheses.
 
 An alternative can carry its own tag, value, and image clauses. Both clause lists preserve that order and permit each channel once.
 
@@ -72,7 +72,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   tags-clause [value-clause] [image-clause] | value-clause [image-clause] | image-clause
 
 %rule headed-body
-  "|" ordinary-body
+  "|" (ordinary-body | ranked-alternative)
 
 %rule body
   ["|"] ordinary-body | ranked-alternative
@@ -160,7 +160,7 @@ A requirement list and a target choice retain their distinct categories. Parenth
 
 A choice uses `|` or `≻` at one level, never both. `&` joins sequences, and each sequence contains one or more primaries.
 
-A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and eligible emoji names reference rules. Uppercase names and engine tags read tagged tokens.
+A primary is a symbol, capture, tested primary, group, optional, repetition, or `ε`. Lowercase names and valid emoji names reference rules. Uppercase names and engine tags read tagged tokens.
 
 Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
 

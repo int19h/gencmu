@@ -791,7 +791,7 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         }
     }
     // An error that loses the witness of elision-only is a grammar error of
-    // the last stage, which is resolved and has no output, with its chosen
+    // the last stage, which is unique or resolved and has no output, with its chosen
     // tree and completion, and nothing else (engine §7.9).
     if let Some(error) =
         json.get("error").filter(|error| error.get("code").and_then(Value::str) == Some("elision-witness-lost"))
@@ -810,11 +810,13 @@ pub fn result_problems(json: &Value) -> Vec<String> {
         }
         let last = stages.last();
         if last.and_then(|stage| stage.get("name")) != error.get("stage")
-            || last.and_then(|stage| stage.get("verdict")).and_then(Value::str) != Some("resolved")
+            || !matches!(last.and_then(|stage| stage.get("verdict")).and_then(Value::str), Some("unique" | "resolved"))
             || last.is_some_and(|stage| stage.get("output").is_some())
         {
-            problems
-                .push("the stage of the elision-witness-lost error is not the last, resolved, with no output".into());
+            problems.push(
+                "the stage of the elision-witness-lost error is not the last, unique or resolved, with no output"
+                    .into(),
+            );
         }
     }
     // An ambiguous error has no position (docs/output.md).

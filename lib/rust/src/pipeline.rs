@@ -12,8 +12,8 @@ use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::rank::{compare_profiles, tree_profile, Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
-    Action, AmbiguityReason, ErrorCode, Expected, Node, ParseError, ParseErrorKind, ParseResult, Restoration, Stage,
-    Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
+    Stage, Tags, Token, Verdict, Warning,
 };
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
 use crate::unicode::Unicode;
@@ -712,11 +712,12 @@ impl Pipeline {
             });
         }
         crate::earley::mark_quiet(&mut next, &self.unicode);
-        // The check of `elision-only` runs after the emission, and only for
-        // a stage that chose one of several derivations (§7).
+        // The check of `elision-only` runs after emission.
         let check = elision.unwrap_or(grammar.elision_only);
         let mut ambiguous = None;
-        if check && ranking.verdict == RankVerdict::Resolved {
+        if check
+            && (ranking.verdict == RankVerdict::Resolved || ranking.verdict == RankVerdict::Unique && has_elided(&tree))
+        {
             match self.elision_check(index, shared, &input, &chosen, &lowered, &matchers) {
                 Ok(Check::Pass) => {}
                 Ok(Check::Ambiguous(error)) => ambiguous = Some(*error),
@@ -965,8 +966,7 @@ impl Pipeline {
                 Ranker::new(g, &chart, &tokens, shared, Lean::Neither).observing(input, &recon.project).checking(marks);
             let preferred = !g.ranked.slots.is_empty();
             let raw_counted = if preferred {
-                Ranker::new(g, &chart, &tokens, shared, Lean::Neither)
-                    .unfiltered()
+                Ranker::new_unfiltered(g, &chart, &tokens, shared, Lean::Neither)
                     .observing(input, &recon.project)
                     .checking(marks)
                     .rank()
@@ -1222,6 +1222,17 @@ impl Pipeline {
     pub(crate) fn lowered_stage(&self, stage: usize) -> Arc<Lowered> {
         self.lowered(stage, &BTreeSet::new()).unwrap_or_else(|error| panic!("{}", error.message))
     }
+}
+
+fn has_elided(tree: &Node) -> bool {
+    let mut pending = vec![tree];
+    while let Some(node) = pending.pop() {
+        if node.kind == NodeKind::Elided {
+            return true;
+        }
+        pending.extend(&node.children);
+    }
+    false
 }
 
 #[cfg(test)]

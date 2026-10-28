@@ -122,7 +122,7 @@ An invariant is a required property of every result. Every runner also makes sur
 - Such a result has `ok` false and `tree` null. Its error has kind `ambiguous`, reason `tie`, and that stage's name. It contains exactly two readings.
 - No result has an error with the code `elision-witness-lost`. Engine §7.8 proves raw witness membership when recognition meets no grammar error. Section 7.9 reports witness loss only for raw absence. So no grammar can give it, and it is a defect of the library, whatever the case expects.
 
-A library's own tests lose the witness on purpose, through a private switch, and call the engine directly, not through the runner. They test the error's form. It has kind `grammar`, a `stage`, `chosen`, and `completion`. It has no `token`, `source`, `line`, `column`, `expected`, `reason`, or `readings`. Its stage has the verdict `resolved` and no `output`, and it is the last stage of the result. A library's own tests also show that an ordinary error of the grammar in the check has no `code`.
+A library's own tests lose the witness on purpose, through a private switch, and call the engine directly, not through the runner. They test the error's form. It has kind `grammar`, a `stage`, `chosen`, and `completion`. It has no `token`, `source`, `line`, `column`, `expected`, `reason`, or `readings`. Its stage has the verdict `unique` or `resolved` and no `output`, and it is the last stage of the result. A library's own tests also show that an ordinary error of the grammar in the check has no `code`.
 
 Take each stage where the check of engine §7 ran and ended without an error of the grammar. Every runner also asks its library whether that check kept its witness. The library answers through a test-only export outside the documented API, such as `gencmu::tools` in Rust. It can also answer through a test module.
 
@@ -181,7 +181,9 @@ Message wording is not part of conformance. Error cases pin only their line and 
 
 Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a preparsed entry. A matching preparsed entry must give the same DOM.
 
-Four further loads each change one identity field: the document hash, bootstrap fingerprint, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
+Four further loads each change one identity field. These fields are the document hash, the bootstrap fingerprint, the Unicode table hash, and the DOM format.
+
+Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM. The preparsed cases in `json-keys.json` separately test the fifth identity field, the properties fingerprint. They include a changed-unused-data miss and matching-fingerprint hits.
 
 JavaScript compares every notation case with the handwritten bootstrap reader. Both readers must produce the same DOM or error position.
 
@@ -361,7 +363,7 @@ The library builds the document `prefix`, `open` n times, `middle`, `close` n ti
 
 The JavaScript library also reads each document with the hand-written bootstrap reader, whose lexer counts its steps too. The Rust library reads each on a thread with a stack of 2 MiB, which no depth changes. The Go library also reads each nested 20,000 deep, with the stack of a goroutine held to 1 MiB. A reader or a walk that recursed as deep as the document nests ends the process there.
 
-A library compares only its own two counts. Counts from different libraries are not compared, since each library makes its items in its own way.
+A library compares only its own two counts. Each library makes its items in its own way.
 
 The Python tests need Python 3.14 or later. Their work counters use `sys.monitoring` to watch the selected code. Each nested counter uses a separate monitoring tool. Each counter disables its events and unregisters its callbacks before it frees the tool. The counters include calls, line steps, loop jumps, and weighted reads by C operations. A budget stops the work before the first unit past it runs.
 
@@ -391,6 +393,8 @@ The library joins `item` for each i from 0 to `count` − 1 with `joiner`. It pu
 It loads the grammar as the one stage of a pipeline and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
 
 ## Shared memo runs: `shared-memo.json`
+
+The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The bound-comparison workloads parse single words to the forms stage of the `lojban/bpfk` pipeline, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
 
 ```
 {"description": "...", "runs": [{"pipeline": "lojban/bpfk", "texts": ["klama"], "options": [{}, {"until": "forms"}]},
@@ -447,7 +451,7 @@ A library records chart items, proof edges, close observation states, close sequ
 
 A join costs one image for each row. An empty item without records has the identity relation, and an image, preimage or join through it costs nothing. A close or block that the automaton does not read costs nothing, such as one beyond `b`. The JavaScript work counters call these seven `items`, `packedEdges`, `closeStates`, `closeSequences`, `summaryContexts`, `familySummaries` and `familySteps`. No library retains a marked close, so there is no count of marked events.
 
-Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these fields:
+Most bounds compare a run with its strict twin in the same library. An entry can hold these fields:
 
 | Field | Bound at each length |
 | --- | --- |
@@ -476,8 +480,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 - `set`: the value there becomes the given value, `null` included.
 - `copy`: the value there becomes a copy of the value at another path of the same result.
 - `keep`: the list there keeps only its first `keep` elements.
-- `remove`, with the value `true`: the member there is removed. The last path step is a member name because the runners remove list elements in different ways.
-- `append`: the given value is added at the end of the list there.
+- `remove`, with the value `true`: the runner removes that member. The last path step is a member name because the runners remove list elements in different ways.
+- `append`: the runner adds the given value at the end of the list there.
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 

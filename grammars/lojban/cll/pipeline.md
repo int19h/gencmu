@@ -4,7 +4,7 @@ This pipeline reads Lojban as *The Complete Lojban Language* (CLL) describes it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see. A tag marks a token by an identifier.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to ["Stage 5: syntax"](#stage-5-syntax). When ranking selects one of several parses, `elision-only` restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the grammar does not rank below that parse makes the original text an error.
+The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to ["Stage 5: syntax"](#stage-5-syntax). The enabled check runs after `resolved`, or after `unique` when the chosen tree holds an elided node. It restores that parse's omitted terminators and parses the restored text again. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
 
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted.
 
@@ -113,7 +113,9 @@ The stage uses the printed CLL 1.1 grammar[^cll-c21], with selma'o as its termin
 
 Among parses with equal flagged groups, `late-elision` prefers the parse that omits a terminator later. A terminator can be elided wherever a complete parse needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
 
-`elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. The check restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) and `docs/engine.md` (§7) give the check exactly.
+`elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
+
+The check restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) and `docs/engine.md` (§7) give the check exactly.
 
 `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, and its description ends before `se farvi`. If terminators, the grammar's flag, and grammar conditions leave an ambiguity unresolved, the text is an error that shows both readings.
 

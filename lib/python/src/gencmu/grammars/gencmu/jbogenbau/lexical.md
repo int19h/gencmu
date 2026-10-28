@@ -146,8 +146,7 @@ A parameter starts with `@` and an ASCII letter. Its remaining characters follow
 %rule call-name
   lower-name | _Emoji_Presentation<¬_Emoji_Component>
 %conditions
-  $.following-tokens.begins(call-open),
-  ¬$.following-tokens.begins(name-character)
+  $.following-tokens.begins(call-open)
 %emits
   $ :: Call-Name
 
@@ -244,7 +243,7 @@ Straight double quotes enclose a string. Ordinary string characters exclude only
 
 Dollar signs and backslashes are ordinary characters.
 
-The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
+The lexical stage keeps escapes as written. A separate inspection validates each escape and loads any needed names data after lexing and before syntax recognition (engine §9.1). DOM conversion then decodes the original spellings once, without a second scan. Lexical errors precede escape errors, which precede syntax errors, which precede reader validation errors.
 
 ```jbogenbau
 %rule string

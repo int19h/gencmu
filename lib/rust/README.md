@@ -50,7 +50,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
   The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
-  `Tags` is a mutable set backed by a shared `BTreeSet<String>`. It copies shared storage before mutation. `Deref` and `DerefMut` expose the standard set methods. `From` converts owned `BTreeSet<String>` values in both directions.
+  A shared `BTreeSet<String>` backs the mutable `Tags` set. `Tags` copies shared storage before mutation. `Deref` and `DerefMut` expose the standard set methods. `From` converts owned `BTreeSet<String>` values in both directions.
 
   Stage zero stores every available Unicode property membership from the configured character resources. Later stages read those stored tags without reclassifying changed values. Grammar recipes supply normalization.
 
@@ -77,9 +77,9 @@ The DOM format is 40. The result format is 15. Braces are a `repeat`, with a `se
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 
-`$x.without-elision-except(family)` takes a bare capture and one rule name. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
+`$x.without-elision-except(family)` takes a bare capture and one ordinary rule name or exact instance. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
 
-The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed tree boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
+The Rust API exposes definition changes through `Pipeline::changes`. Rejections can name a failed boundary condition through `ParseError::boundary`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
 
 A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 

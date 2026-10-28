@@ -270,6 +270,16 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 // newRanker ranks under the rule of a directive, greedy, lazy or
 // late-elision, or under no lean for "".
 func newRanker(rec *recognizer, rule string) *ranker {
+	rk := newUnfilteredRanker(rec, rule)
+	if len(rec.g.rankedHelpers) > 0 {
+		rk.views = newSlotViews(rk)
+		rk.admission = newSlotAdmission(rk)
+	}
+	return rk
+}
+
+// newUnfilteredRanker keeps the raw forest without ranked views or admission.
+func newUnfilteredRanker(rec *recognizer, rule string) *ranker {
 	rk := &ranker{rec: rec, lean: rule, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 	if rule == "late-elision" {
 		// The readings come from a ranking with no lean over the forest of
@@ -279,10 +289,6 @@ func newRanker(rec *recognizer, rule string) *ranker {
 	}
 	for _, r := range rec.g.rules {
 		rk.profiles = rk.profiles || r.leftmostLongest || r.fewest
-	}
-	if len(rec.g.rankedHelpers) > 0 {
-		rk.views = newSlotViews(rk)
-		rk.admission = newSlotAdmission(rk)
 	}
 	return rk
 }

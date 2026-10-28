@@ -1118,6 +1118,22 @@ impl<'c> Ranker<'c> {
         shared: &'c Shared<'c>,
         lean: Lean,
     ) -> Ranker<'c> {
+        let mut ranker = Self::new_unfiltered(g, chart, tokens, shared, lean);
+        if !g.ranked.slots.is_empty() {
+            ranker.views = SlotViews::new(g);
+            let nodes = ranker.prepare_views();
+            ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
+        }
+        ranker
+    }
+
+    pub(crate) fn new_unfiltered(
+        g: &'c Lowered,
+        chart: &'c Chart,
+        tokens: &'c [Tok],
+        shared: &'c Shared<'c>,
+        lean: Lean,
+    ) -> Ranker<'c> {
         // Under late-elision, the readings come from a ranking with no lean
         // over the forest of the best derivations (§6).
         let late = lean == Lean::LateElision;
@@ -1150,20 +1166,10 @@ impl<'c> Ranker<'c> {
             marks: None,
             check: false,
             admission: None,
-            views: SlotViews::new(g),
+            views: None,
         };
         ranker.fset_index.insert(Vec::new(), 0);
-        if !g.ranked.slots.is_empty() {
-            let nodes = ranker.prepare_views();
-            ranker.admission = Some(Admission::new(g, chart, ranker.views.as_ref(), &nodes));
-        }
         ranker
-    }
-
-    pub(crate) fn unfiltered(mut self) -> Self {
-        self.admission = None;
-        self.views = None;
-        self
     }
 
     /// Ranks the derivations of the reconstructed input of `elision-only`,
