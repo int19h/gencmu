@@ -1,8 +1,8 @@
 {
   "description": "Written KU permits the first tag term inside the NAhE operand. Reconstruction preserves the operand when it restores the remaining elided terminators.",
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
   "input": "mi na'e pu ku .e ca lu'u klama",
   "options": {

@@ -1,5 +1,5 @@
 //! Public API worker for the Unicode property performance gate.
-use gencmu::{Dialect, GrammarValue as Json, ParseOptions};
+use gencmu::{Pipeline, GrammarValue as Json, ParseOptions};
 use std::collections::BTreeMap;
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
@@ -26,22 +26,22 @@ fn names(value: &str) -> Vec<String> {
     decode(value).lines().map(String::from).collect()
 }
 fn main() {
-    let mut dialects = BTreeMap::<String, Dialect>::new();
+    let mut pipelines = BTreeMap::<String, Pipeline>::new();
     for line in io::stdin().lock().lines() {
         let line = line.unwrap();
         let fields: Vec<_> = line.split('\t').collect();
         match fields[0] {
             "load" => {
-                let dialect = if fields[2] == "-" {
-                    gencmu::load_dialect("cll-ebnf").unwrap()
+                let pipeline = if fields[2] == "-" {
+                    gencmu::load_pipeline("lojban/cll").unwrap()
                 } else {
                     let sources: BTreeMap<_, _> = rows(fields[2])
                         .iter()
                         .map(|row| (decode(&row[0]), decode(&row[1])))
                         .collect();
-                    gencmu::load_dialect_sources(sources, "p.md").unwrap()
+                    gencmu::load_pipeline_sources(sources, "p.md").unwrap()
                 };
-                let features = dialect
+                let features = pipeline
                     .features()
                     .iter()
                     .map(|f| {
@@ -62,7 +62,7 @@ fn main() {
                     "{}",
                     Json::Obj(vec![("features".into(), Json::Arr(features))]).to_json()
                 );
-                dialects.insert(fields[1].into(), dialect);
+                pipelines.insert(fields[1].into(), pipeline);
             }
             "batch" => {
                 let count: usize = fields[2].parse().unwrap();
@@ -79,13 +79,13 @@ fn main() {
                         )
                     })
                     .collect();
-                let dialect = &dialects[fields[1]];
+                let pipeline = &pipelines[fields[1]];
                 let mut results = Vec::new();
                 let start = Instant::now();
                 for _ in 0..count {
                     results = cases
                         .iter()
-                        .map(|(text, options)| dialect.parse(text, options).unwrap())
+                        .map(|(text, options)| pipeline.parse(text, options).unwrap())
                         .collect();
                 }
                 let seconds = start.elapsed().as_secs_f64();
@@ -114,17 +114,17 @@ fn main() {
                             .collect();
                         (
                             row[0].clone(),
-                            gencmu::load_dialect_sources(sources, "p.md").unwrap(),
+                            gencmu::load_pipeline_sources(sources, "p.md").unwrap(),
                         )
                     })
                     .collect();
                 let results = std::thread::scope(|scope| {
                     let handles: Vec<_> = (0..tables.len() * 4)
                         .map(|i| {
-                            let (name, dialect) = &tables[i % tables.len()];
+                            let (name, pipeline) = &tables[i % tables.len()];
                             scope.spawn(move || {
-                                let a = dialect.parse("a", &Default::default()).unwrap();
-                                let b = dialect.parse("b", &Default::default()).unwrap();
+                                let a = pipeline.parse("a", &Default::default()).unwrap();
+                                let b = pipeline.parse("b", &Default::default()).unwrap();
                                 Json::Obj(vec![
                                     ("name".into(), Json::Str(name.clone())),
                                     ("a".into(), Json::Bool(a.ok)),

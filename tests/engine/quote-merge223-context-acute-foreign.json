@@ -1,9 +1,9 @@
 {
   "description": "The foreign raw stretch contains the interior mark. The one-word quote keeps that source spelling.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo'oi 你´好",
   "options": {},
   "expect": {

@@ -10,7 +10,7 @@ import (
 // Each probe changes a fresh bootstrap in memory. The bundled copy stays intact.
 func reviewBootstrap(t *testing.T, change func(string, map[string]any)) string {
 	t.Helper()
-	raw, err := bundledFS.ReadFile("grammars/notation/bootstrap.json")
+	raw, err := bundledFS.ReadFile("data/preparsed/gencmu.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,11 +18,9 @@ func reviewBootstrap(t *testing.T, change func(string, map[string]any)) string {
 	if err := json.Unmarshal(raw, &bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	for _, stage := range bootstrap["stages"].([]any) {
-		for _, item := range stage.(map[string]any)["documents"].([]any) {
-			document := item.(map[string]any)
-			change(document["path"].(string), document["dom"].(map[string]any))
-		}
+	for path, item := range bootstrap["documents"].(map[string]any) {
+		document := item.(map[string]any)
+		change(path, document["dom"].(map[string]any))
 	}
 	encoded, err := json.Marshal(bootstrap)
 	if err != nil {
@@ -33,16 +31,16 @@ func reviewBootstrap(t *testing.T, change func(string, map[string]any)) string {
 
 func reviewSources(grammar, bootstrap string) map[string]string {
 	return map[string]string{
-		"p.md":                    block("%stage main", `%include "main.md"`),
-		"main.md":                 block("%ambiguity-resolution greedy", grammar),
-		"notation/bootstrap.json": bootstrap,
+		"grammars/test/p.md":         block("%stage main", `%include "main.md"`),
+		"grammars/test/main.md":      block("%ambiguity-resolution greedy", grammar),
+		"data/preparsed/gencmu.json": bootstrap,
 	}
 }
 
 func TestReviewGuardValidation(t *testing.T) {
 	t.Parallel()
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
-		if path != "notation/lexical.md" {
+		if path != "grammars/gencmu/jbogenbau/lexical.md" {
 			return
 		}
 		for _, value := range dom["rules"].([]any) {
@@ -75,16 +73,16 @@ func TestReviewGuardValidation(t *testing.T) {
 		{"%classifier c ¬fine! \"a\" ∈ A\n%rule text _", 15},
 	} {
 		t.Run(c.grammar, func(t *testing.T) {
-			_, err := LoadDialectSources(reviewSources(c.grammar, bootstrap), "p.md")
+			_, err := LoadPipelineSources(reviewSources(c.grammar, bootstrap), "grammars/test/p.md")
 			var e *Error
-			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "main.md" || e.Line != 3 || e.Column != c.column {
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "grammars/test/main.md" || e.Line != 3 || e.Column != c.column {
 				t.Fatalf("expected the guard at 3:%d, got %v", c.column, err)
 			}
 		})
 	}
 	// Capital-initial features, gates and ordinary warnings remain valid.
 	for _, grammar := range []string{`%rule text Cbm? A | ¬Cbm? B | fine! C`, "%classifier c Cbm? \"a\" ∈ A\n%rule text _"} {
-		if _, err := LoadDialectSources(reviewSources(grammar, bootstrap), "p.md"); err != nil {
+		if _, err := LoadPipelineSources(reviewSources(grammar, bootstrap), "grammars/test/p.md"); err != nil {
 			t.Fatalf("valid guards: %v", err)
 		}
 	}
@@ -93,7 +91,7 @@ func TestReviewGuardValidation(t *testing.T) {
 func TestReviewPropertyWrapper(t *testing.T) {
 	t.Parallel()
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
-		if path != "notation/syntax.md" {
+		if path != "grammars/gencmu/jbogenbau/syntax.md" {
 			return
 		}
 		for _, value := range dom["rules"].([]any) {
@@ -114,11 +112,11 @@ func TestReviewPropertyWrapper(t *testing.T) {
 			"conditions":   []any{}, "at": []any{1, 1},
 		})
 	})
-	dialect, err := LoadDialectSources(reviewSources(`%rule text "a" %emits $`, bootstrap), "p.md")
+	pipeline, err := LoadPipelineSources(reviewSources(`%rule text "a" %emits $`, bootstrap), "grammars/test/p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := dialect.Parse("a", ParseOptions{})
+	result, err := pipeline.Parse("a", ParseOptions{})
 	if err != nil || !result.OK {
 		t.Fatalf("wrapped string terminal: %v %+v", err, result)
 	}
@@ -137,7 +135,7 @@ func TestReviewRecipeCyclePath(t *testing.T) {
 		{`%rule text := $.emitted.image | "a" %emits`, "text.value -> text.value"},
 	} {
 		t.Run(c.path, func(t *testing.T) {
-			_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 			var e *Error
 			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, c.path) {
 				t.Fatalf("expected a recipe cycle with path %q, got %v", c.path, err)
@@ -149,8 +147,8 @@ func TestReviewRecipeCyclePath(t *testing.T) {
 		`%rule text := $.emitted.image :- "x" | "a" %emits $`,
 		`%rule text := "x" :- $.emitted.value | "a" %emits $`,
 	} {
-		dialect := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
-		result, err := dialect.Parse("a", ParseOptions{})
+		pipeline := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+		result, err := pipeline.Parse("a", ParseOptions{})
 		if err != nil || !result.OK || len(result.Stages[0].Output) != 1 || result.Stages[0].Output[0].Value != "x" || result.Stages[0].Output[0].Image != "x" {
 			t.Fatalf("acyclic recipe: %v %+v", err, result)
 		}

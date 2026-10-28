@@ -1,5 +1,5 @@
 //! The result of a parse (`docs/output.md`), as Rust data. A result owns
-//! everything it holds, so it outlives the text and the dialect.
+//! everything it holds, so it outlives the text and the pipeline.
 
 use std::collections::BTreeSet;
 use std::fmt;

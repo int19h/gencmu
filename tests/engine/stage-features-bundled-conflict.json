@@ -41,7 +41,7 @@
     }
   ],
   "documents": {
-    "p.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "p.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
-  "pipeline": "p.md"
+  "pipelineDocument": "p.md"
 }

@@ -505,8 +505,8 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
     for (path, text) in case.get("documents").map(Value::object).unwrap_or(&[]) {
         documents.insert(path.clone(), text.str().expect("a document").to_string());
     }
-    let pipeline = case.get("pipeline").and_then(Value::str).expect("a pipeline").to_string();
-    if documents.values().any(|d| d.contains("%include \"../dialects/")) {
+    let pipeline = case.get("pipelineDocument").and_then(Value::str).expect("a pipeline").to_string();
+    if documents.values().any(|d| d.contains("%include \"../grammars/")) {
         let root = repository().join("grammars");
         let mut bundled = BTreeMap::new();
         let mut pending = vec![root.clone()];
@@ -517,7 +517,7 @@ pub fn case_documents(case: &Value) -> (BTreeMap<String, String>, String) {
                     pending.push(path);
                 } else {
                     bundled.insert(
-                        path.strip_prefix(&root).unwrap().to_string_lossy().to_string(),
+                        format!("grammars/{}", path.strip_prefix(&root).unwrap().to_string_lossy()),
                         std::fs::read_to_string(path).expect("a grammar resource"),
                     );
                 }
@@ -634,7 +634,7 @@ pub fn error_kind(kind: gencmu::ParseErrorKind) -> &'static str {
     }
 }
 
-/// A dialect's feature as a case lists it (tests/README.md).
+/// A pipeline's feature as a case lists it (tests/README.md).
 pub fn feature_value(feature: &gencmu::Feature) -> Value {
     let kind = match feature.kind {
         gencmu::FeatureKind::Gate => "gate",
@@ -685,7 +685,7 @@ pub fn within<T: Send + 'static>(limit: std::time::Duration, work: impl FnOnce()
 }
 
 /// Runs one engine case (tests/README.md); the error says what differs.
-/// A case with `parses` loads its dialect once and parses its input with
+/// A case with `parses` loads its pipeline once and parses its input with
 /// each item's options in order, each result held to the item's `expect`.
 pub fn run_engine_case(case: &Value) -> Result<(), String> {
     let (result, (accepted, rejected)) = gencmu::tools::with_family_conformance(|| run_engine_case_inner(case));
@@ -696,32 +696,41 @@ pub fn run_engine_case(case: &Value) -> Result<(), String> {
 }
 
 fn run_engine_case_inner(case: &Value) -> Result<(), String> {
-    let (documents, pipeline) = case_documents(case);
+    let loaded = if let Some(name) = case.get("pipeline").and_then(Value::str) {
+        gencmu::load_pipeline(name)
+    } else {
+        let (documents, path) = case_documents(case);
+        gencmu::load_pipeline_sources(documents, &path)
+    };
     if let Some(parses) = case.get("parses") {
-        let dialect = gencmu::load_dialect_sources(documents, &pipeline)
-            .map_err(|error| format!("the dialect did not load: {error}"))?;
+        let pipeline = loaded.map_err(|error| format!("the pipeline did not load: {error}"))?;
         for (index, run) in parses.array().iter().enumerate() {
             let expect = run.get("expect").ok_or("a parse without expect")?;
-            check_parse(&dialect, case, run, expect).map_err(|problem| format!("parse {index}: {problem}"))?;
+            check_parse(&pipeline, case, run, expect).map_err(|problem| format!("parse {index}: {problem}"))?;
         }
         return Ok(());
     }
     let expect = case.get("expect").ok_or("a case without expect")?;
-    let dialect = match gencmu::load_dialect_sources(documents, &pipeline) {
-        Ok(dialect) => dialect,
+    let pipeline = match loaded {
+        Ok(pipeline) => pipeline,
         Err(_) if CHECKS.with(std::cell::Cell::get) == Checks::Hook => return Ok(()),
         Err(error) => return check_load_error(expect, &error),
     };
-    check_parse(&dialect, case, case, expect)
+    check_parse(&pipeline, case, case, expect)
 }
 
-/// The members of `expect` that only a loaded dialect can meet.
+/// The members of `expect` that only a loaded pipeline can meet.
 const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "enabledFeatures"];
 
-/// Holds the error of a dialect that did not load to `expect`. The error is
+/// Holds the error of a pipeline that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
-/// dialect gives fails (tests/README.md).
+/// pipeline gives fails (tests/README.md).
 pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), String> {
+    if let Some(expected) = expect.get("bundledPipelines") {
+        let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
+        same(expected, &names, "bundledPipelines")?;
+    }
+
     let kind = match error.kind {
         gencmu::ErrorKind::Grammar => "grammar",
         gencmu::ErrorKind::Usage => "usage",
@@ -731,7 +740,7 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         return Err(format!("unexpected load error: {error}"));
     }
     if AFTER_LOAD.iter().any(|name| expect.get(name).is_some()) {
-        return Err(format!("the dialect did not load: {error}"));
+        return Err(format!("the pipeline did not load: {error}"));
     }
     // `where` is given only for a grammar error.
     if kind != "grammar" && expect.get("where").is_some() {
@@ -874,10 +883,15 @@ pub fn check_json(expect: &Value, actual: &Value) -> Result<String, String> {
 
 /// Parses a case's input with the options of `run`, the case itself or one
 /// item of its `parses`, and holds the result to `expect`.
-fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
+fn check_parse(pipeline: &gencmu::Pipeline, case: &Value, run: &Value, expect: &Value) -> Result<(), String> {
+    if let Some(expected) = expect.get("bundledPipelines") {
+        let names = Value::Array(gencmu::bundled_pipelines().into_iter().map(Value::String).collect());
+        same(expected, &names, "bundledPipelines")?;
+    }
+
     let mut problems = String::new();
     if let Some(expected) = expect.get("features") {
-        let found = Value::Array(dialect.features().iter().map(feature_value).collect());
+        let found = Value::Array(pipeline.features().iter().map(feature_value).collect());
         if let Err(problem) = same(expected, &found, "features") {
             let _ = writeln!(problems, "{problem}");
         }
@@ -887,8 +901,8 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
     // Every check of elision-only that runs must keep its witness
     // (tests/README.md).
     let (parsed, checks) = gencmu::tools::with_elision_checks(|| match case_tokens(case) {
-        Some(tokens) => dialect.parse_tokens(&tokens, &options),
-        None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+        Some(tokens) => pipeline.parse_tokens(&tokens, &options),
+        None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
     });
     let result = match parsed {
         Ok(result) => result,
@@ -971,11 +985,11 @@ pub fn result_mutants() -> Vec<(Value, Value)> {
 /// The canonical result of an engine case that loads and parses.
 pub fn engine_case_result(case: &Value) -> Value {
     let (documents, pipeline) = case_documents(case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect of the case");
+    let pipeline = gencmu::load_pipeline_sources(documents, &pipeline).expect("the pipeline of the case");
     let options = case_options(case);
     let result = match case_tokens(case) {
-        Some(tokens) => dialect.parse_tokens(&tokens, &options),
-        None => dialect.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
+        Some(tokens) => pipeline.parse_tokens(&tokens, &options),
+        None => pipeline.parse(case.get("input").and_then(Value::str).unwrap_or(""), &options),
     }
     .expect("a result");
     parse_json(&gencmu::to_json(&result)).expect("JSON")

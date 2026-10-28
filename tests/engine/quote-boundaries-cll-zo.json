@@ -1,0 +1,65 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
+  },
+  "pipelineDocument": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,zo coi, do mi,,zo coi,, do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "zo coi,",
+              "value": "zo coi",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "text": "zo coi",
+              "source": [
+                3,
+                9
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "zo coi,,",
+              "value": "zo coi",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "text": "zo coi",
+              "source": [
+                18,
+                24
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

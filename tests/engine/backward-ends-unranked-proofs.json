@@ -1,5 +1,5 @@
 {
-  "description": "Suffix queries use eligible proofs without ranking tied alternatives. (Engine \u00a74.4.)",
+  "description": "Suffix queries use eligible proofs without ranking tied alternatives. (Engine §4.4.)",
   "grammar": "%rule text A\n%conditions $.ends(tail)\n%rule tail A | A",
   "tokens": [
     {

@@ -1,4 +1,4 @@
-"""The character table every library shares, grammars/unicode.txt (engine §1):
+"""The character table every library shares, data/unicode/unicode.txt (engine §1):
 the General_Category of a character and the White_Space property."""
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ class UnicodeTable:
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
-                raise GencmuError(f"unreadable line: {line!r}", document="unicode.txt", line=number) from error
+                raise GencmuError(f"unreadable line: {line!r}", document="data/unicode/unicode.txt", line=number) from error
         for prop, ranges in self.emoji.items():
             union: list[tuple[int, int]] = []
             for start, end in sorted(ranges):

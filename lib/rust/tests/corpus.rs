@@ -1,7 +1,7 @@
 //! The shared Lojban corpus (tests/README.md, "Corpus cases"): the core
 //! sample of `tests/core.txt` by default, and every case with
 //! `GENCMU_CORPUS=full`. Cases run on a pool of threads sharing one loaded
-//! dialect each; `GENCMU_CORPUS_WORKERS` sets how many threads.
+//! pipeline each; `GENCMU_CORPUS_WORKERS` sets how many threads.
 
 mod common;
 
@@ -47,14 +47,14 @@ fn invariants(json: &Value) -> Result<(), String> {
 
 /// What gencmu makes of a case, in the case's own terms, or how its result
 /// breaks an invariant.
-fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static str, Value>, String> {
+fn outcome(pipeline: &gencmu::Pipeline, case: &Value) -> Result<BTreeMap<&'static str, Value>, String> {
     let text = case.get("text").and_then(Value::str).expect("a text");
     let options = gencmu::ParseOptions {
         features: feature_names(case.get("features")),
         without_features: feature_names(case.get("withoutFeatures")),
         ..gencmu::ParseOptions::default()
     };
-    let run = || gencmu::tools::with_elision_checks(|| dialect.parse(text, &options).expect("a parse"));
+    let run = || gencmu::tools::with_elision_checks(|| pipeline.parse(text, &options).expect("a parse"));
     let (result, checks) = if let Some(path) = std::env::var_os("GENCMU_BOUNDARY_SPLITS") {
         use std::io::Write;
         static LOG: std::sync::OnceLock<Mutex<std::fs::File>> = std::sync::OnceLock::new();
@@ -177,24 +177,24 @@ fn the_corpus() {
     let started = std::time::Instant::now();
     let cases = Arc::new(cases);
     let next = Arc::new(AtomicUsize::new(0));
-    let dialects: Arc<Mutex<HashMap<String, Arc<gencmu::Dialect>>>> = Arc::default();
+    let pipelines: Arc<Mutex<HashMap<String, Arc<gencmu::Pipeline>>>> = Arc::default();
     let failures: Arc<Mutex<Vec<String>>> = Arc::default();
     let threads: Vec<_> = (0..workers)
         .map(|_| {
-            let (cases, next, dialects, failures) = (cases.clone(), next.clone(), dialects.clone(), failures.clone());
+            let (cases, next, pipelines, failures) = (cases.clone(), next.clone(), pipelines.clone(), failures.clone());
             std::thread::spawn(move || loop {
                 let index = next.fetch_add(1, Ordering::Relaxed);
                 let Some(case) = cases.get(index) else { break };
                 let id = case.get("id").and_then(Value::str).unwrap_or("?");
-                let name = case.get("dialect").and_then(Value::str).expect("a dialect");
-                let dialect = {
-                    let mut dialects = dialects.lock().unwrap();
-                    dialects
+                let name = case.get("pipeline").and_then(Value::str).expect("a pipeline");
+                let pipeline = {
+                    let mut pipelines = pipelines.lock().unwrap();
+                    pipelines
                         .entry(name.to_string())
-                        .or_insert_with(|| Arc::new(gencmu::load_dialect(name).expect("a bundled dialect")))
+                        .or_insert_with(|| Arc::new(gencmu::load_pipeline(name).expect("a bundled pipeline")))
                         .clone()
                 };
-                let problem = match std::panic::catch_unwind(|| outcome(&dialect, case)) {
+                let problem = match std::panic::catch_unwind(|| outcome(&pipeline, case)) {
                     Ok(Ok(got)) => compare(case, &got),
                     Ok(Err(problem)) => Some(problem),
                     Err(panic) => Some(format!(
@@ -246,19 +246,19 @@ fn the_corpus_runner_refuses_a_result_that_breaks_an_invariant() {
 }
 
 /// The corpus runner refuses the error elision-witness-lost, and a check
-/// that loses its witness. The check of `le sutra tavla` runs in cll-ebnf,
-/// since the ranking chooses the fragment (grammars/syntax/cll.md), and a
+/// that loses its witness. The check of `le sutra tavla` runs in lojban/cll,
+/// since the ranking chooses the fragment (grammars/lojban/cll/syntax.md), and a
 /// private switch loses its witness after recognition.
 #[test]
 fn the_corpus_runner_refuses_the_error_elision_witness_lost() {
-    let dialect = gencmu::load_dialect("cll-ebnf").expect("cll-ebnf");
-    let case = parse_json(r#"{"dialect": "cll-ebnf", "text": "le sutra tavla"}"#).unwrap();
-    let clean = outcome(&dialect, &case).expect("a clean outcome");
+    let pipeline = gencmu::load_pipeline("lojban/cll").expect("lojban/cll");
+    let case = parse_json(r#"{"pipeline": "lojban/cll", "text": "le sutra tavla"}"#).unwrap();
+    let clean = outcome(&pipeline, &case).expect("a clean outcome");
     assert_eq!(clean.get("verdict"), Some(&string("resolved")));
-    let (_, checks) = gencmu::tools::with_elision_checks(|| outcome(&dialect, &case));
+    let (_, checks) = gencmu::tools::with_elision_checks(|| outcome(&pipeline, &case));
     assert!(checks.is_empty(), "the outcome reads its own checks");
     for loss in [gencmu::tools::Loss::Roots, gencmu::tools::Loss::Count] {
-        let lost = gencmu::tools::losing_witness(loss, || outcome(&dialect, &case));
+        let lost = gencmu::tools::losing_witness(loss, || outcome(&pipeline, &case));
         let problem = lost.expect_err("the runner refuses it");
         assert!(problem.contains("elision-witness-lost"), "{problem}");
     }

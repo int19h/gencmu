@@ -1,0 +1,8 @@
+{
+  "description": "A slash separates nonempty segments.",
+  "pipeline": "lojban//cll",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

@@ -1,4 +1,4 @@
-"""The data a parse hands back (docs/output.md), and a dialect's features,
+"""The data a parse hands back (docs/output.md), and a pipeline's features,
 as dataclasses."""
 
 from __future__ import annotations
@@ -291,7 +291,7 @@ class ParseResult:
 
 @dataclass(frozen=True)
 class Feature:
-    """One of a dialect's features (engine §13): its ``name``, its ``kind``,
+    """One of a pipeline's features (engine §13): its ``name``, its ``kind``,
     ``"gate"`` or ``"warning"``, and whether the pipeline's
     unconditional global or local ``%features`` declares it as a ``default``."""
 

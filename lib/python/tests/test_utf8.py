@@ -1,6 +1,6 @@
 """A grammar document read from disk is strict UTF-8 (engine §1): bytes that
 do not decode are a grammar error of that document, with no line or column,
-found before any hash or compiled DOM."""
+found before any hash or preparsed DOM."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from typing import Callable
 from unittest import mock
 
 import gencmu
-from gencmu import _dialect
+from gencmu import _pipeline
 from gencmu._validate import FORMAT
 
-PIPELINE = '# A dialect\n\n```jbogenbau\n%stage main\n%include "g.md"\n```\n'
+PIPELINE = '# A pipeline\n\n```jbogenbau\n%stage main\n%include "g.md"\n```\n'
 
 
 def grammar(rule: str) -> str:
@@ -48,7 +48,7 @@ class StrictUtf8(unittest.TestCase):
     def test_invalid_bytes_are_a_grammar_error_of_the_document(self) -> None:
         good = grammar('%rule text "a"')
         places: list[tuple[str, Callable[[bytes], dict[str, str | bytes]], str]] = [
-            ("the pipeline's prose", lambda b: {"p.md": with_bytes("# A dialect @\n\n" + PIPELINE, b), "g.md": good}, "p.md"),
+            ("the pipeline's prose", lambda b: {"p.md": with_bytes("# A pipeline @\n\n" + PIPELINE, b), "g.md": good}, "p.md"),
             (
                 "a comment of the pipeline",
                 lambda b: {"p.md": with_bytes(PIPELINE.replace("%stage main", "%stage main (* @ *)"), b), "g.md": good},
@@ -67,7 +67,7 @@ class StrictUtf8(unittest.TestCase):
                     with self.subTest(place=place, data=data.hex(), use_cache=use_cache):
                         root = self.directory(files(data))
                         with self.assertRaises(gencmu.GencmuError) as caught:
-                            gencmu.load_dialect_file(os.path.join(root, "p.md"), use_cache=use_cache)
+                            gencmu.load_pipeline_file(os.path.join(root, "p.md"), use_cache=use_cache)
                         error = caught.exception
                         self.assertEqual(error.kind, "grammar")
                         self.assertEqual(error.document, os.path.abspath(os.path.join(root, bad)).replace(os.sep, "/"))
@@ -78,24 +78,24 @@ class StrictUtf8(unittest.TestCase):
     def test_fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves(self) -> None:
         root = self.directory(
             {
-                "p.md": "# A dialect � \U0001f600\n\n" + PIPELINE,
+                "p.md": "# A pipeline � \U0001f600\n\n" + PIPELINE,
                 "g.md": grammar('%rule text "�" "😀" "\U0010fffd" (* � 😀 *)'),
             }
         )
-        dialect = gencmu.load_dialect_file(os.path.join(root, "p.md"))
-        self.assertTrue(dialect.parse("�\U0001f600\U0010fffd").ok)
-        self.assertFalse(dialect.parse("�\U0001f600").ok)
+        pipeline = gencmu.load_pipeline_file(os.path.join(root, "p.md"))
+        self.assertTrue(pipeline.parse("�\U0001f600\U0010fffd").ok)
+        self.assertFalse(pipeline.parse("�\U0001f600").ok)
         # A byte order mark stays U+FEFF, so a fence after it opens no block.
         marked = self.directory({"p.md": "﻿" + PIPELINE[PIPELINE.index("```") :], "g.md": grammar('%rule text "a"')})
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_file(os.path.join(marked, "p.md"))
+            gencmu.load_pipeline_file(os.path.join(marked, "p.md"))
         self.assertIn("at least one %stage", str(caught.exception))
         prose = self.directory({"p.md": "﻿" + PIPELINE, "g.md": grammar('%rule text "\ufeff"')})
-        self.assertTrue(gencmu.load_dialect_file(os.path.join(prose, "p.md")).parse("﻿").ok)
+        self.assertTrue(gencmu.load_pipeline_file(os.path.join(prose, "p.md")).parse("﻿").ok)
 
 
 class UndecodableCache(unittest.TestCase):
-    """compiled.json is only a cache: bytes of it that do not decode make it
+    """data/preparsed/lojban.json is only a cache: bytes of it that do not decode make it
     absent, and valid documents still load. A required resource that does
     not decode stays an error."""
 
@@ -104,33 +104,34 @@ class UndecodableCache(unittest.TestCase):
         holder = tempfile.TemporaryDirectory(prefix="gencmu-utf8-")
         self.addCleanup(holder.cleanup)
         root = pathlib.Path(holder.name)
-        for name in ("unicode.txt", "unicode-properties.txt", "notation/bootstrap.json", "compiled.json"):
+        for name in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/preparsed/gencmu.json", "data/preparsed/lojban.json"):
             (root / name).parent.mkdir(parents=True, exist_ok=True)
             data = replaced.get(name.replace("/", "_").replace(".", "_"))
             if data is None:
-                shutil.copyfile(str(_dialect._bundled_root().joinpath(*name.split("/"))), root / name)
+                shutil.copyfile(str(_pipeline._bundled_root().joinpath(*name.split("/"))), root / name)
             else:
                 (root / name).write_bytes(data)
         return root
 
     def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
-        sources = {"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}
+        sources = {"grammars/test/p.md": PIPELINE, "grammars/test/g.md": grammar('%rule text "a"')}
         for cache in (b"\xff", b'{"format":' + str(FORMAT).encode() + b',"documents":{"\xff":{}}}'):
-            root = self.bundle(compiled_json=cache)
+            root = self.bundle(data_preparsed_lojban_json=cache)
+            (root / "data/preparsed/lojban.json").rename(root / "data/preparsed/test.json")
             for use_cache in (True, False):
                 with self.subTest(cache=cache, use_cache=use_cache):
-                    with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
-                        self.assertIsNone(_dialect.bundled_text("compiled.json"))
-                        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=use_cache)
-                        self.assertTrue(dialect.parse("a").ok)
+                    with mock.patch.dict(_pipeline._bundled, clear=True), mock.patch.object(_pipeline, "_bundled_root", lambda: root):
+                        self.assertIsNone(_pipeline.bundled_text("data/preparsed/test.json"))
+                        pipeline = gencmu.load_pipeline_sources(sources, "grammars/test/p.md", use_cache=use_cache)
+                        self.assertTrue(pipeline.parse("a").ok)
 
     def test_a_required_resource_that_does_not_decode_is_an_error(self) -> None:
-        root = self.bundle(unicode_txt=b"unicode 15.1.0 \xff\n")
-        with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
+        root = self.bundle(data_unicode_unicode_txt=b"unicode 15.1.0 \xff\n")
+        with mock.patch.dict(_pipeline._bundled, clear=True), mock.patch.object(_pipeline, "_bundled_root", lambda: root):
             with self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources({"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}, "p.md")
+                gencmu.load_pipeline_sources({"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}, "p.md")
         self.assertEqual(caught.exception.kind, "grammar")
-        self.assertEqual(caught.exception.document, "unicode.txt")
+        self.assertEqual(caught.exception.document, "data/unicode/unicode.txt")
 
 
 if __name__ == "__main__":

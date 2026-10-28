@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | $w:word $a:ii %emits $w ($a)\n%rule word W\n%rule ii $x:marker $y:marker %emits $x, $y\n%rule marker :- $.verbatim-text | I\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "wi,i",
   "expect": {
     "result": {

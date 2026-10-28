@@ -1,9 +1,9 @@
 {
   "description": "All seven unclassified zbalermorna pairs keep the shared bpfk reading and written channels.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "󲢭󲢮󲢯󲣖󲣗󲣘󲣙",
   "options": {
     "until": "phonemes"

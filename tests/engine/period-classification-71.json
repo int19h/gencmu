@@ -1,9 +1,9 @@
 {
   "description": "MUhOI keeps the opening gy delimiter's mark attached across the script period. The quote body stays empty.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mu'oi \"gy\" gy",
   "options": {
     "until": "words"

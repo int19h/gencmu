@@ -141,7 +141,7 @@ fn harness_detects_a_wrong_expectation() {
     assert!(placed(r#"{"document": "main.md", "line": 3, "column": 1}"#).is_err());
     assert!(placed(r#"{"document": "pipeline.md", "line": 4, "column": 1}"#).is_err());
     // A load error meets only an expectation of that kind of error, with
-    // nothing that only a loaded dialect gives.
+    // nothing that only a loaded pipeline gives.
     let unloaded = |expect: &str| {
         let case = format!(r#"{{"grammar": "%rule text X\n%rule text Y", "tokens": [], "expect": {expect}}}"#);
         run_engine_case(&parse_json(&case).unwrap())
@@ -162,7 +162,7 @@ fn harness_detects_a_wrong_expectation() {
         )
         .unwrap(),
     );
-    let mut error = gencmu::load_dialect_sources(documents, &pipeline).expect_err("a load error");
+    let mut error = gencmu::load_pipeline_sources(documents, &pipeline).expect_err("a load error");
     error.kind = gencmu::ErrorKind::Usage;
     (error.line, error.column) = (None, None);
     let usage = |expect: &str| common::check_load_error(&parse_json(expect).unwrap(), &error);
@@ -197,9 +197,9 @@ fn emission_errors_come_in_order() {
             .get_mut(&pipeline)
             .unwrap()
             .insert_str("```jbogenbau\n".len(), "%stage letters\n%include \"letters.md\"\n");
-        let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+        let pipeline = gencmu::load_pipeline_sources(documents, &pipeline).expect("the pipeline");
         let input = case.get("input").and_then(common::Value::str).expect("an input");
-        let result = dialect.parse(input, &common::case_options(&case)).expect("a result");
+        let result = pipeline.parse(input, &common::case_options(&case)).expect("a result");
         result.error.expect("an error").message
     };
     // A before-attachment comes before its carrier's tag term.
@@ -240,14 +240,14 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
         r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
-            "pipeline": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
+            "pipelineDocument": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
     )
     .unwrap();
     let (documents, pipeline) = common::case_documents(&case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+    let pipeline = gencmu::load_pipeline_sources(documents, &pipeline).expect("the pipeline");
     let tokens = common::case_tokens(&case).expect("tokens");
     let options = common::case_options(&case);
-    let (clean, checks) = with_elision_checks(|| dialect.parse_tokens(&tokens, &options).unwrap());
+    let (clean, checks) = with_elision_checks(|| pipeline.parse_tokens(&tokens, &options).unwrap());
     assert!(clean.ok, "{:?}", clean.error);
     assert_eq!(checks.len(), 1);
     assert!(checks[0].keeps_witness);
@@ -255,10 +255,10 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     // The chosen tree is that of the main stage, as a run that ends there
     // shows it.
     let until = gencmu::ParseOptions { until: Some("main".to_string()), elision_only: Some(false), ..options.clone() };
-    let main = dialect.parse_tokens(&tokens, &until).unwrap();
+    let main = pipeline.parse_tokens(&tokens, &until).unwrap();
     for loss in [Loss::Roots, Loss::Count] {
         let (result, checks) =
-            with_elision_checks(|| losing_witness(loss, || dialect.parse_tokens(&tokens, &options).unwrap()));
+            with_elision_checks(|| losing_witness(loss, || pipeline.parse_tokens(&tokens, &options).unwrap()));
         let json = parse_json(&gencmu::to_json(&result)).unwrap();
         assert_eq!(result_problems(&json), Vec::<String>::new(), "{loss:?}");
         // The runner fails it, whatever a case expects (tests/README.md).
@@ -300,11 +300,11 @@ fn an_ordinary_grammar_error_in_the_check_has_no_code() {
     let file = common::repository().join("tests/engine/reparse-competing-evaluation-error.json");
     let case = parse_json(&std::fs::read_to_string(file).expect("the case")).expect("JSON");
     let (documents, pipeline) = common::case_documents(&case);
-    let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
+    let pipeline = gencmu::load_pipeline_sources(documents, &pipeline).expect("the pipeline");
     let options = common::case_options(&case);
     let result = match common::case_tokens(&case) {
-        Some(tokens) => dialect.parse_tokens(&tokens, &options),
-        None => dialect.parse(case.get("input").and_then(common::Value::str).unwrap_or(""), &options),
+        Some(tokens) => pipeline.parse_tokens(&tokens, &options),
+        None => pipeline.parse(case.get("input").and_then(common::Value::str).unwrap_or(""), &options),
     }
     .expect("a result");
     let error = result.error.expect("an error");
@@ -342,12 +342,12 @@ fn the_runner_refuses_a_check_that_lost_its_witness() {
     assert!(common::witness_problem(&result, &[kept, lost]).is_some());
 }
 
-/// Parses one token `A` with a dialect loaded from `sources`, and gives
+/// Parses one token `A` with a pipeline loaded from `sources`, and gives
 /// the message of the result's error, which must be of kind grammar with
 /// no position, from a stage that has no verdict.
 fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
-    let dialect =
-        gencmu::load_dialect_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
+    let pipeline =
+        gencmu::load_pipeline_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
             .expect("an error of lowering is no load error");
     let token = gencmu::InputToken {
         text: "a".into(),
@@ -359,7 +359,7 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
         features: features.iter().map(|feature| feature.to_string()).collect(),
         ..Default::default()
     };
-    let result = dialect.parse_tokens(&[token], &options).expect("a result");
+    let result = pipeline.parse_tokens(&[token], &options).expect("a result");
     let error = result.error.expect("an error");
     assert_eq!(error.kind, gencmu::ParseErrorKind::Grammar);
     assert_eq!((error.token, error.line, error.column), (None, None, None));
@@ -368,7 +368,7 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
     error.message
 }
 
-/// An error of lowering is a result of the parse, and the dialect loads.
+/// An error of lowering is a result of the parse, and the pipeline loads.
 /// Its message begins with the document, line and column of the
 /// definition that wrote the alternative at fault, not of the braces and
 /// not of a definition that made their item empty (engine §3).
@@ -549,9 +549,9 @@ fn skipped_source_cases_have_stage_equivalents() {
         let entry = documents.get_mut(&pipeline).unwrap();
         let at = entry.find("```jbogenbau\n").unwrap() + "```jbogenbau\n".len();
         entry.insert_str(at, &prelude);
-        let dialect = gencmu::load_dialect_sources(documents, &pipeline).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let pipeline = gencmu::load_pipeline_sources(documents, &pipeline).unwrap_or_else(|e| panic!("{name}: {e}"));
         let (result, checks) =
-            gencmu::tools::with_elision_checks(|| dialect.parse(input, &common::case_options(&case)));
+            gencmu::tools::with_elision_checks(|| pipeline.parse(input, &common::case_options(&case)));
         let mut result = result.unwrap();
         assert_eq!(common::witness_problem(&result, &checks), None, "{name}");
         let generated = result.stages[bodies.len() - 1].output.as_ref().expect("preparatory output");

@@ -1,9 +1,9 @@
 {
   "description": "The experimental phoneme rows distinguish the conflicting marks on a from ignored carons on e and o. Cyrillic readings follow the selected orthography.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "kǫ̌",
   "options": {
     "until": "phonemes"

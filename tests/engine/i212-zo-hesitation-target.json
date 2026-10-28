@@ -1,9 +1,9 @@
 {
   "description": "ZO skips the hesitation ie'o and quotes ui.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo ie'o ui cmavo",
   "options": {},
   "expect": {

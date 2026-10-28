@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /** The fields that a case can have. */
-export const FIELDS = ["id", "text", "dialect", "features", "withoutFeatures", "expect", "verdict", "stage", "at", "error", "ties", "words", "brackets", "seeded", "reason"];
+export const FIELDS = ["id", "text", "pipeline", "features", "withoutFeatures", "expect", "verdict", "stage", "at", "error", "ties", "words", "brackets", "seeded", "reason"];
 
 const strings = (/** @type {unknown} */ value) => Array.isArray(value) && value.every((item) => typeof item === "string");
 
@@ -27,7 +27,7 @@ export function caseShapeProblems(c) {
     if (!FIELDS.includes(key)) problems.push(`an unknown field ${key}`);
     if (value === null) problems.push(`${key} is null`);
   }
-  for (const key of ["id", "text", "dialect"]) if (typeof c[key] !== "string") problems.push(`${key} is not a string`);
+  for (const key of ["id", "text", "pipeline"]) if (typeof c[key] !== "string") problems.push(`${key} is not a string`);
   for (const key of ["features", "withoutFeatures", "ties", "words"]) if (key in c && !strings(c[key])) problems.push(`${key} is not a list of strings`);
   if (c.expect === "accept") {
     if (typeof c.verdict !== "string" || typeof c.brackets !== "string") problems.push("an accepted case has no verdict or no brackets");

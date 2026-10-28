@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, _Loader, _Resources, _resources, read_document
+from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, read_document
 from gencmu._hash import fnv1a64
 
 from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, write_json
@@ -70,13 +70,13 @@ def check_notation_cache_paths(
         "documents": {name: {"hash": fnv1a64(document), "dom": expected}},
     }
 
-    def loader(compiled):
-        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(compiled), resources.properties))
+    def loader(preparsed):
+        return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(preparsed), resources.properties))
 
     cached = loader(envelope)
-    test.assertIn(fnv1a64(document), cached.compiled)
-    with patch.object(cached.reader, "read", side_effect=AssertionError("compiled cache was bypassed")):
+    with patch.object(cached.reader, "read", side_effect=AssertionError("preparsed cache was bypassed")):
         test.assertEqual(cached.dom(name), expected)
+        test.assertIn((name, fnv1a64(document)), cached.preparsed)
         test.assertEqual(cached.dom(name), expected)
     for key in ("document", "bootstrap", "unicode", "format"):
         with test.subTest(cache_mismatch=key):
@@ -104,18 +104,18 @@ class NotationTies(unittest.TestCase):
             "n.md",
         )
         bootstrap = json.dumps(
-            {"format": notation["format"], "stages": [{"name": "syntax", "documents": [{"path": "n.md", "dom": notation}]}]}
+            {"format":notation["format"],"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":read_document('```jbogenbau\n%stage syntax\n%include "../../../n.md"\n```\n',"boot.md")},"n.md":{"hash":"0","dom":notation}}}
         )
-        sources = {"notation/bootstrap.json": bootstrap}
+        sources = {"data/preparsed/gencmu.json": bootstrap}
         with self.assertRaises(gencmu.GencmuError) as caught:
             read_document("```jbogenbau\na\n```\n", "t.md", sources=sources)
         error = caught.exception
         self.assertEqual((error.kind, error.document, error.line, error.column), ("grammar", "t.md", None, None))
         self.assertEqual(str(error), "t.md: the grammar text is ambiguous: the syntax stage of the notation reads it in two ways")
-        # A dialect whose document ties in the notation does not load, with
+        # A pipeline whose document ties in the notation does not load, with
         # the same error.
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_sources({**sources, "t.md": "```jbogenbau\na\n```\n"}, "t.md", use_cache=False)
+            gencmu.load_pipeline_sources({**sources, "t.md": "```jbogenbau\na\n```\n"}, "t.md", use_cache=False)
         error = caught.exception
         self.assertEqual((error.kind, error.document, error.line, error.column), ("grammar", "t.md", None, None))
 

@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($w:W $z:zz) %emits $w ($z) :: Y\n\n\n%rule zz Z %emits $\n\n\n\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text Y\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "bwiz",
   "expect": {
     "result": {

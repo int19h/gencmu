@@ -1,9 +1,9 @@
 {
-  "description": "The word stream gives one unique words-stage reading (grammars/words/stream.md).",
+  "description": "The word stream gives one unique words-stage reading (grammars/lojban/common/stream.md).",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "ni'o mi si su bu",
   "options": {
     "until": "words"

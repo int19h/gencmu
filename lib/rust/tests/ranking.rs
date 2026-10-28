@@ -417,7 +417,7 @@ fn grammar_text(source: &Source) -> String {
     text
 }
 
-/// The grammar's DOM (docs/output.md), for a `compiled.json` that spares
+/// The grammar's DOM (docs/output.md), for a `data/preparsed/test.json` that spares
 /// each case reading its grammar through the notation.
 fn grammar_dom(source: &Source) -> String {
     let reference = |sym: &Sym| match sym {
@@ -955,12 +955,13 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
     if grammar.brace_items.iter().any(|sym| matches!(sym, Sym::N(n) if nullable[*n])) {
         let document = format!("```jbogenbau\n{text}```\n");
         let sources = [
-            ("main.md".to_string(), document),
-            ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+            ("grammars/test/main.md".to_string(), document),
+            ("grammars/test/p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
-        let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;
+        let pipeline =
+            gencmu::load_pipeline_sources(sources, "grammars/test/p.md").map_err(|error| format!("load: {error}"))?;
         let options = gencmu::ParseOptions::default();
-        let result = dialect.parse_tokens(&[], &options).map_err(|error| format!("parse: {error}"))?;
+        let result = pipeline.parse_tokens(&[], &options).map_err(|error| format!("parse: {error}"))?;
         return match result.error {
             Some(error) if error.kind == gencmu::ParseErrorKind::Grammar => Ok(false),
             _ => Err(format!("seed {seed}: an empty item of braces is no error of the grammar:\n{text}")),
@@ -1026,19 +1027,20 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             return Err(format!("seed {seed}: the generated DOM differs from the notation's:\n{dom}\n{read}"));
         }
     }
-    let compiled = format!(
-        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+    let preparsed = format!(
+        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"properties\":\"{}\",\"documents\":{{\"grammars/test/main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
-        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
-        gencmu::tools::fnv1a64(include_str!("../grammars/unicode-properties.txt")),
+        gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode.txt")),
+        gencmu::tools::fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         gencmu::tools::fnv1a64(&document)
     );
     let sources = [
-        ("main.md".to_string(), document),
-        ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
-        ("compiled.json".to_string(), compiled),
+        ("grammars/test/main.md".to_string(), document),
+        ("grammars/test/p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+        ("data/preparsed/test.json".to_string(), preparsed),
     ];
-    let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;
+    let pipeline =
+        gencmu::load_pipeline_sources(sources, "grammars/test/p.md").map_err(|error| format!("load: {error}"))?;
     let input: Vec<gencmu::InputToken> = tokens
         .iter()
         .enumerate()
@@ -1050,7 +1052,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         })
         .collect();
     let options = gencmu::ParseOptions::default();
-    let result = dialect.parse_tokens(&input, &options).map_err(|error| format!("parse: {error}"))?;
+    let result = pipeline.parse_tokens(&input, &options).map_err(|error| format!("parse: {error}"))?;
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("not JSON: {error}"))?;
     let broken = common::result_problems(&actual);

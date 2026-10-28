@@ -1,4 +1,4 @@
-"""A dialect loaded from disk knows each document by its absolute path, so an
+"""A pipeline loaded from disk knows each document by its absolute path, so an
 error names the file the same way from any working directory, and in every
 library."""
 
@@ -20,11 +20,13 @@ class DiskPaths(unittest.TestCase):
         for item in cases:
             with self.subTest(item["description"]), tempfile.TemporaryDirectory() as root:
                 for name, text in item["files"].items():
-                    pathlib.Path(root, name).write_text(text, encoding="utf-8")
+                    file = pathlib.Path(root, name)
+                    file.parent.mkdir(parents=True, exist_ok=True)
+                    file.write_text(text, encoding="utf-8")
                 os.chdir(root)
                 try:
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        gencmu.load_dialect_file(pathlib.Path(root, "p.md"))
+                        gencmu.load_pipeline_file(pathlib.Path(root, "p.md"))
                     error = caught.exception
                     self.assertEqual(error.kind, "grammar")
                     self.assertEqual(error.document, str(pathlib.Path(root, item["error"]["document"])))
@@ -54,7 +56,7 @@ class DiskPaths(unittest.TestCase):
                     given_paths = (os.path.join(root, "p.md"), os.path.relpath(os.path.join(root, "p.md"), elsewhere))
                     for given in given_paths:
                         with self.subTest(given=given), self.assertRaises(gencmu.GencmuError) as caught:
-                            gencmu.load_dialect_file(given, use_cache=False)
+                            gencmu.load_pipeline_file(given, use_cache=False)
                         self.assertEqual(caught.exception.document, expected, given)
                         self.assertIn(f"{expected}:", str(caught.exception), given)
             finally:

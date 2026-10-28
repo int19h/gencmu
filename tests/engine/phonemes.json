@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c \"a\" :: Sound-0061-s := \"a\" | \"A\" \"‹U+0301›\" :: Sound-0041-s := \"A\" | _White_Space :: Sound-002E-s := \".\" :- \" \" %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:pair %conditions $w.value = \"aa\"\n%rule pair (Sound-0061-s Sound-0041-s)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "aÁ",
   "expect": {
     "error": "rejected",

@@ -229,7 +229,7 @@ const (
 	FeatureWarning = "warning"
 )
 
-// Feature is one of a dialect's features (engine §13): a name its guards
+// Feature is one of a pipeline's features (engine §13): a name its guards
 // use or its pipeline's %features declares, its kind, and whether
 // an unconditional global or local %features declares it as a default.
 type Feature struct {

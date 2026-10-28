@@ -5,7 +5,7 @@
     "one.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a:_ $b:_ %emits $a :: $a.tags ∪ $b.tags\n```",
     "two.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _sc_Latn<_sc_Zyyy> %emits $\n```"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a1",
   "expect": {
     "result": {

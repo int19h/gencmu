@@ -1,6 +1,6 @@
 // Package gencmu is a Lojban parser whose grammars are data: literate
 // Markdown documents, loaded at runtime, whose fenced jbogenbau blocks are
-// read by the notation's own grammar. A dialect is a pipeline document
+// read by the notation's own grammar. A pipeline is a pipeline document
 // whose %stage and %include directives name the stages a text passes
 // through, from characters to phonemes, words and a parse tree, and the
 // grammar documents stitched into each.
@@ -11,26 +11,26 @@
 // Go standard library, and embeds the bundled grammars, so it works with no
 // files beside it.
 //
-// # Loading a dialect
+// # Loading a pipeline
 //
-// LoadDialect loads a bundled dialect by name, LoadDialectFile a pipeline
-// document on disk, and LoadDialectSources documents held in memory. A
-// dialect that cannot be loaded is a *Error, carrying the document, line
+// LoadPipeline loads a bundled pipeline by name, LoadPipelineFile a pipeline
+// document on disk, and LoadPipelineSources documents held in memory. A
+// pipeline that cannot be loaded is a *Error, carrying the document, line
 // and column where known. A document is read through the notation only
-// when the bundled compiled.json has no DOM for its text under the current
-// bootstrap, Unicode table, and DOM format version. A bundled dialect
-// normally loads from the compiled cache.
+// when the bundled data/preparsed/FAMILY.json has no DOM for its text under the current
+// bootstrap, Unicode table, and DOM format version. A bundled pipeline
+// normally loads from the preparsed cache.
 //
 // A DOM holds a document's constants, classifiers and implications as the
 // document writes them, never their values. The loader gives each constant
 // its value when it stitches a stage, and a stage resolves each classifier
 // for the features of a parse. So a document that several stages or
-// dialects include takes the values of each.
+// pipelines include takes the values of each.
 //
 // # Parsing
 //
-//	dialect, err := gencmu.LoadDialect("notation")
-//	result, err := dialect.Parse("%rule text A [{B}]", gencmu.ParseOptions{})
+//	pipeline, err := gencmu.LoadPipeline("gencmu/jbogenbau")
+//	result, err := pipeline.Parse("%rule text A [{B}]", gencmu.ParseOptions{})
 //	if result.OK { fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{})) }
 //	data, err := gencmu.MarshalResult(result) // the canonical JSON
 //
@@ -39,7 +39,7 @@
 // grammar defect showed while parsing. A defect that lowering finds for the
 // features of the parse, such as a chain beside another alternative of its
 // rule or an item of braces that can match no tokens, is such an error of
-// kind grammar: the dialect loads, and the message begins with the
+// kind grammar: the pipeline loads, and the message begins with the
 // document, line and column of the definition at fault (engine §3).
 // Parse returns an error only for a
 // caller's mistake, such as an unknown stage in ParseOptions.Until.
@@ -79,14 +79,14 @@
 // either way and, while f is on, adds a Warning to the result for each node
 // of the chosen tree that the alternative built. A gate can also stand
 // before an entry of a classifier, which then applies only while the gate
-// holds. Dialect.Features lists a dialect's features, the gates of its
+// holds. Pipeline.Features lists a pipeline's features, the gates of its
 // classifiers' entries included, each with its kind and whether the
 // pipeline turns it on.
 //
 // # Concurrency
 //
-// A *Dialect is safe for concurrent use by several goroutines. Each parse
-// keeps its own state. A dialect caches the lowered grammars and resolved
+// A *Pipeline is safe for concurrent use by several goroutines. Each parse
+// keeps its own state. A pipeline caches the lowered grammars and resolved
 // classifiers for each set of the features that its guards use. It keeps a
 // bounded number of them, and builds each one once, outside its mutex.
 // These values never change once built.

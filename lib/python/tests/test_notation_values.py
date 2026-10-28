@@ -7,15 +7,15 @@ import unittest
 from typing import Any
 from gencmu import GencmuError
 
-from gencmu._dialect import _Resources, _resources, bundled_text, read_document
+from gencmu._pipeline import _Resources, _resources, bundled_text, read_document
 
 from .shared import SHARED, load_json, mismatch, write_json
 from .test_notation_cases import check_notation_cache_paths
 
 
 def value_notation(aliases: list[dict[str, Any]]) -> str:
-    bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "")
-    lexical = next(stage for stage in bootstrap["stages"] if stage["name"] == "lexical")["documents"][0]["dom"]
+    bootstrap = json.loads(bundled_text("data/preparsed/gencmu.json") or "")
+    lexical = bootstrap["documents"]["grammars/gencmu/jbogenbau/lexical.md"]["dom"]
     piece = next(rule for rule in lexical["rules"] if rule["name"] == "piece")
     for index, alias in enumerate(aliases):
         name = f"value-alias-{index}"
@@ -39,7 +39,7 @@ class NotationValues(unittest.TestCase):
     def check_case(self, case: dict[str, Any]) -> None:
         name = case["id"] + ".md"
         bootstrap = value_notation(case["aliases"])
-        sources = {"notation/bootstrap.json": bootstrap}
+        sources = {"data/preparsed/gencmu.json": bootstrap}
         if "error" in case["expect"]:
             with self.assertRaises(GencmuError) as caught:
                 read_document(case["document"], name, sources=sources)

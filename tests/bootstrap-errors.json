@@ -1,6 +1,6 @@
 {
   "kind": "grammar",
-  "document": "notation/bootstrap.json",
+  "document": "data/preparsed/gencmu.json",
   "cases": [
     {
       "description": "Invalid bootstrap JSON",
@@ -11,21 +11,21 @@
     },
     {
       "description": "Unsupported bootstrap format",
-      "bootstrap": "{\"format\":0,\"stages\":[]}",
+      "bootstrap": "{\"format\":0,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Missing bootstrap stages (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[]}",
+      "description": "Missing required bootstrap pipeline entry",
+      "bootstrap": "{\"format\":40,\"documents\":{}}",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Malformed bootstrap stage (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[null]}",
+      "description": "Malformed required bootstrap entry",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":0}}",
       "line": null,
       "column": null,
       "stage": null
@@ -72,10 +72,10 @@
     },
     {
       "description": "Duplicate bootstrap resolution",
-      "find": "\"directives\":[",
-      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[900,1]},",
+      "find": "\"directives\":[{\"name\":\"ambiguity-resolution\"",
+      "replace": "\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]},{\"name\":\"ambiguity-resolution\"",
       "at": "%ambiguity-resolution greedy",
-      "context": "notation/lexical.md",
+      "context": "grammars/gencmu/jbogenbau/lexical.md",
       "stage": "lexical"
     },
     {
@@ -83,108 +83,108 @@
       "find": "\"name\":\"text\",\"op\":\"define\"",
       "replace": "\"name\":\"word\",\"op\":\"define\"",
       "at": "%rule word",
-      "context": "notation/lexical.md",
+      "context": "grammars/gencmu/jbogenbau/lexical.md",
       "stage": "lexical"
     },
     {
-      "description": "Missing bootstrap stage name",
-      "find": "\"name\":\"lexical\",",
-      "replace": "",
+      "description": "Missing bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap stage name is null",
-      "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":null",
+      "description": "Null bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"documents\":null,\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap stage name is number",
-      "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":0",
+      "description": "Numeric bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"documents\":2,\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap stage name is boolean",
-      "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":false",
+      "description": "Boolean bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"documents\":false,\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap stage name is object",
-      "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":{}",
+      "description": "Empty bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"documents\":{},\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap stage name is array",
-      "find": "\"name\":\"lexical\"",
-      "replace": "\"name\":[]",
+      "description": "Array bootstrap document map",
+      "find": "\"documents\":{",
+      "replace": "\"documents\":[],\"absent\":{",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Missing bootstrap document path",
-      "find": "\"path\":\"notation/lexical.md\",",
-      "replace": "",
+      "description": "Missing bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap document path is null",
-      "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":null",
+      "description": "Null bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"hash\":null,\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap document path is number",
-      "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":0",
+      "description": "Numeric bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"hash\":2,\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap document path is boolean",
-      "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":false",
+      "description": "Boolean bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"hash\":false,\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap document path is object",
-      "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":{}",
+      "description": "Object bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"hash\":{},\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Bootstrap document path is array",
-      "find": "\"path\":\"notation/lexical.md\"",
-      "replace": "\"path\":[]",
+      "description": "Array bootstrap entry hash",
+      "find": "\"hash\":",
+      "replace": "\"hash\":[],\"absent\":",
       "line": null,
       "column": null,
       "stage": null
     },
     {
       "description": "Nullable item in bootstrap braces (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../embedded.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"embedded.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[41,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "context": "embedded.md",
       "message": "an item of braces",
       "line": 40,
@@ -193,7 +193,7 @@
     },
     {
       "description": "Bootstrap chain beside another alternative (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../embedded.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"embedded.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"A\"},\"chain\":\"left\"}},{\"guards\":[],\"expr\":{\"ref\":\"B\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "context": "embedded.md",
       "message": "chain",
       "line": 40,
@@ -202,7 +202,7 @@
     },
     {
       "description": "Conflicting bootstrap classifier entries (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"embedded.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[50,3]},{\"guards\":[],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[51,4]}],\"at\":[49,1]}],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../embedded.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"embedded.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[40,2],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[50,3]},{\"guards\":[],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[51,4]}],\"at\":[49,1]}],\"implications\":[]}}}}",
       "context": "embedded.md",
       "message": "already in",
       "stage": "lexical",
@@ -211,7 +211,7 @@
     },
     {
       "description": "Feature roles conflict within a bootstrap stage (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"gate\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]},{\"name\":\"warning\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[5,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"gate\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]},{\"name\":\"warning\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[5,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 5,
       "column": 1,
@@ -220,7 +220,7 @@
     },
     {
       "description": "Feature roles conflict across bootstrap stages (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "syntax",
       "line": 4,
       "column": 1,
@@ -229,7 +229,7 @@
     },
     {
       "description": "Bootstrap classifier gate conflicts with a rule warning (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[6,1]}],\"at\":[5,1]}],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[{\"name\":\"letters\",\"entries\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"keys\":[{\"string\":\"a\"}],\"op\":\"∈\",\"class\":\"A\",\"at\":[6,1]}],\"at\":[5,1]}],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 6,
       "column": 1,
@@ -238,59 +238,61 @@
     },
     {
       "description": "Duplicate bootstrap stage names (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": null,
-      "line": null,
-      "column": null,
-      "message": "second stage"
+      "line": 3,
+      "column": 1,
+      "message": "second stage",
+      "context": "grammars/gencmu/jbogenbau/pipeline.md"
     },
     {
       "description": "Empty bootstrap stage name (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Invalid bootstrap stage name (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"not a name\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"not a name\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
-      "description": "Empty bootstrap document list (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[]}]}",
+      "description": "A bootstrap stage requires rules",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "stage": null,
+      "line": 1,
+      "column": 1,
+      "context": "grammars/gencmu/jbogenbau/pipeline.md"
+    },
+    {
+      "description": "Malformed bootstrap pipeline directives",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":null,\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
-      "description": "Null bootstrap document list (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":null}]}",
+      "description": "Missing required included bootstrap document",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"include\",\"args\":[\"other.md\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": null,
-      "line": null,
-      "column": null
-    },
-    {
-      "description": "Include directive remains in a bootstrap run (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"include\",\"args\":[\"other.md\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
-      "stage": "lexical",
       "line": 3,
       "column": 1,
       "context": "lexical.md"
     },
     {
-      "description": "Stage directive remains in a bootstrap run (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"other\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
-      "stage": "lexical",
-      "line": 3,
+      "description": "A bootstrap stage selector cannot leave an empty stage",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"other\"],\"at\":[3,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "stage": null,
+      "line": 1,
       "column": 1,
-      "context": "lexical.md"
+      "context": "grammars/gencmu/jbogenbau/pipeline.md"
     },
     {
       "description": "Undefined bootstrap constant (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"const\":\"MISSING\",\"at\":[3,20]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"const\":\"MISSING\",\"at\":[3,20]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 3,
       "column": 20,
@@ -298,7 +300,7 @@
     },
     {
       "description": "Undefined bootstrap query rule (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[{\"method\":\"begins\",\"receiver\":{\"method\":\"following-tokens\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[{\"rule\":\"missing\"}]}],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[{\"method\":\"begins\",\"receiver\":{\"method\":\"following-tokens\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[{\"rule\":\"missing\"}]}],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -306,7 +308,7 @@
     },
     {
       "description": "Bootstrap redefinition lacks an earlier rule (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"redefine\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"redefine\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -314,7 +316,7 @@
     },
     {
       "description": "Bootstrap extension lacks an earlier rule (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"extend\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"extend\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -322,7 +324,7 @@
     },
     {
       "description": "Unknown bootstrap classifier (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"method\":\"classify\",\"receiver\":{\"method\":\"source-text\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[{\"classifier\":\"missing\"}]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"method\":\"classify\",\"receiver\":{\"method\":\"source-text\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[{\"classifier\":\"missing\"}]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "lexical",
       "line": 3,
       "column": 1,
@@ -330,7 +332,7 @@
     },
     {
       "description": "Bootstrap feature validation precedes lowering (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"later\",\"documents\":[{\"path\":\"later.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[4,1]},{\"name\":\"stage\",\"args\":[\"later\"],\"at\":[5,1]},{\"name\":\"include\",\"args\":[\"../../../later.md\"],\"at\":[6,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"warning\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"later.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"unused\",\"op\":\"define\",\"alternatives\":[{\"guards\":[{\"feature\":\"f\",\"kind\":\"gate\",\"negated\":false}],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "later",
       "line": 4,
       "column": 1,
@@ -339,7 +341,7 @@
     },
     {
       "description": "Later bootstrap stitching precedes earlier lowering (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "stage": "syntax",
       "line": 3,
       "column": 1,
@@ -347,33 +349,35 @@
     },
     {
       "description": "All bootstrap schemas precede stitching (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":null}}}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "All bootstrap schemas precede lowering (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"lexical.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":null}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../lexical.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"repeat\":{\"ref\":\"empty\"}}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]},{\"name\":\"empty\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"empty\":true}}],\"conditions\":[],\"at\":[4,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":null}}}",
       "stage": null,
       "line": null,
       "column": null
     },
     {
       "description": "Bootstrap stage contains no rules (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../empty.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"empty.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "message": "no rules",
-      "stage": "lexical",
-      "line": null,
-      "column": null
+      "stage": null,
+      "line": 1,
+      "column": 1,
+      "context": "grammars/gencmu/jbogenbau/pipeline.md"
     },
     {
       "description": "All bootstrap stages require rules before stitching (engine §8 and §9.3)",
-      "bootstrap": "{\"format\":40,\"stages\":[{\"name\":\"lexical\",\"documents\":[{\"path\":\"syntax.md\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]},{\"name\":\"syntax\",\"documents\":[{\"path\":\"empty.md\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}]}]}",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../syntax.md\"],\"at\":[2,1]},{\"name\":\"stage\",\"args\":[\"syntax\"],\"at\":[3,1]},{\"name\":\"include\",\"args\":[\"../../../empty.md\"],\"at\":[4,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"syntax.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"missing\"}}],\"conditions\":[],\"at\":[3,1],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"empty.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "message": "no rules",
-      "stage": "syntax",
-      "line": null,
-      "column": null
+      "stage": null,
+      "line": 3,
+      "column": 1,
+      "context": "grammars/gencmu/jbogenbau/pipeline.md"
     },
     {
       "description": "Missing rule flags",
@@ -481,7 +485,7 @@
     },
     {
       "description": "DOM format 36 is unsupported.",
-      "bootstrap": "{\"format\":36,\"stages\":[]}",
+      "bootstrap": "{\"format\":36,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
       "line": null,
       "column": null,
       "stage": null

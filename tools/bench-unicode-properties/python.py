@@ -17,24 +17,24 @@ def rows(path):
     return [line.split("\t") for line in Path(path).read_text().splitlines() if line]
 
 
-dialects = {}
+pipelines = {}
 for line in sys.stdin:
     try:
         command, key, *args = line.rstrip("\n").split("\t")
         if command == "load":
-            dialect = gencmu.load_dialect("cll-ebnf") if args[0] == "-" else gencmu.load_dialect_sources(
+            pipeline = gencmu.load_pipeline("lojban/cll") if args[0] == "-" else gencmu.load_pipeline_sources(
                 {decode(k): decode(v) for k, v in rows(args[0])}, "p.md")
-            dialects[key] = dialect
-            answer = {"features": [[f.name, f.kind, f.default] for f in dialect.features]}
+            pipelines[key] = pipeline
+            answer = {"features": [[f.name, f.kind, f.default] for f in pipeline.features]}
         elif command == "batch":
             count, manifest, output = args
             cases = [(decode(text), dict(features=set(filter(None, decode(features).split("\n"))),
                                         without_features=set(filter(None, decode(without).split("\n")))))
                      for _, text, features, without in rows(manifest)]
-            dialect = dialects[key]
+            pipeline = pipelines[key]
             start = time.perf_counter()
             for _ in range(int(count)):
-                results = [dialect.parse(text, **options) for text, options in cases]
+                results = [pipeline.parse(text, **options) for text, options in cases]
             seconds = time.perf_counter() - start
             start = time.perf_counter()
             serialized = ['{"result":' + gencmu.to_json(result) + ',"brackets":'
@@ -44,11 +44,11 @@ for line in sys.stdin:
                 Path(output).write_text("\n".join(serialized) + "\n", encoding="utf-8")
             answer = dict(seconds=seconds, serialization=serialization)
         elif command == "concurrent":
-            tables = [(name, gencmu.load_dialect_sources({decode(k): decode(v) for k, v in rows(file)}, "p.md"))
+            tables = [(name, gencmu.load_pipeline_sources({decode(k): decode(v) for k, v in rows(file)}, "p.md"))
                       for name, file in rows(args[0])]
             def check_table(item):
-                name, dialect = item
-                a, b = dialect.parse("a"), dialect.parse("b")
+                name, pipeline = item
+                a, b = pipeline.parse("a"), pipeline.parse("b")
                 return dict(name=name, a=a.ok, b=b.ok, tags=sorted(b.tree.tags))
             with ThreadPoolExecutor(max_workers=4) as executor:
                 answer = list(executor.map(check_table, tables * 4))

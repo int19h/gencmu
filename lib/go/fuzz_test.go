@@ -6,19 +6,19 @@ import (
 	"testing"
 )
 
-// FuzzPrecompiledDOM feeds arbitrary JSON as a document's DOM: whatever it
+// FuzzPreparsedDOM feeds arbitrary JSON as a document's DOM: whatever it
 // is, decoding, stitching, lowering and parsing return errors or results and
-// never panic. go test runs the seeds; go test -fuzz FuzzPrecompiledDOM
+// never panic. go test runs the seeds; go test -fuzz FuzzPreparsedDOM
 // searches further.
-func FuzzPrecompiledDOM(f *testing.F) {
+func FuzzPreparsedDOM(f *testing.F) {
 	loadBundled()
-	for _, doc := range []string{"notation/lexical.md", "notation/syntax.md"} {
+	for _, doc := range []string{"grammars/gencmu/jbogenbau/lexical.md", "grammars/gencmu/jbogenbau/syntax.md"} {
 		var c struct {
 			Documents map[string]struct {
 				Dom json.RawMessage `json:"dom"`
 			} `json:"documents"`
 		}
-		unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c)
+		unmarshalJSON([]byte(bundled.sources["data/preparsed/gencmu.json"]), &c)
 		f.Add(string(c.Documents[doc].Dom), "%rule text A")
 	}
 	format := `{"format":` + strconv.Itoa(domFormat)
@@ -53,11 +53,11 @@ func FuzzPrecompiledDOM(f *testing.F) {
 		if gerr != nil {
 			return
 		}
-		features, ferr := dialectFeatures([]*stageGrammar{g}, nil)
+		features, ferr := pipelineFeatures([]*stageGrammar{g}, nil)
 		if ferr != nil {
 			return
 		}
-		d := &Dialect{stages: []*stageGrammar{g}, features: features, uni: bundled.uni}
+		d := &Pipeline{stages: []*stageGrammar{g}, features: features, uni: bundled.uni}
 		// With no feature on, and with every one on: every warning, and the
 		// gates that are not negated.
 		var all []string

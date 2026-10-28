@@ -9,7 +9,7 @@ import (
 )
 
 // One malformed DOM per rule the reader enforces (engine §9, docs/output.md
-// "A grammar DOM"): each is refused when decoded, and as a compiled.json
+// "A grammar DOM"): each is refused when decoded, and as a data/preparsed/test.json
 // entry it is a miss, so the document is read instead.
 func TestDOMRules(t *testing.T) {
 	t.Parallel()
@@ -458,6 +458,7 @@ func TestDOMRules(t *testing.T) {
 		}
 	}
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": sources["g.md"]}
 	accepted := map[string]string{
 		"$ only with $ (a capture)":                         "Overlap is checked from the stitched consuming graph, rather than this local DOM.",
 		"no ∅ as an item's tags":                            "An emitted token can have an empty tag set (engine §1).",
@@ -494,8 +495,8 @@ func TestDOMRules(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + c.dom + `}}}`
-		d, err := LoadDialectSources(src, "p.md")
+		src["data/preparsed/test.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + c.dom + `}}}`
+		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
 			t.Errorf("%s: %v", c.rule, err)
 			continue
@@ -513,10 +514,10 @@ func TestReaderNesting(t *testing.T) {
 	doc := func(n int) string {
 		return "```jbogenbau\n\n%rule text " + strings.Repeat("[", n) + "A" + strings.Repeat("]", n) + "\n```\n"
 	}
-	if _, err := bundled.reader.read(doc(256), "g.md"); err != nil {
+	if _, err := bundled.reader.read(doc(256), "grammars/test/g.md"); err != nil {
 		t.Fatalf("256 deep: %v", err)
 	}
-	_, err := bundled.reader.read(doc(257), "g.md")
+	_, err := bundled.reader.read(doc(257), "grammars/test/g.md")
 	if err == nil || err.Line != 3 || err.Column != 1 {
 		t.Fatalf("257 deep: expected an error at the rule, 3:1, got %v", err)
 	}
@@ -532,23 +533,25 @@ func TestReaderImplicationNesting(t *testing.T) {
 	doc := func(n int) string {
 		return "```jbogenbau\n\n%implies " + strings.Repeat("A ∖ (", n) + "B" + strings.Repeat(")", n) + " ⟹ M\n```\n"
 	}
-	if _, err := bundled.reader.read(doc(256), "g.md"); err != nil {
+	if _, err := bundled.reader.read(doc(256), "grammars/test/g.md"); err != nil {
 		t.Fatalf("256 deep: %v", err)
 	}
-	_, err := bundled.reader.read(doc(257), "g.md")
+	_, err := bundled.reader.read(doc(257), "grammars/test/g.md")
 	if err == nil || err.Line != 3 || err.Column != 1 || !strings.Contains(err.Message, "nested more than 256 deep") {
 		t.Fatalf("257 deep: expected an error at the implication, 3:1, got %v", err)
 	}
 }
 
-// bootstrapError loads a dialect whose bootstrap has item first in the
+// bootstrapError loads a pipeline whose bootstrap has item first in the
 // list of the given name of its first document, and gives the error.
 func bootstrapError(t *testing.T, list, item string) error {
 	t.Helper()
 	loadBundled()
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
-	bootstrap := bundled.sources["notation/bootstrap.json"]
-	i := strings.Index(bootstrap, `"`+list+`":[`)
+	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
+	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
+	start := strings.Index(bootstrap, `"grammars/gencmu/jbogenbau/lexical.md":`)
+	i := start + strings.Index(bootstrap[start:], `"`+list+`":[`)
 	if i < 0 {
 		t.Fatalf("no %s in the bootstrap", list)
 	}
@@ -557,8 +560,8 @@ func bootstrapError(t *testing.T, list, item string) error {
 	if bootstrap[i] == ']' {
 		sep = ""
 	}
-	src["notation/bootstrap.json"] = bootstrap[:i] + item + sep + bootstrap[i:]
-	_, err := LoadDialectSources(src, "p.md")
+	src["data/preparsed/gencmu.json"] = bootstrap[:i] + item + sep + bootstrap[i:]
+	_, err := LoadPipelineSources(src, "grammars/test/p.md")
 	return err
 }
 
@@ -600,7 +603,7 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 }
 
 // A constant nested too deeply is refused before any walk that recurses
-// (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
+// (engine §9): a data/preparsed/test.json entry is a miss, and a bootstrap is an error
 // of the grammar.
 func TestDeepConstant(t *testing.T) {
 	t.Parallel()
@@ -608,20 +611,21 @@ func TestDeepConstant(t *testing.T) {
 	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
 	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
 	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
-	src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
-	d, err := LoadDialectSources(src, "p.md")
+	src["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + dom + `}}}`
+	d, err := LoadPipelineSources(src, "grammars/test/p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res, err := d.Parse("ab", ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("the document was not read instead: %v %+v", err, res.Error)
 	}
-	delete(src, "compiled.json")
-	bootstrap := bundled.sources["notation/bootstrap.json"]
+	delete(src, "data/preparsed/test.json")
+	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
 	i := strings.Index(bootstrap, `"constants":[`)
 	if i < 0 {
 		t.Fatal("no constants in the bootstrap")
@@ -631,8 +635,8 @@ func TestDeepConstant(t *testing.T) {
 	if bootstrap[i] == ']' {
 		sep = ""
 	}
-	src["notation/bootstrap.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
-	_, err = LoadDialectSources(src, "p.md")
+	src["data/preparsed/gencmu.json"] = bootstrap[:i] + k + sep + bootstrap[i:]
+	_, err = LoadPipelineSources(src, "grammars/test/p.md")
 	var e *Error
 	if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, "nested more than 256 deep") {
 		t.Fatalf("a deep bootstrap constant: expected an error of the grammar, got %v", err)
@@ -652,10 +656,11 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 	// cache entry given.
 	outcome := func(g string, entry string) string {
 		src := oneStage(g)
+		src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
 		if entry != "" {
-			src["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + entry + `}}}`
+			src["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + entry + `}}}`
 		}
-		d, err := LoadDialectSources(src, "p.md")
+		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
 			var e *Error
 			if !errors.As(err, &e) {
@@ -670,7 +675,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 		return strings.Join(res.Tree.Tags, " ")
 	}
 	read := func(g string) string {
-		dom, err := bundled.reader.read(oneStage(g)["g.md"], "g.md")
+		dom, err := bundled.reader.read(oneStage(g)["g.md"], "grammars/test/g.md")
 		if err != nil {
 			t.Fatalf("the document is refused: %v", err)
 		}
@@ -702,7 +707,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 
 // A gate of a classifier's entry and a guard of a rule's alternative follow
 // the notation's name syntax (engine §9). A cached entry with another
-// feature is a miss, so it never changes the dialect's features, and a
+// feature is a miss, so it never changes the pipeline's features, and a
 // bootstrap with one is an error of the grammar.
 func TestGuardFeatureName(t *testing.T) {
 	t.Parallel()
@@ -715,13 +720,14 @@ func TestGuardFeatureName(t *testing.T) {
 	rule := func(guard, name string, line int) string {
 		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
-	// features is the dialect's features, each as name:kind, when its
-	// compiled.json holds a DOM of the document with rules and classifiers.
+	// features is the pipeline's features, each as name:kind, when its
+	// data/preparsed/test.json holds a DOM of the document with rules and classifiers.
 	features := func(rules, classifiers string) []string {
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+		src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
 		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
-		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
-		d, err := LoadDialectSources(src, "p.md")
+		src["data/preparsed/test.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(src["grammars/test/g.md"]) + `","dom":` + dom + `}}}`
+		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
 			t.Fatalf("%s %s: %v", rules, classifiers, err)
 		}
@@ -764,7 +770,7 @@ func TestGuardFeatureName(t *testing.T) {
 }
 
 // An expression or a condition has exactly the members of one form, and a
-// reference is an identifier or one eligible emoji (engine §9). A compiled.json
+// reference is an identifier or one eligible emoji (engine §9). A data/preparsed/test.json
 // entry that breaks this is a miss, and the document is read instead. A
 // bootstrap that breaks it is an error of the grammar. The order of the
 // members varies, as the other libraries read JSON in order.
@@ -773,6 +779,7 @@ func TestMixedForms(t *testing.T) {
 	loadBundled()
 	format := `"format":` + strconv.Itoa(domFormat)
 	src := oneStage("%ambiguity-resolution greedy\n%rule text $x:\"a\" \"b\"\n%conditions $x.source-text = \"a\"")
+	src = map[string]string{"grammars/test/p.md": src["p.md"], "grammars/test/g.md": src["g.md"]}
 	const (
 		a        = `{"literal":{"string":"a"}}`
 		b        = `{"literal":{"string":"b"}}`
@@ -795,9 +802,9 @@ func TestMixedForms(t *testing.T) {
 			s[k] = v
 		}
 		if dom != "" {
-			s["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(s["g.md"]) + `","dom":` + dom + `}}}`
+			s["data/preparsed/test.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(s["grammars/test/g.md"]) + `","dom":` + dom + `}}}`
 		}
-		d, err := LoadDialectSources(s, "p.md")
+		d, err := LoadPipelineSources(s, "grammars/test/p.md")
 		if err != nil {
 			t.Fatalf("%s: %v", dom, err)
 		}
@@ -857,7 +864,7 @@ func TestMixedForms(t *testing.T) {
 		}
 		err := bootstrapError(t, "rules", rule("unused-rule", expr, condition, m.emit, 9999))
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", m.name, err)
 		}
 	}

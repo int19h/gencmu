@@ -2393,7 +2393,8 @@ mod tests {
 
     /// The grammar of `lowering_a_long_chain_takes_linear_work` for n.
     fn long_chain(n: usize) -> crate::grammar::StageGrammar {
-        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let unicode =
+            Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
                 strings: Default::default(),
@@ -2618,7 +2619,8 @@ mod tests {
     /// and 4800 checks.
     #[test]
     fn choices_check_and_lower_in_their_output() {
-        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let unicode =
+            Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         for (name, make, _) in choices() {
             for n in [100, 400] {
                 let rule = make(n);
@@ -2643,7 +2645,8 @@ mod tests {
     /// the first count past the budget of the larger run.
     #[test]
     fn scans_of_every_part_for_each_production_stop_at_the_budget() {
-        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let unicode =
+            Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         for (_, make, mutants) in choices() {
             let rule = make(400);
             let (walked, checked) = choice_budget(400);
@@ -2784,9 +2787,9 @@ mod tests {
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
             ("g.md", format!("```jbogenbau\n{grammar}```\n")),
         ];
-        match crate::load_dialect_sources(sources, "p.md") {
+        match crate::load_pipeline_sources(sources, "p.md") {
             Err(error) => format!("error: {error:?}"),
-            Ok(dialect) => format!("{:?}", dialect.lowered_stage(0).prods),
+            Ok(pipeline) => format!("{:?}", pipeline.lowered_stage(0).prods),
         }
     }
 

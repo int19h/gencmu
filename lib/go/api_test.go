@@ -14,9 +14,9 @@ import (
 	"testing"
 )
 
-func mustLoad(t *testing.T, sources map[string]string) *Dialect {
+func mustLoad(t *testing.T, sources map[string]string) *Pipeline {
 	t.Helper()
-	d, err := LoadDialectSources(sources, "p.md")
+	d, err := LoadPipelineSources(sources, "p.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func block(lines ...string) string {
 
 func oneStage(grammar string) map[string]string {
 	return map[string]string{
-		"p.md": "# A dialect\n\n- [The grammar](g.md)\n  " + strings.ReplaceAll(block("%stage main", `%include "g.md"`), "\n", "\n  "),
+		"p.md": "# A pipeline\n\n- [The grammar](g.md)\n  " + strings.ReplaceAll(block("%stage main", `%include "g.md"`), "\n", "\n  "),
 		"g.md": "# A grammar\n\n```jbogenbau\n" + grammar + "\n```\n",
 	}
 }
@@ -55,9 +55,9 @@ func TestReplacementsRecordFlagChanges(t *testing.T) {
 	}
 }
 
-func TestLoadDialectBundled(t *testing.T) {
+func TestLoadPipelineBundled(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,24 +71,24 @@ func TestLoadDialectBundled(t *testing.T) {
 	if res.Tree == nil || res.Tree.Rule != "text" || len(res.Stages) != 2 {
 		t.Fatalf("unexpected result %+v", res)
 	}
-	if _, err := LoadDialect("no-such-dialect"); err == nil {
-		t.Fatal("a missing dialect loaded")
+	if _, err := LoadPipeline("no-such-pipeline"); err == nil {
+		t.Fatal("a missing pipeline loaded")
 	} else {
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "dialects/no-such-dialect.md" {
+		if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != "" {
 			t.Fatalf("unexpected error %#v", err)
 		}
 	}
 }
 
-func TestLoadDialectFile(t *testing.T) {
+func TestLoadPipelineFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "pipelines"), 0o755)
 	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
-	os.WriteFile(filepath.Join(dir, "dialects", "mine.md"), []byte(block("%stage main", `%include "../syntax/g.md"`)), 0o644)
+	os.WriteFile(filepath.Join(dir, "pipelines", "mine.md"), []byte(block("%stage main", `%include "../syntax/g.md"`)), 0o644)
 	os.WriteFile(filepath.Join(dir, "syntax", "g.md"), []byte("```jbogenbau\n%ambiguity-resolution greedy\n%rule text {\"a\"}\n```\n"), 0o644)
-	d, err := LoadDialectFile(filepath.Join(dir, "dialects", "mine.md"))
+	d, err := LoadPipelineFile(filepath.Join(dir, "pipelines", "mine.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,11 +96,11 @@ func TestLoadDialectFile(t *testing.T) {
 	if !res.OK || Brackets(res, BracketOptions{}) != "(a a a)" {
 		t.Fatalf("%+v %q", res.Error, Brackets(res, BracketOptions{}))
 	}
-	os.WriteFile(filepath.Join(dir, "dialects", "broken.md"), []byte(block("%stage main", `%include "../syntax/missing.md"`)), 0o644)
-	_, err = LoadDialectFile(filepath.Join(dir, "dialects", "broken.md"))
+	os.WriteFile(filepath.Join(dir, "pipelines", "broken.md"), []byte(block("%stage main", `%include "../syntax/missing.md"`)), 0o644)
+	_, err = LoadPipelineFile(filepath.Join(dir, "pipelines", "broken.md"))
 	var e *Error
 	// At the %include, naming the document it did not find.
-	if !errors.As(err, &e) || !strings.HasSuffix(e.Document, "dialects/broken.md") || e.Line != 3 || e.Column != 1 || !strings.Contains(e.Message, "syntax/missing.md") {
+	if !errors.As(err, &e) || !strings.HasSuffix(e.Document, "pipelines/broken.md") || e.Line != 3 || e.Column != 1 || !strings.Contains(e.Message, "syntax/missing.md") {
 		t.Fatalf("unexpected error %#v", err)
 	}
 }
@@ -134,7 +134,7 @@ func TestLoadErrors(t *testing.T) {
 		"gate and warning": {oneStage("%ambiguity-resolution greedy\n%rule text f? A | B\n%rule a f! A"), 6, 1, "g.md"},
 	}
 	for name, c := range cases {
-		_, err := LoadDialectSources(c.sources, "p.md")
+		_, err := LoadPipelineSources(c.sources, "p.md")
 		var e *Error
 		if !errors.As(err, &e) {
 			t.Errorf("%s: expected a *Error, got %v", name, err)
@@ -264,13 +264,13 @@ func TestLoweringFaultOrder(t *testing.T) {
 	}
 }
 
-// Every bundled dialect with a words stage has sa-su as a gate, off by
-// default (engine §13); a dialect's list of
+// Every bundled pipeline with a words stage has sa-su as a gate, off by
+// default (engine §13); a pipeline's list of
 // features is the caller's own copy.
-func TestDialectFeatures(t *testing.T) {
+func TestPipelineFeatures(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"cll-ebnf", "bpfk", "experimental", "zantufa"} {
-		d, err := LoadDialect(name)
+	for _, name := range []string{"lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"} {
+		d, err := LoadPipeline(name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -284,16 +284,16 @@ func TestDialectFeatures(t *testing.T) {
 			t.Errorf("%s: sa-su is not a gate off by default: %+v", name, d.Features())
 		}
 	}
-	d, err := LoadDialect("zantufa")
+	d, err := LoadPipeline("lojban/zantufa")
 	if err != nil {
 		t.Fatal(err)
 	}
 	features := d.Features()
 	features[0] = Feature{Name: "changed"}
 	if d.Features()[0].Name == "changed" {
-		t.Fatal("changing the list changed the dialect's")
+		t.Fatal("changing the list changed the pipeline's")
 	}
-	if d, _ := LoadDialect("notation"); d.Features() == nil || len(d.Features()) != 0 {
+	if d, _ := LoadPipeline("gencmu/jbogenbau"); d.Features() == nil || len(d.Features()) != 0 {
 		t.Fatalf("the notation has features %#v", d.Features())
 	}
 }
@@ -425,11 +425,11 @@ func TestSplitKeepsSpaces(t *testing.T) {
 	}
 }
 
-// TestConcurrentParses shares one dialect among goroutines; run it with
+// TestConcurrentParses shares one pipeline among goroutines; run it with
 // -race.
 func TestConcurrentParses(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +473,7 @@ func TestConcurrentParses(t *testing.T) {
 	}
 }
 
-// TestConcurrentFeatures shares one dialect among goroutines that turn
+// TestConcurrentFeatures shares one pipeline among goroutines that turn
 // gates and warnings on and off; run it with -race.
 func TestConcurrentFeatures(t *testing.T) {
 	t.Parallel()
@@ -512,7 +512,7 @@ func TestConcurrentFeatures(t *testing.T) {
 					errs <- "a concurrent parse differs"
 				}
 				if len(d.Features()) != 3 {
-					errs <- "the dialect's features changed"
+					errs <- "the pipeline's features changed"
 				}
 			}
 		}(g)
@@ -524,7 +524,7 @@ func TestConcurrentFeatures(t *testing.T) {
 	}
 }
 
-// TestConcurrentClassifiers shares one dialect among goroutines whose
+// TestConcurrentClassifiers shares one pipeline among goroutines whose
 // parses resolve its classifier for different features, one of which makes
 // an entry an error of the grammar (engine §2); run it with -race.
 func TestConcurrentClassifiers(t *testing.T) {
@@ -603,34 +603,34 @@ func TestDeepDerivations(t *testing.T) {
 	}
 }
 
-// A bootstrap stage's name and a document's path are strings, and null is
-// refused as the other libraries refuse it.
+// Required bootstrap documents and their entries reject null.
 func TestBootstrapNulls(t *testing.T) {
 	t.Parallel()
 	loadBundled()
-	bootstrap := bundled.sources["notation/bootstrap.json"]
-	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"notation/lexical.md"`, `"path":null`}} {
+	bootstrap := bundled.sources["data/preparsed/gencmu.json"]
+	for _, change := range [][2]string{{`"documents":{`, `"documents":null,"ignored":{`}, {`"grammars/gencmu/jbogenbau/lexical.md":{`, `"grammars/gencmu/jbogenbau/lexical.md":null,"ignored-entry":{`}} {
 		if !strings.Contains(bootstrap, change[0]) {
 			t.Fatalf("no %s in the bootstrap", change[0])
 		}
 		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
-		src["notation/bootstrap.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
-		_, err := LoadDialectSources(src, "p.md")
+		src["data/preparsed/gencmu.json"] = strings.Replace(bootstrap, change[0], change[1], 1)
+		_, err := LoadPipelineSources(src, "p.md")
 		var e *Error
-		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" {
 			t.Errorf("%s: expected an error of the bootstrap, got %v", change[1], err)
 		}
 	}
 }
 
-// Malformed precompiled DOMs: a bad compiled.json entry is a miss, read
+// Malformed preparsed DOMs: a bad data/preparsed/lojban.json entry is a miss, read
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
-func TestMalformedPrecompiled(t *testing.T) {
+func TestMalformedPreparsed(t *testing.T) {
 	t.Parallel()
 	loadBundled()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	gText := sources["g.md"]
+	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": gText}
 	bad := []string{
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
 		`{"repeat":{"ref":"A"},"extra":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
@@ -717,27 +717,27 @@ func TestMalformedPrecompiled(t *testing.T) {
 		if _, err := decodeDOM([]byte(dom), bundled.uni); err == nil {
 			t.Fatalf("a malformed DOM decodes: %s", dom)
 		}
-		// In compiled.json, with every hash matching: a miss.
+		// In data/preparsed/test.json, with every hash matching: a miss.
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
-		d, err := LoadDialectSources(src, "p.md")
+		src["data/preparsed/test.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
-			t.Fatalf("%s in compiled.json: %v", expr, err)
+			t.Fatalf("%s in data/preparsed/test.json: %v", expr, err)
 		}
 		res, err := d.Parse("ab", ParseOptions{})
 		if err != nil || !res.OK {
-			t.Fatalf("%s in compiled.json: the document was not read instead: %v %+v", expr, err, res)
+			t.Fatalf("%s in data/preparsed/test.json: the document was not read instead: %v %+v", expr, err, res)
 		}
 		// In the bootstrap: a load error.
 		src = map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
-		_, err = LoadDialectSources(src, "p.md")
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		_, err = LoadPipelineSources(src, "grammars/test/p.md")
 		var e *Error
 		if !errors.As(err, &e) || e.Kind != ErrorGrammar {
 			t.Fatalf("%s in the bootstrap: expected a load error, got %v", expr, err)
@@ -746,7 +746,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 }
 
 // Malformed range and property nodes take the whole loading path: in
-// compiled.json each is a miss, read from the document instead, and in the
+// data/preparsed/test.json each is a miss, read from the document instead, and in the
 // bootstrap each is an error of the bootstrap (engine §9). Each keeps the
 // range 'b'..'c' first, so an entry used by mistake would reject "ab".
 func TestMalformedCharacterClasses(t *testing.T) {
@@ -754,16 +754,17 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	loadBundled()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _General_Category_Letter")
 	gText := sources["g.md"]
+	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": gText}
 	format := strconv.Itoa(domFormat)
 	dom := func(expr string) string {
 		return `{"format":` + format + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
 	}
-	compiled := func(dom string) map[string]string {
+	preparsed := func(dom string) map[string]string {
 		src := map[string]string{}
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["compiled.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
+		src["data/preparsed/test.json"] = `{"format":` + format + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(gText) + `","dom":` + dom + `}}}`
 		return src
 	}
 	bootstrap := func(dom string) error {
@@ -771,12 +772,12 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		for k, v := range sources {
 			src[k] = v
 		}
-		src["notation/bootstrap.json"] = `{"format":` + format + `,"stages":[{"name":"lexical","documents":[{"path":"notation/lexical.md","dom":` + dom + `}]}]}`
-		_, err := LoadDialectSources(src, "p.md")
+		src["data/preparsed/gencmu.json"] = `{"format":` + format + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["lexical"],"at":[1,1]},{"name":"include","args":["lexical.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"grammars/gencmu/jbogenbau/lexical.md":{"hash":"0","dom":` + dom + `}}}`
+		_, err := LoadPipelineSources(src, "grammars/test/p.md")
 		return err
 	}
 	parse := func(src map[string]string) bool {
-		d, err := LoadDialectSources(src, "p.md")
+		d, err := LoadPipelineSources(src, "grammars/test/p.md")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -789,11 +790,11 @@ func TestMalformedCharacterClasses(t *testing.T) {
 	// The control: a well-formed entry is used, and rejects "ab"; in the
 	// bootstrap, it is read, and its notation then fails on g.md.
 	control := dom(`{"seq":[{"range":[{"string":"b"},{"string":"c"}]},{"ref":"_General_Category_Letter"}]}`)
-	if parse(compiled(control)) {
+	if parse(preparsed(control)) {
 		t.Fatal("the well-formed entry was not used")
 	}
 	var e *Error
-	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "notation/bootstrap.json" {
+	if err := bootstrap(control); !errors.As(err, &e) || e.Document == "data/preparsed/gencmu.json" {
 		t.Fatalf("the well-formed bootstrap was refused: %v", err)
 	}
 	for _, expr := range []string{
@@ -812,10 +813,10 @@ func TestMalformedCharacterClasses(t *testing.T) {
 		if _, err := decodeDOM([]byte(d), bundled.uni); err == nil {
 			t.Errorf("a malformed DOM decodes: %s", expr)
 		}
-		if !parse(compiled(d)) {
-			t.Errorf("%s in compiled.json: the document was not read instead", expr)
+		if !parse(preparsed(d)) {
+			t.Errorf("%s in data/preparsed/test.json: the document was not read instead", expr)
 		}
-		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "notation/bootstrap.json" {
+		if err := bootstrap(d); !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" {
 			t.Errorf("%s in the bootstrap: expected an error of the bootstrap, got %v", expr, err)
 		}
 	}
@@ -913,7 +914,7 @@ func TestInvalidUTF8(t *testing.T) {
 	if res, err := d.Parse("\U0001F600", ParseOptions{}); err != nil || !res.OK {
 		t.Errorf("a valid text: %v %+v", err, res)
 	}
-	_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text '\xed\xa0\x80'"), "p.md")
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text '\xed\xa0\x80'"), "p.md")
 	var e *Error
 	if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != "g.md" {
 		t.Errorf("a document that is not valid UTF-8: %v", err)
@@ -922,11 +923,11 @@ func TestInvalidUTF8(t *testing.T) {
 
 // A grammar document read from disk is strict UTF-8 (engine §1): bytes that
 // do not decode are a grammar error of that document, with no line or
-// column, found before any hash or compiled DOM. U+FFFD, supplementary
+// column, found before any hash or preparsed DOM. U+FFFD, supplementary
 // characters and a byte order mark decode as themselves.
 func TestFileUTF8(t *testing.T) {
 	t.Parallel()
-	const pipeline = "# A dialect\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"
+	const pipeline = "# A pipeline\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"
 	grammar := func(rule string) string {
 		return "# A grammar\n\n```jbogenbau\n%ambiguity-resolution greedy\n" + rule + "\n```\n"
 	}
@@ -949,7 +950,7 @@ func TestFileUTF8(t *testing.T) {
 		bad   string
 	}{
 		{"the pipeline's prose", func(b string) map[string]string {
-			return map[string]string{"p.md": "# A dialect " + b + "\n\n" + pipeline, "g.md": good}
+			return map[string]string{"p.md": "# A pipeline " + b + "\n\n" + pipeline, "g.md": good}
 		}, "p.md"},
 		{"a comment of the pipeline", func(b string) map[string]string {
 			return map[string]string{"p.md": strings.Replace(pipeline, "%stage main", "%stage main (* "+b+" *)", 1), "g.md": good}
@@ -964,7 +965,7 @@ func TestFileUTF8(t *testing.T) {
 	for _, p := range places {
 		for _, b := range invalid {
 			root := dir(p.files(b))
-			_, err := LoadDialectFile(filepath.Join(root, "p.md"))
+			_, err := LoadPipelineFile(filepath.Join(root, "p.md"))
 			var e *Error
 			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.HasSuffix(e.Document, "/"+p.bad) ||
 				!strings.Contains(e.Message, "not valid UTF-8") || e.Line != 0 || e.Column != 0 {
@@ -973,10 +974,10 @@ func TestFileUTF8(t *testing.T) {
 		}
 	}
 	root := dir(map[string]string{
-		"p.md": "# A dialect \uFFFD \U0001F600\n\n" + pipeline,
+		"p.md": "# A pipeline \uFFFD \U0001F600\n\n" + pipeline,
 		"g.md": grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)"),
 	})
-	d, err := LoadDialectFile(filepath.Join(root, "p.md"))
+	d, err := LoadPipelineFile(filepath.Join(root, "p.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -987,11 +988,11 @@ func TestFileUTF8(t *testing.T) {
 	}
 	// A byte order mark stays U+FEFF, so a fence after it opens no block.
 	marked := dir(map[string]string{"p.md": "\uFEFF" + pipeline[strings.Index(pipeline, "```"):], "g.md": good})
-	if _, err := LoadDialectFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
+	if _, err := LoadPipelineFile(filepath.Join(marked, "p.md")); err == nil || !strings.Contains(err.Error(), "at least one %stage") {
 		t.Errorf("a fence after a byte order mark: %v", err)
 	}
 	prose := dir(map[string]string{"p.md": "\uFEFF" + pipeline, "g.md": grammar("%rule text \"\uFEFF\"")})
-	d, err = LoadDialectFile(filepath.Join(prose, "p.md"))
+	d, err = LoadPipelineFile(filepath.Join(prose, "p.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1043,7 +1044,7 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 		{"%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W",
 			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
 	} {
-		d, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+		d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 		if err != nil {
 			t.Fatalf("%s: %v", c.grammar, err)
 		}
@@ -1099,7 +1100,7 @@ func TestCallerAttachments(t *testing.T) {
 // (docs/output.md).
 func TestAttachmentsRendered(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadPipeline("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1129,7 +1130,7 @@ func TestAttachmentsRendered(t *testing.T) {
 func TestAttachmentErrorOrder(t *testing.T) {
 	t.Parallel()
 	c := loadCase(t, "../../tests/engine/attach-error-order.json")
-	d, err := caseDialect(c, false)
+	d, err := casePipeline(c, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1144,7 +1145,7 @@ func TestAttachmentErrorOrder(t *testing.T) {
 func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
 	t.Parallel()
 	c := loadCase(t, "../../tests/engine/attach-error-insert-order.json")
-	d, err := caseDialect(c, false)
+	d, err := casePipeline(c, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1156,7 +1157,7 @@ func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
 
 // stageOutput is the output of the stage name of a parse of text, which must
 // succeed.
-func stageOutput(t *testing.T, d *Dialect, text, name string) []Token {
+func stageOutput(t *testing.T, d *Pipeline, text, name string) []Token {
 	t.Helper()
 	res, err := d.Parse(text, ParseOptions{})
 	if err != nil || !res.OK {
@@ -1183,7 +1184,7 @@ func hasTag(token Token, tag string) bool {
 // An empty ZOI body adds no token or placeholder. Gap recipes keep the spacing.
 func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadPipeline("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1196,11 +1197,11 @@ func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	}
 }
 
-// phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
+// grammars/lojban/common/zbalermorna.md: the token of the vowel after the shorthand mark
 // covers the mark, so a word that begins with the shorthand begins at it.
 func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("bpfk")
+	d, err := LoadPipeline("lojban/bpfk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1214,12 +1215,12 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 	}
 }
 
-// words/cll.md and words/forms.md: a Cy letter is never continued. So the
+// grammars/lojban/cll/morphology.md and grammars/lojban/common/forms.md: a Cy letter is never continued. So the
 // general join of run-words, a continued word before an onset, never joins a
 // Cy letter to the word after it, and only the Cy rule joins two letters.
 func TestCyLetterIsNeverContinued(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadPipeline("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1234,13 +1235,13 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 	}
 }
 
-// indicators/cll.md: the greedy ranking reads a nai after a leading
+// grammars/lojban/cll/indicators.md: the greedy ranking reads a nai after a leading
 // attitudinal into the leading run, with or without a ba'e before it, and
 // after a quotation opener as at the start of the text. No condition decides it,
 // so each of these texts has the verdict resolved in the indicator stage.
 func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadPipeline("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1274,7 +1275,7 @@ func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 	}
 }
 
-// syntax/experimental.md: the grammar reads no LA, since no word of the
+// grammars/lojban/experimental/syntax.md: the grammar reads no LA, since no word of the
 // experimental lexicon has it. A probe document after the lexicon moves la
 // from LE to LA, and then no rule reads la mlatu ku.
 func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
@@ -1290,19 +1291,19 @@ func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
 			return err
 		}
 		relative, err := filepath.Rel(root, path)
-		sources[filepath.ToSlash(relative)] = string(data)
+		sources["grammars/"+filepath.ToSlash(relative)] = string(data)
 		return err
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	include := `%include "../words/lexicon-experimental.md"`
-	if !strings.Contains(sources["dialects/experimental.md"], include) {
+	include := `%include "lexicon.md"`
+	if !strings.Contains(sources["grammars/lojban/experimental/pipeline.md"], include) {
 		t.Fatal("the pipeline no longer includes the lexicon")
 	}
-	sources["dialects/experimental.md"] = strings.Replace(sources["dialects/experimental.md"], include, include+"\n  %include \"../words/la-probe.md\"", 1)
-	sources["words/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
-	probe, err := LoadDialectSources(sources, "dialects/experimental.md")
+	sources["grammars/lojban/experimental/pipeline.md"] = strings.Replace(sources["grammars/lojban/experimental/pipeline.md"], include, include+"\n  %include \"la-probe.md\"", 1)
+	sources["grammars/lojban/experimental/la-probe.md"] = block("%classifier lexicon", `  "la" ∉ LE`, `  "la" ∈ LA`)
+	probe, err := LoadPipelineSources(sources, "grammars/lojban/experimental/pipeline.md")
 	if err != nil {
 		t.Fatal(err)
 	}

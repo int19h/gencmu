@@ -537,7 +537,7 @@ mod tests {
             }
         }
         let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
-        let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+        let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
         work::reset();
         if let Some(b) = bounds {
             for (kind, bound) in [
@@ -557,7 +557,7 @@ mod tests {
         }
         let started = std::time::Instant::now();
         let result = if depth {
-            dialect.parse("", &crate::ParseOptions::default()).unwrap()
+            pipeline.parse("", &crate::ParseOptions::default()).unwrap()
         } else if let Some(tokens) = fixture.get("tokens").and_then(Json::as_array) {
             let unit_size = shared.get("lengths").unwrap().as_array().unwrap()[0].as_int().unwrap() as usize;
             let all = growth_tokens(tokens, unit_size, size);
@@ -575,9 +575,9 @@ mod tests {
                     ..Default::default()
                 })
                 .collect();
-            dialect.parse_tokens(&input, &crate::ParseOptions::default()).unwrap()
+            pipeline.parse_tokens(&input, &crate::ParseOptions::default()).unwrap()
         } else {
-            dialect.parse(&format!("x{}", "a".repeat(size)), &crate::ParseOptions::default()).unwrap()
+            pipeline.parse(&format!("x{}", "a".repeat(size)), &crate::ParseOptions::default()).unwrap()
         };
         let outcome = if depth && !case.contains("ranked-sibling") {
             false

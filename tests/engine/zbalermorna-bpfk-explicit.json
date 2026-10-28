@@ -1,9 +1,9 @@
 {
   "description": "Both zbalermorna encodings use the same explicit phoneme recipes in bpfk. Mixed stress marks and shorthand preserve written source ownership.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": " 󲢠  󲢡  󲢢  󲢣  󲢤  󲢥  󲢦  󲢧  󲢨  󲢰  󲢱  󲢲  󲢳  󲢴  󲢵  󲢶  󲢷  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸  󲢸    󲢸  󲢸  󲢸  󲢸 aa pt pt pt pt a 󲣀󲢸 󲣀 󲣀󲢸 󲣁 󲣁󲢸 󲣂 󲣂󲢸 󲣃 󲣃󲢸 󲣄 󲣄󲢸 󲣅 󲣅󲢸 󲣐 󲣐󲢸 󲣑 󲣑󲢸 󲣒 󲣒󲢸 󲣓 󲣓󲢸 󲣔 󲣔󲢸 󲣕 󲣕󲢸 󲣊 󲣋 󲣆 󲣆󲢸 󲣇 󲣇󲢸 󲣈 󲣈󲢸 󲣉 󲣉󲢸 a󲢪a p󲢬t p󲢹t p󲢺t p󲢻t 󲢫a 󲢫󲢸",
   "options": {
     "until": "phonemes"

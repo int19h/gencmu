@@ -10,7 +10,7 @@ import (
 
 func normalizationTable(t *testing.T) *unicodeTable {
 	t.Helper()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestNormalizationOriginsAndCustomTable(t *testing.T) {
 
 func TestNormalizationRecordOrderAndDefaults(t *testing.T) {
 	t.Parallel()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

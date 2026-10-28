@@ -1,22 +1,22 @@
 //! The runs of `tests/shared-memo.json` (tests/README.md). The Rust library
 //! keeps no shared memo (engine §4.3), so the runs check that parses on one
-//! dialect, in every order and from several threads, give the results of
-//! parses on fresh dialects.
+//! pipeline, in every order and from several threads, give the results of
+//! parses on fresh pipelines.
 
 mod common;
 
 use common::{case_tokens, parse_json, repository, Value};
 
-/// A fresh dialect of a run.
-fn dialect(run: &Value) -> gencmu::Dialect {
-    match run.get("dialect").and_then(Value::str) {
-        Some(name) => gencmu::load_dialect(name).expect("the dialect"),
+/// A fresh pipeline of a run.
+fn pipeline(run: &Value) -> gencmu::Pipeline {
+    match run.get("pipeline").and_then(Value::str) {
+        Some(name) => gencmu::load_pipeline(name).expect("the pipeline"),
         None => {
             let rules = run.get("grammar").and_then(Value::str).expect("a grammar");
             let header = if rules.contains("%ambiguity-resolution") { "" } else { "%ambiguity-resolution greedy\n" };
             let grammar = format!("```jbogenbau\n{header}{rules}\n```\n");
             let pipeline = "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string();
-            gencmu::load_dialect_sources([("p.md".to_string(), pipeline), ("main.md".to_string(), grammar)], "p.md")
+            gencmu::load_pipeline_sources([("p.md".to_string(), pipeline), ("main.md".to_string(), grammar)], "p.md")
                 .expect("the grammar")
         }
     }
@@ -65,10 +65,10 @@ fn parses(run: &Value) -> Vec<Parse> {
     out
 }
 
-fn parse(dialect: &gencmu::Dialect, parse: &Parse) -> String {
+fn parse(pipeline: &gencmu::Pipeline, parse: &Parse) -> String {
     let result = match (&parse.text, &parse.tokens) {
-        (Some(text), _) => dialect.parse(text, &parse.options),
-        (None, Some(tokens)) => dialect.parse_tokens(tokens, &parse.options),
+        (Some(text), _) => pipeline.parse(text, &parse.options),
+        (None, Some(tokens)) => pipeline.parse_tokens(tokens, &parse.options),
         (None, None) => unreachable!("a parse has an input"),
     };
     match result {
@@ -83,9 +83,9 @@ fn shared_memo_runs() {
     let file = parse_json(&std::fs::read_to_string(path).expect("the runs")).expect("the runs are JSON");
     for run in file.get("runs").map(Value::array).expect("runs") {
         let parses = parses(run);
-        // Each reference parse has a dialect of its own.
-        let reference: Vec<String> = parses.iter().map(|p| parse(&dialect(run), p)).collect();
-        let shared = dialect(run);
+        // Each reference parse has a pipeline of its own.
+        let reference: Vec<String> = parses.iter().map(|p| parse(&pipeline(run), p)).collect();
+        let shared = pipeline(run);
         let forward: Vec<usize> = (0..parses.len()).collect();
         let backward: Vec<usize> = forward.iter().rev().copied().collect();
         for order in [&forward, &backward, &forward] {
@@ -93,7 +93,7 @@ fn shared_memo_runs() {
                 assert_eq!(parse(&shared, &parses[i]), reference[i], "parse {i}");
             }
         }
-        let threaded = dialect(run);
+        let threaded = pipeline(run);
         std::thread::scope(|scope| {
             for worker in 0..4 {
                 let (threaded, parses, reference) = (&threaded, &parses, &reference);

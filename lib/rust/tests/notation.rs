@@ -108,30 +108,36 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
         "",
     )
     .expect("the notation's document");
+    let boot_pipeline =
+        read_grammar_document("```jbogenbau\n%stage syntax\n%include \"../../../n.md\"\n```\n", "").unwrap();
     let bootstrap = format!(
-        r#"{{"format":{DOM_FORMAT},"stages":[{{"name":"syntax","documents":[{{"path":"n.md","dom":{notation}}}]}}]}}"#
+        r#"{{"format":{DOM_FORMAT},"documents":{{"grammars/gencmu/jbogenbau/pipeline.md":{{"hash":"0","dom":{boot_pipeline}}},"n.md":{{"hash":"0","dom":{notation}}}}}}}"#
     );
     // The pipeline comes from the cache, so that only t.md is read with
     // that notation.
     let pipeline = "```jbogenbau\n%stage main\n%include \"t.md\"\n```\n";
     let dom = read_grammar_document(pipeline, "").expect("the pipeline's document");
-    let compiled = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+    let preparsed = format!(
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/p.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         fnv1a64(&bootstrap),
-        fnv1a64(include_str!("../grammars/unicode.txt")),
-        fnv1a64(include_str!("../grammars/unicode-properties.txt")),
+        fnv1a64(include_str!("../data/unicode/unicode.txt")),
+        fnv1a64(include_str!("../data/unicode/unicode-properties.txt")),
         fnv1a64(pipeline)
     );
     let sources = [
-        ("notation/bootstrap.json", bootstrap.clone()),
-        ("compiled.json", compiled),
-        ("p.md", pipeline.to_string()),
-        ("t.md", "```jbogenbau\na\n```\n".to_string()),
+        ("data/preparsed/gencmu.json", bootstrap.clone()),
+        ("data/preparsed/test.json", preparsed),
+        ("grammars/test/p.md", pipeline.to_string()),
+        ("grammars/test/t.md", "```jbogenbau\na\n```\n".to_string()),
     ];
-    let error = gencmu::load_dialect_sources(sources, "p.md").expect_err("a tie");
+    let error = gencmu::load_pipeline_sources(sources, "grammars/test/p.md").expect_err("a tie");
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{error}");
-    assert_eq!((error.document.as_deref(), error.line, error.column), (Some("t.md"), None, None), "{error}");
-    // The loader names the stage of the dialect that includes t.md, and
+    assert_eq!(
+        (error.document.as_deref(), error.line, error.column),
+        (Some("grammars/test/t.md"), None, None),
+        "{error}"
+    );
+    // The loader names the stage of the pipeline that includes t.md, and
     // the message names the stage of the notation.
     assert_eq!(error.stage.as_deref(), Some("main"));
     assert_eq!(error.message, "the grammar text is ambiguous: the syntax stage of the notation reads it in two ways");

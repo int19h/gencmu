@@ -1,9 +1,9 @@
 {
   "description": "The period leaves the mark as ZO's standalone target. Broda remains outside that quote.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo\" broda",
   "options": {
     "until": "words"

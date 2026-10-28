@@ -93,9 +93,9 @@ function main() {
     const classifier = "```jbogenbau\n%classifier lexicon\n" + entries.join("\n") + "\n```";
     console.log(classifier);
   } else {
-    const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
+    const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
     const loader = new Loader((name) => {
-      if (name !== "unicode.txt" && name !== "notation/bootstrap.json") return undefined;
+      if (name !== "data/unicode/unicode.txt" && name !== "data/preparsed/gencmu.json") return undefined;
       return fs.readFileSync(path.join(root, name), "utf8");
     });
     const dom = loader.readDocument(fs.readFileSync(documentPath, "utf8"), documentPath);

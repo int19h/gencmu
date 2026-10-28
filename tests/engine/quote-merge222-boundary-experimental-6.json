@@ -1,9 +1,9 @@
 {
   "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "pu lo'ai ku le'ai klama",
   "options": {},
   "expect": {

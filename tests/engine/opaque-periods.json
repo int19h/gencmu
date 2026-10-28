@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part v | pause | y\n%rule v :- $.verbatim-text | (\"a\" \".\" \".\" \"b\") %emits $ :: V\n\n\n%rule pause \"-\" %emits $ :: (P ∪ Sound-002E-s) := \".\" :- \" \"\n\n%rule y \"y\" %emits $ :: (Y ∪ Sound-0079-s) := \"y\"\n\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text all %emits $ :: Z\n\n%rule all [{any}]\n%rule any V | P | Y\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "-a..b--y-",
   "expect": {
     "result": {

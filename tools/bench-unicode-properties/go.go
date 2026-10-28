@@ -40,26 +40,26 @@ func names(value string) []string {
 	return strings.Split(decode(value), "\n")
 }
 func main() {
-	dialects := map[string]*gencmu.Dialect{}
+	pipelines := map[string]*gencmu.Pipeline{}
 	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
 		fields := strings.Split(input.Text(), "\t")
 		var answer any
 		switch fields[0] {
 		case "load":
-			var dialect *gencmu.Dialect
+			var pipeline *gencmu.Pipeline
 			if fields[2] == "-" {
-				dialect = must(gencmu.LoadDialect("cll-ebnf"))
+				pipeline = must(gencmu.LoadPipeline("lojban/cll"))
 			} else {
 				sources := map[string]string{}
 				for _, row := range rows(fields[2]) {
 					sources[decode(row[0])] = decode(row[1])
 				}
-				dialect = must(gencmu.LoadDialectSources(sources, "p.md"))
+				pipeline = must(gencmu.LoadPipelineSources(sources, "p.md"))
 			}
-			dialects[fields[1]] = dialect
+			pipelines[fields[1]] = pipeline
 			features := []any{}
-			for _, f := range dialect.Features() {
+			for _, f := range pipeline.Features() {
 				features = append(features, []any{f.Name, f.Kind, f.Default})
 			}
 			answer = map[string]any{"features": features}
@@ -79,7 +79,7 @@ func main() {
 			for repeat := 0; repeat < count; repeat++ {
 				results = nil
 				for _, c := range items {
-					results = append(results, must(dialects[fields[1]].Parse(c.text, c.options)))
+					results = append(results, must(pipelines[fields[1]].Parse(c.text, c.options)))
 				}
 			}
 			seconds := time.Since(start).Seconds()
@@ -99,7 +99,7 @@ func main() {
 		case "concurrent":
 			type table struct {
 				name    string
-				dialect *gencmu.Dialect
+				pipeline *gencmu.Pipeline
 			}
 			tables := []table{}
 			for _, row := range rows(fields[2]) {
@@ -107,7 +107,7 @@ func main() {
 				for _, entry := range rows(row[1]) {
 					sources[decode(entry[0])] = decode(entry[1])
 				}
-				tables = append(tables, table{row[0], must(gencmu.LoadDialectSources(sources, "p.md"))})
+				tables = append(tables, table{row[0], must(gencmu.LoadPipelineSources(sources, "p.md"))})
 			}
 			results := make([]any, len(tables)*4)
 			var group sync.WaitGroup
@@ -116,8 +116,8 @@ func main() {
 				go func(i int) {
 					defer group.Done()
 					t := tables[i%len(tables)]
-					a := must(t.dialect.Parse("a", gencmu.ParseOptions{}))
-					b := must(t.dialect.Parse("b", gencmu.ParseOptions{}))
+					a := must(t.pipeline.Parse("a", gencmu.ParseOptions{}))
+					b := must(t.pipeline.Parse("b", gencmu.ParseOptions{}))
 					results[i] = map[string]any{"name": t.name, "a": a.OK, "b": b.OK, "tags": b.Tree.Tags}
 				}(i)
 			}

@@ -18,5 +18,5 @@ for (const file of fs.readdirSync(directory).filter((name) => name.endsWith(".js
 }
 for (const [reason, cases] of [...groups].sort((a, b) => b[1].length - a[1].length)) {
   console.log(`${cases.length} × ${reason}`);
-  for (const c of cases) console.log(`  ${c.id} [${c.dialect}] seeded ${c.seeded}, expect ${c.expect}: ${JSON.stringify(c.text.length > 80 ? c.text.slice(0, 80) + "…" : c.text)}`);
+  for (const c of cases) console.log(`  ${c.id} [${c.pipeline}] seeded ${c.seeded}, expect ${c.expect}: ${JSON.stringify(c.text.length > 80 ? c.text.slice(0, 80) + "…" : c.text)}`);
 }

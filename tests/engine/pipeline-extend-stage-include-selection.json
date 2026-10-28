@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text X\n%extend-stage first\n%include \"patch.md\"\n%redefine-rule text (X X)\n```\n",
     "patch.md": "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n%extend-stage second\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "b",
   "expect": {
     "result": {

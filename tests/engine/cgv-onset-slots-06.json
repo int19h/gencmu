@@ -1,9 +1,9 @@
 {
   "description": "A borrowing requires a consonant cluster. A CgV onset alone does not supply that cluster.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "kuilama",
   "options": {
     "until": "words"

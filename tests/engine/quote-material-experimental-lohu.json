@@ -1,9 +1,9 @@
 {
   "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mi,lo'u ,coi, le'u, do mi,lo'u ⁠­coi⁠­ le'u, do mi,lo'u ~·ーｰcoi~·ーｰ le'u, do",
   "options": {
     "until": "words"

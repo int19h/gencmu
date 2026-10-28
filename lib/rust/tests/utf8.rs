@@ -1,13 +1,13 @@
 //! A grammar document read from disk is strict UTF-8 (engine §1): bytes
 //! that do not decode are a grammar error of that document, with no line or
-//! column, found before any hash or compiled DOM.
+//! column, found before any hash or preparsed DOM.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use gencmu::{ErrorKind, ParseOptions};
 
-const PIPELINE: &str = "# A dialect\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
+const PIPELINE: &str = "# A pipeline\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
 
 fn grammar(rule: &str) -> String {
     format!("# A grammar\n\n```jbogenbau\n%ambiguity-resolution greedy\n{rule}\n```\n")
@@ -58,7 +58,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
             "the pipeline's prose",
             Box::new({
                 let good = good.clone();
-                move |b| vec![("p.md", with_bytes(&format!("# A dialect @\n\n{PIPELINE}"), b)), ("g.md", good.clone())]
+                move |b| vec![("p.md", with_bytes(&format!("# A pipeline @\n\n{PIPELINE}"), b)), ("g.md", good.clone())]
             }),
             "p.md",
         ),
@@ -95,7 +95,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
     for (place, files, bad) in &places {
         for bytes in INVALID {
             let directory = Directory::new(&files(bytes));
-            let error = gencmu::load_dialect_file(directory.pipeline()).expect_err(place);
+            let error = gencmu::load_pipeline_file(directory.pipeline()).expect_err(place);
             assert_eq!(error.kind, ErrorKind::Grammar, "{place}: {error}");
             let document = error.document.as_deref().expect("a document");
             assert!(Path::new(document).ends_with(bad), "{place}: {document}");
@@ -108,25 +108,25 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
 #[test]
 fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
     let directory = Directory::new(&[
-        ("p.md", format!("# A dialect \u{FFFD} \u{1F600}\n\n{PIPELINE}").into_bytes()),
+        ("p.md", format!("# A pipeline \u{FFFD} \u{1F600}\n\n{PIPELINE}").into_bytes()),
         ("g.md", grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)").into_bytes()),
     ]);
-    let dialect = gencmu::load_dialect_file(directory.pipeline()).expect("a dialect");
-    assert!(dialect.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &ParseOptions::default()).unwrap().ok);
-    assert!(!dialect.parse("\u{FFFD}\u{1F600}", &ParseOptions::default()).unwrap().ok);
+    let pipeline = gencmu::load_pipeline_file(directory.pipeline()).expect("a pipeline");
+    assert!(pipeline.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &ParseOptions::default()).unwrap().ok);
+    assert!(!pipeline.parse("\u{FFFD}\u{1F600}", &ParseOptions::default()).unwrap().ok);
     // A byte order mark stays U+FEFF, so a fence after it opens no block.
     let fence = &PIPELINE[PIPELINE.find("```").unwrap()..];
     let marked = Directory::new(&[
         ("p.md", format!("\u{FEFF}{fence}").into_bytes()),
         ("g.md", grammar("%rule text \"a\"").into_bytes()),
     ]);
-    let error = gencmu::load_dialect_file(marked.pipeline()).expect_err("no block");
+    let error = gencmu::load_pipeline_file(marked.pipeline()).expect_err("no block");
     assert!(error.message.contains("at least one %stage"), "{error}");
     let prose = Directory::new(&[
         ("p.md", format!("\u{FEFF}{PIPELINE}").into_bytes()),
         ("g.md", grammar("%rule text \"﻿\"").into_bytes()),
     ]);
     assert!(
-        gencmu::load_dialect_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &ParseOptions::default()).unwrap().ok
+        gencmu::load_pipeline_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &ParseOptions::default()).unwrap().ok
     );
 }

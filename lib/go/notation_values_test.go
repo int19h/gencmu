@@ -18,16 +18,10 @@ type notationAlias struct {
 func valueNotation(t *testing.T, aliases []notationAlias) string {
 	t.Helper()
 	var bootstrap map[string]any
-	if err := json.Unmarshal([]byte(bundled.sources["notation/bootstrap.json"]), &bootstrap); err != nil {
+	if err := json.Unmarshal([]byte(bundled.sources["data/preparsed/gencmu.json"]), &bootstrap); err != nil {
 		t.Fatal(err)
 	}
-	var lexical map[string]any
-	for _, stage := range bootstrap["stages"].([]any) {
-		s := stage.(map[string]any)
-		if s["name"] == "lexical" {
-			lexical = s["documents"].([]any)[0].(map[string]any)["dom"].(map[string]any)
-		}
-	}
+	lexical := bootstrap["documents"].(map[string]any)["grammars/gencmu/jbogenbau/lexical.md"].(map[string]any)["dom"].(map[string]any)
 	if lexical == nil {
 		t.Fatal("the bootstrap has no lexical stage")
 	}

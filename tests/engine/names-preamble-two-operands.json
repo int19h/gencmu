@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%names \"‹UNKNOWN NAME›\" \"other.txt\"\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
     "extra.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "",

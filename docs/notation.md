@@ -1,6 +1,6 @@
 # jbogenbau, the grammar notation
 
-Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/notation/lexical.md` and `grammars/notation/syntax.md`.
+Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, read in order, are one grammar, and the prose between the blocks explains it. This document explains jbogenbau, the notation that those blocks use. The grammars only say what they are about, and refer here for the rest. Two grammars written in jbogenbau itself define it: `grammars/gencmu/jbogenbau/lexical.md` and `grammars/gencmu/jbogenbau/syntax.md`.
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar gives computed values to constituents. A constituent is the text that one rule matches. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
 
@@ -10,7 +10,7 @@ Conditions over the parts restrict which parses exist. A condition can also ask 
 
 Tokens include characters, phonemes and words. A transducer reads tokens and emits another sequence.
 
-Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A dialect is a pipeline of these grammars, its stages, defined by one pipeline document.
+Each rule can also say what its constituents hand to the next grammar. So a grammar is a transducer. A pipeline is an ordered series of these grammars. Each grammar forms one stage. One pipeline document names the stages.
 
 An ordinary choice is unordered: its alternatives have no priority by position. A ranked choice filters alternatives at one written position before ranking. Rule flags and the stage directive then rank the remaining complete parses. The sections "Ranked choices" and "Ambiguity" describe filtering and ranking.
 
@@ -128,9 +128,9 @@ Even without explicit grammar references, every stage-zero token carries its dec
 
 A known property or value missing from the configured table is a load error at its reference. Without scalar assignments, a supported value remains valid but contributes no stage-zero tags. Its terminal can still match a caller token carrying that tag.
 
-The core data remains in `grammars/unicode.txt`. The separate pinned `grammars/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
+The core data remains in `data/unicode/unicode.txt`. The separate pinned `data/unicode/unicode-properties.txt` declares additional support and assignments, with all UCD defaults resolved. A custom properties file replaces bundled support without fallback. A custom core without that companion supports only its five core properties.
 
-Stage zero assigns the emoji properties in every dialect. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
+Stage zero assigns the emoji properties in every pipeline. ASCII digits, `#`, and `*` carry `_Emoji_Component` in the bundled table.
 
 Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
@@ -339,7 +339,7 @@ A gate, `name?`, keeps the alternative only while the feature `name` is on, and 
 
 A warning, `name!`, keeps the alternative whether the feature is on or off. While the feature is on, a parse whose chosen tree uses the alternative carries a warning. The warning names the feature and the text that the alternative's constituent covers. A warning changes nothing that the grammar accepts or chooses. It reports where a text relies on an addition to a base grammar.
 
-An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the dialect has an error. The two guards can be in any stages of the dialect. A warning has no negated form, because it keeps its alternative either way.
+An alternative with several guards exists when all its gates hold. A name is a gate or a warning, not both. If one guard uses a name as a gate and another guard uses it as a warning, the pipeline has an error. The two guards can be in any stages of the pipeline. A warning has no negated form, because it keeps its alternative either way.
 
 ```jbogenbau
 %rule tanru-unit-2
@@ -351,11 +351,11 @@ An alternative with several guards exists when all its gates hold. A name is a g
   | y-cmavo! Cmavo<Cmavo-Warning>
 ```
 
-A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The experimental dialect enables `experimental-cgv` by default. Callers enable other bundled warnings when they need them.
+A pipeline that extends another pipeline can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the pipeline accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The experimental pipeline enables `experimental-cgv` by default. Callers enable other bundled warnings when they need them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
+A change to how the pipeline reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The pipeline can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled dialects do not guard every change. The bundled warnings are `y-cmavo` in `cll-ebnf` and `experimental-cgv` in `experimental`. The experimental syntax additions carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
+The bundled pipelines do not guard every change. The bundled warnings are `y-cmavo` in `lojban/cll` and `experimental-cgv` in `lojban/experimental`. The experimental syntax additions carry no warning. A pipeline also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the pipeline then say so.
 
 ## Stitching documents
 
@@ -378,7 +378,7 @@ A stage reads its input with one grammar. The loader assembles that grammar from
 
 So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` or `%extend-rule` is an error. So is a reference to a rule that no document defines. A misspelled `%rule` defines an additional rule that nothing reads, and the audit (gencmu's report on a grammar) reports it as unreachable.
 
-The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
+The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a pipeline on its base in one place.
 
 `%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` and `%redefine-rule(fewest)` replace both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
@@ -497,7 +497,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Quote marker classes enter through the marker constants. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
+The first line defines a constant of the words stage in `grammars/lojban/common/stream.md`. The last line extends Zantufa's magic words in `grammars/lojban/zantufa/stream.md`. Quote marker classes enter through the marker constants. Other pipelines exclude LOhAI and LEhAI because the experimental pipeline reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
@@ -513,7 +513,7 @@ Each declaration creates a version, an immutable definition of one constant. The
 
 A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition.
 
-The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
+The loader gives the constants their values when it stitches each stage. So a document that several pipelines include takes the values of each pipeline. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
 
 ### String literals and escapes
 
@@ -546,78 +546,6 @@ Every White_Space scalar except U+0020 requires an escape. A backslash remains l
 %const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
-
-### Escape migration
-
-The replaced notation used predefined scalar references such as `$_0301`. Current notation uses quoted escapes instead. These source spellings appear here only to define migration. They are not accepted current syntax.
-
-| Replaced form or position | Current form or migration rule |
-| --- | --- |
-| `$_0301`, `$_0022`, `$_005C` | `"‹U+0301›"`, `"‹U+0022›"`, `"‹U+005C›"` |
-| `$_D7FF..$_E000` | `"‹U+D7FF›".."‹U+E000›"` |
-| `"e" $_0301` | `"e" "‹U+0301›"`, still two token terminals |
-| `"e" ++ $_0301` | `"e" ++ "‹U+0301›"`, with the explicit concatenation retained |
-| Pattern `#$_0301` | `#"‹U+0301›"`, through the pattern migration below |
-| Body terminals, constants, recipes, tests, classifier keys, ranges, conditions, and call arguments | Replace each scalar reference with one quoted numeric escape, without merging adjacent terms. |
-| Old diagnostic `"a" ++ $_0301` | Current diagnostic `"a‹U+0301›"`, after resolved values join into one printed string |
-| `{"const":"_0301","at":[L,C]}` in a string-term position | `{"string":"\u0301"}`, without the removed reference's `at` |
-| A user `const` or a containing constructor | Keep the user name or constructor, then recursively convert its string terms. |
-| Surrogate or out-of-range scalar references | A corresponding numeric escape fails escape inspection at `‹`. It cannot produce a valid decoded DOM string. |
-| A declaration that used a predefined scalar reference as its name | It remains an invalid declaration. A quoted replacement cannot become a constant name. |
-
-DOM conversion visits every term and argument, including pattern literals, range endpoints, test operands, recipes, classifier keys, and nested call arguments. It needs no Unicode names lookup. Only user constant references retain their names. Existing concatenation boundaries, empty operands, and source positions on surviving constructors remain intact.
-
-Scalar conversion can merge previously distinct call-argument keys. Bindings and instance edits require inspection after conversion. If distinct argument identities are needed, user constants can retain separate names.
-
-The format-35 pattern mapping below applies this scalar conversion before it converts pattern structure. An invalid legacy scalar requires an invalid-source escape case or a corresponding malformed-string DOM case. Migration cannot discard its intended violation or construct a valid string from a surrogate.
-
-The following four notation cases become valid documents. Backslashes remain ordinary characters and do not decode the following letters.
-
-| Case | Current decoded string |
-| --- | --- |
-| `character-bad-escape` | Backslash followed by x61 |
-| `error-bad-escape` | Backslash followed by q in the value test |
-| `character-escaped-p` | Backslash followed by p |
-| `property-escaped-p-later` | a, backslash, then p{L} |
-
-For the cases below, the migrated invalid escape precedes every reader error. Each error has kind `grammar` and the stated line and column. Positions include the pattern replacements in the fixture table. A separate lexical failure still precedes escape inspection. This also changes previously successful extra-parts cases that hid an invalid scalar from the reader.
-
-| Case | New line | New column |
-| --- | --- | --- |
-| `canonical-name-concat-position` | 2 | 30 |
-| `character-surrogate` | 2 | 10 |
-| `concat-order-second-tag-before-scalar` | 2 | 24 |
-| `concat-order-set-before-scalar` | 2 | 25 |
-| `concat-order-tag-before-scalar` | 2 | 17 |
-| `concat-order-unresolved-before-scalar` | 2 | 24 |
-| `reader-order-capture-name-before-scalar` | 2 | 16 |
-| `reader-order-grouped-terminal-scalar` | 2 | 14 |
-| `reader-order-pattern-repeated-tag-before-scalar` | 2 | 36 |
-| `reader-order-pattern-reversed-tests-before-scalar` | 2 | 36 |
-| `reader-order-pattern-scalar-reference-tag` | 2 | 36 |
-| `reader-order-pattern-scalar-reference-value` | 2 | 36 |
-| `reader-order-prefixed-scalar-join-tag` | 2 | 46 |
-| `reader-order-prefixed-scalar-join-value` | 2 | 46 |
-| `reader-order-range-first-scalar-tag` | 2 | 13 |
-| `reader-order-range-first-scalar-value` | 2 | 13 |
-| `reader-order-range-last-scalar-tag` | 2 | 18 |
-| `reader-order-range-last-scalar-value` | 2 | 18 |
-| `reader-order-repeated-tag-before-scalar` | 2 | 13 |
-| `reader-order-reversed-tests-before-scalar` | 2 | 13 |
-| `reader-order-scalar-reference-tag` | 2 | 13 |
-| `reader-order-scalar-reference-value` | 2 | 13 |
-| `reader-order-target-before-group-scalar` | 2 | 14 |
-| `string-escape-surrogate` | 2 | 12 |
-| `string-escape-too-large` | 2 | 10 |
-| `values-invalid-engine-scalar` | 2 | 10 |
-| `notation-shapes.extraParts[0]` | 3 | 22 |
-| `notation-shapes.extraParts[1]` | 4 | 34 |
-| `notation-shapes.extraParts[2]` | 3 | 17 |
-| `notation-shapes.extraParts[9]` | 3 | 27 |
-| `notation-shapes.extraParts[59]` | 3 | 38 |
-| `notation-shapes.extraParts[61]` | 3 | 38 |
-
-If an old case must retain its reader-order purpose, a valid scalar replaces its invalid scalar. A separate invalid-escape case pins the new earlier phase. Descriptions, expected DOMs, diagnostic strings, and error positions follow the migrated source. Grammar documents receive the same replacements, without changing token or concatenation boundaries.
 
 ### String concatenation
 
@@ -747,358 +675,7 @@ A parameter alone can substitute one whole pattern. In a child list, that patter
 
 Each decoration conflicts only with the same decoration on the argument. An exact prefix requires an argument without an exact prefix. An attached list requires a rule test or call without an attached list. Thus `·@X` accepts `#a« b »`, while `@X« b »` accepts `#·a`. Tests keep their ordinary target and order rules.
 
-The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes and [the migration tables](#pattern-migration) cover the replaced syntax.
-
-### Pattern migration
-
-The tables give replacement spellings without changing the structural tree. Replaced-form columns preserve actual source spellings. Replacement columns use current string escapes. They preserve each node test's single-child search. A conversion never combines separate name and child predicates into one attached test. Such a combination requires the same node and can change the answer.
-
-The form table covers the constructors, grouping boundaries, paths, sets, tests, and parameters:
-
-| Replaced form | Replacement | Meaning |
-| --- | --- | --- |
-| `#a`, `#(a)`, `#((a))` | `#a` | One node test |
-| `#🆓`, `#(🆓)` | `#🆓` | One emoji rule test |
-| `#pair`, `#(pair)` | `#pair` | One template family |
-| `#(pair("a", "b"))` | `#pair("a", "b")` | One exact call |
-| `#(@X)` | `#@X` | One substituted pattern |
-| `#(_)` | `#_` | Wildcard terminal identity |
-| `#(T<A>="x")` | `#T<A>="x"` | Tests on the same terminal leaf |
-| `#("a")`, `#($_0061)`, `#($S)` | `#"a"`, `#"‹U+0061›"`, `#$S` | Terminal identity or a constant's predicate |
-| `#("a".."z")` | `#"a".."z"` | Range terminal identity |
-| `#(a b)` | `#« a b »` | Complete child sequence |
-| `#(a (b c))` | `#« a b c »` | Grouped sibling sequence |
-| `#(a #(b c))` | `#« a « b c » »` | One child with its own child list |
-| `#(a #(b))` | `#« a b »` | A nested literal with one node test |
-| `#([a])`, `#([(a)])` | `#« [a] »` | Optional child |
-| `#([a b])` | `#« [a b] »` | Optional sequence |
-| `#(a #([b]))` | `#« a « [b] » »` | One child whose own list is optional |
-| `#({a})`, `#({a b})` | `#« {a} »`, `#« {a b} »` | One or more item sequences |
-| `#({a / s})` | `#« {a / s} »` | Separated repetition |
-| `#({[a]})` | `#« {[a]} »` | A nullable repetition that can consume |
-| `#(⋯)`, `#(a ⋯ b)` | `#« ⋯ »`, `#« a ⋯ b »` | Sibling gaps |
-| `#(⋮ a)`, `#(a ⋰)`, `#(⋱ a)` | Unchanged | Whole-pattern paths |
-| `#((a b) ⋰)` | `#(« a b » ⋰)` | Path to a child-list predicate |
-| `#(⋱ (a b))` | `#(⋱ « a b »)` | Last-child path to a child-list predicate |
-| `#(a ⋰ ⋱ b)` | `#« a ⋰ ⋱ b »` | Separate paths on two children |
-| `#(a ∪ b)`, `#(a ∩ b)`, `#(a ∖ b)` | Unchanged | Whole-pattern set operations |
-| `#(a b ∩ c)` | `#(« a b » ∩ c)` | A sequence as one set operand |
-| `#(a (b ∪ c))` | `#« a (b ∪ c) »` | A set as one child item |
-| `#(a (#b ∪ #c))` | `#« a (b ∪ c) »` | Nested literals inside a child set |
-| `#(#(a ∪ b) ∪ c)` | `#(a ∪ b ∪ c)` | Flat union |
-| `#((a ∩ b) ∩ c)` | `#(a ∩ b ∩ c)` | Flat intersection |
-| `#(a ∖ (b ∖ c))` | Unchanged | Right-nested difference |
-| `#(A @X)`, `#(⋯ @X)` | `#« A @X »`, `#« ⋯ @X »` | Mixed unresolved child items |
-| `#()`, `#(a \| b)`, `#({...a})` | Invalid | Empty literals, outer choices, and chain markers remain invalid |
-
-Exact prefixes, attached named child lists, empty lists, and child choices have no general replacement in the former syntax. A supplied one-child child-list DOM now prints `#« a »`. A `literal` with a user `const` converts to `constant`. Decoded literal strings use `literal` with a `string` term. Such conversions belong to migration tooling, not format-40 shape acceptance.
-
-The following mapping converts valid format-35 pattern DOMs to format 40. `M(P)` converts a whole pattern. `I(C)` converts a child expression to an item array. The conversion retains source positions on corresponding atoms and user constant references. It first recursively replaces legacy scalar references with decoded string terms, as defined in the escape migration.
-
-| Format-35 form | Format-40 form |
-| --- | --- |
-| Pattern `{"children":C}` | `{"any":true,"children":I(C)}` |
-| Child `{"node":P}` | `[{"child":M(P)}]` |
-| Child `{"sequence":[C1,...,Cn]}` | Concatenate `I(C1)` through `I(Cn)` into one array |
-| Child `{"optional":C}` | `[{"optional":I(C)}]` |
-| Child `{"repeat":C}` | `[{"repeat":I(C)}]` |
-| Child `{"repeat":C,"separator":S}` | `[{"repeat":I(C),"separator":I(S)}]` |
-| Child `{"siblings":true}` | `[{"siblings":true}]` |
-| Pattern `{"union":[P1,...,Pn]}` | Convert each operand with M, then flatten direct union operands |
-| Pattern `{"intersection":[P1,...,Pn]}` | Convert each operand with M, then flatten direct intersection operands |
-| Pattern `{"difference":[P,Q]}` | `{"difference":[M(P),M(Q)]}` |
-| Pattern `{"path":K,"pattern":P}` | `{"path":K,"pattern":M(P)}` |
-| String term `{"const":"_0301","at":Q}` anywhere | `{"string":"\u0301"}` before structural conversion |
-| Pattern `{"literal":{"const":USER,"at":Q},"at":P}` | `{"constant":USER,"at":P}` |
-| Pattern test | Retain the test and operands, then convert its `expr` with M |
-| Other pattern atom | Retain its constructor, fields, and source position |
-
-The conversion also visits patterns inside call arguments and other terms. It preserves user constant names rather than their evaluated values. Removed scalar references become strings throughout literals, ranges, tests, recipes, and call arguments. Flat intersections preserve order and duplicate operands. The conversion normalizes engine-tag identifiers to current canonical names, including general categories. The resulting format-40 DOM receives ordinary shape and type inspection.
-
-Malformed-DOM fixtures require corresponding format-40 mutations that preserve their intended violation. A converter must not discard an invalid field to make a malformed fixture valid. Loaders still reject a format-35 supplied DOM and skip a format-35 cache. This mapping defines migration tooling, not automatic cache conversion.
-
-Depth cases require new limits from engine §9.3. An old child sequence contributes three edges from its pattern root to a child pattern. Its format-40 replacement contributes two edges. Optional, repeat, path, and other surrounding constructors keep their specified depth contributions. Migration recomputes each fixture's depth limit rather than applying one fixed offset.
-
-The following table covers every outer pattern literal in the bundled grammars. Locations name grammar files and their source lines. Nested literals follow the form table and retain every child boundary.
-
-| Grammar location | Replaced spelling | Replacement |
-| --- | --- | --- |
-| `grammars/syntax/cll.md:204` | `#(tag)` | `#tag` |
-| `grammars/syntax/cll.md:204` | `#(⋮ (FIhO ∪ free))` | `#(⋮ (FIhO ∪ free))` |
-| `grammars/syntax/cll.md:205` | `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
-| `grammars/syntax/cll.md:206` | `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
-| `grammars/syntax/cll.md:207` | `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
-| `grammars/syntax/cll.md:208` | `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
-| `grammars/syntax/cll.md:209` | `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
-| `grammars/syntax/cll.md:210` | `#($KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
-| `grammars/syntax/experimental.md:133` | `#(ek ⋰)` | `#(ek ⋰)` |
-| `grammars/syntax/experimental.md:133` | `#(VUhU ⋰)` | `#(VUhU ⋰)` |
-| `grammars/syntax/experimental.md:299` | `#([tag] KE [🆓] gek-sentence KEhE [🆓])` | `#« [tag] KE [🆓] gek-sentence KEhE [🆓] »` |
-| `grammars/syntax/experimental.md:300` | `#([tag] $KE-UNIT)` | `#« [tag] $KE-UNIT »` |
-| `grammars/syntax/experimental.md:301` | `#($CONNECTED-KE-SELBRI tail-terms)` | `#« $CONNECTED-KE-SELBRI tail-terms »` |
-| `grammars/syntax/experimental.md:302` | `#($CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU))` | `#« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
-| `grammars/syntax/experimental.md:363` | `#(⋯ CU [🆓])` | `#« ⋯ CU [🆓] »` |
-| `grammars/syntax/experimental.md:363` | `#(CU ⋰)` | `#(CU ⋰)` |
-| `grammars/syntax/experimental.md:564` | `#(tag KU="" [🆓])` | `#« tag KU="" [🆓] »` |
-| `grammars/syntax/experimental.md:565` | `#(NA [🆓] KU="" [🆓])` | `#« NA [🆓] KU="" [🆓] »` |
-| `grammars/syntax/experimental.md:709` | `#(sumti)` | `#sumti` |
-| `grammars/syntax/experimental.md:710` | `#(sumti)` | `#sumti` |
-| `grammars/syntax/experimental.md:711` | `#(tagged-term)` | `#tagged-term` |
-| `grammars/syntax/experimental.md:719` | `#(quantifier ⋰)` | `#(quantifier ⋰)` |
-| `grammars/syntax/experimental.md:923` | `#(forethought-operator ⋰)` | `#(forethought-operator ⋰)` |
-| `grammars/syntax/experimental.md:952` | `#(joik-jek-ek ⋰)` | `#(joik-jek-ek ⋰)` |
-| `grammars/syntax/experimental.md:1147` | `#(free)` | `#free` |
-| `grammars/syntax/experimental.md:1147` | `#(XI ⋯)` | `#« XI ⋯ »` |
-| `grammars/syntax/experimental.md:1148` | `#(⋱ (🆓 ∩ #(⋯ $NON-XI-FREE ⋯)))` | `#(⋱ (🆓 ∩ « ⋯ $NON-XI-FREE ⋯ »))` |
-| `grammars/syntax/zantufa.md:186` | `#({sentence / gik})` | `#« {sentence / gik} »` |
-| `grammars/syntax/zantufa.md:186` | `#(sentence ⋰)` | `#(sentence ⋰)` |
-| `grammars/syntax/zantufa.md:194` | `#(#(na-clause KU="") VAU="")` | `#« « na-clause KU="" » VAU="" »` |
-| `grammars/syntax/zantufa.md:222` | `#(na-clause KU="")` | `#« na-clause KU="" »` |
-| `grammars/syntax/zantufa.md:270` | `#([terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms)` | `#« [terms] gek bridi-tail {gik bridi-tail} GIhI [🆓] tail-terms »` |
-| `grammars/syntax/zantufa.md:280` | `#(KE ⋰)` | `#(KE ⋰)` |
-| `grammars/syntax/zantufa.md:299` | `#(KE ⋰)` | `#(KE ⋰)` |
-| `grammars/syntax/zantufa.md:300` | `#(#(tag #(KE ⋰)) ⋰)` | `#(« tag KE ⋰ » ⋰)` |
-| `grammars/syntax/zantufa.md:301` | `#(#(tag KE ⋯) ⋰)` | `#(« tag KE ⋯ » ⋰)` |
-| `grammars/syntax/zantufa.md:312` | `#(selbri-2 #(VAU=""))` | `#« selbri-2 VAU="" »` |
-| `grammars/syntax/zantufa.md:320` | `#(ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms)` | `#« ke-clause $BARE-SELBRI-TAIL KEhE≠"" [🆓] tail-terms »` |
-| `grammars/syntax/zantufa.md:321` | `#(#(KE [🆓] selbri-2 KEhE="" [🆓]) ⋰)` | `#(« KE [🆓] selbri-2 KEhE="" [🆓] » ⋰)` |
-| `grammars/syntax/zantufa.md:388` | `#(joik)` | `#joik` |
-| `grammars/syntax/zantufa.md:407` | `#(gek sumti {gik sumti} GIhI [🆓])` | `#« gek sumti {gik sumti} GIhI [🆓] »` |
-| `grammars/syntax/zantufa.md:408` | `#(ke-clause sumti KEhE≠"" [🆓])` | `#« ke-clause sumti KEhE≠"" [🆓] »` |
-| `grammars/syntax/zantufa.md:409` | `#(KE [🆓] sumti KEhE="" [🆓])` | `#« KE [🆓] sumti KEhE="" [🆓] »` |
-| `grammars/syntax/zantufa.md:526` | `#(joik-ek)` | `#joik-ek` |
-| `grammars/syntax/zantufa.md:526` | `#(SE [🆓] #(joik-ek))` | `#« SE [🆓] joik-ek »` |
-| `grammars/syntax/zantufa.md:555` | `#(tag ⋰)` | `#(tag ⋰)` |
-| `grammars/syntax/zantufa.md:556` | `#(tag ⋰)` | `#(tag ⋰)` |
-| `grammars/syntax/zantufa.md:625` | `#(tag ⋰)` | `#(tag ⋰)` |
-| `grammars/syntax/zantufa.md:664` | `#(JOI [🆓] [GAhO [🆓]])` | `#« JOI [🆓] [GAhO [🆓]] »` |
-| `grammars/syntax/zantufa.md:667` | `#(GA [🆓] [BO [🆓]])` | `#« GA [🆓] [BO [🆓]] »` |
-| `grammars/syntax/zantufa.md:668` | `#((tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]])` | `#« (tag ∪ $PLAIN-JOIK) GI [🆓] [BO [🆓]] »` |
-| `grammars/syntax/zantufa.md:670` | `#(gek selbri-2 gik-selbris GIhI [🆓])` | `#« gek selbri-2 gik-selbris GIhI [🆓] »` |
-| `grammars/syntax/zantufa.md:672` | `#($SE-GEK selbri-2 gik-selbris GIhI [🆓])` | `#« $SE-GEK selbri-2 gik-selbris GIhI [🆓] »` |
-| `grammars/syntax/zantufa.md:701` | `#(operator ⋰)` | `#(operator ⋰)` |
-| `grammars/syntax/zantufa.md:702` | `#(operator ⋰)` | `#(operator ⋰)` |
-| `grammars/syntax/zantufa.md:703` | `#(NAhE ⋰)` | `#(NAhE ⋰)` |
-| `grammars/syntax/zantufa.md:780` | `#(operator ⋰)` | `#(operator ⋰)` |
-| `grammars/syntax/zantufa.md:791` | `#(operator ⋰)` | `#(operator ⋰)` |
-| `grammars/syntax/zantufa.md:825` | `#(SE ⋯)` | `#« SE ⋯ »` |
-| `grammars/syntax/zantufa.md:953` | `#(((NAhE ∪ SE) [🆓] (operand ∪ operator)) ⋰)` | `#(« (NAhE ∪ SE) [🆓] (operand ∪ operator) » ⋰)` |
-| `grammars/syntax/zantufa.md:991` | `#(PA ⋰)` | `#(PA ⋰)` |
-| `grammars/syntax/zantufa.md:992` | `#(lerfu-string ⋰)` | `#(lerfu-string ⋰)` |
-| `grammars/syntax/zantufa.md:993` | `#(vocative ⋰)` | `#(vocative ⋰)` |
-| `grammars/syntax/zantufa.md:998` | `#(🆓 ⋰)` | `#(🆓 ⋰)` |
-| `grammars/words/cll.md:238` | `#(ccv-rafsi)` | `#ccv-rafsi` |
-
-The next table covers complete pattern spellings in fixture source fields. The inventory excludes strings, comments, descriptions, expected output, and generated source fragments. Each row retains its fixture's declarations and Unicode table. Normal source decomposition still applies to names such as U+212A, the Kelvin sign.
-
-A replacement spelling does not determine whether the complete fixture loads or accepts its input. Binding, substitution, operand types, and surrounding conditions still apply. Refusal rows name both the replacement and the rule that it tests.
-
-| Replaced fixture spelling | Replacement and restrictions |
-| --- | --- |
-| `# ( $x:A)` | `#« $x:A »` Invalid: captures cannot occur in child lists. |
-| `# ( )` | `#()` Invalid: an empty pattern literal has no predicate. |
-| `# ( A  :: T )` | `#« A :: T »` Invalid: child items cannot carry alternative tags. |
-| `# ( A & B )` | `#« A & B »` Invalid: conjunction has no pattern operator role. |
-| `# ( A )` | `#A` The surrounding fixture context determines acceptance. See the context table below. |
-| `# ( A <"a"> )` | `#A<"a">` Invalid: a tag requirement cannot be a string. |
-| `# ( A \| B )` | `#(A \| B)` Invalid: choice requires a child list. The distinct predicate `#« A \| B »` is valid. |
-| `# ( KEhE = "A" )` | `#KEhE="A"` Valid: the scalar value remains exact. |
-| `# ( [ + A ] )` | `#« [+A] »` Invalid: a child optional cannot mark elision. |
-| `# ( [ A ] ⋰ )` | `#« [A] ⋰ »` Invalid: a path requires one whole pattern, not an optional child expression. |
-| `# ( a ≻ b )` | `#(a ≻ b)` Invalid: ranked choice has no pattern operator role. |
-| `# ( sumti = "" )` | `#sumti=""` Invalid: a rule-name test cannot carry a terminal value test. |
-| `# ( { ... A } )` | `#« {... A} »` Invalid: a child repetition cannot be a chain. |
-| `# ( { A ... } )` | `#« {A ...} »` Invalid: a child repetition cannot be a chain. |
-| `# ( { A / ⋯ } )` | `#« {A / ⋯} »` Invalid: a sibling gap cannot be a repeat separator. |
-| `# ( { ⋯ } )` | `#« {⋯} »` Invalid: a sibling gap cannot be a repeat item. |
-| `# ( ε )` | `#« ε »` Invalid: an empty-input marker cannot be a child item. |
-| `# ( ⋰ A )` | `#(⋰ A)` Invalid: first-path is postfix. |
-| `# ( ⋱ ⋮ A )` | `#(⋱ ⋮ A)` Invalid: chained paths require a group around the inner path. |
-| `# cbm?` | `# cbm?` Invalid: a guard cannot be a pattern atom. |
-| `#!` | `#!` Valid: this fixture makes U+0021 an eligible emoji rule name through its Unicode table. |
-| `#"a"` | `#"a"` |
-| `#$A` | `#$A` |
-| `#$P` | `#$P` |
-| `#$Q` | `#$Q` |
-| `#$_0061` | `#"‹U+0061›"` |
-| `#("a" ++ "b")` | `#("a" ++ "b")` Invalid: inline concatenation cannot form a terminal. |
-| `#("a" ++ "b".."z")` | `#("a" ++ "b".."z")` Invalid: inline concatenation cannot form a range endpoint. |
-| `#("a")` | `#"a"` |
-| `#("a".."y" ++ "z")` | `#("a".."y" ++ "z")` Invalid: inline concatenation cannot form a range endpoint. |
-| `#("a".."z")` | `#"a".."z"` |
-| `#(#($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#(#(A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
-| `#($JOIN-1)` | `#$JOIN-1` |
-| `#($JOIN-1="ab")` | `#$JOIN-1="ab"` |
-| `#($JOIN-1=$JOIN-1)` | `#$JOIN-1=$JOIN-1` |
-| `#($K)` | `#$K` |
-| `#($KE-SELBRI (#tail-terms ∩ #$WRITTEN-VAU))` | `#« $KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »` |
-| `#($KE-SELBRI tail-terms)` | `#« $KE-SELBRI tail-terms »` |
-| `#($LETTER)` | `#$LETTER` |
-| `#($LOW..$HIGH)` | `#$LOW..$HIGH` |
-| `#($S)` | `#$S` |
-| `#($_D800<"bad">)` | `#"‹U+D800›"<"bad">` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#($_D800<"bad"><A>)` | `#"‹U+D800›"<"bad"><A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#($_D800=UI)` | `#"‹U+D800›"=UI` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#($_D800=UI<A>)` | `#"‹U+D800›"=UI<A>` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#($K)` (U+212A) | `#$K` |
-| `#(($P))` | `#$P` |
-| `#(($Q))` | `#$Q` |
-| `#(($_D800)<"bad">)` | `#(("‹U+D800›")<"bad">)` Invalid escape at `‹`, before syntax recognition and all reader errors. |
-| `#((A B)⋰)` | `#(« A B » ⋰)` |
-| `#((A)<"bad">)` | `#((A)<"bad">)` Invalid: tests cannot follow a group. |
-| `#((A⋰) (⋱B))` | `#« A ⋰ ⋱ B »` |
-| `#((B⋰) (⋱A))` | `#« B ⋰ ⋱ A »` |
-| `#(@X ∖ "b")` | `#(@X ∖ "b")` X is declared in the template. |
-| `#(@X ∩ "a")` | `#(@X ∩ "a")` X is declared in the template. |
-| `#(@X ∪ "b")` | `#(@X ∪ "b")` X is declared in the template. |
-| `#(@X)` | `#@X` X is declared in the template. |
-| `#(A #(B C))` | `#« A « B C » »` |
-| `#(A (#B ∪ #C))` | `#« A (B ∪ C) »` |
-| `#(A B B C)` | `#« A B B C »` |
-| `#(A B C)` | `#« A B C »` |
-| `#(A B)` | `#« A B »` |
-| `#(A KEhE="" B)` | `#« A KEhE="" B »` |
-| `#(A KEhE≠"" B)` | `#« A KEhE≠"" B »` |
-| `#(A OTHER OTHER [OTHER])` | `#« A OTHER OTHER [OTHER] »` |
-| `#(A OTHER OTHER)` | `#« A OTHER OTHER »` |
-| `#(A T<>)` | `#« A T<> »` |
-| `#(A T<T U>)` | `#« A T<T U> »` |
-| `#(A T<T>)` | `#« A T<T> »` |
-| `#(A T<U>)` | `#« A T<U> »` |
-| `#(A T<¬T ¬U>)` | `#« A T<¬T ¬U> »` |
-| `#(A T<¬T>)` | `#« A T<¬T> »` |
-| `#(A T<¬U>)` | `#« A T<¬U> »` |
-| `#(A T="")` | `#« A T="" »` |
-| `#(A T≠"")` | `#« A T≠"" »` |
-| `#(A [KEhE] B)` | `#« A [KEhE] B »` |
-| `#(A ∪ B ∩ C ∖ D)` | `#(A ∪ B ∩ C ∖ D)` |
-| `#(A ⋯ B)` | `#« A ⋯ B »` |
-| `#(A ⋯ C)` | `#« A ⋯ C »` |
-| `#(A ⋰ ⋱ B ∪ C ⋰ ∩ ⋱ D)` | `#(« A ⋰ ⋱ B » ∪ C ⋰ ∩ ⋱ D)` |
-| `#(A)` | `#A` |
-| `#(A<$GOOD ¬$BAD>)` | `#A<$GOOD ¬$BAD>` |
-| `#(A<Extra ¬Blocked>)` | `#A<Extra ¬Blocked>` |
-| `#(A="a" ++ "b")` | `#A="a" ++ "b"` Invalid: inline concatenation cannot form a value-test operand. |
-| `#(A⋰)` | `#(A ⋰)` |
-| `#(B A)` | `#« B A »` |
-| `#(B)` | `#B` |
-| `#(B⋰)` | `#(B ⋰)` |
-| `#(K<K>)` | `#K<K>` |
-| `#(KE ⋯ KEhE [🆓])` | `#« KE ⋯ KEhE [🆓] »` |
-| `#(Q X ⋯)` | `#« Q X ⋯ »` |
-| `#(Q a)` | `#« Q a »` |
-| `#(Q ⋯)` | `#« Q ⋯ »` |
-| `#(X T="")` | `#« X T="" »` |
-| `#(X Y)` | `#« X Y »` |
-| `#(X⋰)` | `#(X ⋰)` |
-| `#(Z)` | `#Z` |
-| `#([$STAG-TAG] $KE-UNIT)` | `#« [$STAG-TAG] $KE-UNIT »` |
-| `#([$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓])` | `#« [$STAG-TAG] KE [🆓] gek-sentence KEhE [🆓] »` |
-| `#([A] [🆓])` | `#« [A] [🆓] »` |
-| `#([X] [Y])` | `#« [X] [Y] »` |
-| `#([X])` | `#« [X] »` |
-| `#([terms] VAU≠"" [🆓])` | `#« [terms] VAU≠"" [🆓] »` |
-| `#(_)` | `#_` |
-| `#(_=$JOIN-1)` | `#_=$JOIN-1` |
-| `#(_Bogus<"bad"><A>)` | `#_Bogus<"bad"><A>` Invalid: engine-tag and tag-test restrictions still apply. |
-| `#(atom("a"))` | `#atom("a")` |
-| `#(atom("b"))` | `#atom("b")` |
-| `#(atom(("a" "b")))` | `#atom(("a" "b"))` |
-| `#(atom)` | `#atom` |
-| `#(child ∪ #bad-name)` | `#(child ∪ bad-name)` |
-| `#(child ∪ bad-name)` | `#(child ∪ bad-name)` |
-| `#(left right)` | `#« left right »` |
-| `#(other)` | `#other` |
-| `#(rK)` | `#rK` |
-| `#(rK)` (U+212A) | `#rK` |
-| `#(text)` | `#text` |
-| `#(text⋰)` | `#(text ⋰)` |
-| `#(unit)` | `#unit` |
-| `#(use ∪ "b")` | `#(use ∪ "b")` |
-| `#(use("a") ∩ use)` | `#(use("a") ∩ use)` |
-| `#(use("a"))` | `#use("a")` |
-| `#(use)` | `#use` |
-| `#({A / B})` | `#« {A / B} »` |
-| `#({A})` | `#« {A} »` |
-| `#({[A]})` | `#« {[A]} »` |
-| `#(K<K>)` (U+212A) | `#K<K>` |
-| `#(⋮(#FIhO ∪ #free))` | `#(⋮ (FIhO ∪ free))` |
-| `#(⋮A)` | `#(⋮ A)` |
-| `#(⋮B)` | `#(⋮ B)` |
-| `#(⋮X)` | `#(⋮ X)` |
-| `#(⋮q)` | `#(⋮ q)` |
-| `#(⋮r)` | `#(⋮ r)` |
-| `#(⋯)` | `#« ⋯ »` |
-| `#(⋱(A B))` | `#(⋱ « A B »)` |
-| `#(⋱A)` | `#(⋱ A)` |
-| `#(⋱KU)` | `#(⋱ KU)` |
-| `#(⋱X)` | `#(⋱ X)` |
-| `#(⋱text)` | `#(⋱ text)` |
-| `#@` | `#@` Invalid: the parameter sigil remains reserved under the supplied Unicode table. |
-| `#A` | `#A` |
-| `#A<$S.tag>` | `#A<$S.tag>` Invalid: a tag requirement cannot read a method. |
-| `#A<B><C>` | `#A<B><C>` Invalid: a terminal accepts at most one tag test. |
-| `#A="a".."b"` | `#A="a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=#A` | `#A=#A` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=$` | `#A=$` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=$.value` | `#A=$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=$S` | `#A=$S` S must resolve to a string. See the context table below. |
-| `#A=("a" "b")` | `#A=("a" "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=("a" ∪ "b")` | `#A=("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=("a")` | `#A=("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=B` | `#A=B` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A=∅` | `#A=∅` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠"a".."b"` | `#A≠"a".."b"` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠#A` | `#A≠#A` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠$` | `#A≠$` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠$.value` | `#A≠$.value` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠("a" ∪ "b")` | `#A≠("a" ∪ "b")` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠("a")` | `#A≠("a")` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠B` | `#A≠B` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#A≠∅` | `#A≠∅` Invalid: a value test requires an ungrouped string literal or string constant. |
-| `#B` | `#B` |
-| `#C` | `#C` |
-| `#GIhI` | `#GIhI` |
-| `#GIhI≠""` | `#GIhI≠""` |
-| `#KEhE` | `#KEhE` |
-| `#KEhE=""` | `#KEhE=""` |
-| `#NUhI` | `#NUhI` |
-| `#NUhI<NUhI>` | `#NUhI<NUhI>` |
-| `#T<T U>` | `#T<T U>` |
-| `#X` | `#X` |
-| `#a` | `#a` |
-| `#b` | `#b` |
-| `#bad-name` | `#bad-name` |
-| `#empty` | `#empty` |
-| `#inner` | `#inner` |
-| `#outer` | `#outer` |
-| `#pair` | `#pair` |
-| `#rK` | `#rK` |
-| `#short` | `#short` |
-| `#sumti` | `#sumti` |
-| `#tag` | `#tag` |
-| `#text` | `#text` |
-| `#🆓` | `#🆓` |
-
-The following contexts distinguish fixtures that share a pattern spelling. Record indexes start at zero. A fixture's name does not determine its expected outcome.
-
-| Fixture context | Migrated pattern and result |
-| --- | --- |
-| `tests/parameters.json`, records 31 and 87 | `#@X` is valid with the declared terminal arguments, including a tested terminal. |
-| `tests/parameters.json`, record 94 | `#@X` remains invalid with a body-sequence argument. |
-| `tests/parameters.json`, records 96, 97, and 98 | The declared X gives valid union, intersection, and difference operands. |
-| `tests/engine/parameters-constants-replaced-invalid.json` | `#atom(("a" "b"))` remains invalid because its argument cannot replace a captured symbol, even in a replaced constant. |
-| `tests/notation/tree-pattern-refused-13.json` | `#KEhE="A"` is valid, despite the fixture name. |
-| `tests/engine/tree-pattern-mixed-pattern-tags.json` | `%const $P #A ∪ T` remains invalid because a pattern and tag set have different types. |
-| `tests/engine/tree-pattern-pattern-equality.json` | `%conditions #A = #A` remains invalid because patterns support no ordinary equality. |
-| `tests/engine/tree-pattern-span-function-left.json` | `$.first-token ≅ #A` remains invalid because the left operand must be a bare capture. |
-| `tests/engine/review-tags-own-rule-tags.json`, `review-tags-own-rule-classes.json`, `review-tags-own-alternative-tags.json`, and `review-tags-own-alternative-classes.json` | `#A` remains a valid pattern. The enclosing tag clause still rejects its own tags or classes. |
-| `tests/engine/tree-pattern-pattern-test-constant-sound.json` | `#A=$S` is valid because S holds the string `"A"`. |
-| `tests/engine/tree-pattern-pattern-test-constant-type.json` | `#A=$S` remains invalid because S holds a tag set. |
-| `tests/engine/notation-r5-string-set-pattern-value-constant.json` | `#A=$S` remains invalid because S holds a string set. |
-| `tests/engine/tree-pattern-rule-test-constant-sound.json` | `#A=$S` loads but rejects the supplied input because its value differs from `"A"`. |
-
+The DOM accepts exactly the reader's shapes, apart from source coordinates. Reading any valid pattern's canonical spelling gives the same key under the same Unicode table and bindings. A name that reads back as a terminal under that table is invalid as a rule test. The ordinary reader decodes the printer's escapes. [Engine §2.3](engine.md#23-templates-and-instances) defines canonical spelling. [Output](output.md#pattern-values) defines the shapes.
 
 ## Classifiers
 
@@ -1237,7 +814,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [dialect guide](dialects.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf.
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes phoneme values and stress. [The CLL word forms](../grammars/lojban/cll/morphology.md#commas) define the comma restrictions of lojban/cll.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -1296,15 +873,15 @@ For an ordinary span, `matches` and `span.tags(rule)` parse the captured span al
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
-Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa dialect, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
+Every nested query, whether `matches`, `begins`, `ends`, or `tags`, follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. In the Zantufa pipeline, `cy to roi toi klama` gives `([cy {to roi toi}] klama)`. A nested `tag` cannot read `cy to roi` as `cy roi` with an empty parenthesis, because the parenthesis can read on to its written `toi`.
 
-In the same way, the experimental dialect gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
+In the same way, the experimental pipeline gives `(mi [klama {na (to broda toi)}])` for `mi klama na to broda toi`. There `broda` stays inside the parenthesis. The priority has a cost: a positive query can fail where a parse without it succeeds. Take `r → A c [+T] T` and `c → B`. Then `matches` of `r` over `A B T` fails, because `[+T]` takes the written `T`. Several readings that the priority keeps do not cause an ambiguity error.
 
 A lookahead tests a rule without reading the input. A PEG is a grammar that tries alternatives in order. PEG is short for parsing expression grammar. `begins` with `.onward` or `.following-tokens` is a lookahead, like the lookahead of a PEG.
 
 `$f.following-tokens.begins(post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.begins(cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
-The [BPFK word grammar](../grammars/words/bpfk.md) derives from a PEG and states the morphology's rules directly. BPFK is a Lojban committee for language definitions. That grammar retains lookaheads that state morphology rules and [lists its departures](../grammars/words/bpfk.md#differences-from-cll-and-the-reference-peg). The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
+The [BPFK word grammar](../grammars/lojban/bpfk/morphology.md) derives from a PEG and states the morphology's rules directly. BPFK is a Lojban committee for language definitions. That grammar retains lookaheads that state morphology rules and [lists its departures](../grammars/lojban/bpfk/morphology.md#differences-from-cll-and-the-reference-peg). The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
 
 `.starts-input` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins. So an alternative that starts with `text-start` is read there and nowhere else. The parser evaluates the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `.starts-input` holds at the span's start.
 
@@ -1675,16 +1252,18 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Pipelines
 
-For a procedure with commands and tree examples, read [Implement a dialect](dialects.md).
+For a procedure with commands and tree examples, read [Implement a pipeline](pipelines.md).
 
 A document can start its grammar statements with `%names "PATH"`. The path resolves beside that document, and its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
-A pipeline document, which is Markdown too, defines a dialect. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of:
+A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of.
+
+This example belongs to `grammars/lojban/experimental/pipeline.md`:
 
 ````markdown
-# The experimental dialect
+# The experimental pipeline
 
-... what the dialect is ...
+... what the pipeline is ...
 
 ```jbogenbau
 %features cbm soi-clause su-boundary
@@ -1696,9 +1275,9 @@ A pipeline document, which is Markdown too, defines a dialect. Each stage is a h
 %stage phonemes
 ```
 
-- [Latin orthography](../phonemes/latin.md): what this document contributes
+- [Latin orthography](../common/latin.md): what this document contributes
   ```jbogenbau
-  %include "../phonemes/latin.md"
+  %include "../common/latin.md"
   ```
 
 ... what the stage receives, does and hands on ...
@@ -1763,7 +1342,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --pipeline NAME` prints a pipeline's documents as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It omits `%names` declarations because canonical strings need only core abbreviations and numeric escapes. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 
@@ -1916,7 +1495,7 @@ Grammars that extend CLL can contain ambiguities unrelated to terminators. A sum
 
 `late-elision` does not make `elision-only` redundant. Written-back terminators can let another alternative match, or let a test on a terminal match. So the check can find a second reading that the rule flags do not rank below the chosen parse.
 
-The `experimental` and `zantufa` dialects do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
+The `lojban/experimental` and `lojban/zantufa` pipelines do not declare `elision-only`. A caller can switch `elision-only` on for a parse, to find ambiguities that are not about terminators in the text that it supplies. A condition can treat a written-back terminator differently from a written one. In those grammars, such a condition can produce a second reading in reconstruction. A caller can also switch it off, to loosen a grammar that declares it.
 
 ## Layout of the bundled grammars
 
@@ -1935,7 +1514,7 @@ The diagrams draw the notation in this way:
 - A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
 - A ranked choice draws its options in a dashed frame, numbered from 1 in preferred order. The label `≻ same span` precedes the frame. Ordinary branches inside an option are unnumbered, and a nested ranked choice has its own frame. A note under the rule repeats the filter rule.
 - An optional has a bypass over its content. The bypass of an elidable optional has the label "elided".
-- A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the dialects that read the document disagree, the label adds "where its test allows".
+- A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the pipelines that read the document disagree, the label adds "where its test allows".
 - Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
 - The loop runs from right to left, so the separator is drawn from right to left too, with its text upright. In `{A / B C}`, the loop meets `B` first, at its right, and then `C`.
 - A chain reads the same words as a list, so it has the same drawing. A label under the loop says "left chain" or "right chain".

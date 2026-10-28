@@ -1,4 +1,4 @@
-//! A dialect loaded from disk knows each document by its absolute path, so
+//! A pipeline loaded from disk knows each document by its absolute path, so
 //! an error names the file the same way from any working directory, and in
 //! every library. The test changes the working directory of its process, so
 //! it is the only test of its binary.
@@ -54,7 +54,7 @@ fn errors_name_the_absolute_path_from_another_working_directory() {
     for (root, bad) in [(&included, "sub/g.md"), (&pipeline, "p.md")] {
         let expected = root.join(bad).to_string_lossy().into_owned();
         for given in [root.join("p.md"), relative(&elsewhere, &root.join("p.md"))] {
-            match gencmu::load_dialect_file(&given) {
+            match gencmu::load_pipeline_file(&given) {
                 Ok(_) => failures.push(format!("{}: loaded", given.display())),
                 Err(error) => {
                     if error.document.as_deref() != Some(expected.as_str())

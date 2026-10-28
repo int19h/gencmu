@@ -4,8 +4,8 @@ import { loaderFromSources, resultJson, toBrackets, type ParseResult, type Resul
 import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
-const dialect = loader.dialect("dialects/notation.md");
-const result: ParseResult = dialect.parse("%rule text A", { features: ["sa-su"], until: "syntax" });
+const pipeline = loader.pipeline("grammars/gencmu/jbogenbau/pipeline.md");
+const result: ParseResult = pipeline.parse("%rule text A", { features: ["sa-su"], until: "syntax" });
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
@@ -42,22 +42,22 @@ if (result.error) {
   void kind, reason;
 }
 
-const inMemory = loaderFromSources({ "unicode.txt": "" });
+const inMemory = loaderFromSources({ "data/unicode/unicode.txt": "" });
 void inMemory;
 
 // @ts-expect-error a text is a string
-dialect.parse(42);
+pipeline.parse(42);
 // @ts-expect-error features are names
-dialect.parse("", { features: [1] });
+pipeline.parse("", { features: [1] });
 // @ts-expect-error a token node has no children
 if (result.tree && result.tree.kind === "token") void result.tree.children;
 // @ts-expect-error resources map paths to text
-loaderFromSources({ "unicode.txt": 1 });
+loaderFromSources({ "data/unicode/unicode.txt": 1 });
 
 void verdicts, brackets, format;
 
 // Caller strings default independently.
-dialect.parse("A", { tokens: [{ text: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }] });
-dialect.parse("A", { tokens: [{ text: "A", value: "a", image: "", tags: [], span: [0, 1], source: [0, 1] }] });
+pipeline.parse("A", { tokens: [{ text: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }] });
+pipeline.parse("A", { tokens: [{ text: "A", value: "a", image: "", tags: [], span: [0, 1], source: [0, 1] }] });
 // @ts-expect-error JavaScript caller values use omission, never null
-dialect.parse("A", { tokens: [{ text: "A", value: null, tags: [], span: [0, 1], source: [0, 1] }] });
+pipeline.parse("A", { tokens: [{ text: "A", value: null, tags: [], span: [0, 1], source: [0, 1] }] });

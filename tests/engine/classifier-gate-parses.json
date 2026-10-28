@@ -1,5 +1,5 @@
 {
-  "description": "An entry whose gates do not all hold does nothing, and a stage resolves its classifiers for the features of each parse. One loaded dialect parses with f off, on and off again, and each parse gets its own classes (engine §2).",
+  "description": "An entry whose gates do not all hold does nothing, and a stage resolves its classifiers for the features of each parse. One loaded pipeline parses with f off, on and off again, and each parse gets its own classes (engine §2).",
   "grammar": "%classifier lex  \"mi\" \"do\" ∈ KOhA f? \"mi\" ∉ KOhA f? \"mi\" ∈ UI ¬f? \"do\" ∉ KOhA\n\n\n\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {

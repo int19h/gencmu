@@ -66,16 +66,16 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 	return first.kind == cIdentical || rk.aFirst(rk.compare(res.second, w))
 }
 
-func lostCase(t *testing.T) (*Dialect, *engineCase) {
+func lostCase(t *testing.T) (*Pipeline, *engineCase) {
 	c := &engineCase{
 		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
 			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: X\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
 			"%stage later\n%ambiguity-resolution greedy\n%rule text X\n```\n"},
-		Pipeline: "p.md",
-		Tokens:   []caseToken{{Text: "a", Tags: []string{"A"}}},
-		Options:  caseOptions{Features: []string{"w"}},
+		PipelineDocument: "p.md",
+		Tokens:           []caseToken{{Text: "a", Tags: []string{"A"}}},
+		Options:          caseOptions{Features: []string{"w"}},
 	}
-	d, err := caseDialect(c, true)
+	d, err := casePipeline(c, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestWitnessLost(t *testing.T) {
 func TestCheckGrammarErrorHasNoCode(t *testing.T) {
 	t.Parallel()
 	c := loadCase(t, "../../tests/engine/reparse-competing-evaluation-error.json")
-	d, err := caseDialect(c, true)
+	d, err := casePipeline(c, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,16 +169,16 @@ func TestCheckGrammarErrorHasNoCode(t *testing.T) {
 }
 
 // The corpus runner refuses the error elision-witness-lost. The check of le
-// sutra tavla runs in cll-ebnf, since the ranking chooses the fragment
-// (grammars/syntax/cll.md). The private switch loses its witness after
+// sutra tavla runs in lojban/cll, since the ranking chooses the fragment
+// (grammars/lojban/cll/syntax.md). The private switch loses its witness after
 // recognition.
 func TestCorpusRunnerWitnessLost(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("cll-ebnf")
+	d, err := LoadPipeline("lojban/cll")
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := &corpusCase{Dialect: "cll-ebnf", Text: "le sutra tavla"}
+	c := &corpusCase{Pipeline: "lojban/cll", Text: "le sutra tavla"}
 	got, err := corpusOutcome(d, c)
 	if err != nil || got["verdict"] != VerdictResolved {
 		t.Fatalf("%v %v", got, err)

@@ -1,5 +1,5 @@
 {
-  "description": "A nullable rule accepts the empty suffix. (Engine \u00a74.4.)",
+  "description": "A nullable rule accepts the empty suffix. (Engine §4.4.)",
   "grammar": "%rule text A B\n%conditions $.ends(nothing)\n%rule nothing \u03b5",
   "tokens": [
     {

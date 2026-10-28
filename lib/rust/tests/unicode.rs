@@ -14,7 +14,7 @@ fn sources(rules: &str) -> BTreeMap<String, String> {
 
 #[test]
 fn a_partial_cluster_decomposes_its_whole_original_source() {
-    let dialect = gencmu::load_dialect_sources(
+    let pipeline = gencmu::load_pipeline_sources(
         sources(
             "%rule text \"e\" $mark:\"‹U+0301›\"\n\
              %conditions $mark.source-text = \"‹U+00E9›\", $mark.decomposed-source-text = \"é\"\n\
@@ -23,7 +23,7 @@ fn a_partial_cluster_decomposes_its_whole_original_source() {
         "p.md",
     )
     .unwrap();
-    let result = dialect.parse("é", &Default::default()).unwrap();
+    let result = pipeline.parse("é", &Default::default()).unwrap();
     assert!(result.ok, "{:?}", result.error);
     let token = &result.stages[0].output.as_ref().unwrap()[0];
     assert_eq!(token.span, 1..2);
@@ -42,9 +42,9 @@ fn decomposed_source_text_uses_only_the_callers_table() {
         ("decompose 00E9 0065 0301\ncombining 230 0301 0301\ncombining 220 0323 0323\n", "e\u{323}\u{301}"),
     ] {
         let mut sources = sources("%rule text [{_}]\n%emits $ := $.decomposed-source-text :- $.source-text");
-        sources.insert("unicode.txt".into(), format!("{base}{records}"));
-        let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-        let result = dialect.parse("é\u{323}", &Default::default()).unwrap();
+        sources.insert("data/unicode/unicode.txt".into(), format!("{base}{records}"));
+        let pipeline = gencmu::load_pipeline_sources(sources, "p.md").unwrap();
+        let result = pipeline.parse("é\u{323}", &Default::default()).unwrap();
         assert!(result.ok, "{:?}", result.error);
         let token = &result.stages[0].output.as_ref().unwrap()[0];
         assert_eq!(token.value, expected);
@@ -57,7 +57,7 @@ fn decomposed_source_text_uses_only_the_callers_table() {
 fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() {
     let sources = sources("%const $S \"$$(Ignored)é\" ++ \"‹U+0061›\" ++ \"한\" ++ $Absent\n%rule text $S");
     let expected = common::position_of(&sources["g.md"], "$Absent");
-    let error = gencmu::load_dialect_sources(sources, "p.md").unwrap_err();
+    let error = gencmu::load_pipeline_sources(sources, "p.md").unwrap_err();
     assert_eq!(error.document.as_deref(), Some("g.md"));
     assert_eq!((error.line, error.column), (Some(expected.0), Some(expected.1)));
     assert!(error.message.contains("Absent"), "{error}");
@@ -67,19 +67,19 @@ fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() 
 fn escaped_diagnostics_read_back_as_exact_scalars() {
     // These escapes include decomposition, Hangul, and non-Mn combining classes.
     let documents = sources("%rule text \"‹U+00E9›\" | \"‹U+AC00›\" | \"‹U+302E›\" | \"‹U+1B44›\"");
-    let dialect = gencmu::load_dialect_sources(documents, "p.md").unwrap();
-    let result = dialect.parse("?", &Default::default()).unwrap();
+    let pipeline = gencmu::load_pipeline_sources(documents, "p.md").unwrap();
+    let result = pipeline.parse("?", &Default::default()).unwrap();
     let error = result.error.unwrap();
     assert_eq!(error.expected.len(), 4);
     for expected in error.expected {
         let terminal = expected.terminal;
         assert!(terminal.starts_with("\"‹U+"), "{terminal}");
-        let dialect = gencmu::load_dialect_sources(sources(&format!("%rule text {terminal}")), "p.md").unwrap();
+        let pipeline = gencmu::load_pipeline_sources(sources(&format!("%rule text {terminal}")), "p.md").unwrap();
         // A caller token keeps the exact scalar named by the diagnostic.
         let digits = terminal.strip_prefix("\"‹U+").unwrap().strip_suffix("›\"").unwrap();
         let code = u32::from_str_radix(digits, 16).unwrap();
         let text = char::from_u32(code).unwrap().to_string();
         let token = gencmu::InputToken { text, ..Default::default() };
-        assert!(dialect.parse_tokens(&[token], &Default::default()).unwrap().ok, "{terminal}");
+        assert!(pipeline.parse_tokens(&[token], &Default::default()).unwrap().ok, "{terminal}");
     }
 }

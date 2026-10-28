@@ -1,8 +1,8 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "BAhE marks a whole quote. Indicators attach to it, except in Zantufa, whose syntax reads the following free modifiers.",
   "options": {
     "until": "indicators"

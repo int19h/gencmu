@@ -1,8 +1,8 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/notation.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/gencmu/jbogenbau/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "Notation operator images use decomposition while text keeps original spelling.",
   "options": {
     "until": "lexical"

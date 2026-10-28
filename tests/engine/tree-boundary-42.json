@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text q r\n%rule q A\n%emits $\n%rule r B\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text a b | q\n%rule q C\n%rule a A\n%rule b B\n%conditions $.preceded-by(q)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "expect": {
     "error": "rejected",
     "result": {

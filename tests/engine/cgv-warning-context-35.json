@@ -1,9 +1,9 @@
 {
   "description": "SI erases the CgV word after the parser reads it. That chosen word read keeps its warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mariam si mi klama",
   "parses": [
     {

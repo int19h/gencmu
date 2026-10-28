@@ -11,7 +11,7 @@
     "child.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n",
     "sibling.txt": "unicode-names 15.1.0\nname E002 LOCAL NAME\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "",

@@ -1,9 +1,9 @@
 {
   "description": "A separate mark before a closing delimiter remains in the raw body.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi gy. foo \" gy.",
   "options": {
     "until": "words"

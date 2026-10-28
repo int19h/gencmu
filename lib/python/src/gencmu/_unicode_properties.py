@@ -16,7 +16,7 @@ class PropertyData:
 
 
 def _fail(line=None):
-    raise GencmuError("the property record is invalid", document="unicode-properties.txt", line=line)
+    raise GencmuError("the property record is invalid", document="data/unicode/unicode-properties.txt", line=line)
 
 
 def read_properties(text: str, version: str, version_count: int) -> dict[str, PropertyData]:

@@ -7,24 +7,26 @@ The library is pure Python, uses the standard library only, and needs Python 3.1
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("cll-ebnf")
-result = dialect.parse("mi klama le zarci")
+pipeline = gencmu.load_pipeline("lojban/cll")
+result = pipeline.parse("mi klama le zarci")
 result.ok, result.tree, result.error, result.warnings
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
 
+`bundled_pipelines()` lists bundled names without parsing their documents. Names use two or more lowercase path segments, as in `lojban/cll`. Invalid or absent bundled names cause usage errors.
+
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
-## Loading a dialect
+## Loading a pipeline
 
-A pipeline document and the grammar documents that it includes define a dialect. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
+A pipeline document lists the stages and the grammar documents that define a pipeline. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").
 
-- `load_dialect(name)` loads a dialect of the bundled grammars. `name` is the name of its pipeline document under `grammars/dialects/` without `.md`.
-- `load_dialect_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled grammars.
-- `load_dialect_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in what it lacks. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `load_pipeline(name)` loads a pipeline of the bundled grammars. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
+- `load_pipeline_file(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. The Unicode table and the bootstrap of the notation come from the bundled resources.
+- `load_pipeline_sources(sources, pipeline)` loads documents held in memory. `sources` is a mapping from `/`-separated path to text, and `pipeline` is the path of the pipeline document in it. The mapping can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in what it lacks. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
-The loader reads a grammar document through the notation only when `compiled.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled grammars include cache entries.
+The loader reads a grammar document through the notation only when the family's `data/preparsed/FAMILY.json` has no matching entry. The notation is the grammar of grammar documents. The cache stores parsed DOMs. Each entry requires matching document, bootstrap, Unicode, properties, and required names fingerprints. Fingerprints use 64-bit FNV-1a over resource text. The bundled preparsed data includes cache entries.
 
 Each loader takes `use_cache=False` to read every document afresh.
 
@@ -32,14 +34,14 @@ Parameterized rules use declarations such as `%rule pair(@Left,@Right) @Left @Ri
 
 Templates and instances accept source-ordered edits. A template flag becomes the flag of each instance. A pattern that names a template matches every instance. Recognition queries name one instance. The loader rejects parameter flows that can create unbounded instance growth.
 
-An entry holds a document's constants (`%const` and `%redefine-const`), classifiers (`%classifier`) and implications (`%implies`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). A stage resolves each classifier for the features of a parse, and keeps the result for each set of features. So a document that several stages or dialects include takes the values of each, and one entry serves them all.
+An entry holds a document's constants (`%const` and `%redefine-const`), classifiers (`%classifier`) and implications (`%implies`) as the document writes them, never their values. The loader gives each constant its value when it stitches a stage (`docs/engine.md`, §2). A stage resolves each classifier for the features of a parse, and keeps the result for each set of features. So a document that several stages or pipelines include takes the values of each, and one entry serves them all.
 
-A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. An error of a constant stands at the definition that is wrong, or else at the reference to the constant. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.
+A pipeline that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"grammar"`, and its `where` is `document:line:column` as far as it is known. An error of a constant stands at the definition that is wrong, or else at the reference to the constant. A document on disk that is not valid UTF-8 is such an error, with no line or column. A document in the mapping with a lone surrogate is the caller's mistake, of `kind` `"usage"`.
 
 ## Parsing
 
 ```python
-result = dialect.parse(text, features=(), without_features=(), until=None, elision_only=None)
+result = pipeline.parse(text, features=(), without_features=(), until=None, elision_only=None)
 ```
 
 - `features` names the features that the caller turns on in every stage, besides those the pipeline turns on with `%features`.
@@ -55,7 +57,7 @@ A rejected error can carry `boundary`. It names the rule, the condition index fr
 
 The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ. Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10).
 
-Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the dialect still loads. One example is a classifier's entry that adds a class that a key already has.
+Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the pipeline still loads. One example is a classifier's entry that adds a class that a key already has.
 
 Another is an item of braces, `{x}` or `{x / s}`, that can match no tokens. A chain, `{... x / s}` or `{x ... / s}`, beside another alternative after gates apply is also a defect. The message of such an error begins with the document, line and column of the entry or of the definition at fault, as `a.md:3:1:`. Where a grammar has several, the parse reports the one that `docs/engine.md` §3 puts first.
 
@@ -63,19 +65,19 @@ An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defe
 
 Its `value` is the exact string of an `=` test, or `None` without that test. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
-For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes tokens in place of the first stage characters. A supplied token stores `text`, `value`, `image`, `tags`, `span`, and `source`. Each string defaults independently to `text` when the constructor receives `None`. An explicit empty string stays empty. Recognition reads `value`, and output shows `image`.
+For tests and tools, `Pipeline.parse_tokens(tokens, text, ...)` takes tokens in place of the first stage characters. A supplied token stores `text`, `value`, `image`, `tags`, `span`, and `source`. Each string defaults independently to `text` when the constructor receives `None`. An explicit empty string stays empty. Recognition reads `value`, and output shows `image`.
 
 A caller cannot supply attachments. Nonempty `before` or `after` lists raise `GencmuError` with `kind` `"usage"`. Empty attachment lists are accepted. The parse copies supplied tokens, so changes to a result cannot change the caller tokens.
 
-`dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
+`pipeline.features` lists the features of the pipeline in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
 - `name`
 - `kind`: `"gate"` for a guard `f?` or `¬f?`, or `"warning"` for `f!`
 - `default`: Whether the pipeline turns the feature on
 
-A dialect whose guards use one name both as a gate and as a warning cannot be loaded. A gate of a classifier's entry counts here too.
+A pipeline whose guards use one name both as a gate and as a warning cannot be loaded. A gate of a classifier's entry counts here too.
 
-You can use a dialect for any number of parses, and you can share it between threads.
+You can use a pipeline for any number of parses, and you can share it between threads.
 
 ## The result
 
@@ -97,11 +99,11 @@ A terminal in a token node, witness, or expected list is a tag, canonical string
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.
-- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments. So in the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments. So in the `lojban/cll` pipeline, `mi ui klama` is `([mi ui] klama)`.
 
 ## Development
 
-`node tools/sync.js` generates the grammar copy under `src/gencmu/grammars/`. After you change `grammars/`, run `node tools/sync.js` at the repository root.
+`node tools/sync.js` copies the repository's `grammars/` and `data/` trees into `src/gencmu/grammars/` and `src/gencmu/data/`. After you change either source tree, run `node tools/sync.js` at the repository root.
 
 The tests keep their `unittest` assertions. pytest with pytest-xdist runs them in separate processes. Each shared engine and notation fixture has a separate test method. The `test` dependency group pins the runner dependencies, which the wheel does not require.
 
@@ -122,11 +124,11 @@ CI builds and installs the wheel, then runs the suite once with `GENCMU_INSTALLE
 The tests cover these items:
 
 - The shared cases of `tests/engine/` and `tests/notation/` in the repository, with the position of each load error that a case gives
-- For a case with `parses`, several parses of its input with one loaded dialect
+- For a case with `parses`, several parses of its input with one loaded pipeline
 - The fixpoint of the bootstrap of the notation
-- A comparison of `compiled.json` with a fresh reading
+- A comparison of `data/preparsed/lojban.json` with a fresh reading
 - The API
-- The checks of a precompiled DOM, and the refusal of a cache of another DOM format
+- The checks of a preparsed DOM, and the refusal of a cache of another DOM format
 - The place and the order of the errors of lowering, and the items that captures add to the recognizer (`tests/README.md`)
 - A property test of the ranking against brute-force enumeration
 - The core sample of the Lojban corpus (`tests/core.txt`)

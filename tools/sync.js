@@ -2,8 +2,8 @@
 // Regenerates every generated file from grammars/ and lib/js/src/, or, with
 // --check, fails if any of them is out of date:
 //
-//   grammars/compiled.json   the DOM of every grammar document, keyed by hash
-//   lib/js/grammars/         the npm package's copy of grammars/
+//   data/preparsed/FAMILY.json   the DOM of every grammar document, keyed by hash
+//   lib/js/{grammars,data}/ the npm package's bundled resources
 //   dist/grammars.js         grammars/ as one object, for the browser
 //   dist/gencmu.js           the library as one factory function, for the browser
 //   docs/diagrams/           a railroad diagram of each rule, as an SVG file
@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
+import { BOOTSTRAP_PATH, NOTATION_PATH, preparsedPath } from "../lib/js/src/resources.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { compareCodePoints } from "../lib/js/src/tags.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
@@ -65,7 +66,7 @@ function grammarFiles(directory = grammars, prefix = "") {
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const relative = prefix + entry.name;
     if (entry.isDirectory()) for (const file of grammarFiles(path.join(directory, entry.name), relative + "/")) files.push(file);
-    else if (relative !== "compiled.json") files.push(relative);
+    else files.push(relative);
   }
   return files;
 }
@@ -94,24 +95,32 @@ if (misshapen.length) {
 // reading it again changes nothing (docs/design.md, "Self-hosting"). A
 // change to the notation that the current bootstrap cannot read needs
 // tools/write-bootstrap.js first.
-const bootstrapPath = path.join(grammars, "notation", "bootstrap.json");
-// A loader of grammars/ with the given bootstrap and no precompiled DOMs.
+const bootstrapPath = path.join(root, BOOTSTRAP_PATH);
+// A loader of grammars/ with the given bootstrap and no preparsed DOMs.
 /** @param {string} bootstrap */
-const loaderWith = (bootstrap) => new Loader((relative) => {
-  if (relative === "notation/bootstrap.json") return bootstrap;
-  if (relative === "compiled.json") return undefined;
-  const file = path.join(grammars, relative.split("/").join(path.sep));
+const loaderWith = (bootstrap) => {
+  const loader = new Loader((relative) => {
+  if (relative === BOOTSTRAP_PATH) return bootstrap;
+  if (relative.startsWith("data/preparsed/")) return undefined;
+  const file = path.join(root, relative.split("/").join(path.sep));
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
-});
+  });
+  loader.preparsedFiles.add(BOOTSTRAP_PATH);
+  return loader;
+};
 /**
  * The bootstrap that reading the notation with `bootstrap` reaches.
  * @param {string} bootstrap
  */
 function settle(bootstrap) {
   for (let round = 0; ; round++) {
-    // The notation's own pipeline, spliced with the current bootstrap.
-    const { stages } = loaderWith(bootstrap).pipeline("dialects/notation.md");
-    const next = { format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) };
+    const loader = loaderWith(bootstrap);
+    const documents = {};
+    for (const file of grammarFiles().filter(file => file.startsWith("gencmu/") && file.endsWith(".md"))) {
+      const text = fs.readFileSync(path.join(grammars,file),"utf8");
+      documents[`grammars/${file}`] = {hash:fnv1a64(text), dom:loader.readDocument(text,`grammars/${file}`)};
+    }
+    const next = {format:DOM_FORMAT, unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames:bundledNamesRegistry(), documents};
     const nextText = JSON.stringify(next) + "\n";
     if (nextText === bootstrap) return bootstrap;
     if (round === 3) throw new Error("the notation does not reach a fixpoint");
@@ -134,21 +143,21 @@ const read = new Map();
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
+  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
 }
 // Whether a test on an elided terminator allows its omission, in each
-// stage of each dialect that reads the document. With no such test, this
+// stage of each pipeline that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.endsWith("/pipeline.md")).map(file => `grammars/${file}`), new Map([...read].map(([file, { dom }]) => [`grammars/${file}`, dom])));
 for (const [file, { text, dom }] of read) {
-  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
+  const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(`grammars/${file}`));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
   if (next === text) continue;
   write(`grammars/${file}`, next);
   if (!check) moved = true;
 }
 if (moved) bootstrapText = settle(bootstrapText);
-write("grammars/notation/bootstrap.json", bootstrapText);
+write(BOOTSTRAP_PATH, bootstrapText);
 
 // No other document holds a generated element: one there would show
 // diagrams that nothing updates. The packages' copies of grammars/ hold
@@ -166,7 +175,7 @@ if (strays.length) {
   process.exit(1);
 }
 
-// The precompiled DOMs, read with the engine and the bootstrap. Where the
+// The preparsed DOMs, read with the engine and the bootstrap. Where the
 // pass of the diagrams changed neither a document nor the bootstrap, its
 // DOM is the one that pass read.
 const loader = moved ? loaderWith(bootstrapText) : reader;
@@ -177,20 +186,36 @@ for (const file of grammarFiles()) {
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
   const earlier = read.get(file);
-  const dom = !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, file);
+  const dom = !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, `grammars/${file}`);
   const names = loader.namesDependencies.get(dom);
-  documents[file] = { hash: fnv1a64(text), ...(names ? {names} : {}), dom };
+  documents[`grammars/${file}`] = { hash: fnv1a64(text), ...(names ? {names} : {}), dom };
 }
-const bundledNames = Object.fromEntries(grammarFiles().filter(file => file === "unicode-names.txt" || file.endsWith("-names.txt"))
-  .sort(compareCodePoints).map(file => [file, fnv1a64(fs.readFileSync(path.join(grammars,file),"utf8"))]));
-const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, properties: loader.propertiesHash, bundledNames, documents };
+function bundledNamesRegistry() {
+  return Object.fromEntries(["data/unicode/unicode-names.txt", ...grammarFiles().filter(file => file.endsWith("-names.txt")).map(file => `grammars/${file}`)]
+    .sort(compareCodePoints).map(file => [file,fnv1a64(fs.readFileSync(path.join(root,file),"utf8"))]));
+}
+const bundledNames = bundledNamesRegistry();
+const families = new Map();
+for (const [file,entry] of Object.entries(documents)) {
+  const resource = preparsedPath(file);
+  if (!families.has(resource)) families.set(resource,{});
+  families.get(resource)[file] = entry;
+}
+const familyTexts = new Map();
+for (const [resource,entries] of families) {
+  const envelope = {format:DOM_FORMAT, ...(resource === BOOTSTRAP_PATH ? {} : {bootstrap:loader.bootstrapHash}),
+    unicode:loader.unicodeHash, properties:loader.propertiesHash, bundledNames, documents:entries};
+  familyTexts.set(resource,JSON.stringify(envelope) + "\n");
+}
+if (familyTexts.get(BOOTSTRAP_PATH) !== bootstrapText) throw new Error("the preparsed bootstrap does not reach its fixpoint");
+
 
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters
 // (docs/notation.md, "Rules"; tools/alternatives.js).
 const sprawling = [];
 for (const [file, { dom }] of Object.entries(documents)) {
-  for (const problem of layoutProblems(fs.readFileSync(path.join(grammars, file), "utf8"), dom, file)) sprawling.push(problem);
+  for (const problem of layoutProblems(fs.readFileSync(path.join(root, file), "utf8"), dom, file)) sprawling.push(problem);
 }
 if (sprawling.length) {
   console.error(sprawling.join("\n"));
@@ -216,7 +241,7 @@ if (parserMissing && check) {
 } else {
   const unlinked = [];
   for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
-    const dom = includeEdges.get(file);
+    const dom = includeEdges.get(`grammars/${file}`);
     const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
       if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
@@ -252,14 +277,14 @@ if (parserMissing && check) {
     console.error(badCllFootnotes.join("\n"));
     process.exit(1);
   }
-  // The DOMs and the dialects of the sources, as this run reads them.
+  // The DOMs and the pipelines of the sources, as this run reads them.
   const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));
     process.exit(1);
   }
 }
-write("grammars/compiled.json", JSON.stringify(compiled) + "\n");
+for (const [file,text] of familyTexts) write(file,text);
 
 // The SVG files of the railroad diagrams. They are documentation, so no
 // package ships them. A file under docs/diagrams/ that this run does not
@@ -287,21 +312,32 @@ for (const library of ["lib/js", "lib/python", "lib/go", "lib/rust"]) write(`${l
 // The grammar copies.
 const sources = {};
 for (const file of grammarFiles()) sources[file] = fs.readFileSync(path.join(grammars, file), "utf8");
-sources["compiled.json"] = JSON.stringify(compiled) + "\n";
+
 for (const copy of copies) {
   for (const [file, text] of Object.entries(sources)) write(`${copy}/${file}`, text);
   // A copy of a document that grammars/ no longer has, such as one renamed
   // there, goes too.
-  for (const file of grammarFiles(path.join(root, copy))) {
-    if (Object.hasOwn(sources, file)) continue;
-    stale.push(`${copy}/${file}`);
-    if (!check) fs.unlinkSync(path.join(root, copy, file));
+  for (const relative of existing(copy)) {
+    if (Object.hasOwn(sources, relative.slice(copy.length + 1))) continue;
+    stale.push(relative);
+    if (!check) fs.unlinkSync(path.join(root, relative));
+  }
+}
+// Copy engine data beside each package's grammar directory.
+const dataSources = Object.fromEntries(existing("data").map(file => [file, fs.readFileSync(path.join(root, file), "utf8")]));
+for (const copy of copies) {
+  const packageRoot = path.dirname(copy);
+  for (const [file, text] of Object.entries(dataSources)) write(`${packageRoot}/${file}`, text);
+  for (const relative of existing(`${packageRoot}/data`)) {
+    if (Object.hasOwn(dataSources, relative.slice(packageRoot.length + 1))) continue;
+    stale.push(relative);
+    if (!check) fs.unlinkSync(path.join(root, relative));
   }
 }
 // Names and properties resources remain separate for playground requests.
-const browserSources = Object.fromEntries(Object.entries(sources).filter(([file, text]) =>
+const browserSources = Object.fromEntries(Object.entries({...Object.fromEntries(Object.entries(sources).map(([key,value]) => [`grammars/${key}`,value])), ...dataSources}).filter(([file, text]) =>
   !file.endsWith(".txt") || !/^[ \t\r\n]*unicode-(?:names|properties)[ \t]/.test(text)));
-write("dist/grammars.js", `// Generated by tools/sync.js from grammars/: grammar documents and eager resources, by path.
+write("dist/grammars.js", `// Generated by tools/sync.js from grammars/ and data/: eager resources, by package-relative path.
 (function (root) {
   "use strict";
   root.gencmuGrammars = ${JSON.stringify(browserSources)};

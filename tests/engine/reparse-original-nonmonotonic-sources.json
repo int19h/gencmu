@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage letters\n%ambiguity-resolution greedy\n%rule text letter\n%rule letter char %emits $ :: A, $ :: A\n%rule char \"a\"\n%stage triples\n%ambiguity-resolution greedy\n%rule text (prefix edge)\n%rule prefix A %emits ε :: X\n%rule edge ($n:nothing A) %emits ε :: Y, $n :: Z\n%rule nothing ε\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text (X Y a) | (X Y b) | (X Y c)\n%rule a ([+T] Z) %conditions $.source-text = \"\", Z ⊆ $.first-token.tags\n\n%rule b ([+T] [+T] Z)\n%rule c (T Z)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

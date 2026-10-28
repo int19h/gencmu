@@ -1,9 +1,9 @@
 {
   "description": "A replacement quote reads Lojban words. Its CgV word therefore warns.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "lo'ai mariam le'ai",
   "parses": [
     {

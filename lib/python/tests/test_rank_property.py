@@ -25,7 +25,7 @@ from unittest import mock
 from typing import Any
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
 from gencmu import _rank
@@ -33,7 +33,7 @@ from gencmu._model import Token
 from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
 from gencmu._stage import StageRunner
 
-from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_dialect
+from .shared import SHARED, OverBudget, Watch, calls, case_tokens, count_work, load_case, load_case_pipeline
 
 TERMINALS = ["A", "B", "C"]
 INF = float("inf")
@@ -609,11 +609,11 @@ class RankingProperty(unittest.TestCase):
         (engine §4). The oracle and the library agree on the shared case
         that pins it."""
         case = load_case(SHARED / "engine" / "cycle-repeated-partial-item.json")
-        dialect, error = load_case_dialect(case)
-        assert dialect is not None, error
-        lowered = dialect.lowered(0, frozenset())
+        pipeline, error = load_case_pipeline(case)
+        assert pipeline is not None, error
+        lowered = pipeline.lowered(0, frozenset())
         tokens, text = case_tokens(case)
-        context = StageContext(lowered, tokens, text, dialect.unicode)
+        context = StageContext(lowered, tokens, text, pipeline.unicode)
         context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
         derivations = forest_derivations(forest, context, 20000)
@@ -633,10 +633,10 @@ class RankingProperty(unittest.TestCase):
                 grammar = f"%rule text r{n} A | r{n} z A\n%rule z w w\n%rule w ε\n%rule r0 ε\n" + "\n".join(
                     f"%rule r{i} r{i - 1} r{i - 1}" for i in range(1, n + 1)
                 )
-                dialect, error = load_case_dialect({"grammar": grammar})
-                assert dialect is not None, error
-                lowered = dialect.lowered(0, frozenset())
-                context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", dialect.unicode)
+                pipeline, error = load_case_pipeline({"grammar": grammar})
+                assert pipeline is not None, error
+                lowered = pipeline.lowered(0, frozenset())
+                context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", pipeline.unicode)
                 context.count = count_roots
                 forest = Parser(context).parse(lowered.rule_ids["text"])
                 # The ranking alone: the chosen tree has 2^n nodes, so the

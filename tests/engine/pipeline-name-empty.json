@@ -1,0 +1,8 @@
+{
+  "description": "A bundled name needs at least two nonempty segments.",
+  "pipeline": "",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

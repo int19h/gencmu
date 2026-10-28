@@ -1,10 +1,11 @@
-export { Loader, Dialect, fnv1a64 } from "./dialect.js";
-export { stitchText } from "./pipeline.js";
+export { Loader, Pipeline, fnv1a64 } from "./pipeline.js";
+export { bundledPipelines } from "./resources.js";
+export { stitchText } from "./splice.js";
 export { GencmuError } from "./errors.js";
 export { Token } from "./tokens.js";
 export { resultJson, toJson, compactJson, toBrackets, toTree, displayValue, prettyJson, nodeBrackets, nodeTree, attachmentText } from "./output.js";
 export { explainError, explainTies, explainWarnings, tokenTable, audit, formatAudit, trace, formatTrace, sourceExcerpt, formatCondition, formatTerm, formatItem } from "./diagnostics.js";
-import { Loader, Dialect } from "./dialect.js";
+import { Loader, Pipeline } from "./pipeline.js";
 export type TagSet = import("./types.js").TagSet;
 export type Span = import("./types.js").Span;
 export type Resources = import("./types.js").Resources;
@@ -46,15 +47,15 @@ export type DisplayValue = import("./output.js").DisplayValue;
  * @typedef {import("./output.js").DisplayValue} DisplayValue
  */
 /**
- * A dialect from documents held in memory: a map, or a plain object, from
- * path to text, which must include `unicode.txt` and
- * `notation/bootstrap.json` (`gencmu/node` fills them in from the bundled
+ * A pipeline from documents held in memory: a map, or a plain object, from
+ * path to text, which must include `data/unicode/unicode.txt` and
+ * `data/preparsed/gencmu.json` (`gencmu/node` fills them in from the bundled
  * grammars), and the path of the pipeline document among them.
  * @param {Map<string, string> | Record<string, string>} sources
  * @param {string} pipelinePath
- * @returns {Dialect}
+ * @returns {Pipeline}
  */
-export declare function loadDialectSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): Dialect;
+export declare function loadPipelineSources(sources: Map<string, string> | Record<string, string>, pipelinePath: string): Pipeline;
 /**
  * @param {Map<string, string> | Record<string, string>} sources
  * @returns {Loader}

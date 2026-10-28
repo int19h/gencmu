@@ -936,8 +936,9 @@ mod tests {
                 format!("B {optional} [+T] {suffix}")
             };
             let document = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r {body}\n%rule c D\n```\n");
-            let dialect = crate::load_dialect_sources([("main.md", document)], "main.md").unwrap();
-            let g = dialect.lowered_stage(0);
+            let pipeline =
+                crate::load_pipeline_sources([("grammars/test/main.md", document)], "grammars/test/main.md").unwrap();
+            let g = pipeline.lowered_stage(0);
             let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).unwrap() as u32;
             let mut oracle = Oracle::new(&g, &tokens, start);
             let witnesses = oracle.completed(start, 0, tokens.len() as u32);
@@ -1029,29 +1030,33 @@ mod tests {
     /// The eligible witnesses of `begins` as the library finds them and as
     /// the oracle does, for one random grammar and input; `None` when the
     /// round checks nothing.
-    fn round(rng: &mut Rng, pipeline: &str, check_dom: bool) -> Option<(Vec<bool>, Vec<bool>, String)> {
+    fn round(rng: &mut Rng, pipeline_dom: &str, check_dom: bool) -> Option<(Vec<bool>, Vec<bool>, String)> {
         let (document, dom) = grammar(rng);
         if check_dom {
             // The DOM given to the cache is the one the notation reads.
             let read = crate::tools::read_grammar_document(&document, "").expect("the document");
             assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
-        let compiled = format!(
-            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
+        let preparsed = format!(
+            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","properties":"{}","documents":{{"grammars/test/main.md":{{"hash":"{}","dom":{dom}}},"grammars/test/p.md":{{"hash":"{}","dom":{pipeline_dom}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
-            crate::json::fnv1a64(crate::loader::bundled("unicode.txt").unwrap()),
-            crate::json::fnv1a64(crate::loader::bundled("unicode-properties.txt").unwrap()),
+            crate::json::fnv1a64(crate::loader::bundled("data/unicode/unicode.txt").unwrap()),
+            crate::json::fnv1a64(crate::loader::bundled("data/unicode/unicode-properties.txt").unwrap()),
             crate::json::fnv1a64(&document),
             crate::json::fnv1a64(PIPELINE)
         );
         let tokens: Vec<&str> = (0..rng.below(5)).map(|_| TERMINALS[rng.below(4)]).collect();
-        let sources = [("main.md", document.clone()), ("p.md", PIPELINE.to_string()), ("compiled.json", compiled)];
-        let dialect = crate::load_dialect_sources(sources, "p.md").ok()?;
-        let g = dialect.lowered_stage(0);
+        let sources = [
+            ("grammars/test/main.md", document.clone()),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+            ("data/preparsed/test.json", preparsed),
+        ];
+        let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").ok()?;
+        let g = pipeline.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper)? as u32;
         let chars: Vec<char> = vec![' '; tokens.len() * 2];
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = tokens
             .iter()
             .enumerate()
@@ -1081,7 +1086,7 @@ mod tests {
         if witnesses.is_empty() {
             return None;
         }
-        let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
         let got = proofs.eligible(&witnesses);
         let mut oracle = Oracle::new(&g, &tokens, start);
         let mut truth = Vec::new();
@@ -1133,8 +1138,11 @@ mod tests {
             starts.join(" | "),
             tagged.join(" | ")
         );
-        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
+        let sources = [
+            ("grammars/test/main.md", format!("```jbogenbau\n{grammar}```\n")),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+        ];
+        let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").expect("the pipeline");
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
             image: None,
             text: text.to_string(),
@@ -1149,7 +1157,7 @@ mod tests {
         let options = crate::ParseOptions::default();
         // The token a reads as any of the n starts, so the stage ends in a
         // tie. The query runs before that, which is the work counted here.
-        let result = dialect.parse_tokens(&tokens, &options).expect("a result");
+        let result = pipeline.parse_tokens(&tokens, &options).expect("a result");
         assert_eq!(result.stages[0].verdict, Some(crate::Verdict::Tie), "{n}");
     }
 
@@ -1164,12 +1172,15 @@ mod tests {
     }
 
     fn query_work(grammar: &str, n: usize, c: usize, begins: bool, most: &dyn Fn(u64) -> u64) -> (Vec<bool>, u64, u64) {
-        let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
-        let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
-        let g = dialect.lowered_stage(0);
+        let sources = [
+            ("grammars/test/main.md", format!("```jbogenbau\n{grammar}```\n")),
+            ("grammars/test/p.md", PIPELINE.to_string()),
+        ];
+        let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").expect("the pipeline");
+        let g = pipeline.lowered_stage(0);
         let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).expect("r") as u32;
         let chars: Vec<char> = vec![' '; (n + c + 1) * 2];
-        let mut shared = Shared::new(&dialect.unicode, &chars);
+        let mut shared = Shared::new(&pipeline.unicode, &chars);
         let input: Vec<Tok> = (0..=n + c)
             .map(|index| Tok {
                 text: "x".to_string(),
@@ -1201,7 +1212,7 @@ mod tests {
             })
             .collect();
         assert!(!witnesses.is_empty(), "r completes");
-        let proofs = Proofs::new(&g, &chart, &input, &dialect.unicode, &shared.tags);
+        let proofs = Proofs::new(&g, &chart, &input, &pipeline.unicode, &shared.tags);
         // The chart is made before the searches, so the budget of the
         // searches can depend on its items.
         let items = chart.sets.iter().map(|set| set.items.len() as u64).sum();

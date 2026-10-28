@@ -1,0 +1,42 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
+  },
+  "pipelineDocument": "pipeline.md",
+  "description": "A complete quote emits one token with its opening class, original image, and decomposed value.",
+  "options": {
+    "until": "words"
+  },
+  "input": "lo'u coi le'u",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "lo'u coi le'u",
+              "value": "lo'u coi le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

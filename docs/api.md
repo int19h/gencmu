@@ -4,21 +4,29 @@ Every gencmu library offers the same operations on the same data. An API is the 
 
 ## What every library offers
 
-### Loading a dialect
+### Loading a pipeline
 
-A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
+A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document names its stages and the grammar documents that each stage uses. The loaded object is a `Pipeline`. A library loads a pipeline in three ways:
 
-- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. The [dialect documents](../grammars/dialects/) define the bundled names.
-- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `unicode.txt`, `unicode-properties.txt`, and `notation/bootstrap.json`. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
-- It loads documents held in memory through a map of `/`-separated paths to text. The caller gives the pipeline document's path in that map. The map can supply `unicode.txt`, `unicode-properties.txt`, `unicode-names.txt`, `notation/bootstrap.json`, and `compiled.json`. Libraries fill missing entries from bundled resources except a properties companion for an overridden core.
+- It loads a bundled pipeline by its full name. The name is its directory path under `grammars/`, such as `lojban/cll`. Its resource key is `grammars/NAME/pipeline.md`.
+- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `data/unicode/unicode.txt`, `data/unicode/unicode-properties.txt`, and `data/preparsed/gencmu.json`. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
+- It loads documents held in memory through a map of `/`-separated paths to text. The caller gives the pipeline document's path in that map. Resource keys are relative to the package root, which holds sibling `grammars/` and `data/` directories. The map can replace Unicode resources and any `data/preparsed/FAMILY.json`. Libraries fill missing entries from bundled resources except a properties companion for an overridden core.
 
-The portable JavaScript entry point has no bundled resources. Its map must supply `unicode.txt` and `notation/bootstrap.json`. It needs `unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
+A bundled name has two or more segments separated by `/`. Each segment matches `[a-z0-9][a-z0-9-]*`. Names are case-sensitive and have no short aliases. Invalid names and missing bundled pipelines cause a `usage` error before grammar loading.
 
-A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space`, `Emoji_Presentation`, and `Emoji_Component` too, so the table must list the white space that the documents use. The table must give `Emoji_Presentation` to every emoji name that the documents use. Those names must also lack `Emoji_Component`. A code point that the core table omits has category `Cn` and lacks all three core binary properties. A companion's explicit assignments and declared defaults still apply to it (engine §1).
+`bundledPipelines()` lists the package's bundled names in code-point order. Python and Rust call it `bundled_pipelines()`, and Go calls it `BundledPipelines()`. A directory defines a bundled pipeline exactly when it holds `pipeline.md`. Discovery removes the `grammars/` prefix and `/pipeline.md` suffix from each matching resource path. Enumeration includes only valid pipeline names. No separate catalog file defines the list.
 
-A supplied `unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors.
+The bundled names are `gencmu/jbogenbau`, `lojban/bpfk`, `lojban/cll`, `lojban/examples/kihei`, `lojban/experimental`, and `lojban/zantufa`.
 
-A supplied `unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map require names data. Names-dependent cache hits can use bundled fingerprints without reading names files (engine §8). Canonical printing uses the core abbreviation records.
+Portable JavaScript accepts a source map or plain object as `bundledPipelines(sources)`. With no sources, it returns an empty list because that entry point has no bundle. The Node entry point supplies its package's resources by default. The CLI uses that function, and the playground supplies its bundled source map.
+
+The portable JavaScript entry point has no bundled resources. Its map must supply `data/unicode/unicode.txt` and `data/preparsed/gencmu.json`. It needs `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Numeric escape parsing alone does not need names data. The map supplies `data/unicode/unicode-properties.txt` to support additional properties. Without it, a supplied core supports only its five core properties.
+
+A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space`, `Emoji_Presentation`, and `Emoji_Component` too, so the table must list the white space that the documents use. The table must give `Emoji_Presentation` to every emoji name that the documents use. Those names must also lack `Emoji_Component`. A code point that the core table omits has category `Cn` and lacks all three core binary properties. A companion's explicit assignments and declared defaults still apply to it (engine §1).
+
+A supplied `data/unicode/unicode-properties.txt` replaces bundled properties without fallback for omitted properties or values. Its Unicode version must match the core table. Even without an additional property reference, the loader reads every present properties file. An unavailable property reference is a grammar loading error at that reference. Missing bundled data, malformed files, and version mismatches are resource loading errors.
+
+A supplied `data/unicode/unicode-names.txt` replaces bundled names data without fallback for omitted names. Its declared Unicode version must match `data/unicode/unicode.txt`. If bundled resources exist and versions match, an omitted names file uses that bundle. Source names outside the core abbreviation map require names data. Names-dependent cache hits can use bundled fingerprints without reading names files (engine §8). Canonical printing uses the core abbreviation records.
 
 A custom names file can omit standard entries and add names only for unnamed scalars (engine §1). An unnamed scalar has no pinned formal name, algorithmic name, or alias. Controls therefore cannot receive custom names.
 
@@ -28,19 +36,21 @@ The decoded include path resolves against its containing document, with `.` and 
 
 `%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
 
-Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply `phonemes/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
 
-Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
+Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `data/unicode/unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `data/unicode/unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
-A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. If no matching cache entry exists, the library reads the document through the notation grammar.
+A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. Each `data/preparsed/FAMILY.json` holds the preparsed DOMs for one family. The required `gencmu.json` supplies the notation bootstrap.
 
-An entry always requires matching text hash, bootstrap hash, core-table hash, properties fingerprint, and DOM format. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
+Each document under `grammars/FAMILY/` uses only `data/preparsed/FAMILY.json`, besides the bootstrap. A bundled pipeline therefore reads only its own family's file. A missing or malformed optional file gives cache misses. If no matching cache entry exists, the library reads the document through the notation grammar.
+
+An ordinary entry requires matching text hash, bootstrap fingerprint, core-table hash, properties fingerprint, and DOM format. Bootstrap entries bypass source text hash checks, as engine §8 defines. The properties fingerprint is mandatory, with `null` for a custom core without a companion. A document that loads names data requires matching paths and fingerprints for its standard file and selected extras.
 
 The optional `bundledNames` cache registry supplies fingerprints for unoverridden bundled resources without names-file reads. Any caller-supplied names resource requires loading and inspecting the complete selected set. A portable cache can also declare bundled names resources through this registry. Absent resource keys select those declared bundled fingerprints for cache comparison, without supplying file text.
 
-Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
+Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `data/unicode/unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
 
-A dialect that cannot be loaded is an error. A dialect cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
+A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). A tie while the notation reads a document is a load error too (engine §8).
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
@@ -52,15 +62,17 @@ The compatibility boundary is the format number and the notation contract. Calle
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
-### The dialect's features
+### The pipeline's features
 
-A feature is a named switch that the grammars of the dialect test (engine §13).
+A feature is a named switch that the grammars of the pipeline test (engine §13).
 
-A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
+A loaded pipeline lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+
+Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
 
 ### Parsing
 
-A loaded dialect parses a text with these configuration arguments. Each argument is optional:
+A loaded pipeline parses a text with these configuration arguments. Each argument is optional:
 
 | Argument | Default | Meaning |
 | --- | --- | --- |
@@ -83,7 +95,7 @@ A check that cannot recognize its chosen reconstruction before filtering reports
 
 Here, `grammar` is for a defect found only while parsing. One example is a nested parse asked about its own span as the same rule. Another is a classifier's entry that adds a class twice under the features of the parse.
 
-Parsing is synchronous, and you can use a loaded dialect for any number of parses. In Python, Go and Rust, any number of threads can share one dialect and parse at once. JavaScript has one thread, and the worker of the playground has its own dialects.
+Parsing is synchronous, and you can use a loaded pipeline for any number of parses. In Python, Go and Rust, any number of threads can share one pipeline and parse at once. JavaScript has one thread, and the worker of the playground has its own pipelines.
 
 ### The result
 
@@ -99,9 +111,9 @@ A failed result retains features enabled before the failure, including earlier d
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-The [dialect guide](dialects.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
+The [pipeline guide](pipelines.md#phoneme-values-and-stress) describes the bundled stages and comparison values. The `until` argument must name a stage in the selected pipeline.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by dialect. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by pipeline. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 
@@ -115,23 +127,25 @@ Expected entries keep their terminal and rule lists in code point order. Other r
 
 A named instance uses its public name everywhere, including `insertedBy`, warnings, expected lists, and error witnesses. A binding adds no tree node.
 
-A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
+A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. An equality-tested elided node also has `value`, its saved restoration operand, including an explicit empty string. Other nodes omit `value`.
 
-A result shares no value that can change with the dialect, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
+Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
+
+A result shares no value that can change with the pipeline, or with the tokens of the caller. This holds for every tag set of a token or a node, in the chosen tree and the readings of an error. So a change to a result changes no later parse. A later change to a token of the caller does not change the result.
 
 ### Output
 
 Every library writes the canonical JSON of a result as text, in the key order that `docs/output.md` gives. Every library also renders a result as brackets, with elided terminators hidden or shown. The JavaScript library also renders the tree listing and the display JSON, for the CLI and the playground.
 
-A parse result privately retains its immutable originating core table for canonical string rendering. This context survives the dialect's lifetime and stays outside serialized JSON. `toTree(result)` uses that context, including custom abbreviations and escaping predicates. Without that context, it reports a usage error. A JSON-decoded result therefore needs no resource for plain JSON serialization but cannot supply a tree rendering.
+A parse result privately retains its immutable originating core table for canonical string rendering. This context survives the pipeline's lifetime and stays outside serialized JSON. `toTree(result)` uses that context, including custom abbreviations and escaping predicates. Without that context, it reports a usage error. A JSON-decoded result therefore needs no resource for plain JSON serialization but cannot supply a tree rendering.
 
-Two dialects can produce identical visible token fields with different core abbreviations. A shared case alternates rendering their results after both dialects are dropped. One core supplies only `LF`, and the other supplies only `NL` for U+000A. Each quoted newline image retains its own core's spelling. Neither rendering loads names data or uses the last-loaded dialect.
+Two pipelines can produce identical visible token fields with different core abbreviations. A shared case alternates rendering their results after both pipelines are dropped. One core supplies only `LF`, and the other supplies only `NL` for U+000A. Each quoted newline image retains its own core's spelling. Neither rendering loads names data or uses the last-loaded pipeline.
 
 ### Tokens for tests and tools
 
 Some entry points exist for tests and tools, outside the common API. They supply pre-built tokens instead of stage-zero characters.
 
-JavaScript supplies tokens in `dialect.parse(text, { tokens, ...configuration })`. Python uses `Dialect.parse_tokens(tokens, text, ...)`. Go uses `(*Dialect).ParseTokens(text, tokens, options)`. Rust uses `Dialect::parse_tokens(tokens, options)`.
+JavaScript supplies tokens in `pipeline.parse(text, { tokens, ...configuration })`. Python uses `Pipeline.parse_tokens(tokens, text, ...)`. Go uses `(*Pipeline).ParseTokens(text, tokens, options)`. Rust uses `Pipeline::parse_tokens(tokens, options)`.
 
 JavaScript, Python and Go take the original text beside the tokens. Token sources, `.source-text`, and `.verbatim-text` use that text.
 
@@ -165,39 +179,39 @@ Every library runs each case of these tests that its API can express (`tests/REA
 
 - `tests/engine/`
 - `tests/notation/`
-- The fixpoint of the bootstrap, where a reading of `grammars/notation/*.md` with the bootstrap reproduces the bootstrap
-- A comparison of `compiled.json` with a fresh reading, with the cache both used and bypassed
+- The fixpoint of the bootstrap, where a reading of `grammars/gencmu/jbogenbau/*.md` with the bootstrap reproduces the bootstrap
+- A comparison of `data/preparsed/FAMILY.json` with a fresh reading, with the cache both used and bypassed
 
-The language examples below use the bundled `cll-ebnf` dialect and its features. Their texts, stage names, and feature names illustrate API calls.
+The language examples below use the bundled `lojban/cll` pipeline and its features. Their texts, stage names, and feature names illustrate API calls.
 
 ## JavaScript
 
 `gencmu` works anywhere JavaScript runs. `gencmu/node` adds access to the disk.
 
 ```js
-import { loadDialect, loadDialectFile } from "gencmu/node";
-import { loadDialectSources, toJson, toBrackets } from "gencmu";
+import { loadPipeline, loadPipelineFile } from "gencmu/node";
+import { loadPipelineSources, toJson, toBrackets } from "gencmu";
 
-const dialect = loadDialect("cll-ebnf");
-const result = dialect.parse("mi klama", { features: ["y-cmavo"], until: "words" });
-const supplied = dialect.parse("A", {
+const pipeline = loadPipeline("lojban/cll");
+const result = pipeline.parse("mi klama", { features: ["y-cmavo"], until: "words" });
+const supplied = pipeline.parse("A", {
     tokens: [{ text: "A", value: "a", image: "A", tags: ["_General_Category_Uppercase_Letter", "_General_Category_Letter"], span: [0, 1], source: [0, 1] }],
     until: "phonemes"
 });
 result.ok; result.tree; result.error; result.warnings;
-dialect.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
+pipeline.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
                   //  { name: "sa-su", kind: "gate", default: false },
                   //  { name: "su-boundary", kind: "gate", default: true },
                   //  { name: "y-cmavo", kind: "warning", default: false }]
 toJson(result); toBrackets(result, { showElided: true });
 ```
 
-- `loadDialect(name)` and `loadDialectFile(path)` come from `gencmu/node`. `loadDialectSources(sources, pipelinePath)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills missing bundled resources with the custom-core exception above, and it loads names on demand. The portable `gencmu` version requires `unicode.txt` and `notation/bootstrap.json` in the map. It also requires `unicode-names.txt` for source names outside the core abbreviation map. Additional properties require `unicode-properties.txt` in the map.
-- `dialect.parse(text, { tokens, features, withoutFeatures, until, elisionOnly })` returns a `ParseResult`.
-- `dialect.features` is an array of `{ name, kind, default }`.
+- `loadPipeline(name)`, `loadPipelineFile(path)`, and `bundledPipelines()` come from `gencmu/node`. `loadPipelineSources(sources, path)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills missing bundled resources with the custom-core exception above, and it loads names on demand. The portable `gencmu` version requires `data/unicode/unicode.txt` and `data/preparsed/gencmu.json` in the map. It also requires `data/unicode/unicode-names.txt` for source names outside the core abbreviation map. Additional properties require `data/unicode/unicode-properties.txt` in the map.
+- `pipeline.parse(text, { tokens, features, withoutFeatures, until, elisionOnly })` returns a `ParseResult`.
+- `pipeline.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
 - Errors are `GencmuError`, with `kind` and `where`.
-- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several dialects over one set of documents.
+- The lower-level `Loader`, `loaderFromSources` and `loaderFromDirectory` are available for tools that load several pipelines over one set of documents. `Loader.splice(path)` expands includes into stage document runs. `Loader.pipeline(path)` returns a loaded `Pipeline`.
 
 The types are in the package's declarations (`lib/js/types/`).
 
@@ -206,12 +220,12 @@ The types are in the package's declarations (`lib/js/types/`).
 ```python
 import gencmu
 
-dialect = gencmu.load_dialect("cll-ebnf")
-result = dialect.parse("mi klama", features={"y-cmavo"}, until="words")
+pipeline = gencmu.load_pipeline("lojban/cll")
+result = pipeline.parse("mi klama", features={"y-cmavo"}, until="words")
 tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_General_Category_Uppercase_Letter", "_General_Category_Letter"}, span=(0, 1), source=(0, 1))]
-supplied = dialect.parse_tokens(tokens, "A", until="phonemes")
+supplied = pipeline.parse_tokens(tokens, "A", until="phonemes")
 result.ok, result.tree, result.error, result.warnings
-dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
+pipeline.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
                   #  Feature(name="sa-su", kind="gate", default=False),
                   #  Feature(name="su-boundary", kind="gate", default=True),
                   #  Feature(name="y-cmavo", kind="warning", default=False))
@@ -219,10 +233,11 @@ gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
 
-- `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` load a dialect. `sources` is a mapping from path to text.
-- `Dialect.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
-- `Dialect.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
-- `Dialect.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
+- `bundled_pipelines() -> list[str]` lists the bundled full names.
+- `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` load a pipeline. `sources` is a mapping from path to text.
+- `Pipeline.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
+- `Pipeline.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
+- `Pipeline.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
 - Errors raise `gencmu.GencmuError`, with `kind` and `where`.
@@ -234,15 +249,15 @@ The package needs Python 3.14 or later. It is pure Python with no runtime depend
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("cll-ebnf")
-result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words"})
+pipeline, err := gencmu.LoadPipeline("lojban/cll")
+result, err := pipeline.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words"})
 result.OK; result.Tree; result.Error; result.Warnings
 value, image := "a", "A"
-supplied, err := dialect.ParseTokens("A", []gencmu.InputToken{{
+supplied, err := pipeline.ParseTokens("A", []gencmu.InputToken{{
     Text: "A", Value: &value, Image: &image, Tags: []string{"_General_Category_Uppercase_Letter", "_General_Category_Letter"},
     Span: [2]int{0, 1}, Source: [2]int{0, 1},
 }}, gencmu.ParseOptions{Until: "phonemes"})
-dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
+pipeline.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
                    //   {Name: "sa-su", Kind: "gate", Default: false},
                    //   {Name: "su-boundary", Kind: "gate", Default: true},
                    //   {Name: "y-cmavo", Kind: "warning", Default: false}}
@@ -250,42 +265,44 @@ data, err := gencmu.MarshalResult(result)
 gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
 
-- `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
-- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `Until string` and `ElisionOnly *bool`.
+- `BundledPipelines() []string` lists the bundled full names.
+- `LoadPipeline(name)`, `LoadPipelineFile(path)` and `LoadPipelineSources(sources map[string]string, path string)` each return `(*Pipeline, error)`. A load error is a `*gencmu.Error`.
+- `(*Pipeline).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `Until string` and `ElisionOnly *bool`.
 
   `Until` is a string, so Go cannot distinguish an empty name from no name. An empty `Until` runs every stage.
 
-- `(*Dialect).ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error)` parses supplied tokens with the same configuration.
-- `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
+- `(*Pipeline).ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error)` parses supplied tokens with the same configuration.
+- `(*Pipeline).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
-- A `*Dialect` is safe for concurrent use by any number of goroutines.
+- A `*Pipeline` is safe for concurrent use by any number of goroutines.
 
 ## Rust
 
 ```rust
-let dialect = gencmu::load_dialect("cll-ebnf")?;
-let result = dialect.parse("mi klama", &gencmu::ParseOptions {
+let pipeline = gencmu::load_pipeline("lojban/cll")?;
+let result = pipeline.parse("mi klama", &gencmu::ParseOptions {
     features: vec!["y-cmavo".into()],
     until: Some("words".into()),
     ..Default::default()
 })?;
-let supplied = dialect.parse_tokens(&[gencmu::InputToken {
+let supplied = pipeline.parse_tokens(&[gencmu::InputToken {
     text: "A".into(), value: Some("a".into()), image: Some("A".into()),
     tags: ["_General_Category_Uppercase_Letter".into(), "_General_Category_Letter".into()].into_iter().collect(),
 }], &gencmu::ParseOptions {
     until: Some("phonemes".into()), ..Default::default()
 })?;
 let (ok, tree, error, warnings) = (result.ok, &result.tree, &result.error, &result.warnings);
-let features = dialect.features(); // &[Feature { name, kind, default }]
+let features = pipeline.features(); // &[Feature { name, kind, default }]
 gencmu::to_json(&result);
 gencmu::to_brackets(&result, true);
 ```
 
-- `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` each return `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `until` and `elision_only`.
-- `Dialect::parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error>` parses supplied tokens with the same configuration.
-- `Dialect::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
+- `bundled_pipelines() -> Vec<String>` lists the bundled full names.
+- `load_pipeline(name)`, `load_pipeline_file(path)` and `load_pipeline_sources(sources, path)` each return `Result<Pipeline, gencmu::Error>`.
+- `Pipeline::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `until` and `elision_only`.
+- `Pipeline::parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error>` parses supplied tokens with the same configuration.
+- `Pipeline::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
 - `to_json(&ParseResult) -> String` writes the canonical JSON.
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
-- A result owns its data (`String`, `Vec`) and borrows neither the text nor the dialect. So it outlives both.
+- A result owns its data (`String`, `Vec`) and borrows neither the text nor the pipeline. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.

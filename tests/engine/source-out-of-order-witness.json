@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item X | Y | Z %emits $\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text (X s Z triple)\n%rule s ([+KU] Y) | ([+KU] q)\n%rule q Y\n%rule triple (X Y Z)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "ab",
   "expect": {
     "result": {

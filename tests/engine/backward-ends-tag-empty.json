@@ -1,5 +1,5 @@
 {
-  "description": "A terminal target rejects an empty receiver. (Engine \u00a74.4.)",
+  "description": "A terminal target rejects an empty receiver. (Engine §4.4.)",
   "grammar": "%rule text \u03b5\n%conditions \u00ac$.ends(A)",
   "tokens": [],
   "expect": {

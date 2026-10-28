@@ -1,9 +1,9 @@
 {
   "description": "The tree condition sees the complete ZO quote, and UI attaches to that quote.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo ba'ei ui cmavo",
   "options": {},
   "expect": {

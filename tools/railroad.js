@@ -47,7 +47,7 @@ const TITLE_HEIGHT = 24;
 
 /** @param {string} text */
 const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
+const unicode = new UnicodeTable(fs.readFileSync(new URL("../data/unicode/unicode.txt", import.meta.url), "utf8"));
 /** @param {string} text */
 const length = (text) => [...text].reduce((width, scalar) =>
   width + (unicode.hasEmoji("Emoji_Presentation", scalar.codePointAt(0)) ? 2 : 1), 0);
@@ -485,14 +485,14 @@ function holdsConstant(term) {
  * terminator alone. So the answer depends only on the test's value. That
  * value is a closed term, which holds no classify, capture or guard
  * (docs/notation.md, "Constants"). Only a constant in it takes a value from
- * the stage, so only then does this load the dialect: a constant can have
+ * the stage, so only then does this load the pipeline: a constant can have
  * another value in each stage that reads the document. Any other value is
  * the same in every stage, and is evaluated once, with no stage. With no
  * such optional in `documents`, this reads nothing at all.
- * @param {{unicode: any, pipeline: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, dialect: (path: string) => {stages: {grammar: any}[]}}} loader
+ * @param {{unicode: any, splice: (path: string) => {stages: {documents: {path: string, dom: any}[]}[]}, pipeline: (path: string) => {stages: {grammar: any}[]}}} loader
  * @param {string[]} pipelines the pipeline documents' paths
  * @param {Map<string, {rules: any[]}>} documents the DOM of each grammar
- *   document, by its path under grammars/
+ *   document, by its package-root path
  * @returns {Map<string, Map<string, Set<boolean>[]>>} by document, then by
  *   the rule's line and column: one set of answers for each of its
  *   testedElisions, in order
@@ -507,10 +507,10 @@ export function elisionOutcomes(loader, pipelines, documents) {
   // a rule text and its ambiguity resolution, and it holds nothing else.
   // Its Unicode table, for a range, is the one that every stage shares.
   const stageless = new Grammar("diagrams", [{ path: "diagrams", dom: { format: DOM_FORMAT, rules: [{ name: "text", op: "define", flags: [], alternatives: [{ guards: [], expr: { empty: true } }], conditions: [], at: [1, 1] }], directives: [{ name: "ambiguity-resolution", args: ["greedy"], at: [1, 1] }], constants: [], classifiers: [], implications: [] } }], loader.unicode);
-  for (const pipeline of pipelines) {
-    const { stages } = loader.pipeline(pipeline);
+  for (const documentPath of pipelines) {
+    const { stages } = loader.splice(documentPath);
     /** @type {{stages: {grammar: any}[]} | null} */
-    let dialect = null;
+    let pipeline = null;
     stages.forEach((stage, index) => {
       for (const { path: document, dom } of stage.documents) {
         if (!candidates.has(document)) continue;
@@ -519,7 +519,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             if (hasUnresolved(first)) return;
-            const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
+            const grammar = holdsConstant(first) ? (pipeline ??= loader.pipeline(documentPath)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             let base = first;
             while (base.test) base = base.expr;
@@ -802,7 +802,7 @@ export function diagramNames(rules) {
 
 /**
  * The directory of a grammar document's SVG files, from the document's
- * path under grammars/, such as `syntax/cll.md`.
+ * path under grammars/, such as `grammars/lojban/cll/syntax.md`.
  * @param {string} file
  */
 export const diagramDirectory = (file) => `${DIAGRAMS}/${file.replace(/\.md$/, "")}`;

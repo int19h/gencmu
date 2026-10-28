@@ -48,7 +48,7 @@ func TestFamilyRankedGrowthMembers(t *testing.T) {
 	const file = "engine/without-elision-except-undemanded-ranked-sibling.json"
 	for _, depth := range []int{4, 256} {
 		c := growFamilyCase(t, file, depth, true)
-		d, err := caseDialect(c, true)
+		d, err := casePipeline(c, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,11 +62,11 @@ func TestFamilyRankedGrowthMembers(t *testing.T) {
 func TestFamilyGrowthStopsAtBudget(t *testing.T) {
 	strictCase := growFamilyCase(t, "engine/without-elision-owner-choice.json", 4, false)
 	familyCase := growFamilyCase(t, "engine/without-elision-except-owner-choice.json", 4, false)
-	strictDialect, err := caseDialect(strictCase, true)
+	strictPipeline, err := casePipeline(strictCase, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	familyDialect, err := caseDialect(familyCase, true)
+	familyPipeline, err := casePipeline(familyCase, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestFamilyGrowthStopsAtBudget(t *testing.T) {
 			}
 			strict := familyGrowthCounters(bound, 4, nil)
 			countWorkIn(strict, func() {
-				if err := checkGrowthParse(strictDialect, strictCase); err != nil {
+				if err := checkGrowthParse(strictPipeline, strictCase); err != nil {
 					t.Fatal(err)
 				}
 			})
@@ -95,7 +95,7 @@ func TestFamilyGrowthStopsAtBudget(t *testing.T) {
 			func() {
 				defer func() { stop = recover() }()
 				countWorkIn(family, func() {
-					parseErr = checkGrowthParse(familyDialect, familyCase)
+					parseErr = checkGrowthParse(familyPipeline, familyCase)
 					finished = parseErr == nil
 				})
 			}()

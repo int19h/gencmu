@@ -6,7 +6,7 @@ The definitions and scores come from the [Lensisku dictionary snapshot](https://
 
 For `iu'e` and `iu'i`, the reviewer infers UI from the attitudinal definitions. Neither definition records a selma'o. The lexicon states the maintainer's corrections.
 
-The review labels 95 words CONSISTENT, twelve INCONSISTENT, 27 UNCLEAR and six NOT-THE-WORD. These labels record the reviewer's assessment of corpus evidence. The [experimental lexicon](../grammars/words/lexicon-experimental.md#additions-from-real-text) states the admission policy and the maintainer's class corrections. Missing constructions wait for [issue #212](https://github.com/int19h/gencmu/issues/212).
+The review labels 95 words CONSISTENT, twelve INCONSISTENT, 27 UNCLEAR and six NOT-THE-WORD. These labels record the reviewer's assessment of corpus evidence. The [experimental lexicon](../grammars/lojban/experimental/lexicon.md#additions-from-real-text) states the admission policy and the maintainer's class corrections. Missing constructions wait for [issue #212](https://github.com/int19h/gencmu/issues/212).
 
 ## Consistent use
 

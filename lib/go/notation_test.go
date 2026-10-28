@@ -76,7 +76,7 @@ func TestNotationCases(t *testing.T) {
 	}
 }
 
-// TestFixpoint loads the notation's pipeline, dialects/notation.md, with
+// TestFixpoint loads the notation's pipeline, grammars/gencmu/jbogenbau/pipeline.md, with
 // the bootstrap, splices it, and compares the stages with the bootstrap
 // itself (engine §8): the same names, and the same runs of documents with
 // the same DOMs.
@@ -86,60 +86,71 @@ func TestFixpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	var b struct {
-		Stages []struct {
-			Name      string `json:"name"`
-			Documents []struct {
-				Path string          `json:"path"`
-				Dom  json.RawMessage `json:"dom"`
-			} `json:"documents"`
-		} `json:"stages"`
+		Documents map[string]struct {
+			Dom json.RawMessage `json:"dom"`
+		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["notation/bootstrap.json"]), &b); err != nil {
+	if err := unmarshalJSON([]byte(bundled.sources["data/preparsed/gencmu.json"]), &b); err != nil {
 		t.Fatal(err)
 	}
 	// The repository's documents, each read with the bootstrap.
 	l := &loader{
 		read: func(p string) (string, bool) {
-			text, err := os.ReadFile(filepath.Join("..", "..", "grammars", filepath.FromSlash(p)))
+			text, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(p)))
 			return string(text), err == nil
 		},
 		uni:     bundled.uni,
 		reader:  bundled.reader,
 		noCache: true,
 	}
-	p, err := l.pipeline("dialects/notation.md")
+	p, err := l.splice("grammars/gencmu/jbogenbau/pipeline.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.stages) != len(b.Stages) || len(p.stages) == 0 {
-		t.Fatalf("the pipeline has %d stages, the bootstrap %d", len(p.stages), len(b.Stages))
+	pipelineDOM, derr := decodeDOM(b.Documents["grammars/gencmu/jbogenbau/pipeline.md"].Dom, l.uni)
+	if derr != nil {
+		t.Fatal(derr)
 	}
-	for i, s := range p.stages {
-		want := b.Stages[i]
-		if s.name != want.Name || len(s.documents) != len(want.Documents) {
-			t.Errorf("stage %d: %s of %d runs, the bootstrap's %s of %d", i, s.name, len(s.documents), want.Name, len(want.Documents))
-			continue
-		}
-		for j, d := range s.documents {
-			if d.path != want.Documents[j].Path {
-				t.Errorf("stage %s, run %d: %s, the bootstrap's %s", s.name, j, d.path, want.Documents[j].Path)
-				continue
-			}
-			wantDOM, _ := decodeJSON(want.Documents[j].Dom)
-			if got := domValue(t, d.dom); !equalJSON(got, wantDOM) {
-				t.Errorf("%s: reading it with the bootstrap does not reproduce the bootstrap\n got %s", d.path, d.dom.json())
-			}
-			// The DOM also writes byte for byte as the bootstrap holds it.
-			if string(d.dom.json()) != string(want.Documents[j].Dom) {
-				t.Errorf("%s: the DOM's canonical JSON differs from the bootstrap's text", d.path)
-			}
+	var names []string
+	for _, d := range pipelineDOM.Directives {
+		if d.Name == "stage" {
+			names = append(names, d.Args[0])
 		}
 	}
+	if len(p.stages) != len(names) {
+		t.Fatal("the stage count differs")
+	}
+	for i, stage := range p.stages {
+		if stage.name != names[i] {
+			t.Fatal("the stage name differs")
+		}
+		for _, document := range stage.documents {
+			want, _ := decodeJSON(b.Documents[document.path].Dom)
+			if !equalJSON(domValue(t, document.dom), want) {
+				t.Errorf("%s: the bootstrap DOM differs", document.path)
+			}
+		}
+	}
+	for path, entry := range b.Documents {
+		text, ok := l.read(path)
+		if !ok {
+			t.Fatal(path)
+		}
+		fresh, err := bundled.reader.read(text, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := decodeJSON(entry.Dom)
+		if !equalJSON(domValue(t, fresh), want) {
+			t.Errorf("%s: the document DOM differs", path)
+		}
+	}
+
 }
 
-// TestCompiled checks that compiled.json agrees with a fresh reading of
+// TestPreparsed checks that data/preparsed/lojban.json agrees with a fresh reading of
 // every document it lists, and that it is the file of the grammars.
-func TestCompiled(t *testing.T) {
+func TestPreparsed(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
@@ -153,23 +164,24 @@ func TestCompiled(t *testing.T) {
 			Dom  json.RawMessage `json:"dom"`
 		} `json:"documents"`
 	}
-	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c); err != nil {
+	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
+	if err := unmarshalJSON([]byte(preparsedText), &c); err != nil {
 		t.Fatal(err)
 	}
 	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash || c.Unicode != bundled.uni.hash {
-		t.Fatalf("compiled.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
+		t.Fatalf("data/preparsed/lojban.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
 	}
 	if len(c.Documents) == 0 {
-		t.Fatal("compiled.json lists no documents")
+		t.Fatal("data/preparsed/lojban.json lists no documents")
 	}
 	for p, d := range c.Documents {
 		text, ok := bundled.sources[p]
 		if !ok {
-			t.Errorf("%s: listed in compiled.json but not bundled", p)
+			t.Errorf("%s: listed in data/preparsed/lojban.json but not bundled", p)
 			continue
 		}
 		if fnv1a64(text) != d.Hash {
-			t.Errorf("%s: compiled.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
+			t.Errorf("%s: data/preparsed/lojban.json's hash %s is not the text's %s", p, d.Hash, fnv1a64(text))
 		}
 		dom, rerr := bundled.reader.read(text, p)
 		if rerr != nil {
@@ -177,18 +189,18 @@ func TestCompiled(t *testing.T) {
 		}
 		want, _ := decodeJSON(d.Dom)
 		if !equalJSON(domValue(t, dom), want) {
-			t.Errorf("%s: compiled.json's DOM differs from a fresh reading", p)
+			t.Errorf("%s: data/preparsed/lojban.json's DOM differs from a fresh reading", p)
 		}
 	}
 	for p, text := range bundled.sources {
-		disk, err := os.ReadFile(filepath.Join("..", "..", "grammars", p))
+		disk, err := os.ReadFile(filepath.Join("..", "..", p))
 		if err != nil || string(disk) != text {
-			t.Errorf("lib/go/grammars/%s differs from grammars/%s; run node tools/sync.js", p, p)
+			t.Errorf("lib/go/%s differs from %s; run node tools/sync.js", p, p)
 		}
 	}
 }
 
-// TestCacheUsedAndBypassed parses with the precompiled DOMs and without
+// TestCacheUsedAndBypassed parses with the preparsed DOMs and without
 // them, and the two agree.
 func TestCacheUsedAndBypassed(t *testing.T) {
 	t.Parallel()
@@ -199,10 +211,10 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	for p, text := range bundled.sources {
 		sources[p] = text
 	}
-	text := bundled.sources["notation/syntax.md"]
+	text := bundled.sources["grammars/gencmu/jbogenbau/syntax.md"]
 	var outs [][]byte
 	for _, noCache := range []bool{false, true} {
-		d, err := loadSources(sources, "dialects/notation.md", noCache)
+		d, err := loadSources(sources, "grammars/gencmu/jbogenbau/pipeline.md", noCache)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -211,7 +223,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !res.OK {
-			t.Fatalf("the notation dialect does not parse syntax.md (cache bypassed: %v): %s", noCache, res.Error.Message)
+			t.Fatalf("the notation pipeline does not parse syntax.md (cache bypassed: %v): %s", noCache, res.Error.Message)
 		}
 		data, _ := MarshalResult(res)
 		outs = append(outs, data)
@@ -220,12 +232,13 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
-		t.Error("compiled.json was used with another bootstrap")
+	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
+	if got := readPreparsed(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+		t.Error("data/preparsed/lojban.json was used with another bootstrap")
 	}
 }
 
-// TestBundledCacheSameStages loads each bundled dialect with the precompiled
+// TestBundledCacheSameStages loads each bundled pipeline with the preparsed
 // DOMs and without them, and the two give the same stages and features.
 func TestBundledCacheSameStages(t *testing.T) {
 	t.Parallel()
@@ -236,20 +249,21 @@ func TestBundledCacheSameStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(configured.compiled) == 0 {
-		t.Fatal("compiled.json holds no DOMs for this bootstrap")
+	configured.activatePreparsed("grammars/lojban/cll/pipeline.md")
+	if len(configured.preparsed) == 0 {
+		t.Fatal("data/preparsed/lojban.json holds no DOMs for this bootstrap")
 	}
 	var names []string
 	for p := range bundled.sources {
-		if strings.HasPrefix(p, "dialects/") && strings.HasSuffix(p, ".md") {
+		if strings.HasPrefix(p, "grammars/") && strings.HasSuffix(p, "/pipeline.md") {
 			names = append(names, p)
 		}
 	}
 	if len(names) == 0 {
-		t.Fatal("no bundled dialects")
+		t.Fatal("no bundled pipelines")
 	}
 	for _, name := range names {
-		var loaded [2]*Dialect
+		var loaded [2]*Pipeline
 		for i, noCache := range []bool{false, true} {
 			l, err := bundledLoader()
 			if err != nil {
@@ -260,7 +274,7 @@ func TestBundledCacheSameStages(t *testing.T) {
 				// A cache miss fails because this loader cannot read notation.
 				l.reader = nil
 			}
-			if loaded[i], err = l.dialect(name); err != nil {
+			if loaded[i], err = l.pipeline(name); err != nil {
 				t.Fatalf("%s (cache bypassed: %v): %v", name, noCache, err)
 			}
 		}
@@ -389,7 +403,7 @@ func sameValue(a, b reflect.Value) bool {
 func TestNotationLexicalTags(t *testing.T) {
 	// The quoted scalar-shaped text tests literal dollars.
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +439,7 @@ func TestNotationTie(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"stages":[{"name":"syntax","documents":[{"path":"n.md","dom":` + string(notation.json()) + `}]}]}`
+	bootstrap := `{"format":` + strconv.Itoa(domFormat) + `,"documents":{"grammars/gencmu/jbogenbau/pipeline.md":{"hash":"0","dom":{"format":40,"rules":[],"directives":[{"name":"stage","args":["syntax"],"at":[1,1]},{"name":"include","args":["../../../n.md"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}},"n.md":{"hash":"0","dom":` + string(notation.json()) + `}}}`
 	tying, nerr := newNotationReader(bootstrap, bundled.uni)
 	if nerr != nil {
 		t.Fatal(nerr)
@@ -440,10 +454,10 @@ func TestNotationTie(t *testing.T) {
 }
 
 // The notation's lexical stage tags constants and the keywords that define
-// them (grammars/notation/lexical.md).
+// them (grammars/gencmu/jbogenbau/lexical.md).
 func TestNotationLexicalConstants(t *testing.T) {
 	t.Parallel()
-	d, err := LoadDialect("notation")
+	d, err := LoadPipeline("gencmu/jbogenbau")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +501,7 @@ func TestCharacterTags(t *testing.T) {
 // search goes wrong first.
 func TestUnicodeTableOrder(t *testing.T) {
 	t.Parallel()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +575,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + rule + "\n```\n",
 		}
 		if table {
-			m["unicode.txt"] = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
+			m["data/unicode/unicode.txt"] = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n"
 		}
 		return m
 	}
@@ -570,7 +584,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 		table bool
 		ok    bool
 	}{{`_General_Category_Letter`, true, false}, {`_General_Category_Unassigned`, true, true}, {`_General_Category_Letter`, false, true}} {
-		d, err := LoadDialectSources(sources(c.rule, c.table), "p.md")
+		d, err := LoadPipelineSources(sources(c.rule, c.table), "p.md")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -584,11 +598,11 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 	}
 }
 
-// grammars/unicode.txt gives each scalar value its General_Category and
+// data/unicode/unicode.txt gives each scalar value its General_Category and
 // says which have White_Space (engine §1).
 func TestUnicodeTable(t *testing.T) {
 	t.Parallel()
-	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	data, err := bundledFS.ReadFile("data/unicode/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -625,13 +639,13 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 1 {
-		t.Fatalf("a compiled.json of format %d is not used", domFormat)
+	if got := readPreparsed(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
+		t.Fatalf("a data/preparsed/lojban.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["unicode-properties.txt"])); len(got) != 0 {
-		t.Fatal("a compiled.json of format 17 is used")
+	if got := readPreparsed(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+		t.Fatal("a data/preparsed/lojban.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
 		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {

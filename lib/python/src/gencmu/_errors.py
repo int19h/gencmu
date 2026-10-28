@@ -8,7 +8,7 @@ import json
 
 
 class GencmuError(Exception):
-    """A dialect that cannot be loaded, or a caller's mistake.
+    """A pipeline that cannot be loaded, or a caller's mistake.
 
     ``kind`` is ``"grammar"`` for a grammar or pipeline document that cannot
     be read, stitched or lowered, and ``"usage"`` for a mistake in a call,
@@ -69,7 +69,7 @@ class GencmuError(Exception):
         return ":".join(parts) if parts else None
 
     def __str__(self) -> str:
-        if self.document == "notation/bootstrap.json" and self.message.startswith("notation/bootstrap.json:"):
+        if self.document == "data/preparsed/gencmu.json" and self.message.startswith("data/preparsed/gencmu.json:"):
             return self.message
         where = self.where
         prefix = f"{where}: " if where else ""

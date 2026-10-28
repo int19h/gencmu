@@ -205,19 +205,19 @@ class NamesScope:
             return
         version = self.unicode.version
         if self.unicode.version_count != 1 or not version:
-            _fail("unicode.txt", "names require exactly one Unicode version")
-        text = self.need("unicode-names.txt")
+            _fail("data/unicode/unicode.txt", "names require exactly one Unicode version")
+        text = self.need("data/unicode/unicode-names.txt")
         fingerprint = fnv1a64(text)
-        base = UnicodeNames(text, "unicode-names.txt", version)
-        reference = text if fingerprint == PINNED_NAMES_HASH else self.need("unicode-names-reference.txt")
+        base = UnicodeNames(text, "data/unicode/unicode-names.txt", version)
+        reference = text if fingerprint == PINNED_NAMES_HASH else self.need("data/unicode/unicode-names-reference.txt")
         if fnv1a64(reference) != PINNED_NAMES_HASH:
-            _fail("unicode-names-reference.txt", "the reference fingerprint differs from the pinned data")
+            _fail("data/unicode/unicode-names-reference.txt", "the reference fingerprint differs from the pinned data")
         if version != "15.1.0":
-            _fail("unicode-names-reference.txt", "the reference version differs from the selected names version")
-        pinned = base if fingerprint == PINNED_NAMES_HASH else UnicodeNames(reference, "unicode-names-reference.txt", "15.1.0")
+            _fail("data/unicode/unicode-names-reference.txt", "the reference version differs from the selected names version")
+        pinned = base if fingerprint == PINNED_NAMES_HASH else UnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0")
         base.inspect(pinned, self.unicode.abbreviations, False)
         tables = [base]
-        dependencies = {"unicode-names.txt": fingerprint}
+        dependencies = {"data/unicode/unicode-names.txt": fingerprint}
         for path in self.extras:
             text = self.need(path)
             table = UnicodeNames(text, path, version)
@@ -246,12 +246,12 @@ class NamesScope:
     def matches(self, dependencies, registry=None, overridden=lambda path: True):
         if dependencies is NO_NAMES:
             return True
-        if (not isinstance(dependencies, dict) or set(dependencies) != {"unicode-names.txt", *self.extras}
+        if (not isinstance(dependencies, dict) or set(dependencies) != {"data/unicode/unicode-names.txt", *self.extras}
                 or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{16}", value) is None for value in dependencies.values())):
             return False
         if registry is not None and all(path in registry and not overridden(path) for path in dependencies):
             if self.unicode.version_count != 1 or self.unicode.version != "15.1.0":
-                _fail("unicode.txt", "bundled names require Unicode version 15.1.0")
+                _fail("data/unicode/unicode.txt", "bundled names require Unicode version 15.1.0")
             return all(registry[path] == hash for path, hash in dependencies.items())
         self.load()
         return self.dependencies == dependencies

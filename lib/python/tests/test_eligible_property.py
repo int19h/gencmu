@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 from typing import Any
 
-from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._eligible import eligible
 from gencmu._grammar import lower, stitch
@@ -28,7 +28,7 @@ from gencmu._rank import count_roots
 
 import gencmu
 
-from .shared import case_tokens, load_case_dialect
+from .shared import case_tokens, load_case_pipeline
 
 RULES = ["r", "t", "u", "v"]
 TERMINALS = ["A", "B", "T", "U"]

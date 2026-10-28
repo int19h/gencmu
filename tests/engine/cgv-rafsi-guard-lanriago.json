@@ -1,9 +1,9 @@
 {
   "description": "Forms marks the CgV borrowing. Disabling the later warning preserves the same marked form.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "lanriago",
   "parses": [
     {

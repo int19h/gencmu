@@ -1,0 +1,10 @@
+{
+  "description": "A bundled name includes the complete nested directory path.",
+  "pipeline": "lojban/examples/kihei",
+  "input": "ki'ei ko'a .i broda",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

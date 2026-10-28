@@ -25,7 +25,7 @@ from .shared import (
     cases,
     deadline,
     load_case,
-    load_case_dialect,
+    load_case_pipeline,
     mismatch,
     parse_case,
     read_json,
@@ -38,33 +38,33 @@ from .shared import (
 )
 
 
-# The members of `expect` that only a loaded dialect can meet.
+# The members of `expect` that only a loaded pipeline can meet.
 AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
-    def test_whole_dialect_cases_share_sources_but_load_fresh_dialects(self) -> None:
+    def test_whole_pipeline_cases_share_sources_but_load_fresh_pipelines(self) -> None:
         documents = {
-            "memo-a.md": '```jbogenbau\n%include "../dialects/notation.md"\n```\n',
-            "memo-b.md": '```jbogenbau\n%include "../dialects/bpfk.md"\n```\n',
+            "memo-a.md": '```jbogenbau\n%include "../grammars/gencmu/jbogenbau/pipeline.md"\n```\n',
+            "memo-b.md": '```jbogenbau\n%include "../grammars/lojban/bpfk/pipeline.md"\n```\n',
         }
-        case = {"documents": documents, "pipeline": "memo-a.md"}
-        with patch.object(gencmu, "load_dialect_sources", wraps=gencmu.load_dialect_sources) as load:
-            first, error = load_case_dialect(case)
+        case = {"documents": documents, "pipelineDocument": "memo-a.md"}
+        with patch.object(gencmu, "load_pipeline_sources", wraps=gencmu.load_pipeline_sources) as load:
+            first, error = load_case_pipeline(case)
             self.assertIsNone(error)
-            again, error = load_case_dialect({**case, "documents": dict(reversed(list(documents.items())))})
+            again, error = load_case_pipeline({**case, "documents": dict(reversed(list(documents.items())))})
             self.assertIsNone(error)
-            # A case never sees a dialect that an earlier case used.
+            # A case never sees a pipeline that an earlier case used.
             self.assertIsNot(again, first)
             self.assertEqual(load.call_count, 2)
             self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
-            other, error = load_case_dialect({**case, "pipeline": "memo-b.md"})
+            other, error = load_case_pipeline({**case, "pipelineDocument": "memo-b.md"})
             self.assertIsNone(error)
             self.assertNotEqual(other.stage_names, first.stage_names)
-            changed, error = load_case_dialect({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})
+            changed, error = load_case_pipeline({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})
             self.assertIsNone(error)
             self.assertEqual(changed.stage_names, other.stage_names)
-            uncached, error = load_case_dialect(case, use_cache=False)
+            uncached, error = load_case_pipeline(case, use_cache=False)
             self.assertIsNone(error)
             self.assertIsNot(uncached, first)
             self.assertEqual(uncached.stage_names, first.stage_names)
@@ -83,13 +83,13 @@ class EngineCases(unittest.TestCase):
             case = load_case(path)
             if "parses" in case:
                 # The case parses its input several times with the one
-                # loaded dialect (tests/README.md).
-                dialect, error = load_case_dialect(case)
-                if dialect is None:
-                    raise AssertionError(f"{path.name}: the dialect did not load: {error}")
-                features = case_features(dialect)
+                # loaded pipeline (tests/README.md).
+                pipeline, error = load_case_pipeline(case)
+                if pipeline is None:
+                    raise AssertionError(f"{path.name}: the pipeline did not load: {error}")
+                features = case_features(pipeline)
                 for index, run in enumerate(case["parses"]):
-                    value, result, error = parse_case(dialect, case, run)
+                    value, result, error = parse_case(pipeline, case, run)
                     self.check(f"{path.name} parse {index}", run["expect"], value, result, error, features)
                 return
             value, result, error, features = run_case(case)
@@ -105,14 +105,16 @@ class EngineCases(unittest.TestCase):
         features: list[dict[str, Any]] | None,
     ) -> None:
         """Whether an outcome meets a case's expectation (tests/README.md)."""
+        if "bundledPipelines" in expect:
+            self.assertEqual(gencmu.bundled_pipelines(), expect["bundledPipelines"], label)
         if features is None:
-            # A dialect that does not load gives the error alone, so a case
-            # that expects anything that only a loaded dialect gives fails
+            # A pipeline that does not load gives the error alone, so a case
+            # that expects anything that only a loaded pipeline gives fails
             # (tests/README.md).
             assert error is not None
             self.assertEqual(error.kind, expect.get("error"), f"{label}: unexpected load error: {error}")
             loaded_only = [name for name in AFTER_LOAD if name in expect]
-            self.assertEqual(loaded_only, [], f"{label}: the dialect did not load: {error}")
+            self.assertEqual(loaded_only, [], f"{label}: the pipeline did not load: {error}")
             if "diagnostic" in expect:
                 self.assertEqual(error.code, expect["diagnostic"], f"{label}: {error.message}")
             if "where" in expect:
@@ -222,7 +224,7 @@ class EngineCases(unittest.TestCase):
         self.assertTrue(same_json(changed["error"], value))
 
     def test_a_load_error_meets_only_an_expectation_of_the_error(self) -> None:
-        # The runner fails a case whose dialect does not load, when the case
+        # The runner fails a case whose pipeline does not load, when the case
         # expects another kind of error, or more than the error.
         value, result, error, features = run_case({"grammar": "%rule text A\n%rule text A"})
         assert error is not None

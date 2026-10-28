@@ -1,4 +1,4 @@
-//! The error a library call returns: a dialect that cannot be loaded, or a
+//! The error a library call returns: a pipeline that cannot be loaded, or a
 //! caller's mistake such as an unknown stage name.
 
 use crate::json::Json;
@@ -42,8 +42,8 @@ impl GroupSite {
 pub enum ErrorKind {
     /// A grammar or pipeline document is missing, is not valid UTF-8 on
     /// disk, does not parse as the notation, or does not stitch into a valid
-    /// grammar; or one of the shipped data files (`unicode.txt`,
-    /// `bootstrap.json`) is malformed.
+    /// grammar; or one of the shipped data files (`data/unicode/unicode.txt`,
+    /// `data/preparsed/gencmu.json`) is malformed.
     Grammar,
     /// A file could not be read from disk, for a reason other than its
     /// bytes.
@@ -53,7 +53,7 @@ pub enum ErrorKind {
     Usage,
 }
 
-/// An error returned by the loaders and by [`Dialect::parse`](crate::Dialect::parse).
+/// An error returned by the loaders and by [`Pipeline::parse`](crate::Pipeline::parse).
 ///
 /// A text that does not parse is not an error: it is a
 /// [`ParseResult`](crate::ParseResult) whose `ok` is false.
@@ -178,8 +178,8 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.document.as_deref() == Some("notation/bootstrap.json")
-            && self.message.starts_with("notation/bootstrap.json:")
+        if self.document.as_deref() == Some("data/preparsed/gencmu.json")
+            && self.message.starts_with("data/preparsed/gencmu.json:")
         {
             return write!(f, "{}", self.message);
         }

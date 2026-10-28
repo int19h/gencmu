@@ -10,10 +10,12 @@ fn selected_disk_names() {
     std::fs::create_dir_all(&root).unwrap();
     for case in cases.array() {
         for (path, text) in case.get("files").unwrap().object() {
-            std::fs::write(root.join(path), text.str().unwrap()).unwrap();
+            let file = root.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, text.str().unwrap()).unwrap();
         }
         std::env::set_current_dir(&root).unwrap();
-        let result = gencmu::load_dialect_file(root.join("p.md"));
+        let result = gencmu::load_pipeline_file(root.join("p.md"));
         std::env::set_current_dir(&home).unwrap();
         let error = result.expect_err(case.get("description").unwrap().str().unwrap());
         assert_eq!(error.kind, ErrorKind::Grammar);

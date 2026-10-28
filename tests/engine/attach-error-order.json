@@ -4,7 +4,7 @@
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:bad $w:word %emits ($b) $w :: $w.tags(migration-fault)\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "b,b1",
   "expect": {
     "result": {

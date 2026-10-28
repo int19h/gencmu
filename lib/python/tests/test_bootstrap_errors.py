@@ -4,7 +4,7 @@ import unittest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-from gencmu import _dialect
+from gencmu import _pipeline
 
 import gencmu
 from .shared import REPOSITORY, find_places, position_of, substitute
@@ -13,7 +13,7 @@ from .shared import REPOSITORY, find_places, position_of, substitute
 class BootstrapErrors(unittest.TestCase):
     def test_shared_error_metadata(self) -> None:
         fixtures = json.loads((REPOSITORY / "tests/bootstrap-errors.json").read_text())
-        bundled = (REPOSITORY / "grammars/notation/bootstrap.json").read_text()
+        bundled = (REPOSITORY / "data/preparsed/gencmu.json").read_text()
         for item in fixtures["cases"]:
             with self.subTest(case=item["description"]):
                 if "bootstrap" in item:
@@ -22,10 +22,10 @@ class BootstrapErrors(unittest.TestCase):
                     self.assertTrue(find_places(bundled, item["find"]), "the mutation is absent")
                     bootstrap = substitute(bundled, item["find"], item["replace"])
                 with self.assertRaises(gencmu.GencmuError) as raised:
-                    gencmu.load_dialect_sources({
+                    gencmu.load_pipeline_sources({
                         "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                         "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
-                        "notation/bootstrap.json": bootstrap,
+                        "data/preparsed/gencmu.json": bootstrap,
                     }, "p.md")
                 self.assertEqual(raised.exception.kind, fixtures["kind"])
                 self.assertEqual(raised.exception.document, fixtures["document"])
@@ -38,7 +38,7 @@ class BootstrapErrors(unittest.TestCase):
                 # The place of the error, by the text that stands there in
                 # its grammar document, or as the case gives it.
                 if "at" in item:
-                    line, column = position_of((REPOSITORY / "grammars" / item["context"]).read_text(encoding="utf-8"), item["at"])
+                    line, column = position_of((REPOSITORY / item["context"]).read_text(encoding="utf-8"), item["at"])
                 else:
                     line, column = item["line"], item["column"]
                 for field, value in (("stage", item["stage"]), ("line", line), ("column", column)):
@@ -47,20 +47,21 @@ class BootstrapErrors(unittest.TestCase):
     def test_bootstrap_file_reading_errors(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "notation").mkdir()
-            (root / "unicode.txt").write_bytes((REPOSITORY / "grammars/unicode.txt").read_bytes())
-            (root / "unicode-properties.txt").write_bytes((REPOSITORY / "grammars/unicode-properties.txt").read_bytes())
+            (root / "data/preparsed").mkdir(parents=True)
+            (root / "data/unicode").mkdir(parents=True)
+            (root / "data/unicode/unicode.txt").write_bytes((REPOSITORY / "data/unicode/unicode.txt").read_bytes())
+            (root / "data/unicode/unicode-properties.txt").write_bytes((REPOSITORY / "data/unicode/unicode-properties.txt").read_bytes())
             for failure in ("missing", "directory", "invalid UTF-8"):
                 with self.subTest(failure=failure):
-                    file = root / "notation/bootstrap.json"
+                    file = root / "data/preparsed/gencmu.json"
                     if failure == "directory":
                         file.mkdir()
                     if failure == "invalid UTF-8":
                         file.rmdir()
                         file.write_bytes(b"\xff")
-                    with patch.object(_dialect, "_bundled_root", return_value=root), patch.dict(_dialect._bundled, {}, clear=True):
+                    with patch.object(_pipeline, "_bundled_root", return_value=root), patch.dict(_pipeline._bundled, {}, clear=True):
                         with self.assertRaises(gencmu.GencmuError) as raised:
-                            gencmu.load_dialect_sources({"p.md": "%stage main"}, "p.md")
-                    self.assertEqual(raised.exception.document, "notation/bootstrap.json")
-                    self.assertTrue(raised.exception.message.startswith("notation/bootstrap.json:"), raised.exception.message)
+                            gencmu.load_pipeline_sources({"p.md": "%stage main"}, "p.md")
+                    self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
+                    self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
                     self.assertEqual(str(raised.exception), raised.exception.message)

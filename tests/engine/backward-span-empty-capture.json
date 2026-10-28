@@ -1,5 +1,5 @@
 {
-  "description": "An empty capture retains its position for a preceding span. (Engine \u00a74.4.)",
+  "description": "An empty capture retains its position for a preceding span. (Engine §4.4.)",
   "grammar": "%rule text A $x:nothing B\n%conditions $x.preceding-tokens.value = \"a\"\n%rule nothing \u03b5",
   "tokens": [
     {

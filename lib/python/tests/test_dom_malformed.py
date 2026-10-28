@@ -7,7 +7,7 @@ import unittest
 from itertools import permutations
 
 from gencmu import GencmuError
-from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._grammar import stitch
 from gencmu._validate import dom_problem
 
@@ -44,7 +44,7 @@ class DomMalformed(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case["description"]):
                 # The directive alone in an otherwise empty DOM of the
-                # current format, checked as a precompiled one is.
+                # current format, checked as a preparsed one is.
                 dom = {"format": DOM_FORMAT, "rules": [case["rule"]] if "rule" in case else [], "directives": [case["directive"]] if "directive" in case else [], "constants": [], "classifiers": [], "implications": []}
                 table = _unicode_table(case["unicode"]) if "unicode" in case else unicode
                 problem = dom_problem(dom, table)

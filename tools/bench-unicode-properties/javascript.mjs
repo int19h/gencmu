@@ -7,31 +7,31 @@ const root = process.argv[2];
 const api = await import(pathToFileURL(`${root}/lib/js/src/node.js`));
 const decode = value => Buffer.from(value, 'hex').toString('utf8');
 const rows = file => fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => line.split('\t'));
-const fromSources = file => api.loadDialectSources(Object.fromEntries(rows(file).map(([k,v]) => [decode(k),decode(v)])), 'p.md');
-function checkTable(name, dialect) {
-  const a=dialect.parse('a'), b=dialect.parse('b');
+const fromSources = file => api.loadPipelineSources(Object.fromEntries(rows(file).map(([k,v]) => [decode(k),decode(v)])), 'p.md');
+function checkTable(name, pipeline) {
+  const a=pipeline.parse('a'), b=pipeline.parse('b');
   return {name,a:a.ok,b:b.ok,tags:[...b.tree.tags].sort()};
 }
-const dialects = new Map();
+const pipelines = new Map();
 if (!isMainThread) {
   parentPort.postMessage(checkTable(workerData.name,fromSources(workerData.file)));
 } else for await (const line of readline.createInterface({input:process.stdin})) {
   try {
     const [command, key, ...args] = line.split('\t');
     if (command === 'load') {
-      const dialect = args[0] === '-' ? api.loadDialect('cll-ebnf')
+      const pipeline = args[0] === '-' ? api.loadPipeline('lojban/cll')
         : fromSources(args[0]);
-      dialects.set(key, dialect);
-      process.stdout.write(JSON.stringify({features:dialect.features.map(f => [f.name,f.kind,f.default])})+'\n');
+      pipelines.set(key, pipeline);
+      process.stdout.write(JSON.stringify({features:pipeline.features.map(f => [f.name,f.kind,f.default])})+'\n');
     } else if (command === 'batch') {
       const [count, manifest, output] = args;
       const cases = rows(manifest).map(([id,text,features,without]) => ({text:decode(text), options:{
         features:new Set(decode(features).split('\n').filter(Boolean)),
         withoutFeatures:new Set(decode(without).split('\n').filter(Boolean))}}));
-      const dialect = dialects.get(key);
+      const pipeline = pipelines.get(key);
       let results;
       const start = performance.now();
-      for (let i=0;i<Number(count);i++) results=cases.map(c=>dialect.parse(c.text,c.options));
+      for (let i=0;i<Number(count);i++) results=cases.map(c=>pipeline.parse(c.text,c.options));
       const seconds=(performance.now()-start)/1000;
       const serialStart=performance.now();
       const json=results.map(result=>'{"result":'+api.toJson(result)+',"brackets":'+JSON.stringify(api.toBrackets(result))+'}');

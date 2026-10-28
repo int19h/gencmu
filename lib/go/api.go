@@ -15,50 +15,47 @@ import (
 	"unicode/utf8"
 )
 
-//go:embed grammars
+//go:embed grammars data
 var bundledFS embed.FS
 
 var bundled struct {
-	once                    sync.Once
-	sources                 map[string]string
-	uni                     *unicodeTable
-	reader                  *notationReader
-	err                     error
-	propertiesOnce          sync.Once
-	propertiesUni           *unicodeTable
-	propertiesReader        *notationReader
-	propertiesCompiled      map[domCacheKey]json.RawMessage
-	propertiesCompiledNames map[domCacheKey]json.RawMessage
-	propertiesBundledNames  map[string]string
-	propertiesErr           error
+	once             sync.Once
+	sources          map[string]string
+	uni              *unicodeTable
+	reader           *notationReader
+	err              error
+	propertiesOnce   sync.Once
+	propertiesUni    *unicodeTable
+	propertiesReader *notationReader
+	propertiesErr    error
 }
 
 func loadBundled() error {
 	bundled.once.Do(func() {
 		bundled.sources = map[string]string{}
-		err := fs.WalkDir(bundledFS, "grammars", func(p string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(bundledFS, ".", func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return err
 			}
-			if strings.HasSuffix(p, "-names.txt") {
+			if strings.HasSuffix(p, "-names.txt") || (strings.HasPrefix(p, "data/preparsed/") && p != "data/preparsed/gencmu.json") {
 				return nil
 			}
 			data, err := bundledFS.ReadFile(p)
 			if err != nil {
 				return err
 			}
-			bundled.sources[strings.TrimPrefix(p, "grammars/")] = string(data)
+			bundled.sources[p] = string(data)
 			return nil
 		})
 		if err != nil {
 			bundled.err = err
 			return
 		}
-		if bundled.uni, err = parseUnicodeTable(bundled.sources["unicode.txt"]); err != nil {
+		if bundled.uni, err = parseUnicodeTable(bundled.sources["data/unicode/unicode.txt"]); err != nil {
 			bundled.err = err
 			return
 		}
-		if bundled.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], bundled.uni); err != nil {
+		if bundled.reader, err = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], bundled.uni); err != nil {
 			bundled.err = err
 			return
 		}
@@ -68,17 +65,17 @@ func loadBundled() error {
 
 // domCacheKey includes every input that determines a document DOM (engine §8).
 type domCacheKey struct {
-	document, bootstrap, unicode, properties string
-	format                                   int
+	path, hash, bootstrap, unicode, properties string
+	format                                     int
 }
 
-// readCompiled admits an envelope only under the complete loader identity.
-func readCompiled(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
-	doms, _, _ := readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash)
+// readPreparsed admits an envelope only under the complete loader identity.
+func readPreparsed(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
+	doms, _, _ := readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash)
 	return doms
 }
 
-func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
+func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string, implicit ...bool) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`
 		Bootstrap    string          `json:"bootstrap"`
@@ -93,7 +90,7 @@ func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) 
 	}
 	out := map[domCacheKey]json.RawMessage{}
 	names := map[domCacheKey]json.RawMessage{}
-	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
+	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || (c.Bootstrap != bootstrapHash && !(len(implicit) > 0 && implicit[0])) || c.Unicode != unicodeHash {
 		return out, names, nil
 	}
 	// An absent fingerprint differs from explicit null for a core-only table.
@@ -108,23 +105,77 @@ func readCompiledCache(text, bootstrapHash, unicodeHash, propertiesHash string) 
 	} else if propertiesHash == "" || *properties != propertiesHash {
 		return out, names, nil
 	}
-	for _, d := range c.Documents {
-		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
+	for path, d := range c.Documents {
+		out[domCacheKey{path, d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Dom
 		if len(d.Names) > 0 {
-			names[domCacheKey{d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
+			names[domCacheKey{path, d.Hash, bootstrapHash, unicodeHash, propertiesHash, domFormat}] = d.Names
 		}
 	}
 	return out, names, readNamesRegistry(c.BundledNames)
 }
 
+func preparsedPath(document string) string {
+	if !strings.HasPrefix(document, "grammars/") {
+		return ""
+	}
+	family, child, ok := strings.Cut(strings.TrimPrefix(document, "grammars/"), "/")
+	if !ok || child == "" {
+		return ""
+	}
+	if family == "" {
+		return ""
+	}
+	for i, c := range family {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || i > 0 && c == '-') {
+			return ""
+		}
+	}
+	return "data/preparsed/" + family + ".json"
+}
+
+type familyPreparsed struct {
+	doms, names map[domCacheKey]json.RawMessage
+	registry    map[string]string
+}
+
+func (l *loader) activatePreparsed(document string) {
+	if l.preparsedRead == nil {
+		return
+	}
+	file := preparsedPath(document)
+	if file == "" || l.noCache {
+		l.preparsed, l.preparsedNames, l.bundledNames = nil, nil, nil
+		return
+	}
+	if l.families == nil {
+		l.families = map[string]familyPreparsed{}
+	}
+	family, ok := l.families[file]
+	if !ok {
+		text, _ := l.preparsedRead(file)
+		doms, names, registry := readPreparsedCache(text, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, file == "data/preparsed/gencmu.json")
+		for key := range doms {
+			if preparsedPath(key.path) != file {
+				delete(doms, key)
+				delete(names, key)
+			}
+		}
+		family = familyPreparsed{doms, names, registry}
+		l.families[file] = family
+	}
+	l.preparsed, l.preparsedNames, l.bundledNames = family.doms, family.names, family.registry
+}
+
 // loader reads a pipeline and its documents from one source of files.
 type loader struct {
+	preparsedRead      func(string) (string, bool)
+	families           map[string]familyPreparsed
 	read               func(p string) (string, bool)
 	uni                *unicodeTable
 	reader             *notationReader
 	bootstrapHash      string
-	compiled           map[domCacheKey]json.RawMessage
-	compiledNames      map[domCacheKey]json.RawMessage
+	preparsed          map[domCacheKey]json.RawMessage
+	preparsedNames     map[domCacheKey]json.RawMessage
 	bundledNames       map[string]string
 	namesOverride      func(string) bool
 	noCache            bool
@@ -138,6 +189,7 @@ type loader struct {
 }
 
 func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
+	l.activatePreparsed(p)
 	var inherited []string
 	if len(selected) > 0 {
 		inherited = selected[0]
@@ -147,7 +199,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
 	// A document is a sequence of scalar values, as a text is. A file on
-	// disk is strict UTF-8, checked before its hash finds a compiled DOM
+	// disk is strict UTF-8, checked before its hash finds a preparsed DOM
 	// (engine §1). A byte order mark stays U+FEFF.
 	if problem := utf8Problem(text); problem != "" {
 		if l.fromDisk {
@@ -157,11 +209,11 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	}
 	names := newNamesScope(l.namesText, l.uni, inherited)
 	if !l.noCache {
-		key := domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
-		if raw, ok := l.compiled[key]; ok {
+		key := domCacheKey{p, fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
+		if raw, ok := l.preparsed[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
-				match, err := candidate.matches(l.compiledNames[key], l.bundledNames, l.namesOverride)
+				match, err := candidate.matches(l.preparsedNames[key], l.bundledNames, l.namesOverride)
 				if err != nil {
 					return nil, err
 				}
@@ -196,14 +248,14 @@ func (l *loader) readSource(p, text string, names *namesScope) (*domDoc, *Error)
 }
 
 func bundledNamesText(p string) (string, bool) {
-	if p == "unicode-names-reference.txt" {
-		p = "unicode-names.txt"
+	if p == "data/unicode/unicode-names-reference.txt" {
+		p = "data/unicode/unicode-names.txt"
 	}
-	data, err := bundledFS.ReadFile("grammars/" + p)
+	data, err := bundledFS.ReadFile(p)
 	return string(data), err == nil
 }
 func (l *loader) namesText(p string) (string, bool) {
-	if l.fromDisk && p == "unicode-names-reference.txt" {
+	if l.fromDisk && p == "data/unicode/unicode-names-reference.txt" {
 		return bundledNamesText(p)
 	}
 	if text, ok := l.read(p); ok {
@@ -237,12 +289,12 @@ func guard(kind string, err *error) {
 	}
 }
 
-func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
+func (l *loader) pipeline(pipelinePath string) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	return l.load(pipelinePath)
 }
 
-func (l *loader) load(pipelinePath string) (*Dialect, error) {
+func (l *loader) load(pipelinePath string) (*Pipeline, error) {
 	d, err := l.loadMode(pipelinePath)
 	if failure, ok := err.(*Error); ok {
 		// Retry only a failed load, retaining the cached DOM's semantics.
@@ -262,12 +314,12 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	return d, err
 }
 
-func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
-	p, perr := l.pipeline(pipelinePath)
+func (l *loader) loadMode(pipelinePath string) (*Pipeline, error) {
+	p, perr := l.splice(pipelinePath)
 	if perr != nil {
 		return nil, perr
 	}
-	d := &Dialect{uni: l.uni, declared: p.features}
+	d := &Pipeline{uni: l.uni, declared: p.features}
 	for _, s := range p.stages {
 		g, err := stitch(s.name, s.documents, l.uni)
 		if err != nil {
@@ -279,17 +331,17 @@ func (l *loader) loadMode(pipelinePath string) (*Dialect, error) {
 		}
 		d.stages = append(d.stages, g)
 	}
-	dialect, err := newDialect(d.stages, p.features, l.uni)
+	pipeline, err := newPipeline(d.stages, p.features, l.uni)
 	if err != nil {
 		return nil, err
 	}
-	return dialect, nil
+	return pipeline, nil
 }
 
 // pipeline splices the pipeline document at pipelinePath: its stages, each
 // a list of runs of one document's items, and the features it turns on
 // (engine §13). A document included more than once is read once.
-func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
+func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 	doms := map[string]*domDoc{}
 	return splicePipelineWithNames(pipelinePath, func(p string, names []string) (*domDoc, *Error) {
 		encoded, _ := json.Marshal(names)
@@ -309,22 +361,22 @@ func (l *loader) pipeline(pipelinePath string) (*splicedPipeline, *Error) {
 	})
 }
 
-// newDialect applies the validation shared by normal and bootstrap dialects.
-func newDialect(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Dialect, *Error) {
-	features, err := dialectFeatures(stages, declared)
+// newPipeline applies the validation shared by normal and bootstrap pipelines.
+func newPipeline(stages []*stageGrammar, declared []string, uni *unicodeTable) (*Pipeline, *Error) {
+	features, err := pipelineFeatures(stages, declared)
 	if err != nil {
 		return nil, err
 	}
-	return &Dialect{uni: uni, stages: stages, declared: declared, features: features}, nil
+	return &Pipeline{uni: uni, stages: stages, declared: declared, features: features}, nil
 }
 
-// dialectFeatures lists a dialect's features (engine §13): every name that a
+// pipelineFeatures lists a pipeline's features (engine §13): every name that a
 // guard of a stage's stitched rules or a gate of its classifiers' entries
 // uses, whatever features are on, and
 // every name the pipeline's %features declares, in code point order. A
 // name only %features declares is a gate; a name that one guard uses as a
-// gate and another as a warning is an error of the dialect.
-func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
+// gate and another as a warning is an error of the pipeline.
+func pipelineFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Error) {
 	kinds := map[string]string{}
 	firstIn := map[string]string{} // the document of a name's first guard
 	for _, g := range stages {
@@ -422,13 +474,11 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 		return nil, err
 	}
 	uni, reader := bundled.uni, bundled.reader
-	var compiled, compiledNames map[domCacheKey]json.RawMessage
-	var bundledNames map[string]string
 	if withProperties {
 		bundled.propertiesOnce.Do(func() {
-			text, ok := bundled.sources["unicode-properties.txt"]
+			text, ok := bundled.sources["data/unicode/unicode-properties.txt"]
 			if !ok {
-				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Message: "the bundled properties file is missing"}
+				bundled.propertiesErr = &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode-properties.txt", Message: "the bundled properties file is missing"}
 				return
 			}
 			copy := *bundled.uni
@@ -439,49 +489,86 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 			}
 			copy.propertiesHash = fnv1a64(text)
 			bundled.propertiesUni = &copy
-			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["notation/bootstrap.json"], &copy)
-			if bundled.propertiesErr == nil {
-				bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames = readCompiledCache(bundled.sources["compiled.json"], bundled.propertiesReader.hash, copy.hash, copy.propertiesHash)
-			}
+			bundled.propertiesReader, bundled.propertiesErr = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], &copy)
+
 		})
 		if bundled.propertiesErr != nil {
 			return nil, bundled.propertiesErr
 		}
 		uni, reader = bundled.propertiesUni, bundled.propertiesReader
-		compiled, compiledNames, bundledNames = bundled.propertiesCompiled, bundled.propertiesCompiledNames, bundled.propertiesBundledNames
 	}
 	return &loader{
+		preparsedRead: bundledNamesText,
 		read: func(p string) (string, bool) {
 			if text, ok := bundled.sources[p]; ok {
 				return text, true
 			}
-			data, err := bundledFS.ReadFile("grammars/" + p)
+			data, err := bundledFS.ReadFile(p)
 			return string(data), err == nil
 		},
 		uni:           uni,
 		reader:        reader,
 		bootstrapHash: reader.hash,
-		compiled:      compiled,
-		compiledNames: compiledNames,
-		bundledNames:  bundledNames,
 		namesOverride: func(string) bool { return false },
 	}, nil
 }
 
-// LoadDialect loads a dialect bundled with the package by name: the file
-// name of a pipeline document under grammars/dialects/ without .md.
-func LoadDialect(name string) (*Dialect, error) {
+// LoadPipeline loads a pipeline bundled with the package by name: the file
+// directory path NAME of grammars/NAME/pipeline.md.
+func LoadPipeline(name string) (*Pipeline, error) {
+	names := BundledPipelines()
+	at := sort.SearchStrings(names, name)
+	if !validPipelineName(name) || at == len(names) || names[at] != name {
+		return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("there is no bundled pipeline named %q", name)}
+	}
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
 	}
-	return l.dialect("dialects/" + name + ".md")
+	return l.pipeline("grammars/" + name + "/pipeline.md")
 }
 
-// LoadDialectFile loads a pipeline document from disk, whose grammar
-// documents are found relative to it. unicode.txt and the notation's
-// bootstrap come from the bundled grammars.
-func LoadDialectFile(file string) (*Dialect, error) {
+func validPipelineName(name string) bool {
+	segments := strings.Split(name, "/")
+	if len(segments) < 2 {
+		return false
+	}
+	for _, segment := range segments {
+		if segment == "" {
+			return false
+		}
+		for i, c := range segment {
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || i > 0 && c == '-') {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// BundledPipelines lists valid bundled pipeline names in code-point order.
+func BundledPipelines() []string {
+	names := []string{}
+	_ = fs.WalkDir(bundledFS, "grammars", func(p string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && strings.HasSuffix(p, "/pipeline.md") {
+			name := strings.TrimSuffix(strings.TrimPrefix(p, "grammars/"), "/pipeline.md")
+			if validPipelineName(name) {
+				names = append(names, name)
+			}
+		}
+		return nil
+	})
+	sort.Strings(names)
+	return names
+}
+
+// LoadPipelineFile loads a pipeline document from disk, whose grammar
+// documents are found relative to it. data/unicode/unicode.txt and the notation's
+// bootstrap come from the bundled resources.
+func LoadPipelineFile(file string) (*Pipeline, error) {
 	l, err := bundledLoader()
 	if err != nil {
 		return nil, err
@@ -499,26 +586,25 @@ func LoadDialectFile(file string) (*Dialect, error) {
 		_, err := os.Stat(filepath.FromSlash(p))
 		return !os.IsNotExist(err)
 	}
-	return l.dialect(filepath.ToSlash(abs))
+	return l.pipeline(filepath.ToSlash(abs))
 }
 
-// LoadDialectSources loads a dialect from documents held in memory: a map
+// LoadPipelineSources loads a pipeline from documents held in memory: a map
 // from /-separated path to text, and the path of the pipeline document in
-// it. The map may hold its own unicode.txt, notation/bootstrap.json and
-// compiled.json; those it lacks come from the bundled grammars.
-func LoadDialectSources(sources map[string]string, pipeline string) (*Dialect, error) {
+// it. The map may hold its own data/unicode/unicode.txt, data/preparsed/gencmu.json and
+// data/preparsed/lojban.json; those it lacks come from the bundled resources.
+func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline, error) {
 	return loadSources(sources, pipeline, false)
 }
 
-func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Dialect, err error) {
+func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	norm := make(map[string]string, len(sources))
 	for p, t := range sources {
 		norm[path.Clean(p)] = t
 	}
-	_, customCore := norm["unicode.txt"]
-	_, customProperties := norm["unicode-properties.txt"]
-	_, customBootstrap := norm["notation/bootstrap.json"]
+	_, customCore := norm["data/unicode/unicode.txt"]
+	_, customProperties := norm["data/unicode/unicode-properties.txt"]
 	l, lerr := loaderForBundled(!customCore && !customProperties)
 	if lerr != nil {
 		return nil, lerr
@@ -526,14 +612,14 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
 	l.noCache = noCache
 	l.namesOverride = func(p string) bool { _, ok := norm[p]; return ok }
-	if t, ok := norm["unicode.txt"]; ok {
+	if t, ok := norm["data/unicode/unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
-			problem := &Error{Kind: ErrorGrammar, Document: "unicode.txt", Message: err.Error()}
-			_, _ = fmt.Sscanf(err.Error(), "unicode.txt line %d:", &problem.Line)
+			problem := &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode.txt", Message: err.Error()}
+			_, _ = fmt.Sscanf(err.Error(), "data/unicode/unicode.txt line %d:", &problem.Line)
 			return nil, problem
 		}
 	}
-	if text, ok := norm["unicode-properties.txt"]; ok {
+	if text, ok := norm["data/unicode/unicode-properties.txt"]; ok {
 		copy := *l.uni
 		l.uni = &copy
 		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
@@ -541,30 +627,33 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 		}
 	}
 	if customProperties {
-		l.uni.propertiesHash = fnv1a64(norm["unicode-properties.txt"])
+		l.uni.propertiesHash = fnv1a64(norm["data/unicode/unicode-properties.txt"])
 	}
-	if t, ok := norm["notation/bootstrap.json"]; ok {
+	if t, ok := norm["data/preparsed/gencmu.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
 	} else if l.uni != l.reader.uni {
-		if l.reader, err = newNotationReader(bundled.sources["notation/bootstrap.json"], l.uni); err != nil {
+		if l.reader, err = newNotationReader(bundled.sources["data/preparsed/gencmu.json"], l.uni); err != nil {
 			return nil, err
 		}
 	}
 	l.bootstrapHash = l.reader.hash
-	if t, ok := norm["compiled.json"]; ok {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(t, l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
-	} else if customCore || customProperties || customBootstrap {
-		l.compiled, l.compiledNames, l.bundledNames = readCompiledCache(bundled.sources["compiled.json"], l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+	l.preparsedRead = func(p string) (string, bool) {
+		if text, ok := norm[p]; ok {
+			return text, true
+		}
+		return bundledNamesText(p)
 	}
-	return l.dialect(path.Clean(pipeline))
+	l.families = nil
+
+	return l.pipeline(path.Clean(pipeline))
 }
 
-// Dialect is a loaded pipeline. A *Dialect is safe for concurrent use by
+// Pipeline is a loaded pipeline. A *Pipeline is safe for concurrent use by
 // several goroutines: every parse keeps its own state, and the grammars
 // lowered for a set of features are cached under a mutex.
-type Dialect struct {
+type Pipeline struct {
 	stages   []*stageGrammar
 	declared []string  // the features the pipeline's %features turns on
 	features []Feature // every feature, with its kind and default (§13)
@@ -589,7 +678,7 @@ type lowerEntry struct {
 }
 
 // ParseOptions are the options of a parse (docs/api.md). The zero value
-// parses with the dialect's own features, every stage,
+// parses with the pipeline's own features, every stage,
 // and each grammar's own elision-only setting.
 type ParseOptions struct {
 	// Features to turn on for every stage, besides those the pipeline turns
@@ -610,8 +699,8 @@ type ParseOptions struct {
 	private *privateOptions
 }
 
-// StageNames lists the dialect's stages in order.
-func (d *Dialect) StageNames() []string {
+// StageNames lists the pipeline's stages in order.
+func (d *Pipeline) StageNames() []string {
 	out := make([]string, len(d.stages))
 	for i, s := range d.stages {
 		out[i] = s.name
@@ -619,17 +708,17 @@ func (d *Dialect) StageNames() []string {
 	return out
 }
 
-// Features lists the dialect's features in code point order of their names
+// Features lists the pipeline's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
 // pipeline declares it unconditionally, globally or locally.
-func (d *Dialect) Features() []Feature {
+func (d *Pipeline) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }
 
 // lower is a stage's grammar lowered for a set of features. Only the guarded
 // features that are on change the productions. So two sets of features with
 // the same guarded features on share one lowered grammar.
-func (d *Dialect) lower(stage int, features map[string]bool) *lowered {
+func (d *Pipeline) lower(stage int, features map[string]bool) *lowered {
 	g := d.stages[stage]
 	on, guarded := namesOn(g.guarded, features)
 	key := lowerKey{guarded}
@@ -656,7 +745,7 @@ func (d *Dialect) lower(stage int, features map[string]bool) *lowered {
 // false; the error is for a caller's mistake, such as an unknown stage, a
 // feature named both to turn on and to turn off, or a text that is not valid
 // UTF-8, and is a *Error of kind "usage".
-func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error) {
+func (d *Pipeline) Parse(text string, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
 	}
@@ -673,7 +762,7 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // supply attachments: a token with a non-empty Before or After is a usage
 // error, and empty ones are dropped (docs/api.md). The parse copies the
 // tokens and leaves the caller's unchanged.
-func (d *Dialect) ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error) {
+func (d *Pipeline) ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
 	}
@@ -734,7 +823,7 @@ func textProblem(text string) error {
 	return nil
 }
 
-func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {
+func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res *ParseResult, err error) {
 	defer func() {
 		if err != nil {
 			res = nil
@@ -750,7 +839,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 			}
 		}
 		if last < 0 {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the dialect has no stage %q", options.Until)}
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
 		}
 	}
 	// The features on are the pipeline's and the caller's, less those the
@@ -804,7 +893,7 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 	return res, nil
 }
 
-func (d *Dialect) runStages(ps *parseState, features map[string]bool, options ParseOptions, tokens []Token, from, to int) []stageOutcome {
+func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options ParseOptions, tokens []Token, from, to int) []stageOutcome {
 	var out []stageOutcome
 	for i := from; i <= to; i++ {
 		g := d.stages[i]

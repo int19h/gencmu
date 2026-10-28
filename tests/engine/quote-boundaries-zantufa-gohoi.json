@@ -1,8 +1,8 @@
 {
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"

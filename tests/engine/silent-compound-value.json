@@ -1,9 +1,9 @@
 {
   "description": "A quote keeps its original image and its independent comparison value.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi gy. , .gy. bu",
   "options": {
     "until": "words"

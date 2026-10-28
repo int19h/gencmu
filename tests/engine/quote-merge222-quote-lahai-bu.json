@@ -1,9 +1,9 @@
 {
   "description": "New quote cmavo retain one-token emission, whole-quote attachments, and opaque erasure and compounds.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "la'ai coi le'u bu",
   "options": {},
   "expect": {

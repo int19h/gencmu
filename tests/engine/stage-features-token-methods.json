@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $ = \"a\", $.split(\" \") = \"a\".split(\" \"), $.tags = A, $.first-token.classes = A, $.last-token.value = \"a\", $.tokens-after-first.value = \"\", $.image = \"a\", $.source-text = \"a\", $.decomposed-source-text = \"a\", $.value.split(\" \") = \"a\".split(\" \"), $\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

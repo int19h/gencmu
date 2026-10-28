@@ -1,9 +1,9 @@
 {
   "description": "Punctuation supplies the internal pause of the opening and closing y letterals.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi y\"bu. foo y\"bu.",
   "options": {
     "until": "words"

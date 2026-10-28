@@ -7,7 +7,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K B\n%rule thing _\n```\n",
     "shared.md": "```jbogenbau\n%rule text [{item}]\n%rule item $t:thing :: $K %emits $\n\n\n```\n"
   },
-  "pipeline": "pa.md",
+  "pipelineDocument": "pa.md",
   "input": "x",
   "expect": {
     "result": {

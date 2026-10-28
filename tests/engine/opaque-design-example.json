@@ -6,7 +6,7 @@
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ε | (text piece)\n%rule piece word | pause\n%rule word L | (word L) %emits $ :: W\n\n%rule pause P %emits $\n\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text lerfu\n%rule lerfu (quote P W=\"bu\") %emits $ :: BY\n\n%rule quote (W=\"zoi\" P $d:W P body P $e:W) %conditions $d.value = $e.value\n\n%rule body :- $.verbatim-text | W | (body P W)\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "zoi gy. abc .gy. bu",
   "expect": {
     "result": {

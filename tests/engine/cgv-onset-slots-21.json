@@ -1,9 +1,9 @@
 {
   "description": "The experimental name rules permit the iy sequence after a consonant. The accepted name uses the CgV extension.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "la .niys.",
   "options": {
     "until": "words"

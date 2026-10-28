@@ -7,11 +7,11 @@ CI runs automated tests for every change. The module states Go 1.22, and CI test
 ```go
 import gencmu "github.com/int19h/gencmu/lib/go"
 
-dialect, err := gencmu.LoadDialect("cll-ebnf")
+pipeline, err := gencmu.LoadPipeline("lojban/cll")
 if err != nil {
 	log.Fatal(err) // a *gencmu.Error, with document, line and column
 }
-result, err := dialect.Parse("mi klama le zarci", gencmu.ParseOptions{})
+result, err := pipeline.Parse("mi klama le zarci", gencmu.ParseOptions{})
 if err != nil {
 	log.Fatal(err) // a caller's mistake, such as an unknown stage
 }
@@ -22,23 +22,25 @@ fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true}))
 data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 ```
 
+`BundledPipelines()` lists bundled names without parsing their documents. Names use two or more lowercase path segments, as in `lojban/cll`. Invalid or absent bundled names cause usage errors.
+
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
-## Loading a dialect
+## Loading a pipeline
 
-- `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.
-- `LoadDialectFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
-- `LoadDialectSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. The bundled ones fill in the rest. A `unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
+- `LoadPipeline(name)` loads a bundled pipeline. `name` is the directory path `NAME` of `grammars/NAME/pipeline.md`.
+- `LoadPipelineFile(path)` loads a pipeline document from disk. The loader finds its grammar documents relative to it. A document that is not valid UTF-8 is a load error of kind `grammar`.
+- `LoadPipelineSources(sources, pipeline)` loads documents held in memory, a map from `/`-separated path to text. The map can hold its own `data/unicode/unicode.txt`, `data/preparsed/gencmu.json` and `data/preparsed/lojban.json`. The bundled ones fill in the rest. A `data/unicode/unicode.txt` in the map replaces the bundled table entirely, White_Space included (`docs/api.md`).
 
   For each of the three, a tie while the notation reads a grammar document is a load error of kind `grammar`. It names the document, and it has no line or column (engine §8).
 
 ## Parsing
 
-`(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
+`(*Pipeline).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
 
 A `feature-conflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `Stage` and `Feature` fields identify the conflict.
 
-`(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
+`(*Pipeline).Features()` lists the features of the pipeline, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
 Grammar document object model (DOM) format 40 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
@@ -48,7 +50,7 @@ A close family is a set of rules. `F` names that family through its written rule
 
 Tree conditions `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors in the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
-For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
+For tests and tools, `(*Pipeline).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
 
 The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 
@@ -59,7 +61,7 @@ A text that a stage reads in two or more best ways is a tie. Its result is not `
 
 A text that does not parse gives a result whose `OK` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, or `grammar` (`docs/api.md`).
 
-Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The dialect loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
+Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The pipeline loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
 An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Value`. `Tested` says whether it has such a test, since `Value` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
 
@@ -68,9 +70,9 @@ Such an action can have `Elided`, a read of a terminator that the check wrote ba
 
 `MarshalResult(result)` writes the canonical JSON.
 
-`Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Image`. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `cll-ebnf` dialect.
+`Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Image`. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `lojban/cll` pipeline.
 
-A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+A `*Pipeline` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
 
 The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Canonical Unicode tags include `_General_Category_Letter`, `_General_Category_Lowercase_Letter`, and `_White_Space`.
 
@@ -86,9 +88,9 @@ The cache requires DOM format 40 and matching document, bootstrap, Unicode, prop
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
-## The grammar copy
+## The resource copies
 
-`node tools/sync.js`, run from the repository root, generates `grammars/` here from the `grammars/` of the repository. The copy exists because `embed` cannot reach outside the module and refuses symbolic links. Do not edit it. CI fails if it is out of date.
+`node tools/sync.js`, run from the repository root, copies the repository's `grammars/` and `data/` trees into this module. The copies exist because `embed` cannot reach outside the module and refuses symbolic links. Do not edit them. After you change either source tree, run `node tools/sync.js` from the repository root. CI fails if a copy is out of date.
 
 ## Tests
 
@@ -104,11 +106,11 @@ The Go test runner runs independent tests and shared engine and notation cases i
 
 Tests that use process-wide controls or allocation counts stay serial. These tests use work counters, stack limits, allocation counts, or changes to the working directory. Go finishes these tests before it starts the parallel tests. The corpus uses its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
 
-The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's configuration in turn.
+The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its pipeline once and parses its input with each item's configuration in turn.
 
-An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
+An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `data/preparsed/lojban.json` with a fresh reading, with the cache both used and bypassed.
 
-`TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Dialect` for each dialect. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
+`TestCorpus` runs the core sample of the Lojban corpus (`../../tests/core.txt`) on as many goroutines as there are CPUs. The goroutines share one `*Pipeline` for each pipeline. `GENCMU_CORPUS=full` runs every case of `../../tests/corpus/`, and `GENCMU_CORPUS_WORKERS` sets the number of goroutines.
 
 The shared and corpus runners also fail a result with the error `elision-witness-lost`. They fail a case in which a check of `elision-only` does not keep the witness of its chosen derivation too (`tests/README.md`). They ask through a hook that a parse takes from an unexported field of `ParseOptions`, which no caller can set (`check.go`, `witness_test.go`). The library's own tests lose the witness on purpose through the same field, and make sure that the error has the required form. The same field turns on faults of the library's own paths in the check. `faults_test.go` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
 

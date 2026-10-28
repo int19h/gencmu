@@ -41,13 +41,13 @@ def manifest(path, cases):
 def concurrent_tables(directory):
     fixtures = json.loads((ROOT / "tests/json-keys.json").read_text())
     hashes = {}
-    for name, text in [("bootstrap", (ROOT / "grammars/notation/bootstrap.json").read_text()),
-                       ("unicode", (ROOT / "grammars/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
+    for name, text in [("bootstrap", (ROOT / "data/preparsed/gencmu.json").read_text()),
+                       ("unicode", (ROOT / "data/unicode/unicode.txt").read_text()), ("source", fixtures["grammar"])]:
         value = 0xcbf29ce484222325
         for byte in text.encode():
             value = ((value ^ byte) * 0x100000001b3) & 0xffffffffffffffff
         hashes[name] = f"{value:016x}"
-    selected = [case for case in fixtures["compiled"] if case.get("concurrent")]
+    selected = [case for case in fixtures["preparsed"] if case.get("concurrent")]
     if len(selected) != 3:
         raise ValueError("Concurrent table conformance requires its three shared cache controls")
     rows, expected = [], {}
@@ -56,7 +56,7 @@ def concurrent_tables(directory):
         for name, fingerprint in hashes.items():
             cache = cache.replace("@" + name + "@", fingerprint)
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": fixtures["grammar"],
-                   "unicode.txt": (ROOT / "grammars/unicode.txt").read_text(), "compiled.json": cache, **case["sources"]}
+                   "data/unicode/unicode.txt": (ROOT / "data/unicode/unicode.txt").read_text(), "data/preparsed/lojban.json": cache, **case["sources"]}
         path = directory / f"table-{index}.tsv"
         path.write_text("".join(hex_text(key) + "\t" + hex_text(value) + "\n" for key, value in sources.items()), encoding="ascii")
         rows.append(str(index) + "\t" + str(path) + "\n")
@@ -197,19 +197,19 @@ def main():
     baseline = baseline_tree(revision)
     if command("git", "status", "--porcelain", cwd=baseline):
         raise ValueError("The baseline worktree must be clean")
-    if (ROOT / "grammars/unicode.txt").read_bytes() != (baseline / "grammars/unicode.txt").read_bytes():
+    if (ROOT / "data/unicode/unicode.txt").read_bytes() != (baseline / "data/unicode/unicode.txt").read_bytes():
         raise ValueError("Both revisions must use identical core character data")
     cases = []
     for path in sorted((baseline / "tests/corpus").glob("*.jsonl")):
         cases.extend(case for line in path.read_text().splitlines() if line.strip()
-                     if (case := json.loads(line))["dialect"] == "cll-ebnf")
+                     if (case := json.loads(line))["pipeline"] == "lojban/cll")
     cases.sort(key=lambda case: case["id"].encode("ascii"))
     if len(cases) < 400 or len({c["id"] for c in cases}) != len(cases):
-        raise ValueError("The baseline requires 400 distinct cll-ebnf IDs")
+        raise ValueError("The baseline requires 400 distinct lojban/cll IDs")
     candidate_cases = {}
     for path in (ROOT / "tests/corpus").glob("*.jsonl"):
         for line in path.read_text().splitlines():
-            if line.strip() and (case := json.loads(line))["dialect"] == "cll-ebnf":
+            if line.strip() and (case := json.loads(line))["pipeline"] == "lojban/cll":
                 candidate_cases[case["id"]] = case
     for case in cases:
         other = candidate_cases.get(case["id"])
@@ -230,7 +230,7 @@ def main():
                   "cpu": command("lscpu"), "node": command("node", "--version"),
                   "go": command("go", "version"), "rust": command("rustc", "--version"),
                   "python": command(args.python, "--version")},
-              "coreSha256": hashlib.sha256((ROOT / "grammars/unicode.txt").read_bytes()).hexdigest(),
+              "coreSha256": hashlib.sha256((ROOT / "data/unicode/unicode.txt").read_bytes()).hexdigest(),
               "fullCorpusCount": len(cases), "libraries": {}, "complete": False, "passed": False}
     report_path = directory / "report.json"
     if args.resume and report_path.exists():
@@ -261,7 +261,7 @@ def main():
         try:
             observed = table_worker.request("concurrent", "-", tables)
             if len(observed) != len(table_expected) * 4 or any(item != table_expected.get(item["name"]) for item in observed):
-                raise ValueError(library + ": concurrent reads change a selected table or its compiled cache hit")
+                raise ValueError(library + ": concurrent reads change a selected table or its preparsed cache hit")
             if any(sum(item["name"] == name for item in observed) != 4 for name in table_expected):
                 raise ValueError(library + ": concurrent reads omit a shared control")
             record["concurrentTables"] = observed
@@ -276,7 +276,7 @@ def main():
             for key, sources in [("corpus", "-"), ("forward", source)]:
                 loaded = [worker.request("load", key, sources) for worker in workers]
                 if loaded[0] != loaded[1]:
-                    raise ValueError(library + ": incompatible dialect features")
+                    raise ValueError(library + ": incompatible pipeline features")
             for name, inputs in workloads.items():
                 if "passed" in record["workloads"].get(name, {}):
                     continue

@@ -7,7 +7,7 @@
     "a.txt": "unicode-names 15.1.0\nname E000 LOCAL NAME\n",
     "b.txt": "unicode-names 15.1.0\nname E001 LOCAL NAME\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "",

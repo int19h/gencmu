@@ -1,0 +1,18 @@
+{
+  "description": "The public catalog lists full bundled names in code-point order without a separate catalog file.",
+  "pipeline": "gencmu/jbogenbau",
+  "input": "%rule text A",
+  "expect": {
+    "bundledPipelines": [
+      "gencmu/jbogenbau",
+      "lojban/bpfk",
+      "lojban/cll",
+      "lojban/examples/kihei",
+      "lojban/experimental",
+      "lojban/zantufa"
+    ],
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,9 +1,9 @@
 {
   "description": "The experimental orthography emits the reviewed phonemes and source spans.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "ア〜",
   "options": {
     "until": "phonemes"

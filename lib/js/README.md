@@ -2,16 +2,18 @@
 
 The JavaScript library of gencmu parses Lojban. A literate grammar document mixes prose with grammar rules. The library loads these documents at runtime. An API is the operations that a library exposes. The library needs nothing beyond the language, and Node's `fs` for loading grammars from disk.
 
-`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadDialectSources`. `gencmu/node` adds `loadDialect`, for the grammars shipped with the package, and `loadDialectFile`, for a pipeline document on disk.
+`gencmu` works anywhere JavaScript runs, and it loads grammars from memory through `loadPipelineSources`. `gencmu/node` adds `loadPipeline`, for the grammars shipped with the package, and `loadPipelineFile`, for a pipeline document on disk.
 
 ```js
-import { loadDialect } from "gencmu/node";
+import { loadPipeline } from "gencmu/node";
 import { toBrackets } from "gencmu";
 
-const dialect = loadDialect("cll-ebnf");
-const result = dialect.parse("mi klama le zarci");
+const pipeline = loadPipeline("lojban/cll");
+const result = pipeline.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```
+
+`bundledPipelines()` from `gencmu/node` lists bundled names without parsing their documents. Portable `gencmu` accepts a source map with `bundledPipelines(sources)`. With no map, it returns an empty list. Names use two or more lowercase path segments, as in `lojban/cll`. Invalid or absent bundled names cause usage errors.
 
 A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
 
@@ -23,7 +25,7 @@ A text that does not parse gives a result whose `ok` is false. Its error kind is
 
 ## The command line
 
-Run `node cli.js` in `lib/js`. The commands are `parse`, `audit`, `stitch`, `test`, `dialects`, `features`, and `help`. `stitch` prints a dialect's pipeline as one jbogenbau text. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
+Run `node cli.js` in `lib/js`. The commands are `parse`, `audit`, `stitch`, `test`, `pipelines`, `features`, and `help`. `stitch` prints a pipeline's documents as one jbogenbau text. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
 
 A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
 
@@ -59,7 +61,7 @@ The library and playground run without Playwright. The browser smoke test needs 
 ```sh
 npm ci                                      # installs Playwright
 npx playwright install chromium firefox     # its browsers, once
-node ../../tools/smoke-playground.js --browser chromium  # index.html from file:// in Chromium
+node ../../tools/smoke-playground.js --browser chromium  # index.html over loopback HTTP in Chromium
 node ../../tools/smoke-playground.js --browser firefox   # in Firefox
 node ../../tools/smoke-playground.js URL                 # a deployment, such as GitHub Pages
 ```

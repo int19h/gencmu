@@ -1,9 +1,9 @@
 {
   "description": "Whitespace ends the opening ybu delimiter's formatting edge. The separate mark remains raw body text.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi \"ybu \" ybu",
   "options": {
     "until": "words"

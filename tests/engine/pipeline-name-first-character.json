@@ -1,0 +1,8 @@
+{
+  "description": "Each segment starts with an ASCII letter or digit.",
+  "pipeline": "lojban/-cll",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

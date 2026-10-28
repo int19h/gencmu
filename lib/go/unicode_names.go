@@ -290,33 +290,33 @@ func (n *namesScope) load() *Error {
 		return nil
 	}
 	if n.uni.versionCount != 1 || n.uni.version == "" {
-		return namesError("unicode.txt", 0, "names require exactly one Unicode version")
+		return namesError("data/unicode/unicode.txt", 0, "names require exactly one Unicode version")
 	}
-	text, err := n.need("unicode-names.txt")
+	text, err := n.need("data/unicode/unicode-names.txt")
 	if err != nil {
 		return err
 	}
 	hash := fnv1a64(text)
-	base, err := parseUnicodeNames(text, "unicode-names.txt", n.uni.version)
+	base, err := parseUnicodeNames(text, "data/unicode/unicode-names.txt", n.uni.version)
 	if err != nil {
 		return err
 	}
 	reference := text
 	if hash != pinnedNamesHash {
-		reference, err = n.need("unicode-names-reference.txt")
+		reference, err = n.need("data/unicode/unicode-names-reference.txt")
 		if err != nil {
 			return err
 		}
 	}
 	if fnv1a64(reference) != pinnedNamesHash {
-		return namesError("unicode-names-reference.txt", 0, "the reference fingerprint differs from the pinned data")
+		return namesError("data/unicode/unicode-names-reference.txt", 0, "the reference fingerprint differs from the pinned data")
 	}
 	if n.uni.version != "15.1.0" {
-		return namesError("unicode-names-reference.txt", 0, "the reference version differs from the selected names version")
+		return namesError("data/unicode/unicode-names-reference.txt", 0, "the reference version differs from the selected names version")
 	}
 	pinned := base
 	if hash != pinnedNamesHash {
-		pinned, err = parseUnicodeNames(reference, "unicode-names-reference.txt", "15.1.0")
+		pinned, err = parseUnicodeNames(reference, "data/unicode/unicode-names-reference.txt", "15.1.0")
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func (n *namesScope) load() *Error {
 		return err
 	}
 	tables := []*unicodeNames{base}
-	dependencies := map[string]string{"unicode-names.txt": hash}
+	dependencies := map[string]string{"data/unicode/unicode-names.txt": hash}
 	for _, path := range n.extras {
 		text, err := n.need(path)
 		if err != nil {
@@ -391,7 +391,7 @@ func (n *namesScope) matches(raw json.RawMessage, registry map[string]string, ov
 		return true, nil
 	}
 	var dependencies map[string]string
-	paths := append([]string{"unicode-names.txt"}, n.extras...)
+	paths := append([]string{"data/unicode/unicode-names.txt"}, n.extras...)
 	slices.Sort(paths)
 	paths = slices.Compact(paths)
 	if unmarshalJSON(raw, &dependencies) != nil || len(dependencies) != len(paths) {
@@ -411,7 +411,7 @@ func (n *namesScope) matches(raw json.RawMessage, registry map[string]string, ov
 	}
 	if shortcut {
 		if n.uni.versionCount != 1 || n.uni.version != "15.1.0" {
-			return false, namesError("unicode.txt", 0, "bundled names require Unicode version 15.1.0")
+			return false, namesError("data/unicode/unicode.txt", 0, "bundled names require Unicode version 15.1.0")
 		}
 		for _, path := range paths {
 			if dependencies[path] != registry[path] {

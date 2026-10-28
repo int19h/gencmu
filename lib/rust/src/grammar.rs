@@ -1894,7 +1894,8 @@ mod tests {
     /// they are checked once, and the constants are found in one walk.
     #[test]
     fn alternatives_share_their_rules_clauses() {
-        let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
+        let unicode =
+            Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
@@ -1968,7 +1969,8 @@ mod tests {
             StageGrammar {
                 features: Vec::new(),
                 unicode: std::sync::Arc::new(
-                    crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap(),
+                    crate::unicode::Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap())
+                        .unwrap(),
                 ),
                 name: "s".into(),
                 rules: Vec::new(),

@@ -10,7 +10,7 @@ fn constant_cycles_report_the_dependency_path() {
     ];
     for (declarations, path) in declarations {
         let source = format!("```jbogenbau\n%stage main\n{declarations}\n%rule text A\n```\n");
-        let error = gencmu::load_dialect_sources([("p.md", source.as_str())], "p.md").expect_err("a cycle");
+        let error = gencmu::load_pipeline_sources([("p.md", source.as_str())], "p.md").expect_err("a cycle");
         assert!(error.message.contains(path), "{error}");
         assert_eq!(error.document.as_deref(), Some("p.md"));
         assert!(error.line.is_some() && error.column.is_some(), "{error}");

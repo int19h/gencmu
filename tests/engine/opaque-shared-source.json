@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text d\n%rule d \"a\" %emits $ :: X, $ :: Y\n\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (X $y:v) %emits $y :: V\n\n%rule v :- $.verbatim-text | Y\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",

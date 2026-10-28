@@ -1,9 +1,9 @@
 {
   "description": "A formatting mark attached to the marker before whitespace is part of that marker, not a standalone target.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo\" mi",
   "options": {
     "until": "words"

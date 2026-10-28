@@ -1,6 +1,6 @@
 //! The shared cases of `tests/dom-malformed.json` (tests/README.md): each
 //! directive alone in an otherwise empty DOM of the current format, which
-//! the check of a precompiled DOM refuses exactly when the case says it is
+//! the check of a preparsed DOM refuses exactly when the case says it is
 //! malformed (engine §9).
 
 mod common;

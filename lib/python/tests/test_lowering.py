@@ -15,7 +15,7 @@ from gencmu._earley import Parser, StageContext
 from gencmu._model import Token
 from gencmu._rank import count_roots
 
-from .shared import load_case_dialect
+from .shared import load_case_pipeline
 
 PIPELINE = '```jbogenbau\n%stage main\n%include "a.md"\n%include "b.md"\n```\n'
 
@@ -23,10 +23,10 @@ PIPELINE = '```jbogenbau\n%stage main\n%include "a.md"\n%include "b.md"\n```\n'
 class LoweringErrors(unittest.TestCase):
     """An error that lowering finds is a result of the parse, whose message
     begins with the document, line and column of the definition at fault,
-    and the dialect loads (engine §3)."""
+    and the pipeline loads (engine §3)."""
 
-    def parse(self, dialect: gencmu.Dialect, features: list[str]) -> gencmu.ParseResult:
-        return dialect.parse_tokens([Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a", features=features)
+    def parse(self, pipeline: gencmu.Pipeline, features: list[str]) -> gencmu.ParseResult:
+        return pipeline.parse_tokens([Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a", features=features)
 
     def test_the_message_names_the_definition_and_the_order_is_engine_3(self) -> None:
         sources = {
@@ -34,10 +34,10 @@ class LoweringErrors(unittest.TestCase):
             "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {r} | c\n%rule c {... A} | f? B\n```\n",
             "b.md": "```jbogenbau\n%rule r A\n%extend-rule r\n  ε\n```\n",
         }
-        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
         # The empty item of text's braces, made so by b.md, is reported at
         # the definition of text in a.md, line 3, column 1.
-        empty = self.parse(dialect, [])
+        empty = self.parse(pipeline, [])
         self.assertFalse(empty.ok)
         assert empty.error is not None
         value = gencmu.result_json(empty)
@@ -47,15 +47,15 @@ class LoweringErrors(unittest.TestCase):
         self.assertTrue(empty.error.message.startswith("a.md:3:1: "), empty.error.message)
         # With f on, c's chain stands beside B, which comes before the empty
         # item of an earlier rule.
-        both = self.parse(dialect, ["f"])
+        both = self.parse(pipeline, ["f"])
         assert both.error is not None
         self.assertEqual(both.error.kind, "grammar")
         self.assertTrue(both.error.message.startswith("a.md:4:1: c is a chain"), both.error.message)
 
     def test_in_one_rule_a_chain_beside_another_alternative_comes_before_an_empty_item(self) -> None:
-        dialect, error = load_case_dialect({"grammar": "%rule text r\n%rule r {... [A]} | B"})
-        assert dialect is not None, error
-        result = dialect.parse_tokens([Token("b", frozenset({"B"}), (0, 1), (0, 1))], "b")
+        pipeline, error = load_case_pipeline({"grammar": "%rule text r\n%rule r {... [A]} | B"})
+        assert pipeline is not None, error
+        result = pipeline.parse_tokens([Token("b", frozenset({"B"}), (0, 1), (0, 1))], "b")
         assert result.error is not None
         self.assertTrue(result.error.message.startswith("main.md:4:1: r is a chain"), result.error.message)
 
@@ -76,8 +76,8 @@ class LoweringErrors(unittest.TestCase):
 """,
             "b.md": "```jbogenbau\n%redefine-rule x {[B] / C}\n```\n",
         }
-        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
-        result = self.parse(dialect, [])
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
+        result = self.parse(pipeline, [])
         assert result.error is not None
         # x keeps its place, the first rule after text, and b.md wrote it.
         self.assertTrue(result.error.message.startswith("b.md:2:1: "), result.error.message)
@@ -90,8 +90,8 @@ class LoweringErrors(unittest.TestCase):
             "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text r {[A]}\n%rule r {... A} | B\n```\n",
             "b.md": "```jbogenbau\n```\n",
         }
-        dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
-        result = self.parse(dialect, [])
+        pipeline = gencmu.load_pipeline_sources(sources, "p.md", use_cache=False)
+        result = self.parse(pipeline, [])
         assert result.error is not None
         # r's chain stands beside B, a later rule than text's empty item.
         self.assertTrue(result.error.message.startswith("a.md:4:1: r is a chain"), result.error.message)
@@ -104,11 +104,11 @@ class CaptureGrowth(unittest.TestCase):
     @staticmethod
     def whole_items(grammar: str, n: int) -> int:
         "The completed items of the production t → t t or t → $l:t $r:t\n        over the whole input of n tokens A."
-        dialect, error = load_case_dialect({"grammar": grammar})
-        assert dialect is not None, error
-        lowered = dialect.lowered(0, frozenset())
+        pipeline, error = load_case_pipeline({"grammar": grammar})
+        assert pipeline is not None, error
+        lowered = pipeline.lowered(0, frozenset())
         tokens = [Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(n)]
-        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), dialect.unicode)
+        context = StageContext(lowered, tokens, " ".join("a" for _ in tokens), pipeline.unicode)
         context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
         t = lowered.rule_ids["t"]
@@ -137,9 +137,9 @@ class QueryHelpers(unittest.TestCase):
         text = "%rule text $x:A %conditions $x.matches(Z | T | Z)"
         aux = "%rule aux ($q:A ≻ B) ::∅ %conditions $q.without-elision.matches(Q)"
         for grammar in (text + "\n" + aux, aux + "\n" + text):
-            dialect, error = load_case_dialect({"grammar": grammar})
-            assert dialect is not None, error
-            lowered = dialect.lowered(0, frozenset())
+            pipeline, error = load_case_pipeline({"grammar": grammar})
+            assert pipeline is not None, error
+            lowered = pipeline.lowered(0, frozenset())
             helpers = [p for p in lowered.productions if p.rule_name.startswith("\0query:")]
             self.assertEqual([p.rule_name for p in helpers], ["\0query:Q", "\0query:T", "\0query:Z"])
             self.assertEqual([p.id for p in helpers], list(range(len(lowered.productions) - 3, len(lowered.productions))))
@@ -154,7 +154,7 @@ class QueryHelpers(unittest.TestCase):
                 self.assertIsNone(helper.tests)
                 self.assertFalse(helper.conds_predict)
                 self.assertFalse(helper.conds_at)
-                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", dialect.unicode)
+                context = StageContext(lowered, [Token("a", tags, (0, 1), (0, 1))], "a", pipeline.unicode)
                 context.count = count_roots
                 forest = Parser(context).parse(helper.lhs)
                 self.assertEqual(len(forest.roots), 1)

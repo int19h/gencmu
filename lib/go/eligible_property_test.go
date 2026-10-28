@@ -343,7 +343,7 @@ func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
 						grammar := "%rule text $all:input\n%conditions " + condition +
 							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +
 							" [+T] C T U\n%rule y A B | A B C | B z" + suffix + "\n%rule z ε | C T"
-						dialect, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+						pipeline, err := casePipeline(&engineCase{Grammar: &grammar}, true)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -351,7 +351,7 @@ func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
 						for i, tag := range []string{"A", "B", "C", "T", "U"} {
 							tokens[i] = InputToken{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 						}
-						result, err := dialect.ParseTokens("abctu", tokens, ParseOptions{})
+						result, err := pipeline.ParseTokens("abctu", tokens, ParseOptions{})
 						// With [+U], the prefix that permits [+T] has a forbidden [+U].
 						// Without [+U], that same prefix supplies an eligible proof.
 						want := suffix == ""
@@ -375,7 +375,7 @@ func TestLogicalOptionalProofCorrelation(t *testing.T) {
 						grammar := "%rule text $all:input\n%conditions " + condition +
 							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +
 							" [+T] C T U\n%rule y A B | A B C | B z" + suffix + "\n%rule z ε | C T\n%rule empty ε"
-						dialect, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+						pipeline, err := casePipeline(&engineCase{Grammar: &grammar}, true)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -383,7 +383,7 @@ func TestLogicalOptionalProofCorrelation(t *testing.T) {
 						for i, tag := range []string{"A", "B", "C", "T", "U"} {
 							tokens[i] = InputToken{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 						}
-						result, err := dialect.ParseTokens("abctu", tokens, ParseOptions{})
+						result, err := pipeline.ParseTokens("abctu", tokens, ParseOptions{})
 						want := suffix == ""
 						if err != nil || result.OK != want || !want && result.Error.Kind != ErrorRejected {
 							t.Fatalf("eligible query %v: %v %+v", want, err, result)

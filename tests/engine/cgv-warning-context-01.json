@@ -1,9 +1,9 @@
 {
   "description": "ZO reads its target as a Lojban word. The CgV target retains its warning.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zo atkuila",
   "parses": [
     {

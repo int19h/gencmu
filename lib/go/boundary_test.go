@@ -49,7 +49,7 @@ func TestBoundaryAnnotationLateJoin(t *testing.T) {
 func TestBoundaryMeetFollowsTagErrors(t *testing.T) {
 	grammar := "%rule text A :: ($.matches(text) ⟹ X) | B\n%conditions $.followed-by(B)"
 	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{{Text: "a", Tags: []string{"A"}}}}
-	d, err := caseDialect(c, false)
+	d, err := casePipeline(c, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestBoundaryMeetFollowsTagErrors(t *testing.T) {
 
 func TestBoundaryRecordGrowth(t *testing.T) {
 	grammar := "%rule text r [B]\n%rule r A [tail]\n%conditions ¬$.followed-by(B) ∨ $.starts-input\n%rule s A [tail]\n%rule tail r | s"
-	d, err := caseDialect(&engineCase{Grammar: &grammar}, false)
+	d, err := casePipeline(&engineCase{Grammar: &grammar}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,16 +97,17 @@ func TestBoundaryRecordGrowth(t *testing.T) {
 
 func TestBoundaryLoadCacheDiagnostics(t *testing.T) {
 	sources := oneStage("%ambiguity-resolution greedy\n%const $K A\n%rule text X r | Y r\n%rule r C (aa ≻ $a:bb) :: ∅\n%conditions $.ends-input, $a.tags = $K ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A")
-	_, plain := LoadDialectSources(sources, "p.md")
+	sources = map[string]string{"grammars/test/p.md": sources["p.md"], "grammars/test/g.md": sources["g.md"]}
+	_, plain := LoadPipelineSources(sources, "grammars/test/p.md")
 	if plain == nil {
 		t.Fatal("missing private boundary load error")
 	}
-	dom, e := bundled.reader.readMode(sources["g.md"], "g.md", true)
+	dom, e := bundled.reader.readMode(sources["grammars/test/g.md"], "grammars/test/g.md", true)
 	if e != nil {
 		t.Fatal(e)
 	}
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
-	_, cached := LoadDialectSources(sources, "p.md")
+	sources["data/preparsed/test.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"grammars/test/g.md":{"hash":"` + fnv1a64(sources["grammars/test/g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, cached := LoadPipelineSources(sources, "grammars/test/p.md")
 	if !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("plain=%+v cached=%+v", plain, cached)
 	}

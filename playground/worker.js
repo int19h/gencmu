@@ -12,7 +12,7 @@
 // explanations itself, with the library's non-recursive renderers.
 //
 // Protocol, page to worker:
-//   { kind: "init", sources, compiled }  the documents, path to text, and
+//   { kind: "init", sources, preparsed }  the documents, path to text, and
 //       DOMs already read in an earlier worker, path to { hash, dom }
 //   { kind: "set", path, text }          a document changed (text null: gone)
 //   { kind: "run", id, request }         parse and render; see `run` below
@@ -20,7 +20,7 @@
 // Worker to page:
 //   { kind: "ready", version, ms }       after init
 //   { kind: "phase", id, phase, path }   what a run is doing: "loading" a
-//       dialect, "reading" a document with the notation, "parsing", "rendering"
+//       pipeline, "reading" a document with the notation, "parsing", "rendering"
 //   { kind: "need-names", id, path }    names text required to resume loading
 //   { kind: "dom", path, hash, names, dom }     a document just read, for the page
 //       to hand to the next worker if this one is ever replaced
@@ -41,8 +41,8 @@
     let loader = null;
     // Bumped whenever a document changes, so that cached results go stale.
     let version = 0;
-    // Dialects by pipeline path: { dialect, info, audit } or { error }.
-    const dialects = new Map();
+    // Pipelines by full pipeline name: { pipeline, info, audit } or { error }.
+    const pipelines = new Map();
     // The last parse, kept so that switching the output format, tracing or
     // auditing does not parse the text again.
     let last = null;
@@ -69,10 +69,10 @@
         if (namesErrors.has(path)) throw new gencmu.GencmuError("grammar", namesErrors.get(path), { document: path });
         throw new NeedNames(path);
       };
-      for (const [path, entry] of Object.entries(message.compiled || {})) {
-        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
+      for (const [path, entry] of Object.entries(message.preparsed || {})) {
+        loader.usePreparsed({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, properties: entry.properties, bundledNames: loader.bundledNames, documents: { [path]: entry } });
       }
-      // Reading a document that compiled.json does not hold goes through the
+      // Reading a document that data/preparsed/FAMILY.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
       loader.readDocument = (markdown, path, deferEmission, inherited) => {
@@ -89,7 +89,7 @@
         post({ kind: "directives", id: runId, path, inherited: inherited || [], directives: dom.directives });
         return dom;
       };
-      dialects.clear();
+      pipelines.clear();
       last = null;
       post({ kind: "ready", version: gencmu.version, ms: now() - started });
     }
@@ -99,10 +99,10 @@
       if (text === null) sources.delete(path);
       else sources.set(path, text);
       version++;
-      dialects.clear();
+      pipelines.clear();
       last = null;
       // Forget this document's earlier DOMs; the bundled one stays in
-      // compiled.json, so resetting a document costs nothing.
+      // data/preparsed/FAMILY.json, so resetting a document costs nothing.
       for (const key of [...loader.cache.keys()]) if (key.startsWith(path + "\u0000")) loader.cache.delete(key);
     }
 
@@ -119,40 +119,41 @@
       };
     }
 
-    function loadDialect(path) {
-      let entry = dialects.get(path);
+    function loadPipeline(name) {
+      let entry = pipelines.get(name);
       if (entry) return entry;
+      const path = `grammars/${name}/pipeline.md`;
       phase("loading", path);
       try {
-        const dialect = loader.dialect(path);
+        const pipeline = loader.pipeline(path);
         entry = {
-          dialect,
+          pipeline,
           info: {
             path,
-            stages: dialect.stages.map((stage) => ({
+            stages: pipeline.stages.map((stage) => ({
               name: stage.name,
               lean: stage.grammar.resolution ? stage.grammar.resolution.lean : null,
               elisionOnly: !!(stage.grammar.resolution && stage.grammar.resolution.elisionOnly),
             })),
             // Each feature a switch can change: its name, whether it is a
-            // gate or a warning, and whether the dialect turns it on.
-            features: dialect.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
+            // gate or a warning, and whether the pipeline turns it on.
+            features: pipeline.features.map((feature) => ({ name: feature.name, kind: feature.kind, default: feature.default })),
           },
         };
       } catch (error) {
         if (error instanceof NeedNames) throw error;
         entry = { error: describeError(error) };
       }
-      dialects.set(path, entry);
+      pipelines.set(name, entry);
       return entry;
     }
 
     function parse(entry, request) {
-      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.withoutFeatures, request.until, request.elisionOnly]);
+      const key = JSON.stringify([version, request.pipeline, request.text, request.features, request.withoutFeatures, request.until, request.elisionOnly]);
       if (last && last.key === key) return last;
       phase("parsing");
       const started = now();
-      const result = entry.dialect.parse(request.text, {
+      const result = entry.pipeline.parse(request.text, {
         features: request.features,
         withoutFeatures: request.withoutFeatures,
         until: request.until || undefined,
@@ -277,7 +278,7 @@
       phase("tracing");
       let answer;
       try {
-        const traced = gencmu.trace(entry.dialect, request.text, {
+        const traced = gencmu.trace(entry.pipeline, request.text, {
           stage: request.trace.stage, position: request.trace.position,
           features: request.features, withoutFeatures: request.withoutFeatures,
         });
@@ -296,9 +297,9 @@
       return answer;
     }
 
-    // One run: load the dialect, parse the text, render what the page shows.
+    // One run: load the pipeline, parse the text, render what the page shows.
     //
-    // request: { dialect, text, features: string[], withoutFeatures: string[], until,
+    // request: { pipeline: full pipeline name, text, features: string[], withoutFeatures: string[], until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
     //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
     //
@@ -309,10 +310,10 @@
     function run(id, request) {
       runId = id;
       const started = now();
-      const entry = loadDialect(request.dialect);
-      const answer = { kind: "result", id, text: request.text, dialect: request.dialect, info: entry.info || null, loadError: entry.error || null };
+      const entry = loadPipeline(request.pipeline);
+      const answer = { kind: "result", id, text: request.text, pipeline: request.pipeline, info: entry.info || null, loadError: entry.error || null };
       if (request.locateRule) {
-        const stage = entry.dialect?.stages.find((stage) => stage.name === request.locateRule.stage);
+        const stage = entry.pipeline?.stages.find((stage) => stage.name === request.locateRule.stage);
         const rule = stage?.grammar.rules.get(request.locateRule.name);
         answer.ruleLocation = rule ? rule.at : null;
       }
@@ -326,12 +327,12 @@
       answer.parse = parsed.summary;
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
-      // A trace asked for before the page knew the dialect's stages names
+      // A trace asked for before the page knew the pipeline's stages names
       // none. This answer names them, and says that the page can ask again.
       if (request.trace && request.trace.stage === null) answer.traceNeedsStages = true;
       else if (request.trace) answer.trace = runTrace(entry, parsed, request);
       if (request.audit) {
-        if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.dialect));
+        if (entry.audit === undefined) entry.audit = gencmu.formatAudit(gencmu.audit(entry.pipeline));
         answer.audit = entry.audit;
       }
       answer.ms = now() - started;
@@ -440,18 +441,18 @@
       const sources = Object.assign({}, this.bundled);
       for (const [path,text] of this.namesResources) if (!Object.hasOwn(this.bundled,path)) sources[path] = text;
       for (const [path, text] of this.edits) sources[path] = text;
-      const compiled = {};
-      for (const [path, entry] of this.doms) if (this.edits.has(path)) compiled[path] = entry;
+      const preparsed = {};
+      for (const [path, entry] of this.doms) if (this.edits.has(path)) preparsed[path] = entry;
       this.unsent.clear();
-      worker.postMessage({ kind: "init", sources, compiled });
+      worker.postMessage({ kind: "init", sources, preparsed });
     }
 
     async supplyNames(worker, message) {
       const path = message.path;
-      const resource = path === "unicode-names-reference.txt" ? "unicode-names.txt" : path;
+      const resource = path === "data/unicode/unicode-names-reference.txt" ? "data/unicode/unicode-names.txt" : path;
       try {
         if (!this.namesFetches.has(resource)) {
-          const url = new URL("grammars/" + resource.split("/").map(encodeURIComponent).join("/"), root.location.href);
+          const url = new URL(resource.split("/").map(encodeURIComponent).join("/"), root.location.href);
           const fetching = root.fetch(url).then(async response => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await response.arrayBuffer());
@@ -459,8 +460,8 @@
           this.namesFetches.set(resource,fetching);
         }
         const text = await this.namesFetches.get(resource);
-        const resources = resource === "unicode-names.txt"
-          ? { "unicode-names.txt": text, "unicode-names-reference.txt": text } : { [path]: text };
+        const resources = resource === "data/unicode/unicode-names.txt"
+          ? { "data/unicode/unicode-names.txt": text, "data/unicode/unicode-names-reference.txt": text } : { [path]: text };
         for (const [key,value] of Object.entries(resources)) this.namesResources.set(key,value);
         if (this.worker === worker) worker.postMessage({ kind: "names", id: message.id, resources });
       } catch (error) {

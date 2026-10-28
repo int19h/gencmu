@@ -299,7 +299,7 @@ def write_properties(root, ucd):
             elif kind == "multiple":
                 suffix = " " + " ".join(values[value])
             lines.append(f"range {prop} {first:04X} {last:04X}{suffix}")
-    (root / "grammars/unicode-properties.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / "data/unicode/unicode-properties.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def write_catalog(root, ucd):
@@ -369,8 +369,8 @@ def audit_resources(root):
     inventory = set(BINARY) | set(ENUMERATED) | {"Script_Extensions"}
     if set(expected["properties"]) != inventory or set(catalog["types"]) != inventory:
         raise ValueError("The property audit inventory differs from the pinned inventory")
-    core = [line.split() for line in (root / "grammars/unicode.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
-    companion = [line.split() for line in (root / "grammars/unicode-properties.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
+    core = [line.split() for line in (root / "data/unicode/unicode.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
+    companion = [line.split() for line in (root / "data/unicode/unicode-properties.txt").read_text(encoding="utf-8").splitlines() if line.strip()]
     if core[0] != ["unicode", expected["unicode"]] or companion[0] != ["unicode-properties", expected["unicode"]]:
         raise ValueError("The shipped property resources differ from the pinned version")
     declarations, ranges = {}, {}

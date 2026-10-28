@@ -1,5 +1,5 @@
 {
-  "description": "A suffix target can name one exact template instance. (Engine \u00a74.4.)",
+  "description": "A suffix target can name one exact template instance. (Engine §4.4.)",
   "grammar": "%rule text A B\n%conditions $.ends(tail(B))\n%rule tail(@X) @X",
   "tokens": [
     {

@@ -1,0 +1,8 @@
+{
+  "description": "The complete name must match the segment rules.",
+  "pipeline": "lojban/cll\n",
+  "input": "",
+  "expect": {
+    "error": "usage"
+  }
+}

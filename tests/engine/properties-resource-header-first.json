@@ -3,14 +3,14 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```",
-    "unicode-properties.txt": "\n binary Alphabetic\n"
+    "data/unicode/unicode-properties.txt": "\n binary Alphabetic\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "error": "grammar",
     "where": {
-      "document": "unicode-properties.txt",
+      "document": "data/unicode/unicode-properties.txt",
       "line": 2
     }
   }

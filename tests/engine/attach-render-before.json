@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:ii) %emits $w ($a)\n\n\n\n%rule word \"w\" :: Before\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {Before}\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "wiw",
   "expect": {
     "result": {

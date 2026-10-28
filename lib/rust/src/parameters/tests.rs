@@ -4,7 +4,7 @@ fn j(s: &str) -> Json {
     crate::json::parse(s).unwrap()
 }
 fn unicode() -> Unicode {
-    Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap()
+    Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap()
 }
 fn read(s: &str) -> Dom {
     let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap();
@@ -12,7 +12,7 @@ fn read(s: &str) -> Dom {
 }
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
     let d = read(&format!("%ambiguity-resolution greedy\n{s}"));
-    crate::grammar::stitch("main", &[(Arc::from("test.md"), Arc::new(d))], &unicode()).unwrap()
+    crate::grammar::stitch("main", &[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap()
 }
 fn names(g: &crate::grammar::StageGrammar) -> Vec<String> {
     g.rules.iter().map(|r| r.name.clone()).collect()
@@ -139,12 +139,12 @@ fn supplied_body_normalizes() {
     set(&mut seq[1], "args", j(r#"[{"body":{"literal":{"string":"a"}}}]"#));
     set(&mut expr, "seq", Json::Arr(seq));
     replace_expression(r, expr);
-    let x = expand(&[(Arc::from("test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+    let x = expand(&[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     assert_eq!(x.records.instances.len(), 1);
 }
 #[test]
 fn ordinary_documents_keep_identity() {
-    let docs = vec![(Arc::from("plain.md"), Arc::new(read("%rule text \"a\"\n%extend-rule text \"b\"")))];
+    let docs = vec![(Arc::from("grammars/test/plain.md"), Arc::new(read("%rule text \"a\"\n%extend-rule text \"b\"")))];
     assert!(expand(&docs, &unicode()).unwrap().is_none());
 }
 #[test]
@@ -174,7 +174,7 @@ fn deep_bodies() {
         }
         let raw = crate::json::parse(&dom::dom_to_json(&d)).unwrap();
         assert!(dom::dom_problem(&raw, &unicode()).is_none());
-        let x = expand(&[(Arc::from("deep.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+        let x = expand(&[(Arc::from("grammars/test/deep.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
         assert_eq!(x.records.instances.len(), 1);
     }
 }
@@ -241,7 +241,7 @@ fn ranked_locations_do_not_change_dom() {
     };
     crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 42));
     assert_eq!(dom::dom_to_json(&d), before);
-    let x = expand(&[(Arc::from("locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+    let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
     assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 42));
 }
@@ -260,7 +260,7 @@ fn ranked_argument_location() {
         after: Vec::new(),
     };
     crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 29));
-    let x = expand(&[(Arc::from("locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+    let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "choice((\"a\" ≻ \"b\"))").unwrap();
     assert_eq!(r.alternatives[0].ranked_locations[""], (3, 29));
 }
@@ -315,7 +315,7 @@ fn ordinary_ranked_locations_survive_template_expansion() {
         after: Vec::new(),
     };
     crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 21));
-    let x = expand(&[(Arc::from("locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
+    let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
     assert_eq!(r.alternatives[0].ranked_locations[""], (3, 21));
 }
@@ -356,9 +356,9 @@ fn shared_parameter_structure() {
         if get(case, "public") == &Json::Bool(true) {
             let source =
                 format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n{}\n```", text(get(case, "grammar")));
-            let dialect =
-                crate::load_dialect_sources([("p.md", source)], "p.md").unwrap_or_else(|e| panic!("{name}: {e}"));
-            let g = &dialect.stages[0];
+            let pipeline = crate::load_pipeline_sources([("grammars/test/p.md", source)], "grammars/test/p.md")
+                .unwrap_or_else(|e| panic!("{name}: {e}"));
+            let g = &pipeline.stages[0];
             assert_eq!(
                 names(g),
                 list(get(case, "order")).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(),
@@ -380,18 +380,21 @@ fn shared_parameter_structure() {
             let hash = |s: &str| string(crate::json::fnv1a64(s));
             let cache = obj([
                 ("format", Json::Int(dom::DOM_FORMAT)),
-                ("bootstrap", hash(crate::loader::bundled("notation/bootstrap.json").unwrap())),
-                ("unicode", hash(crate::loader::bundled("unicode.txt").unwrap())),
-                ("properties", hash(crate::loader::bundled("unicode-properties.txt").unwrap())),
-                ("documents", obj([("g.md", obj([("hash", hash(&source)), ("dom", raw)]))])),
+                ("bootstrap", hash(crate::loader::bundled("data/preparsed/gencmu.json").unwrap())),
+                ("unicode", hash(crate::loader::bundled("data/unicode/unicode.txt").unwrap())),
+                ("properties", hash(crate::loader::bundled("data/unicode/unicode-properties.txt").unwrap())),
+                ("documents", obj([("grammars/test/g.md", obj([("hash", hash(&source)), ("dom", raw)]))])),
             ]);
             let sources = vec![
-                ("g.md", source),
-                ("p.md", "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```".into()),
-                ("compiled.json", cache.to_json()),
+                ("grammars/test/g.md", source),
+                (
+                    "grammars/test/p.md",
+                    "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"g.md\"\n```".into(),
+                ),
+                ("data/preparsed/test.json", cache.to_json()),
             ];
-            let dialect = crate::load_dialect_sources(sources, "p.md").unwrap();
-            assert!(dialect.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");
+            let pipeline = crate::load_pipeline_sources(sources, "grammars/test/p.md").unwrap();
+            assert!(pipeline.parse(text(get(case, "input")), &crate::ParseOptions::default()).unwrap().ok, "{name}");
             continue;
         }
         let d = dom::dom_from_json(&raw, &uni).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -399,8 +402,9 @@ fn shared_parameter_structure() {
             let rules = list(get(&raw, "rules"));
             assert_eq!(&list(get(expression(rules.last().unwrap()), "args"))[0], arg, "{name}");
         }
-        let x =
-            expand(&[(Arc::from("review.md"), Arc::new(d))], &uni).unwrap_or_else(|e| panic!("{name}: {e:?}")).unwrap();
+        let x = expand(&[(Arc::from("grammars/test/review.md"), Arc::new(d))], &uni)
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"))
+            .unwrap();
         if let Some(order) = case.get("order") {
             assert_eq!(x.order, list(order).iter().map(|n| text(n).to_string()).collect::<Vec<_>>(), "{name}");
         }

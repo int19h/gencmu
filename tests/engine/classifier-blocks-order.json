@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%classifier lex  \"mi\" ∉ KOhA  \"mi\" ∈ UI\n\n\n```\n",
     "c.md": "```jbogenbau\n%classifier lex  \"mi\" ∈ KOhA\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "mi",

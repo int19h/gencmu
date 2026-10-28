@@ -6,7 +6,7 @@
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:body %emits $b :: B\n\n%rule body :- $.verbatim-text | L | (body L)\n\n```\n",
     "k.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:B=\"?\" %conditions $b.value = \"?\", $b.value ≠ \"ab\" %emits $b :: C\n\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "ab",
   "expect": {
     "error": "rejected",

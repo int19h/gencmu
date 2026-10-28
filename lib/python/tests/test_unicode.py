@@ -1,4 +1,4 @@
-"""The character table of grammars/unicode.txt (engine §1): the records can
+"""The character table of data/unicode/unicode.txt (engine §1): the records can
 stand in any order, and a caller's table can leave scalar values out."""
 
 from __future__ import annotations
@@ -6,10 +6,10 @@ from __future__ import annotations
 import unittest
 
 import gencmu
-from gencmu._dialect import bundled_text, character_tokens
+from gencmu._pipeline import bundled_text, character_tokens
 from gencmu._unicode import UnicodeTable
 
-BUNDLED = bundled_text("unicode.txt") or ""
+BUNDLED = bundled_text("data/unicode/unicode.txt") or ""
 
 
 def _boundaries() -> list[int]:
@@ -65,14 +65,14 @@ class CallerTable(unittest.TestCase):
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
                 "g.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {rule}\n```\n",
-                "unicode.txt": table,
+                "data/unicode/unicode.txt": table,
             }
 
-        load = gencmu.load_dialect_sources
+        load = gencmu.load_pipeline_sources
         self.assertFalse(load(sources("_General_Category_Letter"), "p.md").parse("a").ok)
         self.assertTrue(load(sources("_General_Category_Unassigned"), "p.md").parse("a").ok)
         bundled = sources("_General_Category_Letter")
-        del bundled["unicode.txt"]
+        del bundled["data/unicode/unicode.txt"]
         self.assertTrue(load(bundled, "p.md").parse("a").ok)
 
 
@@ -91,21 +91,21 @@ class LoneSurrogates(unittest.TestCase):
         # Each of these would read U+D800 if it became a character tag.
         rules = ("_General_Category_Surrogate", "_", '"‹U+D7FF›".."‹U+E000›"', "[{character}]\n%rule character _")
         for rule in rules:
-            dialect = gencmu.load_dialect_sources(self._sources(rule), "p.md")
+            pipeline = gencmu.load_pipeline_sources(self._sources(rule), "p.md")
             for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):
                 with self.subTest(rule=rule, text=ascii(text)):
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        dialect.parse(text)
+                        pipeline.parse(text)
                     self.assertEqual(caught.exception.kind, "usage")
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        dialect.parse_tokens([], text)
+                        pipeline.parse_tokens([], text)
                     self.assertEqual(caught.exception.kind, "usage")
-        dialect = gencmu.load_dialect_sources(self._sources("_"), "p.md")
-        self.assertTrue(dialect.parse("\U0001f600").ok)
+        pipeline = gencmu.load_pipeline_sources(self._sources("_"), "p.md")
+        self.assertTrue(pipeline.parse("\U0001f600").ok)
 
     def test_a_document_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         with self.assertRaises(gencmu.GencmuError) as caught:
-            gencmu.load_dialect_sources(self._sources("'\ud800'"), "p.md", use_cache=False)
+            gencmu.load_pipeline_sources(self._sources("'\ud800'"), "p.md", use_cache=False)
         self.assertEqual(caught.exception.kind, "usage")
         self.assertEqual(caught.exception.document, "g.md")
 

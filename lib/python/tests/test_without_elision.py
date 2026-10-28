@@ -12,7 +12,7 @@ from gencmu._closes import Block, CloseMachine, Sequences
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Restoration
 
-from .shared import case_features, case_tokens, cases, load_case, load_case_dialect, parse_case, run_case
+from .shared import case_features, case_tokens, cases, load_case, load_case_pipeline, parse_case, run_case
 from . import test_engine_cases as engine_cases
 
 
@@ -32,12 +32,12 @@ class WithoutElision(unittest.TestCase):
             with self.subTest(case=path.name):
                 case = load_case(path)
                 if "parses" in case:
-                    dialect, error = load_case_dialect(case)
+                    pipeline, error = load_case_pipeline(case)
                     self.assertIsNone(error)
-                    self.assertIsNotNone(dialect)
+                    self.assertIsNotNone(pipeline)
                     for index, run in enumerate(case["parses"]):
-                        value, result, error = parse_case(dialect, case, run)
-                        checker.check(f"{path.name} parse {index}", run["expect"], value, result, error, case_features(dialect))
+                        value, result, error = parse_case(pipeline, case, run)
+                        checker.check(f"{path.name} parse {index}", run["expect"], value, result, error, case_features(pipeline))
                 else:
                     value, result, error, features = run_case(case)
                     checker.check(path.name, case["expect"], value, result, error, features)
@@ -90,7 +90,7 @@ class WithoutElision(unittest.TestCase):
                             "first.md": f"```jbogenbau\n%ambiguity-resolution greedy\n%rule text {body}\n%emits {captured} :: {captured}.without-elision.tags(rival)\n%rule candidate X [+T]\n%rule rival X [+T] :: KEPT\n```",
                             "second.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text KEPT\n```",
                         },
-                        "pipeline": "p.md",
+                        "pipelineDocument": "p.md",
                         "tokens": tokens("X"),
                     }
                 )
@@ -174,12 +174,12 @@ class WithoutElision(unittest.TestCase):
 %rule unit a | b
 %rule a X [+T]
 %rule b X [+T]"""
-        dialect, error = load_case_dialect({"grammar": grammar})
+        pipeline, error = load_case_pipeline({"grammar": grammar})
         self.assertIsNone(error)
         sizes = []
         for count in (8, 32):
             input_tokens, text = case_tokens({"tokens": tokens(*("X" for _ in range(count)))})
-            context = StageContext(dialect.lowered(0, frozenset()), input_tokens, text, dialect.unicode)
+            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
             forest = Parser(context).parse(context.lowered.rule_ids["text"])
             self.assertTrue(forest.roots)
             sizes.append((len(forest.prod), len(context.closes.states), len(context.closes.links)))
@@ -197,7 +197,7 @@ class WithoutElision(unittest.TestCase):
             results = []
             for aligned in (False, True):
                 case = {**fixture, "grammar": grammar if aligned else grammar.replace("$x.without-elision", "$x")}
-                dialect, error = load_case_dialect(case)
+                pipeline, error = load_case_pipeline(case)
                 self.assertIsNone(error)
 
                 def bounded_count(name, amount=1):
@@ -208,7 +208,7 @@ class WithoutElision(unittest.TestCase):
                 _testing.work = {}
                 try:
                     with patch.object(_testing, "count", bounded_count):
-                        value, result, error = parse_case(dialect, case)
+                        value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
                     self.assertTrue(value["ok"], value)
                     self.assertEqual(_testing.work.get("close_sequence_nodes", 0), shared["maxCloseNodes"])
@@ -248,10 +248,10 @@ class WithoutElision(unittest.TestCase):
         for file in growth["unusedCases"]:
             fixture = json.loads((shared_root / "engine" / file).read_text())
             fixture["grammar"] += "\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε"
-            dialect, error = load_case_dialect(fixture)
+            pipeline, error = load_case_pipeline(fixture)
             self.assertIsNone(error)
             input_tokens, text = case_tokens(fixture)
-            context = StageContext(dialect.lowered(0, frozenset()), input_tokens, text, dialect.unicode)
+            context = StageContext(pipeline.lowered(0, frozenset()), input_tokens, text, pipeline.unicode)
             self.assertIsNone(context.closes)
 
             def unused_count(name, amount=1):
@@ -272,7 +272,7 @@ class WithoutElision(unittest.TestCase):
         growth = json.loads((root / "without-elision-growth.json").read_text())
         for shared in (growth["callerScope"], growth["impossiblePrefix"]):
             fixture = json.loads((root / shared["case"]).read_text())
-            dialect, error = load_case_dialect(fixture)
+            pipeline, error = load_case_pipeline(fixture)
             self.assertIsNone(error)
             original_count = _testing.count
             for length in shared["lengths"]:
@@ -291,7 +291,7 @@ class WithoutElision(unittest.TestCase):
                 try:
                     case = {**fixture, "input": "x" + "a" * length}
                     with patch.object(_testing, "count", bounded_count):
-                        value, result, error = parse_case(dialect, case)
+                        value, result, error = parse_case(pipeline, case)
                     self.assertIsNone(error)
                     self.assertFalse(value["ok"])
                     self.assertEqual(value["error"]["reason"], "tie")

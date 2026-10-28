@@ -1,0 +1,34 @@
+{
+  "description": "Quote images preserve written case and hesitation while ordinary hesitation contributes no word or normalized value. The word stream gives one unique words-stage reading (grammars/lojban/common/stream.md).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/cll/pipeline.md\"\n```"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "lo'u broda ybrode le'u bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "output": [
+            {
+              "image": "lo'u broda ybrode le'u bu",
+              "value": "lo'u broda brode le'u bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ],
+          "name": "words",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

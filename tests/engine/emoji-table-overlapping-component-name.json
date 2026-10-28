@@ -3,9 +3,9 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 😐\n%rule 😐 \"a\"\n```",
-    "unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 1F603 1F604\nemoji-presentation 1F600 1F64F\nemoji-presentation 1F601 1F602\nemoji-presentation 1F601 1F602\nemoji-presentation 1F603 1F604\nemoji-component 1F603 1F604\nemoji-component 1F600 1F64F\nemoji-component 1F601 1F602\nemoji-component 1F601 1F602\nemoji-component 1F603 1F604\n"
+    "data/unicode/unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nemoji-presentation 1F603 1F604\nemoji-presentation 1F600 1F64F\nemoji-presentation 1F601 1F602\nemoji-presentation 1F601 1F602\nemoji-presentation 1F603 1F604\nemoji-component 1F603 1F604\nemoji-component 1F600 1F64F\nemoji-component 1F601 1F602\nemoji-component 1F601 1F602\nemoji-component 1F603 1F604\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "😐",
   "expect": {
     "error": "grammar"

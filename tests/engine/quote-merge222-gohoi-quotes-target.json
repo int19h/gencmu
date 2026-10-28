@@ -1,9 +1,9 @@
 {
   "description": "GOhOI quotes COI as a predicate unit.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "go'oi coi",
   "options": {},
   "expect": {

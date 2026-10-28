@@ -1,5 +1,5 @@
 {
-  "description": "A suffix target cannot name a bare template. (Engine \u00a74.4.)",
+  "description": "A suffix target cannot name a bare template. (Engine §4.4.)",
   "tokens": [
     {
       "text": "a",
@@ -14,7 +14,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text {_}\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%conditions $.ends(tail)\n%rule tail(@X) @X\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "options": {
     "until": "first"
   }

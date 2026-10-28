@@ -43,7 +43,7 @@ func TestFamilyReferenceOrder(t *testing.T) {
 		`:: ($x.without-elision-except(first).matches(second) ⟹ X)`,
 		`%emits $ :: ($x.without-elision-except(first).matches(second) ⟹ X)`,
 	} {
-		_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text $x:A "+clause), "p.md")
+		_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text $x:A "+clause), "p.md")
 		var e *Error
 		if !errors.As(err, &e) || !strings.Contains(e.Message, "first") || strings.Contains(e.Message, "second") || e.Line != 5 || e.Column != 1 {
 			t.Fatalf("receiver reference order: %v", err)

@@ -7,7 +7,7 @@ import (
 // A stage's constants (engine §2): the loader gives each its value when it
 // stitches the stage, in the stitching order, and then gives every
 // reference in a rule the final value. A DOM never holds a value, so a
-// document shared by several stages or dialects takes the values of each.
+// document shared by several stages or pipelines takes the values of each.
 
 // stageConst is a constant of a stage: its value now, with its type, and
 // the document of its last definition.
@@ -418,7 +418,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 	}
 
 	// Each reference holds the final value. The DOM is shared by every
-	// stage and dialect that includes its document, so the clauses are
+	// stage and pipeline that includes its document, so the clauses are
 	// copied, and a clause that alternatives share stays shared.
 	r := newResolver(g.constants, g.uni)
 	for _, rule := range g.rules {

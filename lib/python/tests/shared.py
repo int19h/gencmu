@@ -983,12 +983,12 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
             },
             "p.md",
         )
-    if any("../dialects/" in text for text in case["documents"].values()):
+    if any("../grammars/" in text for text in case["documents"].values()):
         root = REPOSITORY / "grammars"
-        sources = {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*.md")}
+        sources = {"grammars/" + p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*") if p.is_file()}
         sources.update({"case/" + name: text for name, text in case["documents"].items()})
-        return sources, "case/" + case["pipeline"]
-    return dict(case["documents"]), case["pipeline"]
+        return sources, "case/" + case["pipelineDocument"]
+    return dict(case["documents"]), case["pipelineDocument"]
 
 
 def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
@@ -1022,30 +1022,32 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
 
 @functools.lru_cache(maxsize=16)
 def _whole_case_sources(documents: tuple[tuple[str, str], ...], pipeline: str) -> tuple[dict[str, str], str]:
-    """Share a whole-dialect case's source documents within one worker.
-    Each case still loads a fresh dialect, so that no case depends on the
-    state that an earlier case left in a shared dialect."""
-    return case_sources({"documents": dict(documents), "pipeline": pipeline})
+    """Share a whole-pipeline case's source documents within one worker.
+    Each case still loads a fresh pipeline, so that no case depends on the
+    state that an earlier case left in a shared pipeline."""
+    return case_sources({"documents": dict(documents), "pipelineDocument": pipeline})
 
 
-def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
-    """An engine case's loaded dialect, or the error of its load."""
+def load_case_pipeline(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Pipeline | None, gencmu.GencmuError | None]:
+    """An engine case's loaded pipeline, or the error of its load."""
     try:
-        if use_cache and "grammar" not in case and any("../dialects/" in text for text in case["documents"].values()):
-            sources, pipeline = _whole_case_sources(tuple(sorted(case["documents"].items())), case["pipeline"])
-            return gencmu.load_dialect_sources(sources, pipeline), None
+        if "pipeline" in case:
+            return gencmu.load_pipeline(case["pipeline"], use_cache=use_cache), None
+        if use_cache and "grammar" not in case and any("../grammars/" in text for text in case["documents"].values()):
+            sources, pipeline = _whole_case_sources(tuple(sorted(case["documents"].items())), case["pipelineDocument"])
+            return gencmu.load_pipeline_sources(sources, pipeline), None
         sources, pipeline = case_sources(case)
-        dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
-        return dialect, None
+        loaded = gencmu.load_pipeline_sources(sources, pipeline, use_cache=use_cache)
+        return loaded, None
     except gencmu.GencmuError as error:
         return None, error
 
 
 def parse_case(
-    dialect: gencmu.Dialect, case: dict[str, Any], run: dict[str, Any] | None = None
+    pipeline: gencmu.Pipeline, case: dict[str, Any], run: dict[str, Any] | None = None
 ) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None]:
     """An engine case's canonical result and result, parsed with a loaded
-    dialect under the options of ``run``, the case itself or one item of
+    pipeline under the options of ``run``, the case itself or one item of
     its ``parses`` (tests/README.md); or a mistake of the caller in their
     place, which is no result (engine §13)."""
     options = (case if run is None else run).get("options", {})
@@ -1060,9 +1062,9 @@ def parse_case(
         # (tests/README.md).
         if "tokens" in case:
             tokens, text = case_tokens(case)
-            result = parse_checked(lambda: dialect.parse_tokens(tokens, text, **kwargs))
+            result = parse_checked(lambda: pipeline.parse_tokens(tokens, text, **kwargs))
         else:
-            result = parse_checked(lambda: dialect.parse(case.get("input", ""), **kwargs))
+            result = parse_checked(lambda: pipeline.parse(case.get("input", ""), **kwargs))
     except gencmu.GencmuError as error:
         if error.kind != "usage":
             raise
@@ -1070,9 +1072,9 @@ def parse_case(
     return gencmu.result_json(result), result, None
 
 
-def case_features(dialect: gencmu.Dialect) -> list[dict[str, Any]]:
-    """A dialect's features as a case writes them."""
-    return [{"name": feature.name, "kind": feature.kind, "default": feature.default} for feature in dialect.features]
+def case_features(pipeline: gencmu.Pipeline) -> list[dict[str, Any]]:
+    """A pipeline's features as a case writes them."""
+    return [{"name": feature.name, "kind": feature.kind, "default": feature.default} for feature in pipeline.features]
 
 
 def run_case(
@@ -1080,13 +1082,13 @@ def run_case(
 ) -> tuple[dict[str, Any] | None, gencmu.ParseResult | None, gencmu.GencmuError | None, list[dict[str, Any]] | None]:
     """An engine case's canonical result and result, or the error in their
     place: the load's, or the parse's for a mistake of the caller, which is
-    no result (engine §13). Last, the dialect's features as a case writes
+    no result (engine §13). Last, the pipeline's features as a case writes
     them, or None if it did not load."""
-    dialect, error = load_case_dialect(case, use_cache)
-    if dialect is None:
+    pipeline, error = load_case_pipeline(case, use_cache)
+    if pipeline is None:
         return None, None, error, None
-    value, result, error = parse_case(dialect, case)
-    return value, result, error, case_features(dialect)
+    value, result, error = parse_case(pipeline, case)
+    return value, result, error, case_features(pipeline)
 
 
 def result_mutants() -> list[dict[str, Any]]:

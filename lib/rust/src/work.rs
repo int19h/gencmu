@@ -360,11 +360,11 @@ mod tests {
         let number = |case: &Json, name: &str| case.get(name).and_then(Json::as_int).expect(name) as u64;
         let mut failures = Vec::new();
         for case in cases {
-            let (name, template, link) = (string(case, "dialect"), string(case, "text"), string(case, "link"));
+            let (name, template, link) = (string(case, "pipeline"), string(case, "text"), string(case, "link"));
             let (small, large, most) = (number(case, "small"), number(case, "large"), number(case, "most"));
             // Loading is outside the preceding parse budget.
             reset();
-            let dialect = crate::load_dialect(&name).expect("the bundled dialect");
+            let pipeline = crate::load_pipeline(&name).expect("the bundled pipeline");
             let work = |n: u64, most: Option<(u64, u64)>| {
                 let text = template.replace("{links}", &vec![link.as_str(); n as usize].join(" "));
                 reset();
@@ -372,7 +372,7 @@ mod tests {
                     budget(Work::Items, items);
                     budget(Work::Found, found);
                 }
-                let result = dialect.parse(&text, &ParseOptions::default()).expect("a result");
+                let result = pipeline.parse(&text, &ParseOptions::default()).expect("a result");
                 assert!(result.ok, "{text}");
                 (counted(Work::Items), counted(Work::Found))
             };
@@ -403,12 +403,12 @@ mod tests {
             grammar
                 .push_str(&format!("%rule r{i} a{i} b{i}\n%rule a{i} r{below} | a{i}\n%rule b{i} r{below} | b{i}\n"));
         }
-        let dialect = crate::load_dialect_sources(single(&grammar), "p.md").unwrap();
+        let pipeline = crate::load_pipeline_sources(single(&grammar), "p.md").unwrap();
         reset();
         // A context of one wrapper each, not one of each set of wrappers:
         // the context past that panics.
         budget(Work::Contexts, 4 * depth as u64);
-        let result = dialect.parse_tokens(&[], &ParseOptions::default()).unwrap();
+        let result = pipeline.parse_tokens(&[], &ParseOptions::default()).unwrap();
         let contexts = counted(Work::Contexts);
         assert!(result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
         let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
-        let dialect = crate::load_dialect_sources(single(grammar), "p.md").unwrap();
+        let pipeline = crate::load_pipeline_sources(single(grammar), "p.md").unwrap();
         let work = |n: usize, most: Option<(u64, u64)>| {
             let token = |tag: &str| InputToken {
                 image: None,
@@ -444,7 +444,7 @@ mod tests {
                 budget(Work::Items, items);
                 budget(Work::Searched, searched);
             }
-            let result = dialect.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
+            let result = pipeline.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n}");
             (counted(Work::Items), counted(Work::Searched))
         };
@@ -463,7 +463,7 @@ mod tests {
     /// where a scan of the set would grow with n².
     #[test]
     fn restorations_look_up_their_items_once() {
-        let dialects: Vec<_> = [250usize, 1000]
+        let pipelines: Vec<_> = [250usize, 1000]
             .into_iter()
             .map(|n| {
                 let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
@@ -473,7 +473,7 @@ mod tests {
                     names.join(" | "),
                     rules.join("\n")
                 );
-                crate::load_dialect_sources(single(&grammar), "p.md").unwrap()
+                crate::load_pipeline_sources(single(&grammar), "p.md").unwrap()
             })
             .collect();
         let token = |tag: &str| InputToken {
@@ -486,7 +486,7 @@ mod tests {
         // derivation, and the check restores the elided one.
         let tokens = [token("A"), token("KU"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {
-            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
+            let result = pipelines[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n} rules");
             assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
         });
@@ -497,7 +497,7 @@ mod tests {
     /// prediction for each waiting item would look at n² productions.
     #[test]
     fn predictions_look_at_each_production_once() {
-        let dialects: Vec<_> = [250usize, 1000]
+        let pipelines: Vec<_> = [250usize, 1000]
             .into_iter()
             .map(|n| {
                 let names: Vec<String> = (0..n).map(|index| format!("r{index}")).collect();
@@ -509,7 +509,7 @@ mod tests {
                     rules.join("\n"),
                     starts.join(" | ")
                 );
-                crate::load_dialect_sources(single(&grammar), "p.md").unwrap()
+                crate::load_pipeline_sources(single(&grammar), "p.md").unwrap()
             })
             .collect();
         let token = |tag: &str| InputToken {
@@ -520,7 +520,7 @@ mod tests {
         };
         let tokens = [token("A0"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {
-            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
+            let result = pipelines[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n} rules");
         });
     }

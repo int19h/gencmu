@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from gencmu import GencmuError
-from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._pipeline import DOM_FORMAT, _resources, _unicode_table
 from gencmu._validate import dom_problem
 from .shared import SHARED, load_json
 
@@ -32,7 +32,7 @@ class DomDepth(unittest.TestCase):
                         self.assertIsNone(problem)
 
     def test_source_depth_boundaries(self) -> None:
-        from gencmu._dialect import read_document
+        from gencmu._pipeline import read_document
         for case in load_json(SHARED / "dom-depth-source.json"):
             for extra in (0, 1):
                 with self.subTest(case=case["description"], extra=extra):

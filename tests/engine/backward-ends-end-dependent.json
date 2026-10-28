@@ -1,5 +1,5 @@
 {
-  "description": "An outer onward observation requires recognition for each distinct end. (Engine \u00a74.4.)",
+  "description": "An outer onward observation requires recognition for each distinct end. (Engine §4.4.)",
   "grammar": "%rule text $p:A B\n%conditions \u00ac$p.ends(tail) \u2227 $.ends(tail)\n%rule tail $a:A [B]\n%conditions $a.onward.value = \"ab\"",
   "tokens": [
     {

@@ -22,7 +22,8 @@
     "cli.js",
     "src",
     "types",
-    "grammars"
+    "grammars",
+    "data"
   ],
   "engines": {
     "node": ">=24"

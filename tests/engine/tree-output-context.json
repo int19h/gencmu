@@ -19,5 +19,5 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:before $w:word $a:after\n%emits ($b) $w ($a)\n%rule before \"b\" ::B :- \"‹U+000A›\"\n%emits $\n%rule word \"w\" ::A :- \"‹U+000A›\"\n%rule after \"a\" :- \"‹U+000A›\"\n%emits $ ::∅\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n"
   },
-  "pipeline": "p.md"
+  "pipelineDocument": "p.md"
 }

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// A dialect loaded from disk knows each document by its absolute path, so
+// A pipeline loaded from disk knows each document by its absolute path, so
 // an error names the file the same way from any working directory, and in
 // every library.
 func TestDiskPathsFromAnotherWorkingDirectory(t *testing.T) {
@@ -53,7 +53,7 @@ func TestDiskPathsFromAnotherWorkingDirectory(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, given := range []string{filepath.Join(c.root, "p.md"), relative} {
-			_, err := LoadDialectFile(given)
+			_, err := LoadPipelineFile(given)
 			var e *Error
 			if !errors.As(err, &e) {
 				t.Fatalf("%s: %v", given, err)
@@ -85,7 +85,11 @@ func TestSelectedDiskNames(t *testing.T) {
 		t.Run(c.Description, func(t *testing.T) {
 			root := t.TempDir()
 			for name, text := range c.Files {
-				if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+				file := filepath.Join(root, name)
+				if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(file, []byte(text), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -101,7 +105,7 @@ func TestSelectedDiskNames(t *testing.T) {
 					t.Fatal(err)
 				}
 			})
-			_, err = LoadDialectFile(filepath.Join(root, "p.md"))
+			_, err = LoadPipelineFile(filepath.Join(root, "p.md"))
 			var e *Error
 			if !errors.As(err, &e) {
 				t.Fatalf("expected grammar error: %v", err)

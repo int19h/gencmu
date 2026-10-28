@@ -241,7 +241,7 @@ export type InputToken = {
 export type ParseOptions = {
     /**
      * the features to turn on, besides
-     * those the dialect's pipeline turns on
+     * those the pipeline turns on
      */
     features?: Iterable<string>;
     /**
@@ -1043,7 +1043,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Span} source the node's range of the original text
  */
 /**
- * One of a dialect's features (engine §13).
+ * One of a pipeline's features (engine §13).
  * @typedef {object} Feature
  * @property {string} name
  * @property {"gate" | "warning"} kind
@@ -1078,7 +1078,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * @typedef {object} ParseOptions
  * @property {Iterable<string>} [features] the features to turn on, besides
- *   those the dialect's pipeline turns on
+ *   those the pipeline turns on
  * @property {Iterable<string>} [withoutFeatures] the features to turn off,
  *   including defaults. A holding conditional declaration for a disabled
  *   feature gives a feature-conflict result. A name in both lists is a

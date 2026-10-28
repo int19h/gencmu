@@ -1,9 +1,9 @@
 {
   "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/examples/kihei/pipeline.md\"\n```"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mi,zoi .y. bu. 你好é .y. bu, do",
   "options": {
     "until": "words"

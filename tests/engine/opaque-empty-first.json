@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | space\n%rule letter \"a\" | \"b\" %emits $ :: L\n\n%rule space \" \"\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($e:gap $n:none L L) %emits $e :: E, $n :: N\n\n%rule gap :- $.verbatim-text | ε\n\n%rule none ε\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "  ab",
   "expect": {
     "result": {

@@ -1,6 +1,6 @@
 // The grammars of a repository as its source documents give them, for the
 // tools that judge what a grammar does. The packages' bundled copies under
-// lib/ and grammars/compiled.json are generated from these sources by
+// lib/ and data/preparsed/FAMILY.json are generated from these sources by
 // tools/sync.js, and can be older than them, so no check of the sources
 // reads them.
 import fs from "node:fs";
@@ -10,8 +10,8 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
 
 /**
  * A loader of the grammar documents under `base`/grammars, with no
- * precompiled DOMs. `bootstrap`, when given, takes the place of
- * notation/bootstrap.json, as tools/sync.js does while it settles the
+ * preparsed DOMs. `bootstrap`, when given, takes the place of
+ * data/preparsed/gencmu.json, as tools/sync.js does while it settles the
  * bootstrap.
  * @param {string} base the repository
  * @param {string} [bootstrap]
@@ -19,18 +19,20 @@ import { extractGrammarText } from "../lib/js/src/markdown.js";
  */
 export function sourceLoader(base, bootstrap) {
   const grammars = path.join(base, "grammars");
-  return new Loader((relative) => {
-    if (relative === "notation/bootstrap.json" && bootstrap !== undefined) return bootstrap;
-    if (relative === "compiled.json") return undefined;
-    const file = path.join(grammars, relative.split("/").join(path.sep));
+  const loader = new Loader((relative) => {
+    if (relative === "data/preparsed/gencmu.json" && bootstrap !== undefined) return bootstrap;
+    if (relative.startsWith("data/preparsed/") && relative !== "data/preparsed/gencmu.json") return undefined;
+    const file = path.join(base, relative.split("/").join(path.sep));
     return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
   });
+  // The required file boots the reader but supplies no ordinary cached entries here.
+  loader.preparsedFiles.add("data/preparsed/gencmu.json");
+  return loader;
 }
 
 /**
  * The DOM of each grammar document under `base`/grammars, read from its
- * source with `loader` when first asked for, keyed by its path under
- * grammars/. A document that is not there has none.
+ * source with `loader` when first asked for, keyed by its package-relative path. A document that is not there has none.
  * @param {string} base the repository
  * @param {Loader} loader
  * @returns {{get: (file: string) => any}}
@@ -40,7 +42,7 @@ export function sourceDoms(base, loader) {
   return {
     get(file) {
       if (!doms.has(file)) {
-        const source = path.join(base, "grammars", file.split("/").join(path.sep));
+        const source = path.join(base, file.split("/").join(path.sep));
         doms.set(file, fs.existsSync(source) ? loader.readDocument(fs.readFileSync(source, "utf8"), file) : undefined);
       }
       return doms.get(file);
@@ -60,7 +62,7 @@ export function sourceIncludeEdges(base) {
   return {
     get(file) {
       if (documents.has(file)) return documents.get(file);
-      const source = path.join(base, "grammars", file);
+      const source = path.join(base, file);
       if (!fs.existsSync(source)) return undefined;
       const { text, positions } = extractGrammarText(fs.readFileSync(source, "utf8"), file);
       const chars = [...text];

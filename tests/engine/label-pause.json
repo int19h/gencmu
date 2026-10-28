@@ -5,7 +5,7 @@
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ε | (text part)\n%rule part letter | pause\n%rule letter $c:\"a\" %emits $c :: (L ∪ Sound-0061-s) := \"a\", ε :: Sound-002E-s := \".\" :- \" \"\n\n%rule pause \"-\" | (pause \"-\") %emits $ :: (P ∪ Sound-002E-s) := \".\" :- \" \"\n\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:all %emits $w :: W\n\n%rule all [{any}]\n%rule any L | Sound-002E-s\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a--a",
   "expect": {
     "result": {

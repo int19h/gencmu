@@ -8,7 +8,7 @@ import (
 )
 
 // The shared cases of tests/dom-malformed.json: each directive alone in an
-// otherwise empty DOM of the current format, checked as a precompiled DOM
+// otherwise empty DOM of the current format, checked as a preparsed DOM
 // is (engine §9).
 func TestDOMMalformed(t *testing.T) {
 	t.Parallel()

@@ -22,7 +22,7 @@ func TestGrowth(t *testing.T) {
 	}
 	var cases []struct {
 		Description string `json:"description"`
-		Dialect     string `json:"dialect"`
+		Pipeline     string `json:"pipeline"`
 		Text        string `json:"text"`
 		Link        string `json:"link"`
 		Small       int    `json:"small"`
@@ -36,8 +36,8 @@ func TestGrowth(t *testing.T) {
 		t.Fatal("no cases")
 	}
 	for _, c := range cases {
-		t.Run(c.Dialect+" with "+c.Link, func(t *testing.T) {
-			d, err := LoadDialect(c.Dialect)
+		t.Run(c.Pipeline+" with "+c.Link, func(t *testing.T) {
+			d, err := LoadPipeline(c.Pipeline)
 			if err != nil {
 				t.Fatal(err)
 			}

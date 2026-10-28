@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Opens the playground in a headless browser and checks that it works: its
-// parser worker starts, parses a sentence under the CLL dialect into the
+// parser worker starts, parses a sentence under the CLL pipeline into the
 // expected brackets, explains a text it rejects, and shows a tie as an
 // error with its two readings; that "gencmu" in its heading links to the
 // repository; that it lists the features a parse used by name; that it
@@ -136,7 +136,7 @@ async function main() {
       if (left) throw new Error(`right after ${what} the old result was still shown as current: ${JSON.stringify(left)}`);
     };
     const type = (text) => change("typing", "input", text, "input");
-    const choose = (dialect) => change("choosing a dialect", "dialect", dialect, "change");
+    const choose = (path) => change("choosing a pipeline", "pipeline", path.replace(/^grammars\//, "").replace(/\/pipeline\.md$/, ""), "change");
     const tokenTable = () => run(() => ({
       header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
       rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
@@ -232,9 +232,9 @@ async function main() {
       const g=self.gencmu;
       const source="```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule pair(@Left, @Right) @Left @Right\n%rule text = pair(\"a\", \"b\")\n```";
       const sources={...self.gencmuGrammars,"smoke-parameters.md":source};
-      const dialect=g.loadDialectSources(sources,"smoke-parameters.md");
-      const result=dialect.parse("ab");
-      const audit=g.audit(dialect)[0];
+      const pipeline=g.loadPipelineSources(sources,"smoke-parameters.md");
+      const result=pipeline.parse("ab");
+      const audit=g.audit(pipeline)[0];
       return {ok:result.ok,rule:result.tree.rule,children:result.tree.children.map(child=>child.kind),
         templates:audit.templates.map(item=>item.template),instances:audit.instances.map(item=>item.name)};
     });
@@ -246,8 +246,8 @@ async function main() {
       const results = [];
       for (const item of cases) {
         results.push(await new Promise((resolve,reject) => {
-          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources},message => {
-            if (message.kind === "ready") client.run(1,{dialect:"p.md",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          const client = new self.ParserWorker({...self.gencmuGrammars,...item.sources,"grammars/test/includes/pipeline.md":"```jbogenbau\n%include \"../../../p.md\"\n```"},message => {
+            if (message.kind === "ready") client.run(1,{pipeline:"test/includes",text:"a",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               const editor = self.gencmuPipeline.pipelineStages("p.md",path => client.text(path),(path, names) => client.documentDirectives.get(JSON.stringify([path, names])));
@@ -266,53 +266,60 @@ async function main() {
 
     const namesFetches = [];
     const namesPaths = JSON.parse(fs.readFileSync(path.join(repository,"tests/playground-names-paths.json"),"utf8"));
-    await page.route("**/grammars/**", route => {
-      const resource = decodeURIComponent(new URL(route.request().url()).pathname.split("/grammars/")[1]);
+    const namesRoute = "**/*";
+    const namesBase = new URL(".", target).pathname;
+    const extraNames = "grammars/test/smoke-extra-names.txt";
+    const missingNames = "grammars/test/missing-names.txt";
+    await page.route(namesRoute, route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (!pathname.startsWith(namesBase)) return route.continue();
+      const resource = decodeURIComponent(pathname.slice(namesBase.length));
+      if (!["data/unicode/unicode-names.txt", extraNames, missingNames, ...namesPaths].includes(resource)) return route.continue();
       namesFetches.push(resource);
-      if (resource === "unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"grammars/unicode-names.txt"),"utf8") });
-      if (namesPaths.includes(resource)) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
-      if (resource === "smoke-extra-names.txt") return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
+      if (resource === "data/unicode/unicode-names.txt") return route.fulfill({ contentType:"text/plain", body:fs.readFileSync(path.join(repository,"data/unicode/unicode-names.txt"),"utf8") });
+      if (namesPaths.includes(resource) || resource === extraNames) return route.fulfill({ contentType:"text/plain", body:"unicode-names 15.1.0\nname E000 SMOKE LETTER\n" });
       return route.fulfill({ status:404, body:"missing" });
     });
     const namesProof = await run(async () => {
       const g = self.gencmu;
       const block = text => "```jbogenbau\n" + text + "\n```\n";
       const source = block('%names "smoke-extra-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"');
-      const cache = JSON.parse(self.gencmuGrammars["compiled.json"]);
-      cache.bundledNames["smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
-      const dependencies = { "unicode-names.txt":cache.bundledNames["unicode-names.txt"], "smoke-extra-names.txt":cache.bundledNames["smoke-extra-names.txt"] };
-      cache.documents["smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
+      const cache = JSON.parse(self.gencmuGrammars["data/preparsed/lojban.json"]);
+      cache.bundledNames["grammars/test/smoke-extra-names.txt"] = g.fnv1a64("unicode-names 15.1.0\nname E000 SMOKE LETTER\n");
+      const dependencies = { "data/unicode/unicode-names.txt":cache.bundledNames["data/unicode/unicode-names.txt"], "grammars/test/smoke-extra-names.txt":cache.bundledNames["grammars/test/smoke-extra-names.txt"] };
+      cache.documents = {};
+      cache.documents["grammars/test/smoke-names.md"] = { hash:g.fnv1a64(source), names:dependencies, dom:{ format:40,
         rules:[{name:"text",op:"define",flags:[],alternatives:[{guards:[],expr:{literal:{string:"b"}}}],conditions:[],at:[4,1]}],
         directives:[{name:"names",args:["smoke-extra-names.txt"],at:[1,1]},{name:"stage",args:["main"],at:[2,1]},
           {name:"ambiguity-resolution",args:["greedy"],at:[3,1]}],constants:[],classifiers:[],implications:[] } };
       const proof = (documents,text) => new Promise((resolve,reject) => {
-        const client = new self.ParserWorker({...self.gencmuGrammars,...documents},message => {
-          if (message.kind === "ready") client.run(1,{dialect:"smoke-names.md",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+        const client = new self.ParserWorker({...self.gencmuGrammars,...documents,"grammars/test/names/pipeline.md":block('%include "../smoke-names.md"')},message => {
+          if (message.kind === "ready") client.run(1,{pipeline:"test/names",text,features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
           if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
           if (message.kind === "result") { client.stop(); resolve({ok:!!message.parse?.ok,error:message.loadError?.document || null}); }
         });
         client.start();
       });
-      const cached = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"b");
-      cache.documents["smoke-names.md"].names["smoke-extra-names.txt"] = "0000000000000000";
-      const missed = await proof({"smoke-names.md":source,"compiled.json":JSON.stringify(cache)},"\uE000");
-      const custom = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
-        "unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
-      const numeric = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
-      const core = await proof({"smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
-      const missing = await proof({"smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
+      const cached = await proof({"grammars/test/smoke-names.md":source,"data/preparsed/test.json":JSON.stringify(cache)},"b");
+      cache.documents["grammars/test/smoke-names.md"].names["grammars/test/smoke-extra-names.txt"] = "0000000000000000";
+      const missed = await proof({"grammars/test/smoke-names.md":source,"data/preparsed/test.json":JSON.stringify(cache)},"\uE000");
+      const custom = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"'),
+        "data/unicode/unicode-names.txt":"unicode-names 15.1.0\nname E000 SMOKE LETTER\n"},"\uE000");
+      const numeric = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹U+0061›"')},"a");
+      const core = await proof({"grammars/test/smoke-names.md":block('%stage main\n%ambiguity-resolution greedy\n%rule text "‹NUL›"')},"\0");
+      const missing = await proof({"grammars/test/smoke-names.md":block('%names "missing-names.txt"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹LATIN SMALL LETTER A›"')},"a");
       return {cached,missed,custom,numeric,core,missing};
     });
     assert.deepEqual(namesProof,{cached:{ok:true,error:null},missed:{ok:true,error:null},custom:{ok:true,error:null},
-      numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:"missing-names.txt"}});
-    assert.deepEqual(namesFetches,["unicode-names.txt","smoke-extra-names.txt","unicode-names.txt","unicode-names.txt","missing-names.txt"]);
+      numeric:{ok:true,error:null},core:{ok:true,error:null},missing:{ok:false,error:missingNames}});
+    assert.deepEqual(namesFetches,["data/unicode/unicode-names.txt",extraNames,"data/unicode/unicode-names.txt","data/unicode/unicode-names.txt",missingNames]);
     const pathProof = await run(async paths => {
       const results = [];
       for (const path of paths) {
         results.push(await new Promise((resolve,reject) => {
           const source = '```jbogenbau\n%names "' + path + '"\n%stage main\n%ambiguity-resolution greedy\n%rule text "‹SMOKE LETTER›"\n```';
-          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source},message => {
-            if (message.kind === "ready") client.run(1,{dialect:"names-path.md",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
+          const client = new self.ParserWorker({...self.gencmuGrammars,"names-path.md":source,"grammars/test/names-path/pipeline.md":'```jbogenbau\n%include "../../../names-path.md"\n```'},message => {
+            if (message.kind === "ready") client.run(1,{pipeline:"test/names-path",text:"\uE000",features:[],withoutFeatures:[],view:{format:"brackets",showElided:false}});
             if (message.kind === "failed" || message.kind === "crashed") { client.stop(); reject(new Error(message.message)); }
             if (message.kind === "result") {
               client.stop();
@@ -325,12 +332,12 @@ async function main() {
       return results;
     },namesPaths);
     assert.deepEqual(pathProof,namesPaths.map(() => ({ok:true,stored:true,error:null})));
-    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["unicode-names.txt",path]));
-    await page.unroute("**/grammars/**");
+    assert.deepEqual(namesFetches.slice(5),namesPaths.flatMap(path => ["data/unicode/unicode-names.txt",path]));
+    await page.unroute(namesRoute);
     console.log(`lazy names fetching works in ${browser}`);
 
     // From here on, every answer the page shows as ready must be for the text
-    // and dialect its controls hold at that moment: an answer that arrives
+    // and pipeline its controls hold at that moment: an answer that arrives
     // after they changed is out of date and must not be shown.
     await run(() => {
       self.smokeStale = [];
@@ -339,9 +346,9 @@ async function main() {
         const result = document.getElementById("result");
         if (status.dataset.state !== "ready") return;
         const text = document.getElementById("input").value;
-        const dialect = document.getElementById("dialect").value;
-        if (result.dataset.for !== text || "dialects/" + result.dataset.dialect + ".md" !== dialect) {
-          self.smokeStale.push({ shown: result.dataset.for, dialect: result.dataset.dialect, text, selected: dialect });
+        const pipeline = document.getElementById("pipeline").value;
+        if (result.dataset.for !== text || result.dataset.pipeline !== pipeline) {
+          self.smokeStale.push({ shown: result.dataset.for, pipeline: result.dataset.pipeline, text, selected: pipeline });
         }
       };
       new MutationObserver(check).observe(document.getElementById("status"), { attributes: true, childList: true, subtree: true });
@@ -360,18 +367,18 @@ async function main() {
       { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
-        document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
+        document: "grammars/lojban/zantufa/syntax.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
         edit: ["(mex MOI 🆓\n     ≻ SE 🆓 $w:tanru-unit-1\n     ≻ NAhE 🆓 $v:tanru-unit-1)", "(mex MOI 🆓\n     | SE 🆓 $w:tanru-unit-1\n     | NAhE 🆓 $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
-        document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
+        document: "grammars/lojban/experimental/syntax.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
         edit: ["(NAhE 🆓 tanru-unit-2 ≻ mex MOI 🆓 ≻ SE 🆓 tanru-unit-2)", "(NAhE 🆓 tanru-unit-2 | mex MOI 🆓 | SE 🆓 tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
-        document: "syntax/experimental.md", rule: "%rule me-unit",
+        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
-        document: "syntax/experimental.md", rule: "%rule me-unit" },
+        document: "grammars/lojban/experimental/syntax.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
-        document: "syntax/cll.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
+        document: "grammars/lojban/cll/syntax.md", rule: "%rule(leftmost-longest) simple-tense-modal", summary: /syntax resolved/,
         edit: ["%rule(leftmost-longest) simple-tense-modal", "%rule simple-tense-modal"], tie: true },
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
@@ -467,7 +474,7 @@ async function main() {
 
     // Format 15 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const tokenText = "ba'e m,I ui nai klAma";
     await type(tokenText);
     await answerFor(tokenText);
@@ -519,8 +526,8 @@ async function main() {
     const navigationOutput = "(mi [{(se su'i) (pa re)} moi])";
     const setNavigationCase = (kind) => run((kind) => {
       const client = self.playground.client;
-      const syntax = self.gencmuGrammars["syntax/zantufa.md"];
-      const pipeline = self.gencmuGrammars["dialects/zantufa.md"];
+      const syntax = self.gencmuGrammars["grammars/lojban/zantufa/syntax.md"];
+      const pipeline = self.gencmuGrammars["grammars/lojban/zantufa/pipeline.md"];
       let changed = syntax;
       let changedPipeline = pipeline;
       const marker = "%rule tanru-unit-1\n";
@@ -533,8 +540,8 @@ async function main() {
         changed = syntax.slice(0, start) + syntax.slice(end);
         changedPipeline += "\n```jbogenbau\n" + syntax.slice(start, end) + "\n```\n";
       }
-      client.setDocument("syntax/zantufa.md", changed);
-      client.setDocument("dialects/zantufa.md", changedPipeline);
+      client.setDocument("grammars/lojban/zantufa/syntax.md", changed);
+      client.setDocument("grammars/lojban/zantufa/pipeline.md", changedPipeline);
     }, kind);
     for (const kind of ["prefix", "renamed", "moved", "reset"]) {
       await setNavigationCase(kind);
@@ -553,7 +560,7 @@ async function main() {
         if (!opened.hint.includes("Cannot find rule tanru-unit-1 in the active grammar.") || opened.offset !== 0) {
           throw new Error(`a missing rule was not explained at the document start: ${JSON.stringify(opened)}`);
         }
-      } else if (opened.path !== (kind === "moved" ? "dialects/zantufa.md" : "syntax/zantufa.md") ||
+      } else if (opened.path !== (kind === "moved" ? "grammars/lojban/zantufa/pipeline.md" : "grammars/lojban/zantufa/syntax.md") ||
           opened.line !== "%rule tanru-unit-1" || opened.hint.includes("Cannot find rule")) {
         throw new Error(`${kind} rule navigation missed the exact definition: ${JSON.stringify(opened)}`);
       }
@@ -562,14 +569,14 @@ async function main() {
     console.log(`review regression cases work in ${browser}`);
     await page.locator("#tab-brackets").click();
 
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const sentence = "mi klama le zarci";
     await type(sentence);
     const accepted = await answerFor(sentence);
     if (accepted.error) throw new Error(`the playground failed: ${accepted.error}`);
     const brackets = "(mi [klama {le zarci}])";
     if (accepted.output.trim() !== brackets) {
-      throw new Error(`${sentence} under cll-ebnf gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
+      throw new Error(`${sentence} under lojban/cll gave ${JSON.stringify(accepted.output)}, not ${brackets}`);
     }
 
     const rejected = "mi klama le le";
@@ -581,9 +588,19 @@ async function main() {
       throw new Error(`${rejected} was not explained as a rejection: ${JSON.stringify(explained)}`);
     }
 
-    const kiheiLabel = await run(() => document.querySelector('#dialect option[value="dialects/kihei.md"]').textContent);
-    if (kiheiLabel !== "kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
-    await choose("dialects/kihei.md");
+    const pipelineGroups = await run(() => [...document.querySelectorAll("#pipeline optgroup")].map((group) => ({
+      label: group.label,
+      names: [...group.children].map((option) => option.value),
+    })));
+    assert.deepEqual(pipelineGroups, [
+      { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"] },
+      { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+      { label: "gencmu", names: ["gencmu/jbogenbau"] },
+    ]);
+
+    const kiheiLabel = await run(() => document.querySelector('#pipeline option[value="lojban/examples/kihei"]').textContent);
+    if (kiheiLabel !== "lojban/examples/kihei: Discourse frames (ki'ei)") throw new Error(`unexpected kihei title: ${kiheiLabel}`);
+    await choose("grammars/lojban/examples/kihei/pipeline.md");
     const saFrame = "broda .i ki'ei ko'a sa ki'ei ko'e .i brode";
     await type(saFrame);
     const frameAnswer = await answerFor(saFrame);
@@ -592,21 +609,21 @@ async function main() {
     }
 
     // Discarded source still needs to parse and remains editable from its error link.
-    const patched = "dialects/zantufa.md";
-    const discarded = "phonemes/latin.md";
-    const extended = "syntax/zantufa.md";
+    const patched = "grammars/lojban/zantufa/pipeline.md";
+    const discarded = "grammars/lojban/common/latin.md";
+    const extended = "grammars/lojban/zantufa/syntax.md";
     await run(({patched, discarded, extended}) => {
       self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
       self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n```\n");
-      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../phonemes/latin.md\"\n" +
+      self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../common/latin.md\"\n" +
         "%stage b\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage a\n" +
         "%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%extend-stage a\n" +
-        "%include \"../syntax/zantufa.md\"\n```\n");
+        "%include \"syntax.md\"\n```\n");
     }, {patched, discarded, extended});
     await choose(patched);
     await type("b");
     await idle("the error in discarded source");
-    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "phonemes/latin.md"}).first();
+    const errorLink = page.locator('#diagnostics button.link').filter({hasText: "grammars/lojban/common/latin.md"}).first();
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
@@ -617,19 +634,19 @@ async function main() {
     const groups = await run(() => [...document.querySelectorAll(".doc-group")].map(group => ({
       name: group.querySelector(".doc-stage").textContent, text: group.textContent,
     })));
-    if (!groups.some(group => group.name === "a" && group.text.includes("syntax/zantufa")) ||
-        groups.some(group => group.name === "a" && group.text.includes("phonemes/latin"))) {
+    if (!groups.some(group => group.name === "a" && group.text.includes("lojban/zantufa/syntax")) ||
+        groups.some(group => group.name === "a" && group.text.includes("lojban/common/latin"))) {
       throw new Error(`wrong stage contributions: ${JSON.stringify(groups)}`);
     }
     await run(paths => paths.forEach(path => self.playground.client.setDocument(path, self.gencmuGrammars[path])),
       [patched, discarded, extended]);
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     console.log(`stage patches and KIhEI work in ${browser}`);
 
     // A tie is an error, shown with its two readings and no tree. No text
-    // ties in a bundled dialect, so an edited pipeline stands in for one: its
+    // ties in a bundled pipeline, so an edited pipeline stands in for one: its
     // stage syntax reads "w" as either of two rules.
-    const tiedPipeline = "dialects/zantufa.md";
+    const tiedPipeline = "grammars/lojban/zantufa/pipeline.md";
     await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
       "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a \"w\"\n%rule b \"w\"\n```\n"), tiedPipeline);
     await choose(tiedPipeline);
@@ -642,7 +659,7 @@ async function main() {
       throw new Error(`${tied} was not shown as a tie: ${JSON.stringify(tie)}`);
     }
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), tiedPipeline);
-    await choose("dialects/experimental.md");
+    await choose("grammars/lojban/experimental/pipeline.md");
 
     // Texts typed while earlier ones are still being parsed, one of them long
     // enough to be parsing when the next arrives.
@@ -651,9 +668,9 @@ async function main() {
       await type(text);
       await sleep(170 + Math.floor(Math.random() * 100));
     }
-    await choose("dialects/experimental.md");
+    await choose("grammars/lojban/experimental/pipeline.md");
     await type("mi cu klama");
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     const last = "mi klama le zarci";
     await type(last);
     const settled = await answerFor(last);
@@ -682,14 +699,14 @@ async function main() {
     // rendering does not mean that the tree holds no tokens. In this
     // pipeline the first stage emits one token X with an empty image for the
     // empty text, and the second stage reads it.
-    const imageless = "dialects/zantufa.md";
+    const imageless = "grammars/lojban/zantufa/pipeline.md";
     await run((path) => self.playground.client.setDocument(path, "# Empty images\n\n```jbogenbau\n" +
       "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits ε :: X\n" +
       "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), imageless);
     await choose(imageless);
     await emptyRendering("a token with an empty image");
-    const shownFor = await run(() => document.getElementById("result").dataset.dialect);
-    if (shownFor !== "zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
+    const shownFor = await run(() => document.getElementById("result").dataset.pipeline);
+    if (shownFor !== "lojban/zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
     await page.locator("#tab-tokens").click();
     await idle("the inserted token table", "#output table.tokens");
     assert.deepEqual(await tokenTable(), {header: tokenHeader,
@@ -698,31 +715,31 @@ async function main() {
     await page.locator("#tab-brackets").click();
     await idle("the empty brackets after the inserted token assertion");
     await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
-    await choose("dialects/cll-ebnf.md");
+    await choose("grammars/lojban/cll/pipeline.md");
     await type(last);
     await answerFor(last);
 
     // An edited document is read with the notation grammar, which takes a
-    // while for a long one such as the CLL word shapes; a dialect that does
+    // while for a long one such as the CLL word shapes; a pipeline that does
     // not use it should not wait for that.
     await run(() => {
-      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "words/shapes").click();
+      [...document.querySelectorAll("button.doc")].find((button) => button.textContent === "lojban/cll/shapes").click();
       const editor = document.getElementById("doc-text");
       editor.value = editor.value.replace("%rule", "%rule ");
       editor.dispatchEvent(new Event("input"));
     });
     await until("the edited word shapes to be read", () =>
-      document.getElementById("status").textContent.includes("Reading words/shapes") ? true : null);
-    await choose("dialects/experimental.md");
-    const other = await until("an answer under the experimental dialect", () => {
+      document.getElementById("status").textContent.includes("Reading grammars/lojban/cll/shapes.md") ? true : null);
+    await choose("grammars/lojban/experimental/pipeline.md");
+    const other = await until("an answer under the experimental pipeline", () => {
       const status = document.getElementById("status");
       const result = document.getElementById("result");
-      return status.dataset.state === "ready" && result.dataset.dialect === "experimental" && !result.hasAttribute("aria-busy")
-        ? { read: self.playground.client.doms.has("words/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
+      return status.dataset.state === "ready" && result.dataset.pipeline === "lojban/experimental" && !result.hasAttribute("aria-busy")
+        ? { read: self.playground.client.doms.has("grammars/lojban/cll/shapes.md"), output: (document.querySelector("#output pre") || {}).textContent } : null;
     });
     // The worker hands the page every document it finishes reading, so the
     // document's being there means the switch waited for it.
-    if (other.read) throw new Error("switching to a dialect that does not read the edited word shapes waited for them to be read");
+    if (other.read) throw new Error("switching to a pipeline that does not read the edited word shapes waited for them to be read");
     if (!other.output || !other.output.includes("klama")) throw new Error(`no brackets under experimental: ${JSON.stringify(other)}`);
     await stale();
 
@@ -786,8 +803,8 @@ async function main() {
     // A shared link can ask for a feature both on and off, which the library
     // refuses. On the Trace tab the page shows that error once and then
     // stays idle: it asks the worker again only when the worker says that
-    // the trace waits for the dialect's stages. The link keeps both lists.
-    const conflicting = "#text=mi&dialect=cll-ebnf&features=sa-su&without=sa-su&view=trace";
+    // the trace waits for the pipeline's stages. The link keeps both lists.
+    const conflicting = "#text=mi&pipeline=lojban/cll&features=sa-su&without=sa-su&view=trace";
     page = await instance.newPage();
     await page.goto(target + conflicting);
     const refused = await idle("the refused feature selection");
@@ -808,9 +825,9 @@ async function main() {
     }
 
     // A link to the Trace tab traces the text, once the worker has named
-    // the dialect's stages.
+    // the pipeline's stages.
     page = await instance.newPage();
-    await page.goto(target + "#text=mi%20klama&dialect=cll-ebnf&view=trace");
+    await page.goto(target + "#text=mi%20klama&pipeline=lojban/cll&view=trace");
     const traced = await idle("a trace from a link", "#trace-picker .gap");
     await assertLinks();
     if (traced.error || !traced.output) throw new Error(`a link to the Trace tab gave no trace: ${JSON.stringify(traced)}`);

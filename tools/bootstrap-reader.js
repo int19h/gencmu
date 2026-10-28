@@ -1,9 +1,9 @@
 // A hand-written reader for the notation, used only to produce the first
-// grammars/notation/bootstrap.json and to recover if a change to the
+// data/preparsed/gencmu.json and to recover if a change to the
 // notation ever leaves the current bootstrap unable to read the notation
 // documents. The libraries never use it: they read every grammar, the
 // notation's own included, with the bootstrap. Its lexer and parser follow
-// grammars/notation/lexical.md and syntax.md, and build the tree that the
+// grammars/gencmu/jbogenbau/lexical.md and syntax.md, and build the tree that the
 // notation's syntax stage gives, with its rules and tokens; the library's
 // reader then reads that tree, so both readers check a document in the one
 // order of docs/engine.md §9 and give the same DOM or the same error. The
@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { domOfTree, fnv1a64 } from "../lib/js/src/dialect.js";
+import { domOfTree, fnv1a64 } from "../lib/js/src/pipeline.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { run } from "../lib/js/src/trampoline.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
@@ -23,12 +23,12 @@ import { DocumentStrings } from "../lib/js/src/string-escapes.js";
 
 // The lowercase mapping that the string of a sound test is checked against,
 // and the marks that a character tag escapes (engine §1, §9).
-const unicode = new UnicodeTable(readResource("unicode.txt"), readResource("unicode-properties.txt"));
+const unicode = new UnicodeTable(readResource("data/unicode/unicode.txt"), readResource("data/unicode/unicode-properties.txt"));
 
 /** @param {string} key @returns {string} */
 export function readResource(key) {
   try {
-    const bytes = fs.readFileSync(fileURLToPath(new URL("../grammars/", import.meta.url)) + (key === "unicode-names-reference.txt" ? "unicode-names.txt" : key));
+    const bytes = fs.readFileSync(fileURLToPath(new URL("../", import.meta.url)) + (key === "data/unicode/unicode-names-reference.txt" ? "data/unicode/unicode-names.txt" : key));
     return new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
   } catch (error) {
     throw new GencmuError("grammar", `${key}: reading the resource failed`, {document:key}, {cause:error});
@@ -60,7 +60,7 @@ function syntaxError(message, at) {
 
 const isCapital = (text) => /^[A-Z]/.test(text);
 
-// The tokens of grammars/notation/lexical.md, each with its kind: the tag
+// The tokens of grammars/gencmu/jbogenbau/lexical.md, each with its kind: the tag
 // that the lexical stage gives it, or the symbol itself. The lexical stage
 // reads the whole text as pieces, and under `greedy` the first piece where
 // two readings differ is the longer one (engine §6). So the lexer takes,
@@ -269,7 +269,7 @@ const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string"
 const PRIMARY_STARTS = new Set(["call-name", "parameter", "identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "emoji", "ε"]);
 
 // A recursive descent parser of the notation's syntax grammar
-// (grammars/notation/syntax.md). It builds a node for each rule that the
+// (grammars/gencmu/jbogenbau/syntax.md). It builds a node for each rule that the
 // reader reads by name, with the rule's parts as its children, and leaves
 // out a wrapper rule, whose parts the reader reads in its place. Where the
 // grammar reads a token sequence in more than one way at first, the

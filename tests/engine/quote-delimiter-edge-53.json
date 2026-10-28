@@ -1,9 +1,9 @@
 {
   "description": "MUhOI uses the same delimiter boundaries as ZOI.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mu'oi \"ybu.\" foo .\"ybu.\"",
   "options": {
     "until": "words"

@@ -5,7 +5,7 @@
     "a.md": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text x | y\n%rule x $a:\"a\" %emits $a :: A\n%rule y $a:\"a\" %emits $a :: A\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution late-elision\n%rule text $a:A %emits $a\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "a",
   "expect": {
     "result": {

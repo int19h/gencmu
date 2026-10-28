@@ -1,4 +1,4 @@
-"""The fixpoint of the notation and the precompiled DOMs (engine §8)."""
+"""The fixpoint of the notation and the preparsed DOMs (engine §8)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
-from gencmu._dialect import DOM_FORMAT, Dom, _bundled_root, _Loader, _resources, bundled_text, read_document
+from gencmu._pipeline import DOM_FORMAT, Dom, _bundled_root, _Loader, _resources, bundled_text, read_document
 from gencmu._hash import fnv1a64
 
 from .shared import REPOSITORY
@@ -24,84 +24,88 @@ def fresh_dom(path: str) -> Dom:
 
 class Fixpoint(unittest.TestCase):
     def test_notation_reads_itself(self) -> None:
-        """Loading the notation's pipeline, grammars/dialects/notation.md,
+        """Loading the notation's pipeline, grammars/gencmu/jbogenbau/pipeline.md,
         with the bootstrap and splicing it reproduces the bootstrap's stages."""
-        with open(REPOSITORY / "grammars" / "notation" / "bootstrap.json", encoding="utf-8") as file:
+        with open(REPOSITORY / "data/preparsed/gencmu.json", encoding="utf-8") as file:
             bootstrap = json.load(file)
         self.assertEqual(bootstrap["format"], DOM_FORMAT)
 
         def lookup(path: str) -> str | None:
             try:
-                with open(REPOSITORY / "grammars" / path, encoding="utf-8", newline="") as file:
+                with open(REPOSITORY / path, encoding="utf-8", newline="") as file:
                     return file.read()
             except OSError:
                 return None
 
-        pipeline = _Loader(lookup, _resources(), use_cache=False).pipeline("dialects/notation.md")
+        pipeline = _Loader(lookup, _resources(), use_cache=False).splice("grammars/gencmu/jbogenbau/pipeline.md")
         stages = [
             {"name": stage.name, "documents": [{"path": path, "dom": dom} for path, dom in stage.documents]} for stage in pipeline.stages
         ]
-        self.assertEqual([stage["name"] for stage in stages], [stage["name"] for stage in bootstrap["stages"]])
-        for ours, theirs in zip(stages, bootstrap["stages"]):
-            with self.subTest(stage=ours["name"]):
-                self.assertEqual(ours, theirs)
+        entries = bootstrap["documents"]
+        expected_names = [d["args"][0] for d in entries["grammars/gencmu/jbogenbau/pipeline.md"]["dom"]["directives"] if d["name"] == "stage"]
+        self.assertEqual([stage["name"] for stage in stages], expected_names)
+        for stage in stages:
+            for document in stage["documents"]:
+                self.assertEqual(document["dom"],entries[document["path"]]["dom"])
+        for path,entry in entries.items():
+            self.assertEqual(fresh_dom(path),entry["dom"])
 
     def test_bundled_copy_is_the_repository_grammars(self) -> None:
-        for path in ("notation/bootstrap.json", "notation/lexical.md", "notation/syntax.md", "unicode.txt", "compiled.json"):
+        for path in ("data/preparsed/gencmu.json", "grammars/gencmu/jbogenbau/lexical.md", "grammars/gencmu/jbogenbau/syntax.md", "data/unicode/unicode.txt", "data/preparsed/lojban.json"):
             with self.subTest(path=path):
-                with open(REPOSITORY / "grammars" / path, encoding="utf-8", newline="") as file:
+                with open(REPOSITORY / path, encoding="utf-8", newline="") as file:
                     self.assertEqual(bundled_text(path), file.read())
 
 
-class Compiled(unittest.TestCase):
+class Preparsed(unittest.TestCase):
     def setUp(self) -> None:
-        text = bundled_text("compiled.json")
+        text = bundled_text("data/preparsed/lojban.json")
         assert text is not None
-        self.compiled = json.loads(text)
+        self.preparsed = json.loads(text)
 
     def test_keys(self) -> None:
-        bootstrap = bundled_text("notation/bootstrap.json")
+        bootstrap = bundled_text("data/preparsed/gencmu.json")
         assert bootstrap is not None
-        self.assertEqual(self.compiled["format"], DOM_FORMAT)
-        self.assertEqual(self.compiled["bootstrap"], fnv1a64(bootstrap))
-        self.assertEqual(self.compiled["unicode"], fnv1a64(bundled_text("unicode.txt") or ""))
+        self.assertEqual(self.preparsed["format"], DOM_FORMAT)
+        self.assertEqual(self.preparsed["bootstrap"], fnv1a64(bootstrap))
+        self.assertEqual(self.preparsed["unicode"], fnv1a64(bundled_text("data/unicode/unicode.txt") or ""))
 
-    def test_dialects_with_and_without_the_cache(self) -> None:
+    def test_pipelines_with_and_without_the_cache(self) -> None:
         """Each cached document equals a fresh reading.
 
         Both loading paths give the same stages, grammars, and features.
         One worker shares the fresh reads between these comparisons.
         """
-        self.assertTrue(self.compiled["documents"])
-        for path, entry in self.compiled["documents"].items():
+        self.assertTrue(self.preparsed["documents"])
+        for path, entry in self.preparsed["documents"].items():
             with self.subTest(document=path):
                 text = bundled_text(path)
                 assert text is not None
                 self.assertEqual(entry["hash"], fnv1a64(text))
                 self.assertEqual(fresh_dom(path), entry["dom"])
 
-        names = sorted(entry.name[:-3] for entry in _bundled_root().joinpath("dialects").iterdir() if entry.name.endswith(".md"))
+        names = sorted(path[len("grammars/"):-len("/pipeline.md")] for path in [*self.preparsed["documents"], *json.loads(bundled_text("data/preparsed/gencmu.json"))["documents"]] if path.endswith("/pipeline.md"))
         self.assertTrue(names)
         for name in names:
-            with self.subTest(dialect=name):
-                path = f"dialects/{name}.md"
+            with self.subTest(pipeline=name):
+                path = f"grammars/{name}/pipeline.md"
                 cached = _Loader(bundled_text, _resources())
-                self.assertTrue(cached.compiled)
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
                 uncached.dom = fresh_dom  # type: ignore[method-assign]
                 with (
-                    patch.object(cached.reader, "read", side_effect=AssertionError("compiled grammar cache was bypassed")),
-                    patch.object(cached.reader.doms, "get", side_effect=AssertionError("compiled grammar cache was bypassed")),
+                    patch.object(cached.reader, "read", side_effect=AssertionError("preparsed grammar cache was bypassed")),
+                    patch.object(cached.reader.doms, "get", side_effect=AssertionError("preparsed grammar cache was bypassed")),
                 ):
                     a = cached.load(path)
+                self.assertTrue(cached.preparsed)
                 b = uncached.load(path)
                 self.assertEqual(b.stage_names, a.stage_names)
                 self.assertEqual(b.grammars, a.grammars)
                 self.assertEqual((b.features, b.declared), (a.features, a.declared))
 
     def test_parsing_with_and_without_the_cache(self) -> None:
-        cached = gencmu.load_dialect("notation")
-        fresh = gencmu.load_dialect("notation", use_cache=False)
+        cached = gencmu.load_pipeline("gencmu/jbogenbau")
+        fresh = gencmu.load_pipeline("gencmu/jbogenbau", use_cache=False)
         for text in (
             "%rule text A B",
             '%rule a $x:A [{B 🆓}]\n%conditions $x.source-text = "y"\n%emits $',
@@ -112,48 +116,43 @@ class Compiled(unittest.TestCase):
 
     def test_a_stale_entry_is_a_miss(self) -> None:
         """An entry whose hash does not match the text is not used."""
-        lexical = bundled_text("notation/lexical.md")
+        lexical = bundled_text("grammars/gencmu/jbogenbau/lexical.md")
         assert lexical is not None
-        stale = json.loads(json.dumps(self.compiled))
-        stale["documents"]["notation/lexical.md"]["dom"] = {
-            "format": DOM_FORMAT,
-            "rules": [],
-            "directives": [],
-            "constants": [],
-            "classifiers": [],
-            "implications": [],
-        }
+        path = "grammars/test/lexical.md"
+        stale = {**self.preparsed, "documents": {path: {
+            "hash":fnv1a64(lexical), "dom": {"format":DOM_FORMAT,"rules":[],"directives":[],"constants":[],"classifiers":[],"implications":[]}
+        }}}
         edited = lexical + "\nA note added after the grammar.\n"
         sources = {
-            "compiled.json": json.dumps(stale),
-            "p.md": '```jbogenbau\n%stage lexical\n%include "notation/lexical.md"\n```\n',
-            "notation/lexical.md": edited,
+            "data/preparsed/test.json": json.dumps(stale),
+            "p.md": '```jbogenbau\n%stage lexical\n%include "grammars/test/lexical.md"\n```\n',
+            path: edited,
         }
         # The stale DOM has no rules; were it used, the stage would have no
         # rule text and fail to load.
-        loaded = gencmu.load_dialect_sources(sources, "p.md")
+        loaded = gencmu.load_pipeline_sources(sources, "p.md")
         self.assertTrue(loaded.parse("%rule a B").ok)
         # And an entry that matches the text is used: the same stale DOM
         # under the text's own hash makes the load fail.
-        stale["documents"]["notation/lexical.md"]["hash"] = fnv1a64(edited)
-        sources["compiled.json"] = json.dumps(stale)
+        stale["documents"][path]["hash"] = fnv1a64(edited)
+        sources["data/preparsed/test.json"] = json.dumps(stale)
         with self.assertRaises(gencmu.GencmuError):
-            gencmu.load_dialect_sources(sources, "p.md")
+            gencmu.load_pipeline_sources(sources, "p.md")
 
     def test_an_entry_of_format_17_is_never_used(self) -> None:
         """A library never uses a cached DOM of another version
         (docs/output.md): neither a file of format 17 nor an entry whose
         DOM uses an unsupported format or has an unknown expression member."""
         document = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {A}\n```\n"
-        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document}
-        bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
+        sources = {"grammars/test/p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "grammars/test/g.md": document}
+        bootstrap_hash = fnv1a64(bundled_text("data/preparsed/gencmu.json") or "")
         # A DOM with no rules: were it used, the stage would have no rule
         # text and fail to load.
         empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
-        def load(file_format: int, dom: Dom) -> gencmu.Dialect:
-            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "properties": fnv1a64(bundled_text("unicode-properties.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
-            return gencmu.load_dialect_sources({**sources, "compiled.json": json.dumps(compiled)}, "p.md")
+        def load(file_format: int, dom: Dom) -> gencmu.Pipeline:
+            preparsed = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("data/unicode/unicode.txt") or ""), "properties": fnv1a64(bundled_text("data/unicode/unicode-properties.txt") or ""), "documents": {"grammars/test/g.md": {"hash": fnv1a64(document), "dom": dom}}}
+            return gencmu.load_pipeline_sources({**sources, "data/preparsed/test.json": json.dumps(preparsed)}, "grammars/test/p.md")
 
         with self.assertRaises(gencmu.GencmuError):
             load(DOM_FORMAT, {"format": DOM_FORMAT, **empty})
@@ -168,9 +167,9 @@ class Compiled(unittest.TestCase):
         old["rules"][0]["conditions"] = [{"op": "=", "left": {"string": "a"}, "right": {"string": "b"}}]
         for file_format in (17, DOM_FORMAT):
             with self.subTest(file_format=file_format):
-                dialect = load(file_format, {**old, "format": file_format})
+                pipeline = load(file_format, {**old, "format": file_format})
                 tokens = [gencmu.Token("a", frozenset({"A"}), (index, index + 1), (2 * index, 2 * index + 1)) for index in range(2)]
-                self.assertEqual(gencmu.to_brackets(dialect.parse_tokens(tokens, "a a")), "(a a)")
+                self.assertEqual(gencmu.to_brackets(pipeline.parse_tokens(tokens, "a a")), "(a a)")
 
 
 class Lexical(unittest.TestCase):
@@ -180,7 +179,7 @@ class Lexical(unittest.TestCase):
         Punctuation retains its stage-zero categories. Strings carry their
         lexical tag. Dollar forms inside strings stay literal (engine §9).
         """
-        notation = gencmu.load_dialect("notation")
+        notation = gencmu.load_pipeline("gencmu/jbogenbau")
         result = notation.parse(
             '%rule a ¬f? B "c" "d" {E ... / "$(_005C)"} | g! %tags X %rulex $e ¬h "x".."y" _General_Category_Letter "a"... [+F] [+G]',
             until="lexical",

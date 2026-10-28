@@ -44,12 +44,12 @@ var propertyInventory = func() propertyCatalogData {
 var propertyVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
 func propertyError(line int) error {
-	return &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Line: line, Message: "the property record is invalid"}
+	return &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode-properties.txt", Line: line, Message: "the property record is invalid"}
 }
 
 func parseProperties(text string, core *unicodeTable) (map[string]*propertyData, error) {
 	if !utf8.ValidString(text) {
-		return nil, &Error{Kind: ErrorGrammar, Document: "unicode-properties.txt", Message: "the resource bytes do not decode as UTF-8"}
+		return nil, &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode-properties.txt", Message: "the resource bytes do not decode as UTF-8"}
 	}
 	properties := map[string]*propertyData{}
 	type record struct {

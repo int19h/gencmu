@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// unicodeTable is grammars/unicode.txt: the General_Category of every
+// unicodeTable is data/unicode/unicode.txt: the General_Category of every
 // scalar value, White_Space, canonical decompositions and combining classes
 // (engine §1). Every library reads this table
 // rather than its platform's Unicode data, so that all of them agree.
@@ -91,14 +91,14 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		switch f[0] {
 		case "unicode":
 			if len(f) != 2 {
-				return nil, fmt.Errorf("unicode.txt line %d: expected 2 fields", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected 2 fields", n+1)
 			}
 			t.version = f[1]
 			t.versionCount++
 			continue
 		case "abbreviation":
 			if len(f) != 3 {
-				return nil, fmt.Errorf("unicode.txt line %d: expected 3 fields", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected 3 fields", n+1)
 			}
 			code, err := hex(f[1])
 			alias := f[2]
@@ -109,7 +109,7 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			_, duplicate := t.abbreviations[alias]
 			pinned, standard := pinnedCoreNames[alias]
 			if err != nil || code >= 0xd800 && code <= 0xdfff || !valid || duplicate || standard && pinned != code {
-				return nil, fmt.Errorf("unicode.txt line %d: an invalid abbreviation", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: an invalid abbreviation", n+1)
 			}
 			t.abbreviations[alias] = code
 			earlier, found := t.canonicalAbbreviations[code]
@@ -119,13 +119,13 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			continue
 		case "decompose":
 			if len(f) < 3 {
-				return nil, fmt.Errorf("unicode.txt line %d: expected at least 3 fields", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected at least 3 fields", n+1)
 			}
 			scalars := make([]rune, len(f)-1)
 			for i, field := range f[1:] {
 				c, err := hex(field)
 				if err != nil || c > 0x10ffff || c >= 0xd800 && c <= 0xdfff {
-					return nil, fmt.Errorf("unicode.txt line %d: bad code point", n+1)
+					return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad code point", n+1)
 				}
 				scalars[i] = c
 			}
@@ -135,35 +135,35 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			want = 4
 		case "white-space", "emoji-presentation", "emoji-component":
 		default:
-			return nil, fmt.Errorf("unicode.txt line %d: unknown entry %q", n+1, f[0])
+			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: unknown entry %q", n+1, f[0])
 		}
 		if len(f) != want {
-			return nil, fmt.Errorf("unicode.txt line %d: expected %d fields", n+1, want)
+			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: expected %d fields", n+1, want)
 		}
 		a, err1 := hex(f[want-2])
 		b, err2 := hex(f[want-1])
 		if err1 != nil || err2 != nil || a > b {
-			return nil, fmt.Errorf("unicode.txt line %d: bad code point", n+1)
+			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad code point", n+1)
 		}
 		switch f[0] {
 		case "category":
 			if !slices.Contains(categoryNames, f[1]) {
-				return nil, fmt.Errorf("unicode.txt line %d: bad category", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad category", n+1)
 			}
 			t.categories = append(t.categories, categoryRange{a, b, f[1]})
 		case "combining":
 			for _, c := range f[1] {
 				if c < '0' || c > '9' {
-					return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+					return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
 				}
 			}
 			digits := strings.TrimLeft(f[1], "0")
 			if len(digits) > 3 {
-				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
 			}
 			class, err := strconv.Atoi(digits)
 			if err != nil || class < 1 || class > 254 {
-				return nil, fmt.Errorf("unicode.txt line %d: bad combining class", n+1)
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
 			}
 			t.combining = append(t.combining, combiningRange{a, b, class})
 		case "emoji-presentation":
@@ -226,7 +226,7 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	return t.category(c) == name
 }
 
-// fnv1a64 is the hash that keys precompiled DOMs (engine §8).
+// fnv1a64 is the hash that keys preparsed DOMs (engine §8).
 func fnv1a64(text string) string {
 	h := uint64(0xcbf29ce484222325)
 	for i := 0; i < len(text); i++ {

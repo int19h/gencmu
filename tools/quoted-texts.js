@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Whether every Lojban text that a grammar document of the CLL dialects
+// Whether every Lojban text that a grammar document of the CLL pipelines
 // quotes is pinned by a corpus case, or listed in tests/quoted-allow.txt
 // (tests/README.md, "Quoted texts"). A grammar change that makes the prose
 // about a text false then fails a case, and the JavaScript corpus runner
@@ -19,28 +19,28 @@ import { countWork, hooks } from "../lib/js/src/testing.js";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * The dialects whose documents the check reads. Every document that the
+ * The pipelines whose documents the check reads. Every document that the
  * pipeline of one of them includes, at any depth, is checked, and its
- * claims are about each of these dialects that includes it. The other
- * dialects layer their own documents over these, so the check holds a
+ * claims are about each of these pipelines that includes it. The other
+ * pipelines layer their own documents over these, so the check holds a
  * claim about one of them only where the prose names it.
  */
-export const CHECKED_DIALECTS = ["cll-ebnf", "bpfk"];
+export const CHECKED_PIPELINES = ["lojban/cll", "lojban/bpfk"];
 
 /**
- * The reasons that the check leaves out the dialect documents of the
- * dialects that it does not check, and any grammar document that no
- * dialect includes. A document that only unchecked dialects include needs
+ * The reasons that the check leaves out the pipeline documents of the
+ * pipelines that it does not check, and any grammar document that no
+ * pipeline includes. A document that only unchecked pipelines include needs
  * no entry: its reason is derived (uncheckedReasons). A grammar document
  * that is neither checked nor left out with a reason is an error, so that a
  * new document is not left out in silence.
  * @type {Record<string, string>}
  */
 export const UNCHECKED = {
-  "grammars/dialects/kihei.md": "the kihei example uses dedicated syntax tests instead of the CLL prose corpus",
-  "grammars/dialects/experimental.md": "the experimental dialect: its texts are not pinned yet",
-  "grammars/dialects/zantufa.md": "the Zantufa dialect: its texts are not pinned yet",
-  "grammars/dialects/notation.md": "the notation dialect reads jbogenbau, not Lojban",
+  "grammars/lojban/examples/kihei/pipeline.md": "the kihei example uses dedicated syntax tests instead of the CLL prose corpus",
+  "grammars/lojban/experimental/pipeline.md": "the experimental pipeline: its texts are not pinned yet",
+  "grammars/lojban/zantufa/pipeline.md": "the Zantufa pipeline: its texts are not pinned yet",
+  "grammars/gencmu/jbogenbau/pipeline.md": "the notation pipeline reads jbogenbau, not Lojban",
 };
 
 /** The least number of words that makes a code span a quoted text. */
@@ -65,18 +65,18 @@ export function quotedText(content) {
 }
 
 /**
- * The names of the dialects of a repository that prose can name: those of
- * its dialect documents, less the notation dialect, which reads jbogenbau.
+ * The names of the Lojban pipelines that the prose checker can use.
+ * Other families do not enter this Lojban text check.
  * @param {string} [base] the repository
  * @returns {string[]}
  */
-export function dialectNames(base = root) {
-  return dialectDocuments(base).map((document) => path.posix.basename(document, ".md")).filter((name) => name !== "notation");
+export function pipelineNames(base = root) {
+  return pipelineDocuments(base).map((document) => document.slice("grammars/".length, -"/pipeline.md".length)).filter((name) => name.startsWith("lojban/"));
 }
 
 /**
  * The quoted texts of a Markdown document, each with its line (counted
- * from 1) and the dialects that its scope names. They are the code spans
+ * from 1) and the pipelines that its scope names. They are the code spans
  * that a CommonMark and GFM parser finds (tools/markdown.js), so a code
  * block holds none. Every paragraph, heading and table row is one line
  * (tools/prose-lines.js), so the line of a text is the block that quotes
@@ -87,12 +87,12 @@ export function dialectNames(base = root) {
  * does not scope its parent, and a name in a parent scopes its nested
  * items.
  * @param {string} markdown
- * @param {string[]} [dialects] the names that prose can name
- * @returns {{text: string, line: number, dialects: string[]}[]}
+ * @param {string[]} [pipelines] the names that prose can name
+ * @returns {{text: string, line: number, pipelines: string[]}[]}
  */
-export function quotedTexts(markdown, dialects = dialectNames()) {
+export function quotedTexts(markdown, pipelines = pipelineNames()) {
   const texts = [];
-  /** @type {Map<object, string[]>} the dialects that each scope names */
+  /** @type {Map<object, string[]>} the pipelines that each scope names */
   const named = new Map();
   for (const { node, ancestors } of walk(parseMarkdown(markdown))) {
     if (node.type !== "inlineCode") continue;
@@ -104,9 +104,9 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
       // An item's own prose leaves out the lists nested in it, at any
       // depth: inside a block quote too. An enclosing item's own prose
       // scopes the item.
-      named.set(scope, namedDialects(items.length ? items.map((item) => proseOf(item, { lists: false })).join(" ") : proseOf(scope), dialects));
+      named.set(scope, namedPipelines(items.length ? items.map((item) => proseOf(item, { lists: false })).join(" ") : proseOf(scope), pipelines));
     }
-    texts.push({ text, line: node.position.start.line, dialects: scope ? named.get(scope) : [] });
+    texts.push({ text, line: node.position.start.line, pipelines: scope ? named.get(scope) : [] });
   }
   return texts;
 }
@@ -114,7 +114,7 @@ export function quotedTexts(markdown, dialects = dialectNames()) {
 /**
  * The prose of a block: its text, the text of its links included, with
  * each code span as a space and a space between paragraphs. So neither a
- * code span nor a link target names a dialect. With `lists: false`, the
+ * code span nor a link target names a pipeline. With `lists: false`, the
  * prose leaves out every list inside the block, whatever containers lie
  * between, so that it is a list item's own prose.
  * @param {import("./markdown.js").Node} block
@@ -128,7 +128,8 @@ export function proseOf(block, { lists = true } = {}) {
   const stack = [block];
   for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
     if (node.type === "text") prose += node.value;
-    else if (node.type === "inlineCode" || PROSE.has(node.type)) prose += " ";
+    else if (node.type === "inlineCode") prose += ` ${node.value} `;
+    else if (PROSE.has(node.type)) prose += " ";
     const children = node.children || [];
     for (let index = children.length - 1; index >= 0; index--) if (lists || children[index].type !== "list") stack.push(children[index]);
   }
@@ -136,34 +137,31 @@ export function proseOf(block, { lists = true } = {}) {
 }
 
 /**
- * The dialects that a piece of prose names, each as a word of its own and in
- * any case: "the bpfk dialect", "In cll-ebnf and bpfk", "the experimental
- * layer", "the Zantufa dialect". A name joined to other letters or a
- * hyphen, as in `bpfk-like`, is not one. "experimental" is an English word
- * too, and in this prose it always names the dialect.
+ * The full pipeline names that stand on their own in prose.
+ * Canonical spelling sets scope. A longer name or resource path does not.
  * @param {string} prose
- * @param {string[]} [dialects] the names that prose can name
+ * @param {string[]} [pipelines] the names that prose can name
  * @returns {string[]}
  */
-export function namedDialects(prose, dialects = dialectNames()) {
-  if (!dialects.length) return [];
-  const name = new RegExp(`(?<![\\p{L}\\p{N}_-])(${dialects.join("|")})(?![\\p{L}\\p{N}_-])`, "giu");
-  return [...new Set([...prose.matchAll(name)].map((match) => match[1].toLowerCase()))];
+export function namedPipelines(prose, pipelines = pipelineNames()) {
+  if (!pipelines.length) return [];
+  const name = new RegExp(`(?<![\\p{L}\\p{N}_/-])(${pipelines.join("|")})(?![\\p{L}\\p{N}_/-])`, "gu");
+  return [...new Set([...prose.matchAll(name)].map((match) => match[1]))];
 }
 
 /**
- * The dialect documents of a repository, relative to it, sorted.
+ * The pipeline documents of a repository, relative to it, sorted.
  * @param {string} base
  * @returns {string[]}
  */
-function dialectDocuments(base) {
-  return markdownFiles(base).filter((file) => /^grammars\/dialects\/[^/]+\.md$/.test(file));
+function pipelineDocuments(base) {
+  return markdownFiles(base).filter((file) => /^grammars\/.+\/pipeline\.md$/.test(file));
 }
 
 /**
  * The DOMs of the grammar documents of a repository, read from its source
  * documents (tools/grammar-sources.js), never from the generated
- * grammars/compiled.json or a bundled copy.
+ * data/preparsed/lojban.json or a bundled copy.
  * @param {string} base
  * @returns {{get: (file: string) => any}}
  */
@@ -172,51 +170,51 @@ function repositoryDoms(base) {
 }
 
 /**
- * The dialects that include each grammar document, at any depth, as their
+ * The pipelines that include each grammar document, at any depth, as their
  * pipelines' %include directives say, read from the DOMs of the source
- * documents. A dialect document belongs to its own dialect.
+ * documents. A pipeline document belongs to its own pipeline.
  * @param {string} [base] the repository
  * @param {{get: (file: string) => any}} [doms]
- *   the DOMs by path under grammars/; those of the source documents unless
+ *   the DOMs by package-relative path; those of the source documents unless
  *   given
  * @returns {Map<string, string[]>} keyed by the path in the repository
  */
-export function documentDialects(base = root, doms = repositoryDoms(base)) {
+export function documentPipelines(base = root, doms = repositoryDoms(base)) {
   /** @type {Map<string, string[]>} */
-  const dialects = new Map();
-  for (const document of dialectDocuments(base)) {
-    const dialect = path.posix.basename(document, ".md");
-    // The documents to visit, each path under grammars/, in the order of a
+  const pipelines = new Map();
+  for (const document of pipelineDocuments(base)) {
+    const pipeline = document.slice("grammars/".length, -"/pipeline.md".length);
+    // The documents to visit, each package-relative path, in the order of a
     // walk down the includes. An explicit stack, since a chain of includes
     // can be longer than the call stack is deep.
-    const stack = [document.slice("grammars/".length)];
+    const stack = [document];
     for (let file = stack.pop(); file !== undefined; file = stack.pop()) {
-      const key = `grammars/${file}`;
-      if (!dialects.has(key)) dialects.set(key, []);
-      if (dialects.get(key).includes(dialect)) continue;
-      dialects.get(key).push(dialect);
+      const key = file;
+      if (!pipelines.has(key)) pipelines.set(key, []);
+      if (pipelines.get(key).includes(pipeline)) continue;
+      pipelines.get(key).push(pipeline);
       const directives = (doms.get(file) || { directives: [] }).directives;
       for (let index = directives.length - 1; index >= 0; index--) {
-        // The path as the pipeline resolves it (lib/js/src/pipeline.js), so
+        // The path as the pipeline resolves it (lib/js/src/splice.js), so
         // a `..` above the grammars drops out there as here.
         if (directives[index].name === "include") stack.push(resolvePath(file, directives[index].args[0]));
       }
     }
   }
-  return dialects;
+  return pipelines;
 }
 
 /**
- * The checked documents, each with the checked dialects that include it.
+ * The checked documents, each with the checked pipelines that include it.
  * @param {string} [base] the repository
  * @param {{get: (file: string) => any}} [doms]
- * @param {string[]} [checked] the checked dialects
+ * @param {string[]} [checked] the checked pipelines
  * @returns {Map<string, string[]>}
  */
-export function checkedDocuments(base = root, doms = repositoryDoms(base), checked = CHECKED_DIALECTS) {
+export function checkedDocuments(base = root, doms = repositoryDoms(base), checked = CHECKED_PIPELINES) {
   const documents = new Map();
-  for (const [document, dialects] of documentDialects(base, doms)) {
-    const claimed = dialects.filter((dialect) => checked.includes(dialect));
+  for (const [document, pipelines] of documentPipelines(base, doms)) {
+    const claimed = pipelines.filter((pipeline) => checked.includes(pipeline));
     if (claimed.length) documents.set(document, claimed);
   }
   return new Map([...documents].sort(([a], [b]) => (a < b ? -1 : 1)));
@@ -224,29 +222,29 @@ export function checkedDocuments(base = root, doms = repositoryDoms(base), check
 
 /**
  * Why the check leaves out each grammar document of a repository that no
- * checked dialect includes. A dialect document, or a document that no
- * dialect includes, has the reason that `unchecked` gives it, if any. Any
- * other has the dialects that include it, read from the pipelines, so the
+ * checked pipeline includes. A pipeline document, or a document that no
+ * pipeline includes, has the reason that `unchecked` gives it, if any. Any
+ * other has the pipelines that include it, read from the pipelines, so the
  * reason cannot go stale.
  * @param {string} [base] the repository
  * @param {{get: (file: string) => any}} [doms]
- * @param {string[]} [checked] the checked dialects
+ * @param {string[]} [checked] the checked pipelines
  * @param {Record<string, string>} [unchecked] the reasons given by hand
  * @returns {Map<string, string>} keyed by the path in the repository
  */
-export function uncheckedReasons(base = root, doms = repositoryDoms(base), checked = CHECKED_DIALECTS, unchecked = UNCHECKED) {
-  const including = documentDialects(base, doms);
-  const dialectFiles = new Set(dialectDocuments(base));
+export function uncheckedReasons(base = root, doms = repositoryDoms(base), checked = CHECKED_PIPELINES, unchecked = UNCHECKED) {
+  const including = documentPipelines(base, doms);
+  const pipelineFiles = new Set(pipelineDocuments(base));
   const reasons = new Map();
   for (const file of markdownFiles(base)) {
     if (!file.startsWith("grammars/")) continue;
-    const dialects = including.get(file) || [];
-    if (dialects.some((dialect) => checked.includes(dialect))) continue;
-    if (dialectFiles.has(file) || !dialects.length) {
+    const pipelines = including.get(file) || [];
+    if (pipelines.some((pipeline) => checked.includes(pipeline))) continue;
+    if (pipelineFiles.has(file) || !pipelines.length) {
       if (file in unchecked) reasons.set(file, unchecked[file]);
     } else {
-      const names = [...dialects].sort();
-      reasons.set(file, `included only by the ${names.join(" and ")} dialect${names.length > 1 ? "s" : ""}`);
+      const names = [...pipelines].sort();
+      reasons.set(file, `included only by the ${names.join(" and ")} pipeline${names.length > 1 ? "s" : ""}`);
     }
   }
   return reasons;
@@ -268,7 +266,7 @@ export function uncheckedReasons(base = root, doms = repositoryDoms(base), check
  *   text, each with its role: the rule of the node that spans the text in
  *   the case's tree, `words` for words that some stage gives as the
  *   labels of tokens in a row (roleProblem), or `reject` for a case that the
- *   dialect rejects
+ *   pipeline rejects
  */
 
 /**
@@ -376,7 +374,7 @@ export function locateEntries(entries, read) {
 /**
  * The allow-list of a repository, with the lines of its entries found.
  * @param {string} base the repository
- * @param {string[]} names the dialects' names, for quotedTexts
+ * @param {string[]} names the pipelines' names, for quotedTexts
  * @returns {{entries: AllowEntry[], problems: string[]}}
  */
 function allowList(base, names) {
@@ -399,7 +397,7 @@ function allowList(base, names) {
 /**
  * Every corpus case of the repository.
  * @param {string} base
- * @returns {{id: string, text: string, dialect: string, expect: string, brackets?: string, words?: string[], features?: string[], withoutFeatures?: string[]}[]}
+ * @returns {{id: string, text: string, pipeline: string, expect: string, brackets?: string, words?: string[], features?: string[], withoutFeatures?: string[]}[]}
  */
 function corpusCases(base) {
   const cases = [];
@@ -547,7 +545,7 @@ export function rejectionWindows(caseText, text) {
 /**
  * Why a case does not show a quoted text in its role, or null when it does.
  *
- * - `reject`: the dialect rejects the case, and both the stored `at` and the
+ * - `reject`: the pipeline rejects the case, and both the stored `at` and the
  *   start of the parsed error's source fall where the case's text holds the
  *   quoted text, or within the word after it (rejectionWindows).
  * - `words`: some stage gives the text's words as the images of tokens in a
@@ -556,19 +554,19 @@ export function rejectionWindows(caseText, text) {
  *   holds a letter. So the case holds the text, read as those tokens.
  * - a rule: the tree of some stage has a node of the rule whose words are
  *   exactly the text's.
- * @param {{text: string, dialect: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
+ * @param {{text: string, pipeline: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
  * @param {string} role
  * @param {string} text
- * @param {Map<string, any>} dialects the loaded dialects, by name
+ * @param {Map<string, any>} pipelines the loaded pipelines, by name
  * @param {any} loader the loader of the repository's source grammars
  *   (tools/grammar-sources.js), never the bundled copies
  * @returns {string | null}
  */
-export function roleProblem(c, role, text, dialects, loader) {
-  if (!dialects.has(c.dialect)) dialects.set(c.dialect, loader.dialect(`dialects/${c.dialect}.md`));
-  const result = dialects.get(c.dialect).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
+export function roleProblem(c, role, text, pipelines, loader) {
+  if (!pipelines.has(c.pipeline)) pipelines.set(c.pipeline, loader.pipeline(`grammars/${c.pipeline}/pipeline.md`));
+  const result = pipelines.get(c.pipeline).parse(c.text, { features: c.features || [], withoutFeatures: c.withoutFeatures || [] });
   if (role === "reject") {
-    if (result.ok) return `its dialect accepts it`;
+    if (result.ok) return `its pipeline accepts it`;
     const windows = rejectionWindows(c.text, text);
     const within = (/** @type {number | undefined} */ at) => typeof at === "number" && windows.some(([start, end]) => start <= at && at <= end);
     const source = result.error && result.error.source ? result.error.source[0] : undefined;
@@ -591,7 +589,7 @@ export function roleProblem(c, role, text, dialects, loader) {
     }
     return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one image for each word";
   }
-  if (!result.ok) return "its dialect rejects it";
+  if (!result.ok) return "its pipeline rejects it";
   const wanted = bare(text);
   for (const stage of result.stages) {
     if (stage.tree && hasNodeWithWords(stage.tree, stage.input, role, wanted)) return null;
@@ -708,33 +706,33 @@ function together(points, tokens) {
 
 /**
  * Whether a case shows a quoted text in its role (roleProblem).
- * @param {{text: string, dialect: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
+ * @param {{text: string, pipeline: string, at?: number, features?: string[], withoutFeatures?: string[]}} c
  * @param {string} role
  * @param {string} text
- * @param {Map<string, any>} dialects
+ * @param {Map<string, any>} pipelines
  * @param {any} loader
  * @returns {boolean}
  */
-export function showsRole(c, role, text, dialects, loader) {
-  return roleProblem(c, role, text, dialects, loader) === null;
+export function showsRole(c, role, text, pipelines, loader) {
+  return roleProblem(c, role, text, pipelines, loader) === null;
 }
 
-/** How a case reads its text, to compare dialects: its verdict and tree. */
+/** How a case reads its text, to compare pipelines: its verdict and tree. */
 const reading = (c) => JSON.stringify([c.expect, c.brackets]);
 
 /**
  * Every problem of the quoted texts of the checked documents:
  *
- * - a quoted text that lacks a case of a dialect of its document, or of a
- *   dialect that its scope names, and that the allow-list does not cover;
- * - a quoted text whose cases read it differently in two needed dialects
+ * - a quoted text that lacks a case of a pipeline of its document, or of a
+ *   pipeline that its scope names, and that the allow-list does not cover;
+ * - a quoted text whose cases read it differently in two needed pipelines
  *   that its scope does not name, comparing the cases of the whole text
  *   and the cases of its entry apart;
  * - an allow-list entry that is not needed, since the document does not
  *   quote the text, or cases pin it and the entry gives a reason; an entry
  *   that names no lines and covers several, or names a line that does not
  *   need it; and an entry whose cases are missing, do not hold the text, do
- *   not show it in their role, or leave out a dialect that the text needs;
+ *   not show it in their role, or leave out a pipeline that the text needs;
  * - a grammar document that is neither checked nor left out with a reason
  *   (uncheckedReasons), and one in UNCHECKED that is checked or whose
  *   reason is derived;
@@ -742,11 +740,11 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  * @param {string} [base] the repository
  * @param {{loader?: any, doms?: {get: (file: string) => any}, checked?: string[], unchecked?: Record<string, string>}} [scope]
  *   the loader of the repository's source grammars, which parses the cases
- *   of `=` entries, the DOMs of its grammar documents, the checked dialects
+ *   of `=` entries, the DOMs of its grammar documents, the checked pipelines
  *   and UNCHECKED
  * @returns {string[]}
  */
-export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED, runCases = true } = {}) {
+export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_PIPELINES, unchecked = UNCHECKED, runCases = true } = {}) {
   // The loader of the sources, made when first needed.
   const sources = { readDocument: (/** @type {string} */ markdown, /** @type {string} */ file) => sourcesLoader().readDocument(markdown, file) };
   const sourcesLoader = () => (loader ??= sourceLoader(base));
@@ -762,7 +760,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     casesOf.get(text).push(c);
     byId.set(c.id, c);
   }
-  const { entries, problems } = allowList(base, dialectNames(base));
+  const { entries, problems } = allowList(base, pipelineNames(base));
   // The entries by document and text, so that finding one does not scan
   // the whole list for each quoted text.
   /** @type {Map<string, AllowEntry[]>} */
@@ -781,14 +779,14 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
   /** @type {Map<AllowEntry, Set<number>>} the lines on which each entry is needed */
   const used = new Map();
   const documents = checkedDocuments(base, doms, checked);
-  const names = dialectNames(base);
+  const names = pipelineNames(base);
   const files = new Set(markdownFiles(base));
   const reasons = uncheckedReasons(base, doms, checked, unchecked);
   // Every grammar document is checked, or left out with a reason.
   for (const file of files) {
     if (!file.startsWith("grammars/")) continue;
-    if (!documents.has(file) && !reasons.has(file)) problems.push(`${file}: no checked dialect includes this grammar document, and UNCHECKED in tools/quoted-texts.js gives no reason to leave it out`);
-    if (documents.has(file) && file in unchecked) problems.push(`${file}: a checked dialect includes this document, so UNCHECKED in tools/quoted-texts.js does not need it`);
+    if (!documents.has(file) && !reasons.has(file)) problems.push(`${file}: no checked pipeline includes this grammar document, and UNCHECKED in tools/quoted-texts.js gives no reason to leave it out`);
+    if (documents.has(file) && file in unchecked) problems.push(`${file}: a checked pipeline includes this document, so UNCHECKED in tools/quoted-texts.js does not need it`);
     else if (file in unchecked && reasons.get(file) !== unchecked[file]) problems.push(`${file}: ${reasons.get(file)}, which is its reason, so UNCHECKED in tools/quoted-texts.js does not need it`);
   }
   for (const file of Object.keys(unchecked)) if (!files.has(file)) problems.push(`${file}: UNCHECKED in tools/quoted-texts.js lists a document that the repository does not have`);
@@ -812,31 +810,31 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
     // The quoted texts are read by the line of their block, which holds
     // only for the layout that the one-line check accepts.
     for (const problem of proseLineProblems(markdown, document)) problems.push(problem);
-    for (const { text, line, dialects } of quotedTexts(markdown, names)) {
+    for (const { text, line, pipelines } of quotedTexts(markdown, names)) {
       const at = `${document}:${line}`;
-      const needed = [...new Set([...claimed, ...dialects])];
-      const pins = (casesOf.get(text) || []).filter((c) => needed.includes(c.dialect));
+      const needed = [...new Set([...claimed, ...pipelines])];
+      const pins = (casesOf.get(text) || []).filter((c) => needed.includes(c.pipeline));
       for (const c of pins) inCore(c.id, at);
-      // One reading for each needed dialect, from its pins and from the
+      // One reading for each needed pipeline, from its pins and from the
       // cases of an entry apart, since the two read a text in different
-      // terms. The dialects that the scope does not name read the text
+      // terms. The pipelines that the scope does not name read the text
       // alike: the sentence speaks for them all.
       const disagree = (/** @type {Map<string, string>} */ readings) => {
-        const unnamed = [...readings].filter(([name]) => !dialects.includes(name));
+        const unnamed = [...readings].filter(([name]) => !pipelines.includes(name));
         if (new Set(unnamed.map(([, value]) => value)).size > 1) {
           const names = unnamed.map(([name]) => name).join(" and ");
-          problems.push(`${at}: \`${text}\` reads differently in ${names}, and its line names ${dialects.length ? `only ${dialects.join(" and ")}` : "no dialect"}; say which dialect the sentence is about`);
+          problems.push(`${at}: \`${text}\` reads differently in ${names}, and its line names ${pipelines.length ? `only ${pipelines.join(" and ")}` : "no pipeline"}; say which pipeline the sentence is about`);
         }
       };
       /** @type {Map<string, string>} */
       const pinned = new Map();
-      for (const c of pins) if (!pinned.has(c.dialect)) pinned.set(c.dialect, reading(c));
+      for (const c of pins) if (!pinned.has(c.pipeline)) pinned.set(c.pipeline, reading(c));
       disagree(pinned);
       const missing = needed.filter((name) => !pinned.has(name));
       const entry = entryAt(document, text, line);
       // A reason stands in for missing pins. The cases of a `=` entry show
       // the claim about the fragment, which a pin of the same words as a
-      // whole text does not, so they are checked in every needed dialect.
+      // whole text does not, so they are checked in every needed pipeline.
       if (!entry || (entry.reason && !missing.length)) {
         if (missing.length) problems.push(`${at}: \`${text}\` is pinned by no case of ${missing.join(" or of ")}; add one to tests/corpus/adhoc.jsonl, or list it in tests/quoted-allow.txt`);
         continue;
@@ -846,7 +844,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
       used.get(entry).add(line);
       if (!entry.cases) continue;
       // The entry's cases hold the text and show it in their roles, in
-      // every dialect that it needs.
+      // every pipeline that it needs.
       /** @type {Map<string, string>} */
       const roles = new Map();
       for (const { role, id } of entry.cases) {
@@ -866,7 +864,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
           if (problem) problems.push(problem);
           else inCore(id, place);
         }
-        if (!judged.get(key) && !roles.has(c.dialect)) roles.set(c.dialect, JSON.stringify([c.expect, role]));
+        if (!judged.get(key) && !roles.has(c.pipeline)) roles.set(c.pipeline, JSON.stringify([c.expect, role]));
       }
       const uncovered = needed.filter((name) => !roles.has(name));
       if (uncovered.length) problems.push(`${at}: \`${text}\` is held by no listed case of ${uncovered.join(" or of ")} (tests/quoted-allow.txt:${entry.line})`);
@@ -903,7 +901,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
 export function quotingPlaces(base = root, doms = repositoryDoms(base)) {
   /** @type {Map<string, string[]>} the lines that quote each text, by document */
   const quoted = new Map();
-  const names = dialectNames(base);
+  const names = pipelineNames(base);
   for (const document of checkedDocuments(base, doms).keys()) {
     if (!fs.existsSync(path.join(base, document))) continue;
     for (const { text, line } of quotedTexts(fs.readFileSync(path.join(base, document), "utf8"), names)) {

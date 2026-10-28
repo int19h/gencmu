@@ -1,5 +1,5 @@
 {
-  "description": "Restored queries inside ordinary nested queries retain complete window identities. (Engine \u00a74.4.)",
+  "description": "Restored queries inside ordinary nested queries retain complete window identities. (Engine §4.4.)",
   "grammar": "%rule text $p:A B\n%conditions $p.ends(tail) \u2227 $.ends(tail)\n%rule tail $a:A [B]\n%conditions $a.matches(inner)\n%rule inner A [+T]\n%conditions $.without-elision.onward.begins(deeper)\n%rule deeper A [+T]",
   "tokens": [
     {

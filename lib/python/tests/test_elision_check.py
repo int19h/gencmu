@@ -15,7 +15,7 @@ from unittest import mock
 import gencmu
 from gencmu import _stage, _testing
 
-from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_dialect, parse_checked, result_problems, run_case, witness_lost
+from .shared import SHARED, WitnessLost, case_tokens, load_case, load_case_pipeline, parse_checked, result_problems, run_case, witness_lost
 from .witness import checks, walk_witness
 
 CASE: dict[str, Any] = {
@@ -32,7 +32,7 @@ CASE: dict[str, Any] = {
 ```
 """,
     },
-    "pipeline": "p.md",
+    "pipelineDocument": "p.md",
     "tokens": [{"text": "a", "tags": ["A"]}],
 }
 
@@ -57,10 +57,10 @@ LOSSES: dict[str, Callable[[], Any]] = {"no root item": lose_roots, "no counted 
 
 
 def parse(**options: Any) -> gencmu.ParseResult:
-    dialect, error = load_case_dialect(CASE)
-    assert dialect is not None, error
+    pipeline, error = load_case_pipeline(CASE)
+    assert pipeline is not None, error
     tokens, text = case_tokens(CASE)
-    return dialect.parse_tokens(tokens, text, features=["w"], **options)
+    return pipeline.parse_tokens(tokens, text, features=["w"], **options)
 
 
 class WitnessLostError(unittest.TestCase):

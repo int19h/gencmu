@@ -1,5 +1,5 @@
 {
-  "description": "Every suffix retains the window start for starts-input. (Engine \u00a74.4.)",
+  "description": "Every suffix retains the window start for starts-input. (Engine §4.4.)",
   "grammar": "%rule text A B\n%conditions \u00ac$.ends(start-b), $.last-token.matches(start-b)\n%rule start-b B\n%conditions $.starts-input",
   "tokens": [
     {

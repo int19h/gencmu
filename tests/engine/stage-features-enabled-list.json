@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%features g\n%stage first\n%features early\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%features a z\n%conditions $.value = \"a\"\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

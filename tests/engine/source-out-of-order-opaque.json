@@ -6,7 +6,7 @@
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (pair pair)\n%rule pair (prefix edge)\n%rule prefix A %emits ε :: X\n%rule edge ($n:nothing A) %emits ε :: Y, $n :: Z\n%rule nothing ε\n```\n",
     "c.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($u:u $w:w $z:z) %emits $u :: U, $w :: W, $z :: V\n\n%rule u :- $.verbatim-text | (X Y Z)\n\n%rule w :- $.verbatim-text | (X Y)\n\n%rule z :- $.verbatim-text | Z\n\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "input": "ab",
   "expect": {
     "error": "grammar",

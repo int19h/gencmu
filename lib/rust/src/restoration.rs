@@ -602,10 +602,10 @@ mod tests {
                     );
                 }
                 let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
-                let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+                let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
                 work::reset();
                 work::budget(Work::CloseSequences, factor * (depth as u64 + 1) + slack);
-                let result = dialect.parse_tokens(&[], &crate::ParseOptions::default()).unwrap();
+                let result = pipeline.parse_tokens(&[], &crate::ParseOptions::default()).unwrap();
                 assert!(result.ok, "depth {depth}, witness {witness}: {:?}", result.error);
                 eprintln!("depth {depth}, witness {witness}: {} close nodes", work::counted(Work::CloseSequences));
                 work::reset();
@@ -616,7 +616,7 @@ mod tests {
                 crate::json::parse(&std::fs::read_to_string(root.join("engine").join(file.as_str().unwrap())).unwrap())
                     .unwrap();
             let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
-            let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+            let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
             let tokens = fixture
                 .get("tokens")
                 .and_then(Json::as_array)
@@ -637,10 +637,10 @@ mod tests {
                 .collect::<Vec<_>>();
             work::reset();
             work::budget(Work::CloseSequences, 0);
-            let result = dialect.parse_tokens(&tokens, &crate::ParseOptions::default()).unwrap();
+            let result = pipeline.parse_tokens(&tokens, &crate::ParseOptions::default()).unwrap();
             assert!(result.ok, "{}: {:?}", file.as_str().unwrap(), result.error);
             assert_eq!(work::counted(Work::CloseSequences), 0);
-            let lowered = dialect.lowered_stage(0);
+            let lowered = pipeline.lowered_stage(0);
             assert!(demanded(&lowered).is_empty());
             work::reset();
         }
@@ -671,10 +671,10 @@ mod tests {
             for aligned in [false, true] {
                 let grammar = if aligned { rules.clone() } else { rules.replace("$x.without-elision", "$x") };
                 let source = format!("```jbogenbau\n%stage main\n{grammar}\n```\n");
-                let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+                let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
                 work::reset();
                 work::budget(Work::CloseSequences, budget);
-                let result = dialect.parse_tokens(&[], &crate::ParseOptions::default()).unwrap();
+                let result = pipeline.parse_tokens(&[], &crate::ParseOptions::default()).unwrap();
                 assert!(result.ok, "depth {depth}, aligned {aligned}: {:?}", result.error);
                 assert_eq!(work::counted(Work::CloseSequences), budget);
                 results.push(crate::to_json(&result));
@@ -931,7 +931,7 @@ fn caller_scope_leaves_other_uses_shared() {
         .unwrap();
         let rules = fixture.get("grammar").unwrap().as_str().unwrap();
         let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
-        let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+        let pipeline = crate::load_pipeline_sources([("p.md", source.as_str())], "p.md").unwrap();
         for length in shared.get("lengths").unwrap().as_array().unwrap() {
             let length = length.as_int().unwrap() as usize;
             work::reset();
@@ -942,7 +942,7 @@ fn caller_scope_leaves_other_uses_shared() {
                 (shared.get("itemsPerUnit").unwrap().as_int().unwrap() * length as i64
                     + shared.get("slack").unwrap().as_int().unwrap()) as u64,
             );
-            let result = dialect.parse(&format!("x{}", "a".repeat(length)), &crate::ParseOptions::default()).unwrap();
+            let result = pipeline.parse(&format!("x{}", "a".repeat(length)), &crate::ParseOptions::default()).unwrap();
             assert!(!result.ok);
             assert_eq!(result.error.as_ref().unwrap().kind, crate::result::ParseErrorKind::Ambiguous);
             if shared.get("maxCloseNodes").unwrap().as_int().unwrap() > 0 {

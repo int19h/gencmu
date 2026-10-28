@@ -14,16 +14,17 @@ import (
 // The shared cases of tests/README.md.
 
 type engineCase struct {
-	Description string            `json:"description"`
-	Grammar     *string           `json:"grammar"`
-	Documents   map[string]string `json:"documents"`
-	Pipeline    string            `json:"pipeline"`
-	Tokens      []caseToken       `json:"tokens"`
-	Input       *string           `json:"input"`
-	Options     caseOptions       `json:"options"`
-	Expect      caseExpect        `json:"expect"`
+	Pipeline         *string           `json:"pipeline"`
+	Description      string            `json:"description"`
+	Grammar          *string           `json:"grammar"`
+	Documents        map[string]string `json:"documents"`
+	PipelineDocument string            `json:"pipelineDocument"`
+	Tokens           []caseToken       `json:"tokens"`
+	Input            *string           `json:"input"`
+	Options          caseOptions       `json:"options"`
+	Expect           caseExpect        `json:"expect"`
 	// Parses, when present, parses the input several times with the one
-	// loaded dialect, each with its own options and expectation, in place
+	// loaded pipeline, each with its own options and expectation, in place
 	// of the case's (tests/README.md).
 	Parses []struct {
 		Options caseOptions `json:"options"`
@@ -68,13 +69,14 @@ type caseOptions struct {
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Diagnostic      string  `json:"diagnostic"`
-	Result          *any    `json:"result"`
-	Brackets        *string `json:"brackets"`
-	Warnings        *any    `json:"warnings"`
-	Features        *any    `json:"features"`
-	EnabledFeatures *any    `json:"enabledFeatures"`
-	Error           string  `json:"error"`
+	BundledPipelines *any    `json:"bundledPipelines"`
+	Diagnostic       string  `json:"diagnostic"`
+	Result           *any    `json:"result"`
+	Brackets         *string `json:"brackets"`
+	Warnings         *any    `json:"warnings"`
+	Features         *any    `json:"features"`
+	EnabledFeatures  *any    `json:"enabledFeatures"`
+	Error            string  `json:"error"`
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
 		Document string `json:"document"`
@@ -161,7 +163,10 @@ func loadCase(t testing.TB, file string) *engineCase {
 	return c
 }
 
-func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
+func casePipeline(c *engineCase, noCache bool) (*Pipeline, error) {
+	if c.Pipeline != nil {
+		return LoadPipeline(*c.Pipeline)
+	}
 	if c.Grammar != nil {
 		g := *c.Grammar
 		if !strings.Contains(g, "%ambiguity-resolution") {
@@ -174,7 +179,7 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 		}, "pipeline.md", noCache)
 	}
 	for _, text := range c.Documents {
-		if strings.Contains(text, `%include "../dialects/`) {
+		if strings.Contains(text, `%include "../grammars/`) {
 			documents := map[string]string{}
 			err := filepath.WalkDir("../../grammars", func(path string, entry os.DirEntry, err error) error {
 				if err != nil {
@@ -189,7 +194,7 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 					if err != nil {
 						return err
 					}
-					documents[filepath.ToSlash(key)] = string(raw)
+					documents["grammars/"+filepath.ToSlash(key)] = string(raw)
 				}
 				return nil
 			})
@@ -199,22 +204,22 @@ func caseDialect(c *engineCase, noCache bool) (*Dialect, error) {
 			for name, text := range c.Documents {
 				documents["case/"+name] = text
 			}
-			return loadSources(documents, "case/"+c.Pipeline, noCache)
+			return loadSources(documents, "case/"+c.PipelineDocument, noCache)
 		}
 	}
-	return loadSources(c.Documents, c.Pipeline, noCache)
+	return loadSources(c.Documents, c.PipelineDocument, noCache)
 }
 
-// runCase parses a case's input with a loaded dialect, under the options
+// runCase parses a case's input with a loaded pipeline, under the options
 // of the case or of one item of its parses.
-func runCase(d *Dialect, c *engineCase, o *caseOptions) (*ParseResult, error) {
+func runCase(d *Pipeline, c *engineCase, o *caseOptions) (*ParseResult, error) {
 	res, _, err := runCaseLogged(d, c, o, "")
 	return res, err
 }
 
 // runCaseLogged is runCase, with the checks of elision-only that ran, and
 // with a private switch that loses their witness, or "" for none.
-func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*ParseResult, *checkLog, error) {
+func runCaseLogged(d *Pipeline, c *engineCase, o *caseOptions, lose string) (*ParseResult, *checkLog, error) {
 	if err := loadBundled(); err != nil {
 		return nil, nil, err
 	}
@@ -295,9 +300,9 @@ func caseTokens(specs []caseToken) ([]Token, string, error) {
 }
 
 func checkCase(c *engineCase, noCache bool) error {
-	d, err := caseDialect(c, noCache)
+	d, err := casePipeline(c, noCache)
 	if c.Parses != nil {
-		// One loaded dialect parses the input with each item's options in
+		// One loaded pipeline parses the input with each item's options in
 		// order (tests/README.md).
 		if err != nil {
 			return fmt.Errorf("unexpected load error: %v", err)
@@ -318,10 +323,20 @@ func checkCase(c *engineCase, noCache bool) error {
 	return checkParse(d, c, &c.Options, &c.Expect)
 }
 
-// checkLoadError matches the error of a dialect that did not load against
+// checkLoadError matches the error of a pipeline that did not load against
 // an expectation. The error is the whole outcome, so an expectation of
-// anything that only a loaded dialect gives fails (tests/README.md).
+// anything that only a loaded pipeline gives fails (tests/README.md).
 func checkLoadError(expect *caseExpect, err error) error {
+	if expect.BundledPipelines != nil {
+		have := []any{}
+		for _, name := range BundledPipelines() {
+			have = append(have, name)
+		}
+		if !equalJSON(have, *expect.BundledPipelines) {
+			return fmt.Errorf("bundledPipelines: got %v, expected %v", have, *expect.BundledPipelines)
+		}
+	}
+
 	e, ok := err.(*Error)
 	if !ok {
 		return fmt.Errorf("load: %v", err)
@@ -330,7 +345,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 		return fmt.Errorf("unexpected load error: %v", err)
 	}
 	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil || expect.EnabledFeatures != nil {
-		return fmt.Errorf("the dialect did not load: %v", err)
+		return fmt.Errorf("the pipeline did not load: %v", err)
 	}
 	// Where the error stands, in a document of the case, given only for a
 	// grammar error.
@@ -345,10 +360,20 @@ func checkLoadError(expect *caseExpect, err error) error {
 	return nil
 }
 
-// checkParse parses a case's input with a loaded dialect and matches the
+// checkParse parses a case's input with a loaded pipeline and matches the
 // result against an expectation.
-func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExpect) error {
-	// The dialect's features, compared whole.
+func checkParse(d *Pipeline, c *engineCase, options *caseOptions, expect *caseExpect) error {
+	if expect.BundledPipelines != nil {
+		have := []any{}
+		for _, name := range BundledPipelines() {
+			have = append(have, name)
+		}
+		if !equalJSON(have, *expect.BundledPipelines) {
+			return fmt.Errorf("bundledPipelines: got %v, expected %v", have, *expect.BundledPipelines)
+		}
+	}
+
+	// The pipeline's features, compared whole.
 	if expect.Features != nil {
 		have := []any{}
 		for _, f := range d.Features() {
@@ -499,7 +524,7 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 	return nil
 }
 
-// The runner fails a case whose dialect does not load, when the case
+// The runner fails a case whose pipeline does not load, when the case
 // expects another kind of error, or more than the error.
 func TestEngineRunnerLoadError(t *testing.T) {
 	t.Parallel()
@@ -629,7 +654,7 @@ func applyMutant(t testing.TB, got map[string]any, m resultMutant) {
 func mutantResult(t testing.TB, m resultMutant) (*ParseResult, []byte) {
 	t.Helper()
 	c := loadCase(t, "../../tests/engine/"+m.Case)
-	d, err := caseDialect(c, true)
+	d, err := casePipeline(c, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -806,7 +831,7 @@ func unrepresentableTokenField(raw any) string {
 }
 
 // parseStoredTokens adapts output-shaped fixtures to the caller API.
-func (d *Dialect) parseStoredTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
+func (d *Pipeline) parseStoredTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
 	inputs := inputTokensOf(tokens)
 
 	return d.ParseTokens(text, inputs, options)

@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%ambiguity-resolution greedy\n%stage main\n%rule text A\n```\n"
   },
-  "pipeline": "p.md",
+  "pipelineDocument": "p.md",
   "tokens": [
     {
       "text": "a",

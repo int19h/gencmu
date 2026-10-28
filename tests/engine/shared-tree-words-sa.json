@@ -1,9 +1,9 @@
 {
-  "description": "The SA erasure in grammars/words/stream.md reads cmavo-token without a separate word wrapper.",
+  "description": "The SA erasure in grammars/lojban/common/stream.md reads cmavo-token without a separate word wrapper.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/experimental/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "mi sa do",
   "options": {
     "until": "words"

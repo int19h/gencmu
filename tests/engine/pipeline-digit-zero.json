@@ -1,0 +1,53 @@
+{
+  "description": "A digit emits a covering token and an inserted token with empty source and text (grammars/lojban/common/latin.md).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/bpfk/pipeline.md\"\n```"
+  },
+  "pipelineDocument": "pipeline.md",
+  "input": "0",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "0",
+              "value": "n",
+              "image": "n",
+              "tags": [],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "",
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "digit-0"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

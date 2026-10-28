@@ -1,9 +1,9 @@
 {
   "description": "A marked opening edge can end across a period without whitespace before the body.",
   "documents": {
-    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+    "pipeline.md": "```jbogenbau\n%include \"../grammars/lojban/zantufa/pipeline.md\"\n```\n"
   },
-  "pipeline": "pipeline.md",
+  "pipelineDocument": "pipeline.md",
   "input": "zoi \"gy.\"foo gy",
   "options": {
     "until": "words"
