@@ -47,7 +47,7 @@ A rule defines, redefines, or extends a name. Optional flags precede the name, a
 
 Header tag and string clauses apply to every alternative. A header clause requires the leading `|`, which separates its operands from the body.
 
-An ordinary body separates alternatives with `|`. A ranked body joins at least two options with `≻`. Guards and clauses on a ranked body apply to the complete ranked choice.
+An ordinary body separates alternatives with `|`. A ranked body joins at least two options with `≻`. Guards and clauses on a ranked body apply to the complete ranked choice. After header clauses, a leading `|` can introduce either body without parentheses.
 
 An alternative can carry its own tag, value, and image clauses. Both clause lists preserve that order and permit each channel once.
 
@@ -72,7 +72,7 @@ An alternative can carry its own tag, value, and image clauses. Both clause list
   tags-clause [value-clause] [image-clause] | value-clause [image-clause] | image-clause
 
 %rule headed-body
-  "|" ordinary-body
+  "|" (ordinary-body | ranked-alternative)
 
 %rule body
   ["|"] ordinary-body | ranked-alternative

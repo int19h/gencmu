@@ -450,8 +450,10 @@ class Parser {
     if (["::", ":=", ":-"].includes(this.kindAt())) {
       for (const clause of yield this.clauses("tags-clause")) children.push(clause);
       const at = this.index;
-      const body = [this.expect("|"), (yield this.alternative(false))];
-      while (this.is("|")) body.push(this.tok(), (yield this.alternative(false)));
+      const body = [this.expect("|"), (yield this.alternative())];
+      if (body[1].rule !== "ranked-alternative") {
+        while (this.is("|")) body.push(this.tok(), (yield this.alternative(false)));
+      }
       children.push(this.node("headed-body", at, body));
     } else children.push((yield this.body()));
     if (this.is("%conditions")) {

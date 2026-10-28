@@ -1,0 +1,66 @@
+{
+  "description": "Header clauses permit a direct ranked body and retain its ranked DOM (engine §9).",
+  "document": "```jbogenbau\n%rule text :: T := \"value\" :- \"image\"\n  | f? a ≻ b :: U\n```\n",
+  "expect": {
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "tags": {
+            "tag": "T"
+          },
+          "value": {
+            "concat": [
+              {
+                "string": "value"
+              }
+            ]
+          },
+          "image": {
+            "concat": [
+              {
+                "string": "image"
+              }
+            ]
+          },
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "f",
+                  "kind": "gate",
+                  "negated": false
+                }
+              ],
+              "expr": {
+                "ranked": [
+                  {
+                    "ref": "a"
+                  },
+                  {
+                    "ref": "b"
+                  }
+                ]
+              },
+              "tags": {
+                "tag": "U"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}
