@@ -129,7 +129,6 @@ A quiet pause carries only a spacing boundary. A material pause preserves punctu
 %rule pause-run
   | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
   | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
-  | $s:pause-run Silent $q:PAUSE :: ($s.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
@@ -447,7 +446,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-y-quote :: $m.tags :- $.source-text
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:silent-body quiet-pause [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊆ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -461,7 +459,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule zoi-quote :: $m.tags :- $.source-text
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:zoi-body PAUSE [quote-attachment] $close:raw-close [quote-end-mark]
   | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:empty-zoi-body [quote-attachment] $close:raw-close [quote-end-mark]
-  | $m:zoi-marker $g:delimiter-gap $open:delimiter $b:delimiter-body-gap $content:silent-body quiet-pause [quote-attachment] $close:raw-close [quote-end-mark]
 %conditions
   Y-Letter ⊈ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
@@ -525,28 +522,16 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 %rule empty-zoi-body
   ε
 
-%rule zoi-body
-  | [silent-before] raw-tokens [silent-after]
+%rule zoi-body :: ∅
+  | raw-tokens
 %conditions
   PAUSE ⊈ $.last-token.tags ∨ Quote-Material ⊆ $.last-token.tags
-
-%rule silent-before
-  | Silent quiet-pause
-  | silent-before Silent quiet-pause
-
-%rule silent-after
-  | quiet-pause Silent
-  | silent-after quiet-pause Silent
-
-%rule silent-body := ""
-  | Silent
-  | silent-body PAUSE Silent
 
 %rule quiet-pause
   PAUSE<¬Quote-Material> := ""
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
@@ -561,9 +546,6 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
 <p><img src="../../../docs/diagrams/lojban/common/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/zoi-body.svg" alt="Railroad diagram of the rule zoi-body"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-before.svg" alt="Railroad diagram of the rule silent-before"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-after.svg" alt="Railroad diagram of the rule silent-after"></p>
-<p><img src="../../../docs/diagrams/lojban/common/stream/silent-body.svg" alt="Railroad diagram of the rule silent-body"></p>
 <p><img src="../../../docs/diagrams/lojban/common/stream/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
 </details>
 
@@ -702,10 +684,10 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
   | zohoi-payload quote-run-token
 
 %rule quote-run-token
-  payload-token | Silent
+  payload-token
 
 %rule any-token
-  payload-token | PAUSE<¬Quote-Material> | Silent
+  payload-token | PAUSE<¬Quote-Material>
 
 %rule payload-token
   | Word | Hesitation | FOREIGN

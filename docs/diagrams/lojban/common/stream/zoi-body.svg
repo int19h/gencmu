@@ -1,19 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="483" height="78" viewBox="0 0 483 78" role="img" aria-label="Railroad diagram of the rule zoi-body">
+<svg xmlns="http://www.w3.org/2000/svg" width="223" height="68" viewBox="0 0 223 68" role="img" aria-label="Railroad diagram of the rule zoi-body">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">zoi-body</text>
 <text class="label" x="97.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
-<path d="M10 48v16m4 -16v16M14 56h6"/>
-<path d="M20 56h20"/>
-<g class="rule"><rect x="40" y="44" width="126" height="24" rx="0"/><text x="103" y="61" textLength="109.2" lengthAdjust="spacingAndGlyphs">silent-before</text></g>
-<path d="M166 56H186"/>
-<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H166a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M186 56h10"/>
-<g class="rule"><rect x="196" y="44" width="100" height="24" rx="0"/><text x="246" y="61" textLength="84" lengthAdjust="spacingAndGlyphs">raw-tokens</text></g>
-<path d="M296 56h10"/>
-<path d="M306 56h20"/>
-<g class="rule"><rect x="326" y="44" width="117" height="24" rx="0"/><text x="384.5" y="61" textLength="100.8" lengthAdjust="spacingAndGlyphs">silent-after</text></g>
-<path d="M443 56H463"/>
-<path d="M306 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H443a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
-<path d="M463 56h6m0 -8v16m4 -16v16"/>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<g class="rule"><rect x="20" y="34" width="100" height="24" rx="0"/><text x="70" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">raw-tokens</text></g>
+<path d="M120 46h6m0 -8v16m4 -16v16"/>
 </svg>

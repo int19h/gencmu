@@ -63,12 +63,6 @@
             "rules": [
               "pause-run"
             ]
-          },
-          {
-            "terminal": "Silent",
-            "rules": [
-              "pause-run"
-            ]
           }
         ]
       }

@@ -64,12 +64,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   $ :: $.tags := " " :- $.image
 
 %rule run
-  word-run | foreign-token | unsegmentable-run | silent-token
-
-%rule silent-token
-  $s:Silent
-%emits
-  $ :: $s.tags ∪ Run-Initial ∪ Run-Final
+  word-run | foreign-token | unsegmentable-run
 
 %rule word-run
   run-words
@@ -96,13 +91,12 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
 <p><img src="../../../docs/diagrams/lojban/common/forms/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/pause-part.svg" alt="Railroad diagram of the rule pause-part"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/run.svg" alt="Railroad diagram of the rule run"></p>
-<p><img src="../../../docs/diagrams/lojban/common/forms/silent-token.svg" alt="Railroad diagram of the rule silent-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
 <p><img src="../../../docs/diagrams/lojban/common/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
@@ -219,7 +213,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   [pause-run] bu-form
 
 %rule pause-run
-  PAUSE | pause-run PAUSE | pause-run Silent PAUSE
+  PAUSE | pause-run PAUSE
 
 %rule bu-form
   cmavo-shape="bu"
