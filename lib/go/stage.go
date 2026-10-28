@@ -337,12 +337,10 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	if g.warns {
 		out.warnings = run.warnings(rec, res.first)
 	}
-	// The stage emits its tokens, and then it runs the check of §7, which
-	// applies only to a stage that chose one of several derivations. An
-	// error of the grammar found while emitting ends the stage before the
-	// check (§6).
+	// The stage emits its tokens before the check of §7. An error found
+	// while emitting ends the stage before the check (§6).
 	out.stage.Output = run.emit(rec, res.first)
-	if elisionOnly && res.verdict == VerdictResolved {
+	if elisionOnly && (res.verdict == VerdictResolved || res.verdict == VerdictUnique && len(elidedNodes(out.tree)) > 0) {
 		if err := run.checkElision(rec, res.first, out.tree); err != nil {
 			// The stage accepted its input and chose its derivation: it keeps
 			// its verdict, output and warnings, and the result has no tree
