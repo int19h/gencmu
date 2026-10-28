@@ -10,7 +10,7 @@ Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has 
 
 Rule names can use one eligible emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table.
 
-A free modifier is a word or phrase that can stand almost anywhere. `🆓` names the rule for free modifiers. A tree pattern describes the shape of a parse tree. `#` starts a tree pattern, and `@` is an error.
+A free modifier is a word or phrase that can stand almost anywhere. `🆓` names the rule for free modifiers. A tree pattern describes the shape of a parse tree. `#` starts a tree pattern, and `@` starts a template parameter.
 
 ## Try it
 

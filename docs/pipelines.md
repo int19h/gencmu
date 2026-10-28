@@ -696,10 +696,4 @@ Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
 
 Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for expected results and shared tests.
 
-## Zbalermorna names
-
-The zbalermorna phoneme document declares `%names "zbalermorna-names.txt"` before its rules. Bundled loading supplies that resource for every pipeline that includes the document. It names both the older Humbert encoding and the 2024 UCSUR encoding. Each Explicit rule row contributes both scalars to exactly the same grammar alternatives. Channels that these alternatives set by recipe have equal results for both encodings.
-
-Shared rules that copy source text retain the written scalar in values and images. Token text and source metadata also retain it. The seven No explicit rule pairs still follow the pipeline's shared rules. The `lojban/bpfk` and `lojban/zantufa` pipelines read them as pause material. The experimental pipeline reads them as foreign material. Loading and parsing produce no warning about the older encoding.
-
-[The grammar's encoding section](../grammars/lojban/common/zbalermorna.md#two-encodings) pins both sources and defines the character mapping and phoneme behavior. Encoding-qualified names keep the two sets of scalar values distinct. The names file includes assigned characters beyond the current phoneme inventory. Names alone add no grammar alternatives. With bundled core data, private-use images print with numeric escapes.
+The [zbalermorna names resource](../grammars/lojban/common/zbalermorna.md#two-encodings) is an example of extra names for a script.

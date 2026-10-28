@@ -244,7 +244,7 @@ Straight double quotes enclose a string. Ordinary string characters exclude only
 
 Dollar signs and backslashes are ordinary characters.
 
-The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
+The lexical stage keeps escapes as written. A separate inspection resolves them after lexing and before syntax recognition (engine §9.1). The DOM conversion decodes them again. Lexical errors precede escape errors, which precede syntax errors, which precede reader validation errors.
 
 ```jbogenbau
 %rule string

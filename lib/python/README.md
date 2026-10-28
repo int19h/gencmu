@@ -53,7 +53,7 @@ A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A tex
 
 A `feature-conflict` error names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
-A rejected error can carry `boundary`. It names the rule, the condition index from zero, and the input boundary where a tree condition fails. The index counts conditions through the rule definitions in source order.
+A rejected error can carry `boundary`. It names the rule, the condition index from zero, and the input boundary where a boundary condition fails. The index counts conditions through the rule definitions in source order.
 
 The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ. Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10).
 
