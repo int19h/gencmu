@@ -10,11 +10,13 @@ A tag marks a token by an identifier.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. An elided terminator is a closing word left unwritten. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
 
-A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
 
-Indicators after `lu` begin quoted content. Indicators after `to` and `to'i` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
+The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline. It permits runs of BAhE and several FUhE groups ([Earlier stages](../cll/syntax.md#earlier-stages)).
+
+Indicators after `lu` begin quoted content. Indicators after `to`, `to'i` and `tu'e` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
 
 ## NAI attachment
 
@@ -24,7 +26,7 @@ FUhE opens an indicator group. The [indicator document](../cll/indicators.md#dif
 
 ## Erasure boundary
 
-A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
+A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. With the feature off, SU erases the whole text before it.
 
 ```jbogenbau
 %features su-boundary
@@ -109,9 +111,7 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
   %include "../cll/syntax.md"
   ```
 
-The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The enabled `elision-only` check runs after `resolved`, or after `unique` when the chosen tree holds an elided node.
-
-The check restores that parse's omitted terminators and parses the restored text again. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
+The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The [`elision-only` check](../cll/pipeline.md#stage-5-syntax) follows that policy.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only

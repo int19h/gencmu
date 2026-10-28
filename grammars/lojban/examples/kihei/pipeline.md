@@ -11,7 +11,9 @@ The pipeline includes CLL and then extends its forms and syntax stages. The CLL 
   %include "../../cll/pipeline.md"
   ```
 
-A payload is the material after a marker. A sumti is an argument of a predicate. The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
+A payload is the material after a marker. A sumti is an argument of a predicate. A term is a sentence argument or modifier. A termset groups arguments. Terms include sumti, termsets, tense or modal phrases, and `na ku`, as CLL's `term` rule reads them.
+
+The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
 
 The inherited CLL stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
 
