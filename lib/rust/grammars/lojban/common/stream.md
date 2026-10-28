@@ -111,7 +111,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
-`pause-run` groups consecutive pause tokens. Its gap recipe contributes one space. The rule emits no token of its own. It also accepts a supplied `Silent` token between pauses. A raw quote body keeps punctuation and ignored characters.
+`pause-run` groups consecutive pause tokens. Its gap recipe contributes one space. The rule emits no token of its own. It also accepts caller-supplied `Silent` tokens between pauses, as [forms.md](forms.md#runs) explains. A raw quote body keeps punctuation and ignored characters.
 
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
@@ -690,7 +690,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 `raw-tokens` and `zohoi-payload` keep word and FOREIGN values. Their material-token recipes recover punctuation and ignored characters from source text. Delimited quotes take their images from their whole source intervals.
 
-The `Silent` routes also require quiet pauses at their boundaries.
+These routes support caller-supplied `Silent` tokens. The `silent-before` and `silent-after` helpers require quiet pauses. The closing boundary after `silent-body` also requires a quiet pause.
 
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 

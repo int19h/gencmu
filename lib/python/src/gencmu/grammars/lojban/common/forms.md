@@ -35,7 +35,9 @@ In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` be
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme. A supplied `Silent` token also keeps its strings and receives `Run-Initial` and `Run-Final`.
+A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme.
+
+Callers can supply `Silent` as a user tag through the [pre-built token API](../../../docs/api.md#tokens-for-tests-and-tools). A replacement phoneme stage can forward these tokens to this layer. No bundled phoneme grammar emits `Silent`. The `silent-token` reader preserves its token's strings and adds `Run-Initial` and `Run-Final`.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
