@@ -193,7 +193,7 @@ The plain parse remains where the group cannot read the same words. The [experim
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
-- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` captures the slot as `$f:🆓`. A nonempty slot satisfies the condition.
+- A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` captures the first modifier as `$f`. Its presence satisfies the condition.
 - After written KEhE, the tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after written KEhE. `$KE-TAIL-WITH-VAU` requires that written KEhE and tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
 
   The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf value empty.
@@ -228,9 +228,9 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 
 %rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 gihek $f:🆓 $t:bridi-tail-2 $v:tail-terms
+  | bridi-tail-1 gihek [$f:free [{free}]] $t:bridi-tail-2 $v:tail-terms
 %conditions
-  $f.source-text ≠ "" ∨ $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
+  $f ∨ $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO 🆓 bridi-tail-2 tail-terms]
