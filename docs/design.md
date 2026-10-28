@@ -633,7 +633,9 @@ An error is better than a hidden choice. A reader of the error sees the two read
 
 ### Elision-only
 
-CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose. It applies the rule only when the ranking of that stage was `resolved`:
+CLL's own rule is narrower. It says only that a terminator can be elided if no ambiguity results. It says nothing of the other ambiguities that its EBNF has. `elision-only` is one reading of that rule, for the stage whose grammar declares it. CLL does not say which parse to test, so the check tests the one that the ranking chose.
+
+The check runs after `resolved`, even when the chosen tree elides nothing. It also runs after `unique` when the chosen tree holds an elided node. It follows these steps:
 
 1. Take the chosen tree's `elided` nodes in leaf order, from left to right. This order follows the chosen derivation, also where several nodes stand at one point. For each node, insert a synthetic token before the stage-input token at the node's position. The synthetic token carries the tag of that terminator and, for a terminator with an `=` test, the test's string as its recognition value. The engine marks it synthetic.
 2. Parse the token sequence with the same grammar. Use a mode where each elidable optional is restored or written. Every condition, tag and test of a rule reads the original input through a projection that leaves the synthetic tokens out. A test on a terminal reads the written-back terminator's tag and recognition value. A query parses the original input with the grammar as it is.
@@ -643,7 +645,7 @@ CLL's own rule is narrower. It says only that a terminator can be elided if no a
 
 The stage ranks, then emits, and then runs the check. A tie ends the stage before emission and before the check. So a stage reports at most one `ambiguous` error, and a tie comes first. A stage that fails the check keeps its output, but no later stage runs.
 
-The two errors share their kind, because both say that the text has two readings. They differ in what the readings are. The readings of a tie are parses of the text as written. Those of `elision-only` hold terminators that the check wrote back. The stage's verdict, `tie` or `resolved`, already tells them apart. The error still carries its reason, so that the error alone says which it is, and the shared tests compare it.
+The two errors share their kind because both describe two readings. A tie compares parses of the text as written. An `elision-only` error compares reconstructions with written-back terminators. A tie has verdict `tie`. An `elision-only` error keeps `unique` or `resolved`. The error's reason identifies which comparison fails.
 
 The engine cases pin the definition with these cases:
 
@@ -656,7 +658,9 @@ The recognizer retains the strictness of its items only for reconstruction (engi
 
 ### Independent elision controls
 
-`elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [+T]`, `b → A [+T] [+T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
+`elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither.
+
+For example, take `text → A [+T] | A T`. On `A`, its only derivation elides `T`. After restoration, the optional and the bare `T` both read the synthetic token. Neither reading has a greater rule profile, so `elision-only` reports ambiguity despite the original `unique` verdict.
 
 ### Nested queries and elided terminators
 

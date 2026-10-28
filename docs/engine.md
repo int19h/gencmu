@@ -1686,9 +1686,11 @@ The tag closure uses linear work in productions and inheritance edges.
 
 ### 7.1 When the check runs
 
-The check runs where the stage's verdict is `resolved` and the check is on. It is on where the stage's directive has `elision-only` or the caller asks for it. It runs after the stage emits its tokens (§6, §11).
+The check is on where the stage's directive has `elision-only` or the caller asks for it. When it is on, it runs for `resolved`. It also runs for `unique` when the chosen tree holds an elided node. A resolved stage runs the enabled check even when its chosen tree elides nothing. The check runs after the stage emits its tokens (§6, §11).
 
-A tie never reaches it, because a tie ends the stage first. It does not run for `unique`. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
+A tie never reaches it, because a tie ends the stage first. It skips a unique tree with no elided node. An error of the grammar found while emitting ends the stage before it. A caller can switch the check off for a stage that declares it.
+
+Uniqueness concerns the original input. Restoration can create another derivation. For `text → "a" [+T] | "a" T`, input `a` has one derivation, with `T` elided. After restoration, the optional and the bare `T` both read the synthetic token. Their rule profiles are equal, so the check fails.
 
 The check follows the decision order of §7.10. It chooses no replacement derivation and examines no other restoration.
 
@@ -1888,7 +1890,7 @@ The stage's name stands for `syntax` in `stage` and in `message`. `chosen` is D'
 
 The error has no `token`, `source`, `line`, `column`, `expected`, `reason` or `readings`.
 
-`ok` is false and `tree` is null. The stage keeps its verdict, `resolved`, and its warnings, but it has no output, and no later stage runs. An error of the grammar met during the check is never this error.
+`ok` is false and `tree` is null. The stage keeps its verdict, `unique` or `resolved`, and its warnings, but it has no output, and no later stage runs. An error of the grammar met during the check is never this error.
 
 The message is the same in every library. Section 7.10 gives witness loss priority over every passing or ambiguity outcome.
 

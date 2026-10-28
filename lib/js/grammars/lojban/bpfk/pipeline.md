@@ -109,7 +109,9 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
   %include "../cll/syntax.md"
   ```
 
-The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
+The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The enabled `elision-only` check runs after `resolved`, or after `unique` when the chosen tree holds an elided node.
+
+The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only

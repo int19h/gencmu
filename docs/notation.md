@@ -1355,7 +1355,7 @@ Filtering only removes parses and never adds one. Compared with the same grammar
 
 Ranked choices supply seals as well as filtering. A unique tree can differ between grammars with and without these seals.
 
-A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
+A newly unique or resolved result reaches emission. The enabled elision-only check then runs under [Elided terminators](#elided-terminators). A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
 A grammar ranks every admitted parse. A rule profile has two parts. Its span vector counts the occurrences of `leftmost-longest` rules over each nonempty span. Its fewest count is the number of nonempty occurrences of `fewest` rules. A flagged span is the span of a `leftmost-longest` occurrence.
 
@@ -1463,6 +1463,8 @@ A captured plain optional expands to bind captures, but retains one helper for q
 The constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. The `elision-only` check is one reading of that rule. It examines only the parse that the ranking chose, and CLL does not say how to choose that parse.
+
+The enabled check runs after emission for `resolved`. It also runs for `unique` if the chosen parse holds an elided node. It skips a unique parse with no elided node. Uniqueness on the original input cannot exclude another reading of the restored input.
 
 With `elision-only`, the stage restores the chosen parse's omitted terminators. An equality test saves its exact string as the restoration value. Other tests use empty value and singleton tags `{T}`. Synthetic images are empty. Omitted pattern leaves still observe empty strings, regardless of a saved equality value.
 

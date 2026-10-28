@@ -833,7 +833,9 @@ In this base grammar, the flag described under ["Tenses and modals"](#tenses-and
 
 The [experimental layer](../experimental/syntax.md#the-experimental-grammar) instead ranks spans, counted connective links and elision boundaries, in that order.
 
-In `lojban/cll` and `lojban/bpfk`, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
+In `lojban/cll` and `lojban/bpfk`, `elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
+
+It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../../docs/notation.md#elided-terminators) gives the check exactly.
 
 The `lojban/cll` and `lojban/bpfk` pipelines let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
 

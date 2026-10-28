@@ -63,7 +63,7 @@ Another is an item of braces, `{x}` or `{x / s}`, that can match no tokens. A ch
 
 An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-Its `value` is the exact string of an `=` test, or `None` without that test. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
+Its `value` is the exact string of an `=` test, or `None` without that test. The stage keeps its verdict, `"unique"` or `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 For tests and tools, `Pipeline.parse_tokens(tokens, text, ...)` takes tokens in place of the first stage characters. A supplied token stores `text`, `value`, `image`, `tags`, `span`, and `source`. Each string defaults independently to `text` when the constructor receives `None`. An explicit empty string stays empty. Recognition reads `value`, and output shows `image`.
 
