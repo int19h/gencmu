@@ -403,7 +403,7 @@ Delimited foreign quotes also keep bodies that contain only punctuation. A pause
 
 ## Repetition, lists and chains
 
-CLL writes repetition as `x ...`. Note 7 of CLL 1.1 section 21.1 says that `...` implies left grouping. gencmu uses braces to distinguish a flat list from a grouped chain.
+gencmu uses braces to distinguish a flat list from a grouped chain.
 
 Flat braces, `{x}` and `{x / s}`, read a list. The tree shows the items and separators as children of the rule that writes the braces. Most repetitions are lists, such as terms, digits, and sentences. Flat lists show those parts without nested wrappers.
 
