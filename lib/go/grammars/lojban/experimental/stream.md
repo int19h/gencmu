@@ -104,8 +104,7 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   $q:cmavo-token
 %conditions
   SI ⊆ $q.classes,
-  $q.value ≠ "ze'ei",
-  $q.value ≠ "zei" ∨ ¬$q.following-tokens.begins(punctuation-word-gap)
+  $q.value ≠ "ze'ei"
 
 %redefine-rule zei-spelling
   Cmavo
