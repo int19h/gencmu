@@ -30,9 +30,9 @@ Different letters or incompatible conditions separate most alternatives. Other a
 
 A y-hyphen is a `y` between rafsi. An r-hyphen is `r` before a consonant, or `n` before `r`.
 
-Plain optionals and repetitions express parts whose presence or count follows from their context. A shorter name body leaves a letter that the required final consonant cannot absorb before the pause. A shorter nucleus-apostrophe run leaves an apostrophe where the last nucleus must begin. A shorter unstressed rafsi or syllable run cannot reach the stressed core or its required hyphen. Consonantal syllables cannot consume the start of a following vowel-bearing syllable. A following rafsi cannot start with an apostrophe or the consonant pair that an r-hyphen supplies.
+Plain optionals and repetitions express parts whose presence or count follows from their context. A shorter name body leaves a letter that the required final consonant cannot absorb before the pause. A shorter nucleus-apostrophe run leaves an apostrophe where the word must end, so the `post-word` test fails. A shorter unstressed rafsi or syllable run cannot reach the stressed core or its required hyphen. Consonantal syllables cannot consume the start of a following vowel-bearing syllable. A following rafsi cannot start with an apostrophe or the consonant pair that an r-hyphen supplies.
 
-Where two stress tests apply to the same constituent, one alternative joins their conditions with `∨`. The grammar gives names one general shape and gives a final coda one form per nonempty length. These forms remove duplicate proofs of the same word. The closing section explains deliberate differences from camxes-std.
+Where two stress tests apply to the same constituent, one alternative joins their conditions with `∨`. The grammar gives names one general shape. Nonempty final codas use one form, with an optional syllabic consonant before the required consonant. These forms remove duplicate proofs of the same word. The closing section explains deliberate differences from camxes-std.
 
 ## Words
 
@@ -287,7 +287,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
 
 A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A borrowing is a head of unstressed syllables, a stressed syllable, any number of consonantal syllables and a final syllable. Its head does not begin with a string of rafsi. It also does not begin with a cmavo, or with a consonant and a string of rafsi. That last test is the slinku'i test of CLL[^cll-s4-7].
 
-An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant or a legal initial cluster, as in `aktyiismu`, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
+An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant, as in `aktyiismu`, a legal initial cluster, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
 
 ```jbogenbau
 %rule fuhivla  (* A borrowing ends with its stressed syllable and final syllable. A vowel-bearing final syllable cannot start with a consonantal syllable. *)
@@ -468,7 +468,7 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 
 
 
-A rafsi followed by `'y` is a `hy_rafsi`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
+A `hy_rafsi` is a CCVCV, CVCCV, CCV, or CVV rafsi body followed by `'y`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
 
 A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
 
@@ -921,7 +921,7 @@ The phoneme stage reads the text before this stage does. This comparison uses `c
   The PEG's `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. Where `ybu` fails, full camxes-std treats the `y` as hesitation, which is space. Full camxes-std rejects `y, bu` and `y , bu`. It reads `doi y, bu` as one letter word `doi bu`, because it treats that `y` as space.
 
   The morphology-only parser reads `y` and `bu` as two words in `y, bu` and `y , bu`. It reads `doi` and `bu` as two words in `doi y, bu`. The words stage reads `y, bu` and `y , bu` as the letter word `y bu`. In `doi y, bu`, it reads `doi` followed by the letter word `y bu`. Both full camxes-std and the words stage read `y ,bu` as that letter word.
-- The PEG reads a lowercase `h` as an apostrophe, and a consonant in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits each apostrophe phoneme as `'` and every consonant in lower case, so the grammar reads only those. A capital vowel outside a capital run is stressed for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
+- The PEG reads a lowercase `h` as an apostrophe, and a consonant or `y` in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits each apostrophe phoneme as `'` and lowercase values for consonants and `y`, so the grammar reads only those. A capital vowel outside a capital run is stressed for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
 - The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). The phoneme stage reads every Unicode `White_Space` character and other punctuation as a pause too. A period between two digits is instead the cmavo `pi`. A no-break space between two words is a pause here, but the PEG rejects it. A [quiet pause](../common/latin.md#punctuation) emits one `PAUSE` with value `" "`. Punctuation in the same pause emits its own [material token](../common/latin.md#punctuation).
 
   A pause token can retain a punctuation apostrophe as its value. The apostrophe rule excludes that token so that raw punctuation never becomes a word phoneme.
@@ -938,7 +938,7 @@ A run stays one hesitation token except for the split that prepares a letter wor
 
 ### Consonant restriction
 
-The consonant rules retain the ban on a consonant followed by a glide and a vowel. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
+The consonant rules retain the ban on a consonant directly followed by a glide. The committee voted for this ban, and CLL 1.3.4 records the vote.[^cll-later-a3-3]
 
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 
