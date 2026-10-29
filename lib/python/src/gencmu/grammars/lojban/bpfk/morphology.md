@@ -22,7 +22,7 @@ Where a rule corresponds to a PEG rule, its name uses lowercase letters and hyph
 
 ## How this grammar states the morphology
 
-A diphthong combines two vowels in one syllable. A nucleus is the vowel or diphthong of a syllable. A glide is an `i` or `u` before a nucleus. An onset is the part of a syllable before its nucleus. A coda is the consonant part after a nucleus.
+A diphthong combines two vowels in one syllable. A nucleus is the vowel, diphthong or `y` at the center of a syllable. A glide is an `i` or `u` before a nucleus. An onset is the part of a syllable before its nucleus. A coda is the consonant part after a nucleus.
 
 This grammar states the morphology's rules directly. Its alternatives have no order. It retains PEG lookaheads where they state word shapes, stress, hyphens, or word boundaries. A lookahead tests the text without consuming it. The conditions use `begins` to test starts, including text beyond the word and before the next pause. They use `matches` to test a complete captured span.
 
@@ -38,7 +38,7 @@ Where two stress tests apply to the same constituent, one alternative joins thei
 
 The phoneme stage supplies phoneme and pause tokens. A stressed vowel has a lowercase value and the `Stressed` tag. The forms stage reads names, particles, predicate words, and hesitation. Names end in consonants before a pause. Particles exclude names, and predicate words cannot complete at a particle start, as the Brivla section explains.
 
-The `¬cmevla` tests in `cmavo` and `final-syllable` require a pause before a name. Thus a brivla never ends directly before a name.
+The `¬cmevla` tests in `cmavo` and `final-syllable` keep a particle or brivla from ending directly before a name. Only hesitation with an even number of `y` letters can stand there without a pause.
 
 The document [../common/forms.md](../common/forms.md) says how words join.
 
@@ -287,7 +287,7 @@ The comment on `initial-rafsi` states why its three alternatives cannot complete
 
 A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A borrowing is a head of unstressed syllables, a stressed syllable, any number of consonantal syllables and a final syllable. Its head does not begin with a string of rafsi. It also does not begin with a cmavo, or with a consonant and a string of rafsi. That last test is the slinku'i test of CLL[^cll-s4-7].
 
-An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant or an initial pair, as in `aktyiismu`, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
+An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before a y-hyphen inside a compound. A `brivla_rafsi` is a head of two syllables or more, followed by `'y`, as `klama'y` in `klama'ybroda`. A `fuhivla_rafsi` is the head of a borrowing followed by an onset and `y`. The onset is a consonant or a legal initial cluster, as in `aktyiismu`, or a glide, as in `spageiybroda`. Each has a stressed form, which stands before `short-final-rafsi`.
 
 ```jbogenbau
 %rule fuhivla  (* A borrowing ends with its stressed syllable and final syllable. A vowel-bearing final syllable cannot start with a consonantal syllable. *)
@@ -468,7 +468,9 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 
 
 
-A rafsi followed by `'y` is a `hy_rafsi`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds. A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
+A rafsi followed by `'y` is a `hy_rafsi`. The BPFK grammar uses it only in lookaheads. It ends a rafsi string, and it keeps `y-less-rafsi` from starting one. The experimental layer also uses it inside compounds.
+
+A long CCVCV form leaves a consonant after its CCV prefix, where the shorter branch requires an apostrophe. The CVV form differs in its second or third letter. Thus only one branch reaches apostrophe-y.
 
 ```jbogenbau
 %rule hy-rafsi                (* An apostrophe-y rafsi ends its classical body with apostrophe-y. Another apostrophe can follow the hyphen. *)
@@ -532,7 +534,7 @@ A rafsi followed by `'y` is a `hy_rafsi`. The BPFK grammar uses it only in looka
 
 ## Syllables and stress
 
-A counted syllable has a vowel nucleus other than `y`. Consonantal syllables do not count.
+A counted syllable has a vowel or diphthong as its nucleus, not `y`. Consonantal syllables do not count.
 
 A vowel, diphthong or syllable is stressed in two cases. In one, the vowel after its onset carries `Stressed`, a written stress mark (`stressed`). In the other, one more counted syllable follows it before a pause (`stress`). Intervening `y` syllables and consonantal syllables do not count. It is unstressed when neither test holds. A capital glide, or a capital second letter of a diphthong, marks nothing.
 
@@ -604,7 +606,7 @@ So an unmarked brivla is stressed on its penultimate counted syllable, and a pau
 
 The `syllable-onset` hook reads an ordinary onset. Syllables, stress tests, the brivla head, and the coda lookahead use it. This includes `final-syllable`. A layer can extend their shared onset without changing the other restrictions. The `cmavo-form-with-onset`, `fuhivla-rafsi`, and `stressed-fuhivla-rafsi` rules read plain `onset` and remain unchanged by that extension.
 
-A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A consonantal syllable cannot consume the same complete letters as a syllable with a vowel nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
+A syllable has an onset, a nucleus, and an optional nonempty coda. A consonantal syllable has a consonant and then a coda that begins with a syllabic consonant. A consonantal syllable cannot consume the same complete letters as a syllable with a nucleus. A coda ends before another syllable or a pause, which are incompatible boundaries. Before a pause, one consonant and two consonants have different lengths. The absent optional covers the empty coda once.
 
 If a coda stands before another syllable, omitting it leaves consonants that cannot begin that syllable. If it stands before a pause, omitting it leaves consonants before that required pause. Thus both presence choices cannot complete the same word.
 
@@ -906,7 +908,7 @@ The `consonant-letter` template takes the character and its forbidden targets. E
 
 ## Differences from CLL and the reference PEG
 
-The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot.
+The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. CLL 1.3.4[^cll-later-a3-3] records two committee votes on word forms. One vote covers [consonants before glides](#consonant-restriction). The other requires a pause before and after every name, and so lifts the ban on `la`, `lai`, `la'i` and `doi` inside names. Any pause serves as the vote's dot. Hesitation also serves, because the Magic Words proposal counts `y` as whitespace.
 
 The PEG implements both votes. CLL 1.3.4 describes the rest of this working grammar, its extended rafsi included, as practice without a vote.
 

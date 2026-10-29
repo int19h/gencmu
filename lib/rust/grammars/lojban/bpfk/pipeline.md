@@ -131,7 +131,9 @@ The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&o
 
 The working morphology applies two committee votes that CLL 1.3.4 records.[^cll-later-a3-3] Names can contain `la`, `lai`, `la'i` and `doi`, so `ladjan.` is one name. No consonant stands before a glide, so `kuarka` is no word.
 
-A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology uses extended rafsi. The PEG puts `'y` after any head of two or more syllables. CLL 1.3.4[^cll-later-s4-16] teaches that only after a whole borrowing, as in `spageti'ykukte`. So `klama'ybroda` goes beyond both CLL 1.1[^cll-c4] and CLL 1.3.4[^cll-later-c4].
+A rafsi is a word form used inside compounds. A brivla is a predicate word. A y-hyphen is a `y` between rafsi.
+
+An extended rafsi is a whole or shortened word before a y-hyphen inside a compound. The PEG puts `'y` after any unstressed start of two or more syllables. CLL 1.3.4[^cll-later-s4-16] teaches that only after a whole borrowing, as in `spageti'ykukte`. So `klama'ybroda` goes beyond both CLL 1.1[^cll-c4] and CLL 1.3.4[^cll-later-c4].
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
 
