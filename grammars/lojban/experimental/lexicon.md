@@ -29,13 +29,13 @@ The implication after the entries marks some words `Indicator`, which the indica
   "si'u" "ta'i" "tai" "ti'i" "ti'u" "tu'i" "va'o" "va'u" "zau" "zu'e" ∈ BAI
   "dei'i'u" "fi'ei" "ja'u" "kai'ai" "nai'i" "pau'u" "po'a" ∈ BAI
   "te'i" "xau" ∈ BAI
-  (* #212: pe'ei marks a connective without changing its syntactic scope. *)
+  (* #257 tracks the missing construction. pe'ei marks a connective without changing its syntactic scope. *)
   "ba'e" "ci'a" "pe'ei" "za'e" "zai'e" ∈ BAhE
-  (* #212: BAhEI has no experimental construction. *)
+  (* #257 tracks the missing construction. BAhEI has no experimental construction. *)
   "ba'ei" ∈ BAhEI
   "be" ∈ BE
   "bei" ∈ BEI
-  (* #212: BEIhE has no experimental construction. *)
+  (* #257 tracks the missing construction. BEIhE has no experimental construction. *)
   "bei'e" ∈ BEIhE
   "be'o" ∈ BEhO
   "bi'e" ∈ BIhE
@@ -60,19 +60,19 @@ The implication after the entries marks some words `Indicator`, which the indica
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
   "mu'o" "nu'e" "pe'u" "re'i" "sa'ei" "ta'a" "vi'o" ∈ COI
-  (* #212: jo'au forms a vocative without changing the parser pipeline. *)
+  (* #257 tracks the missing construction. jo'au forms a vocative without changing the parser pipeline. *)
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
   "bu'oi" "de'a'ai" "di'a'ai" "ke'o'a" "ku'au'i" "sau'ei" "sei'u" ∈ COI
   "ni'au" ∈ COI
-  (* #212: COhAI has no experimental construction. *)
+  (* #257 tracks the missing construction. COhAI has no experimental construction. *)
   "co'ai" ∈ COhAI
-  (* #212: COhEhOhE has no experimental construction. *)
+  (* #257 tracks the missing construction. COhEhOhE has no experimental construction. *)
   "co'e'o'e" ∈ COhEhOhE
   "cu" ∈ CU
-  (* #212: CUhAU has no experimental construction. *)
+  (* #257 tracks the missing construction. CUhAU has no experimental construction. *)
   "cu'au" ∈ CUhAU
   "ba'au" "cu'e" "nau" "pu'au" ∈ CUhE
-  (* #212: xei'u attaches after a word without moving attitudes to the sentence. *)
+  (* #257 tracks the missing construction. xei'u attaches after a word without moving attitudes to the sentence. *)
   "da'o" "xei'u" ∈ DAhO
   "da'ei" "da'oi" "doi" ∈ DOI
   "do'oi" ∈ DOhOI
@@ -82,17 +82,17 @@ The implication after the entries marks some words `Indicator`, which the indica
   "be'a" "bu'u" "ca'u" "du'a" "fa'a" "ga'u" "ne'a" "ne'i" "ne'u" "ni'a" "pa'o" "re'o" "ri'u" ∈ FAhA
   "ru'u" "te'e" "ti'a" "to'o" "vu'a" "ze'o" "zo'a" "zo'i" "zu'a" ∈ FAhA
   "bau'u" "xei'e" ∈ FAhA
-  (* #212: xo'a erases the suffix without switching to Loglan. *)
+  (* #257 tracks the missing construction. xo'a erases the suffix without switching to Loglan. *)
   "fa'o" "xo'a" ∈ FAhO
   "fa'u'u'u'u'u'u'u'u" ∈ FAhO
-  (* #212: FAhOhO has no experimental construction. *)
+  (* #257 tracks the missing construction. FAhOhO has no experimental construction. *)
   "fa'o'o" ∈ FAhOhO
   "fe'e" ∈ FEhE
   "fe'u" ∈ FEhU
   "fi'o" ∈ FIhO
   "foi" ∈ FOI
   "fu'a" ∈ FUhA
-  (* #212: fu'ei requires an indicator instead of opening a quotation closed by fu'o. *)
+  (* #257 tracks the missing construction. fu'ei requires an indicator instead of opening a quotation closed by fu'o. *)
   "fu'e" "fu'ei" ∈ FUhE
   "fu'o" ∈ FUhO
   "ga" "ge" "ge'i" "go" "gu" ∈ GA
@@ -100,7 +100,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ge'u" ∈ GEhU
   "gi" ∈ GI
   "gi'a" "gi'e" "gi'i" "gi'o" "gi'u" ∈ GIhA
-  (* #212: GIhEI has no experimental construction. *)
+  (* #257 tracks the missing construction. GIhEI has no experimental construction. *)
   "gi'ei" ∈ GIhEI
   "goi" "ne" "no'u" "pe" "po" "po'e" "po'u" ∈ GOI
   "bu'a" "bu'e" "bu'i" "co'e" "du" "go'a" "go'e" "go'i" "go'o" "go'u" "mo" "nei" "no'a" ∈ GOhA
@@ -113,16 +113,16 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ja" "je" "je'i" "ji'a'a" "jo" "ju" ∈ JA
   "ja'ei" "jai" ∈ JAI
   "jo'ai" ∈ JAI
-  (* #212: JAIhA has no experimental construction. *)
+  (* #257 tracks the missing construction. JAIhA has no experimental construction. *)
   "jai'a" ∈ JAIhA
-  (* #212: JAIhI has no experimental construction. *)
+  (* #257 tracks the missing construction. JAIhI has no experimental construction. *)
   "jai'i" ∈ JAIhI
-  (* #212: JIhOI has no experimental construction. *)
+  (* #257 tracks the missing construction. JIhOI has no experimental construction. *)
   "ji'oi" ∈ JIhOI
   "ce" "ce'o" "fa'u" "jo'e" "jo'u" "joi" "ju'e" "ku'a" "pi'u" ∈ JOI
   "ce'oi" "jo'oi" ∈ JOI
   "jo'i" ∈ JOhI
-  (* #212: KAUhU has no experimental construction. *)
+  (* #257 tracks the missing construction. KAUhU has no experimental construction. *)
   "kau'u" ∈ KAUhU
   "fei'u" "ke" "pi'ai" "va'au" ∈ KE
   "kei" ∈ KEI
@@ -141,7 +141,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ku'o" ∈ KUhO
   "ku'oi" ∈ KUhOI
   "ce'a" "lau" "tau" "zai" ∈ LAU
-  (* #212: experimental syntax replaces the inherited LA constructions with LE. *)
+  (* #257 tracks the missing construction. Experimental syntax replaces the inherited LA constructions with LE. *)
   "la'ei" "lai'u" ∈ LA
   "la'e" "lu'a" "lu'e" "lu'i" "lu'o" "tu'a" "vu'i" "zo'ei" ∈ LAhE
   "lai'e" "moi'a" ∈ LAhE
@@ -154,7 +154,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "li" "mai'o" "me'o" ∈ LI
   "bo'ai" ∈ LI
   "li'au" ∈ LIhAU
-  (* #212: LIhEI has no experimental construction. *)
+  (* #257 tracks the missing construction. LIhEI has no experimental construction. *)
   "li'ei" ∈ LIhEI
   "li'u" ∈ LIhU
   "lo'ai" "sa'ai" ∈ LOhAI
@@ -165,7 +165,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "la'au" "lu" "tu'ai" ∈ LU
   "lu'ei" ∈ LUhEI
   "lu'u" ∈ LUhU
-  (* #212: sai'ei forms an ordinal modifier instead of an attitude intensity. *)
+  (* #257 tracks the missing construction. sai'ei forms an ordinal modifier instead of an attitude intensity. *)
   "mai" "mo'o" "sai'ei" ∈ MAI
   "ma'o" ∈ MAhO
   "me" "me'au" ∈ ME
@@ -215,12 +215,12 @@ The implication after the entries marks some words `Indicator`, which the indica
   "sei" "ti'o" "xoi" ∈ SEI
   "sei'e" ∈ SEI
   "se'u" ∈ SEhU
-  (* #212: SEhEhI has no experimental construction. *)
+  (* #257 tracks the missing construction. SEhEhI has no experimental construction. *)
   "se'e'i" "ve'e'i" ∈ SEhEhI
   "si" "si'au'i" "ze'ei" ∈ SI
-  (* #212: SIhIhEI has no experimental construction. *)
+  (* #257 tracks the missing construction. SIhIhEI has no experimental construction. *)
   "si'i'ei" ∈ SIhIhEI
-  (* #212: SIhOI has no experimental construction. *)
+  (* #257 tracks the missing construction. SIhOI has no experimental construction. *)
   "si'oi" ∈ SIhOI
   "fi'oi" "soi" ∈ SOI
   "so'oi" ∈ SOhOI
@@ -228,15 +228,15 @@ The implication after the entries marks some words `Indicator`, which the indica
   "su'u'u'u'u'u'u'u" ∈ SUhUhUhUhUhUhUhU
   "di'i" "na'o" "ru'i" "ta'e" ∈ TAhE
   "dei'a" "ze'ai" ∈ TAhE
-  (* #212: TAhOI has no experimental construction. *)
+  (* #257 tracks the missing construction. TAhOI has no experimental construction. *)
   "ta'oi" ∈ TAhOI
   "tei" ∈ TEI
   "te'u" ∈ TEhU
   "to" "to'i" ∈ TO
   "toi" ∈ TOI
-  (* #212: TOIhE has no experimental construction. *)
+  (* #257 tracks the missing construction. TOIhE has no experimental construction. *)
   "koi'e" "toi'e" ∈ TOIhE
-  (* #212: TOIhO has no experimental construction. *)
+  (* #257 tracks the missing construction. TOIhO has no experimental construction. *)
   "toi'o" ∈ TOIhO
   "tu'e" ∈ TUhE
   "tu'u" ∈ TUhU
@@ -263,15 +263,15 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ve'o" ∈ VEhO
   "vi'a" "vi'e" "vi'i" "vi'u" ∈ VIhA
   "vu'o" ∈ VUhO
-  (* #212: VUhOI has no experimental construction. *)
+  (* #257 tracks the missing construction. VUhOI has no experimental construction. *)
   "vu'oi" ∈ VUhOI
   "cu'a" "de'o" "fa'i" "fe'a" "fe'i" "fu'u" "ge'a" "gei" "joi'i" "ju'u" "ne'o" "pa'i" "pi'a" ∈ VUhU
   "pi'i" "re'a" "ri'o" "sa'i" "sa'o" "si'i" "su'i" "te'a" "va'a" "vu'u" ∈ VUhU
-  (* #212: xo'ei needs an operator construction instead of defaulting to zero arguments. *)
+  (* #257 tracks the missing construction. xo'ei needs an operator construction instead of defaulting to zero arguments. *)
   "je'e'e" "nei'au" "xo'ei" ∈ VUhU
   "di'ei'o'au" ∈ VUhU
   "te'ai" "xi" "xi'e" ∈ XI
-  (* #212: XOhI has no experimental construction. *)
+  (* #257 tracks the missing construction. XOhI has no experimental construction. *)
   "xo'i" ∈ XOhI
   "ie'o" ∈ Y
   "ba'o" "ca'o" "co'a" "co'a'a" "co'au'a" "co'i" "co'u" "co'u'a" "de'a" "di'a" "mo'u" "pu'o" ∈ ZAhO
@@ -284,7 +284,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "zi'e" ∈ ZIhE
   "doi'u" "ma'oi" "zo" ∈ ZO
   "la'o" "zoi" ∈ ZOI
-  (* #212: ZOhAU has no experimental construction. *)
+  (* #257 tracks the missing construction. ZOhAU has no experimental construction. *)
   "zo'au" ∈ ZOhAU
   "ci'e'u" "la'oi" "ra'oi" "zo'oi" ∈ ZOhOI
   "ce'ai" "zo'u" ∈ ZOhU
@@ -301,7 +301,7 @@ The implication after the entries marks some words `Indicator`, which the indica
 
 All 255 experimental cmavo whose highest English score is at least three appear here. The dictionary gives `io'e` no selma'o. Its English definition 71929 scores three and calls it an attitudinal. The maintainers therefore assign it UI from that definition.
 
-The lexicon also includes `ci'au'u` as a required companion of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because the CIhAU construction needs its written terminator.
+The lexicon also includes `ci'au'u` as the companion closer of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because CIhAU needs this companion closer before further attitudes that stand outside the conversion.
 
 The dictionary gives `la'ai` class LOhU. Every written example in [definition 56471](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/la%27ai/en-56471.md) closes with `le'u`. The words stage reads the quote through `le'u`, as that definition shows. The pipeline accepts `la'ai meri.celi le'u` and `la'ai li bai le'u jungo prenu`.
 
@@ -445,29 +445,29 @@ The broader IRC search finds 59 matching lines, including mentions and substring
 
 ### Classes and words without their defined constructions
 
-Classification does not add a construction to the grammar. The comments mark unsupported experimental uses with [issue #212](https://github.com/int19h/gencmu/issues/212). Those words retain their dictionary class even where the syntax rejects them.
+Classification does not add a construction to the grammar. [#257](https://github.com/int19h/gencmu/issues/257) tracks unsupported experimental uses. The comments identify them. Those words retain their dictionary class even where the syntax rejects them.
 
 The unsupported classes tracked there are BAhEI, BEIhE, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, JAIhA, JAIhI, JIhOI and KAUhU. They also include LA, LIhEI, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
 
 The [mekso rules](syntax.md#numbers-lerfu-strings-and-mekso) also provide no `bi'e` grouping (`BIhE`) and no `jo'i` array (`JOhI`).
 
-Corpus evidence also supplies words in SIhIhEI, SIhOI, TAhOI and TOIhO. Their constructions still wait for #212.
+Corpus evidence also supplies words in SIhIhEI, SIhOI, TAhOI and TOIhO. #257 tracks their constructions.
 
-Some words belong to supported classes but need different constructions. Their comments also name #212. The following notes distinguish their current readings from their defined uses.
+Some words belong to supported classes but need different constructions. Their comments also name #257. The following notes distinguish their current readings from their defined uses.
 
-The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The indicator stage instead requires an indicator immediately after it. Thus `mi fu'ei klama fu'o` rejects at `klama`. With an indicator, `fu'ei ui mi klama fu'o` parses as an indicator group and a sentence, without a quotation. Its quotation use waits for #212.
+The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The indicator stage instead requires an indicator immediately after it. Thus `mi fu'ei klama fu'o` rejects at `klama`. With an indicator, `fu'ei ui mi klama fu'o` parses as an indicator group and a sentence, without a quotation. #257 tracks its quotation use.
 
-The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The words stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
+The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The words stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. #257 tracks its language switch.
 
-The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected pipeline. Pipeline switching waits for #212.
+The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected pipeline. #257 tracks pipeline switching.
 
-The dictionary gives `xei'u` class DAhO to attach following attitudes to the containing sentence. The indicator stage instead attaches both `xei'u` and the attitudes to the preceding word. Its special attachment rule waits for #212.
+The dictionary gives `xei'u` class DAhO to attach following attitudes to the containing sentence. The indicator stage instead attaches both `xei'u` and the attitudes to the preceding word. #257 tracks its special attachment rule.
 
-The dictionary gives `sai'ei` class MAI to express attitude intensity with a number. The syntax instead reads the number and MAI as an ordinal free modifier. It does not attach that number to the preceding attitude. Its intensity construction waits for #212.
+The dictionary gives `sai'ei` class MAI to express attitude intensity with a number. The syntax instead reads the number and MAI as an ordinal free modifier. It does not attach that number to the preceding attitude. #257 tracks its intensity construction.
 
-The dictionary gives `pe'ei` class BAhE for a connective with maximal scope. The indicator stage marks the connective, but the syntax keeps its ordinary scope. Its special scope rule waits for #212.
+The dictionary gives `pe'ei` class BAhE for a connective with maximal scope. The indicator stage marks the connective, but the syntax keeps its ordinary scope. #257 tracks its special scope rule.
 
-The dictionary gives `xo'ei` class VUhU for a digit-string operator with an optional argument. Without that argument, its length is unspecified. The syntax instead requires an ordinary operator construction with operands. It does not accept `li xo'ei lo'o` as a number. Its implicit-argument construction waits for #212.
+The dictionary gives `xo'ei` class VUhU for a digit-string operator with an optional argument. Without that argument, its length is unspecified. The syntax instead requires an ordinary operator construction with operands. It does not accept `li xo'ei lo'o` as a number. #257 tracks its implicit-argument construction.
 
 ### Other baseline differences
 
