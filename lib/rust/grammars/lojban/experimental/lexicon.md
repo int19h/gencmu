@@ -445,9 +445,11 @@ The broader IRC search finds 59 matching lines, including mentions and substring
 
 ### Classes and words without their defined constructions
 
-Classification does not add a construction to the grammar. Comments beside each unsupported class name [issue #212](https://github.com/int19h/gencmu/issues/212). Those words retain their dictionary class even where the syntax rejects them.
+Classification does not add a construction to the grammar. The comments mark unsupported experimental uses with [issue #212](https://github.com/int19h/gencmu/issues/212). Those words retain their dictionary class even where the syntax rejects them.
 
-The unsupported classes are BAhEI, BEIhE, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, JAIhA, JAIhI, JIhOI and KAUhU. They also include LA, LIhEI, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
+The unsupported classes tracked there are BAhEI, BEIhE, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, JAIhA, JAIhI, JIhOI and KAUhU. They also include LA, LIhEI, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
+
+The [mekso rules](syntax.md#numbers-lerfu-strings-and-mekso) also provide no `bi'e` grouping (`BIhE`) and no `jo'i` array (`JOhI`).
 
 Corpus evidence also supplies words in SIhIhEI, SIhOI, TAhOI and TOIhO. Their constructions still wait for #212.
 
