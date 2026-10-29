@@ -638,11 +638,9 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   $c.following-tokens.begins(any-syllable)
 
 %rule coda-before-pause  (* A final coda has one consonant or a syllabic consonant and another consonant. Their lengths before the pause cannot coincide. *)
-  | $c:consonant
-  | syllabic $d:consonant
+  [syllabic] $c:consonant
 %conditions
-  $c.following-tokens.begins(pause),
-  $d.following-tokens.begins(pause)
+  $c.following-tokens.begins(pause)
 
 %rule onset  (* An apostrophe, glide, or consonant initial precedes a nucleus. An empty initial before apostrophe cannot reach that nucleus. Initial forbids a following glide. *)
   h | glide | initial
@@ -670,13 +668,11 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %rule diphthong-letters  (* The four diphthongs differ in their first or second letter. A repeated i or u cannot follow the matching diphthong. *)
   | a $i:i
   | a $u:u
-  | e $j:i
-  | o $k:i
+  | e $i:i
+  | o $i:i
 %conditions
   ¬$i.following-tokens.begins(i),
-  ¬$u.following-tokens.begins(u),
-  ¬$j.following-tokens.begins(i),
-  ¬$k.following-tokens.begins(i)
+  ¬$u.following-tokens.begins(u)
 
 %rule vowel  (* A vowel cannot end directly before another nucleus. *)
   $v:vowel-letter
