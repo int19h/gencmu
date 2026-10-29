@@ -255,28 +255,28 @@ A list has no node, so nothing can name it, capture it or test it. The clauses o
 
 ### Chains in the tree
 
-Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads. The tree format writes it the same way. A rounded box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads. The tree format writes it the same way. A rounded box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree. The flat rule `%rule sum {term / "+"}` gives this tree:
 
 ```mermaid
 flowchart TB
-  subgraph flat ["flat: %rule sum {term / #quot;+#quot;}"]
-    direction TB
-    f["sum"] --> f1["term · 1"]
-    f --> fp1(["#quot;+#quot;"])
-    f --> f2["term · 2"]
-    f --> fp2(["#quot;+#quot;"])
-    f --> f3["term · 3"]
-  end
-  subgraph chain ["left chain: %rule sum {... term / #quot;+#quot;}"]
-    direction TB
-    c["sum"] --> c12["sum"]
-    c --> cp2(["#quot;+#quot;"])
-    c --> c3["term · 3"]
-    c12 --> c1s["sum"]
-    c12 --> cp1(["#quot;+#quot;"])
-    c12 --> c2["term · 2"]
-    c1s --> c1["term · 1"]
-  end
+  f["sum"] --> f1["term · 1"]
+  f --> fp1(["#quot;+#quot;"])
+  f --> f2["term · 2"]
+  f --> fp2(["#quot;+#quot;"])
+  f --> f3["term · 3"]
+```
+
+The left chain `%rule sum {... term / "+"}` gives this tree:
+
+```mermaid
+flowchart TB
+  c["sum"] --> c12["sum"]
+  c --> cp2(["#quot;+#quot;"])
+  c --> c3["term · 3"]
+  c12 --> c1s["sum"]
+  c12 --> cp1(["#quot;+#quot;"])
+  c12 --> c2["term · 2"]
+  c1s --> c1["term · 1"]
 ```
 
 A Lojban example from the syntax grammar of `lojban/cll` is `%rule tag {... tense-modal / joik-jek}`. It reads `ba je ca je pu` as three `tag` nodes in the same way.
