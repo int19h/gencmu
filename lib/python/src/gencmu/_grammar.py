@@ -1108,7 +1108,8 @@ class Lowered:
     # a token matches them by its characters and not by a tag.
     by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
     by_first_characters: list[dict[str, list[int]]] = field(default_factory=list)
-    not_terminal_first: list[list[int]] = field(default_factory=list)
+    # Nonterminal-first productions and productions with prediction conditions.
+    unfiltered_predictions: list[list[int]] = field(default_factory=list)
     # The stage's classifiers for the same features, and its implications
     # (engine §2, §11).
     classifiers: Classifiers = field(default_factory=dict)
@@ -1152,14 +1153,14 @@ class Lowered:
         )
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
-        self.not_terminal_first = [[] for _ in self.rule_names]
+        self.unfiltered_predictions = [[] for _ in self.rule_names]
         for production in self.productions:
             if production.rhs and production.terminal[0]:
                 first: str = production.rhs[0]  # type: ignore[assignment]
                 table = self.by_first_characters if first in self.characters else self.by_first_terminal
                 table[production.lhs].setdefault(first, []).append(production.id)
-            else:
-                self.not_terminal_first[production.lhs].append(production.id)
+            if not production.rhs or not production.terminal[0] or production.conds_predict:
+                self.unfiltered_predictions[production.lhs].append(production.id)
 
 
 CharacterClass = Union[tuple[int, int], str, None]

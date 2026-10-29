@@ -1,0 +1,8 @@
+{
+  "description": "Prediction evaluates capture-free conditions before lookahead skips an unreadable terminal (engine §4).",
+  "grammar": "%rule text good | bad\n%rule good \"a\" \"a\"\n%rule bad \"b\" %conditions \"x\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "aa",
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -601,7 +601,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 			if strict && reading.last[baseProduction(p)] < 0 {
 				continue
 			}
-			if r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+			if len(p.predictConds) == 0 && r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
 				continue
 			}
 		}
@@ -612,6 +612,9 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 		}
 		if q != nil {
 			return q
+		}
+		if r.suffix == nil && len(p.rhs) > 0 && p.rhs[0].term && !r.canRead(k, p.rhs[0].id) {
+			continue
 		}
 		if ok {
 			key := itemKey{prod: p, origin: int32(k)}
