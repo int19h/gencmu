@@ -68,5 +68,25 @@
         ]
       }
     ]
+  },
+  {
+    "description": "The editor preserves parent segments above the document-map base.",
+    "sources": {
+      "p.md": "```jbogenbau\n%names \"../names.txt\"\n%stage main\n%ambiguity-resolution greedy\n%include \"../g.md\"\n```\n",
+      "../g.md": "```jbogenbau\n%rule text \"a\"\n```\n",
+      "../names.txt": "unicode-names 15.1.0\nname E000 EDITOR PRIVATE LETTER\n"
+    },
+    "documents": [
+      "p.md",
+      "../g.md"
+    ],
+    "stages": [
+      {
+        "name": "main",
+        "documents": [
+          "../g.md"
+        ]
+      }
+    ]
   }
 ]

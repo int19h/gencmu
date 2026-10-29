@@ -973,7 +973,9 @@ The playground has these parts:
 - The diagnostics above
 - An editor for the grammar documents, which parses the text again at once after each edit and lets the user download the edited documents
 
-The editor lists a pipeline's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a `Blob` worker, so a long text does not freeze the page.
+The editor lists a pipeline's documents stage by stage. A forgiving scan of stage selectors and `%include` directives finds them (`playground/pipeline.js`). The scan resolves include and names targets under the path rule of engine §13. So a pipeline with an error, a missing document or a cycle still shows every document it reaches. Parsing runs in a `Blob` worker, so a long text does not freeze the page.
+
+An absolute target gives a grammar error at its directive. The editor keeps that error and continues through valid targets. It never lists a relative alias for the absolute target.
 
 ## Output formats
 
