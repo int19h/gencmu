@@ -53,7 +53,7 @@ After span ranking, a smaller count wins. Equal counts leave late elision to dec
 
 This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
-So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
+The `leftmost-longest` flag on `free` gives `to mi klama` the sentence `mi klama`, because the longer parenthesis wins. Late elision gives `lu mi klama` the sentence `mi klama` in its quote, because the other reading omits terminators earlier, after `mi`.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
@@ -73,7 +73,7 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ## The text and its paragraphs
 
-The layer changes the text in five ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names.
+The layer changes the text in six ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names, with `cbm` off. `nai .djan. mi klama` rejects by default. It parses with `--no-feature cbm`.
 
 The second change permits an ek after a text-leading `.i`, as in `.i .e do klama`. After that connective, an optional tense can precede `bo`. The rule writes that tense as a `tag`. A `stag` is a `tag` in this pipeline, so either name reads the same words.
 
@@ -87,13 +87,13 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps `do` inside the vocative. Empty paragraphs can separate runs, as in `ni'o coi ni'o coi`. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
+The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps `do` inside the vocative. `ni'o coi ni'o coi` forms one break, with nonempty free modifiers between its NIhO groups. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
 
 `paragraph-break` collects the topic runs at one paragraph boundary. It can precede the first paragraph, separate two paragraphs, or follow the last paragraph. Nonempty free modifiers separate adjacent NIhO runs, so one run cannot split at an empty free slot. A free slot follows each run group, including the group before the I transition. `leading-separators` collects the ordinary text-leading `.i` forms, both before an initial break and after any break.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the pipeline rejects `.djan. mi klama`.
 
-All four connective families can stand before the first `.i` of a text, as in `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
+The sixth change permits all four connective families before the first `.i` of a text. Examples are `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
 
 A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
 
@@ -125,9 +125,9 @@ A reset needs an earlier construction, so `iau mi klama` rejects. A reset after 
 
 The prefix condition keeps adjacent leading free modifiers together. Otherwise, a free slot before the sentence and the reset prefix can split the same modifiers into duplicate readings.
 
-A written VAU closes a simple main bridi. After connected tails, only a written VAU in the shared tail terms closes it. A VAU inside a forethought branch closes that branch alone.
+A written VAU closes a simple main bridi. After connected tails, only a written VAU in the shared tail terms closes it. A VAU inside a forethought branch closes that branch alone. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
 
-A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
+A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `ke ge mi klama gi do cadzu ke'e iau ti` rejects. The same text with `iau ui` in place of `iau ti` parses.
 
 ```jbogenbau
 %const $NEEDS-TEXT #(ek ⋰) ∪ #(VUhU ⋰)
@@ -178,7 +178,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   [CU 🆓] {terms / CU 🆓} [CU 🆓]
 
 %rule lone-i
-  (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
+  (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`. *)
   $i:I
 %conditions
   ¬$i.following-tokens.begins(joik-jek-ek)
@@ -249,11 +249,11 @@ A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. The `gi-stag-connective` rule also opens these groups with `gi` and a stag, as in `mi klama gi ba bo tavla`.
 
-A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU with nonempty shared tail terms also keeps it.
+A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU after written KEhE with nonempty shared tail terms also keeps it.
 
 A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
 
-The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
+The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A reset with IhAU also closes the place. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
@@ -299,7 +299,8 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %const $KE-FORETHOUGHT #« [tag] KE [🆓] gek-sentence KEhE [🆓] »
 %const $CONNECTED-KE-SELBRI #« [tag] $KE-UNIT »
 %const $CONNECTED-KE-TAIL #« $CONNECTED-KE-SELBRI tail-terms » ∪ $KE-FORETHOUGHT
-%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
+%const $CONNECTED-WRITTEN-KE-SELBRI #« [tag] $WRITTEN-KE-UNIT »
+%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-WRITTEN-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
 %rule headed-bridi-tail-with(@T, @G, @P, @H)
   [bridi-tail-head] bridi-tail-with(@T, @G, @P, @H)
@@ -472,13 +473,15 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 
 ## Terms
 
-The layer joins terms at two levels. A connective, an optional stag, and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. Thus `broda be na ku .e bo na ku .a na ku` groups its terms as `(na ku .e bo na ku) .a na ku`. Joik, jek, ek, and VUhU supply these connectives.
+The layer joins terms at two levels. A connective, an optional stag, and `bo` join terms into a `term-bo-group`. Free modifiers can follow `bo` before the next term. A plain connective joins those groups through `term-link`. Thus `broda be na ku .e bo na ku .a na ku` groups its terms as `(na ku .e bo na ku) .a na ku`. Joik, jek, ek, and VUhU supply these connectives.
 
 Plain connections group from the left. A run of BO connections groups from the right, as CLL requires.[^cll-s14-8]
 
 A term stands in heads, tails, prenexes, fragments, and NUhI termsets. BE, BEI, GOI, LAhE, and NAhE each take one term. Branches of a bare forethought termset also take terms.
 
-A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zi'e`, `zo'u`, `ce'e`, and `pe'e`. Written terminators of surrounding constructions also close the place. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. An omitted terminator never counts as a closing word.
+A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too.
+
+Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zi'e`, `zo'u`, `ce'e`, and `pe'e`. Written terminators of surrounding constructions also close the place. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. A reset with IhAU also closes the place because it stands for the sentence's elided terminators. Thus `do klama pu iau ti` and `mi klama na iau do` omit KU before `iau`. An omitted terminator never counts as a closing word.
 
 A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
@@ -507,8 +510,6 @@ Each term level has its own link rules and sumti conditions. A BO group takes it
 PEhE takes any statement connective. `terms-1` forms a left chain in ordinary terms and forethought branches alike. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 
 A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late-elision` prefers it.
-
-The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
 
 Thus `ge mi gi do ce'e ti` contains a connected sumti followed by CEhE and another term. In `broda be ge mi gi do ce'e ti be'o`, BE instead takes a termset. Its single argument cannot continue with CEhE after a sumti.
 
@@ -648,11 +649,11 @@ These terms carry no span or connection flag. Their contained predicates use the
 
 Sumti connectives are ek, joik, jek or VUhU (`connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their values. The new sumti are these:
 
-- `na'e` and `lu'u` surround a sumti, without `bo`.
-- `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
-- `na'e` around a term that is neither a sumti nor a tense or modal with its sumti or `ku`, such as `na ku`
-- `lo'oi` and `ku'au` surround a subsentence as a description.
-- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the words stage delimits
+- A word of `LAhE` or `NAhE`, or `NAhE` followed by `BO`, wraps a sumti and closes with `LUhU`.
+- A word of `LAhE`, or `NAhE` followed by `BO`, wraps a term that is not a sumti.
+- A word of `NAhE` wraps a term that is neither a sumti nor one tagged term. A place tag such as `fa` counts.
+- A word of `LOhOI` wraps a subsentence and closes with `KUhAU`.
+- A word of `ZOhOI`, including `ci'e'u`, opens a single-word quote. The words stage delimits its body.
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar accepts `mi na'e pu ku .e ca lu'u klama`. The first tag requires KU before `.e`. The second can omit KU before `lu'u`.
 
@@ -750,7 +751,7 @@ The recursive NA alternative uses the forethought-opener condition of `gek-sente
 
 A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-`me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
+A query is a parse requested by a condition. `me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
 
 The whole `mex MOI 🆓` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
 
@@ -888,7 +889,7 @@ Emphasis before an attitude or its NAI remains attached to that token. It does n
 The layer reads mekso with the rules below. Its number and lerfu rules leave the CLL helper `number-continuation` unreachable because their conditions read the actual following node. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
 - A number starts with PA, `ni'e` selbri or `mo'e` sumti. It continues with those parts or lerfu words. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one lerfu string, and `li pa by` is one number.
-- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
+- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `LAhE` or `NAhE` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
 - Plain operator connections use `connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
@@ -1003,11 +1004,11 @@ An ek connects sumti with A, and a jek connects predicates with JA. Both permit 
 
 A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The `bare-na` conditions exclude a bare NA term where NA begins a connective. The words can connect sumti or terms, and the term conditions keep the sumti reading.
 
-A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
+A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a joik, a jek or an ek. For example, `joi gi mi broda gi mi brode` parses. A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
 After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
-The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. The GA class test excludes caller-supplied tokens with value `ga` or `gu` but no GA tag.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress.
 
 ```jbogenbau
 %redefine-rule ek
@@ -1109,6 +1110,8 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
 
 A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The words stage reads its contents as raw words and emits one quote token ([`../common/lohai.md`](../common/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
 
+The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
+
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
 A vocative starts with a run of COI words, DOI, or both. A COI run returns no tags, and DOI alone keeps its tags. The indicator stage attaches any following NAI to the preceding word, so the syntax reads no separate NAI after COI.
@@ -1188,11 +1191,17 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 camxes-exp tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Both this layer and CLL read `le sutra tavla` as a fragment.
 
-The [experimental lexicon](lexicon.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental pipeline enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
+The [experimental lexicon](lexicon.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks. LA is the only such class.
 
-The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
+The experimental pipeline enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
 
-The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
+The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp reads its digit runs and its letter runs as far as possible, but it splits mixed runs. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
+
+The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
+
+A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions see a written-back terminator as omitted, but the reconstruction reads it as a token. So such a condition can admit a second reading of the written-back text.
+
+Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
 
 ### Text and sentence connections
 
@@ -1206,7 +1215,7 @@ The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](../cll/
 
 Thus `ni'o coi do .i mi klama` keeps `do` in the vocative. Neither printed CLL nor camxes-exp provides that separator position. Printed CLL instead shortens the vocative and reads `do` as a fragment before `.i`. camxes-exp rejects that text at `klama`.
 
-Empty paragraphs between topic runs also follow camxes-exp's optional `paragraph`. CLL requires a nonempty paragraph there. So this layer accepts `ni'o coi ni'o coi` to preserve free modifiers between topic markers.
+One paragraph break holds several NIhO groups when nonempty free modifiers separate them. Thus `ni'o coi ni'o coi` forms one break.
 
 Within a paragraph break, `.i ni'o` can stand once, after a topic run and its free modifiers. It precedes the text-leading `.i` forms. This form permits a topic change inside a reply. CLL and camxes-exp reject `mi klama ni'o .i ni'o`. Another such transition needs an intervening nonempty paragraph. A final `ni'o` also follows camxes-exp.
 
@@ -1238,9 +1247,9 @@ BO scope differs too. In `mi klama do .e bo tavla ti gi'a cadzu ko'a`, this laye
 
 A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer includes it. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer tests the whole selected tail. Only a complete KE-unit tail or KE-wrapped forethought sentence yields to the final connective's KE group. A continuing selbri, an earlier link, or written inner VAU with nonempty outer terms keeps the plain reading. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
+camxes-exp uses lookahead after its gihek. This layer tests the whole selected tail. Only a complete KE-unit tail or KE-wrapped forethought sentence yields to the final connective's KE group. A continuing selbri, an earlier link, or written inner VAU after written KEhE with nonempty outer terms keeps the plain reading. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
 
-Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi broda gi'e ke brode ke'e bo brodi`. Their selbri continue beyond KEhE. It also keeps `mi broda gi'e ke brode ke'e gi'e brodo`, whose KE unit precedes another link. In `mi broda gi'e ke brode ke'e vau do`, written inner VAU separates the two tail-term runs. The whole-tail tests preserve these plain readings because the connective's KE group cannot read the same words.
+Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi broda gi'e ke brode ke'e bo brodi`. Their selbri continue beyond KEhE. It also keeps `mi broda gi'e ke brode ke'e gi'e brodo`, whose KE unit precedes another link. In `mi broda gi'e ke brode ke'e vau do`, written inner VAU after written KEhE separates the two tail-term runs. The whole-tail tests preserve these plain readings because the connective's KE group cannot read the same words.
 
 Only the final connection has the connective's KE-group alternative. This layer therefore accepts `mi broda gi'e ke ge brode gi brodi ke'e gi'e brodo` as a non-final plain connection, while camxes-exp rejects it.
 
@@ -1260,7 +1269,11 @@ The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a t
 
 camxes-exp writes successive BO term links as a flat list. This layer groups them from the right, as CLL 14.8 requires, to match its sumti and selbri connections.
 
-camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
+camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there.
+
+A free modifier can also follow `bo` in a term connection. Thus `fa mi .e pu bo to broda toi fe do klama` parses here. camxes-exp has no corresponding slot in either `term_2` or `abs_term_2` and rejects that text.
+
+camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
 
@@ -1294,7 +1307,7 @@ After `vu'o`, a connected sumti can follow with or without relative clauses. Thu
 
 Bare NA records an omitted KU, as camxes-exp's `KU_elidible` requires. That marker participates in elision ranking and restoration queries.
 
-This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
+This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. A written IhAU reset also closes the place. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
 
 Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
 
@@ -1356,7 +1369,7 @@ Preposed linked arguments follow camxes-exp. If a unit precedes a `be` group, th
 
 ### Mekso and connectives
 
-The mekso rules follow camxes-exp.peg except for mixed numbers and letter strings, forethought operators without PEhO, and free modifiers after FUhA. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists.
+The mekso rules follow camxes-exp.peg except where the paragraphs below state a difference. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists.
 
 FUhA takes a free-modifier slot here, as other mathematical introducers do. Thus `li fu'a to mi toi pa boi re su'i` accepts here. camxes-exp's `mex_2` has no slot after FUhA and rejects that parenthesis.
 

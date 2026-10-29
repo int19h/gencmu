@@ -6443,3 +6443,5 @@ adhoc.syntax.gihek-ke-elided-before-vau
 adhoc.kihei.initial-empty-position
 adhoc.kihei.initial-empty-positions-only
 adhoc.syntax.gihek-ke-elided-before-vau.bpfk
+adhoc.syntax.experimental.ke-elided-before-vau
+adhoc.syntax.experimental.ke-elided-inner-terms-before-vau

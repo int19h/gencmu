@@ -74,7 +74,7 @@ A magic right word rejects because this construction does not dispatch new word 
 
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
-The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base.
+The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base. Nothing in this pipeline then reads `punctuation-word-gap`, which the shared rule still needs for Zantufa.
 
 ```jbogenbau
 %extend-rule unit
@@ -104,8 +104,7 @@ The spelling guard also covers `ze'ei`, so punctuation cannot escape into an ear
   $q:cmavo-token
 %conditions
   SI ⊆ $q.classes,
-  $q.value ≠ "ze'ei",
-  $q.value ≠ "zei" ∨ ¬$q.following-tokens.begins(punctuation-word-gap)
+  $q.value ≠ "ze'ei"
 
 %redefine-rule zei-spelling
   Cmavo
@@ -133,9 +132,9 @@ The erased prefix emits no token. A later SI, SA, or SU cannot restore it or fin
 
 Opaque quotations keep an internal eraser literal. A grammatical quotation does not hide its words from word operations.
 
-An active FAhO ends the text before a later eraser can act. Arbitrary malformed foreign prefixes gain no recovery rule.
+An active FAhO ends the text before a later eraser can act. The eraser cannot remove text that the words stage rejects, so `ß su'u'u'u'u'u'u'u mi klama` still fails at `ß`.
 
-The empty-prefix alternatives handle both an empty stream and a nonempty stream. This eraser operates independently of `sa-su` and `su-boundary`.
+One alternative of `empty` reads the eraser at the start of the text, and the other reads it after other words. This eraser operates independently of `sa-su` and `su-boundary`.
 
 ```jbogenbau
 %redefine-const $SU-STOPS

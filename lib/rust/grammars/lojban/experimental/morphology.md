@@ -284,9 +284,7 @@ This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permi
 
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
 
-The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa also recognizes it, but restricts where hesitation counts as spacing.
-
-Hesitation counts as spacing in every gap, in raw one-word quotes and between words.
+The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa restricts where hesitation counts as spacing. Here it counts as spacing in every gap, so `zo'oi ie'o broda` quotes `broda`.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 
