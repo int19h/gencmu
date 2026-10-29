@@ -907,7 +907,7 @@ An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCal
 
 An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in expanded rule order.
 
-Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. The comparison follows the finite written argument trees and never expands a nominal reference's body. It accepts either direction of that replacement. It also applies inside nested argument forms.
+Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. Only the bare reference changes during this comparison. Decorations, including `exact` and `children`, must still match on both nodes. The comparison follows the finite written argument trees and never expands a nominal reference's body. The comparison accepts either direction and applies inside nested argument forms.
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `flagsBefore`, and `flagsAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `flags` gives the final effective flag list. The printed report shows the same facts and names public bindings without implying wrapper rules.
 

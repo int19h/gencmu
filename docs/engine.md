@@ -475,6 +475,8 @@ When `%extend-rule` extends a rule, each appended alternative carries the extens
 
 A rule flag gives a rule a preference. Two flags exist, `leftmost-longest` and `fewest`, and a rule carries at most one. `%rule(F)` defines a flagged rule, and `%redefine-rule(F)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
 
+Rule flags follow the same reader checks in ordinary rules, templates, calls, and patterns. An unknown flag fails at that flag. A repeated flag fails at the repetition. Two different flags fail at the second flag.
+
 Parentheses follow the keyword and precede the name. Their only accepted content is one flag name, `leftmost-longest` or `fewest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
 The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, and `%include` shape the pipeline (§13). Global `%features` also shapes the pipeline. Local `%features` and `%ambiguity-resolution` belong to a stage.
@@ -496,6 +498,8 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
+
+Constant type propagation revisits dependent declarations in ascending declaration order. This order also decides which dependent type error the loader reports first.
 
 A constant belongs to its stage, as a rule does. A document in several stages or pipelines takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
@@ -2717,6 +2721,8 @@ Initially, every string, range, wildcard, or tag terminal is consuming. `ε` is 
 
 Propagate consuming marks until none changes, starting with terminals alone. Recursive references without a reachable terminal remain unmarked. Recursion with a reachable terminal becomes consuming. This does not require a finite successful derivation. Thus `z → z` is unmarked, but `"a" z` is consuming even though its branch is unproductive.
 
+The loader can decide overlap with one expression walk after consuming marks settle. Two whole carriers conflict when any expansion consumes input. A whole carrier conflicts with a named carrier when any binding of that name consumes input. The analysis does not enumerate expansion products.
+
 Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means that this analysis does not mark it. An absent carrier drops before overlap comparison, while an inserted item has no input span.
 
 For each production, two whole carriers conflict if its expression is consuming. A whole carrier conflicts with every consuming named carrier or attachment capture in that production. Distinct named carriers and attachment captures remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
@@ -2763,6 +2769,12 @@ The reader takes semantic names and syntax from token values, including rule nam
 String decoding preserves dollar signs literally. `++` joins string operands in conditions, constants, closed terms, and recipes. Include paths retain original spelling outside escapes. §9.1 defines string escapes and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
+
+Reader errors retain their construct positions. After constant binding, a wide endpoint error uses that endpoint's first constant reference, otherwise the definition. A reversed range error uses the first constant reference in the left endpoint. Without one, it uses the first constant reference in the right endpoint, otherwise the definition.
+
+For an elidable head, take the first item of a sequence, otherwise the expression itself. Unwrap only `=`, `≠`, and `tags` tests. Require a capitalized user-tag reference, or a declared parameter before expansion. The symbol-test walk then rejects repeated tests at the later test.
+
+A pattern term is closed for constant validation. Its pattern schema reports malformed value tests, including missing operands and captures.
 
 Pattern constructors use the authoritative table above. Readers retain every child-list boundary specified in `docs/output.md`, including empty and singleton lists. Parentheses add no boundary.
 
