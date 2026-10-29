@@ -44,7 +44,7 @@
 
   const pipelinePath = (name) => `grammars/${name}/pipeline.md`;
   // The selector has a preferred order. The enumeration API stays in code-point order.
-  const preferredPipelines = ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "lojban/examples/kihei", "gencmu/jbogenbau"];
+  const preferredPipelines = ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa", "lojban/examples/kihei", "eberban/refgram", "gencmu/jbogenbau"];
   const pipelineNames = self.gencmu.bundledPipelines(bundled);
   pipelineNames.sort((a, b) => {
     const rank = (name) => {
