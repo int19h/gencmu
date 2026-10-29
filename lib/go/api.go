@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -170,7 +169,7 @@ func (l *loader) activatePreparsed(document string) {
 type loader struct {
 	preparsedRead      func(string) (string, bool)
 	families           map[string]familyPreparsed
-	read               func(p string) (string, bool)
+	read               func(p string) (string, bool, *Error)
 	uni                *unicodeTable
 	reader             *notationReader
 	bootstrapHash      string
@@ -194,7 +193,10 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 	if len(selected) > 0 {
 		inherited = selected[0]
 	}
-	text, ok := l.read(p)
+	text, ok, readErr := l.read(p)
+	if readErr != nil {
+		return nil, readErr
+	}
 	if !ok {
 		return nil, &Error{Kind: ErrorGrammar, Document: p, Message: "the document is missing"}
 	}
@@ -212,7 +214,11 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 		key := domCacheKey{p, fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}
 		if raw, ok := l.preparsed[key]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
-				candidate := newNamesScope(l.namesText, l.uni, selectedNames(p, dom, inherited))
+				selected, err := selectedNames(p, dom, inherited)
+				if err != nil {
+					return nil, err
+				}
+				candidate := newNamesScope(l.namesText, l.uni, selected)
 				match, err := candidate.matches(l.preparsedNames[key], l.bundledNames, l.namesOverride)
 				if err != nil {
 					return nil, err
@@ -254,14 +260,17 @@ func bundledNamesText(p string) (string, bool) {
 	data, err := bundledFS.ReadFile(p)
 	return string(data), err == nil
 }
-func (l *loader) namesText(p string) (string, bool) {
+func (l *loader) namesText(p string) (string, bool, *Error) {
 	if l.fromDisk && p == "data/unicode/unicode-names-reference.txt" {
-		return bundledNamesText(p)
+		text, ok := bundledNamesText(p)
+		return text, ok, nil
 	}
-	if text, ok := l.read(p); ok {
-		return text, true
+	text, ok, err := l.read(p)
+	if err != nil || ok {
+		return text, ok, err
 	}
-	return bundledNamesText(p)
+	text, ok = bundledNamesText(p)
+	return text, ok, nil
 }
 
 // utf8Problem says why a string is not valid UTF-8, which engine §1 makes
@@ -349,8 +358,8 @@ func (l *loader) splice(pipelinePath string) (*splicedPipeline, *Error) {
 		if dom, ok := doms[key]; ok {
 			return dom, nil
 		}
-		if _, ok := l.read(p); !ok {
-			return nil, nil
+		if _, ok, err := l.read(p); err != nil || !ok {
+			return nil, err
 		}
 		dom, err := l.document(p, names)
 		if err != nil {
@@ -499,12 +508,12 @@ func loaderForBundled(withProperties bool) (*loader, error) {
 	}
 	return &loader{
 		preparsedRead: bundledNamesText,
-		read: func(p string) (string, bool) {
+		read: func(p string) (string, bool, *Error) {
 			if text, ok := bundled.sources[p]; ok {
-				return text, true
+				return text, true, nil
 			}
 			data, err := bundledFS.ReadFile(p)
-			return string(data), err == nil
+			return string(data), err == nil, nil
 		},
 		uni:           uni,
 		reader:        reader,
@@ -577,9 +586,15 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 	if err != nil {
 		return nil, &Error{Kind: ErrorGrammar, Document: file, Message: err.Error()}
 	}
-	l.read = func(p string) (string, bool) {
+	l.read = func(p string) (string, bool, *Error) {
 		data, err := os.ReadFile(filepath.FromSlash(p))
-		return string(data), err == nil
+		if err == nil {
+			return string(data), true, nil
+		}
+		if os.IsNotExist(err) || strings.HasPrefix(p, "data/preparsed/") && p != "data/preparsed/gencmu.json" {
+			return "", false, nil
+		}
+		return "", false, &Error{Kind: ErrorGrammar, Document: p, Message: "the document could not be read: " + err.Error()}
 	}
 	l.fromDisk = true
 	l.namesOverride = func(p string) bool {
@@ -599,27 +614,27 @@ func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline,
 
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
-	norm := make(map[string]string, len(sources))
+	texts := make(map[string]string, len(sources))
 	for p, t := range sources {
-		norm[path.Clean(p)] = t
+		texts[p] = t
 	}
-	_, customCore := norm["data/unicode/unicode.txt"]
-	_, customProperties := norm["data/unicode/unicode-properties.txt"]
+	_, customCore := texts["data/unicode/unicode.txt"]
+	_, customProperties := texts["data/unicode/unicode-properties.txt"]
 	l, lerr := loaderForBundled(!customCore && !customProperties)
 	if lerr != nil {
 		return nil, lerr
 	}
-	l.read = func(p string) (string, bool) { s, ok := norm[p]; return s, ok }
+	l.read = func(p string) (string, bool, *Error) { s, ok := texts[p]; return s, ok, nil }
 	l.noCache = noCache
-	l.namesOverride = func(p string) bool { _, ok := norm[p]; return ok }
-	if t, ok := norm["data/unicode/unicode.txt"]; ok {
+	l.namesOverride = func(p string) bool { _, ok := texts[p]; return ok }
+	if t, ok := texts["data/unicode/unicode.txt"]; ok {
 		if l.uni, err = parseUnicodeTable(t); err != nil {
 			problem := &Error{Kind: ErrorGrammar, Document: "data/unicode/unicode.txt", Message: err.Error()}
 			_, _ = fmt.Sscanf(err.Error(), "data/unicode/unicode.txt line %d:", &problem.Line)
 			return nil, problem
 		}
 	}
-	if text, ok := norm["data/unicode/unicode-properties.txt"]; ok {
+	if text, ok := texts["data/unicode/unicode-properties.txt"]; ok {
 		copy := *l.uni
 		l.uni = &copy
 		if l.uni.properties, err = parseProperties(text, l.uni); err != nil {
@@ -627,9 +642,9 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 		}
 	}
 	if customProperties {
-		l.uni.propertiesHash = fnv1a64(norm["data/unicode/unicode-properties.txt"])
+		l.uni.propertiesHash = fnv1a64(texts["data/unicode/unicode-properties.txt"])
 	}
-	if t, ok := norm["data/preparsed/gencmu.json"]; ok {
+	if t, ok := texts["data/preparsed/gencmu.json"]; ok {
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
@@ -640,14 +655,14 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *P
 	}
 	l.bootstrapHash = l.reader.hash
 	l.preparsedRead = func(p string) (string, bool) {
-		if text, ok := norm[p]; ok {
+		if text, ok := texts[p]; ok {
 			return text, true
 		}
 		return bundledNamesText(p)
 	}
 	l.families = nil
 
-	return l.pipeline(path.Clean(pipeline))
+	return l.pipeline(pipeline)
 }
 
 // Pipeline is a loaded pipeline. A *Pipeline is safe for concurrent use by

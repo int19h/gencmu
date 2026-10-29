@@ -252,31 +252,38 @@ func (t *unicodeNames) inspect(pinned *unicodeNames, abbreviations map[string]ru
 }
 
 type namesScope struct {
-	read         func(string) (string, bool)
+	read         func(string) (string, bool, *Error)
 	uni          *unicodeTable
 	extras       []string
 	tables       []*unicodeNames
 	dependencies map[string]string
 }
 
-func newNamesScope(read func(string) (string, bool), uni *unicodeTable, extras []string) *namesScope {
+func newNamesScope(read func(string) (string, bool, *Error), uni *unicodeTable, extras []string) *namesScope {
 	paths := append([]string{}, extras...)
 	slices.Sort(paths)
 	return &namesScope{read: read, uni: uni, extras: slices.Compact(paths)}
 }
 
-func selectedNames(path string, dom *domDoc, inherited []string) []string {
+func selectedNames(path string, dom *domDoc, inherited []string) ([]string, *Error) {
 	paths := append([]string{}, inherited...)
 	for _, directive := range dom.Directives {
 		if directive.Name == "names" {
-			paths = append(paths, resolvePath(path, directive.Args[0]))
+			resolved, err := resolvePath(path, directive.Args[0], directive.At)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, resolved)
 		}
 	}
 	slices.Sort(paths)
-	return slices.Compact(paths)
+	return slices.Compact(paths), nil
 }
 func (n *namesScope) need(path string) (string, *Error) {
-	text, ok := n.read(path)
+	text, ok, err := n.read(path)
+	if err != nil {
+		return "", err
+	}
 	if !ok {
 		return "", namesError(path, 0, "the names resource is missing")
 	}

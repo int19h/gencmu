@@ -465,6 +465,15 @@
      * @param {{cause?: unknown}} [options] the error that caused this one
      */
     constructor(kind, message, where, options) {
+      const location = where?.document === undefined ? "" : [where.document, where.line, where.column].filter(part => part !== undefined).join(":");
+      if (location) {
+        // Some callers already include all or part of the location.
+        const prefixes = [location, [where?.document, where?.line].filter(part => part !== undefined).join(":"), where?.document];
+        for (const prefix of prefixes) {
+          if (prefix && message.startsWith(`${prefix}: `)) { message = message.slice(prefix.length + 2); break; }
+        }
+        message = `${location}: ${message}`;
+      }
       super(message, options);
       this.name = "GencmuError";
       this.kind = kind;
@@ -8621,7 +8630,7 @@
         if (!(target.rule ? this.boundaries.all.rules.has(target.rule) : this.boundaries.all.terminals.has(target.terminal))) {
           const location = boundaryLocations.get(target);
           const at = location?.at;
-          const error = new GencmuError("grammar",`${alternative.document}: boundary target ${target.rule ?? target.terminal} is unreachable`,
+          const error = new GencmuError("grammar",`boundary target ${target.rule ?? target.terminal} is unreachable`,
             {document:alternative.document,...(at ? {line:at[0],column:at[1]} : {})});
           boundaryDocumentErrors.set(error,{document:alternative.document,node:target});
           throw error;
@@ -8680,12 +8689,12 @@
         const previous = this.rules.get(rule.name);
         if (rule.op === "define") {
           if (previous) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
+            throw new GencmuError("grammar", `%rule ${rule.name} is already defined, in ${previous.document}; %redefine-rule replaces a rule`, at);
           }
           this.rules.set(rule.name, { name: rule.name, document: path, at, alternatives, flags: rule.flags });
         } else if (rule.op === "redefine") {
           if (!previous) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %redefine-rule ${rule.name} replaces no rule defined before it`, at);
+            throw new GencmuError("grammar", `%redefine-rule ${rule.name} replaces no rule defined before it`, at);
           }
           /** @type {RuleChange} */
           const change = { kind: "replaced", rule: rule.name, document: path, previous: previous.document };
@@ -8697,7 +8706,7 @@
         } else {
           const base = previous;
           if (!base) {
-            throw new GencmuError("grammar", `${path}:${at.line}: %extend-rule ${rule.name} extends a rule that is not defined before it`, at);
+            throw new GencmuError("grammar", `%extend-rule ${rule.name} extends a rule that is not defined before it`, at);
           }
           this.changes.push({ kind: "extended", rule: rule.name, document: path, previous: base.document });
           // Added in place: a copy of the list for each %extend-rule would
@@ -8716,19 +8725,19 @@
             break;
           case "ambiguity-resolution": {
             if (this.resolution) {
-              throw new GencmuError("grammar", `${path}:${at.line}: stage ${this.stageName} has a second %ambiguity-resolution`, at);
+              throw new GencmuError("grammar", `stage ${this.stageName} has a second %ambiguity-resolution`, at);
             }
             const [lean, ...rest] = directive.args;
             const elisionOnly = rest[0] === "elision-only";
             if (elisionOnly) rest.shift();
             if ((lean !== "greedy" && lean !== "lazy" && lean !== "late-elision") || rest.length > 0) {
-              throw new GencmuError("grammar", `${path}:${at.line}: %ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
+              throw new GencmuError("grammar", `%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only`, at);
             }
             this.resolution = { lean, elisionOnly };
             break;
           }
           default:
-            throw new GencmuError("grammar", `${path}:${at.line}: unknown directive %${directive.name}`, at);
+            throw new GencmuError("grammar", `unknown directive %${directive.name}`, at);
         }
       }
       for (const constant of dom.constants) this.addConstant(path, constant);
@@ -9127,7 +9136,7 @@
       /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
       const check = (name, rule, alternative) => {
         if (!this.rules.has(name)) {
-          throw new GencmuError("grammar", `${alternative.document}: ${rule.name} refers to ${name}, which is not defined`, alternative.at);
+          throw new GencmuError("grammar", `${rule.name} refers to ${name}, which is not defined`, alternative.at);
         }
       };
       /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
@@ -9157,7 +9166,7 @@
           for (const name of clauseClassifiers(clauses)) {
             if (hooks.work) countWork(hooks.work, "clauses");
             if (!classifierNames.has(name)) {
-              throw new GencmuError("grammar", `${alternative.document}: ${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
+              throw new GencmuError("grammar", `${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
             }
           }
         }
@@ -19274,8 +19283,8 @@
         // A fence and its info string; a backtick fence's info string has no
         // backtick, or the line is not a fence (CommonMark). Only an info
         // string that is exactly `jbogenbau` makes a grammar block.
-        const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].trim()] : null;
+        const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/s.exec(line);
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "")] : null;
         if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
@@ -19290,7 +19299,7 @@
         continue;
       }
       const fence = typeof inside === "string" ? inside : inside.skip;
-      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+      const close = /^ {0,3}(`{3,}|~{3,})\p{White_Space}*$/u.exec(line);
       if (close && close[1][0] === fence[0] && close[1].length >= fence.length) {
         inside = null;
         continue;
@@ -19326,15 +19335,15 @@
    * @returns {string}
    */
   function resolvePath(from, relative) {
-    const parts = from.split("/").slice(0, -1);
-    for (const part of relative.split("/")) {
+    if (relative.startsWith("/")) throw new GencmuError("grammar", "a path target must be relative", {document:from});
+    const absolute = from.startsWith("/");
+    const parts = [];
+    for (const part of [...from.split("/").slice(0, -1), ...relative.split("/")]) {
       if (part === "" || part === ".") continue;
-      // Above the root of an absolute path is the root.
-      if (part === "..") {
-        if (!(parts.length === 1 && parts[0] === "")) parts.pop();
-      } else parts.push(part);
+      if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
+      else if (part !== ".." || !absolute) parts.push(part);
     }
-    return parts.join("/");
+    return (absolute ? "/" : "") + parts.join("/") || ".";
   }
 
   // ---- unicode-names.js
@@ -19358,7 +19367,16 @@
 
   /** @param {string} path @param {GrammarDom} dom @param {string[]} [inherited] @returns {string[]} */
   function selectedNames(path, dom, inherited = []) {
-    return [...new Set([...inherited, ...dom.directives.filter(d => d.name === "names").map(d => resolvePath(path,d.args[0]))])].sort(compareCodePoints);
+    const paths = new Set(inherited);
+    for (const directive of dom.directives) {
+      if (directive.name !== "names") continue;
+      try { paths.add(resolvePath(path, directive.args[0])); }
+      catch (error) {
+        if (error instanceof GencmuError) throw new GencmuError("grammar", error.message, {document:path, line:directive.at[0], column:directive.at[1]});
+        throw error;
+      }
+    }
+    return [...paths].sort(compareCodePoints);
   }
 
   /** @param {string} path @param {string} message @param {number} [line] @returns {never} */
@@ -19627,7 +19645,13 @@
           const [line, column] = this.position(tokens[index].source[0]);
           throw new GencmuError("grammar", `${this.path}:${line}:${column}: %names takes one quoted path`, {document:this.path, line, column});
         }
-        extras.add(resolvePath(this.path, this.decode(tokens[index + 1], true)));
+        const [line, column] = this.position(tokens[index].source[0]);
+        const target = this.decode(tokens[index + 1], true);
+        try { extras.add(resolvePath(this.path, target)); }
+        catch (error) {
+          if (error instanceof GencmuError) throw new GencmuError("grammar", error.message, {document:this.path, line, column});
+          throw error;
+        }
         index = end;
       }
       this.names.extras = [...extras].sort(compareCodePoints);
@@ -19768,14 +19792,26 @@
       const place = `${documentPath}:${at.line}:${at.column}`;
       if ("directive" in item && item.directive.name === "names") continue;
       if ("directive" in item && item.directive.name === "include") {
-        const target = resolvePath(documentPath, item.directive.args[0]);
+        let target;
+        try { target = resolvePath(documentPath, item.directive.args[0]); }
+        catch (error) {
+          if (error instanceof GencmuError) throw new GencmuError("grammar", error.message, at);
+          throw error;
+        }
         // Joined only for an error: a chain of D documents joined at each
         // include would cost the square of D.
         const through = () => frames.map((open) => open.path).join(" → ");
         if (including.has(target)) {
           throw new GencmuError("grammar", `${place}: ${target} includes itself (${through()} → ${target})`, at);
         }
-        const included = domOf(target, frame.names);
+        let included;
+        try { included = domOf(target, frame.names); }
+        catch (error) {
+          if (error instanceof GencmuError && error.where.line === undefined && error.cause instanceof Error) {
+            throw new GencmuError("grammar", error.message, at, {cause:error.cause});
+          }
+          throw error;
+        }
         if (included === undefined) {
           throw new GencmuError("grammar", `${place}: ${target} was not found (${through()} → ${target})`, at);
         }

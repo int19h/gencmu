@@ -22,7 +22,7 @@ def names_registry(value):
 
 
 def selected_names(path, dom, inherited=()):
-    return sorted(set(inherited) | {resolve(path, d["args"][0]) for d in dom["directives"] if d["name"] == "names"})
+    return sorted(set(inherited) | {resolve(path, d["args"][0], d["at"]) for d in dom["directives"] if d["name"] == "names"})
 
 
 def _fail(path, message, line=None):

@@ -114,8 +114,8 @@ pub(crate) trait Documents {
     fn dom_with_names(&mut self, path: &str, _inherited: &[String]) -> Result<Option<Arc<Dom>>, Error> {
         self.dom(path)
     }
-    /// `target` resolved against the document `base`, or `None` when it
-    /// leads out of the documents a loader may read.
+    /// `target` resolved against the document `base`, or `None` for an
+    /// absolute target.
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
 }
 
@@ -185,7 +185,7 @@ impl Splicer<'_> {
                     let inherited = frame.names.clone();
                     let target_text = directive.args.first().map_or("", String::as_str);
                     let Some(target) = self.documents.resolve(path, target_text) else {
-                        return Err(in_stage(here(format!("the document path {target_text} leaves the grammars"))));
+                        return Err(in_stage(here("a path target must be relative".into())));
                     };
                     chain.push(path.clone());
                     self.on_chain.insert(path.clone());
@@ -200,7 +200,15 @@ impl Splicer<'_> {
                     if self.on_chain.contains(target.as_str()) {
                         return Err(in_stage(here(format!("{target} includes itself ({})", through()))));
                     }
-                    let Some(included) = self.documents.dom_with_names(&target, &inherited).map_err(in_stage)? else {
+                    let Some(included) = self.documents.dom_with_names(&target, &inherited).map_err(|error| {
+                        if error.message.starts_with("the document could not be read:") {
+                            let unreadable = error.document.as_deref().unwrap_or(&target);
+                            in_stage(here(format!("{unreadable}: {}", error.message)))
+                        } else {
+                            in_stage(error)
+                        }
+                    })?
+                    else {
                         return Err(in_stage(here(format!("{target} was not found ({})", through()))));
                     };
                     self.open_run = false;

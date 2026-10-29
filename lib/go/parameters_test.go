@@ -277,7 +277,7 @@ func TestParameterCacheValidation(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		l.read = func(path string) (string, bool) { return text, path == "g.md" }
+		l.read = func(path string) (string, bool, *Error) { return text, path == "g.md", nil }
 		l.preparsedRead = nil
 		l.preparsed = map[domCacheKey]json.RawMessage{{"g.md", fnv1a64(text), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash, domFormat}: templateJSON(raw)}
 		if valid {

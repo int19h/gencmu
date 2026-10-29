@@ -127,7 +127,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}
-	names := newNamesScope(bundledNamesText, nr.uni, nil)
+	names := newNamesScope(func(path string) (string, bool, *Error) { text, ok := bundledNamesText(path); return text, ok, nil }, nr.uni, nil)
 	if len(selected) > 0 {
 		names = selected[0]
 	}

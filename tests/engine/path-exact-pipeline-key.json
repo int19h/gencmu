@@ -1,0 +1,14 @@
+{
+  "description": "Path exact pipeline key.",
+  "documents": {
+    "a/../p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"b\"\n```\n"
+  },
+  "pipelineDocument": "a/../p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

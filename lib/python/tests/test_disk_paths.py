@@ -14,6 +14,28 @@ import gencmu
 
 
 class DiskPaths(unittest.TestCase):
+    def test_unreadable_documents(self):
+        for depth in (0, 1, 2):
+            for exists in (False, True):
+                with self.subTest(depth=depth, exists=exists), tempfile.TemporaryDirectory() as root:
+                    pipeline = pathlib.Path(root, "p.md")
+                    file = pathlib.Path(root, ("p.md", "g.md", "h.md")[depth])
+                    if depth > 0:
+                        pipeline.write_text('```jbogenbau\n%stage main\n%include "g.md"\n```\n', encoding="utf-8")
+                    if depth == 2:
+                        pathlib.Path(root, "g.md").write_text('```jbogenbau\n%include "h.md"\n```\n', encoding="utf-8")
+                    if exists:
+                        file.mkdir()
+                    with self.assertRaises(gencmu.GencmuError) as caught:
+                        gencmu.load_pipeline_file(pipeline)
+                    error = caught.exception
+                    self.assertEqual(error.kind, "grammar")
+                    self.assertIn("the document could not be read:" if exists else "was not found", str(error))
+                    self.assertIn(str(file), str(error))
+                    self.assertEqual(error.document, str(pathlib.Path(root, "g.md")) if depth == 2 else str(pipeline))
+                    if depth > 0:
+                        self.assertEqual((error.line, error.column), (2 if depth == 2 else 3, 1))
+
     def test_selected_disk_names(self):
         cases = json.loads((pathlib.Path(__file__).resolve().parents[3] / "tests/disk-names.json").read_text())
         home = os.getcwd()

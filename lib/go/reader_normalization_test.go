@@ -18,7 +18,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 			if err != nil {
 				t.Fatal(err)
 			}
-			l.read = func(p string) (string, bool) { return document, p == path }
+			l.read = func(p string) (string, bool, *Error) { return document, p == path, nil }
 			l.reader = reader
 			l.bootstrapHash = reader.hash
 			l.preparsedRead = nil

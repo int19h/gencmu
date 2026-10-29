@@ -187,7 +187,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	if loadErr != nil {
 		t.Fatal(loadErr)
 	}
-	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, preparsed: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
+	l := &loader{uni: configured.uni, bootstrapHash: bundled.reader.hash, preparsed: cache, read: func(path string) (string, bool, *Error) { s, ok := valid[path]; return s, ok, nil }}
 	if _, err := l.pipeline("grammars/test/p.md"); err != nil {
 		t.Fatalf("valid cache reparsed: %v", err)
 	}

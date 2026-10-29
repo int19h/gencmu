@@ -123,7 +123,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		documents[domCacheKey{path, fnv1a64(text), bundled.reader.hash, bundled.uni.hash, bundled.uni.propertiesHash, domFormat}] = dom.json()
 	}
 	// A missing reader makes any source parse or location recovery fail.
-	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, preparsed: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}
+	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, preparsed: documents, read: func(path string) (string, bool, *Error) { text, ok := sources[path]; return text, ok, nil }}
 	for i := 0; i < 2; i++ {
 		if _, err := l.pipeline("p.md"); err != nil {
 			t.Fatal(err)

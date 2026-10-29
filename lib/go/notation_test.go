@@ -95,9 +95,9 @@ func TestFixpoint(t *testing.T) {
 	}
 	// The repository's documents, each read with the bootstrap.
 	l := &loader{
-		read: func(p string) (string, bool) {
+		read: func(p string) (string, bool, *Error) {
 			text, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(p)))
-			return string(text), err == nil
+			return string(text), err == nil, nil
 		},
 		uni:     bundled.uni,
 		reader:  bundled.reader,
@@ -132,8 +132,8 @@ func TestFixpoint(t *testing.T) {
 		}
 	}
 	for path, entry := range b.Documents {
-		text, ok := l.read(path)
-		if !ok {
+		text, ok, readErr := l.read(path)
+		if readErr != nil || !ok {
 			t.Fatal(path)
 		}
 		fresh, err := bundled.reader.read(text, path)

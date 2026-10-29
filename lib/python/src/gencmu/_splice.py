@@ -115,10 +115,15 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
             if name == "names":
                 continue
             if name == "include":
-                target = resolve(document, item["args"][0])
+                target = resolve(document, item["args"][0], (line, column))
                 if target in on_chain:
                     raise fail(f"{target} includes itself ({chain_to(target)})")
-                included = get_dom(target, names)
+                try:
+                    included = get_dom(target, names)
+                except GencmuError as error:
+                    if error.line is None and isinstance(error.__cause__, OSError):
+                        raise fail(str(error)) from error.__cause__
+                    raise
                 if included is None:
                     raise fail(f"{target} was not found ({chain_to(target)})")
                 run = None

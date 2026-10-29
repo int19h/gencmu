@@ -123,7 +123,7 @@ func extractGrammarText(doc string) *grammarText {
 			}
 			fence = m[1]
 			isGrammar = info == "jbogenbau"
-			opened = [2]int{n + 1, runeColumn(line, 0)}
+			opened = [2]int{n + 1, runeColumn(line, strings.Index(line, fence))}
 			if isGrammar {
 				if blocks > 0 {
 					newline()
@@ -162,7 +162,7 @@ func extractGrammarText(doc string) *grammarText {
 }
 
 // isClosingFence: a fence of the same character at least as long, indented
-// up to three spaces, followed by nothing but spaces.
+// up to three spaces, followed by Unicode White_Space.
 func isClosingFence(line, fence string) bool {
 	t := strings.TrimLeft(line, " ")
 	if len(line)-len(t) > 3 {
@@ -172,7 +172,7 @@ func isClosingFence(line, fence string) bool {
 	for n < len(t) && t[n] == fence[0] {
 		n++
 	}
-	return n >= len(fence) && strings.TrimRight(t[n:], " \t") == ""
+	return n >= len(fence) && strings.TrimSpace(t[n:]) == ""
 }
 
 func runeColumn(line string, byteOffset int) int {
@@ -181,8 +181,11 @@ func runeColumn(line string, byteOffset int) int {
 
 // resolvePath resolves an %include's path against the document holding it,
 // with . and .. normalized.
-func resolvePath(from, target string) string {
-	return path.Clean(path.Join(path.Dir(from), target))
+func resolvePath(from, target string, at [2]int) (string, *Error) {
+	if strings.HasPrefix(target, "/") {
+		return "", grammarError(from, at, "a path target must be relative")
+	}
+	return path.Clean(path.Join(path.Dir(from), target)), nil
 }
 
 // GroupSite identifies a written ranked group or inheritance step.

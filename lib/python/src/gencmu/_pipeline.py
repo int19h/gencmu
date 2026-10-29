@@ -241,7 +241,7 @@ class NotationReader:
                     atom['args'] = [Located(arg, where.at) for arg, where in zip(atom['args'], original['args'])]
         if not has_ranked(dom) or all(hasattr(rule, 'ranked_locations') for rule in dom['rules']):
             return dom
-        grammar_text = jbogenbau_text(text)
+        grammar_text = jbogenbau_text(text, self.unicode)
         tokens = character_tokens(grammar_text.text, self.unicode)
         name, lowered = self.stages[0]
         features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, self.bootstrap_features)
@@ -255,7 +255,7 @@ class NotationReader:
     def read(self, text: str, path: str, defer_emission: bool = False, names=None) -> Dom:
         """The DOM of a grammar document (engine §8, §9)."""
         try:
-            grammar_text = jbogenbau_text(text)
+            grammar_text = jbogenbau_text(text, self.unicode)
         except GencmuError as error:
             error.document = path
             raise
@@ -600,8 +600,12 @@ def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) 
         try:
             with open(key.replace("/", os.sep), "rb") as file:
                 data = file.read()
-        except OSError:
+        except FileNotFoundError:
             return None
+        except OSError as error:
+            if key.startswith("data/preparsed/") and key != "data/preparsed/gencmu.json":
+                return None
+            raise GencmuError(f"the document could not be read: {error}", document=key) from error
         return _decode(data, key)
 
     def names_override(key):

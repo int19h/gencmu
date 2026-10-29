@@ -110,9 +110,14 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 	var through []*spliceFrame
 	inChain := map[string]bool{}
 	stageNamed := map[string]*splicedStage{}
-	enter := func(docPath string, dom *domDoc, inherited []string) {
-		through = append(through, &spliceFrame{path: docPath, items: itemsInOrder(dom), names: selectedNames(docPath, dom, inherited)})
+	enter := func(docPath string, dom *domDoc, inherited []string) *Error {
+		names, err := selectedNames(docPath, dom, inherited)
+		if err != nil {
+			return err
+		}
+		through = append(through, &spliceFrame{path: docPath, items: itemsInOrder(dom), names: names})
 		inChain[docPath] = true
+		return nil
 	}
 	splice := func() *Error {
 		for len(through) > 0 {
@@ -131,7 +136,10 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 			case item.dir != nil && item.dir.Name == "names":
 				continue
 			case item.dir != nil && item.dir.Name == "include":
-				target := resolvePath(docPath, item.dir.Args[0])
+				target, err := resolvePath(docPath, item.dir.Args[0], at)
+				if err != nil {
+					return err
+				}
 				trail := func() string {
 					// Each path counts as it is joined, so that a trail joined
 					// at each include passes the budget.
@@ -153,6 +161,9 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 				}
 				included, err := domOf(target, f.names)
 				if err != nil {
+					if strings.HasPrefix(err.Message, "the document could not be read:") {
+						err = grammarError(docPath, at, "%s: %s", err.Document, err.Message)
+					}
 					if s := selected; s != nil && err.Stage == "" {
 						err.Stage = s.name
 					}
@@ -162,7 +173,9 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 					return grammarError(docPath, at, "%s was not found (%s)", target, trail())
 				}
 				run = nil
-				enter(target, included, f.names)
+				if err := enter(target, included, f.names); err != nil {
+					return err
+				}
 			case item.dir != nil && item.dir.Name == "features" && selected == nil:
 				if item.dir.Conditions != nil {
 					return grammarError(docPath, at, "global features cannot have conditions")
@@ -244,9 +257,11 @@ func splicePipelineWithNames(pipelinePath string, domOf func(string, []string) (
 		return nil, err
 	}
 	if top == nil {
-		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document is missing"}
+		return nil, &Error{Kind: ErrorGrammar, Document: pipelinePath, Message: "the pipeline document was not found"}
 	}
-	enter(pipelinePath, top, nil)
+	if err := enter(pipelinePath, top, nil); err != nil {
+		return nil, err
+	}
 	if err := splice(); err != nil {
 		return nil, err
 	}

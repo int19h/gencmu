@@ -116,3 +116,42 @@ func TestSelectedDiskNames(t *testing.T) {
 		})
 	}
 }
+
+func TestUnreadableDocuments(t *testing.T) {
+	for _, included := range []bool{false, true} {
+		for _, exists := range []bool{false, true} {
+			root := t.TempDir()
+			pipeline := filepath.Join(root, "p.md")
+			file := pipeline
+			if included {
+				file = filepath.Join(root, "g.md")
+				if err := os.WriteFile(pipeline, []byte("```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if exists {
+				if err := os.Mkdir(file, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, err := LoadPipelineFile(pipeline)
+			var problem *Error
+			if !errors.As(err, &problem) {
+				t.Fatalf("expected a grammar error: %v", err)
+			}
+			message := "was not found"
+			if exists {
+				message = "the document could not be read:"
+			}
+			if problem.Kind != ErrorGrammar || !strings.Contains(problem.Error(), message) || !strings.Contains(problem.Error(), filepath.ToSlash(file)) {
+				t.Fatal(problem)
+			}
+			if problem.Document != filepath.ToSlash(pipeline) {
+				t.Fatal(problem)
+			}
+			if included && (problem.Line != 3 || problem.Column != 1) {
+				t.Fatal(problem)
+			}
+		}
+	}
+}

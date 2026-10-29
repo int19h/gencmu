@@ -256,9 +256,7 @@ pub(crate) fn selected_names(
         if directive.name == "names" {
             let target = &directive.args[0];
             let resolved = resolve(path, target).ok_or_else(|| {
-                Error::grammar("the names path leaves the grammar resources")
-                    .in_document(path)
-                    .at(directive.at.0, directive.at.1)
+                Error::grammar("a path target must be relative").in_document(path).at(directive.at.0, directive.at.1)
             })?;
             paths.insert(resolved);
         }
@@ -329,7 +327,7 @@ impl<'a> NamesScope<'a> {
 
     pub fn add_path(&self, path: &str) -> Result<(), Error> {
         let resolved = (self.resolve)(self.document, path)
-            .ok_or_else(|| Error::grammar("the names path leaves the grammar resources").in_document(self.document))?;
+            .ok_or_else(|| Error::grammar("a path target must be relative").in_document(self.document))?;
         self.extras.borrow_mut().insert(resolved);
         Ok(())
     }

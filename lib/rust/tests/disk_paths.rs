@@ -71,4 +71,30 @@ fn errors_name_the_absolute_path_from_another_working_directory() {
         let _ = std::fs::remove_dir_all(directory);
     }
     assert!(failures.is_empty(), "{failures:#?}");
+    for included in [false, true] {
+        for exists in [false, true] {
+            let root = temporary(&format!("unreadable-{included}-{exists}"));
+            let pipeline = root.join("p.md");
+            let file = if included { root.join("g.md") } else { pipeline.clone() };
+            if included {
+                write(&root, &[("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n")]);
+            }
+            if exists {
+                std::fs::create_dir(&file).unwrap();
+            }
+            let error = gencmu::load_pipeline_file(&pipeline).unwrap_err();
+            assert_eq!(error.kind, gencmu::ErrorKind::Grammar);
+            assert!(
+                error.message.contains(if exists { "the document could not be read:" } else { "was not found" }),
+                "{error}"
+            );
+            assert!(error.to_string().contains(file.to_str().unwrap()), "{error}");
+            assert_eq!(error.document.as_deref(), pipeline.to_str());
+            if included {
+                assert_eq!((error.line, error.column), (Some(3), Some(1)));
+            }
+            assert!(error.to_json().contains("\"kind\":\"grammar\""));
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
 }

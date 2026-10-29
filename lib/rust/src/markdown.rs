@@ -135,25 +135,27 @@ pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
     Ok(text)
 }
 
-/// Resolves a `/`-separated path against the directory of `base`, with `.`
-/// and `..` normalized; `None` if it climbs above the root.
+/// Resolves a relative target against the directory of `base` using POSIX
+/// lexical cleaning. `None` means that the target starts with `/`.
 pub(crate) fn resolve(base: &str, target: &str) -> Option<String> {
-    let mut parts: Vec<&str> = base.split('/').collect();
-    parts.pop();
     if target.starts_with('/') {
-        parts.clear();
+        return None;
     }
-    for part in target.split('/') {
+    let absolute = base.starts_with('/');
+    let mut parts = Vec::new();
+    let directory = base.rsplit_once('/').map_or("", |(dir, _)| dir);
+    for part in directory.split('/').chain(target.split('/')) {
         match part {
             "" | "." => {}
-            ".." => {
-                parts.pop()?;
+            ".." if parts.last().is_some_and(|part| *part != "..") => {
+                parts.pop();
             }
+            ".." if absolute => {}
             part => parts.push(part),
         }
     }
-    let parts: Vec<&str> = parts.into_iter().filter(|part| !part.is_empty() && *part != ".").collect();
-    Some(parts.join("/"))
+    let path = format!("{}{}", if absolute { "/" } else { "" }, parts.join("/"));
+    Some(if path.is_empty() { ".".into() } else { path })
 }
 
 #[cfg(test)]
@@ -181,7 +183,10 @@ mod tests {
             Some("grammars/lojban/common/latin.md")
         );
         assert_eq!(resolve("p.md", "g.md").as_deref(), Some("g.md"));
-        assert_eq!(resolve("p.md", "../g.md"), None);
+        assert_eq!(resolve("p.md", "../g.md").as_deref(), Some("../g.md"));
+        assert_eq!(resolve("dir/p.md", "../../g.md").as_deref(), Some("../g.md"));
+        assert_eq!(resolve("/p.md", "../g.md").as_deref(), Some("/g.md"));
+        assert_eq!(resolve("p.md", "/g.md"), None);
         assert_eq!(resolve("a/b/p.md", "./c/../g.md").as_deref(), Some("a/b/g.md"));
     }
 }

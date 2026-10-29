@@ -1,0 +1,13 @@
+{
+  "description": "Fence closer nel.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

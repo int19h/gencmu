@@ -42,7 +42,11 @@ func (d *documentStrings) inspect(tokens []Token) *Error {
 		if err != nil {
 			return err
 		}
-		extras = append(extras, resolvePath(d.path, path))
+		resolved, err := resolvePath(d.path, path, d.position(tokens[i].Source[0]))
+		if err != nil {
+			return err
+		}
+		extras = append(extras, resolved)
 		i = end
 	}
 	slices.Sort(extras)

@@ -649,7 +649,7 @@ impl Sources for DiskSources {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
-                return Err(Error::new(ErrorKind::Io, format!("cannot read {path}: {error}")).in_document(path));
+                return Err(Error::grammar(format!("the document could not be read: {error}")).in_document(path));
             }
         };
         match String::from_utf8(bytes) {
@@ -663,11 +663,7 @@ impl Sources for DiskSources {
     }
 
     fn resolve(&self, base: &str, target: &str) -> Option<String> {
-        if target.contains("://") {
-            return None;
-        }
-        let directory = Path::new(base).parent().unwrap_or_else(|| Path::new(""));
-        Some(normalize(&directory.join(target)).to_string_lossy().into_owned())
+        resolve(base, target)
     }
 }
 
@@ -838,12 +834,11 @@ pub fn load_pipeline_file(path: impl AsRef<Path>) -> Result<Pipeline, Error> {
         normalize(path)
     } else {
         let directory = std::env::current_dir().map_err(|error| {
-            Error::new(ErrorKind::Io, format!("cannot find the working directory: {error}"))
-                .in_document(&path.to_string_lossy())
+            Error::grammar(format!("cannot find the working directory: {error}")).in_document(&path.to_string_lossy())
         })?;
         normalize(&directory.join(path))
     };
-    load(&context, &DiskSources, &absolute.to_string_lossy())
+    load(&context, &DiskSources, &absolute.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
 }
 
 /// Loads a pipeline from documents held in memory: a map from

@@ -1,0 +1,17 @@
+{
+  "description": "Path leading parent include.",
+  "documents": {
+    "dir/p.md": "```jbogenbau\n%include \"../../g.md\"\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
+    "g.md": "```jbogenbau\n%rule text \"a\"\n```\n"
+  },
+  "pipelineDocument": "dir/p.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "dir/p.md",
+      "line": 2,
+      "column": 1
+    }
+  }
+}
