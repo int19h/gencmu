@@ -387,6 +387,8 @@ A preamble is the initial run of resource declarations.
 
 A grammar or pipeline document declares an extra names resource with `%names "PATH"`. These directives form a preamble before every other statement in that document. They can span several grammar blocks. Each directive takes exactly one quoted path. The path uses literal include-path decoding and resolves against the declaring document's directory. Its escapes can use numeric values or active core abbreviations, but cannot require a names file.
 
+The path follows the relative-path rule of §13. A target that starts with `/` is a grammar error at `%names`.
+
 After successful lexing, a preamble pass collects the longest leading run of `%names` directives before ordinary escape inspection. Each directive's operands extend to the next directive or statement start, or to the token sequence's end. Statement-start tokens are the `definer`, `directive-name`, `%const`, `%redefine-const`, `%classifier`, and `%implies` keywords of §9.2. Comments and grammar-block boundaries do not end the run.
 
 The pass inspects leading directives in source order. For each directive, a wrong operand count or kind fails first at `%names`. It then inspects that path's escapes from left to right. A malformed or nonscalar escape fails at its opening `‹`. A name outside the core abbreviation map also fails at `‹`. Preamble errors precede every other escape-inspection error.
@@ -1943,7 +1945,7 @@ A caller can switch the check off, or on, for every stage that runs (`docs/api.m
 
 A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. A backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
 
-The info string is `jbogenbau` when it is exactly that once leading and trailing whitespace is removed. A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only whitespace follows it. A `jbogenbau` block that is never closed is an error of the document, and the reader reports it at its opening fence. Any other unclosed block runs to the end of the document, as in CommonMark. The reader joins the blocks with a newline between them, and every character of the grammar text keeps its line and column in the document.
+The info string is `jbogenbau` after the reader removes leading and trailing Unicode White_Space (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only Unicode White_Space follows it. An unclosed `jbogenbau` block is a document error. The reader reports it at the column of its opening fence character. Any other unclosed block runs to the end of the document, as in CommonMark. The reader joins the blocks with a newline between them. Every character of the grammar text keeps its line and column in the document.
 
 The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
 
@@ -3163,6 +3165,8 @@ A directory without `pipeline.md` defines no pipeline. Enumeration includes only
 A pipeline document (`docs/design.md`, "Pipelines") defines a pipeline. The loader reads it into stages as follows.
 
 To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves the include path `PATH` against the directory of the document that holds the `%include`.
+
+An include or names target is a relative path. A target that starts with `/` is a grammar error at the directive. The resolver joins the target to the declaring document's directory and cleans the result lexically, as POSIX paths do. It collapses `.` and each `..` with a preceding parent segment. A preceding `..` cannot serve as that parent. It keeps any `..` that climbs above a relative base. Above an absolute root, `..` stays at the root. Disk loaders open the resolved path. Source-map loaders look up that exact key, so an absent key gives the ordinary “was not found” error. The loader preserves caller-supplied source keys and the pipeline path exactly.
 
 `%stage NAME` creates and selects a stage. `%extend-stage NAME` selects an earlier stage and appends subsequent stage items to it. `%redefine-stage NAME` selects an earlier stage and clears its accumulated stage items, including earlier extensions. Both selectors preserve the stage's execution position.
 

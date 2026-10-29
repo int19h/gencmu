@@ -863,7 +863,7 @@ to_json(result); to_brackets(result)
 
 The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory.
 
-In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled pipelines are that same map.
+In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader preserves caller-supplied keys and the pipeline path exactly. Include and names targets must be relative, and a leading `/` is a grammar error at the directive. The loader resolves each target against its declaring document's directory. Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base, and an earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13). The bundled pipelines are that same map.
 
 Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
@@ -886,7 +886,7 @@ The product provides these diagnostics and debugging tools:
 - A grammar error carries file, line and column, and names the rule.
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
-- The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
+- The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this". A trace uses the parse's features and `elisionOnly` choice.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
@@ -929,6 +929,8 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `help`, to list the commands and every option
 
 `--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied.
+
+The `test` command reports invalid JSON as a `usage` error with the case file, physical line number, and exit status 2.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
