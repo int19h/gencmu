@@ -1677,7 +1677,10 @@ class Parser:
                     if not production.conds_predict or (yield allowed(production,j)):
                         add(production.id,0,j,NO_CAPS,j,SEED)
                 return
-            for number in unfiltered_predictions[rule]:
+            # A frame can add prediction conditions to a helper. Inspect the
+            # candidate before lookahead instead of using its base's index.
+            numbers = lowered.rule_productions[rule] if frame is not None else unfiltered_predictions[rule]
+            for number in numbers:
                 production = candidate(productions[number],frame,requested)
                 number = production.id
                 if production.elided is not None and not omission_allowed(production):
@@ -1698,7 +1701,7 @@ class Parser:
                         if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
                             continue
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
-            if j < n:
+            if j < n and frame is None:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:

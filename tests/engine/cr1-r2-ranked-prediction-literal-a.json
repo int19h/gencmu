@@ -1,0 +1,10 @@
+{
+  "description": "A holding frame condition preserves ranked terminal predictions before lookahead (engine §4).",
+  "grammar": "%rule text (\"b\" ≻ \"a\") :: ∅\n%conditions \"a\" = \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

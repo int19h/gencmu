@@ -1,0 +1,17 @@
+{
+  "description": "A holding frame condition preserves ranked tag predictions before lookahead (engine §4).",
+  "grammar": "%rule text (B ≻ A) :: ∅\n%conditions \"a\" = \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
