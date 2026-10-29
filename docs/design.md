@@ -151,7 +151,7 @@ The core file owns categories, combining classes, whitespace, and two emoji prop
 
 Libraries can share immutable scalar profiles. They do not copy a property set onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for pipelines naming no additional property.
 
-A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
+A class is a tag with uppercase ASCII letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
 ## The notation
 

@@ -29,7 +29,7 @@ Tokens need not follow the order of their sources. An emission lists its capture
 
 A tag is a named identifier mark. User tags start with an uppercase ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. A reserved engine tag starts with `_`. `_` alone is a wildcard terminal and not a tag. Every tag compares by its exact identifier spelling.
 
-- A user class starts and ends with a capital and never starts with `_`, such as `KOhA`.
+- A user class starts and ends with an uppercase ASCII letter and never starts with `_`, such as `KOhA`.
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_General_Category_Uppercase_Letter`, `_General_Category_Letter`, or `_White_Space`.
 
@@ -2713,6 +2713,8 @@ The error stands at the first atom of the recipe whose dependency reaches a chan
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
+Capture validation queries the expression without listing capture sequences or production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
+
 Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 
 The analysis ignores feature gates, conditions, and symbol tests. It therefore covers every feature configuration without proving that a consuming route can succeed. Erasure changes output ownership but never removes a possible input read. Recipes and emissions do not change the analysis.
@@ -2822,7 +2824,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `s.tags` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `s.tags(R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible proof tree (§4), or empty |
-| `s.classes` | tag set | the tags of `s.tags` whose names start and end with a capital and never start with `_` |
+| `s.classes` | tag set | the tags of `s.tags` whose names start and end with an uppercase ASCII letter and never start with `_` |
 | `a.classify(classifier)` | tag set | the classes that `classifier` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
 | `$x`, `$`, `s.first-token`, and the other span methods | capture or span | A method receiver or argument, converted to input value when a string is required |
 
