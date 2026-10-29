@@ -119,20 +119,16 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule end-of-text  (* Require the end of input. *)
   ε
 %conditions
-  $.following-tokens.matches(nothing)
-
-%rule nothing  (* The empty text serves the end-of-input test. *)
-  ε
+  $.ends-input
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>lojban-word</code> to <code>nothing</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>lojban-word</code> to <code>end-of-text</code></summary>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/lojban-word.svg" alt="Railroad diagram of the rule lojban-word"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/brivla-word.svg" alt="Railroad diagram of the rule brivla-word"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/lujvo.svg" alt="Railroad diagram of the rule lujvo"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/post-word.svg" alt="Railroad diagram of the rule post-word"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/pause.svg" alt="Railroad diagram of the rule pause"></p>
 <p><img src="../../../docs/diagrams/lojban/bpfk/morphology/end-of-text.svg" alt="Railroad diagram of the rule end-of-text"></p>
-<p><img src="../../../docs/diagrams/lojban/bpfk/morphology/nothing.svg" alt="Railroad diagram of the rule nothing"></p>
 </details>
 
 
