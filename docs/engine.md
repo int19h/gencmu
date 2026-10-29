@@ -88,6 +88,12 @@ Any number of leading zeros is allowed in a number field. After these zeros, a c
 
 The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
+Overlapping or touching category ranges with the same value merge. Combining ranges with the same class follow this rule. White-space ranges form their union.
+
+An overlap between category ranges with different values is a grammar error. Combining ranges with different classes follow this rule. A second `decompose` record for one scalar is also a grammar error, even when its mapping matches.
+
+These errors name `data/unicode/unicode.txt` and the line of the later record. A category record with the value `Cs` is a grammar error at that record.
+
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
 The core loader inspects every abbreviation against an embedded catalog of pinned one-word names and aliases. These spellings match `[A-Z][A-Z0-9]*`. A record cannot bind one of those spellings to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `data/unicode/unicode.txt`.
