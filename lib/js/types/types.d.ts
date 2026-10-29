@@ -290,7 +290,7 @@ export type DomEntry = {
     keys: Term[];
     op: "∈" | "∉";
     /**
-     * an identifier tag that begins with a capital
+     * an identifier tag that starts and ends with an uppercase ASCII letter
      */
     class: string;
     at: Position;
@@ -1114,7 +1114,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Guard[]} guards gates only
  * @property {Term[]} keys the unresolved string keys
  * @property {"∈" | "∉"} op
- * @property {string} class an identifier tag that begins with a capital
+ * @property {string} class an identifier tag that starts and ends with an uppercase ASCII letter
  * @property {Position} at
  */
 /**

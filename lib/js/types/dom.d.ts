@@ -221,40 +221,6 @@ export declare function strayAttachment(items: any[], has: (name: string) => boo
  */
 export declare function capturesUsed(node: unknown): string[];
 /**
- * The captures of each production of an alternative, name to its place in
- * the order that the production reads them, with `$` at -1 (engine §3.5).
- * @param {any} alternative
- * @returns {Map<string, number>[]}
- */
-export declare function alternativeCaptures(alternative: any): Map<string, number>[];
-export type CaptureNode = {
-    parent: CaptureNode | null;
-    name: string;
-    length: number;
-    children: Map<string, CaptureNode> | null;
-};
-/**
- * A sequence of capture names, as a node of a trie of all the sequences
- * of one expression: one node for each distinct sequence, which shares its
- * prefix with the sequences it extends.
- * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
- */
-/**
- * The distinct sequences of captures that the productions of an expression
- * read, each in the order read (engine §3.2, §3.5): a choice gives each
- * branch's, an `&` each subsequence's, a plain optional none or its
- * content's, and braces and an elidable optional none. Productions that
- * read the same names in the same order are one sequence. Gates do not
- * matter, since they drop whole alternatives.
- *
- * The sequences are nodes of a trie, so that extending one by a capture
- * costs one step and two equal sequences are one node. A copy of each
- * growing prefix would cost the square of a sequence's length.
- * @param {any} expr
- * @returns {string[][]}
- */
-export declare function captureSequences(expr: any): string[][];
-/**
  * The captures that some production of an expression reads after a
  * capture of the same name (engine §3.5, §9), found from the structure
  * alone: two captures are read by one production exactly when they stand
@@ -280,6 +246,12 @@ export declare function elidableHead(expr: any): any;
 export declare const deferredRecipeProblem: (rule: object) => string | undefined;
 /** @param {object} rule @returns {string | undefined} */
 export declare const deferredEmissionProblem: (rule: object) => string | undefined;
+export type CaptureWitness = {
+    count: number;
+    names: any;
+    key: any;
+    mask?: number;
+};
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The
