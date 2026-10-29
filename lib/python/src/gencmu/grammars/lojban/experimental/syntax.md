@@ -249,7 +249,7 @@ A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. The `gi-stag-connective` rule also opens these groups with `gi` and a stag, as in `mi klama gi ba bo tavla`.
 
-A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU with nonempty shared tail terms also keeps it.
+A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] At a final plain connection, a whole-tail pattern tests whether the connective can own the same KE group. A continuing selbri or a head keeps the plain reading. A written inner VAU after written KEhE with nonempty shared tail terms also keeps it.
 
 A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
 
@@ -299,7 +299,8 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 %const $KE-FORETHOUGHT #« [tag] KE [🆓] gek-sentence KEhE [🆓] »
 %const $CONNECTED-KE-SELBRI #« [tag] $KE-UNIT »
 %const $CONNECTED-KE-TAIL #« $CONNECTED-KE-SELBRI tail-terms » ∪ $KE-FORETHOUGHT
-%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
+%const $CONNECTED-WRITTEN-KE-SELBRI #« [tag] $WRITTEN-KE-UNIT »
+%const $CONNECTED-KE-WITH-VAU #« $CONNECTED-WRITTEN-KE-SELBRI (tail-terms ∩ $WRITTEN-VAU) »
 
 %rule headed-bridi-tail-with(@T, @G, @P, @H)
   [bridi-tail-head] bridi-tail-with(@T, @G, @P, @H)
@@ -1238,9 +1239,9 @@ BO scope differs too. In `mi klama do .e bo tavla ti gi'a cadzu ko'a`, this laye
 
 A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer includes it. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer tests the whole selected tail. Only a complete KE-unit tail or KE-wrapped forethought sentence yields to the final connective's KE group. A continuing selbri, an earlier link, or written inner VAU with nonempty outer terms keeps the plain reading. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
+camxes-exp uses lookahead after its gihek. This layer tests the whole selected tail. Only a complete KE-unit tail or KE-wrapped forethought sentence yields to the final connective's KE group. A continuing selbri, an earlier link, or written inner VAU after written KEhE with nonempty outer terms keeps the plain reading. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
 
-Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi broda gi'e ke brode ke'e bo brodi`. Their selbri continue beyond KEhE. It also keeps `mi broda gi'e ke brode ke'e gi'e brodo`, whose KE unit precedes another link. In `mi broda gi'e ke brode ke'e vau do`, written inner VAU separates the two tail-term runs. The whole-tail tests preserve these plain readings because the connective's KE group cannot read the same words.
+Unlike camxes-exp, this layer keeps `mi broda gi'e ke brode ke'e brodi` and `mi broda gi'e ke brode ke'e bo brodi`. Their selbri continue beyond KEhE. It also keeps `mi broda gi'e ke brode ke'e gi'e brodo`, whose KE unit precedes another link. In `mi broda gi'e ke brode ke'e vau do`, written inner VAU after written KEhE separates the two tail-term runs. The whole-tail tests preserve these plain readings because the connective's KE group cannot read the same words.
 
 Only the final connection has the connective's KE-group alternative. This layer therefore accepts `mi broda gi'e ke ge brode gi brodi ke'e gi'e brodo` as a non-final plain connection, while camxes-exp rejects it.
 
