@@ -27,7 +27,7 @@ The prose uses these Lojban terms before the sections that explain them:
 
 The stages before syntax make the word stream that it reads. The forms stage reads the [shared forms](../common/forms.md), the pipeline's word forms, and the pipeline's lexicon. It reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes finished quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
-Finished quotes are `zo`, `lo'u ... le'u`, and `zoi` quotes. A `lu ... li'u` quote remains a syntax construction.
+Finished quotes include `zo`, `lo'u ... le'u`, and `zoi` quotes. A `lu ... li'u` quote remains a syntax construction.
 
 [The indicator stage](indicators.md), with any pipeline-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 
