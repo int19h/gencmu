@@ -4,7 +4,7 @@ Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, r
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar gives computed values to constituents. A constituent is the text that one rule matches. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
 
-Rule bodies use an EBNF dialect of the notation's own. "Operators" lists its forms. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound. A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of identifier tags, such as `KOhA` or `Word` in the Lojban grammars, computed bottom-up from its parts.
+Rule bodies use an EBNF dialect of the notation's own. "Operators" lists its forms. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound. A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of identifier tags, computed bottom-up from its parts. The Lojban grammars use tags such as `KOhA` and `Word`.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -197,7 +197,7 @@ A body uses these operators:
 
 `&` binds tighter than either `|` or `≻`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-A terminator is a token that closes a construct. Some languages let a writer elide (leave out) a terminator. In HTML, for example, a paragraph's end tag `</p>` can be left out before the next paragraph. An elidable optional marks a terminator that can be elided: `[+KU]`. The terminator is a tag, never a string. The optional can hold more after the terminator, as in `[+KU 🆓]`. In Lojban, `KU` is the class of the word `ku`, which can close a description.
+A terminator is a token that closes a construct. Some languages let a writer elide (leave out) a terminator. In HTML, for example, a paragraph's closing `</p>` can be left out before the next paragraph. An elidable optional marks a terminator that can be elided: `[+KU]`. In the notation, the terminator is a user tag, such as `KU`, never a string. The optional can hold more after the terminator, as in `[+KU 🆓]`. In Lojban, `KU` is the class of the word `ku`, which can close a description.
 
 The `+` after the bracket marks the optional as elidable, in its place (see "Elided terminators"). A plain optional, `[KU]`, is never elidable.
 
