@@ -36,9 +36,9 @@ export declare class Stage {
      * elided terminators back into the stage's input as synthetic tokens and
      * recognizes that input, R, with the main lowering in the reconstruction
      * mode. Every observation reads the stage's input through the projection
-     * π. The check passes where R has one derivation, and gives two readings
-     * where it has more. With none, the witness of the chosen derivation is
-     * lost.
+     * π. Raw absence of the chosen witness gives witness loss. An admitted
+     * witness that is solely best keeps the main result. Any other best
+     * competitor gives an elision-only ambiguity.
      * @param {Derivation} chosen D, the chosen derivation
      * @param {ResultNode} tree D's tree
      * @param {ParseContext} main the context of the main parse, whose memo

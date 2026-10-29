@@ -84,8 +84,9 @@ class Node:
     a tag, a canonical string or range, or the wildcard (engine §4).
     An elided node
     has ``terminal``, the terminator it stands for, and ``value``, the
-    string of the terminator's ``=`` test if it has one, which elision-only's
-    restored token stores (engine §7) and the output does not show.
+    string of the terminator's ``=`` test if it has one.
+    The restored token stores this string (engine §7).
+    Canonical JSON writes it as ``value``, including an empty string.
     """
 
     kind: str

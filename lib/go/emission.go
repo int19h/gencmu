@@ -19,6 +19,7 @@ type stringEmitter struct {
 	rec                          *recognizer
 	claims                       map[[2]int][][2]int
 	inherited                    map[int]bool
+	coverage                     []bool
 }
 
 func occurrenceTree(d *dn) *occurrence {
@@ -237,18 +238,24 @@ func (em *stringEmitter) verbatim(a, b int) string {
 	if b < len(em.run.toks) {
 		q = em.run.toks[b].Source[0]
 	}
-	covered := func(at int) bool {
-		for _, t := range em.run.toks {
-			if t.Source[0] <= at && at < t.Source[1] {
-				return true
-			}
+	if em.coverage == nil {
+		// A difference array unions overlapping sources in one pass.
+		changes := make([]int, len(em.run.ps.text)+1)
+		for _, token := range em.run.toks {
+			changes[token.Source[0]]++
+			changes[token.Source[1]]--
 		}
-		return false
+		em.coverage = make([]bool, len(em.run.ps.text))
+		depth := 0
+		for at := range em.coverage {
+			depth += changes[at]
+			em.coverage[at] = depth > 0
+		}
 	}
-	for p < l && !covered(l-1) {
+	for p < l && !em.coverage[l-1] {
 		l--
 	}
-	for r < q && !covered(r) {
+	for r < q && !em.coverage[r] {
 		r++
 	}
 	span := [2]int{a, b}

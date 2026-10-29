@@ -9,8 +9,7 @@ const result: ParseResult = pipeline.parse("%rule text A", { features: ["sa-su"]
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
-  if (stage.verdict === "tie" && stage.witness) {
-    // A cycle tie has no pairwise witness.
+  if (stage.verdict === "tie") {
     void stage.witness[0];
   } else {
     // @ts-expect-error only a tie has a witness

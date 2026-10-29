@@ -14722,7 +14722,8 @@
     // The parse the caller would get up to that stage, so that the traced
     // stage reads the same tokens under the same features, stage-local features
     // included.
-    const run = pipeline.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage });
+    const {elisionOnly} = /** @type {typeof options & {elisionOnly?: boolean}} */ (options);
+    const run = pipeline.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage, elisionOnly });
     const problem = traceProblem(pipeline, run, options.stage);
     if (problem) throw new GencmuError("usage", problem);
     const report = run.stages[index];
@@ -17123,9 +17124,9 @@
      * elided terminators back into the stage's input as synthetic tokens and
      * recognizes that input, R, with the main lowering in the reconstruction
      * mode. Every observation reads the stage's input through the projection
-     * π. The check passes where R has one derivation, and gives two readings
-     * where it has more. With none, the witness of the chosen derivation is
-     * lost.
+     * π. Raw absence of the chosen witness gives witness loss. An admitted
+     * witness that is solely best keeps the main result. Any other best
+     * competitor gives an elision-only ambiguity.
      * @param {Derivation} chosen D, the chosen derivation
      * @param {ResultNode} tree D's tree
      * @param {ParseContext} main the context of the main parse, whose memo
@@ -17322,7 +17323,7 @@
    */
 
   /**
-   * What the check of engine §7 found: one reading, two, or none.
+   * What the check of engine §7 found: a pass, ambiguity, or witness loss.
    * @typedef {({kind: "pass"} | {kind: "ambiguous", readings: ResultNode[], witness?: import("./types.js").Witness} | {kind: "lost", completion: RestorationRecord[]})
    *   & {competitorWarnings?: import("./types.js").ParseWarning[]}} ElisionCheck
    */
@@ -17489,8 +17490,8 @@
           const position = emptySource(tokens, node.start);
           /** @type {ElidedNode} */
           const elided = { kind: "elided", terminal: production.elided, span: [node.start, node.start], source: [position, position] };
-          // The string of an `=` test is kept for elision-only's restored
-          // token; the output does not show it (engine §7).
+          // An equality-tested elided node keeps the restored token's string.
+          // Canonical JSON writes it as value, including an empty string.
           if (production.elidedTest && production.elidedTest.op === "=" && production.elidedTest.value !== undefined) elided.value = production.elidedTest.value;
           finish([elided]);
           continue;
@@ -20903,7 +20904,7 @@
    */
 
   /**
-   * @typedef {StageReportBase & {verdict: "tie", witness: Witness | null}} TiedStageReport
+   * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
    */
 
   /**

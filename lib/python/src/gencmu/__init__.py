@@ -4,9 +4,9 @@ runtime.
     import gencmu
 
     pipeline = gencmu.load_pipeline("lojban/cll")
-    result = pipeline.parse("mi klama", features={"cbm"}, until="words")
+    result = pipeline.parse("mi klama", features={"y-cmavo"}, until="words")
     result.ok, result.tree, result.error, result.warnings
-    pipeline.features  # (Feature(name="sa-su", kind="gate", default=False),)
+    pipeline.features  # Includes Feature(name="y-cmavo", kind="warning", default=False).
     gencmu.to_json(result)
     gencmu.to_brackets(result, show_elided=True)
 

@@ -139,9 +139,9 @@ class Tree:
                                 (child.start, child.start),
                                 (0, 0),
                                 terminal=child.production.elided,
-                                # The string of an = test is kept for
-                                # elision-only's restored token; the output
-                                # does not show it (engine §7).
+                                # An equality-tested elided node keeps the
+                                # restored token's string. Canonical JSON writes
+                                # it as value, including an empty string.
                                 value=_restored_value(child.production.elided_test),
                             )
                         )

@@ -113,7 +113,7 @@ export type CloseAction = {
 export type StageReport = TiedStageReport | SettledStageReport;
 export type TiedStageReport = StageReportBase & {
     verdict: "tie";
-    witness: Witness | null;
+    witness: Witness;
 };
 export type SettledStageReport = StageReportBase & {
     verdict: "unique" | "resolved" | null;
@@ -981,7 +981,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {TiedStageReport | SettledStageReport} StageReport
  */
 /**
- * @typedef {StageReportBase & {verdict: "tie", witness: Witness | null}} TiedStageReport
+ * @typedef {StageReportBase & {verdict: "tie", witness: Witness}} TiedStageReport
  */
 /**
  * @typedef {StageReportBase & {verdict: "unique" | "resolved" | null, witness: null}} SettledStageReport

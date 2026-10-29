@@ -843,9 +843,9 @@ impl Pipeline {
     /// synthetic tokens, and recognizes that input, R, with the main
     /// lowering in the reconstruction mode. Every observation reads the
     /// stage's input through the projection π, and the check's queries
-    /// share the main parse's memo. It passes where R has one derivation,
-    /// gives two readings where it has more, and has lost the witness of
-    /// the chosen derivation where it has none.
+    /// share the main parse's memo. Raw absence of the chosen witness gives
+    /// witness loss. An admitted witness that is solely best keeps the main
+    /// result. Any other best competitor gives an elision-only ambiguity.
     #[allow(clippy::too_many_arguments)]
     fn elision_check(
         &self,
@@ -1094,8 +1094,8 @@ impl Pipeline {
     }
 }
 
-/// What the check of `elision-only` found (engine §7): one reading of the
-/// reconstructed input, two, or none.
+/// What the check of `elision-only` found (engine §7): a pass, ambiguity,
+/// or witness loss.
 enum Check {
     Pass,
     Ambiguous(Box<ParseError>),

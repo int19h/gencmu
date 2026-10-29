@@ -79,9 +79,9 @@ pub(crate) enum Work {
     Spliced,
     /// The clauses that stitching substitutes constants in and checks.
     Stitched,
-    /// The classes of a key that resolving a classifier compares with.
-    /// Interned restoration observations, including cycle footprints.
+    /// Interned shared close and cycle summaries.
     CloseStates,
+    /// Interned shared close-sequence links.
     CloseSequences,
     /// Distinct family summaries that chart items take (§4.1).
     FamilySummaries,
@@ -91,6 +91,7 @@ pub(crate) enum Work {
     StageZero,
     /// Calls to canonical decomposition, including source-text methods.
     Decompositions,
+    /// The classes of a key that resolving a classifier compares with.
     Classified,
 }
 
