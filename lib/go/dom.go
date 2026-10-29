@@ -31,8 +31,8 @@ type domClassifier struct {
 }
 
 // domEntry is an entry of a classifier: its gates, one or more keys, each a
-// canonical sound, ∈ or ∉, and one class, a name that begins with a
-// capital. At is its first token, where the loader reports an error of the
+// canonical sound, ∈ or ∉, and one class whose name starts and ends
+// with an uppercase ASCII letter. At is its first token, where the loader reports an error of the
 // entry.
 type domEntry struct {
 	Guards   []domGuard

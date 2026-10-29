@@ -26,12 +26,23 @@ fn user_tag(n: &Json) -> bool {
     n.as_str().is_some_and(|s| s.starts_with(|c: char| c.is_ascii_uppercase()) && is_name(s))
 }
 fn closed(n: &Json) -> Option<&'static str> {
-    if nodes(n).any(|n| has(n, "capture") || has(n, "captured") || text(get(n, "tag")).starts_with('_')) {
-        Some("a closed declaration requires a closed term without engine-tag literals")
-    } else {
-        None
+    let mut pending = vec![n];
+    while let Some(n) = pending.pop() {
+        if has(n, "pattern") {
+            continue;
+        }
+        if has(n, "capture") || has(n, "captured") || text(get(n, "tag")).starts_with('_') {
+            return Some("a closed declaration requires a closed term without engine-tag literals");
+        }
+        match n {
+            Json::Obj(fields) => pending.extend(fields.iter().filter(|(key, _)| key != "at").map(|(_, value)| value)),
+            Json::Arr(items) => pending.extend(items),
+            _ => {}
+        }
     }
+    None
 }
+
 pub(crate) fn engine_literals(root: &Json) -> Vec<(String, usize)> {
     let mut pending = vec![(root, false)];
     let mut values: Vec<Vec<(String, usize)>> = Vec::new();

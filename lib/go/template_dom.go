@@ -367,9 +367,25 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 	return nil
 }
 func templateClosedProblem(root any) string {
-	for _, n := range templateNodes(root) {
-		if n["capture"] != nil || n["captured"] != nil || strings.HasPrefix(templateText(n["tag"]), "_") {
-			return "a closed declaration requires a closed term without engine-tag literals"
+	pending := []any{root}
+	for len(pending) > 0 {
+		value := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch n := value.(type) {
+		case map[string]any:
+			if n["pattern"] != nil {
+				continue
+			}
+			if n["capture"] != nil || n["captured"] != nil || strings.HasPrefix(templateText(n["tag"]), "_") {
+				return "a closed declaration requires a closed term without engine-tag literals"
+			}
+			for key, child := range n {
+				if key != "at" {
+					pending = append(pending, child)
+				}
+			}
+		case []any:
+			pending = append(pending, n...)
 		}
 	}
 	return ""

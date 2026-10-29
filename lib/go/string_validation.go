@@ -51,7 +51,11 @@ func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
 					ends[i], _ = utf8.DecodeRuneInString(v.s)
 				}
 				if ends[0] > ends[1] {
-					return g.faultError(doc, e, r.At, "a range starts above its end")
+					where := r.At
+					if references := constRefs(e.Ends[0], e.Ends[1]); len(references) > 0 {
+						where = references[0].At
+					}
+					return g.constError(doc, where, "a range starts above its end")
 				}
 			}
 			stack = append(stack, e.Inner, e.Sep)

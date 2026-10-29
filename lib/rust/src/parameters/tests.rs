@@ -480,3 +480,24 @@ fn alias_twins_preserve_decorations() {
         }
     }
 }
+
+#[test]
+fn pattern_closedness_leaves_tests_to_schema() {
+    for missing in [false, true] {
+        let mut test = j(r#"{"test":"=","expr":{"terminal":"A"}}"#);
+        if !missing {
+            set(&mut test, "value", j(r#"{"capture":"x","call":"atom","args":[{"string":"a"}],"at":[3,12]}"#));
+        }
+        let value = obj([("pattern", test)]);
+        let constant =
+            obj([("name", string("P")), ("op", string("define")), ("value", value.clone()), ("at", j("[3,1]"))]);
+        let implication = obj([("if", value), ("then", obj([("tag", string("A"))])), ("at", j("[3,1]"))]);
+        for (kind, r) in [("constants", constant), ("implications", implication)] {
+            assert_eq!(
+                declaration_problem(&r, kind, &unicode()),
+                Some("a malformed pattern"),
+                "{kind}, missing={missing}"
+            );
+        }
+    }
+}

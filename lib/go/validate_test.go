@@ -343,7 +343,7 @@ func TestDOMRules(t *testing.T) {
 		{"a key has no comma", entry(`{"guards":[],"keys":[{"string":"m,i"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a key is a string", entry(`{"guards":[],"keys":[1],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"an entry's operator is ∈ or ∉", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"=","class":"KOhA","at":[3,3]}`)},
-		{"a class begins with a capital", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"koha","at":[3,3]}`)},
+		{"a class starts and ends with an uppercase ASCII letter", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"koha","at":[3,3]}`)},
 		{"a class is a name", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"/a/","at":[3,3]}`)},
 		{"an entry has no other member", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
 		{"an implication has a position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":null}`)},
