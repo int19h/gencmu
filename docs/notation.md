@@ -4,7 +4,7 @@ Every grammar in gencmu is a Markdown document. Its fenced `jbogenbau` blocks, r
 
 A jbogenbau grammar is an attribute grammar with EBNF rule bodies. An attribute grammar gives computed values to constituents. A constituent is the text that one rule matches. EBNF (Extended Backus-Naur Form) is a common notation for the bodies of grammar rules.
 
-Rule bodies use an EBNF dialect of the notation's own. "Operators" lists its forms. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound. A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of identifier tags, such as `KOhA` or `Word`, computed bottom-up from its parts.
+Rule bodies use an EBNF dialect of the notation's own. "Operators" lists its forms. A token is one unit that a grammar reads or emits. A phoneme is a unit of sound. A tag is a mark on a token or constituent. Each constituent carries one attribute, its set of identifier tags, such as `KOhA` or `Word` in the Lojban grammars, computed bottom-up from its parts.
 
 Conditions over the parts restrict which parses exist. A condition can also ask whether a part parses as another rule. This takes the grammar beyond context-free grammars, whose rules only combine symbols. It goes beyond them in the way that Boolean grammars do. In a Boolean grammar, a rule can also require that the same text matches, or does not match, another rule.
 
@@ -64,7 +64,7 @@ For example:
 
 On `ab`, the stage chooses the parse where `r` spans both tokens. Without the flag, the directive `greedy` leaves the two parses tied.
 
-A Lojban example uses tense words. Flagging only `simple-tense-modal` groups `pu va ca gi` as `pu va` then `ca gi`. The official Lojban parser gives that grouping. The flag ranks complete parses. The official parser's lexer instead groups tokens before syntax parsing.
+A Lojban example uses tense words in the syntax grammar of `lojban/cll`. Flagging only `simple-tense-modal` groups `pu va ca gi` as `pu va` then `ca gi`. The official Lojban parser gives that grouping. The flag ranks complete parses. The official parser's lexer instead groups tokens before syntax parsing.
 
 Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
@@ -168,7 +168,7 @@ A reference or terminal can carry one tag test and one value test. The tag test 
 
 A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with tests is a tested symbol. The symbol matches only where every test holds.
 
-A value test reads values, not spellings. So different spellings that earlier stages map to one value pass the same test. In the Lojban pipelines, for example, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LA="la"` after phoneme mapping and word classification. A reference reads its complete input value.
+A value test reads values, not spellings. So different spellings that earlier stages map to one value pass the same test. In the `lojban/bpfk` pipeline, for example, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LA="la"` after phoneme mapping and word classification. A reference reads its complete input value.
 
 A reference's value joins the values of its input tokens with no separator. In Lojban, for example, a sumti over `lo mlatu` has value `lomlatu`, so `sumti="lomlatu"` succeeds. The words stage erases the pause between the two words. Concatenation supplies no separator, although the source text remains `lo mlatu`.
 
@@ -197,7 +197,7 @@ A body uses these operators:
 
 `&` binds tighter than either `|` or `≻`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-A terminator is a token that closes a construct, such as a closing parenthesis. Some languages let a writer elide (leave out) a terminator, such as the Lojban word `ku`. An elidable optional marks a terminator that can be elided: `[+KU]`. The optional can hold more after the terminator, as in `[+KU 🆓]`.
+A terminator is a token that closes a construct. Some languages let a writer elide (leave out) a terminator. In HTML, for example, a paragraph's end tag `</p>` can be left out before the next paragraph. An elidable optional marks a terminator that can be elided: `[+KU]`. The terminator is a tag, never a string. The optional can hold more after the terminator, as in `[+KU 🆓]`. In Lojban, `KU` is the class of the word `ku`, which can close a description.
 
 The `+` after the bracket marks the optional as elidable, in its place (see "Elided terminators"). A plain optional, `[KU]`, is never elidable.
 
@@ -232,7 +232,7 @@ Second, that alternative is the only alternative of its rule that the gates leav
 
 The chain's alternative can still have guards and tags of its own, and its rule can have clauses. A chain can be optional, or part of a sequence, through a rule. Name the chain as a rule. Then write the rule's name there, as in `[tag]`.
 
-An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}`, `{ε}` and `{🆓}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse.
+An item of braces must read at least one token. An item that can match no tokens is an error of the grammar, found as the error above. So `{[x]}` and `{ε}` are errors, and so is `{r}` where `r` can match no tokens for the features of the parse. The Lojban syntax grammars, for example, define `🆓` as `[{free}]`, so `{🆓}` is an error there.
 
 gencmu decides this from the rules alone, as the gates and stitching leave them. It ignores every test and condition. So a rule `r` whose only alternative is `ε` with a condition that never holds still makes `{r}` an error. An alternative that a gate drops does not count, and one that an `%extend-rule` adds does.
 
@@ -254,31 +254,31 @@ A list has no node, so nothing can name it, capture it or test it. The clauses o
 
 ### Chains in the tree
 
-Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads. The tree format writes it the same way. A box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads. The tree format writes it the same way. A rounded box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
 
 ```mermaid
 flowchart TB
   subgraph flat ["flat: %rule sum {term / #quot;+#quot;}"]
     direction TB
     f["sum"] --> f1["term · 1"]
-    f --> fp1["#quot;+#quot;"]
+    f --> fp1(["#quot;+#quot;"])
     f --> f2["term · 2"]
-    f --> fp2["#quot;+#quot;"]
+    f --> fp2(["#quot;+#quot;"])
     f --> f3["term · 3"]
   end
   subgraph chain ["left chain: %rule sum {... term / #quot;+#quot;}"]
     direction TB
     c["sum"] --> c12["sum"]
-    c --> cp2["#quot;+#quot;"]
+    c --> cp2(["#quot;+#quot;"])
     c --> c3["term · 3"]
     c12 --> c1s["sum"]
-    c12 --> cp1["#quot;+#quot;"]
+    c12 --> cp1(["#quot;+#quot;"])
     c12 --> c2["term · 2"]
     c1s --> c1["term · 1"]
   end
 ```
 
-A Lojban example is `%rule tag {... tense-modal / joik-jek}`. It reads `ba je ca je pu` as three `tag` nodes in the same way.
+A Lojban example from the syntax grammar of `lojban/cll` is `%rule tag {... tense-modal / joik-jek}`. It reads `ba je ca je pu` as three `tag` nodes in the same way.
 
 The clauses of the rule serve every level, as they serve every alternative:
 
@@ -752,7 +752,7 @@ The name of a classifier begins with a lower-case letter. A classifier belongs t
 
 An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
 
-`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.tags(rule)` is still the way to ask a rule for the tags of a span. In the Lojban word grammars, for example, `brivla-shape` asks `brivla-scan` in this way.
+`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.tags(rule)` is still the way to ask a rule for the tags of a span. In the word grammar of `lojban/cll`, for example, `brivla-shape` asks `brivla-scan` in this way.
 
 The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
 
@@ -770,7 +770,7 @@ The stage applies its implications when it emits a token. First it gives the tok
 
 Implications change only emitted tags. They never supply or alter a value or image. Neither side of `%implies` can name an engine tag. Recipes and plain concatenation determine token strings independently.
 
-Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. In the Lojban pipelines, for example, the lexicon's implication in the forms stage marks each word of these classes `Indicator`. The words stage can drop that mark from a quote's marker, and nothing adds it again.
+Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. In `lojban/cll`, for example, the lexicon's implication in the forms stage marks each word of these classes `Indicator`. The words stage can drop that mark from a quote's marker, and nothing adds it again.
 
 ## Captures
 
@@ -862,7 +862,7 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 These context methods can look outside the constituent. Ordinary nested query bounds end at their input span. Spans can supply query receivers or convert to input strings. They never supply constituent tags after a span method.
 
-The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes characters such as commas, or changes pause spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) shows how a grammar sets values, with stress as its example.
+The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes characters such as commas, or changes spacing. The [pipeline guide](pipelines.md#phoneme-values-and-stress) shows how a grammar sets values, with stress as its example.
 
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
 
@@ -917,7 +917,7 @@ Query alternatives run from left to right until one holds. An error from an eval
 
 In a rule with a ranked choice, a terminal target has the same meaning as in any other rule. For `matches`, `begins`, and `ends`, the engine reads the target through a helper that reads one token. The helper changes no ranked group and no capture. `followed-by` and `preceded-by` test the nodes of the parse, as "Neighbours in the parse" explains.
 
-For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. So a condition can ask whether a part also reads as something else. The Lojban word grammars use this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
+For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. So a condition can ask whether a part also reads as something else. The word grammar of `lojban/cll` uses this for the slinku'i test of borrowed words (fu'ivla). A CV cmavo is a particle of one consonant and one vowel. The test says that such a particle before a borrowed word must not make a compound word (lujvo). That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
@@ -993,7 +993,7 @@ A family is an ordinary rule or one exact instance. Its members are the rule its
 
 The members come from the rules as written. Guards do not matter, so every alternative counts.
 
-Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, in the Lojban grammars, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
+Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, in the syntax grammar of `lojban/zantufa`, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
 
 A rule owns each elidable optional that its alternatives write outside call arguments, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
 
@@ -1150,7 +1150,7 @@ An item of the list can be a capture. The stage hands a capture on as one token.
 
 An item can also be `ε`, which inserts an ordinary token with an empty span. Its default tags and strings are empty. Explicit clauses supply its tags, value, and image. `%emits "foo"`, a bare range, or a property as an item is an error. Capture and attachment order must agree with every production.
 
-`$` is the whole constituent. Its item emits one covering token. `%emits $ :: ∅ := "n", ε :: ∅ := "o"` makes the digit 0 two phoneme tokens. Only the first covers input. Covering carriers must be disjoint in stage-input positions. Two whole items coexist only over a structurally always-empty constituent.
+`$` is the whole constituent. Its item emits one covering token. `%emits $ :: ∅ := "n", ε :: ∅ := "o"` makes one input token into two tokens, `n` and `o`. Only the first covers input. A Lojban example is the digit `0`, whose name is `no`. The phoneme grammars of `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` read it in this way. Covering carriers must be disjoint in stage-input positions. Two whole items coexist only over a structurally always-empty constituent.
 
 An inserted item stands in its written order and records `insertedBy`. This emission list inserts an apostrophe before the captured vowel:
 
@@ -1162,7 +1162,7 @@ An inserted item stands in its written order and records `insertedBy`. This emis
 
 The comma separates two emission items. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
 
-`%erased` hands on nothing and removes the constituent from counted parts. It serves words that remove other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text. Its strings exclude that text. `%emits ε` instead inserts a token and never erases.
+`%erased` hands on nothing and removes the constituent from counted parts. It serves text that later stages must not read, such as a hesitation or a word that removes other words. In Lojban, for example, `si` erases the preceding word, so `broda brode si bu` emits the letter word `broda bu`. The token's source still spans the erased text. Its strings exclude that text. `%emits ε` instead inserts a token and never erases.
 
 A capture item can carry attachments: other tokens that belong to its token, which no later stage reads. Attachments serve words that mark another word but play no part in the grammar of later stages. Each attachment is a capture in parentheses, before the item or after it, and an item can have any number on each side. The item's own capture is its carrier, and it must be a named capture. Neither a `$` item nor an inserted `ε` item can name attachment captures. `($)` is an error.
 
@@ -1174,7 +1174,7 @@ A capture item can carry attachments: other tokens that belong to its token, whi
   ($b) $w ($a)
 ```
 
-The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. In Lojban, for example, `ui` expresses happiness about the word before it. So `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
+The carrier's token covers its own capture only. An attachment is the list of tokens that its captured part hands on, as if the stage walked that part. In Lojban, for example, `ui` expresses happiness about the word before it. In `lojban/cll`, `mi ui klama` hands on `mi` with `ui` attached after it, and the next stage reads `mi klama`. The carrier does not run the emission of its own part. So a structure inside the carrier's part stays only where the item captures it separately.
 
 An attachment capture stands in exactly one item, and never as an item of its own. A production without the carrier emits nothing for the item, and it must also lack the item's attachment captures. The captures of an emission, attachments included, must be written in the order in which each production reads them.
 
@@ -1188,7 +1188,7 @@ A forwarded token keeps attachments. A covering token over one counted input tok
 
 No condition, test or method sees attachments, and neither does a terminal. The renderings show them with their token.
 
-A part that an emission list does not name remains a counted part, although it emits nothing. A pause inside a quote can therefore contribute to a compound through its gap recipe. A rule without `%emits` can emit nothing but still count. Only `%erased` removes its contribution and ownership.
+A part that an emission list does not name remains a counted part, although it emits nothing. In the Lojban words stage, for example, a pause inside a quote can therefore contribute to a compound through its gap recipe. A rule without `%emits` can emit nothing but still count. Only `%erased` removes its contribution and ownership.
 
 ```jbogenbau
 %rule plain-word
@@ -1211,7 +1211,7 @@ A part that an emission list does not name remains a counted part, although it e
 
 The stage fixes each emitted token's value and image through recipes or plain concatenation. It preserves tags such as `Stressed` and `Syllable-Break` as the grammar specifies. Tags never assign strings. An implication changes tags only, so it cannot change a value or replace an image.
 
-Default string construction concatenates non-erased input parts in order. It enters child constituents without executing their emission items. A child constituent recipe can replace its contribution separately by channel. Gap recipes supply spacing. A quote-body image recipe supplies verbatim text. No engine rule trims pauses or assigns a foreign placeholder.
+Default string construction concatenates non-erased input parts in order. It enters child constituents without executing their emission items. A child constituent recipe can replace its contribution separately by channel. Gap recipes supply spacing. A quote-body image recipe supplies verbatim text. No engine rule trims spacing or supplies placeholder text.
 
 A string walk builds each emitted token's two channels. It enters child constituents with `%emits` but ignores their emission lists. It skips `%erased` children. It uses a selected constituent recipe or concatenates its children. Attachment captures use their own emission walks.
 
@@ -1288,7 +1288,7 @@ A later stage that forwards a token preserves its stored value, image, text, and
 
 Every token has an image that renderings show. The stage builds it through the selected item, alternative, or definition recipe, or concatenates child images. An explicit `:-` can preserve written spelling while `:=` supplies a normalized value. Stage-zero images equal their characters. Tags never determine images.
 
-An inserted `ε` item has an empty default image. `:= "'"` supplies an apostrophe as both value and implied image. In the Lojban grammars, for example, this keeps a shorthand apostrophe visible in `u'i`. An explicit item `:-` overrides that implied image. The insertion still has empty source text.
+An inserted `ε` item has an empty default image. `:= "'"` supplies an apostrophe as both value and implied image. In the `lojban/bpfk`, `lojban/experimental` and `lojban/zantufa` pipelines, for example, Cyrillic `уи` reads as `u'i`, and this keeps the inserted apostrophe visible. An explicit item `:-` overrides that implied image. The insertion still has empty source text.
 
 The constructor contract in [engine §9.3](engine.md#93-conversion-and-validation) defines the reader's required parts and conversion order. It covers every clause, test, method, recipe, and attachment.
 
@@ -1461,11 +1461,11 @@ In the bundled Lojban pipelines, the forms and words stages are lazy. Ordinary w
 
 A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
 
-A magic word, such as `si`, acts on other words. In the Lojban words stage, the lazy choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
+In the Lojban words stage, the lazy choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 
-Some languages let a writer elide a terminator where no ambiguity results. A stage decides where a terminator is elided from the whole text.
+Some languages let a writer elide a terminator where no ambiguity results. A stage reads the whole text to decide where a terminator is elided.
 
 A grammar marks each terminator that can be elided where it writes it. An elidable optional is a bracket, then `+`, then the terminator, then the rest of the optional:
 
@@ -1476,7 +1476,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 ```
 
 - The tag or parameter stands directly after the marker, as written, with no parentheses around it. So `[+(KU) 🆓]`, `[+((KU)) 🆓]`, `[+(KU 🆓)]` and `[+(KU 🆓) A]` are errors, although parentheses make no node elsewhere. `[+(@End) 🆓]` is invalid for the same reason. One spelling for each marked optional keeps every reader's check the same, and the check reads the written text, before parentheses are dropped.
-- `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, rule, or `🆓` cannot mark an omission.
+- `T` is a user tag or parameter written directly after `+`. `[+KU]` marks KU. A parameter must become exactly one bare user tag after argument conversion. A string, range, engine tag, wildcard, or rule, such as `🆓`, cannot mark an omission.
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
