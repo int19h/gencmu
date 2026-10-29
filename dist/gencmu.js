@@ -19285,7 +19285,7 @@
         // backtick, or the line is not a fence (CommonMark). Only an info
         // string that is exactly `jbogenbau` makes a grammar block.
         const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/s.exec(line);
-        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], fence[2].replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "")] : null;
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], trimWhiteSpace(fence[2])] : null;
         if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
@@ -19327,6 +19327,15 @@
    */
   function splitLines(text) {
     return text.split(/\r\n|\r|\n/);
+  }
+
+  // Scan only the edges, so a long inner whitespace run costs no backtracking.
+  /** @param {string} text @returns {string} */
+  function trimWhiteSpace(text) {
+    let start = 0, end = text.length;
+    while (start < end && /\p{White_Space}/u.test(text[start])) start++;
+    while (end > start && /\p{White_Space}/u.test(text[end - 1])) end--;
+    return text.slice(start, end);
   }
 
   // A path relative to a document, resolved and normalized.
