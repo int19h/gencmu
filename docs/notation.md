@@ -1306,7 +1306,9 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 For a procedure with commands and tree examples, read [Implement a pipeline](pipelines.md).
 
-A document can start its grammar statements with `%names "PATH"`. The relative path resolves beside that document under the rule of engine §13. A leading `/` is a grammar error at `%names`. Its escapes use only numbers or core abbreviations. Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
+A document can start its grammar statements with `%names "PATH"`. The relative path resolves beside that document under the rule of engine §13. A leading `/` is a grammar error at `%names`. Its escapes use only numbers or core abbreviations.
+
+Declarations add to the inherited resources and do not affect sibling documents. A pipeline preamble therefore supplies names to its included documents. [Engine §1](engine.md#extra-names-files) defines conflicts, lazy loading, and custom naming restrictions.
 
 A pipeline document, which is Markdown too, defines a pipeline. Each stage is a heading, followed by the list of its documents. Prose then says what the stage receives, does and hands on. Pipeline directives in `jbogenbau` blocks say what the pipeline is made of.
 
@@ -1338,7 +1340,11 @@ This example belongs to `grammars/lojban/experimental/pipeline.md`:
 - `%stage NAME` creates and selects a stage called `NAME`. Stages run in creation order, and every stage starts at `text`. A second declaration of the same name is an error.
 - `%extend-stage NAME` selects an earlier stage. Subsequent stage items append to that stage until another stage selector appears. An unknown name is an error.
 - `%redefine-stage NAME` selects an earlier stage and clears all its accumulated stage items. The stage keeps its execution position. Subsequent items define the replacement, and later extensions append to it. An unknown name is an error.
-- `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the include path against the directory of the document that holds the `%include`. The target must be relative, and a leading `/` is a grammar error at `%include`. Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base. An earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13). It works as if their text stood in its place, so an included document can include others and can hold stage selectors and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
+- `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the include path against the directory of the document that holds the `%include`. The target must be relative, and a leading `/` is a grammar error at `%include`.
+
+  Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base. An earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13).
+
+  It works as if their text stood in its place, so an included document can include others and can hold stage selectors and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
 - Before the first stage selector, `%features NAME…` declares global defaults for every stage.
 - After a stage selector, `%features NAME…` belongs to that stage. It enables its features for that stage and every later stage.
 - A stage-local `%features` accepts a following `%conditions` clause list. All conditions must hold before it enables its features.

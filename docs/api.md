@@ -38,7 +38,9 @@ The decoded include target is a relative path, resolved against its declaring do
 
 `%names "PATH"` uses the same resolution for extra names resources. A pipeline or grammar document declares extras in its preamble. The loader inherits them through nested includes and restores the parent's set after each include.
 
-Disk loaders read the resolved file. Source-map loaders use that exact normalized key. They preserve caller-supplied keys and the pipeline path exactly. An absent resolved key gives the ordinary “was not found” error. Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
+Disk loaders read the resolved file. Source-map loaders use that exact normalized key. They preserve caller-supplied keys and the pipeline path exactly. An absent resolved key gives the ordinary “was not found” error.
+
+Bundled loaders supply selected names resources from any family. One example is `grammars/lojban/common/zbalermorna-names.txt`. If a document selects and needs it, the portable caller supplies it. Extras augment the selected standard names, without fallback for omitted standard entries.
 
 Names-file inspection also requires the complete pinned standard reference, independently of selected lookup files. Bundled and disk loaders use the package's `data/unicode/unicode-names.txt`. If the selected base matches the pinned reference fingerprint, that text also serves as the reference. Otherwise, the portable map supplies the reference under `data/unicode/unicode-names-reference.txt`. The reference never supplies omitted lookup entries. Missing, mismatched, or wrong-version reference data causes a grammar loading error (engine §1).
 
@@ -52,7 +54,11 @@ The optional `bundledNames` cache registry supplies fingerprints for unoverridde
 
 Core abbreviations depend only on the core hash. Numeric escapes alone add no names dependency. A caller's `data/unicode/unicode.txt` changes the table hash, so it never reuses a DOM that another table produced.
 
-A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1). An existing document that cannot be read causes a `grammar` error: “the document could not be read: REASON”. The message names the document path and the operating-system reason. An include read failure also identifies the `%include` line and column. A missing document keeps the “was not found” error. An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie while the notation reads a document is a load error too (engine §8).
+A pipeline that cannot be loaded is an error. A pipeline cannot be loaded when a document is missing, does not parse as the notation, or does not stitch (combine) into a valid grammar. It also cannot be loaded when a document on disk is not valid UTF-8 (engine §1).
+
+An existing document that cannot be read causes a `grammar` error: “the document could not be read: REASON”. The message names the document path and the operating-system reason. An include read failure also identifies the `%include` line and column. A missing document keeps the “was not found” error.
+
+An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie while the notation reads a document is a load error too (engine §8).
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 

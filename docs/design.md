@@ -863,7 +863,11 @@ to_json(result); to_brackets(result)
 
 The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory.
 
-In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader preserves caller-supplied keys and the pipeline path exactly. Include and names targets must be relative, and a leading `/` is a grammar error at the directive. The loader resolves each target against its declaring document's directory. Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base, and an earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13). The bundled pipelines are that same map.
+In-memory sources are a map from path to text. The paths are `/`-separated and relative to the package root. Bundled source keys start with `grammars/`, and engine resource keys start with `data/`. The loader preserves caller-supplied keys and the pipeline path exactly.
+
+Include and names targets must be relative, and a leading `/` is a grammar error at the directive. The loader resolves each target against its declaring document's directory.
+
+Lexical cleaning collapses `.` and each `..` with a parent segment. It keeps `..` above a relative base, and an earlier `..` is not a parent segment. Above an absolute root, `..` stays at the root. Disk loaders open the result, and source-map loaders look up that exact key (engine §13). The bundled pipelines are that same map.
 
 Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
