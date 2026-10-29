@@ -117,7 +117,7 @@ The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syn
 %ambiguity-resolution late-elision elision-only
 ```
 
-A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
+An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
 A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
 

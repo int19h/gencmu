@@ -117,7 +117,7 @@ A terminator is a closing word. Elision leaves it unwritten. A derivation is one
 
 A best reading has no better admitted competitor. `unique` means there is one admitted reading. `resolved` means several admitted readings have one best reading.
 
-Among parses with equal flagged groups, `late-elision` prefers the parse that omits a terminator later. A terminator can be elided wherever a complete parse needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
+Among parses with equal flagged groups, `late-elision` prefers the parse that omits a terminator later. An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
 
 `elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
 
@@ -139,7 +139,7 @@ The enabled `su-boundary` feature makes SU stop at the last surviving NIhO, LU, 
 
 A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../common/stream.md#cll-and-magic-words) explains. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO departs from CLL[^cll-s19-13] under any reading. So does every NIhO and TUhE stop.
 
-A caller asks the pipeline for a parse. [gencmu's Cyrillic](../common/cyrillic.md) assigns different readings from CLL's. This pipeline therefore selects only CLL's Cyrillic. A caller can turn that script off.
+[gencmu's Cyrillic](../common/cyrillic.md) assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
 
 This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL calls the former nonstandard and unused.
 

@@ -1,6 +1,6 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](pipeline.md) pipeline and the pipeline of the [BPFK](../bpfk/pipeline.md), the Lojban language planning committee. It also supplies the base for the [experimental](../experimental/pipeline.md) syntax. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. This grammar forms the syntax stage of the [CLL](pipeline.md) and [BPFK](../bpfk/pipeline.md) pipelines. The BPFK is the Lojban language planning committee. This grammar also supplies the base for the [experimental](../experimental/pipeline.md) syntax. A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -25,7 +25,9 @@ The prose uses these Lojban terms before the sections that explain them:
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([../common/forms.md](../common/forms.md), with a word family and a lexicon) reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
+The stages before syntax make the word stream that it reads. The forms stage reads the [shared forms](../common/forms.md), the pipeline's word forms, and the pipeline's lexicon. It reads phonemes into words. The words stage, [the word stream](../common/stream.md), makes finished quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
+
+Finished quotes are `zo`, `lo'u ... le'u`, and `zoi` quotes. A `lu ... li'u` quote remains a syntax construction.
 
 [The indicator stage](indicators.md), with any pipeline-specific layer, attaches `ba'e` and indicators to their words, before syntax reads them.
 
@@ -155,7 +157,7 @@ A subsentence is a sentence, or a prenex followed by a subsentence. Abstractions
 
 The bridi-tail levels state how sentences share a head under a gihek, the connective family `gi'e`, `gi'a` and the rest of GIhA[^cll-s14-9]. `bridi-tail-3` is one selbri with its tail terms, or a forethought `gek-sentence`. `bridi-tail-2` binds two tails with `gihek [stag] bo`, right-grouping, and `bridi-tail-1` joins tails with a plain gihek, left-grouping[^cll-s14-10]. `bridi-tail-1` is written with left recursion, so the tree shows that grouping. It is not a chain, since each tail after a gihek has its own tail terms.
 
-`bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`. The brackets group the tails inside them against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
+`bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`. The brackets group the tails inside them against the tail to the left. The tail terms after each selbri belong to that selbri. The written or elided `vau` closes them.
 
 `late-elision` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
 
@@ -317,7 +319,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 
 `sumti-6` is the closed list of simple sumti. A LAhE word such as `la'e`, or a NAhE word with `bo` such as `na'e bo`, qualifies another sumti. Relative clauses can stand inside. `lu'u` closes the resulting sumti. `KOhA` is a pronoun. A lerfu string, `.abu` or `xy.`, is a sumti, and `boi` closes it and separates it from a following number or lerfu string.
 
-`la` before names makes a name. `la` or `le` (that is, any member of LA or LE) before a `sumti-tail` makes a description closed by `ku`. `li` opens a mekso closed by `lo'o`. Four forms quote[^cll-s19-9][^cll-s19-10]:
+`la` before names makes a name. Relative clauses can stand between `la` and the names. `la` or `le` (that is, any member of LA or LE) before a `sumti-tail` makes a description closed by `ku`. `li` opens a mekso closed by `lo'o`. Four forms quote[^cll-s19-9][^cll-s19-10]:
 
 - `zo` quotes the single next word.
 - `lu ... li'u` quotes a Lojban text.
@@ -514,7 +516,7 @@ The indicator stage attaches indicators to their words. So `li pa ui re` contain
 
 A continuation unit is `PA` or a complete `lerfu-word`. It includes a BY word, a lerfu word with LAU prefixes, or a balanced TEI/FOI compound.[^cll-s17-6] `lerfu-word` permits repeated LAU prefixes.[^cll-s17-14][^cll-s21-1] `FOI` closes the inner string and cannot continue it.
 
-The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition tests the whole run when its rule completes. This boundary holds even when splitting the run is the only way to parse the whole text.
+The conditions on `number` and `lerfu-string` reject a boundary before another complete continuation unit. Each condition runs when its rule completes. It tests whether a complete continuation unit follows. This boundary holds even when splitting the run is the only way to parse the whole text.
 
 A quantifier is a number closed by `boi`, or a mekso in `vei ... ve'o` brackets[^cll-s18-17][^cll-s17-11]. A mekso is a mathematical expression.
 
@@ -642,7 +644,9 @@ Lojban has one set of logical connectives, spelled differently for each level of
 - A jek joins tanru units and, after `.i`, sentences (`je`).
 - A gek is the forethought form (`ga ... gi`).
 
-Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`. The interval has `ga'o` or `ke'i` on both sides or on neither[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
+An ek, gihek, or jek can take `na` before it, `se` before it, and `nai` after it.
+
+A joik is a non-logical connective. It takes `se` before it and `nai` after it, but no `na`. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`. The interval has `ga'o` or `ke'i` on both sides or on neither[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
 The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
@@ -650,7 +654,7 @@ In `lojban/cll` and `lojban/bpfk`, `mi broda joi ke me le le brodi brodo ku me'u
 
 A jek has no connective-plus-`ke` form, so `mi broda je ke brode ke'e` keeps its plain reading. The plain joik reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
-The `sumti` and `operand` rules also allow an ek or joik followed by `ke`. No unit of their plain alternatives begins with `ke`, so they keep `joik-ek`.
+The `sumti` and `operand` rules also allow an ek or joik followed by `ke`. No plain sumti or operand unit begins with `ke`. These rules therefore need no ranked choice. Their plain separator remains `joik-ek`.
 
 A gek is a forethought logical connective, a joik used in forethought with `gi`, or a tense with `gi` (`pu gi ... gi`). A gik separates the two halves: `gi`, optionally negated. A guhek is the forethought connective of tanru units.
 
@@ -793,7 +797,7 @@ A free modifier can occupy any `🆓` slot. CLL permits free modifiers after man
 - A parenthetical text, `to ... toi`
 - A subscript `xi` with a number, lerfu string or bracketed mekso
 
-The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but the grammar writes them without `🆓`. The slot that follows a free modifier is the one that it sits in.
+The `se'u`, `do'u`, `toi`, `boi` and `ve'o` here are elidable, but the grammar writes them without `🆓`. The terminator gives no new slot after a free modifier. A following free modifier uses the same containing slot as the first one.
 
 A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both in that order. Indicators are these:
 
@@ -842,7 +846,7 @@ The [experimental layer](../experimental/syntax.md#the-experimental-grammar) ins
 
 The [CLL pipeline](pipeline.md#stage-5-syntax) defines `elision-only`, including its trigger and the restored-text comparison.
 
-The `lojban/cll` and `lojban/bpfk` pipelines let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
+In `lojban/cll` and `lojban/bpfk`, an elided terminator can end its constituent wherever a complete parse of the whole text allows. Their numbers and letter strings remain indivisible.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, its `ku` elided before `tavla`, and the selbri `tavla`. The other is a fragment that consists of the single description `le sutra tavla`. The fragment elides its `ku` only at the end of the text.
 
@@ -854,7 +858,7 @@ This grammar departs from the EBNF printed in CLL in eleven places. The first se
 
 The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth uses a ranked choice and the seventh a condition to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the reading of the official lexer, the component that divides input into tokens.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh replaces three printed quote forms with terminals for whole quotes and omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh replaces three printed quote forms with terminals for whole quotes and omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the forms stage's class for a name.
 
 ### Printed rules and translations
 
@@ -903,7 +907,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
     This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser reads the tag and termset as separate terms. camxes-std, the standard grammar of the camxes parser, does too.
 
-11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
+11. The words stage builds finished quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
     A `zei` compound gets the free-modifier slot of `BRIVLA #`, which printed rule 152 omits after its ZEI alternative. YACC [step 4a](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L98-L99) merges the compound into BRIVLA, and [`bridi_valsi_407`](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L909-L913) permits a free modifier after it.
 
