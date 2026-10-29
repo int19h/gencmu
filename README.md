@@ -1,4 +1,4 @@
-<img width="10000" height="1400" alt="roljbogue_ultrawide_center_fifth" src="https://github.com/user-attachments/assets/59524030-fa37-4fb6-b712-a819ab8fc55b" />
+![gencmu logo: red and blue gears interlocking](https://github.com/user-attachments/assets/59524030-fa37-4fb6-b712-a819ab8fc55b)
 
 # gencmu
 
