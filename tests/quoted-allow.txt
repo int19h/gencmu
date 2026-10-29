@@ -52,7 +52,7 @@ ke pi'i ke'e # grammars/lojban/cll/syntax.md # the operator group that the joik 
 le sutra # grammars/lojban/cll/syntax.md # the description of the parse of le sutra tavla that the ranking rejects
 
 doi bu # grammars/lojban/bpfk/morphology.md # the PEG's reading, which the word stage does not share
-ba jy kla # grammars/lojban/bpfk/morphology.md # the split that CVCy_lujvo prevents; bajykla has its own case
+ba jy kerlo # grammars/lojban/bpfk/morphology.md # the split that CVCy_lujvo prevents; bajykerlo has its own case
 pa slinku'i # grammars/lojban/cll/morphology.md # the words that the slinku'i test keeps apart; paslinku'i has its own case
 bai klama # grammars/lojban/cll/morphology.md # the two words that the borrowing test finds in ba,iklama
 a kru,a # grammars/lojban/cll/morphology.md # the reading that akru,a does not have; akru,a has its own case

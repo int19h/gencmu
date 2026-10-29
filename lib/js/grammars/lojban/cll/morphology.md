@@ -13,7 +13,7 @@ The prose uses these Lojban terms for words:
 - A cmevla is a name word.
 - A gismu is a root word.
 - A lujvo is a compound word.
-- A rafsi is a shortened word form used inside compounds.
+- A rafsi is a word form used inside compounds.
 
 Under the rules of this document, a text divides into words in at most one way. So the lazy choice of the stage among parses ([engine §6](../../../docs/engine.md#6-choosing-a-parse)) never decides where a word ends.
 
