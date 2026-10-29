@@ -125,7 +125,7 @@ Use example filenames that do not clash with your own files. The commands below 
      (statement | fragment) [{I 🆓 [statement | fragment]}]
 
    %rule frame-group
-     frame [I 🆓 [utterance-sequence]]
+     frame [I 🆓 [{I 🆓}] [utterance-sequence]]
 
    %rule frame
      KIhEI 🆓 [terms]
@@ -140,6 +140,8 @@ Use example filenames that do not clash with your own files. The commands below 
    A free modifier adds information at permitted grammar positions. `🆓` reads optional free modifiers. `I` matches `.i`.
 
    The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
+
+   An empty sentence position has no utterance. Repeated initial `I 🆓` slots allow these positions before the first utterance. Both `ki'ei ko'a .i .i broda` and `ki'ei ko'a .i .i` parse.
 
 4. Parse a text with your pipeline.
 

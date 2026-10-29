@@ -11,7 +11,9 @@ The pipeline includes CLL and then extends its forms and syntax stages. The CLL 
   %include "../../cll/pipeline.md"
   ```
 
-A payload is the material after a marker. A sumti is an argument of a predicate. The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
+A payload is the material after a marker. A sumti is an argument of a predicate. A term is a sentence argument or modifier. A termset groups arguments. Terms include sumti, termsets, tense or modal phrases, and `na ku`, as CLL's `term` rule reads them.
+
+The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
 
 The inherited CLL stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
 
@@ -21,7 +23,7 @@ The inherited CLL stages already accept the word form of `ki'ei`. The classifier
   "ki'ei" ∈ KIhEI
 ```
 
-The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. The pipeline needs no marker rule or class condition.
+The syntax stage reads the new class as the terminal `KIhEI`. The word and indicator stages preserve this class on an ordinary `ki'ei` token. No further declaration has to mark `ki'ei` or restrict its class.
 
 The replacement paragraph rule accepts an initial sequence of utterances and subsequent groups with frames. It also accepts groups with frames at the start of a paragraph. Each group contains its frame and any subsequent `.i` sequence.
 
@@ -34,7 +36,7 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
   (statement | fragment) [{I 🆓 [statement | fragment]}]
 
 %rule frame-group
-  frame [I 🆓 [utterance-sequence]]
+  frame [I 🆓 [{I 🆓}] [utterance-sequence]]
 
 %rule frame
   KIhEI 🆓 [terms]
@@ -49,8 +51,8 @@ The replacement paragraph rule accepts an initial sequence of utterances and sub
 
 In `ki'ei ko'a .i broda .i brode ki'ei ko'e .i brodi`, the first group contains two utterances. The second group contains one. An earlier utterance can precede the first group, as in `broda ki'ei ko'a .i brode`.
 
-The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
+The terms end at `.i`, another `ki'ei`, `ni'o`, or the enclosing text boundary. The grammar requires `.i` before an utterance after a frame. Consecutive separators permit empty sentence positions before the first utterance, as in CLL paragraphs. Thus, `ki'ei ko'a .i .i broda` and `ki'ei ko'a .i .i` both parse. It accepts a frame without subsequent utterances, as in `ki'ei ko'a`. It also accepts consecutive frames, as in `ki'ei ko'a ki'ei ko'e .i broda`.
 
-The CLL rules place `ni'o` outside each paragraph. This pipeline places each frame above the `.i` sequence inside that paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
+The CLL rules place `ni'o` outside each paragraph. This pipeline groups each frame with the `.i` sequence that follows it in the same paragraph. The grammar records these boundaries without deciding how an interpreter carries context across them.
 
 This example accepts terms as payloads. It rejects a full predicate payload, such as `ki'ei ce'u purci ce'u .i broda`. It adds no pronoun for the selected world.

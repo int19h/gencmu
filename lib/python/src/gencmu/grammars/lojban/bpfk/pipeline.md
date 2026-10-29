@@ -10,11 +10,13 @@ A tag marks a token by an identifier.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. An elided terminator is a closing word left unwritten. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
 
-A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
 
-Indicators after `lu` begin quoted content. Indicators after `to` and `to'i` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
+The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline. It permits runs of BAhE and several FUhE groups ([Earlier stages](../cll/syntax.md#earlier-stages)).
+
+Indicators after `lu` begin quoted content. Indicators after `to`, `to'i` and `tu'e` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
 
 ## NAI attachment
 
@@ -24,7 +26,7 @@ FUhE opens an indicator group. The [indicator document](../cll/indicators.md#dif
 
 ## Erasure boundary
 
-A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
+A feature is a named switch that the grammars test. The pipeline turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`. With the feature off, SU erases the whole text before it.
 
 ```jbogenbau
 %features su-boundary
@@ -109,21 +111,21 @@ A feature is a named switch that the grammars test. The pipeline turns on `su-bo
   %include "../cll/syntax.md"
   ```
 
-The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The enabled `elision-only` check runs after `resolved`, or after `unique` when the chosen tree holds an elided node.
-
-The check restores that parse's omitted terminators and parses the restored text again. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
+The stage uses the [lojban/cll ranking and check](../cll/pipeline.md#stage-5-syntax). The grammar's [simple tense-modals](../cll/syntax.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices. The [`elision-only` check](../cll/pipeline.md#stage-5-syntax) follows that policy.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only
 ```
 
-A constituent can end wherever a parse of the whole text needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
+An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso".
 
 A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
 
 The CLL grammar settles two connective ambiguities, one with a ranked choice and one with a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 ## Differences from CLL, BPFK proposals and camxes-std
+
+The stage documents compare [CLL Latin](../cll/latin.md#choices-beyond-cll), [Latin](../common/latin.md#differences-from-cll-and-the-reference-peg), [CLL Cyrillic](../cll/cyrillic.md#choices-beyond-cll), [Cyrillic](../common/cyrillic.md#differences-from-cll), [zbalermorna](../common/zbalermorna.md#differences-from-cll-and-jbotci), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#differences-from-cll-and-the-reference-peg), [lexicon](../cll/lexicon.md#differences-from-the-cll-dictionary), [word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [indicators](../cll/indicators.md#differences-from-cll-and-camxes-std), and [syntax](../cll/syntax.md#differences-from-the-printed-cll-grammar) with their sources.
 
 ### Sources and word forms
 
@@ -159,7 +161,7 @@ SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in lojban
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 
-"Elision policy and CLL advice" in [the CLL grammar](../cll/syntax.md#elision-policy-and-cll-advice) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. The elision policy disagrees with no specific text of CLL.
+"Elision policy and CLL advice" in [the CLL grammar](../cll/syntax.md#elision-policy-and-cll-advice) explains the forced boundaries in the examples[^cll-e8-48][^cll-e8-62]. CLL describes the merged readings that a left-to-right reading of the words gives. The whole text forces the boundary where CLL writes the terminator. CLL 1.1 section 8.6[^cll-e8-48] calls the omitted `ku'o` in `le poi blabi gerku cu klama` ungrammatical. This pipeline accepts the text because the merged reading cannot complete the outer description under the printed rules.
 
 A PEG commits to choices before it knows whether the whole text parses. This pipeline follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 

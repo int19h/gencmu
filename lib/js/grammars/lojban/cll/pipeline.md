@@ -4,9 +4,9 @@ This pipeline reads Lojban as *The Complete Lojban Language* (CLL) describes it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see. A tag marks a token by an identifier.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to ["Stage 5: syntax"](#stage-5-syntax). The enabled check runs after `resolved`, or after `unique` when the chosen tree holds an elided node. It restores that parse's omitted terminators and parses the restored text again. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
-
 A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted.
+
+The printed grammar is normative here, with the repairs that [the CLL grammar](syntax.md) lists. The pipeline accepts a text that the repaired grammar admits, subject to the ranking and the `elision-only` check of [Stage 5](#stage-5-syntax).
 
 `docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This pipeline turns on `cll-cyrillic` and `su-boundary`.
 
@@ -77,7 +77,9 @@ If a run divides into no words, the stage hands the run on as one foreign token.
 
 The stage receives the source words and hands on the words of the text. It rejects a foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
-The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The words stage enables it when any input token has class SA or SU.
+A cmavo such as `ka'y` uses `y` as a vowel beyond the forms that CLL gives. The warning feature `y-cmavo` is off by default. With that feature on, the stage reports one warning for each such word that it reads as Lojban.
+
+The feature `sa-su` controls `sa` and `su`. The words stage enables it when any input token has class SA or SU.
 
 ## Stage 4: indicators
 
@@ -90,9 +92,9 @@ The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms 
   %include "indicators.md"
   ```
 
-The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. Indicators attach to the preceding word, and `ba'e` attaches to the following word.
+The stage applies CLL's non-formal rule `word = [BAhE] any-word [indicators]`. It extends that rule with runs of BAhE and several FUhE groups ([Earlier stages](syntax.md#earlier-stages)). Indicators attach to the preceding word, and `ba'e` attaches to the following word.
 
-Indicators after `lu` begin quoted content. Those after `to` and `to'i` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
+Indicators after `lu` begin quoted content. Those after `to`, `to'i` and `tu'e` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
 
 ## Stage 5: syntax
 
@@ -111,7 +113,11 @@ The stage uses the printed CLL 1.1 grammar[^cll-c21], with selma'o as its termin
 %ambiguity-resolution late-elision elision-only
 ```
 
-Among parses with equal flagged groups, `late-elision` prefers the parse that omits a terminator later. A terminator can be elided wherever a complete parse needs it. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
+A terminator is a closing word. Elision leaves it unwritten. A derivation is one complete grammatical reading. An admitted reading survives ranked filtering.
+
+A best reading has no better admitted competitor. `unique` means there is one admitted reading. `resolved` means several admitted readings have one best reading.
+
+Among parses with equal flagged groups, `late-elision` prefers the parse that omits a terminator later. An elided terminator can end its constituent at any point that a complete parse of the whole text allows. [The notation document](../../../docs/notation.md#elided-terminators) defines this search. Numbers and letter strings cannot split before a continuation unit. The CLL grammar states that rule separately, under "Numbers, lerfu strings and mekso". Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
 
 `elision-only` tests the chosen parse after `resolved`, or after `unique` when its tree holds an elided node. A tie fails before the check.
 
@@ -123,15 +129,17 @@ A tanru is a compound predicate. A tanru unit is one part of a tanru. A bridi-ta
 
 The printed grammar also reads `joi` before a tanru unit that begins with `ke`. The ranked choice in `selbri-4` of the CLL grammar removes that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the pipeline keeps it, as the printed grammar does.
 
-In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. The ranking ties or takes that reading. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the pipeline keeps it.
+In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. `late-elision` ties the two readings or prefers the plain one. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the pipeline keeps it.
 
 ## Differences from CLL and the official parser
 
-SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std supply the boundaries.
+The stage documents compare [Latin](latin.md#choices-beyond-cll), [Cyrillic](cyrillic.md#choices-beyond-cll), [forms](../common/forms.md#differences-from-camxes), [word forms](morphology.md#where-the-book-leaves-a-choice), [lexicon](lexicon.md#differences-from-the-cll-dictionary), [shared word processing](../common/stream.md#departures-from-cll-magic-words-and-the-reference-parsers), [CLL word processing](stream.md#differences-from-cll-and-bpfk), [indicators](indicators.md#differences-from-cll-and-camxes-std), and [syntax](syntax.md#differences-from-the-printed-cll-grammar) with their sources.
+
+The enabled `su-boundary` feature makes SU stop at the last surviving NIhO, LU, TUhE, or TO word. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. With the feature off, SU erases the whole text before it. Magic Words and camxes-std supply the boundaries.
 
 A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../common/stream.md#cll-and-magic-words) explains. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO departs from CLL[^cll-s19-13] under any reading. So does every NIhO and TUhE stop.
 
-gencmu's own Cyrillic assigns different readings from CLL's. This pipeline therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
+[gencmu's Cyrillic](../common/cyrillic.md) assigns different values to some letters from CLL. This pipeline therefore selects only CLL's Cyrillic. A caller can turn it off with the `cll-cyrillic` feature.
 
 This pipeline reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL calls the former nonstandard and unused.
 
@@ -141,7 +149,7 @@ The [indicator document](indicators.md#quotation-boundaries) defines quotation a
 
 The pipeline chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
-Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
+Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](syntax.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. CLL 1.1 section 8.6[^cll-e8-48] calls the omitted `ku'o` in `le poi blabi gerku cu klama` ungrammatical. This pipeline accepts the text because the merged reading cannot complete the outer description under the printed rules.
 
 [^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
 
