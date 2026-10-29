@@ -187,6 +187,7 @@ A test does not replace a class. A token that a caller supplies with value `la` 
 A body uses these operators:
 
 - Juxtaposition is sequence.
+- `a | b` is an ordinary choice: `a` or `b`, with no priority by position.
 - `a ≻ b` is a ranked choice, with the preferred option first (see "Ranked choices").
 - `[x]` is optional.
 - `[+T x]` is an elidable optional, whose first item is the terminator `T`. "Elided terminators" below explains the marker.
@@ -725,7 +726,7 @@ The DOM accepts exactly the reader's shapes, apart from source coordinates. Read
 
 ## Classifiers
 
-A classifier gives a value its classes. A lexicon is a typical classifier: it gives each word its word classes. `%classifier` and a name start a classifier, and its entries follow. This example comes from a Lojban lexicon, which gives particles their classes:
+A classifier gives a value its classes. A lexicon is a typical classifier: it gives each word its word classes. `%classifier` and a name start a classifier, and its entries follow. This example follows a Lojban lexicon, which gives particles their classes:
 
 ```jbogenbau
 %classifier lexicon

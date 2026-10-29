@@ -223,6 +223,7 @@ A reference or terminal can carry one signed tag test followed by one exact valu
 "Repetition, lists and chains" and "Elidable optionals and captures" below explain the design of repetition and elidable terminators. The operators are these:
 
 - Juxtaposition is sequence.
+- `a | b` is an ordinary choice, with no priority by position.
 - `a ≻ b` ranks `a` first over the same span.
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x / s}` is a separated list.
