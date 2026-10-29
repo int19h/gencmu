@@ -930,13 +930,10 @@ func templateElidableHead(n templateObject) bool {
 	if xs := templateList(n["seq"]); len(xs) > 0 {
 		n = templateObj(xs[0])
 	}
-	if !templateSymbol(n) {
-		return false
-	}
-	for n["test"] != nil {
+	for n["test"] == "=" || n["test"] == "≠" || n["test"] == "tags" {
 		n = templateObj(n["expr"])
 	}
-	return n["param"] != nil || templateOnly(n, "ref") && className.MatchString(templateText(n["ref"]))
+	return n["param"] != nil || templateOnly(n, "ref") && constName.MatchString(templateText(n["ref"]))
 }
 func templateCaptureShape(n templateObject) *domExpr {
 	for _, kind := range []string{exSeq, exChoice, exRanked, exAnd} {

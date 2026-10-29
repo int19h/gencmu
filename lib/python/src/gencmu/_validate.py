@@ -9,7 +9,7 @@ import re
 from typing import Any, Protocol
 
 from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
-from ._patterns import pattern_problem, walk_pattern
+from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
 from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem, method_shape_problem
@@ -97,12 +97,12 @@ def _target(expr: Any) -> bool:
 def elidable_head(expr: Any) -> Any:
     head = expr["seq"][0] if isinstance(expr, dict) and _items(expr.get("seq")) else expr
     base = head
-    while isinstance(base, dict) and "test" in base:
+    while isinstance(base, dict) and base.get("test") in TEST_OPS:
         base = base.get("expr")
     if isinstance(base, dict) and "param" in base:
-        return head if _target(head) else None
+        return head
     if isinstance(base, dict) and set(base) == {"ref"} and isinstance(base["ref"], str) and USER_NAME.fullmatch(base["ref"]):
-        return head if _target(head) else None
+        return head
     return None
 
 

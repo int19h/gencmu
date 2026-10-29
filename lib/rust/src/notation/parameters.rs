@@ -217,18 +217,12 @@ impl<'a> Reader<'a> {
                         set(&mut r, "args", Json::Arr(args.to_vec()))
                     }
                 }
-                if let Some(flags) = Self::rules(n, "rule-flags").next() {
-                    set(
-                        &mut r,
-                        "flags",
-                        Json::Arr(
-                            self.some(flags, "rule-flag", 1)?
-                                .iter()
-                                .map(|f| Ok(string(self.value(self.token(f)?))))
-                                .collect::<R<_>>()?,
-                        ),
-                    )
-                }
+                let flag_op = match op {
+                    "extend" => Op::Extend,
+                    "redefine" => Op::Redefine,
+                    _ => Op::Define,
+                };
+                set(&mut r, "flags", Json::Arr(self.rule_flags(n, flag_op)?.into_iter().map(string).collect()));
                 if Self::tokens_of(n).any(|t| self.value(t) == "=") {
                     set(&mut r, "instance", self.call(self.one(n, "call")?)?);
                     return Ok(r);
@@ -473,7 +467,7 @@ impl<'a> Reader<'a> {
                             && !(matches!(rule_name(head), "tag" | "reference")
                                 && self.value(self.token(head)?).starts_with(|c: char| c.is_ascii_uppercase()))
                         {
-                            return Err(self.error(n, "an elidable optional begins with a bare user tag or parameter"));
+                            return Err(self.error(n, "an elidable optional begins with a user tag or parameter directly after +, without | or &"));
                         }
                         self.marked.set(self.marked.get() + 1)
                     }

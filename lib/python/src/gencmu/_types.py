@@ -559,7 +559,7 @@ def constant_value_problem(value: Any, redefine: bool) -> str | None:
 
 def open_part(term: Any) -> Any:
     """The first part of a term that is not closed (engine §10), or None: a
-    capture, a guarded term, or a method other than split. The
+    capture, a guarded term, or a method other than split or ngrams. The
     shape of the term need not be checked. In the order written, with a
     list for a stack."""
     stack: list[Any] = [term]
@@ -570,9 +570,6 @@ def open_part(term: Any) -> Any:
         if "capture" in current or "if" in current:
             return current
         if "pattern" in current:
-            for node, _ in walk_pattern(current["pattern"]):
-                if "test" in node:
-                    stack.extend(r["value"] for r in node["requirements"]) if node["test"] == "tags" else stack.append(node["value"])
             continue
         items: Any = []
         if isinstance(current.get("method"), str):

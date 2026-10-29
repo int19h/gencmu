@@ -49,9 +49,6 @@ def body_text(n, unicode, parent=''):
     return run(_print_body(n, unicode, parent))
 
 
-def pattern_text(n, unicode):
-    return run(_print_pattern(n, unicode))
-
 
 def _print_join(items, unicode, printer, separator, parent=None):
     parts = []
@@ -161,9 +158,6 @@ def _print_body(n, unicode, parent=''):
                 + (' ...' if n.get('chain') == 'right' else '') + separator + '}')
     return (yield _print_argument(n, unicode))
 
-
-def _print_pattern(n, unicode):
-    return (yield _print_layered(n, lambda node: _print_argument(node, unicode), False))
 
 
 def expand_templates(documents, unicode):
@@ -300,8 +294,6 @@ def expand_templates(documents, unicode):
             template = templates.get(name)
             if not template or template['events'][0]['index'] >= event['index']:
                 fail(event, rule, 'an instance edit requires an earlier template')
-            if any('param' in n for n in nodes(rule['args'])):
-                fail(event, rule, 'an instance edit requires a closed call')
             intern(dict(call=name, args=rule['args'], at=rule['at']), event)['locals'].append(event)
         elif 'instance' in rule:
             instance, old = intern(rule['instance'], event), current.get(name)
@@ -592,13 +584,13 @@ def template_audit(grammar):
                 an = a.get('rule', a.get('ref', a.get('name')))
                 bn = b.get('rule', b.get('ref', b.get('name')))
                 if an in by_name and 'call' in b:
-                    if by_name[an]['key'] != key_of(normalize_argument(b)):
+                    if by_name[an]['key'] != key_of(normalize_argument(dict(call=b['call'], args=b['args']))):
                         return False
-                    continue
+                    a = {**by_name[an]['call'], **{k: v for k, v in a.items() if k not in ('rule', 'ref', 'name')}}
                 if bn in by_name and 'call' in a:
-                    if by_name[bn]['key'] != key_of(normalize_argument(a)):
+                    if by_name[bn]['key'] != key_of(normalize_argument(dict(call=a['call'], args=a['args']))):
                         return False
-                    continue
+                    b = {**by_name[bn]['call'], **{k: v for k, v in b.items() if k not in ('rule', 'ref', 'name')}}
                 ka, kb = set(a) - {'at'}, set(b) - {'at'}
                 if ka != kb:
                     return False

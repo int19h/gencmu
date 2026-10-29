@@ -1,0 +1,10 @@
+{
+  "description": "Rule flags report the flag token before body errors.",
+  "document": "```jbogenbau\n%rule(lazy) r A %conditions $ \u2245 #\u00ab a \u00bb\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  }
+}

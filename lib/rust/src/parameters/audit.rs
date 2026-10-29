@@ -14,12 +14,37 @@ fn reference(n: &Json) -> &str {
     ""
 }
 fn aliases(a: &Json, b: &Json, names: &BTreeMap<&str, &Instance>) -> bool {
-    if let Some(i) = names.get(reference(a)).filter(|_| has(b, "call")) {
-        return i.key == identity(&normalize(b)).to_json();
-    }
-    if let Some(i) = names.get(reference(b)).filter(|_| has(a, "call")) {
-        return i.key == identity(&normalize(a)).to_json();
-    }
+    let expand = |node: &Json, instance: &Instance| {
+        let mut fields = vec![
+            ("call".into(), get(&instance.call, "call").clone()),
+            ("args".into(), get(&instance.call, "args").clone()),
+        ];
+        fields.extend(
+            node.as_object().unwrap().iter().filter(|(k, _)| !["rule", "ref", "name"].contains(&k.as_str())).cloned(),
+        );
+        Json::Obj(fields)
+    };
+    let bare_key = |node: &Json| {
+        identity(&normalize(&obj([("call", get(node, "call").clone()), ("args", get(node, "args").clone())]))).to_json()
+    };
+    let expanded_a = if let Some(i) = names.get(reference(a)).filter(|_| has(b, "call")) {
+        if i.key != bare_key(b) {
+            return false;
+        }
+        Some(expand(a, i))
+    } else {
+        None
+    };
+    let a = expanded_a.as_ref().unwrap_or(a);
+    let expanded_b = if let Some(i) = names.get(reference(b)).filter(|_| has(a, "call")) {
+        if i.key != bare_key(a) {
+            return false;
+        }
+        Some(expand(b, i))
+    } else {
+        None
+    };
+    let b = expanded_b.as_ref().unwrap_or(b);
     match (a, b) {
         (Json::Obj(a), Json::Obj(b)) => {
             let a: BTreeMap<_, _> =

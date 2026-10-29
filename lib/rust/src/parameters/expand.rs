@@ -506,9 +506,6 @@ impl Expander<'_> {
             .filter(|t| t.arity == list(get(call, "args")).len())
             .ok_or_else(|| event.fail(call, "an instance call requires the declared arity".into()))?;
         let _ = t;
-        if nodes(get(call, "args")).any(|n| has(n, "param")) {
-            return Err(event.fail(call, "an instance call requires closed arguments".into()));
-        }
         let call =
             obj([("call", string(name)), ("args", self.normalize(get(call, "args"))), ("at", get(call, "at").clone())]);
         let k = key(&call);

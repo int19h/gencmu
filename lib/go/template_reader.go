@@ -87,10 +87,8 @@ func (b *domBuilder) templateDeclaration(n *Node) templateObject {
 				r["args"] = args
 			}
 		}
-		if fs := one(n, "rule-flags"); fs != nil {
-			for _, f := range b.some(fs, "rule-flag", 1) {
-				r["flags"] = append(templateList(r["flags"]), b.tokenValue(b.token(f)))
-			}
+		for _, flag := range b.ruleFlags(n, op) {
+			r["flags"] = append(templateList(r["flags"]), flag)
 		}
 		for _, p := range parts(n) {
 			if p.Kind == KindToken && b.tokenValue(p) == "=" {
@@ -296,7 +294,7 @@ func (b *domBuilder) templateExpr(n *Node, whole bool) (result templateObject) {
 				head = b.templateTestBase(head)
 			}
 			if head.Rule != "parameter" && (head.Rule != "tag" && head.Rule != "reference" || !className.MatchString(b.tokenValue(b.token(head)))) {
-				b.fail(n, "an elidable optional begins with a bare user tag or parameter")
+				b.fail(n, "an elidable optional begins with a user tag or parameter directly after +, without | or &")
 			}
 			b.marked++
 		}

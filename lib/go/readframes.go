@@ -210,9 +210,6 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		if !capturedRules[base.Rule] || base.Rule == "tested" {
 			b.fail(n, "a capture wraps one symbol")
 		}
-		if !capturedRules[wrapped.Rule] {
-			b.fail(n, "a capture wraps one reference, tag, string, range, wildcard, or tested symbol")
-		}
 		f.capture = name
 		return ask(&exprFrame{n: wrapped})
 	case "group":
@@ -250,7 +247,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		f.elide = &domExpr{Kind: exOptional}
 		return ask(&exprFrame{n: choice})
 	}
-	const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &"
+	const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
 	hasToken := func(node *Node, text string) bool {
 		for _, p := range parts(node) {
 			if p.Kind == KindToken && b.tokenValue(p) == text {

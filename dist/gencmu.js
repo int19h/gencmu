@@ -6968,7 +6968,6 @@
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
     if(n.emptySet) return '∅';
-    if(n.set) return [...n.set].sort(compareCodePoints).join(' ') || '∅';
     if(n.requirements && !n.test) return '<'+n.requirements.map((/** @type {any} */ x)=>(x.negated?'¬':'')+print(x.value)).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
     if(n.body) {
@@ -7165,7 +7164,6 @@
       if(rule.args) {
         const template=templates.get(rule.name);
         if(!template || template.events[0].index>=event.index) fail(event,rule,'an instance edit requires an earlier template');
-        if(templateNodes(rule.args).some((/** @type {any} */ n)=>n.param)) fail(event,rule,'an instance edit requires a closed call');
         const instance=intern({call:rule.name,args:rule.args,at:rule.at},event);instance.locals.push(event);
         continue;
       }
@@ -7389,8 +7387,15 @@
       /** @type {(a:any,b:any)=>boolean} */
       const same=(a,b)=>{
         const an=a?.rule??a?.ref??a?.name,bn=b?.rule??b?.ref??b?.name;
-        if(an && byName.has(an) && b?.call) return byName.get(an).key===JSON.stringify(templateIdentity(normalizeArgument(b)));
-        if(bn && byName.has(bn) && a?.call) return byName.get(bn).key===JSON.stringify(templateIdentity(normalizeArgument(a)));
+        const expand=(/** @type {any} */ node,/** @type {any} */ instance)=>({...instance.call,...Object.fromEntries(Object.entries(node).filter(([key])=>!['rule','ref','name'].includes(key)))});
+        if(an && byName.has(an) && b?.call) {
+          if(byName.get(an).key!==JSON.stringify(templateIdentity(normalizeArgument({call:b.call,args:b.args})))) return false;
+          a=expand(a,byName.get(an));
+        }
+        if(bn && byName.has(bn) && a?.call) {
+          if(byName.get(bn).key!==JSON.stringify(templateIdentity(normalizeArgument({call:a.call,args:a.args})))) return false;
+          b=expand(b,byName.get(bn));
+        }
         if(Array.isArray(a)||Array.isArray(b)) return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>same(x,b[i]));
         if(!a||!b||typeof a!=='object'||typeof b!=='object') return a===b;
         const ka=Object.keys(a).filter(k=>k!=='at'),kb=Object.keys(b).filter(k=>k!=='at');
@@ -17985,12 +17990,12 @@
     };
     /** @type {(node: ResultNode) => ResultNode} */
     const token = (node) => parts(node).find((child) => child.kind === "token") || lacks(node, "token");
-    // The first part, a token, a range or a property.
+    // The first part, a token or a range.
     /** @type {(node: ResultNode) => ResultNode} */
     const symbolPart = (node) => {
       const first = parts(node)[0];
-      if (first && (first.kind === "token" || ruleOf(first) === "range" || ruleOf(first) === "property")) return first;
-      return lacks(node, "token, range or property");
+      if (first && (first.kind === "token" || ruleOf(first) === "range")) return first;
+      return lacks(node, "token or range");
     };
     // The one rule among the parts, which must be one of `kinds`.
     /** @type {(node: ResultNode, kinds: Set<string>) => RuleNode} */
@@ -18360,7 +18365,7 @@
     }
 
     /**
-     * An optional, and with a marker `+` or `++` among its parts an elidable
+     * An optional, and with a marker `+` among its parts an elidable
      * one (engine §3.8, §9). Its form is checked on the tree, where a group
      * is still a node: one sequence, whose first primary is the terminal
      * itself, `=`-tested or not.
@@ -18869,7 +18874,6 @@
           return { union };
         }
         case "range": return fail("a range is a terminal, not a term", node);
-        case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", node);
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.

@@ -6,7 +6,6 @@ import re
 from typing import Any, Callable
 
 from . import _testing
-from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant
 
 Dom = dict[str, Any]
@@ -37,11 +36,6 @@ def walk_pattern(root: Dom):
             continue
         yield node, depth
         stack.extend((child, depth + 1) for child in reversed(pattern_parts(node)))
-
-
-def pattern_problem(root, test_fault=None, initial_depth=0):
-    return layered_pattern_problem(root, test=test_fault, depth=initial_depth,
-        terminal=lambda name: USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
 
 
 def empty_pattern() -> Dom:

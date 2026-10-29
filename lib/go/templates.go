@@ -425,11 +425,6 @@ func (x *templateExpander) intern(call templateObject, e *templateEvent, discove
 	if t == nil || len(templateList(call["args"])) != t.arity {
 		x.fail(e, call, "an instance call requires the declared arity")
 	}
-	for _, n := range templateNodes(call["args"]) {
-		if n["param"] != nil {
-			x.fail(e, n, "an instance edit requires a closed call")
-		}
-	}
 	normalized := templateObject{"call": call["call"], "args": x.normalize(call["args"]), "at": call["at"]}
 	key := templateKey(normalized)
 	i := x.instances[key]

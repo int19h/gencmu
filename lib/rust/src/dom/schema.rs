@@ -674,6 +674,9 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                 } else if exact(value, &["method", "receiver", "args"], &[]) {
                     let receiver = value.get("receiver").unwrap();
                     let args = value.get("args").and_then(Json::as_array);
+                    if value.get("method").and_then(Json::as_str) == Some("ends") && restored_span(receiver) {
+                        return Some("ends requires an ordinary span, not a restored span");
+                    }
                     if !span(receiver)
                         || !match (value.get("method").and_then(Json::as_str), args) {
                             (Some("starts-input" | "ends-input"), Some([])) => true,

@@ -540,3 +540,25 @@ func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
 		t.Fatalf("got %v", p)
 	}
 }
+
+func TestParameterAliasDecorations(t *testing.T) {
+	for _, c := range []struct {
+		left, right string
+		twin        bool
+	}{
+		{`#·named`, `#atom("a")`, false}, {`#named« text »`, `#atom("a")`, false},
+		{`#·named`, `#·atom("a")`, true}, {`#named« text »`, `#atom("a")« text »`, true},
+	} {
+		source := "%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(" + c.left + ") outer(" + c.right + ")\n%rule named = atom(\"a\")"
+		count := 0
+		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
+			i := templateObj(v)
+			if i["template"] != "outer" {
+				continue
+			}
+			count++
+			parameterEqual(t, len(templateList(i["notes"])) > 0, c.twin)
+		}
+		parameterEqual(t, count, 2)
+	}
+}
