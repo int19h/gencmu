@@ -1,3 +1,5 @@
+<img width="10000" height="1400" alt="roljbogue_ultrawide_center_fifth" src="https://github.com/user-attachments/assets/59524030-fa37-4fb6-b712-a819ab8fc55b" />
+
 # gencmu
 
 gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads. No build step is required.
