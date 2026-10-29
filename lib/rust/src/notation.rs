@@ -839,7 +839,7 @@ impl<'a> Reader<'a> {
     /// An optional, and with a marker `+` among its parts an
     /// elidable one (§3.8, §9). Its form is checked on the tree, where a
     /// group is still a node: one sequence, whose first primary is the
-    /// terminal itself, `=`-tested or not.
+    /// terminal itself, with or without symbol tests.
     fn resume_optional(&self, frame: &mut OptionalFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if let Some(Val::Expr(expr)) = input {
             if frame.mark != Mark::Plain {

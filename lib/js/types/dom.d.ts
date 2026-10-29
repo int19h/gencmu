@@ -15,7 +15,7 @@ export declare function isSoundTest(op: string): boolean;
 /**
  * What is wrong with a test's value (engine §9), or null: it must be a
  * closed term, of type string for a value test and tag set for a tag test,
- * and a string literal of a value test must be a canonical value. The shape
+ * with no canonical-value restriction on string literals. The shape
  * of the value must already be checked, and its nesting bounded.
  * @param {string} op
  * @param {any} value
@@ -31,19 +31,12 @@ export declare function testValueFault(op: string, value: any, unicode?: {
     node: any;
 } | null;
 /**
- * What is wrong with a range (engine §1, §9), or null: its ends must be two
- * character tags in their canonical spelling by the table, which says which
- * code points are marks, the start not above the end.
+ * What is wrong with a range (engine §1, §9), or null: visible endpoints
+ * must each contain one scalar, with the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @returns {string | null}
  */
-export declare function rangeProblem(range: unknown, unicode: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
-}): string | null;
+export declare function rangeProblem(range: unknown): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the loader's table: the lowercase mapping that the strings of value
@@ -277,8 +270,8 @@ export declare function duplicateCaptures(expr: any): {
 /**
  * The terminal at the head of an elidable optional's expression, or null
  * when the expression has no such head (engine §3.8, §9): a `ref` whose
- * name begins with a capital, a `terminal` whose tag is a name, or an `=`
- * test of one of these, alone or first in a `seq`.
+ * name begins with a capital, or a declared parameter before expansion.
+ * Only `=`, `≠`, and `tags` tests unwrap, after selecting the first `seq` item.
  * @param {any} expr
  * @returns {any}
  */
@@ -402,7 +395,7 @@ export declare function constantValueType(value: any, redefine: boolean, constan
 } | TypeFault;
 /**
  * The first part of a term that is not closed (engine §10), or null: a
- * capture, a guarded term, or a call of anything but split and tag. The
+ * capture, a guarded term, or a call of anything but split and ngrams. The
  * shape of the term need not be checked.
  * @param {unknown} term
  * @returns {any}

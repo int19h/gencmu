@@ -429,8 +429,11 @@ class _Constants:
                 ends = []
                 for end in root["range"]:
                     ends.append((yield self._closed(path, end, at)))
-                if any(not isinstance(end, str) or len(end) != 1 for end in ends) or ends[0] > ends[1]:
-                    raise self.fault_error(path, root, at, "invalid pattern range")
+                for i, end in enumerate(ends):
+                    if not isinstance(end, str) or len(end) != 1:
+                        raise self.fault_error(path, root["range"][i], at, "invalid pattern range endpoint")
+                if ends[0] > ends[1]:
+                    raise self.fault_error(path, root["range"], at, "invalid pattern range")
                 terminal = "..".join(spelling(end, self.unicode) for end in ends)
             else:
                 terminal = "_"
@@ -538,8 +541,11 @@ class _Constants:
                     else:
                         if "range" in node:
                             ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
-                            if any(len(end) != 1 for end in ends) or ends[0] > ends[1]:
-                                raise self.fault_error(path, node, rule["at"], "invalid scalar range")
+                            for i, end in enumerate(ends):
+                                if len(end) != 1:
+                                    raise self.fault_error(path, node["range"][i], rule["at"], "invalid scalar range endpoint")
+                            if ends[0] > ends[1]:
+                                raise self.fault_error(path, node["range"], rule["at"], "invalid scalar range")
                         pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).

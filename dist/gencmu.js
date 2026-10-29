@@ -2279,17 +2279,6 @@
     return names.some(name => /[\uD800-\uDFFF]/.test(name)) ? names.sort(compareCodePoints) : names.sort();
   }
 
-  const NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
-
-  /**
-   * Whether a string is a name, and so an identifier tag (engine §1).
-   * @param {string} tag
-   * @returns {boolean}
-   */
-  function isName(tag) {
-    return NAME.test(tag);
-  }
-
   /** @param {string} string @param {string} digits @returns {Set<string>} */
   function ngrams(string, digits) {
     const points = [...string], n = Number(digits);
@@ -2323,17 +2312,6 @@
   function isTag(tag, unicode) {
     if (typeof tag !== "string") return false;
     return /^[A-Z][A-Za-z0-9_-]*$/.test(tag) || tag.startsWith("_") && (unicode?.canonicalTag ? unicode.canonicalTag(tag) !== null : PROPERTY_NAMES.has(tag.slice(1)));
-  }
-
-
-  /**
-   * The written form of a range, its identity as a terminal (engine §4):
-   * its two ends, in their canonical spelling, joined by `..`.
-   * @param {[string, string]} range
-   * @returns {string}
-   */
-  function rangeName(range) {
-    return `${range[0]}..${range[1]}`;
   }
 
   // ---- walk.js
@@ -3992,6 +3970,219 @@
     return value;
   }
 
+  // ---- patterns.js
+  // Finite observations of structural trees (engine §4.1). A helper carries
+  // a sequence monoid: its relations concatenate without retaining trees.
+
+
+
+
+
+  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
+  function leafTest(test, input, tags) {
+    if (test.test === "=") return input === test.value.string;
+    if (test.test === "≠") return input !== test.value.string;
+    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
+      if (tags.has(tag) === requirement.negated) return false;
+    }
+    return true;
+  }
+
+  /** @param {any} pattern @param {any} leaf @returns {boolean} */
+  function leafMatches(pattern,leaf) {
+    if (!leaf) return false;
+    if (pattern.test) return leafMatches(pattern.expr,leaf) && leafTest(pattern,leaf.value,leaf.tags);
+    return pattern.terminal === leaf.terminal;
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function patternParts(node) {
+    if (Array.isArray(node)) return node;
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.path) return [node.pattern];
+    if (node.test) return [node.expr];
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
+  }
+
+  /**
+   * @param {any} root
+   * @param {(name:string, at:[number,number]) => any} constant
+   * @param {(term:any, test:any) => any} value
+   * @param {import("./unicode.js").UnicodeTable} unicode
+   * @returns {any}
+   */
+  function resolvePattern(root, constant, value, unicode) {
+    /** @param {any} atom @param {string} message @returns {never} */
+    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
+    /** @param {any} node @returns {Generator<any,any,any>} */
+    function* resolve(node) {
+      if (Array.isArray(node)) {
+        const items=[];
+        for(const child of node) items.push(yield resolve(child));
+        return items;
+      }
+      let result={...node};
+      if (node.constant) {
+        const resolved=constant(node.constant,node.at);
+        if ('pattern' in resolved) {
+          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
+          return resolved.pattern;
+        }
+        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.literal || node.range || node.wildcard) {
+        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
+          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
+        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.test) {
+        let base=node.expr;
+        while(base.test) base=base.expr;
+        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
+        result.expr=yield resolve(node.expr);
+        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
+        else result.value=value(node.value,node);
+        return result;
+      }
+      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
+        if(node[key]) result[key]=yield resolve(node[key]);
+      }
+      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
+      return result;
+    }
+    return run(resolve(root));
+  }
+
+  /** @param {any} value @returns {any} */
+  function patternKey(value) {
+    if (value instanceof Set) return [...value].sort();
+    if (Array.isArray(value)) return value.map(patternKey);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
+  }
+
+  class PatternMachine {
+    /** @param {any[]} roots */
+    constructor(roots) {
+      /** @type {any[]} */ this.predicates = [];
+      /** @type {any[]} */ this.machines = [];
+      /** @type {Map<string,number>} */ this.ids = new Map();
+      /** @type {any[]} */ this.states = [];
+      /** @type {Map<string,number>} */ this.stateIds = new Map();
+      /** @type {Map<string,number>} */ this.transitions = new Map();
+      roots.forEach(n => this.compile(n));
+      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
+      // A seal contributes one nameless child even over an empty interval.
+      this.seal = this.nodeState(0n,false);
+    }
+    /** @param {any} n @returns {number} */
+    compile(n) {
+      const key = JSON.stringify(patternKey(n));
+      const old = this.ids.get(key); if (old !== undefined) return old;
+      const p = {...n};
+      if (n.path) p.child = this.compile(n.pattern);
+      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
+      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
+      const id = this.predicates.length;
+      this.predicates.push(p); this.ids.set(key,id); return id;
+    }
+    /** @param {any} body @returns {any} */
+    sequence(body) {
+      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
+      let size=0;
+      const state=() => size++;
+      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
+      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
+        if (Array.isArray(n)) {
+          if (!n.length) edge(from,to);
+          let a=from;
+          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
+        } else if (n.child) edge(from,to,this.compile(n.child));
+        else if (n.siblings) { edge(from,to); edge(from,from,-1); }
+        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
+        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
+        else if (n.repeat) {
+          const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
+          if (n.separator) build(n.separator,a,b); else edge(a,b);
+          build(n.repeat,b,a);
+        }
+      };
+      const start=state(),end=state(); build(body,start,end);
+      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
+      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
+      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
+      return {size,start,end,edges,epsilon};
+    }
+    /** @param {any} s @returns {number} */
+    intern(s) {
+      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
+      const old=this.stateIds.get(key);if(old!==undefined)return old;
+      if (hooks.work) countWork(hooks.work, "structuralStates");
+      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
+    }
+    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
+    compose(a,b) {
+      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
+    }
+    /** @param {number} left @param {number} right @returns {number} */
+    concat(left,right) {
+      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
+      const a=this.states[left],b=this.states[right];
+      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
+        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {bigint} bits @param {boolean} empty @returns {number} */
+    nodeState(bits,empty) {
+      const relations=this.machines.map(m => {
+        const move=Array.from({length:m.size},() => 0n);
+        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
+        return this.compose(this.compose(m.epsilon,move),m.epsilon);
+      });
+      // A node state retains its own bits even when empty. Its sequence
+      // contribution is empty in that case, so captures retain root names.
+      const zero=this.states[this.empty];
+      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
+    }
+    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
+    node(name,children,leaf=null) {
+      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):''}`;
+      const old=this.transitions.get(key);if(old!==undefined)return old;
+      const s=this.states[children];let bits=0n;
+      this.predicates.forEach((p,i) => {
+        const bit=1n<<BigInt(i);let holds=false;
+        if (p.name) holds=name===p.name;
+        else if(p.terminal) holds=leaf?.terminal===p.terminal;
+        else if(p.test) holds=leafMatches(p,leaf);
+        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
+        else if(p.path) {
+          holds=!!(bits&(1n<<BigInt(p.child)));
+          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
+          holds=holds||!!(child&bit);
+        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
+        if (p.children) {
+          const m=this.machines[p.machine];
+          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
+        }
+        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
+        if(holds)bits|=bit;
+      });
+      const id=this.nodeState(bits,!leaf&&s.count===0);
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {number} state @param {any} pattern @returns {boolean} */
+    matches(state,pattern) {
+      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
+      if(id===undefined)throw new Error('undemanded structural pattern');
+      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
+    }
+  }
+
+
   // ---- pattern-shapes.js
   // Layered pattern constructors (docs/output.md, "Pattern values").
   // This walk keeps pattern and item positions distinct before substitution.
@@ -4180,231 +4371,6 @@
     return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
   }
 
-  // ---- patterns.js
-
-  // Finite observations of structural trees (engine §4.1). A helper carries
-  // a sequence monoid: its relations concatenate without retaining trees.
-
-
-
-
-
-
-  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
-  function leafTest(test, input, tags) {
-    if (test.test === "=") return input === test.value.string;
-    if (test.test === "≠") return input !== test.value.string;
-    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
-      if (tags.has(tag) === requirement.negated) return false;
-    }
-    return true;
-  }
-
-  /** @param {any} pattern @param {any} leaf @returns {boolean} */
-  function leafMatches(pattern,leaf) {
-    if (!leaf) return false;
-    if (pattern.test) return leafMatches(pattern.expr,leaf) && leafTest(pattern,leaf.value,leaf.tags);
-    return pattern.terminal === leaf.terminal;
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function patternParts(node) {
-    if (Array.isArray(node)) return node;
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
-   * Shape only. Term and test typing remains in dom.js. The caller bounds
-   * nesting before calling this walk.
-   * @param {any} root @param {(test: any) => string | null} testFault
-   * @returns {string | null}
-   */
-  function patternProblem(root, testFault) {
-    return layeredPatternProblem(root, {test:testFault, terminal:name=>/^[A-Z][A-Za-z0-9_-]*$/.test(name) || name.startsWith('_') && PROPERTY_NAMES.has(name.slice(1))});
-  }
-
-  /**
-   * @param {any} root
-   * @param {(name:string, at:[number,number]) => any} constant
-   * @param {(term:any, test:any) => any} value
-   * @param {import("./unicode.js").UnicodeTable} unicode
-   * @returns {any}
-   */
-  function resolvePattern(root, constant, value, unicode) {
-    /** @param {any} atom @param {string} message @returns {never} */
-    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
-    /** @param {any} node @returns {Generator<any,any,any>} */
-    function* resolve(node) {
-      if (Array.isArray(node)) {
-        const items=[];
-        for(const child of node) items.push(yield resolve(child));
-        return items;
-      }
-      let result={...node};
-      if (node.constant) {
-        const resolved=constant(node.constant,node.at);
-        if ('pattern' in resolved) {
-          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
-          return resolved.pattern;
-        }
-        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.literal || node.range || node.wildcard) {
-        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
-          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
-        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.test) {
-        let base=node.expr;
-        while(base.test) base=base.expr;
-        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
-        result.expr=yield resolve(node.expr);
-        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
-        else result.value=value(node.value,node);
-        return result;
-      }
-      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
-        if(node[key]) result[key]=yield resolve(node[key]);
-      }
-      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
-      return result;
-    }
-    return run(resolve(root));
-  }
-
-  /** @param {any} value @returns {any} */
-  function patternKey(value) {
-    if (value instanceof Set) return [...value].sort();
-    if (Array.isArray(value)) return value.map(patternKey);
-    if (!value || typeof value !== 'object') return value;
-    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
-  }
-
-  class PatternMachine {
-    /** @param {any[]} roots */
-    constructor(roots) {
-      /** @type {any[]} */ this.predicates = [];
-      /** @type {any[]} */ this.machines = [];
-      /** @type {Map<string,number>} */ this.ids = new Map();
-      /** @type {any[]} */ this.states = [];
-      /** @type {Map<string,number>} */ this.stateIds = new Map();
-      /** @type {Map<string,number>} */ this.transitions = new Map();
-      roots.forEach(n => this.compile(n));
-      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
-      // A seal contributes one nameless child even over an empty interval.
-      this.seal = this.nodeState(0n,false);
-    }
-    /** @param {any} n @returns {number} */
-    compile(n) {
-      const key = JSON.stringify(patternKey(n));
-      const old = this.ids.get(key); if (old !== undefined) return old;
-      const p = {...n};
-      if (n.path) p.child = this.compile(n.pattern);
-      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
-      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
-      const id = this.predicates.length;
-      this.predicates.push(p); this.ids.set(key,id); return id;
-    }
-    /** @param {any} body @returns {any} */
-    sequence(body) {
-      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
-      let size=0;
-      const state=() => size++;
-      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
-      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
-        if (Array.isArray(n)) {
-          if (!n.length) edge(from,to);
-          let a=from;
-          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
-        } else if (n.child) edge(from,to,this.compile(n.child));
-        else if (n.siblings) { edge(from,to); edge(from,from,-1); }
-        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
-        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
-        else if (n.repeat) {
-          const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
-          if (n.separator) build(n.separator,a,b); else edge(a,b);
-          build(n.repeat,b,a);
-        }
-      };
-      const start=state(),end=state(); build(body,start,end);
-      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
-      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
-      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
-      return {size,start,end,edges,epsilon};
-    }
-    /** @param {any} s @returns {number} */
-    intern(s) {
-      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
-      const old=this.stateIds.get(key);if(old!==undefined)return old;
-      if (hooks.work) countWork(hooks.work, "structuralStates");
-      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
-    }
-    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
-    compose(a,b) {
-      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
-    }
-    /** @param {number} left @param {number} right @returns {number} */
-    concat(left,right) {
-      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
-      const a=this.states[left],b=this.states[right];
-      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
-        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {bigint} bits @param {boolean} empty @returns {number} */
-    nodeState(bits,empty) {
-      const relations=this.machines.map(m => {
-        const move=Array.from({length:m.size},() => 0n);
-        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
-        return this.compose(this.compose(m.epsilon,move),m.epsilon);
-      });
-      // A node state retains its own bits even when empty. Its sequence
-      // contribution is empty in that case, so captures retain root names.
-      const zero=this.states[this.empty];
-      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
-    }
-    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
-    node(name,children,leaf=null) {
-      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):''}`;
-      const old=this.transitions.get(key);if(old!==undefined)return old;
-      const s=this.states[children];let bits=0n;
-      this.predicates.forEach((p,i) => {
-        const bit=1n<<BigInt(i);let holds=false;
-        if (p.name) holds=name===p.name;
-        else if(p.terminal) holds=leaf?.terminal===p.terminal;
-        else if(p.test) holds=leafMatches(p,leaf);
-        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
-        else if(p.path) {
-          holds=!!(bits&(1n<<BigInt(p.child)));
-          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
-          holds=holds||!!(child&bit);
-        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
-        if (p.children) {
-          const m=this.machines[p.machine];
-          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
-        }
-        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
-        if(holds)bits|=bit;
-      });
-      const id=this.nodeState(bits,!leaf&&s.count===0);
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {number} state @param {any} pattern @returns {boolean} */
-    matches(state,pattern) {
-      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
-      if(id===undefined)throw new Error('undemanded structural pattern');
-      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
-    }
-  }
-
-
   // ---- dom.js
 
 
@@ -4437,8 +4403,8 @@
   const DOM_FORMAT = 40;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
-  // A classifier's name begins with a lower-case letter, and a class with a
-  // capital (engine §2, §9).
+  // A classifier name starts with a lowercase letter. A class name starts
+  // and ends with an uppercase ASCII letter (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
@@ -4460,7 +4426,7 @@
   /**
    * What is wrong with a test's value (engine §9), or null: it must be a
    * closed term, of type string for a value test and tag set for a tag test,
-   * and a string literal of a value test must be a canonical value. The shape
+   * with no canonical-value restriction on string literals. The shape
    * of the value must already be checked, and its nesting bounded.
    * @param {string} op
    * @param {any} value
@@ -4478,18 +4444,15 @@
   }
 
   /**
-   * What is wrong with a range (engine §1, §9), or null: its ends must be two
-   * character tags in their canonical spelling by the table, which says which
-   * code points are marks, the start not above the end.
+   * What is wrong with a range (engine §1, §9), or null: visible endpoints
+   * must each contain one scalar, with the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
    * @returns {string | null}
    */
-  function rangeProblem(range, unicode) {
+  function rangeProblem(range) {
     if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
     const strings = range.map(end => {
       if (isDomObject(end) && typeof end.string === "string") return end.string;
-      if (isDomObject(end) && isDomObject(end.value) && typeof end.value.string === "string") return end.value.string;
 
       return null;
     });
@@ -4666,7 +4629,7 @@
         }
         if (value.literal) push("term",value.literal,depth,{params:task.params});
         if (value.range) {
-          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+          const problem = rangeProblem(value.range); if (problem) return problem;
           for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
         }
         if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value);
@@ -4752,7 +4715,7 @@
         else if ("range" in value) {
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
           for (const end of value.range) push("term", end, depth);
-          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+          const problem = rangeProblem(value.range); if (problem) return problem;
         } else if ("ref" in value) { if (fields.length !== 1 || !(ruleName(value.ref) || tag(value.ref))) return "a malformed reference"; }
         else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
       } else if (kind === "tags") {
@@ -5653,8 +5616,8 @@
   /**
    * The terminal at the head of an elidable optional's expression, or null
    * when the expression has no such head (engine §3.8, §9): a `ref` whose
-   * name begins with a capital, a `terminal` whose tag is a name, or an `=`
-   * test of one of these, alone or first in a `seq`.
+   * name begins with a capital, or a declared parameter before expansion.
+   * Only `=`, `≠`, and `tags` tests unwrap, after selecting the first `seq` item.
    * @param {any} expr
    * @returns {any}
    */
@@ -5666,7 +5629,7 @@
     if (isTerminal(head)) return head;
     /** @type {any} */
     let base = head;
-    while (base.test) base = base.expr;
+    while (isDomObject(base) && typeof base.test === "string" && TEST_OPS.has(base.test)) base = base.expr;
     if (isTerminal(base)) return head;
     return null;
   }
@@ -6251,7 +6214,11 @@
           if (problem) return {problem,node:operand};
         }
         if (expr.range) {
-          const problem = rangeProblem(expr.range,/** @type {any} */ (null));
+          const ends = expr.range.map((/** @type {any} */ end) => end.const ? end.value : end);
+          for (let i=0;i<ends.length;i++) {
+            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) return {problem:"a range endpoint is one scalar",node:expr.range[i]};
+          }
+          const problem = rangeProblem(ends);
           if (problem) return {problem,node:expr};
         }
         for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (const child of expr[key]) pending.push(child);
@@ -6340,7 +6307,7 @@
 
   /**
    * The first part of a term that is not closed (engine §10), or null: a
-   * capture, a guarded term, or a call of anything but split and tag. The
+   * capture, a guarded term, or a call of anything but split and ngrams. The
    * shape of the term need not be checked.
    * @param {unknown} term
    * @returns {any}
@@ -8965,8 +8932,11 @@
           }, (value,atom) => {
             if (atom.range) {
               const strings = atom.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,atom.at ?? item,lookup));
-              const problem = rangeProblem(strings,this.unicode);
-              if (problem) throw this.faultError(path,atom.range,atom.at ?? item,problem);
+              const problem = rangeProblem(strings);
+              if (problem) {
+                const wide = strings.findIndex((/** @type {any} */ end)=>[...end.string].length !== 1);
+                throw this.faultError(path,wide >= 0 ? atom.range[wide] : atom.range,atom.at ?? item,problem);
+              }
             }
             return this.evaluateClosed(path,value,atom.at ?? item,lookup);
           }, this.unicode) };
@@ -12770,7 +12740,7 @@
   }
 
   /**
-   * The classes among tags: those that begin with a capital letter.
+   * The classes among tags start and end with an uppercase ASCII letter.
    * @param {TagSet} tags
    * @returns {TermValue}
    */
@@ -14799,7 +14769,6 @@
 
 
   /** @import { Expr } from "./types.js" */
-  /** @typedef {{parts:Expr[],captures:Map<string,Expr>}} Route */
 
   /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
   function consuming(expr,rules) {
@@ -14810,47 +14779,6 @@
     if ("optional" in expr) return consuming(expr.optional,rules);
     if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
     return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
-  }
-
-  /** @param {Expr} expr @returns {boolean} */
-  function expandedCapture(expr) {
-    if ("capture" in expr) return true;
-    if ("ranked" in expr || "repeat" in expr) return false;
-    if ("optional" in expr) return expr.elidable !== true && expandedCapture(expr.optional);
-    if ("test" in expr) return expandedCapture(expr.expr);
-    const children = /** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).and ?? [];
-    return children.some(expandedCapture);
-  }
-
-  /** @param {Route[]} left @param {Route[]} right @returns {Route[]} */
-  function overlapProduct(left,right) {
-    return left.flatMap(a => right.map(b => ({parts:[...a.parts,...b.parts],captures:new Map([...a.captures,...b.captures])})));
-  }
-
-  /** @param {Expr} expr @returns {Route[]} */
-  function routes(expr) {
-    if ("empty" in expr) return [{parts:[],captures:new Map()}];
-    if ("capture" in expr) return [{parts:[expr.expr],captures:new Map([[expr.capture,expr.expr]])}];
-    if ("choice" in expr) return expr.choice.flatMap(routes);
-    if ("seq" in expr) {
-      /** @type {Route[]} */
-      let all = [{parts:[],captures:new Map()}];
-      for (const child of expr.seq) all = overlapProduct(all,routes(child));
-      return all;
-    }
-    if ("and" in expr) {
-      const choices = expr.and.map(routes);
-      const all = [];
-      for (let mask=1;mask<1<<choices.length;mask++) {
-        /** @type {Route[]} */
-        let selected = [{parts:[],captures:new Map()}];
-        choices.forEach((choice,index) => { if (mask & (1<<index)) selected = overlapProduct(selected,choice); });
-        for (const route of selected) all.push(route);
-      }
-      return all;
-    }
-    if ("optional" in expr && expr.elidable !== true && expandedCapture(expr.optional)) return [{parts:[],captures:new Map()},...routes(expr.optional)];
-    return [{parts:[expr],captures:new Map()}];
   }
 
   /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
@@ -14867,16 +14795,23 @@
     for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
       const emission = alternative.clauses.emit;
       if (!emission || emission.items.length < 2) continue;
-      for (const route of routes(alternative.expr)) {
-        const whole = route.parts.some(part => consuming(part,marked));
-        const kept = emission.items.filter(item => item.insert || item.capture === "" || route.captures.has(/** @type {string} */ (item.capture)));
-        const parts = kept.map(item => item.insert ? [] : [...(item.before ?? []),/** @type {string} */ (item.capture),...(item.after ?? [])].filter(name => name === "" || route.captures.has(name)));
-        const consumes = (/** @type {string} */ name) => name === "" ? whole : consuming(/** @type {Expr} */ (route.captures.get(name)),marked);
-        for (let left=0;left<parts.length;left++) for (let right=left+1;right<parts.length;right++) {
-          for (const a of parts[left]) for (const b of parts[right]) if ((a === "" || b === "") && consumes(a) && consumes(b)) {
-            const at = alternative.at;
-            throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
-          }
+      const captures = new Map();
+      const pending = [alternative.expr];
+      while (pending.length) {
+        const expr = /** @type {Expr} */ (pending.pop());
+        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
+        for (const key of ["seq","choice","ranked","and"]) pending.push(...(/** @type {any} */ (expr)[key] ?? []));
+        for (const key of ["expr","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
+      }
+      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
+        const a=emission.items[left], b=emission.items[right];
+        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
+        const other = a.capture === "" ? b : a;
+        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
+          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
+        if (overlap) {
+          const at = alternative.at;
+          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
         }
       }
     }
@@ -18368,7 +18303,7 @@
      * An optional, and with a marker `+` among its parts an elidable
      * one (engine §3.8, §9). Its form is checked on the tree, where a group
      * is still a node: one sequence, whose first primary is the terminal
-     * itself, `=`-tested or not.
+     * itself, with or without symbol tests.
      * @param {RuleNode} node
      * @returns {Generator<Step, Expr, any>}
      */

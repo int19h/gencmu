@@ -14716,5 +14716,142 @@
       ]
     },
     "malformed": true
-  }
+  },
+{
+  "description": "Elidable head: test wraps a sequence.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "test": "=",
+            "value": {
+              "string": "a"
+            },
+            "expr": {
+              "seq": [
+                {
+                  "ref": "KU"
+                },
+                {
+                  "ref": "A"
+                }
+              ]
+            }
+          },
+          "elidable": true
+        }
+      }
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Elidable head: wrong comparator.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "test": "\u2208",
+            "value": {
+              "tag": "A"
+            },
+            "expr": {
+              "ref": "KU"
+            }
+          },
+          "elidable": true
+        }
+      }
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Elidable head: repeated value tests.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "test": "=",
+            "value": {
+              "string": "a"
+            },
+            "expr": {
+              "test": "=",
+              "value": {
+                "string": "b"
+              },
+              "expr": {
+                "ref": "KU"
+              }
+            }
+          },
+          "elidable": true
+        }
+      }
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Elidable head: single tested head.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "test": "=",
+            "value": {
+              "string": "ku"
+            },
+            "expr": {
+              "ref": "KU"
+            }
+          },
+          "elidable": true
+        }
+      }
+    ]
+  },
+  "malformed": false
+}
 ]

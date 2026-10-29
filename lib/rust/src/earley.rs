@@ -3186,7 +3186,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    /// The class tags of a list, those whose names begin with a capital.
+    /// Class names start and end with an uppercase ASCII letter.
     fn classes(&self, list: &TagList) -> Value {
         let tags = &self.shared.tags;
         // Each tag read counts.

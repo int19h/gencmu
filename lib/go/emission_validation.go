@@ -15,7 +15,7 @@ func (g *stageGrammar) validateEmissionOverlap() *Error {
 			return false
 		}
 		switch e.Kind {
-		case exLiteral, exRange, exWildcard, exTerminal:
+		case exLiteral, exRange, exWildcard:
 			return true
 		case exRef:
 			return isTerminalName(e.Name) || consuming[e.Name]

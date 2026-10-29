@@ -1,0 +1,13 @@
+{
+  "description": "Capturing optionals use one structural walk for emission overlap.",
+  "grammar": "%rule text [$c0:\"a\"] [$c1:\"a\"] [$c2:\"a\"] [$c3:\"a\"] [$c4:\"a\"] [$c5:\"a\"]\n%emits $, $c0",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

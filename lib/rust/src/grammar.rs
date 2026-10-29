@@ -494,62 +494,6 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
     false
 }
 
-#[derive(Clone, Default)]
-struct OwnershipShape {
-    consuming: bool,
-    captures: FxMap<String, bool>,
-}
-fn ownership_shapes(expr: &Expr, rules: &FxSet<String>) -> Vec<OwnershipShape> {
-    let join = |left: Vec<OwnershipShape>, right: &[OwnershipShape]| {
-        let mut out = Vec::new();
-        for first in left {
-            for second in right {
-                let mut combined = first.clone();
-                combined.consuming |= second.consuming;
-                combined.captures.extend(second.captures.clone());
-                out.push(combined);
-            }
-        }
-        out
-    };
-    match expr {
-        Expr::Seq(items) => {
-            let mut shapes = vec![OwnershipShape::default()];
-            for item in items {
-                shapes = join(shapes, &ownership_shapes(item, rules));
-            }
-            shapes
-        }
-        Expr::Choice(items) | Expr::Ranked(items) => {
-            items.iter().flat_map(|item| ownership_shapes(item, rules)).collect()
-        }
-        Expr::Optional(inner, crate::dom::Mark::Plain) => {
-            let mut shapes = vec![OwnershipShape::default()];
-            shapes.extend(ownership_shapes(inner, rules));
-            shapes
-        }
-        Expr::And(items) => {
-            let expanded: Vec<_> = items.iter().map(|item| ownership_shapes(item, rules)).collect();
-            let mut shapes = Vec::new();
-            for first in 0..items.len() {
-                let mut selected = expanded[first].clone();
-                for next in &expanded[first + 1..] {
-                    let mut optional = vec![OwnershipShape::default()];
-                    optional.extend(next.clone());
-                    selected = join(selected, &optional);
-                }
-                shapes.extend(selected);
-            }
-            shapes
-        }
-        Expr::Capture(name, symbol) => vec![OwnershipShape {
-            consuming: consuming(symbol, rules),
-            captures: FxMap::from_iter([(name.clone(), consuming(symbol, rules))]),
-        }],
-        _ => vec![OwnershipShape { consuming: consuming(expr, rules), captures: FxMap::default() }],
-    }
-}
-
 fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
     let mut reads = FxSet::default();
     loop {
@@ -572,36 +516,50 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
             {
                 continue;
             }
-            for shape in ownership_shapes(&alternative.alternative.expr, &reads) {
-                let retained: Vec<_> = items
-                    .iter()
-                    .filter(|item| match item {
-                        EmitItem::Capture(name, ..) => name.is_empty() || shape.captures.contains_key(name),
-                        EmitItem::Insert(..) => true,
-                    })
-                    .collect();
-                for (first, item) in retained.iter().enumerate() {
-                    for other in &retained[first + 1..] {
-                        let parts = |item: &EmitItem| -> Vec<(bool, bool)> {
-                            match item {
-                                EmitItem::Capture(name, _, _) if name.is_empty() => vec![(true, shape.consuming)],
-                                EmitItem::Capture(name, _, attachments) => attachments
-                                    .before
-                                    .iter()
-                                    .chain(std::iter::once(name))
-                                    .chain(&attachments.after)
-                                    .filter_map(|name| shape.captures.get(name).map(|&reads| (false, reads)))
-                                    .collect(),
-                                EmitItem::Insert(..) => Vec::new(),
-                            }
-                        };
-                        if parts(item).iter().any(|a| parts(other).iter().any(|b| (a.0 && b.1) || (b.0 && a.1))) {
-                            return Err(located(
-                                "emission carriers can overlap input positions".into(),
-                                &alternative.document,
-                                alternative.at,
-                            ));
+            let mut captures = FxMap::<String, bool>::default();
+            let mut pending = vec![&alternative.alternative.expr];
+            while let Some(expr) = pending.pop() {
+                match expr {
+                    Expr::Capture(name, inner) => {
+                        *captures.entry(name.clone()).or_default() |= consuming(inner, &reads);
+                        pending.push(inner);
+                    }
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                        pending.extend(items)
+                    }
+                    Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+                    Expr::Repeat(item, separator, _) => {
+                        pending.push(item);
+                        pending.extend(separator.as_deref());
+                    }
+                    _ => {}
+                }
+            }
+            for (first, item) in items.iter().enumerate() {
+                for other in &items[first + 1..] {
+                    let (EmitItem::Capture(left, ..), EmitItem::Capture(right, ..)) = (item, other) else { continue };
+                    if !left.is_empty() && !right.is_empty() {
+                        continue;
+                    }
+                    let other = if left.is_empty() { other } else { item };
+                    let overlap = match other {
+                        EmitItem::Capture(name, _, _) if name.is_empty() => {
+                            consuming(&alternative.alternative.expr, &reads)
                         }
+                        EmitItem::Capture(name, _, attachments) => attachments
+                            .before
+                            .iter()
+                            .chain(std::iter::once(name))
+                            .chain(&attachments.after)
+                            .any(|name| captures.get(name).copied().unwrap_or(false)),
+                        EmitItem::Insert(..) => false,
+                    };
+                    if overlap {
+                        return Err(located(
+                            "emission carriers can overlap input positions".into(),
+                            &alternative.document,
+                            alternative.at,
+                        ));
                     }
                 }
             }

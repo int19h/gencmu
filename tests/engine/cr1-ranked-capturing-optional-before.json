@@ -1,0 +1,10 @@
+{
+  "description": "ranked capturing optional before.",
+  "grammar": "%rule text [$b: \"c\"] (\"a\" \u227b \"b\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

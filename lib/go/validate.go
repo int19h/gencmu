@@ -348,8 +348,8 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 	return nil
 }
 
-// directiveOperandsOK checks a directive's name, one of the notation's four
-// directives, and the operands the notation's syntax allows the pipeline
+// directiveOperandsOK checks all seven directive names and the operands
+// that the notation's syntax allows the pipeline
 // directives (engine §9): stage selectors take one name, %include one string and
 // %features one or more names.
 func directiveOperandsOK(dir *domDirective) bool {
@@ -529,11 +529,6 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}
-	case exTerminal:
-		// A tag in its canonical spelling (engine §1).
-		if !isTag(e.Name, c.uni) {
-			c.fail("a malformed terminal %q", e.Name)
-		}
 	case exRange:
 		for _, end := range e.Ends {
 			c.term(end, depth, false)
@@ -563,10 +558,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	}
 }
 
-// elidableHead is the terminal at the head of an elidable optional's
-// expression, or nil when it has none (engine §3.8, §9): a reference whose
-// name begins with a capital, a terminal whose tag is a name, or an = test
-// of one of these, alone or first in a sequence.
+// elidableHead selects the first sequence item, then unwraps only symbol tests.
+// The base must be one capitalized user-tag reference (engine §9).
 func elidableHead(e *domExpr) *domExpr {
 	if e == nil {
 		return nil
@@ -575,13 +568,11 @@ func elidableHead(e *domExpr) *domExpr {
 	if e.Kind == exSeq && len(e.Items) > 0 {
 		head = e.Items[0]
 	}
-	if head == nil {
-		return nil
+	base := head
+	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
+		base = base.Inner
 	}
-	isTerminal := func(n *domExpr) bool {
-		return n != nil && ((n.Kind == exRef && constName.MatchString(n.Name)) || (n.Kind == exTerminal && domName.MatchString(n.Name)))
-	}
-	if isTerminal(head) || (head.Kind == exTest && (testOps[head.Op] || head.Op == "tags") && elidableHead(head.Inner) != nil) {
+	if base != nil && base.Kind == exRef && constName.MatchString(base.Name) {
 		return head
 	}
 	return nil
@@ -918,7 +909,7 @@ func captureSequences(e *domExpr) [][]*domExpr {
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exTerminal, exRange, exLiteral, exWildcard, exTest:
+	case exRef, exRange, exLiteral, exWildcard, exTest:
 		return true
 	}
 	return false
@@ -933,7 +924,7 @@ func isTestable(e *domExpr) bool {
 	switch e.Kind {
 	case exRef:
 		return true
-	case exTerminal, exRange, exLiteral, exWildcard:
+	case exRange, exLiteral, exWildcard:
 		return true
 	}
 	return false
@@ -992,9 +983,8 @@ func testsIn(e *domExpr) []*domExpr {
 	return found
 }
 
-// literalCallProblem is what is wrong with a call of split or tag whose
-// argument the reader sees as a string literal (engine §9, §10), or "": an
-// empty delimiter, or a tag's string that is not a name.
+// literalCallProblem rejects an empty split delimiter visible to the reader
+// as a string literal, or returns "" (engine §9, §10).
 func literalCallProblem(call string, args []*domTerm) string {
 	literal := func(i int) (string, bool) {
 		if i < len(args) && args[i] != nil && args[i].Kind == tmString {
@@ -1933,7 +1923,7 @@ func constantValueType(value *domTerm, redefine bool, ct constTypes) (termType, 
 var constName = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
 
 // openPart is the first part of a term that is not closed (engine §10), or
-// nil: a capture, a guarded term, or a call of anything but split and tag.
+// nil: a capture, a guarded term, or a call of anything but split and ngrams.
 func openPart(t *domTerm) *domTerm {
 	if t == nil {
 		return nil

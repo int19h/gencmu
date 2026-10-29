@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -169,7 +170,12 @@ func (g *stageGrammar) bindConstants() *Error {
 		}
 		if !ok {
 			kinds[k.Name] = ty
+			dependents := make([]int, 0, len(users[k.Name]))
 			for u := range users[k.Name] {
+				dependents = append(dependents, u)
+			}
+			sort.Ints(dependents)
+			for _, u := range dependents {
 				if !queued[u] {
 					queue = append(queue, u)
 					queued[u] = true

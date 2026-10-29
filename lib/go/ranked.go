@@ -437,11 +437,11 @@ func (r *rankedGroups) validateTags(g *lowered) *Error {
 					unsafe[p.lhs] = true
 				}
 			}
-		} else if len(p.rhs) == 1 {
-			if p.rhs[0].term {
+		} else if p.inheritIndex >= 0 {
+			if p.rhs[p.inheritIndex].term {
 				unsafe[p.lhs] = true
 			} else {
-				users[p.rhs[0].id] = append(users[p.rhs[0].id], p)
+				users[p.rhs[p.inheritIndex].id] = append(users[p.rhs[p.inheritIndex].id], p)
 			}
 		}
 	}
@@ -515,7 +515,7 @@ func (r *rankedGroups) tagFailure(g *lowered, group *rankedGroup, helper int32, 
 					}
 				}
 			}
-			source := len(terms) == 0 && len(p.rhs) == 1 && p.rhs[0].term
+			source := len(terms) == 0 && p.inheritIndex >= 0 && p.rhs[p.inheritIndex].term
 			for _, term := range terms {
 				source = source || !isEmptySet(term)
 			}
@@ -524,8 +524,8 @@ func (r *rankedGroups) tagFailure(g *lowered, group *rankedGroup, helper int32, 
 				err.Inheritance = steps
 				return err
 			}
-			if len(terms) == 0 && len(p.rhs) == 1 && !p.rhs[0].term {
-				child := p.rhs[0].id
+			if len(terms) == 0 && p.inheritIndex >= 0 && !p.rhs[p.inheritIndex].term {
+				child := p.rhs[p.inheritIndex].id
 				if unsafe[child] && !seen[child] {
 					seen[child] = true
 					queue = append(queue, state{child, steps, option})

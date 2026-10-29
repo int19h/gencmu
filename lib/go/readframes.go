@@ -229,7 +229,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 // startOptional checks an optional, and with a marker + among its
 // parts an elidable one (engine §3.8, §9). Its form is checked on the
 // tree, where a group is still a node: one sequence, with no leading | or
-// &, whose first primary is the terminal itself, =-tested or not. Its
+// &, whose first primary is the terminal itself, with or without tests. Its
 // parts are looked up in the order of §9: its choice, then its markers.
 func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	n := f.n
