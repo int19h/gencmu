@@ -2,27 +2,25 @@
 
 This pipeline combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms derive from a parsing expression grammar (PEG).
 
-A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
-
-A tag marks a token by an identifier.
-
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that PEG in appendix A2. [`morphology.md`](morphology.md) derives from it and states the morphology's rules directly. Its [closing section](morphology.md#differences-from-cll-and-the-reference-peg) lists deliberate departures and their reasons.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
 Outside the working morphology and the project choices below, this pipeline follows CLL 1.1. It uses the [Magic Words stream](../common/stream.md) and the shared CLL indicator stage. An elided terminator is a closing word left unwritten. The `lojban/cll` and `lojban/bpfk` pipelines use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this pipeline's erasure, elision, and connective policies.
 
-A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
+A pipeline document defines an ordered sequence of stages. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../common/latin.md`](../common/latin.md). camxes-std's PEG reads some of them itself, such as digits and `h`. The [word-form document](morphology.md#differences-from-cll-and-the-reference-peg) compares them. The phoneme stage also reads gencmu's Cyrillic and zbalermorna.
 
-The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline. It permits runs of BAhE and several FUhE groups ([Earlier stages](../cll/syntax.md#earlier-stages)).
+The indicator stage is the indicator stage of the [CLL](../cll/pipeline.md) pipeline. It permits repeated BAhE and several FUhE groups ([Earlier stages](../cll/syntax.md#earlier-stages)).
 
 Indicators after `lu` begin quoted content. Indicators after `to`, `to'i` and `tu'e` attach to the opener. A quoted text starts like a whole text, with initial names or indicators, but not both.
 
 ## NAI attachment
 
-The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) separates UI and CAI from DAhO, FUhE and FUhO, which do not absorb `nai`. The camxes-std rule `indicator` attaches NAI only to UI and CAI. CLL[^cll-s19-16] agrees.
+An indicator run is a sequence of consecutive indicators.
 
-FUhE opens an indicator group. The [indicator document](../cll/indicators.md#differences-from-cll-and-camxes-std) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
+The shared indicator stage keeps each indicator run at one tree level. Within an indicator run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) separates UI and CAI from DAhO, FUhE and FUhO, which do not absorb `nai`. The camxes-std rule `indicator` attaches NAI only to UI and CAI. CLL[^cll-s19-16] agrees.
+
+FUhE opens an indicator group. The [indicator document](../cll/indicators.md#differences-from-cll-and-camxes-std) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves unattached under its own rules.
 
 ## Erasure boundary
 
@@ -131,9 +129,9 @@ The stage documents compare [CLL Latin](../cll/latin.md#choices-beyond-cll), [La
 
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. CLL 1.3.4[^cll-later-a3-1] keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
-A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology uses extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
+The working morphology applies two committee votes that CLL 1.3.4 records.[^cll-later-a3-3] Names can contain `la`, `lai`, `la'i` and `doi`, so `ladjan.` is one name. No consonant stands before a glide, so `kuarka` is no word.
 
-CLL 1.3.4[^cll-later-s4-16] already teaches the borrowing form, as in `spageti'ykukte`.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology uses extended rafsi. The PEG puts `'y` after any head of two or more syllables. CLL 1.3.4[^cll-later-s4-16] teaches that only after a whole borrowing, as in `spageti'ykukte`. So `klama'ybroda` goes beyond both CLL 1.1[^cll-c4] and CLL 1.3.4[^cll-later-c4].
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
 
@@ -147,7 +145,7 @@ The BPFK recorded one decision on syntax, and this pipeline does not apply it. O
 
 The [indicator document](../cll/indicators.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../cll/indicators.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
-This pipeline departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
+This pipeline departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading indicator runs.
 
 In `lojban/cll` and `lojban/bpfk`, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
 
@@ -165,7 +163,7 @@ CLL gives terminator advice and describes some limitations of its official parse
 
 A PEG commits to choices before it knows whether the whole text parses. This pipeline follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-A tanru unit is a component of a selbri. Before a `ke` group, camxes-std tries the plain connective first, and this pipeline prefers the `ke` group. This difference appears in three places:
+A tanru unit is a component of a selbri. In a tanru and in an operator, camxes-std tries the plain connective first before a `ke` group. In a bridi tail, it never reads the plain connective there. This pipeline prefers the `ke` group in all three places:
 
 - In a tanru, camxes-std reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the pipeline agrees with camxes-std.
 - In an operator, camxes-std reads `li ci su'i joi ke pi'i ke'e re` with a plain `joi` and the `ke` group inside the next operator. This pipeline reads `joi ke` as one connected operator.
@@ -187,6 +185,8 @@ A tanru unit is a component of a selbri. Before a `ke` group, camxes-std tries t
 
 [^cll-later-c4]: [CLL 1.3.4, chapter 4](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml).
 
-[^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). CLL 1.1's section of the same name proposes a different mechanism and does not teach this form.
+[^cll-later-s4-16]: [CLL 1.3.4, section 4.16](https://github.com/int19h/cll/blob/v1.3.4/chapters/04.xml#L6131-L6186). CLL 1.1's section 4.16 proposes a different mechanism and does not teach this form.
 
 [^cll-later-a3-1]: [CLL 1.3.4, appendix A3.1](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L3-L41). This later appendix has no CLL 1.1 counterpart.
+
+[^cll-later-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L243). This later approval record has no CLL 1.1 counterpart.
