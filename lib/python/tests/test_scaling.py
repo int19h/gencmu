@@ -752,7 +752,7 @@ class Pipelines(Linear):
             resolve = _splice.resolve
 
             def work() -> None:
-                with mock.patch.object(_splice, "resolve", lambda base, target: Path(resolve(base, target))):
+                with mock.patch.object(_splice, "resolve", lambda base, target, at=None: Path(resolve(base, target, at))):
                     splice_pipeline("d0.md", doms.get)
 
             return work

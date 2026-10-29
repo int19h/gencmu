@@ -731,10 +731,12 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         same(expected, &names, "bundledPipelines")?;
     }
 
-    let kind = match error.kind {
-        gencmu::ErrorKind::Grammar => "grammar",
-        gencmu::ErrorKind::Usage => "usage",
-        _ => "another kind",
+    let kind = if error.kind == gencmu::ErrorKind::Grammar {
+        "grammar"
+    } else if error.kind == gencmu::ErrorKind::Usage {
+        "usage"
+    } else {
+        "another kind"
     };
     if expect.get("error").and_then(Value::str) != Some(kind) {
         return Err(format!("unexpected load error: {error}"));
