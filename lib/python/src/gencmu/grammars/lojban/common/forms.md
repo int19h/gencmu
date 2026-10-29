@@ -16,7 +16,7 @@ The prose uses these Lojban terms for words:
 - A selma'o is a word class of cmavo.
 - A brivla is a predicate word.
 - A cmevla is a name word.
-- A rafsi is a shortened word form used inside compounds.
+- A rafsi is a word form used inside compounds.
 - A gismu is a root word.
 
 The `lojban/cll` pipeline stitches [../cll/shapes.md](../cll/shapes.md) and [../cll/morphology.md](../cll/morphology.md) as its word family. The other pipelines stitch [../bpfk/morphology.md](../bpfk/morphology.md), with [../experimental/morphology.md](../experimental/morphology.md) or [../zantufa/morphology.md](../zantufa/morphology.md) after it. The lexicon is [../cll/lexicon.md](../cll/lexicon.md), [../experimental/lexicon.md](../experimental/lexicon.md) or [../zantufa/lexicon.md](../zantufa/lexicon.md), and it gives each cmavo its selma'o.
