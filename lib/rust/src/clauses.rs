@@ -2,7 +2,11 @@
 //! §9): simplifying a clause for a production, the captures a clause uses,
 //! and the checks of a definition as a whole.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::HashSet;
+#[path = "capture_validation.rs"]
+mod validation;
 
 use crate::fxhash::{FxMap, FxSet};
 use crate::work::{self, Mutant, Work};
@@ -1112,6 +1116,7 @@ fn mark(duplicate: &mut [bool], indices: &mut Vec<usize>) {
 ///
 /// A capture is known by its index among the expression's captures in the
 /// order written, which is the order a reader meets them.
+#[cfg(test)]
 pub(crate) struct CaptureSequences<'e> {
     /// The name of each capture, by index.
     pub names: Vec<&'e str>,
@@ -1119,6 +1124,7 @@ pub(crate) struct CaptureSequences<'e> {
     pub sequences: Vec<Vec<usize>>,
 }
 
+#[cfg(test)]
 impl<'e> CaptureSequences<'e> {
     pub(crate) fn of(expr: &'e Expr) -> CaptureSequences<'e> {
         let mut found = CaptureSequences { names: Vec::new(), sequences: Vec::new() };
@@ -1344,9 +1350,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .alternatives
         .iter()
         .enumerate()
-        .flat_map(|(index, alternative)| {
-            CaptureSequences::of(&alternative.expr).named().into_iter().map(move |names| (index, names))
-        })
+        .flat_map(|(index, _)| validation::captures(rule, index).into_iter().map(move |names| (index, names)))
         .collect();
     // Where each production reads each capture, first, and every capture
     // any production reads, so that a question about one is not a scan.

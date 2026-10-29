@@ -247,22 +247,6 @@ func anyAltTags(r *domRule) bool {
 	return false
 }
 
-// altCaptures lists, for each production of an alternative, each capture
-// it reads with its place in the order read; $ is at -1 (engine §3.5).
-// Productions that read the same captures in the same order are one.
-func altCaptures(a *domAlt) []map[string]int {
-	seqs := captureSequences(a.Expr)
-	out := make([]map[string]int, len(seqs))
-	for i, seq := range seqs {
-		caps := map[string]int{"": -1}
-		for j, c := range seq {
-			caps[c.Name] = j
-		}
-		out[i] = caps
-	}
-	return out
-}
-
 // usesAll says whether a clause, simplified, uses only captures has has.
 func usesAll(names map[string]bool, has func(string) bool) (string, bool) {
 	for n := range names {
@@ -540,7 +524,7 @@ func definitionProblem(r *domRule) string {
 	}
 	capturedBy := map[string]int{}
 	for _, a := range r.Alternatives {
-		for _, caps := range altCaptures(a) {
+		for _, caps := range validationCaptures(r, a) {
 			prods = append(prods, prodCaptures{caps, a})
 			alts = append(alts, caps)
 			for name := range caps {
