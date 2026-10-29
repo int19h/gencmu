@@ -407,7 +407,7 @@ func (m *closeArena) aligned(candidate, witness, end int) bool {
 
 func demandedCloses(g *lowered) map[int32]bool {
 	wanted, seen := map[int32]bool{}, map[int32]bool{}
-	pending := []int32{g.byName["source-text"]}
+	pending := []int32{g.byName["text"]}
 	for len(pending) > 0 {
 		rule := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
