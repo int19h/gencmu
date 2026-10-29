@@ -238,9 +238,9 @@ Rule names include single emoji scalars with `Emoji_Presentation` and without `E
 
 `🆓` is not built in. It is a rule that the Lojban syntax grammars define as `[{free}]`, zero or more free modifiers. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
-An elidable terminator is a closing word that the speaker can leave out. This notation writes `[+KU]` for an elidable `ku`. `[+KU 🆓]` also puts its free-modifier slot inside the optional. The `+` marks omission at that position (see "Elidable optionals and captures" below). This grouping follows CLL's printed grammar.
+An elidable terminator is a closing word that the speaker can leave out. This notation writes `[+KU]` for an elidable `ku`. `[+KU 🆓]` also puts its free-modifier slot inside the optional. The `+` marks omission at that position (see "Elidable optionals and captures" below).
 
-So `xy. xi ky.` (CLL example 17.38) needs `xy. boi xi ky.` under the printed grammar. CLL's official parser needs it too. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[+KU] 🆓`.
+The `lojban/cll` pipeline uses this grouping, as CLL's printed grammar does. So it rejects `xy. xi ky.` (CLL example 17.38) and needs `xy. boi xi ky.`. CLL's official parser needs it too. The grammars that allow free modifiers after an elided terminator, as the camxes family does, write `[+KU] 🆓`.
 
 A `::` clause assigns tags on the definition header or after an alternative. The two terms union when both exist. A tag has no strength: a constituent carries it or not. Bare tag names can form one union atom, as in `UI CAI Indicator`. Other atoms require explicit set operators. Headers with clauses require a leading alternative bar.
 

@@ -14,13 +14,13 @@ Each rule can also say what its constituents hand to the next grammar. So a gram
 
 ```mermaid
 flowchart LR
-  src(["the original text"]) --> s0["stage zero, input:<br/>one character token<br/>per decomposed scalar"]
-  s0 -- tokens --> s1["first stage:<br/>parses the character tokens<br/>and emits tokens"]
-  s1 -- tokens --> s2["next stage:<br/>parses the tokens that<br/>the stage before emitted"]
-  s2 -- tokens --> s3["later stages"]
+  src(["the original text"]) --> s0["stage zero, named input:<br/>no grammar, emits one<br/>token per decomposed scalar"]
+  s0 -- tokens --> s1["first grammar stage:<br/>parses the character tokens<br/>and emits tokens"]
+  s1 -- tokens --> s2["next grammar stage:<br/>parses the tokens that<br/>the stage before emitted"]
+  s2 -- tokens --> s3["later grammar stages"]
 ```
 
-Each stage parses its whole input with its own grammar, starting at the rule `text`. The emitted tokens of one stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
+Stage zero has no grammar. It only supplies the character tokens. Each grammar stage parses its whole input with its own grammar, starting at the rule `text`. The first grammar stage reads the tokens of stage zero, or tokens that a caller supplies instead. The emitted tokens of each grammar stage are the input of the next. "Values and images" describes stage zero, and "Pipelines" describes how a pipeline document declares the stages.
 
 The examples in this document come mostly from the bundled Lojban grammars. Names such as `KOhA`, `sumti` and `🆓` are rules and tags that those grammars define. The notation gives them no meaning of its own. Where an example depends on Lojban, the text says so.
 
@@ -254,27 +254,27 @@ A list has no node, so nothing can name it, capture it or test it. The clauses o
 
 ### Chains in the tree
 
-Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`. It reads `1 + 2 + 3` as three `sum` nodes. The outer node holds a `sum` node over `1 + 2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node:
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads, as the tree format writes it. A box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
 
 ```mermaid
 flowchart TB
   subgraph flat ["flat: %rule sum {term / #quot;+#quot;}"]
     direction TB
-    f["sum"] --> f1["term: 1"]
+    f["sum"] --> f1["term · 1"]
     f --> fp1["#quot;+#quot;"]
-    f --> f2["term: 2"]
+    f --> f2["term · 2"]
     f --> fp2["#quot;+#quot;"]
-    f --> f3["term: 3"]
+    f --> f3["term · 3"]
   end
   subgraph chain ["left chain: %rule sum {... term / #quot;+#quot;}"]
     direction TB
     c["sum"] --> c12["sum"]
     c --> cp2["#quot;+#quot;"]
-    c --> c3["term: 3"]
+    c --> c3["term · 3"]
     c12 --> c1s["sum"]
     c12 --> cp1["#quot;+#quot;"]
-    c12 --> c2["term: 2"]
-    c1s --> c1["term: 1"]
+    c12 --> c2["term · 2"]
+    c1s --> c1["term · 1"]
   end
 ```
 
@@ -1267,7 +1267,7 @@ Attachments belong to the carrier but no later stage reads them. Ownership count
 
 A verbatim recipe returns original spelling and adjacent uncovered punctuation. `:- $.verbatim-text` belongs on the constituent that reads the body. It applies when that body emits directly and when a parent covers it. Recognition and conditions still read input values. The value channel remains independent of this image recipe.
 
-The recipe serves quoted text, whose image keeps its written spelling. It says nothing about whether that text is grammatical in the language of the grammar. In Lojban, for example, a `zoi` body can contain valid Lojban words but still needs its written image. A character run that the grammar reads as foreign instead joins stage-zero characters directly. Its values and images already preserve exact text, including `klama?` in the `lojban/cll` pipeline.
+The recipe serves quoted text, whose image keeps its written spelling. It says nothing about whether that text is grammatical in the language of the grammar. In Lojban, for example, a `zoi` body can contain valid Lojban words but still needs its written image. A non-Lojban character run of the phoneme stage instead joins stage-zero characters directly. Its values and images already preserve exact text, including `klama?` in the `lojban/cll` pipeline.
 
 ```jbogenbau
 %rule zoi-body :- $.verbatim-text
