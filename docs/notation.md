@@ -254,7 +254,7 @@ A list has no node, so nothing can name it, capture it or test it. The clauses o
 
 ### Chains in the tree
 
-Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads, as the tree format writes it. A box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
+Each level of a chain is a constituent of the chain's rule. The chain needs no rule names of its own, because every level is a node of that rule. Take `%rule sum {... term / "+"}`, where `term` reads one digit. It reads `1+2+3` as three `sum` nodes. The text has no spaces, because each space would be a token that the grammar does not read. The outer node holds a `sum` node over `1+2`, then `+` and a `term`. That inner node holds a `sum` node over `1` alone, then `+` and a `term`. With flat braces, `%rule sum {term / "+"}` reads the same text as one `sum` node. In the diagrams, a box such as `term · 1` is a rule node with the text that it reads. The tree format writes it the same way. A box `"+"` is a leaf that the terminal `"+"` reads. The diagrams leave out the root `text` node above each tree:
 
 ```mermaid
 flowchart TB
