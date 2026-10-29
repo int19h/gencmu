@@ -53,7 +53,7 @@ After span ranking, a smaller count wins. Equal counts leave late elision to dec
 
 This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
-Late elision gives `to mi klama` the sentence `mi klama`, because the other reading elides VAU and TOI after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote.
+The `leftmost-longest` flag on `free` gives `to mi klama` the sentence `mi klama`, because the longer parenthesis wins. Late elision gives `lu mi klama` the sentence `mi klama` in its quote, because the other reading omits terminators earlier, after `mi`.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
@@ -1197,7 +1197,7 @@ The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifier
 
 The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
 
-A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions can prevent a reading from surviving restoration.
+A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions see a written-back terminator as omitted, but the reconstruction reads it as a token. So such a condition can admit a second reading of the written-back text.
 
 Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
 
