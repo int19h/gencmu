@@ -1,7 +1,8 @@
 {
   "description": "Path absolute include.",
   "documents": {
-    "p.md": "```jbogenbau\n%include \"/g.md\"\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n"
+    "p.md": "```jbogenbau\n%include \"/g.md\"\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
+    "g.md": "```jbogenbau\n%features absolute-target-alias\n```\n"
   },
   "pipelineDocument": "p.md",
   "input": "a",
