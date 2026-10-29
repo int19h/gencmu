@@ -1,6 +1,6 @@
 # The notation pipeline
 
-The notation pipeline lets gencmu read its own grammar documents. A pipeline document defines an ordered sequence of stages. Each stage has its own grammar. The engine runs this pipeline like any Lojban pipeline. The notation therefore defines itself with ordinary grammar documents.
+The notation pipeline lets gencmu read its own grammar documents. A pipeline document defines an ordered sequence of stages. Each stage has its own grammar. The engine runs this pipeline like any other pipeline. The notation therefore defines itself with ordinary grammar documents.
 
 The libraries build the notation reader by splicing this pipeline's DOMs from `data/preparsed/gencmu.json`. A DOM holds parsed rules and directives. A check in CI reads these documents with that reader. The result must reproduce the preparsed entries.
 
