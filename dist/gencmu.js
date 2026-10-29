@@ -1576,6 +1576,49 @@
   const PROPERTY_NAMES = new Set(Object.keys(PROPERTY_CATALOG.tags).map(name => name.slice(1)));
 
 
+  // Keep disjoint ranges while reading records, so a conflict names the later line.
+  /**
+   * @template T
+   * @param {[number, number, T][]} ranges
+   * @param {number} start
+   * @param {number} end
+   * @param {T} value
+   * @param {() => void} fail
+   */
+  function addValueRange(ranges, start, end, value, fail) {
+    let low = 0, high = ranges.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (ranges[mid][1] < start) low = mid + 1;
+      else high = mid;
+    }
+    let last = low;
+    while (last < ranges.length && ranges[last][0] <= end) {
+      if (ranges[last][2] !== value) fail();
+      last++;
+    }
+    if (low > 0 && ranges[low - 1][1] + 1 === start && ranges[low - 1][2] === value) low--;
+    if (last < ranges.length && ranges[last][0] === end + 1 && ranges[last][2] === value) last++;
+    if (low < last) {
+      start = Math.min(start, ranges[low][0]);
+      end = Math.max(end, ranges[last - 1][1]);
+    }
+    ranges.splice(low, last - low, [start, end, value]);
+  }
+
+  /** @param {[number, number][]} ranges @returns {[number, number][]} */
+  function unionRanges(ranges) {
+    ranges.sort((a, b) => a[0] - b[0]);
+    /** @type {[number, number][]} */
+    const union = [];
+    for (const [start, end] of ranges) {
+      const previous = union.at(-1);
+      if (previous && start <= previous[1] + 1) previous[1] = Math.max(previous[1], end);
+      else union.push([start, end]);
+    }
+    return union;
+  }
+
   class UnicodeTable {
     /** @param {string} text the contents of data/unicode/unicode.txt @param {string} [properties] */
     constructor(text, properties) {
@@ -1635,38 +1678,26 @@
         }
         else if (entry === "decompose") {
           const scalars = fields.slice(1).map(hex);
-          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff)) fail();
+          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff) || this.decompositions.has(scalars[0])) fail();
           this.decompositions.set(scalars[0], scalars.slice(1));
         } else {
           const start = hex(fields[fields.length - 2]), end = hex(fields[fields.length - 1]);
           if (start > end) fail();
           if (entry === "category") {
-            if (!CATEGORIES.includes(fields[1])) fail();
-            ranges.push([start, end, fields[1]]);
+            if (!CATEGORIES.includes(fields[1]) || fields[1] === "Cs") fail();
+            addValueRange(ranges, start, end, fields[1], fail);
           } else if (entry === "combining") {
             const digits = fields[1].replace(/^0+/, "");
             if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail();
             const klass = Number(digits);
             if (klass < 1 || klass > 254) fail();
-            this.combining.push([start, end, klass]);
+            addValueRange(this.combining, start, end, klass, fail);
           } else if (entry === "white-space") this.whiteSpace.push([start, end]);
           else this.emoji.get(entry === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([start, end]);
         }
       }
-      // The records can stand in any order in the file (engine §1).
-      ranges.sort((a, b) => a[0] - b[0]);
-      for (const [property, ranges] of this.emoji) {
-        ranges.sort((a, b) => a[0] - b[0]);
-        /** @type {[number, number][]} */
-        const union = [];
-        for (const [start, end] of ranges) {
-          const previous = union.at(-1);
-          if (previous && start <= previous[1] + 1) previous[1] = Math.max(previous[1], end);
-          else union.push([start, end]);
-        }
-        this.emoji.set(property, union);
-      }
-      this.combining.sort((a, b) => a[0] - b[0]);
+      this.whiteSpace = unionRanges(this.whiteSpace);
+      for (const [property, ranges] of this.emoji) this.emoji.set(property, unionRanges(ranges));
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
         this.ends.push(end);

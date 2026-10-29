@@ -1,0 +1,15 @@
+{
+  "description": "combining nested (engine §1).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\" \"‹U+0315›\" \"‹U+0305›\"\n```",
+    "data/unicode/unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\ncombining 230 0300 0314\ncombining 230 0301 0301\ncombining 220 0315 0315\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a̅̕",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
