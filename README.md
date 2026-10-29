@@ -1,16 +1,15 @@
+
+![gencmu logo: interlocked red and blue gears rotating slowly](https://github.com/user-attachments/assets/77045935-4cb5-43ca-926b-c4995173d465)
+
 # gencmu
 
-gencmu is a Lojban parser whose grammar is data. Every layer of the language is a literate grammar document in jbogenbau, the grammar notation of gencmu. A literate grammar document mixes prose with the grammar rules, and gencmu loads it at runtime. If you change a grammar, you change the language that the parser reads. No build step is required.
+gencmu is a multistage Earley parser for Lojban and other loglangs. Its grammars are written in [jbogenbau](docs/notation.md), a grammar notation of its own, and a generic engine reads them at run time. An edited grammar takes effect at the next parse, with no build step.
 
-A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. Its pipeline document lists the stages and the grammar documents of each stage.
+Each grammar is a literate Markdown document. Fenced `jbogenbau` blocks hold the rules, and the prose between them explains what the rules do and why. On GitHub a grammar reads like any other document.
 
-A phoneme is a unit of sound. A Lojban pipeline has five stages: phonemes, forms, words, indicators and syntax. The phoneme stage sets comparison values and keeps the spelling that images show. The forms stage divides the phonemes into words and classifies each word. Later stages apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
+The notation can express constructs that a context-free grammar cannot. A rule can put conditions on its parts, such as whether two parts have the same value or whether a part also parses as another rule. A `zoi` quote, for example, opens with a delimiter word that the speaker chooses and ends at the next copy of that word. The grammar states this directly: the closing word has the same value as the opening one, and no copy of it occurs in the body.
 
-Stress uses the `Stressed` tag, a named mark on a phoneme. A stressed vowel has a lowercase value and an uppercase image.
-
-Rule names can use one valid emoji character. It has `Emoji_Presentation` and lacks `Emoji_Component` in the configured Unicode table.
-
-A free modifier is a word or phrase that can stand almost anywhere. `🆓` names the rule for free modifiers. A tree pattern describes the shape of a parse tree. `#` starts a tree pattern, and `@` starts a template parameter.
+Parsing is split into stages. A stage is one step of a parse, with its own grammar. It reads the tokens that the stage before it emitted and emits tokens for the next stage. A pipeline runs its stages in order, and its pipeline document, also literate Markdown, lists the stages and their grammar documents. The Lojban pipelines go from characters to phonemes, then to words, and only then to the parse tree. Each stage's grammar deals with one level of the language, so it stays simpler than a single grammar, or a lexer and parser pair, that would do the same work.
 
 ## Try it
 
