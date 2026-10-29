@@ -14713,7 +14713,7 @@
    * grammar not accept this text here".
    * @param {Pipeline} pipeline
    * @param {string} text
-   * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>}} options
+   * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>, elisionOnly?: boolean | null}} options
    * @returns {Trace}
    */
   function trace(pipeline, text, options) {
@@ -14722,8 +14722,7 @@
     // The parse the caller would get up to that stage, so that the traced
     // stage reads the same tokens under the same features, stage-local features
     // included.
-    const {elisionOnly} = /** @type {typeof options & {elisionOnly?: boolean}} */ (options);
-    const run = pipeline.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage, elisionOnly });
+    const run = pipeline.parse(text, { features: options.features, withoutFeatures: options.withoutFeatures, until: options.stage, elisionOnly: options.elisionOnly });
     const problem = traceProblem(pipeline, run, options.stage);
     if (problem) throw new GencmuError("usage", problem);
     const report = run.stages[index];

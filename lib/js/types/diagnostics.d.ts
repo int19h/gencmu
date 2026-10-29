@@ -240,7 +240,7 @@ export declare function traceProblem(pipeline: Pipeline, result: import("./types
  * grammar not accept this text here".
  * @param {Pipeline} pipeline
  * @param {string} text
- * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>}} options
+ * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>, elisionOnly?: boolean | null}} options
  * @returns {Trace}
  */
 export declare function trace(pipeline: Pipeline, text: string, options: {
@@ -248,6 +248,7 @@ export declare function trace(pipeline: Pipeline, text: string, options: {
     position: number;
     features?: Iterable<string>;
     withoutFeatures?: Iterable<string>;
+    elisionOnly?: boolean | null;
 }): Trace;
 /**
  * A trace as text.

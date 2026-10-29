@@ -1,6 +1,6 @@
 // A client of gencmu, type-checked against the declarations in types/ and
 // never run. Each @ts-expect-error line is a misuse the types must reject.
-import { loaderFromSources, resultJson, toBrackets, type ParseResult, type ResultNode, type Verdict } from "gencmu";
+import { loaderFromSources, resultJson, toBrackets, trace, type ParseResult, type ResultNode, type Verdict } from "gencmu";
 import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
@@ -60,3 +60,10 @@ pipeline.parse("A", { tokens: [{ text: "A", tags: ["_Lu", "_L"], span: [0, 1], s
 pipeline.parse("A", { tokens: [{ text: "A", value: "a", image: "", tags: [], span: [0, 1], source: [0, 1] }] });
 // @ts-expect-error JavaScript caller values use omission, never null
 pipeline.parse("A", { tokens: [{ text: "A", value: null, tags: [], span: [0, 1], source: [0, 1] }] });
+
+
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:true});
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:false});
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:null});
+// @ts-expect-error elisionOnly accepts a boolean or null
+trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:"off"});

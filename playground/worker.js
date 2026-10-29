@@ -280,7 +280,7 @@
       try {
         const traced = gencmu.trace(entry.pipeline, request.text, {
           stage: request.trace.stage, position: request.trace.position,
-          features: request.features, withoutFeatures: request.withoutFeatures,
+          features: request.features, withoutFeatures: request.withoutFeatures, elisionOnly: request.elisionOnly,
         });
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
