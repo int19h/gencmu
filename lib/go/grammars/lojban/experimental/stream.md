@@ -133,9 +133,9 @@ The erased prefix emits no token. A later SI, SA, or SU cannot restore it or fin
 
 Opaque quotations keep an internal eraser literal. A grammatical quotation does not hide its words from word operations.
 
-An active FAhO ends the text before a later eraser can act. Arbitrary malformed foreign prefixes gain no recovery rule.
+An active FAhO ends the text before a later eraser can act. The eraser cannot remove text that the words stage rejects, so `ß su'u'u'u'u'u'u'u mi klama` still fails at `ß`.
 
-The empty-prefix alternatives handle both an empty stream and a nonempty stream. This eraser operates independently of `sa-su` and `su-boundary`.
+One alternative of `empty` reads the eraser at the start of the text, and the other reads it after other words. This eraser operates independently of `sa-su` and `su-boundary`.
 
 ```jbogenbau
 %redefine-const $SU-STOPS

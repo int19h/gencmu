@@ -53,7 +53,7 @@ After span ranking, a smaller count wins. Equal counts leave late elision to dec
 
 This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
-So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
+Late elision gives `to mi klama` the sentence `mi klama`, because the other reading elides VAU and TOI after `mi`. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
@@ -73,7 +73,7 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ## The text and its paragraphs
 
-The layer changes the text in five ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names.
+The layer changes the text in six ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names.
 
 The second change permits an ek after a text-leading `.i`, as in `.i .e do klama`. After that connective, an optional tense can precede `bo`. The rule writes that tense as a `tag`. A `stag` is a `tag` in this pipeline, so either name reads the same words.
 
@@ -93,7 +93,7 @@ The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thu
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the pipeline rejects `.djan. mi klama`.
 
-All four connective families can stand before the first `.i` of a text, as in `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
+The sixth change permits all four connective families before the first `.i` of a text. Examples are `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
 
 A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
 
@@ -125,9 +125,9 @@ A reset needs an earlier construction, so `iau mi klama` rejects. A reset after 
 
 The prefix condition keeps adjacent leading free modifiers together. Otherwise, a free slot before the sentence and the reset prefix can split the same modifiers into duplicate readings.
 
-A written VAU closes a simple main bridi. After connected tails, only a written VAU in the shared tail terms closes it. A VAU inside a forethought branch closes that branch alone.
+A written VAU closes a simple main bridi. After connected tails, only a written VAU in the shared tail terms closes it. A VAU inside a forethought branch closes that branch alone. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
 
-A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
+A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `ke ge mi klama gi do cadzu ke'e iau ti` rejects. The same text with `iau ui` in place of `iau ti` parses.
 
 ```jbogenbau
 %const $NEEDS-TEXT #(ek ⋰) ∪ #(VUhU ⋰)
@@ -178,7 +178,7 @@ A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits
   [CU 🆓] {terms / CU 🆓} [CU 🆓]
 
 %rule lone-i
-  (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
+  (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A. Here VUhU can follow the `.i`. *)
   $i:I
 %conditions
   ¬$i.following-tokens.begins(joik-jek-ek)
@@ -509,8 +509,6 @@ PEhE takes any statement connective. `terms-1` forms a left chain in ordinary te
 
 A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late-elision` prefers it.
 
-The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
-
 Thus `ge mi gi do ce'e ti` contains a connected sumti followed by CEhE and another term. In `broda be ge mi gi do ce'e ti be'o`, BE instead takes a termset. Its single argument cannot continue with CEhE after a sumti.
 
 Inside NUhI, a ranked choice prefers `gek-termset-body` over `terms` when both complete over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. A bare forethought termset can also start the plain body. A written inner NUhU keeps its boundary distinct from the outer body.
@@ -751,7 +749,7 @@ The recursive NA alternative uses the forethought-opener condition of `gek-sente
 
 A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-`me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
+A query is a parse requested by a condition. `me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
 
 The whole `mex MOI 🆓` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
 
@@ -1008,7 +1006,7 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
-The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. The GA class test excludes caller-supplied tokens with value `ga` or `gu` but no GA tag.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress.
 
 ```jbogenbau
 %redefine-rule ek
@@ -1110,6 +1108,8 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
 
 A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The words stage reads its contents as raw words and emits one quote token ([`../common/lohai.md`](../common/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
 
+The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
+
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
 A vocative starts with a run of COI words, DOI, or both. A COI run returns no tags, and DOI alone keeps its tags. The indicator stage attaches any following NAI to the preceding word, so the syntax reads no separate NAI after COI.
@@ -1189,11 +1189,17 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 camxes-exp tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Both this layer and CLL read `le sutra tavla` as a fragment.
 
-The [experimental lexicon](lexicon.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental pipeline enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
+The [experimental lexicon](lexicon.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks. LA is the only such class.
 
-The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
+The experimental pipeline enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
 
-The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text. Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
+The layer writes `[+X] 🆓` where CLL writes `/X#/`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp reads its digit runs and its letter runs as far as possible, but it splits mixed runs. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
+
+The layer omits `elision-only`, one interpretation of CLL's rule for omitted terminators.[^cll-s21-1] A caller can turn the check on with `--elision-only on`. The check fails when filtering excludes the restored chosen derivation, or when that derivation is not the only best admitted reading of the written-back text.
+
+A condition can treat a written-back terminator differently from a written one. `$BARE-NA` and `$BARE-TAG` test `KU=""`, while `$WRITTEN-VAU` tests `VAU≠""`. These conditions can prevent a reading from surviving restoration.
+
+Some ambiguities here concern constructs rather than terminators. camxes-exp settles those by alternative order. Here, the connective, term, linked-argument and subscript conditions settle them explicitly. The experimental terminators `ku'au` and `ku'oi` remain elidable, like CLL's terminators.
 
 ### Text and sentence connections
 
@@ -1357,7 +1363,7 @@ Preposed linked arguments follow camxes-exp. If a unit precedes a `be` group, th
 
 ### Mekso and connectives
 
-The mekso rules follow camxes-exp.peg except for mixed numbers and letter strings, forethought operators without PEhO, and free modifiers after FUhA. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists.
+The mekso rules follow camxes-exp.peg except where the paragraphs below state a difference. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists.
 
 FUhA takes a free-modifier slot here, as other mathematical introducers do. Thus `li fu'a to mi toi pa boi re su'i` accepts here. camxes-exp's `mex_2` has no slot after FUhA and rejects that parenthesis.
 
