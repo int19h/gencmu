@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="197" height="1360" viewBox="0 0 197 1360" role="img" aria-label="Railroad diagram of the rule consonant-particle">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="151.2" lengthAdjust="spacingAndGlyphs">consonant-particle</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="109" height="24" rx="0"/><text x="94.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">mi-particle</text></g>
+<path d="M149 46H177"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="68" width="109" height="24" rx="0"/><text x="94.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">fi-particle</text></g>
+<path d="M149 80H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="102" width="109" height="24" rx="0"/><text x="94.5" y="119" textLength="92.4" lengthAdjust="spacingAndGlyphs">vi-particle</text></g>
+<path d="M149 114H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="136" width="117" height="24" rx="0"/><text x="98.5" y="153" textLength="100.8" lengthAdjust="spacingAndGlyphs">vei-particle</text></g>
+<path d="M157 148H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="170" width="109" height="24" rx="0"/><text x="94.5" y="187" textLength="92.4" lengthAdjust="spacingAndGlyphs">ti-particle</text></g>
+<path d="M149 182H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="204" width="109" height="24" rx="0"/><text x="94.5" y="221" textLength="92.4" lengthAdjust="spacingAndGlyphs">si-particle</text></g>
+<path d="M149 216H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="238" width="109" height="24" rx="0"/><text x="94.5" y="255" textLength="92.4" lengthAdjust="spacingAndGlyphs">zi-particle</text></g>
+<path d="M149 250H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="272" width="109" height="24" rx="0"/><text x="94.5" y="289" textLength="92.4" lengthAdjust="spacingAndGlyphs">ki-particle</text></g>
+<path d="M149 284H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="306" width="109" height="24" rx="0"/><text x="94.5" y="323" textLength="92.4" lengthAdjust="spacingAndGlyphs">gi-particle</text></g>
+<path d="M149 318H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="340" width="109" height="24" rx="0"/><text x="94.5" y="357" textLength="92.4" lengthAdjust="spacingAndGlyphs">pi-particle</text></g>
+<path d="M149 352H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="374" width="109" height="24" rx="0"/><text x="94.5" y="391" textLength="92.4" lengthAdjust="spacingAndGlyphs">pe-particle</text></g>
+<path d="M149 386H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="408" width="117" height="24" rx="0"/><text x="98.5" y="425" textLength="100.8" lengthAdjust="spacingAndGlyphs">pei-particle</text></g>
+<path d="M157 420H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="442" width="109" height="24" rx="0"/><text x="94.5" y="459" textLength="92.4" lengthAdjust="spacingAndGlyphs">pa-particle</text></g>
+<path d="M149 454H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="476" width="109" height="24" rx="0"/><text x="94.5" y="493" textLength="92.4" lengthAdjust="spacingAndGlyphs">po-particle</text></g>
+<path d="M149 488H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="510" width="109" height="24" rx="0"/><text x="94.5" y="527" textLength="92.4" lengthAdjust="spacingAndGlyphs">pu-particle</text></g>
+<path d="M149 522H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="544" width="109" height="24" rx="0"/><text x="94.5" y="561" textLength="92.4" lengthAdjust="spacingAndGlyphs">bi-particle</text></g>
+<path d="M149 556H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="578" width="109" height="24" rx="0"/><text x="94.5" y="595" textLength="92.4" lengthAdjust="spacingAndGlyphs">be-particle</text></g>
+<path d="M149 590H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V614a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="612" width="109" height="24" rx="0"/><text x="94.5" y="629" textLength="92.4" lengthAdjust="spacingAndGlyphs">ba-particle</text></g>
+<path d="M149 624H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V648a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="646" width="109" height="24" rx="0"/><text x="94.5" y="663" textLength="92.4" lengthAdjust="spacingAndGlyphs">bo-particle</text></g>
+<path d="M149 658H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V682a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="680" width="109" height="24" rx="0"/><text x="94.5" y="697" textLength="92.4" lengthAdjust="spacingAndGlyphs">bu-particle</text></g>
+<path d="M149 692H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V716a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="714" width="109" height="24" rx="0"/><text x="94.5" y="731" textLength="92.4" lengthAdjust="spacingAndGlyphs">di-particle</text></g>
+<path d="M149 726H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V750a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="748" width="109" height="24" rx="0"/><text x="94.5" y="765" textLength="92.4" lengthAdjust="spacingAndGlyphs">de-particle</text></g>
+<path d="M149 760H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V784a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="782" width="109" height="24" rx="0"/><text x="94.5" y="799" textLength="92.4" lengthAdjust="spacingAndGlyphs">da-particle</text></g>
+<path d="M149 794H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V818a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="816" width="117" height="24" rx="0"/><text x="98.5" y="833" textLength="100.8" lengthAdjust="spacingAndGlyphs">dai-particle</text></g>
+<path d="M157 828H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V852a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="850" width="109" height="24" rx="0"/><text x="94.5" y="867" textLength="92.4" lengthAdjust="spacingAndGlyphs">do-particle</text></g>
+<path d="M149 862H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="884" width="109" height="24" rx="0"/><text x="94.5" y="901" textLength="92.4" lengthAdjust="spacingAndGlyphs">du-particle</text></g>
+<path d="M149 896H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="918" width="109" height="24" rx="0"/><text x="94.5" y="935" textLength="92.4" lengthAdjust="spacingAndGlyphs">ci-particle</text></g>
+<path d="M149 930H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V954a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="952" width="109" height="24" rx="0"/><text x="94.5" y="969" textLength="92.4" lengthAdjust="spacingAndGlyphs">ce-particle</text></g>
+<path d="M149 964H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V988a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="986" width="117" height="24" rx="0"/><text x="98.5" y="1003" textLength="100.8" lengthAdjust="spacingAndGlyphs">cei-particle</text></g>
+<path d="M157 998H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1022a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1020" width="109" height="24" rx="0"/><text x="94.5" y="1037" textLength="92.4" lengthAdjust="spacingAndGlyphs">ca-particle</text></g>
+<path d="M149 1032H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1056a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1054" width="117" height="24" rx="0"/><text x="98.5" y="1071" textLength="100.8" lengthAdjust="spacingAndGlyphs">cai-particle</text></g>
+<path d="M157 1066H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1090a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1088" width="109" height="24" rx="0"/><text x="94.5" y="1105" textLength="92.4" lengthAdjust="spacingAndGlyphs">co-particle</text></g>
+<path d="M149 1100H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1124a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1122" width="117" height="24" rx="0"/><text x="98.5" y="1139" textLength="100.8" lengthAdjust="spacingAndGlyphs">coi-particle</text></g>
+<path d="M157 1134H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1158a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1156" width="109" height="24" rx="0"/><text x="94.5" y="1173" textLength="92.4" lengthAdjust="spacingAndGlyphs">cu-particle</text></g>
+<path d="M149 1168H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1192a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1190" width="109" height="24" rx="0"/><text x="94.5" y="1207" textLength="92.4" lengthAdjust="spacingAndGlyphs">ji-particle</text></g>
+<path d="M149 1202H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1226a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1224" width="109" height="24" rx="0"/><text x="94.5" y="1241" textLength="92.4" lengthAdjust="spacingAndGlyphs">je-particle</text></g>
+<path d="M149 1236H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1260a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1258" width="109" height="24" rx="0"/><text x="94.5" y="1275" textLength="92.4" lengthAdjust="spacingAndGlyphs">ja-particle</text></g>
+<path d="M149 1270H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1294a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1292" width="109" height="24" rx="0"/><text x="94.5" y="1309" textLength="92.4" lengthAdjust="spacingAndGlyphs">jo-particle</text></g>
+<path d="M149 1304H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V1328a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="40" y="1326" width="109" height="24" rx="0"/><text x="94.5" y="1343" textLength="92.4" lengthAdjust="spacingAndGlyphs">ju-particle</text></g>
+<path d="M149 1338H157a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M177 46h6m0 -8v16m4 -16v16"/>
+</svg>

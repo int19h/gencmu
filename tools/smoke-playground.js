@@ -595,6 +595,7 @@ async function main() {
     assert.deepEqual(pipelineGroups, [
       { label: "lojban", names: ["lojban/cll", "lojban/bpfk", "lojban/experimental", "lojban/zantufa"] },
       { label: "lojban/examples", names: ["lojban/examples/kihei"] },
+      { label: "eberban", names: ["eberban/refgram"] },
       { label: "gencmu", names: ["gencmu/jbogenbau"] },
     ]);
 

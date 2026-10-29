@@ -30,6 +30,7 @@ grammars/                  source grammars grouped by family
     zantufa/               pipeline.md and its layers
     common/                latin, cyrillic, zbalermorna and its names file, forms, stream, lohai
     examples/kihei/        pipeline.md for the discourse-frame example
+  eberban/refgram/         pipeline.md, letters, morphology, stream and syntax
   gencmu/jbogenbau/        pipeline.md, lexical and syntax
 data/                      engine resources, independent of pipeline families
   unicode/                 unicode.txt, unicode-properties.txt and unicode-names.txt
@@ -936,7 +937,7 @@ The playground is `index.html` with `dist/gencmu.js` and `dist/grammars.js` load
 
 The selector has one group per parent path, such as `lojban`, `lojban/examples`, or `gencmu`. Each option carries a full pipeline name. The URL parameter and worker protocol member are `pipeline`, and both carry that full name. The worker resolves the name to `grammars/NAME/pipeline.md`.
 
-The menu's preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojban/zantufa`, `lojban/examples/kihei`, then `gencmu/jbogenbau`. Other names follow in code-point order. Groups appear in the order of their first pipeline.
+The menu's preferred order is `lojban/cll`, `lojban/bpfk`, `lojban/experimental`, `lojban/zantufa`, `lojban/examples/kihei`, `eberban/refgram`, then `gencmu/jbogenbau`. Other names follow in code-point order. Groups appear in the order of their first pipeline.
 
 Document buttons omit the `grammars/` prefix and the `.md` suffix. Download names omit `grammars/` and replace each slash with `--`. Thus `grammars/lojban/cll/morphology.md` downloads as `lojban--cll--morphology.md`.
 

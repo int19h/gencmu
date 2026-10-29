@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="684" height="98" viewBox="0 0 684 98" role="img" aria-label="Railroad diagram of the rule vhowels">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<g class="rule"><rect x="20" y="54" width="67" height="24" rx="0"/><text x="53.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">vowels</text></g>
+<path d="M87 66h10"/>
+<path d="M97 66h20"/>
+<path d="M117 66h20"/>
+<path d="M137 66h20"/>
+<g class="terminal"><rect x="157" y="54" width="67" height="24" rx="12"/><text x="190.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M224 66H244"/>
+<path d="M137 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H224a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M244 66h10"/>
+<g class="terminal"><rect x="254" y="54" width="92" height="24" rx="12"/><text x="300" y="71" textLength="75.6" lengthAdjust="spacingAndGlyphs">Letter&lt;H&gt;</text></g>
+<path d="M346 66h10"/>
+<path d="M356 66h20"/>
+<g class="rule"><rect x="376" y="54" width="151" height="24" rx="0"/><text x="451.5" y="71" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M527 66H547"/>
+<path d="M356 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H527a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M547 66h10"/>
+<g class="rule"><rect x="557" y="54" width="67" height="24" rx="0"/><text x="590.5" y="71" textLength="50.4" lengthAdjust="spacingAndGlyphs">vowels</text></g>
+<path d="M624 66H644"/>
+<path d="M624 66a10 10 0 0 1 10 10V78a10 10 0 0 1 -10 10H137a10 10 0 0 1 -10 -10V76a10 10 0 0 1 10 -10"/>
+<path d="M644 66H664"/>
+<path d="M97 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H644a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M664 66h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="497" height="168" viewBox="0 0 497 168" role="img" aria-label="Railroad diagram of the rule a-sentence">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">a-sentence</text>
+<path d="M10 74v16m4 -16v16M14 82h6"/>
+<path d="M20 82h20"/>
+<path d="M40 82h20"/>
+<g class="terminal"><rect x="60" y="70" width="25" height="24" rx="12"/><text x="72.5" y="87" textLength="8.4" lengthAdjust="spacingAndGlyphs">A</text></g>
+<path d="M85 82h10"/>
+<path d="M95 82h20"/>
+<path d="M115 82h20"/>
+<g class="rule"><rect x="135" y="70" width="75" height="24" rx="0"/><text x="172.5" y="87" textLength="58.8" lengthAdjust="spacingAndGlyphs">postfix</text></g>
+<path d="M210 82H230"/>
+<path d="M210 82a10 10 0 0 1 10 10V94a10 10 0 0 1 -10 10H135a10 10 0 0 1 -10 -10V92a10 10 0 0 1 10 -10"/>
+<path d="M230 82H250"/>
+<path d="M95 82a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10H230a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
+<path d="M250 82H270"/>
+<path d="M40 82a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H250a10 10 0 0 1 10 10V72a10 10 0 0 0 10 10"/>
+<text class="label" x="64" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M270 82h10"/>
+<g class="rule"><rect x="280" y="70" width="100" height="24" rx="0"/><text x="330" y="87" textLength="84" lengthAdjust="spacingAndGlyphs">definition</text></g>
+<path d="M380 82H477"/>
+<path d="M20 82a10 10 0 0 1 10 10V126a10 10 0 0 0 10 10"/>
+<path d="M40 136h20"/>
+<g class="rule"><rect x="60" y="124" width="67" height="24" rx="0"/><text x="93.5" y="141" textLength="50.4" lengthAdjust="spacingAndGlyphs">prefix</text></g>
+<path d="M127 136H147"/>
+<path d="M127 136a10 10 0 0 1 10 10V148a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V146a10 10 0 0 1 10 -10"/>
+<path d="M147 136h10"/>
+<g class="terminal"><rect x="157" y="124" width="25" height="24" rx="12"/><text x="169.5" y="141" textLength="8.4" lengthAdjust="spacingAndGlyphs">A</text></g>
+<path d="M182 136h10"/>
+<path d="M192 136h20"/>
+<path d="M212 136h20"/>
+<g class="rule"><rect x="232" y="124" width="75" height="24" rx="0"/><text x="269.5" y="141" textLength="58.8" lengthAdjust="spacingAndGlyphs">postfix</text></g>
+<path d="M307 136H327"/>
+<path d="M307 136a10 10 0 0 1 10 10V148a10 10 0 0 1 -10 10H232a10 10 0 0 1 -10 -10V146a10 10 0 0 1 10 -10"/>
+<path d="M327 136H347"/>
+<path d="M192 136a10 10 0 0 0 10 -10V124a10 10 0 0 1 10 -10H327a10 10 0 0 1 10 10V126a10 10 0 0 0 10 10"/>
+<path d="M347 136h10"/>
+<g class="rule"><rect x="357" y="124" width="100" height="24" rx="0"/><text x="407" y="141" textLength="84" lengthAdjust="spacingAndGlyphs">definition</text></g>
+<path d="M457 136H457a10 10 0 0 0 10 -10V92a10 10 0 0 1 10 -10"/>
+<path d="M477 82h6m0 -8v16m4 -16v16"/>
+</svg>

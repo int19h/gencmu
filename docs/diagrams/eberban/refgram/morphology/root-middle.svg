@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="684" height="166" viewBox="0 0 684 166" role="img" aria-label="Railroad diagram of the rule root-middle">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">root-middle</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="terminal"><rect x="60" y="44" width="67" height="24" rx="12"/><text x="93.5" y="61" textLength="50.4" lengthAdjust="spacingAndGlyphs">Hyphen</text></g>
+<path d="M127 56H147"/>
+<path d="M40 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H127a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M147 56h10"/>
+<g class="rule"><rect x="157" y="44" width="84" height="24" rx="0"/><text x="199" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">sonorant</text></g>
+<path d="M241 56h10"/>
+<path d="M251 56h20"/>
+<g class="rule"><rect x="271" y="44" width="151" height="24" rx="0"/><text x="346.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M422 56H442"/>
+<path d="M251 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H422a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M442 56h10"/>
+<g class="rule"><rect x="452" y="44" width="75" height="24" rx="0"/><text x="489.5" y="61" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text></g>
+<path d="M527 56H664"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M40 100h20"/>
+<g class="rule"><rect x="60" y="88" width="151" height="24" rx="0"/><text x="135.5" y="105" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M211 100H231"/>
+<path d="M40 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H211a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M231 100h10"/>
+<g class="rule"><rect x="241" y="88" width="109" height="24" rx="0"/><text x="295.5" y="105" textLength="92.4" lengthAdjust="spacingAndGlyphs">medial-pair</text></g>
+<path d="M350 100h10"/>
+<path d="M360 100h20"/>
+<g class="rule"><rect x="380" y="88" width="151" height="24" rx="0"/><text x="455.5" y="105" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M531 100H551"/>
+<path d="M360 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H531a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M551 100h10"/>
+<g class="rule"><rect x="561" y="88" width="75" height="24" rx="0"/><text x="598.5" y="105" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text></g>
+<path d="M636 100H644a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M40 144h20"/>
+<g class="rule"><rect x="60" y="132" width="151" height="24" rx="0"/><text x="135.5" y="149" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M211 144H231"/>
+<path d="M40 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H211a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M231 144h10"/>
+<g class="rule"><rect x="241" y="132" width="117" height="24" rx="0"/><text x="299.5" y="149" textLength="100.8" lengthAdjust="spacingAndGlyphs">root-triplet</text></g>
+<path d="M358 144h10"/>
+<path d="M368 144h20"/>
+<g class="rule"><rect x="388" y="132" width="151" height="24" rx="0"/><text x="463.5" y="149" textLength="134.4" lengthAdjust="spacingAndGlyphs">misplaced-hyphen</text></g>
+<path d="M539 144H559"/>
+<path d="M368 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H539a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M559 144h10"/>
+<g class="rule"><rect x="569" y="132" width="75" height="24" rx="0"/><text x="606.5" y="149" textLength="58.8" lengthAdjust="spacingAndGlyphs">vhowels</text></g>
+<path d="M644 144H644a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M664 56h6m0 -8v16m4 -16v16"/>
+</svg>

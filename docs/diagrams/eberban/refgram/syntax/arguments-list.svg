@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="236" height="156" viewBox="0 0 236 156" role="img" aria-label="Railroad diagram of the rule arguments-list">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">arguments-list</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<path d="M60 56h20"/>
+<g class="terminal"><rect x="80" y="44" width="33" height="24" rx="12"/><text x="96.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">KI</text></g>
+<path d="M113 56H133"/>
+<path d="M60 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="80" y="78" width="33" height="24" rx="12"/><text x="96.5" y="95" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M113 90H113a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M60 56a10 10 0 0 1 10 10V114a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="80" y="112" width="33" height="24" rx="12"/><text x="96.5" y="129" textLength="16.8" lengthAdjust="spacingAndGlyphs">BA</text></g>
+<path d="M113 124H113a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M133 56H153"/>
+<path d="M133 56a10 10 0 0 1 10 10V136a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M153 56H173"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H153a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M173 56h10"/>
+<g class="terminal"><rect x="183" y="44" width="33" height="24" rx="12"/><text x="199.5" y="61" textLength="16.8" lengthAdjust="spacingAndGlyphs">BE</text></g>
+<path d="M216 56h6m0 -8v16m4 -16v16"/>
+</svg>

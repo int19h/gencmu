@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="798" height="210" viewBox="0 0 798 210" role="img" aria-label="Railroad diagram of the rule compound">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">compound</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<g class="terminal"><rect x="40" y="44" width="84" height="24" rx="12"/><text x="82" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">E-PREFIX</text></g>
+<path d="M124 56h10"/>
+<path d="M134 56h20"/>
+<g class="rule"><rect x="154" y="44" width="42" height="24" rx="0"/><text x="175" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M196 56H216"/>
+<path d="M134 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H196a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M216 56h10"/>
+<g class="rule"><rect x="226" y="44" width="92" height="24" rx="0"/><text x="272" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">component</text></g>
+<path d="M318 56h10"/>
+<path d="M328 56h20"/>
+<g class="rule"><rect x="348" y="44" width="42" height="24" rx="0"/><text x="369" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M390 56H410"/>
+<path d="M328 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H390a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M410 56h10"/>
+<g class="rule"><rect x="420" y="44" width="92" height="24" rx="0"/><text x="466" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">component</text></g>
+<path d="M512 56H778"/>
+<path d="M20 56a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="88" width="92" height="24" rx="12"/><text x="86" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">EN-PREFIX</text></g>
+<path d="M132 100h10"/>
+<path d="M142 100h20"/>
+<g class="rule"><rect x="162" y="88" width="42" height="24" rx="0"/><text x="183" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M204 100H224"/>
+<path d="M142 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H204a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M224 100h10"/>
+<g class="rule"><rect x="234" y="88" width="92" height="24" rx="0"/><text x="280" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">component</text></g>
+<path d="M326 100h10"/>
+<path d="M336 100h20"/>
+<g class="rule"><rect x="356" y="88" width="42" height="24" rx="0"/><text x="377" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M398 100H418"/>
+<path d="M336 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H398a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M418 100h10"/>
+<g class="rule"><rect x="428" y="88" width="92" height="24" rx="0"/><text x="474" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">component</text></g>
+<path d="M520 100h10"/>
+<path d="M530 100h20"/>
+<g class="rule"><rect x="550" y="88" width="42" height="24" rx="0"/><text x="571" y="105" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M592 100H612"/>
+<path d="M530 100a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H592a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
+<path d="M612 100h10"/>
+<g class="rule"><rect x="622" y="88" width="92" height="24" rx="0"/><text x="668" y="105" textLength="75.6" lengthAdjust="spacingAndGlyphs">component</text></g>
+<path d="M714 100H758a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="132" width="92" height="24" rx="12"/><text x="86" y="149" textLength="75.6" lengthAdjust="spacingAndGlyphs">ER-PREFIX</text></g>
+<path d="M132 144h10"/>
+<path d="M142 144h20"/>
+<g class="rule"><rect x="162" y="132" width="42" height="24" rx="0"/><text x="183" y="149" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M204 144H224"/>
+<path d="M142 144a10 10 0 0 0 10 -10V132a10 10 0 0 1 10 -10H204a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<path d="M224 144h10"/>
+<g class="rule"><rect x="234" y="132" width="126" height="24" rx="0"/><text x="297" y="149" textLength="109.2" lengthAdjust="spacingAndGlyphs">er-components</text></g>
+<path d="M360 144h10"/>
+<g class="rule"><rect x="370" y="132" width="42" height="24" rx="0"/><text x="391" y="149" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M412 144h10"/>
+<g class="terminal"><rect x="422" y="132" width="184" height="24" rx="12"/><text x="514" y="149" textLength="168" lengthAdjust="spacingAndGlyphs">E-PREFIX&lt;Standalone&gt;</text></g>
+<path d="M606 144H758a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M20 56a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M40 188h109"/>
+<text class="label" x="44" y="183" textLength="100.8" lengthAdjust="spacingAndGlyphs">compound-size!</text>
+<path d="M149 188h10"/>
+<g class="terminal"><rect x="159" y="176" width="92" height="24" rx="12"/><text x="205" y="193" textLength="75.6" lengthAdjust="spacingAndGlyphs">ER-PREFIX</text></g>
+<path d="M251 188h10"/>
+<path d="M261 188h20"/>
+<g class="rule"><rect x="281" y="176" width="42" height="24" rx="0"/><text x="302" y="193" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M323 188H343"/>
+<path d="M261 188a10 10 0 0 0 10 -10V176a10 10 0 0 1 10 -10H323a10 10 0 0 1 10 10V178a10 10 0 0 0 10 10"/>
+<path d="M343 188h10"/>
+<g class="rule"><rect x="353" y="176" width="159" height="24" rx="0"/><text x="432.5" y="193" textLength="142.8" lengthAdjust="spacingAndGlyphs">few-er-components</text></g>
+<path d="M512 188h10"/>
+<g class="rule"><rect x="522" y="176" width="42" height="24" rx="0"/><text x="543" y="193" textLength="25.2" lengthAdjust="spacingAndGlyphs">gap</text></g>
+<path d="M564 188h10"/>
+<g class="terminal"><rect x="574" y="176" width="184" height="24" rx="12"/><text x="666" y="193" textLength="168" lengthAdjust="spacingAndGlyphs">E-PREFIX&lt;Standalone&gt;</text></g>
+<path d="M758 188H758a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M778 56h6m0 -8v16m4 -16v16"/>
+</svg>

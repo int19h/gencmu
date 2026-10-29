@@ -1,0 +1,145 @@
+# The word stream
+
+This document opens the words stage of the [Eberban pipeline](pipeline.md). A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+The stage reads the words, spaces and brackets of the [forms stage](morphology.md). It assembles compounds and foreign quotes into single tokens, keeps the other words, and drops the spaces and brackets. It hands the syntax stage a stream of words. A tag marks a token by an identifier. [The notation document](../../../docs/notation.md) explains jbogenbau, the notation of these grammars.
+
+## The stream
+
+The stream is a sequence of units with gaps between them. A gap is one or more spaces or brackets. Two units can also stand side by side, as `mi` and `bjan` do in `mibjan`. A gap emits nothing. The stage is lazy. Where two parses differ, it takes the one that closes a constituent over the one that reads on. A constituent is the text that one rule matches.
+
+```jbogenbau
+%ambiguity-resolution lazy
+
+%rule text
+  [gap] [{unit [gap]}]
+
+%rule gap
+  {Space | Open | Close | Closer-End}
+%erased
+
+%rule unit
+  plain-word | compound | foreign-quote | junk
+```
+
+<details><summary>Railroad diagrams of <code>text</code>, <code>gap</code> and <code>unit</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/gap.svg" alt="Railroad diagram of the rule gap"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
+</details>
+
+A plain word is any word token except a compound prefix, which only a compound reads. A `co` that opens no quote stays a plain word, and the syntax stage has no use for it. Junk is a run that the forms stage read as no word. It passes through for the syntax stage, where only erased text admits it.
+
+```jbogenbau
+%rule plain-word
+  $w:Word<¬Prefix> :: $w.tags
+%conditions
+  ¬$w.onward.begins(foreign-quote)
+%emits
+  $
+
+%rule junk
+  $j:Junk :: $j.tags
+%emits
+  $
+```
+
+<details><summary>Railroad diagrams of <code>plain-word</code> and <code>junk</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/plain-word.svg" alt="Railroad diagram of the rule plain-word"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/junk.svg" alt="Railroad diagram of the rule junk"></p>
+</details>
+
+## Compounds
+
+The [compounds chapter](https://eberban.github.io/eberban/grammar/compounds.html) makes one word from several. The prefix `e` takes two components, `en` three, and `er` any number up to a standalone `e`. A component is a particle, a root, a borrowing or a nested compound. Spaces can stand between the parts, so a component can follow its prefix in the same run or after a gap.
+
+The forms stage tags a prefix written as a run of its own `Standalone`. An `er` compound ends at the first standalone `e`, so no component of an `er` compound can be a nested compound that starts with one. A nested compound with an attached prefix, as in `eberban`, can stand there.
+
+The PEG warns about an `er` compound of one, two or three components, because `e` and `en` spell those. The warning `compound-size` marks such a compound here. The rule `few-er-components` reads up to three components, and `er-components` reads four or more.
+
+A compound emits one token tagged `Word` and `Compound`. Its value is its prefix and components with single spaces between them, as the dictionary writes compounds. Its image is the same.
+
+```jbogenbau
+%rule compound :: Word ∪ Compound
+  | $p:E-PREFIX [gap] $a:component [gap] $b:component
+      :: ($p.tags ∩ Standalone ≠ ∅ ⟹ Spaced-E) := $p.value ++ " " ++ $a.value ++ " " ++ $b.value
+  | $p:EN-PREFIX [gap] $a:component [gap] $b:component [gap] $c:component
+      := $p.value ++ " " ++ $a.value ++ " " ++ $b.value ++ " " ++ $c.value
+  | $p:ER-PREFIX [gap] $l:er-components gap E-PREFIX<Standalone>
+      := $p.value ++ " " ++ $l.value ++ " e"
+  | compound-size! $p:ER-PREFIX [gap] $l:few-er-components gap E-PREFIX<Standalone>
+      := $p.value ++ " " ++ $l.value ++ " e"
+%emits
+  $
+
+%rule component
+  | $w:Word<Particle ¬Quote ¬Digit-Symbol> :: $w.tags
+  | $w:Word<Root> :: $w.tags
+  | $w:Word<Borrowing> :: $w.tags
+  | $c:compound :: $c.tags
+
+%rule er-components
+  | $f:few-er-components [gap] $c:component<¬Spaced-E> := $f.value ++ " " ++ $c.value
+  | $l:er-components [gap] $c:component<¬Spaced-E> := $l.value ++ " " ++ $c.value
+%conditions
+  $f.matches(three-er-components)
+
+%rule few-er-components
+  | $c:component<¬Spaced-E> := $c.value
+  | $l:few-er-components [gap] $c:component<¬Spaced-E> := $l.value ++ " " ++ $c.value
+%conditions
+  ¬$l.matches(three-er-components)
+
+%rule three-er-components
+  component<¬Spaced-E> [gap] component<¬Spaced-E> [gap] component<¬Spaced-E>
+```
+
+<details><summary>Railroad diagrams of the 5 rules from <code>compound</code> to <code>three-er-components</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/compound.svg" alt="Railroad diagram of the rule compound"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/component.svg" alt="Railroad diagram of the rule component"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/er-components.svg" alt="Railroad diagram of the rule er-components"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/few-er-components.svg" alt="Railroad diagram of the rule few-er-components"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/three-er-components.svg" alt="Railroad diagram of the rule three-er-components"></p>
+</details>
+
+## Foreign quotes
+
+The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) gives `co` two forms. With `[` after it, the quote holds everything up to the next `]`. With a delimiter word before the `[`, the quote holds everything up to the first `]` followed by that word. The delimiter is a particle or root form. Any spaces can stand between `co` and the bracket, but the delimiter stands directly before its bracket.
+
+The forms stage marks each `]` followed by a word with the control characters `$SEP` and `$MARK`, and closes the mark with an empty token. So the quote body, split at `$SEP`, holds the piece `$MARK` and the word for every bracket-and-word inside it. The condition requires that no such piece is the delimiter. The quote therefore ends at the first bracket-and-word that repeats the delimiter, as the chapter says.
+
+The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text, brackets included.
+
+```jbogenbau
+%const $SEP "‹U+001E›"
+%const $MARK "‹U+001F›"
+
+%rule foreign-quote :: Word ∪ Particle ∪ CO ∪ Quote :- $.source-text
+  | CO [gap] Open [{_<¬Close>}] Close
+  | CO [Space] $open:delimiter Open $body:quote-body $c:Close<Candidate> $close:delimiter Closer-End
+%conditions
+  $open.value = $close.value,
+  $MARK ++ $open.value ∉ $body.value.split($SEP)
+%emits
+  $
+
+%rule delimiter
+  Word<Particle ¬Quote ¬Digit-Symbol> | Word<Root>
+
+%rule quote-body
+  [{_}]
+```
+
+<details><summary>Railroad diagrams of <code>foreign-quote</code>, <code>delimiter</code> and <code>quote-body</code></summary>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
+<p><img src="../../../docs/diagrams/eberban/refgram/stream/quote-body.svg" alt="Railroad diagram of the rule quote-body"></p>
+</details>
+
+## Differences from the reference grammar and the PEG
+
+The PEG reads a foreign quote only where the syntax expects a verb. When the sentence around it is ungrammatical, the PEG reads its characters again as erasable text. So a `ra` inside a closed quote erases an ungrammatical sentence, and the text after the `ra` leaks out of the quote. The chapter on sentences describes this as a hazard and advises closing quotes properly. This stage reads every quote as a quote, so a `ra` inside one is quoted text. An ungrammatical sentence with a `ra` inside its quote and none after it has no parse here.
+
+The PEG records the inner prefix of an attached nested compound as `i`, as the text writes it. This stage writes every prefix as `e`, `en` or `er` in the compound's value, as the dictionary does.
+
+The marks of the forms stage and the split in `foreign-quote` state the closing rule in the notation as it is. [Issue 262](https://github.com/int19h/gencmu/issues/262) proposes a condition on each item of a repetition, which would let the quote body exclude the closer directly.

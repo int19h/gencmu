@@ -41,6 +41,7 @@ Open the playground on GitHub Pages. For local use, serve the repository root wi
 | `lojban/bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `lojban/cll` pipeline does. |
 | `lojban/experimental` | CLL with extensions. Its baseline is camxes-exp, an experimental PEG parser of Lojban. |
 | `lojban/zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
+| `eberban/refgram` | Eberban, a logical language by mia, as its reference grammar describes it. Its baseline is the language's PEG grammar. |
 | `gencmu/jbogenbau` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
 A `NAME/pipeline.md` document under [`grammars/`](grammars/) defines each bundled pipeline. It includes the grammar documents of its stages and links to each. `node lib/js/cli.js stitch --pipeline NAME` prints a pipeline as one jbogenbau text.
