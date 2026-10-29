@@ -74,7 +74,7 @@ A magic right word rejects because this construction does not dispatch new word 
 
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
 
-The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base.
+The spelling guard also covers `ze'ei`, so punctuation cannot escape into an earlier spacing region. SI excludes that spelling despite its dictionary class. The constructor hook also lets `ze'ei` take an unfinished replacement opener as its base. Nothing in this pipeline then reads `punctuation-word-gap`, which the shared rule still needs for Zantufa.
 
 ```jbogenbau
 %extend-rule unit

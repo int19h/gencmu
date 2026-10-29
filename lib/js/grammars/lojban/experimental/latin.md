@@ -11,7 +11,7 @@ Stage zero decomposes every text, so an accented letter arrives as its base lett
 - A length mark, such as `~`, and the middle dot `·` are ignored wherever they stand.
 - An acute or grave accent marks stress. A dieresis on a vowel means an apostrophe before it.
 - `ɩ` and `q` write the i-glide, and `w` writes the u-glide. A breve on `i` or `u` writes a glide too. These glide letters are glides wherever they stand.
-- Krulermorna is a Lojban spelling system. Its letters `ą`, `ę`, `ǫ`, `ǎ` and `ꜷ` write the diphthongs ai, ei, oi and au.
+- Krulermorna is a Lojban spelling system. Its letters `ą`, `ę` and `ǫ` write ai, ei and oi. Both `ǎ` and `ꜷ` write au.
 - Every other combining mark on a Latin letter is accepted and ignored.
 - Text in another script stays foreign.
 

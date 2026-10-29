@@ -73,7 +73,7 @@ The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below w
 
 ## The text and its paragraphs
 
-The layer changes the text in six ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names.
+The layer changes the text in six ways. The first change makes a text-initial `nai` an indicator, as the indicator stage of the experimental pipeline reads it. The `indicators` rule takes that bare NAI. A separate `nai` stands only before a run of names, with `cbm` off. `nai .djan. mi klama` rejects by default. It parses with `--no-feature cbm`.
 
 The second change permits an ek after a text-leading `.i`, as in `.i .e do klama`. After that connective, an optional tense can precede `bo`. The rule writes that tense as a `tag`. A `stag` is a `tag` in this pipeline, so either name reads the same words.
 
@@ -253,7 +253,7 @@ A structural pattern tests a node and its children. Connected bridi-tails group 
 
 A final connection is last at its grammar level. The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a complete KE-unit tail or KE-wrapped forethought sentence when the connective can own that group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
 
-The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
+The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A reset with IhAU also closes the place. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
@@ -473,13 +473,15 @@ An open tail can take terms after a reset. A closed tail can take only resets an
 
 ## Terms
 
-The layer joins terms at two levels. A connective, an optional stag, and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. Thus `broda be na ku .e bo na ku .a na ku` groups its terms as `(na ku .e bo na ku) .a na ku`. Joik, jek, ek, and VUhU supply these connectives.
+The layer joins terms at two levels. A connective, an optional stag, and `bo` join terms into a `term-bo-group`. Free modifiers can follow `bo` before the next term. A plain connective joins those groups through `term-link`. Thus `broda be na ku .e bo na ku .a na ku` groups its terms as `(na ku .e bo na ku) .a na ku`. Joik, jek, ek, and VUhU supply these connectives.
 
 Plain connections group from the left. A run of BO connections groups from the right, as CLL requires.[^cll-s14-8]
 
 A term stands in heads, tails, prenexes, fragments, and NUhI termsets. BE, BEI, GOI, LAhE, and NAhE each take one term. Branches of a bare forethought termset also take terms.
 
-A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zi'e`, `zo'u`, `ce'e`, and `pe'e`. Written terminators of surrounding constructions also close the place. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. An omitted terminator never counts as a closing word.
+A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too.
+
+Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zi'e`, `zo'u`, `ce'e`, and `pe'e`. Written terminators of surrounding constructions also close the place. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. A reset with IhAU also closes the place because it stands for the sentence's elided terminators. Thus `do klama pu iau ti` and `mi klama na iau do` omit KU before `iau`. An omitted terminator never counts as a closing word.
 
 A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
@@ -1002,7 +1004,7 @@ An ek connects sumti with A, and a jek connects predicates with JA. Both permit 
 
 A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The `bare-na` conditions exclude a bare NA term where NA begins a connective. The words can connect sumti or terms, and the term conditions keep the sumti reading.
 
-A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
+A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a joik, a jek or an ek. For example, `joi gi mi broda gi mi brode` parses. A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
 After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
@@ -1267,7 +1269,11 @@ The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a t
 
 camxes-exp writes successive BO term links as a flat list. This layer groups them from the right, as CLL 14.8 requires, to match its sumti and selbri connections.
 
-camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
+camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there.
+
+A free modifier can also follow `bo` in a term connection. Thus `fa mi .e pu bo to broda toi fe do klama` parses here. camxes-exp has no corresponding slot in either `term_2` or `abs_term_2` and rejects that text.
+
+camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
 
@@ -1301,7 +1307,7 @@ After `vu'o`, a connected sumti can follow with or without relative clauses. Thu
 
 Bare NA records an omitted KU, as camxes-exp's `KU_elidible` requires. That marker participates in elision ranking and restoration queries.
 
-This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
+This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. A written IhAU reset also closes the place. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
 
 Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
 

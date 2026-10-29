@@ -184,9 +184,11 @@ The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it re
 
 camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
-The pipeline also accepts four constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
+The pipeline also accepts the following constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
 
 In `fa mi .e bo fe do .a fi mi klama`, one connected term precedes `klama`. Within that term, `bo` binds tighter than `.a`.
+
+Free modifiers can also follow `bo` in term connections. For example, `fa mi .e pu bo to broda toi fe do klama` parses here. camxes-exp has no such slot.
 
 The grammar also allows the two branches of a bare forethought termset to hold different numbers of terms, as CLL's termset with `nu'i` does. camxes-exp's `gek_termset` pairs the terms of its branches one to one. So `ge mi do gi ti klama` parses here, and camxes-exp rejects it.
 
