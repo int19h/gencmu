@@ -1,4 +1,5 @@
-![gencmu logo: red and blue gears interlocking](https://github.com/user-attachments/assets/59524030-fa37-4fb6-b712-a819ab8fc55b)
+
+![gencmu logo: interlocked red and blue gears rotating slowly](https://github.com/user-attachments/assets/77045935-4cb5-43ca-926b-c4995173d465)
 
 # gencmu
 
