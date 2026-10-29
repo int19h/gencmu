@@ -157,11 +157,11 @@ A class is a tag with capital letters at both ends. It never starts with `_`. Th
 
 Grammar authors write gencmu's grammars in jbogenbau, a notation of its own. `docs/notation.md` explains it for grammar authors. This section gives the summary and the reasons.
 
-A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Each rule body is EBNF in the form that CLL (*The Complete Lojban Language*) prints. Each constituent carries tags computed from its parts. Tree patterns, which test a constituent's structure, also contribute finite observations during recognition.
+A jbogenbau grammar is an attribute grammar (its constituents carry computed values) with EBNF (Extended Backus-Naur Form) rule bodies. Rule bodies use an EBNF dialect of the notation's own. Each constituent carries tags computed from its parts. Tree patterns, which test a constituent's structure, also contribute finite observations during recognition.
 
 Conditions over the parts, such as whether a part also parses as another rule, restrict which parses exist, as in a Boolean grammar. A rule can say what its constituents hand to the next stage. Each grammar is a transducer that reads one token sequence and writes another. A pipeline runs an ordered series of these grammars. One pipeline document names its stages.
 
-The bodies keep the look of CLL's EBNF, because a reader of CLL recognizes that look. Keywords around the bodies name their functions explicitly.
+The bodies keep the familiar look of EBNF, with brackets for optional parts and capitalized names for tag terminals. Keywords around the bodies name their functions explicitly.
 
 A grammar document is Markdown. Its fenced `jbogenbau` blocks, in order, are the grammar, and the prose between them explains it. The loader finds only the fences by lines, as Markdown requires. Inside a block, line breaks and indentation mean nothing.
 
@@ -220,7 +220,7 @@ User tags use capitalized names, such as `Cmavo`, `Stressed`, and `PAUSE`. Stage
 
 A reference or terminal can carry one signed tag test followed by one exact value test. `LA="la"` compares its input value with that string. `cmavo<¬UI>` forbids UI on its own tags. Tests cannot replace token classes. A token that a caller supplies can have value `la` and tag `Word` without LA. `cmavo<¬UI>="la"` requires both tests.
 
-The body adds repetition, elidable terminators, and ranked choices to the CLL operators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
+"Repetition, lists and chains" and "Elidable optionals and captures" below explain the design of repetition and elidable terminators. The operators are these:
 
 - Juxtaposition is sequence.
 - `a ≻ b` ranks `a` first over the same span.
@@ -236,7 +236,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 
 Rule names include single emoji scalars with `Emoji_Presentation` and without `Emoji_Component`. The grammar's Unicode version fixes this set. Other identifiers keep their ASCII rules. `#` starts a pattern, `@` starts a parameter, and `/` separates brace items from separators.
 
-`🆓` is not built in. It is a rule that the grammar defines as `[{free}]`, as CLL's EBNF defines it with `[free ...]`. So the free modifiers of one slot, such as vocatives, are one node of the tree.
+`🆓` is not built in. It is a rule that the Lojban syntax grammars define as `[{free}]`, zero or more free modifiers. So the free modifiers of one slot, such as vocatives, are one node of the tree.
 
 An elidable terminator is a closing word that the speaker can leave out. This notation writes `[+KU]` for an elidable `ku`. `[+KU 🆓]` also puts its free-modifier slot inside the optional. The `+` marks omission at that position (see "Elidable optionals and captures" below). This grouping follows CLL's printed grammar.
 
