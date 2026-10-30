@@ -678,13 +678,6 @@ class Pipeline:
         # the error that lowering found.
         self._lowered: list[Recent[frozenset[str], Lowered | ErrorData]] = [Recent(MAX_LOWERED) for _ in stages]
         self._lock = threading.Lock()
-        for number in range(len(stages)):
-            try:
-                self.lowered(number, self.declared)
-            except GencmuError:
-                # An error lowering finds is a result of the parses that
-                # meet it (engine §3, §13), not an error of the load.
-                pass
 
     @property
     def stage_names(self) -> list[str]:
