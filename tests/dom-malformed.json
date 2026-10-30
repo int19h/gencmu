@@ -12347,7 +12347,7 @@
             ]
           },
           "right": {
-            "string": "a"
+            "tag": "A"
           }
         }
       ],
@@ -12414,7 +12414,7 @@
             ]
           },
           "right": {
-            "string": "a"
+            "tag": "A"
           }
         }
       ],
@@ -15459,5 +15459,416 @@
     ]
   },
   "malformed": true
+},
+{
+  "description": "An uncalled template rejects an independent comparison type error.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "method": "tags",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects an independent empty delimiter.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "method": "split",
+          "receiver": {
+            "method": "value",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": []
+          },
+          "args": [
+            {
+              "string": ""
+            }
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects duplicate captures.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "seq": [
+            {
+              "capture": "x",
+              "expr": {
+                "param": "X",
+                "at": [
+                  1,
+                  15
+                ]
+              }
+            },
+            {
+              "capture": "x",
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects known string tags beside an unresolved operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "union": [
+        {
+          "string": "a"
+        },
+        {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects an absent capture beside an unresolved operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "=",
+        "left": {
+          "method": "value",
+          "receiver": {
+            "capture": "missing"
+          },
+          "args": []
+        },
+        "right": {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects a fixed empty emission route.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "capture": "x",
+            "expr": {
+              "param": "X",
+              "at": [
+                1,
+                15
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "x"
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template defers its unresolved tag type.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "param": "X",
+      "at": [
+        1,
+        15
+      ]
+    }
+  },
+  "malformed": false
+},
+{
+  "description": "An uncalled template defers its unresolved comparison operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": false
+},
+{
+  "description": "An uncalled template accepts a known method with an unresolved rule argument.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": [
+        {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": false
 }
 ]

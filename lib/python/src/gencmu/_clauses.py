@@ -518,6 +518,9 @@ def waits(clause: Any) -> bool:
     its value in simplification (engine §3.6), so the checks that
     simplification decides wait for the loader, which checks the definition
     again once the constants have their values (engine §9)."""
+    from ._template_nodes import has_unresolved
+    if has_unresolved(clause):
+        return True
     stack = [clause]
     while stack:
         value = stack.pop()

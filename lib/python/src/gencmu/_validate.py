@@ -368,7 +368,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     if problem:
         return problem
     for r in dom["rules"]:
-        if has_unresolved(r):
+        if "instance" in r:
             continue
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):

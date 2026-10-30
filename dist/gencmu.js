@@ -188,7 +188,7 @@
       const atom = atoms[0];
       allowed.add(atom);
       const receiver = atom.receiver.capture;
-      if (receiver !== "") {
+      if (typeof receiver === "string" && receiver !== "") {
         const pending = [condition];
         while (pending.length) {
           const part = pending.pop();
@@ -4809,7 +4809,7 @@
       if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
     }
     for (const rule of dom.rules) {
-      if (hasUnresolved(rule)) continue;
+      if (rule.instance) continue;
       if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length)) return "a duplicate capture";
       const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
     }
@@ -5733,7 +5733,7 @@
     const waiting = new Map();
     const waits = (/** @type {unknown} */ clause) => {
       let known = waiting.get(clause);
-      if (known === undefined) waiting.set(clause, (known = constantsIn(clause).some((reference) => !("value" in reference))));
+      if (known === undefined) waiting.set(clause, (known = hasUnresolved(clause) || constantsIn(clause).some((reference) => !("value" in reference))));
       return known;
     };
     // A definition with no clause has nothing to check about its captures,
@@ -6117,7 +6117,11 @@
           types.push(found.type);
         }
       }
-      const problem = methodProblem(term.method, term.receiver, term.args, receiver.type, types, true);
+      const nominal = TARGET_METHODS.has(term.method) || term.method === "tags" || term.method === "without-elision-except";
+      const args = nominal ? term.args.map((/** @type {any} */ arg) => arg.param || arg.call ? {rule:"unresolved"} : arg) : term.args;
+      const receiverType = receiver.type === "any" && hasUnresolved(term.receiver) ? "span" : receiver.type;
+      const receiverNode = term.receiver.param || term.receiver.call ? {capture:""} : term.receiver;
+      const problem = methodProblem(term.method, receiverNode, args, receiverType, types, true);
       return problem ? { problem, node: term } : { type: /** @type {TermType} */ (methodType(term.method)) };
     }
     if (typeof term.tag === "string") return { type: "tags" };
@@ -18251,9 +18255,9 @@
       if (one(node, "erased-clause")) rule.erased = true;
       rule.at = at(node);
       flattenGroups(rule);
-      const boundaryFault = hasUnresolved(rule) ? null : boundaryProblem(rule);
+      const boundaryFault = boundaryProblem(rule);
       if (boundaryFault) fail(boundaryFault.problem, boundaryLocations.get(boundaryFault.node)?.tree ?? node);
-      const problem = hasUnresolved(rule) ? null : definitionProblem(rule, deferEmission);
+      const problem = definitionProblem(rule, deferEmission);
       if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
     }

@@ -372,6 +372,25 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
         }
         _ => return Some("an unexpected unresolved declaration"),
     }
+    if kind == "rules" && !has(r, "instance") {
+        let mut projected = partial(r, "declaration");
+        remove(&mut projected, "params");
+        remove(&mut projected, "args");
+        let Ok(native) = dom::rule_from_json(&projected) else { return Some("a malformed partial rule") };
+        if dom::rule_type_fault(&native, &|_| dom::Type::Any).is_some() {
+            return Some("a term or a condition whose types do not agree");
+        }
+        if crate::boundary::definition_problem(&native).is_some() {
+            return Some("a malformed boundary clause");
+        }
+        if let Some(problem) = crate::clauses::definition_problem(&native) {
+            if !(dom::deferred_emission_problem(&problem)
+                && native.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr)))
+            {
+                return Some("a malformed definition");
+            }
+        }
+    }
     None
 }
 fn query(name: &str) -> bool {
@@ -719,7 +738,27 @@ fn node_step<'a>(
             "string" => Part::String,
             _ => Part::Term,
         };
-        return parts_problem(vec![(part, &clean(n), depth)], uni);
+        let value = clean(n);
+        if let Some(problem) = parts_problem(vec![(part, &value, depth)], uni) {
+            return Some(problem);
+        }
+        let unknown = &|_: &str| dom::Type::Any;
+        let fault = match kind {
+            "condition" => dom::cond_from_json(&value).ok().and_then(|c| dom::cond_type_fault(&c, unknown)),
+            "expr" => {
+                let r = obj([
+                    ("name", string("partial")),
+                    ("op", string("define")),
+                    ("flags", Json::Arr(vec![])),
+                    ("conditions", Json::Arr(vec![])),
+                    ("at", position((1, 1))),
+                    ("alternatives", Json::Arr(vec![obj([("guards", Json::Arr(vec![])), ("expr", value.clone())])])),
+                ]);
+                dom::rule_from_json(&r).ok().and_then(|r| dom::rule_type_fault(&r, unknown))
+            }
+            _ => dom::term_from_json(&value).ok().and_then(|t| dom::term_type_in(&t, unknown).err()),
+        };
+        return fault.map(|_| "a term or a condition whose types do not agree");
     }
     if kind == "expr" {
         for k in ["seq", "choice", "ranked", "and"] {
@@ -966,4 +1005,97 @@ fn capture_shape(n: &Json) -> dom::Expr {
         return capture_shape(get(n, "expr"));
     }
     Expr::Empty
+}
+
+// Preserve known structure while unresolved leaves have unknown types.
+fn partial(value: &Json, kind: &str) -> Json {
+    match value {
+        Json::Arr(xs) => Json::Arr(xs.iter().map(|x| partial(x, kind)).collect()),
+        Json::Obj(fields) => {
+            if has(value, "param") || has(value, "call") {
+                return match kind {
+                    "expr" => obj([("wildcard", Json::Bool(true))]),
+                    "pattern" => obj([("constant", string("Unresolved")), ("at", position((1, 1)))]),
+                    _ => obj([("const", string("Unresolved")), ("at", position((1, 1)))]),
+                };
+            }
+            let method = text(get(value, "method"));
+            Json::Obj(
+                fields
+                    .iter()
+                    .filter(|(key, _)| key != SOURCE)
+                    .map(|(key, child)| {
+                        let mut next = kind;
+                        if matches!(
+                            key.as_str(),
+                            "expr" | "seq" | "choice" | "ranked" | "and" | "optional" | "repeat" | "separator"
+                        ) && kind != "pattern"
+                        {
+                            next = "expr";
+                        }
+                        if key == "pattern" {
+                            next = "pattern";
+                        }
+                        if matches!(
+                            key.as_str(),
+                            "literal"
+                                | "range"
+                                | "tags"
+                                | "value"
+                                | "image"
+                                | "conditions"
+                                | "receiver"
+                                | "args"
+                                | "requirements"
+                        ) {
+                            next = "term";
+                        }
+                        let converted = if key == "args"
+                            && matches!(
+                                method,
+                                "tags"
+                                    | "matches"
+                                    | "begins"
+                                    | "ends"
+                                    | "followed-by"
+                                    | "preceded-by"
+                                    | "without-elision-except"
+                            ) {
+                            Json::Arr(
+                                list(child)
+                                    .iter()
+                                    .map(|arg| {
+                                        if has(arg, "param") || has(arg, "call") {
+                                            obj([("rule", string("unresolved"))])
+                                        } else {
+                                            partial(arg, "term")
+                                        }
+                                    })
+                                    .collect(),
+                            )
+                        } else if key == "receiver"
+                            && matches!(method, "followed-by" | "preceded-by")
+                            && (has(child, "param") || has(child, "call"))
+                        {
+                            obj([("capture", string(""))])
+                        } else {
+                            partial(child, next)
+                        };
+                        (key.clone(), converted)
+                    })
+                    .collect(),
+            )
+        }
+        _ => value.clone(),
+    }
+}
+
+pub(crate) fn first_duplicate(rule: &Json) -> Option<&Json> {
+    for alternative in list(get(rule, "alternatives")) {
+        let expr = get(alternative, "expr");
+        if let Some(&index) = crate::clauses::duplicate_captures(&capture_shape(expr)).first() {
+            return nodes(expr).filter(|n| has(n, "capture") && has(n, "expr")).nth(index);
+        }
+    }
+    None
 }

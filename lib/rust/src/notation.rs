@@ -175,6 +175,12 @@ impl<'a> Reader<'a> {
                     return Err(Error::grammar("an undeclared or malformed parameter").at(at.0, at.1));
                 }
                 if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
+                    if problem == "a capture name used twice in one production" {
+                        if let Some(capture) = crate::parameters::first_duplicate(&raw) {
+                            let at = crate::parameters::locations::source_at(capture).unwrap_or(self.at(node));
+                            return Err(Error::grammar(problem).at(at.0, at.1));
+                        }
+                    }
                     if problem == "nested too deeply" {
                         crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
                         continue;

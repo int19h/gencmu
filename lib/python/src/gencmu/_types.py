@@ -18,6 +18,7 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
+from ._template_nodes import has_unresolved
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -364,7 +365,11 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         if fault is not None:
             return None, fault
         recipe = name in ("verbatim-text", "emitted") or kind == "emitted"
-        result, problem = method_type(name, kind, term["args"], set(term["receiver"]) == {"capture"}, recipe)
+        selection_kind = "capture" if kind == "any" and has_unresolved(term["receiver"]) else kind
+        nominal = name in ("tags", "matches", "begins", "ends", "followed-by", "preceded-by", "without-elision-except")
+        args = [{"rule": "unresolved"} if nominal and ("param" in arg or "call" in arg) else arg for arg in term["args"]]
+        bare = set(term["receiver"]) == {"capture"} or bool({"param", "call"} & term["receiver"].keys())
+        result, problem = method_type(name, selection_kind, args, bare, recipe)
         if problem is not None:
             return None, (problem, term)
         if name == "split":

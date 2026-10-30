@@ -1,0 +1,10 @@
+{
+  "description": "An uncalled source template rejects an independent duplicate error.",
+  "document": "```jbogenbau\n%rule pair(@X) $x:@X $x:A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 22
+    }
+  }
+}

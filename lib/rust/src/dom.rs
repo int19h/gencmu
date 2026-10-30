@@ -541,7 +541,7 @@ fn guard_from_json(guard: &Json) -> R<Guard> {
     })
 }
 
-fn rule_from_json(value: &Json) -> R<RuleDef> {
+pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
     let op = match string(value, "op")?.as_str() {
         "define" => Op::Define,
         "redefine" => Op::Redefine,
@@ -672,7 +672,7 @@ pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     }
 }
 
-fn cond_from_json(value: &Json) -> R<Cond> {
+pub(crate) fn cond_from_json(value: &Json) -> R<Cond> {
     match read_value(value, true)? {
         ReadValue::Cond(cond) => Ok(cond),
         _ => unreachable!(),

@@ -433,10 +433,10 @@ class DomBuilder:
         dom["at"] = list(self.position(node))
         flatten_groups(dom)
         from ._boundary import problem as boundary_problem
-        boundary = None if has_unresolved(dom) else boundary_problem(dom)
+        boundary = boundary_problem(dom)
         if boundary is not None:
             raise self.fail(self.boundary_nodes.get(id(boundary[1]), node), boundary[0])
-        problem = None if has_unresolved(dom) else definition_problem(dom)
+        problem = definition_problem(dom)
         if problem is not None:
             if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
                 self.deferred_emissions.append((dom,problem))

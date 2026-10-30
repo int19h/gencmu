@@ -279,8 +279,16 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(alt["expr"], "expr", true); p != nil {
 				return p
 			}
-			if len(duplicateCaptures(templateCaptureShape(templateObj(alt["expr"])))) > 0 {
-				return problem("a capture name used twice in one production")
+			captures := map[*domExpr]templateObject{}
+			shape := templateCaptureShapeNodes(templateObj(alt["expr"]), captures)
+			if twice := duplicateCaptures(shape); len(twice) > 0 {
+				p := problem("a capture name used twice in one production")
+				for capture := range twice {
+					if at := templateSourceAt(captures[capture]); at != [2]int{} && (p.at == templateAt(r) || before(at, p.at)) {
+						p.at = at
+					}
+				}
+				return p
 			}
 			if r["erased"] == true && (alt["value"] != nil || alt["image"] != nil) {
 				return problem("an erased rule has a recipe")
@@ -362,6 +370,24 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(c, "condition", false); p != nil {
 				return p
 			}
+		}
+	}
+	if kind == "rules" && r["instance"] == nil {
+		projected := templateObj(templatePartial(r, "declaration"))
+		delete(projected, "params")
+		delete(projected, "args")
+		native, err := decodeRule(templateJSON(projected))
+		if err != nil {
+			return problem(err.Error())
+		}
+		if f := ruleTypeFault(native, nil); f != nil {
+			return problem(f.problem)
+		}
+		if _, msg := boundaryRuleProblem(native); msg != "" {
+			return problem(msg)
+		}
+		if msg := definitionProblem(native); msg != "" && !(deferredEmissionProblem(msg) && ruleHasRanked(native)) {
+			return problem(msg)
 		}
 	}
 	return nil
@@ -701,7 +727,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return "a malformed source category"
 	}
 	if !templateUnresolved(n) && !(kind == "recipe-term" && n["method"] != nil) {
-		c := &domChecker{uni: uni, deferTypes: true}
+		c := &domChecker{uni: uni}
 		raw := templateJSON(n)
 		var err error
 		switch kind {
@@ -736,6 +762,23 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		}
 		if c.problem != nil {
 			return c.problem.message
+		}
+		switch kind {
+		case "expr":
+			e, _ := decodeExpr(raw)
+			if f := ruleTypeFault(&domRule{Alternatives: []*domAlt{{Expr: e}}}, nil); f != nil {
+				return f.problem
+			}
+		case "condition":
+			e, _ := decodeCond(raw)
+			if f := condTypeFault(e, nil); f != nil {
+				return f.problem
+			}
+		default:
+			e, _ := decodeTerm(raw)
+			if _, f := termTypeIn(e, nil); f != nil {
+				return f.problem
+			}
 		}
 		return ""
 	}
@@ -951,30 +994,32 @@ func templateElidableHead(n templateObject) bool {
 	}
 	return n["param"] != nil || templateOnly(n, "ref") && constName.MatchString(templateText(n["ref"]))
 }
-func templateCaptureShape(n templateObject) *domExpr {
+func templateCaptureShapeNodes(n templateObject, captures map[*domExpr]templateObject) *domExpr {
 	for _, kind := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if n[kind] != nil {
 			items := []*domExpr{}
 			for _, v := range templateList(n[kind]) {
-				items = append(items, templateCaptureShape(templateObj(v)))
+				items = append(items, templateCaptureShapeNodes(templateObj(v), captures))
 			}
 			return &domExpr{Kind: kind, Items: items}
 		}
 	}
 	for _, kind := range []string{exOptional, exRepeat} {
 		if n[kind] != nil {
-			e := &domExpr{Kind: kind, Inner: templateCaptureShape(templateObj(n[kind]))}
+			e := &domExpr{Kind: kind, Inner: templateCaptureShapeNodes(templateObj(n[kind]), captures)}
 			if n["separator"] != nil {
-				e.Sep = templateCaptureShape(templateObj(n["separator"]))
+				e.Sep = templateCaptureShapeNodes(templateObj(n["separator"]), captures)
 			}
 			return e
 		}
 	}
 	if n["capture"] != nil {
-		return &domExpr{Kind: exCapture, Name: templateText(n["capture"]), Inner: templateCaptureShape(templateObj(n["expr"]))}
+		e := &domExpr{Kind: exCapture, Name: templateText(n["capture"]), Inner: templateCaptureShapeNodes(templateObj(n["expr"]), captures)}
+		captures[e] = n
+		return e
 	}
 	if n["test"] != nil {
-		return templateCaptureShape(templateObj(n["expr"]))
+		return templateCaptureShapeNodes(templateObj(n["expr"]), captures)
 	}
 	return &domExpr{Kind: exWildcard}
 }
@@ -1042,4 +1087,64 @@ func templateLiteralEngineTags(root any) map[string][][2]int {
 		}
 	}
 	return literalEngineTags(result)
+}
+
+// templatePartial retains capture structure and types only the known operands.
+// Unknown constants stand for unresolved terms during this private analysis.
+func templatePartial(value any, kind string) any {
+	if xs, ok := value.([]any); ok {
+		out := make([]any, len(xs))
+		for i, x := range xs {
+			out[i] = templatePartial(x, kind)
+		}
+		return out
+	}
+	n := templateObj(value)
+	if n == nil {
+		return value
+	}
+	if n["param"] != nil || n["call"] != nil {
+		if kind == "expr" {
+			return templateObject{"wildcard": true}
+		}
+		if kind == "pattern" {
+			return templateObject{"constant": "Unresolved", "at": []any{1, 1}}
+		}
+		return templateObject{"const": "Unresolved", "at": []any{1, 1}}
+	}
+	out := templateObject{}
+	for key, child := range n {
+		if key == templateSourceKey {
+			continue
+		}
+		next := kind
+		if key == "expr" || key == "seq" || key == "choice" || key == "ranked" || key == "and" || key == "optional" || key == "repeat" || key == "separator" {
+			if kind != "pattern" {
+				next = "expr"
+			}
+		}
+		if key == "pattern" {
+			next = "pattern"
+		}
+		if key == "literal" || key == "range" || key == "tags" || key == "value" || key == "image" || key == "conditions" || key == "receiver" || key == "args" || key == "requirements" {
+			next = "term"
+		}
+		if key == "args" && templateQuery(templateText(n["method"])) || key == "args" && (n["method"] == "tags" || n["method"] == "without-elision-except") {
+			args := []any{}
+			for _, arg := range templateList(child) {
+				a := templateObj(arg)
+				if a["param"] != nil || a["call"] != nil {
+					args = append(args, templateObject{"rule": "unresolved"})
+				} else {
+					args = append(args, templatePartial(arg, "term"))
+				}
+			}
+			out[key] = args
+		} else if key == "receiver" && (n["method"] == "followed-by" || n["method"] == "preceded-by") && (templateObj(child)["param"] != nil || templateObj(child)["call"] != nil) {
+			out[key] = templateObject{"capture": ""}
+		} else {
+			out[key] = templatePartial(child, next)
+		}
+	}
+	return out
 }
