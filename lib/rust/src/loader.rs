@@ -338,7 +338,7 @@ impl Context {
             read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
         };
         if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
+            dom = read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path))?;
         }
         if diagnostic {
             #[cfg(test)]
@@ -747,12 +747,7 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             let document = error.group.as_ref().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
         }
-        Err(error)
-            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
-        {
-            load_mode(context, sources, pipeline_path, error.document.as_deref())
-        }
-        Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
+        Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         result => result,
@@ -1163,6 +1158,18 @@ mod ranked_location_tests {
         for path in sources.map.keys().filter(|path| path.starts_with("grammars/") && path.ends_with("/pipeline.md")) {
             load(&context, &sources, path).expect("the preparsed grammar cache loads without notation stages");
         }
+    }
+
+    #[test]
+    fn located_recipe_cycles_never_recover_locations() {
+        let context = Context::bundled().unwrap();
+        let sources = MapSources { map: [("p.md".into(),
+            "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" := $.emitted.image :- $.emitted.value\n```\n".into())].into() };
+        LOCATION_RECOVERIES.with(|count| count.set(0));
+        let error = load(&context, &sources, "p.md").unwrap_err();
+        assert!(error.message.contains("recipe cycles"), "{error}");
+        assert_eq!(error.line, Some(4));
+        LOCATION_RECOVERIES.with(|count| assert_eq!(count.get(), 0));
     }
 
     #[test]

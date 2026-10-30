@@ -70,6 +70,13 @@ pub struct Error {
     pub stage: Option<String>,
     /// The optional ranked loading details.
     pub diagnostic: Option<Box<RankedDiagnostic>>,
+    pub(crate) location_recovery: Option<LocationRecovery>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LocationRecovery {
+    Boundary,
+    Recipe,
 }
 
 /// The structured fields of a ranked loading diagnostic.
@@ -138,7 +145,21 @@ impl Error {
     }
 
     pub(crate) fn new(kind: ErrorKind, message: impl Into<String>) -> Error {
-        Error { kind, message: message.into(), document: None, line: None, column: None, stage: None, diagnostic: None }
+        Error {
+            kind,
+            message: message.into(),
+            document: None,
+            line: None,
+            column: None,
+            stage: None,
+            diagnostic: None,
+            location_recovery: None,
+        }
+    }
+
+    pub(crate) fn recover_location(mut self, recovery: LocationRecovery) -> Self {
+        self.location_recovery = Some(recovery);
+        self
     }
 
     pub(crate) fn grammar(message: impl Into<String>) -> Error {

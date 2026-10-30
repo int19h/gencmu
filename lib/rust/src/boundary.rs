@@ -549,7 +549,8 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
             };
             if !found {
                 let mut error = crate::error::Error::grammar(format!("boundary target {target} is unreachable"))
-                    .in_document(&alt.document);
+                    .in_document(&alt.document)
+                    .recover_location(crate::error::LocationRecovery::Boundary);
                 if let Some(&(line, column)) = location.targets.get(index) {
                     error = error.at(line, column);
                 }

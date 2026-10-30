@@ -629,7 +629,8 @@ fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
                         format!("a constituent recipe cycles: {}", steps.join(" -> ")),
                         &alternative.document,
                         at,
-                    ));
+                    )
+                    .recover_location(crate::error::LocationRecovery::Recipe));
                 }
                 if !finished[dependency] {
                     active[dependency] = true;
