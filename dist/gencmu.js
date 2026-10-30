@@ -14057,7 +14057,7 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${["union", "difference", "intersection", "concat"].some(key => key in term.receiver) ? `(${receiver})` : receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
     if ("concat" in term) return {parts: term.concat.map(asTerm), combine: texts => texts.join(" ++ ")};
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);
@@ -14761,6 +14761,7 @@
    * @returns {Trace}
    */
   function trace(pipeline, text, options) {
+    if (!Number.isInteger(options.position)) throw new GencmuError("usage", "a trace position must be a finite integer");
     const index = pipeline.stages.findIndex((stage) => stage.name === options.stage);
     if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
     // The parse the caller would get up to that stage, so that the traced
