@@ -434,7 +434,7 @@ class StageContext:
     # The mutable records belong to this stage context alone.
     boundary_machine: Records | None = field(init=False, default=None)
     aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
-    qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
+    qualified_memo: dict[tuple, list[tuple[int, int, int, bool | None]]] = field(default_factory=dict)
     # How many aligned queries the parse asked, and the keys of the answers
     # that depend on one. Such an answer stays out of the shared memo, and so
     # does every answer that reads it (engine §4.3).
@@ -645,29 +645,30 @@ class StageContext:
                               and forest.lowered.productions[forest.prod[item]].lhs == number
                               and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)
                               and forest.lowered.productions[forest.prod[item]].close_requested]
-                qualified = forest, eligible(forest, boundary_witnesses(forest, candidates))
+                qualified = []
+                for item in eligible(forest, boundary_witnesses(forest, candidates)):
+                    end = span.start + forest.end[item]
+                    family_answer = forest.family.accepts(forest.family_structure[item], end) if forest.family is not None else None
+                    if family_answer is not None and _testing.family_check is not None:
+                        _testing.family_check(forest, item, span.start, family_answer)
+                    qualified.append((end, forest.tag[item], forest.close_structure[item], family_answer))
                 if not self.suffix_active:
                     self.qualified_memo[raw_key] = qualified
-            forest, candidates = qualified
             tags = Gathered()
             accepted = False
-            for item in candidates:
-                end = span.start + forest.end[item]
-                if forest.family is not None and _testing.family_check is not None:
-                    answer = forest.family.accepts(forest.family_structure[item], end)
-                    _testing.family_check(forest, item, span.start, answer)
+            for end, tag_id, observation, family_answer in qualified:
                 if end > span.end or not prefix and end != span.end:
                     continue
                 boundary = min(span.captured_end, end)
-                if forest.family is not None:
-                    matches = forest.family.accepts(forest.family_structure[item], end)
+                if family_answer is not None:
+                    matches = family_answer
                 else:
                     candidate = closes.through(span.observation, boundary)
-                    witness = closes.through(forest.close_structure[item], boundary)
+                    witness = closes.through(observation, boundary)
                     matches = candidate is not None and candidate == witness
                 if matches:
                     accepted = True
-                    tags.add(self.tagtab.get(forest.tag[item]))
+                    tags.add(self.tagtab.get(tag_id))
             found = NestedAnswer(accepted, tags.value())
             if not self.suffix_active:
                 self.aligned_memo[key] = found

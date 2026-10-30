@@ -30,6 +30,13 @@ export type Chart = {
         permitted: boolean;
     }[]> | null;
 };
+export type QualifiedObservation = {
+    end: number;
+    tags: TagSet;
+    observation: CloseObservation | null;
+    familyAligned: boolean | null;
+    direct: boolean | null;
+};
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
  * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -50,6 +57,11 @@ export type Chart = {
  * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
  * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
+ */
+/**
+ * One eligible completion, detached from the chart and its proof edges.
+ * Family qualification fixes the candidate, so its alignment is final here.
+ * @typedef {{end:number, tags:TagSet, observation:CloseObservation|null, familyAligned:boolean|null, direct:boolean|null}} QualifiedObservation
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */
@@ -140,11 +152,8 @@ export declare class ParseContext {
     dots: number;
     /** @type {Map<string, QueryAnswer>} */
     nested: Map<string, QueryAnswer>;
-    /** @type {Map<string, {chart:Chart, witnesses:Item[]}>} */
-    qualified: Map<string, {
-        chart: Chart;
-        witnesses: Item[];
-    }>;
+    /** @type {Map<string, QualifiedObservation[]>} */
+    qualified: Map<string, QualifiedObservation[]>;
     /** @type {Set<string>} */
     inProgress: Set<string>;
     /** Where the input of the recognition now running begins. */

@@ -5699,19 +5699,38 @@
     }
     return !!done[0].variable;
   }
+  /** @param {any} expr @returns {Map<string,number>[] | null} */
+  function independentCaptureChoices(expr) {
+    const branches = [expr], seen = new Set();
+    /** @type {Map<string,number>[]} */
+    const lists = [];
+    while (branches.length) {
+      const branch = branches.pop();
+      if (branch.choice || branch.ranked) {
+        const parts = branch.choice ?? branch.ranked;
+        for (let i = parts.length - 1; i >= 0; i--) branches.push(parts[i]);
+        continue;
+      }
+      if (branch.test) { branches.push(branch.expr); continue; }
+      if (variableCaptures(branch)) return null;
+      const caps = new Map([["", -1]]), pending = [branch];
+      while (pending.length) {
+        const node = pending.pop();
+        if (node.capture !== undefined) caps.set(node.capture, caps.size - 1);
+        else if (node.seq) for (let i = node.seq.length - 1; i >= 0; i--) pending.push(node.seq[i]);
+        else if (node.choice || node.ranked || node.and) pending.push((node.choice ?? node.ranked ?? node.and)[0]);
+        else if (node.test) pending.push(node.expr);
+      }
+      const key = JSON.stringify([...caps.keys()]);
+      if (!seen.has(key)) { seen.add(key); lists.push(caps); }
+    }
+    return lists;
+  }
+
   /** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
   function validationCaptures(rule,alternative) {
-    if(!variableCaptures(alternative.expr)) {
-      const caps=new Map([['',-1]]), pending=[alternative.expr];
-      while(pending.length) {
-        const node=pending.pop();
-        if(node.capture!==undefined) caps.set(node.capture,caps.size-1);
-        else if(node.seq) for(let i=node.seq.length-1;i>=0;i--) pending.push(node.seq[i]);
-        else if(node.choice||node.ranked||node.and) pending.push((node.choice??node.ranked??node.and)[0]);
-        else if(node.test) pending.push(node.expr);
-      }
-      return [caps];
-    }
+    const lists = independentCaptureChoices(alternative.expr);
+    if (lists !== null) return lists;
     /** @type {CaptureWitness[]} */ const witnesses=[];
     const ask=(/** @type {Iterable<string>} */ required=[],/** @type {Iterable<string>} */ forbidden=[],/** @type {string[]} */ order=[])=>{
       const found=captureWitness(alternative.expr,new Set(required),new Set(forbidden),order);
@@ -10139,6 +10158,12 @@
    * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
    */
 
+  /**
+   * One eligible completion, detached from the chart and its proof edges.
+   * Family qualification fixes the candidate, so its alignment is final here.
+   * @typedef {{end:number, tags:TagSet, observation:CloseObservation|null, familyAligned:boolean|null, direct:boolean|null}} QualifiedObservation
+   */
+
   // Interns tag sets, so that an item names a captured part's tags by number.
   class TagInterner {
     constructor() {
@@ -10589,7 +10614,7 @@
       this.dots = lowered.productions.reduce((most, production) => Math.max(most, production.rhs.length + 1), 1);
       /** @type {Map<string, QueryAnswer>} */
       this.nested = new Map();
-      /** @type {Map<string, {chart:Chart, witnesses:Item[]}>} */
+      /** @type {Map<string, QualifiedObservation[]>} */
       this.qualified = new Map();
       /** @type {Set<string>} */
       this.inProgress = new Set();
@@ -11042,7 +11067,13 @@
         if (!set) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const qualified = {chart, witnesses:eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses))};
+      const constraint = query.aligned;
+      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).map(item => ({
+        end:item.end, tags:context.interner.get(item.tagId), observation:item.observation ?? null,
+        familyAligned:chart.family ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end) : null,
+        direct:chart.familyTrace && context.closes ? deletionTest(context.closes.list(constraint.observation.sequence),
+          chart.familyTrace.get(item) ?? [], chart.start, Math.min(constraint.candidateEnd,item.end)) : null,
+      }));
       if (sharingOf(context).suffixActive === 0 && query.qualificationKey !== null) context.qualified.set(query.qualificationKey, qualified);
       const entry = alignedAnswer(context, kind, /** @type {import("./types.js").AlignedSpan} */ (query.aligned), qualified);
       if (sharingOf(context).suffixActive === 0) context.nested.set(query.key, entry);
@@ -11088,25 +11119,19 @@
    * @param {ParseContext} context
    * @param {string} kind
    * @param {import("./types.js").AlignedSpan} constraint
-   * @param {{chart:Chart,witnesses:Item[]}} qualified
+   * @param {QualifiedObservation[]} qualified
    * @returns {{accepted:boolean,tags:TagSet}}
    */
   function alignedAnswer(context, kind, constraint, qualified) {
-    const {chart,witnesses} = qualified;
-    const aligned = witnesses.filter(item => {
+    const aligned = qualified.filter(item => {
       if (item.end > constraint.matchEnd || kind !== "begins" && item.end !== constraint.matchEnd) return false;
-      const answer = !!item.observation && (chart.family
-        ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
-        : !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
-      if (chart.familyTrace && hooks.familyAlignment && context.closes) {
-        const direct = !!item.observation?.valid && deletionTest(context.closes.list(constraint.observation.sequence),
-          chart.familyTrace.get(item) ?? [], chart.start, Math.min(constraint.candidateEnd, item.end));
-        hooks.familyAlignment(answer, direct);
-      }
+      const answer = !!item.observation && (item.familyAligned
+        ?? !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+      if (item.direct !== null && hooks.familyAlignment) hooks.familyAlignment(answer, !!item.observation?.valid && item.direct);
       return answer;
     });
     const tags = new TagUnion();
-    for (const item of aligned) tags.add(context.interner.get(item.tagId));
+    for (const item of aligned) tags.add(item.tags);
     return {accepted:aligned.length !== 0,tags:tags.result()};
   }
 
