@@ -17,7 +17,9 @@ enum Mode {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct Context {
-    braces: usize,
+    chain: bool,
+    item: bool,
+    ranked: usize,
     marked: usize,
     recipe: bool,
     feature: bool,
@@ -63,7 +65,9 @@ fn pattern_node(n: Json) -> Json {
 impl<'a> Reader<'a> {
     fn parameter_context(&self) -> Context {
         Context {
-            braces: self.braces.get(),
+            chain: self.chain.get(),
+            item: self.item.get(),
+            ranked: self.ranked.get(),
             marked: self.marked.get(),
             recipe: self.in_recipe.get(),
             feature: self.feature_context.get(),
@@ -71,7 +75,9 @@ impl<'a> Reader<'a> {
         }
     }
     fn parameter_restore(&self, c: Context) {
-        self.braces.set(c.braces);
+        self.chain.set(c.chain);
+        self.item.set(c.item);
+        self.ranked.set(c.ranked);
         self.marked.set(c.marked);
         self.in_recipe.set(c.recipe);
         self.feature_context.set(c.feature);
@@ -245,7 +251,9 @@ impl<'a> Reader<'a> {
                 };
                 let mut alternatives = Vec::new();
                 for a in alts {
-                    self.braces.set(0);
+                    self.chain.set(false);
+                    self.item.set(false);
+                    self.ranked.set(0);
                     self.marked.set(0);
                     self.captures.borrow_mut().clear();
                     let guards = Self::rules(a, "guard")
@@ -421,11 +429,18 @@ impl<'a> Reader<'a> {
                     };
                     let ps = self.some(n, part, 1)?;
                     let mut values = Vec::new();
+                    // No item capture stands inside a ranked group (§3.5).
+                    if key == "ranked" {
+                        self.ranked.set(self.ranked.get() + 1);
+                    }
                     for p in &ps {
                         let p = if key == "seq" { self.inner(p, PRIMARIES)? } else { p };
                         values.push(
                             self.parameter_expr(p, whole && !matches!(key, "choice" | "ranked") && ps.len() == 1)?,
                         )
+                    }
+                    if key == "ranked" {
+                        self.ranked.set(self.ranked.get() - 1);
                     }
                     if values.len() == 1 {
                         values.pop().unwrap()
@@ -435,8 +450,26 @@ impl<'a> Reader<'a> {
                 }
                 "group" => self.parameter_expr(self.one(n, "choice")?, false)?,
                 "capture" => {
-                    if self.braces.get() > 0 || self.marked.get() > 0 {
-                        return Err(self.error(n, "a capture cannot stand inside braces or an elidable optional"));
+                    // Inside flat braces a capture is an item capture (§3.5).
+                    if self.chain.get() {
+                        return Err(self.error(
+                            n,
+                            "a capture cannot stand inside a chain, whose levels are constituents of its rule: a \
+                             condition on $ serves each level",
+                        ));
+                    }
+                    if self.item.get() && self.ranked.get() > 0 {
+                        return Err(self.error(
+                            n,
+                            "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and \
+                             capture that rule",
+                        ));
+                    }
+                    if self.marked.get() > 0 {
+                        return Err(self.error(
+                            n,
+                            "a capture cannot stand inside an elidable optional, which elision restores as one unit",
+                        ));
                     }
                     obj([
                         ("capture", string(self.value(self.token(n)?).trim_start_matches('$'))),
@@ -507,12 +540,18 @@ impl<'a> Reader<'a> {
                         }
                         chain = Some(if m < first { "left" } else { "right" });
                     }
-                    self.braces.set(self.braces.get() + 1);
+                    let outer = (
+                        self.chain.replace(chain.is_some()),
+                        self.item.replace(chain.is_none()),
+                        self.ranked.replace(0),
+                    );
                     let mut r = obj([("repeat", self.parameter_expr(cs[0], false)?)]);
                     if cs.len() > 1 {
                         set(&mut r, "separator", self.parameter_expr(cs[1], false)?)
                     }
-                    self.braces.set(self.braces.get() - 1);
+                    self.chain.set(outer.0);
+                    self.item.set(outer.1);
+                    self.ranked.set(outer.2);
                     if let Some(c) = chain {
                         set(&mut r, "chain", string(c))
                     }

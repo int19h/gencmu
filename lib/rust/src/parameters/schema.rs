@@ -1,6 +1,6 @@
 //! Validate unresolved source nodes before instance discovery.
 use super::*;
-use crate::dom::schema::{parts_problem, Part};
+use crate::dom::schema::{parts_problem, ExprFlags, Part};
 use crate::tags::is_name;
 use std::collections::BTreeSet;
 
@@ -268,7 +268,8 @@ pub(crate) fn declaration(r: &Json, kind: &str, uni: &Unicode) -> Option<&'stati
                 if let Some(p) = node(get(alt, "expr"), "expr", 0, true, false, uni) {
                     return Some(p);
                 }
-                if !crate::clauses::duplicate_captures(&capture_shape(get(alt, "expr"))).is_empty() {
+                let shape = capture_shape(get(alt, "expr"));
+                if !crate::clauses::duplicate_captures(&shape).is_empty() || crate::clauses::repeats_item_capture(&shape) {
                     return Some("a capture name used twice in one production");
                 }
                 if get(r, "erased") == &Json::Bool(true) && (has(alt, "value") || has(alt, "image")) {
@@ -454,17 +455,17 @@ fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str>
     }
 }
 
-type NodeTask<'a> = (&'a Json, &'a str, usize, bool, bool);
+type NodeTask<'a> = (&'a Json, &'a str, usize, bool, ExprFlags);
 fn schedule<'a>(
     pending: &std::cell::RefCell<Vec<NodeTask<'a>>>,
     n: &'a Json,
     kind: &'a str,
     depth: usize,
     whole: bool,
-    sealed: bool,
+    flags: ExprFlags,
     _uni: &Unicode,
 ) -> Option<&'static str> {
-    pending.borrow_mut().push((n, kind, depth, whole, sealed));
+    pending.borrow_mut().push((n, kind, depth, whole, flags));
     None
 }
 pub(super) fn node(
@@ -475,11 +476,12 @@ pub(super) fn node(
     sealed: bool,
     uni: &Unicode,
 ) -> Option<&'static str> {
-    let pending = std::cell::RefCell::new(vec![(n, kind, depth, whole, sealed)]);
+    let flags = ExprFlags { sealed, ..ExprFlags::default() };
+    let pending = std::cell::RefCell::new(vec![(n, kind, depth, whole, flags)]);
     loop {
         let task = pending.borrow_mut().pop();
-        let (n, kind, depth, whole, sealed) = task?;
-        if let Some(p) = node_step(&pending, n, kind, depth, whole, sealed, uni) {
+        let (n, kind, depth, whole, flags) = task?;
+        if let Some(p) = node_step(&pending, n, kind, depth, whole, flags, uni) {
             return Some(p);
         }
     }
@@ -490,7 +492,7 @@ fn node_step<'a>(
     mut kind: &'a str,
     depth: usize,
     whole: bool,
-    sealed: bool,
+    flags: ExprFlags,
     uni: &Unicode,
 ) -> Option<&'static str> {
     if depth > dom::DOM_MAX_DEPTH {
@@ -499,13 +501,15 @@ fn node_step<'a>(
     if n.as_object().is_none() {
         return Some("a malformed source node");
     }
-    let walk = |v, k| schedule(pending, v, k, depth + 1, false, sealed, uni);
+    let walk = |v, k| schedule(pending, v, k, depth + 1, false, flags, uni);
     let items = |key, k, min| -> Option<&'static str> {
         let Some(xs) = get(n, key).as_array().filter(|xs| xs.len() >= min) else {
             return Some("a malformed source list");
         };
+        // A ranked group holds no item capture (engine §3.5).
+        let inside = ExprFlags { ranked: flags.ranked || key == "ranked", ..flags };
         for v in xs {
-            if let Some(p) = walk(v, k) {
+            if let Some(p) = schedule(pending, v, k, depth + 1, false, inside, uni) {
                 return Some(p);
             }
         }
@@ -527,7 +531,7 @@ fn node_step<'a>(
         if let Some(problem) = crate::patterns::shapes::problem(&clean(n), &inspect) {
             return Some(if problem == "nested too deeply" { "nested too deeply" } else { "a malformed pattern" });
         }
-        return schedule(pending, n, "pattern-part", depth, false, sealed, uni);
+        return schedule(pending, n, "pattern-part", depth, false, flags, uni);
     }
     if kind == "pattern-part" {
         if has(n, "call") {
@@ -541,14 +545,14 @@ fn node_step<'a>(
             }
         }
         if let Some(v) = n.get("literal") {
-            schedule(pending, v, "string", depth, false, sealed, uni);
+            schedule(pending, v, "string", depth, false, flags, uni);
         }
         if let Some(ends) = n.get("range").and_then(Json::as_array) {
             if !crate::dom::schema::literal_range(&ends[0], &ends[1]) {
                 return Some("a pattern range requires ordered scalar endpoints");
             }
             for v in ends {
-                schedule(pending, v, "string", depth, false, sealed, uni);
+                schedule(pending, v, "string", depth, false, flags, uni);
             }
         }
         if text(get(n, "test")) == "tags" {
@@ -617,7 +621,7 @@ fn node_step<'a>(
             if !only(n, &["body"]) {
                 return Some("a malformed body argument");
             }
-            return schedule(pending, get(n, "body"), "expr", depth, true, false, uni);
+            return schedule(pending, get(n, "body"), "expr", depth, true, ExprFlags::default(), uni);
         }
         if has(n, "targets") {
             if !only(n, &["targets"]) {
@@ -627,7 +631,7 @@ fn node_step<'a>(
                 return Some("a malformed target choice");
             }
             for v in list(get(n, "targets")) {
-                schedule(pending, v, "target", depth, false, sealed, uni);
+                schedule(pending, v, "target", depth, false, flags, uni);
             }
             return None;
         }
@@ -695,7 +699,7 @@ fn node_step<'a>(
     }
     if !unresolved(n) {
         let part = match kind {
-            "expr" => Part::Expr { whole, sealed },
+            "expr" => Part::Expr { whole, flags },
             "condition" => Part::Condition,
             "recipe" => Part::Recipe,
             "recipe-term" => Part::RecipeAtom,
@@ -725,7 +729,7 @@ fn node_step<'a>(
                 "expr",
                 depth + 1,
                 false,
-                sealed || get(n, "elidable") == &Json::Bool(true),
+                ExprFlags { sealed: flags.sealed || get(n, "elidable") == &Json::Bool(true), ..flags },
                 uni,
             );
         }
@@ -735,13 +739,19 @@ fn node_step<'a>(
             {
                 return Some("a malformed repetition");
             }
-            if let Some(p) = schedule(pending, get(n, "repeat"), "expr", depth + 1, false, true, uni) {
+            // A chain holds no capture, and flat braces hold item captures,
+            // also inside a chain (engine §3.5).
+            let chain = has(n, "chain");
+            let inside = ExprFlags { sealed: flags.sealed, chain, item: !chain, ranked: false };
+            if let Some(p) = schedule(pending, get(n, "repeat"), "expr", depth + 1, false, inside, uni) {
                 return Some(p);
             }
-            return n.get("separator").and_then(|s| schedule(pending, s, "expr", depth + 1, false, true, uni));
+            return n.get("separator").and_then(|s| schedule(pending, s, "expr", depth + 1, false, inside, uni));
         }
         if has(n, "capture") {
-            if sealed
+            if flags.sealed
+                || flags.chain
+                || flags.item && flags.ranked
                 || !only(n, &["capture", "expr"])
                 || !get(n, "capture").as_str().is_some_and(dom::is_capture_name)
                 || !symbol(get(n, "expr"))
@@ -778,7 +788,7 @@ fn node_step<'a>(
             return Some("a malformed range");
         }
         for v in list(get(n, "range")) {
-            schedule(pending, v, "string", depth, false, sealed, uni);
+            schedule(pending, v, "string", depth, false, flags, uni);
         }
         return None;
     }
@@ -787,7 +797,7 @@ fn node_step<'a>(
         if !only(n, fields) {
             return Some("a malformed literal");
         }
-        return schedule(pending, get(n, "literal"), "string", depth, false, sealed, uni);
+        return schedule(pending, get(n, "literal"), "string", depth, false, flags, uni);
     }
     if kind == "recipe" {
         if !only(n, &["concat"]) {
@@ -894,7 +904,7 @@ fn requirements<'a>(
         {
             return Some("a malformed requirement");
         }
-        if let Some(p) = schedule(pending, operand, "term", depth, false, false, uni) {
+        if let Some(p) = schedule(pending, operand, "term", depth, false, ExprFlags::default(), uni) {
             return Some(p);
         }
     }

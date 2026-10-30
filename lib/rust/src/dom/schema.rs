@@ -2,9 +2,21 @@
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 
+/// Where an expression stands, as far as a capture may stand there (engine
+/// §3.5, §9): inside an elidable optional, which seals everything in it,
+/// inside a chain, inside flat braces, where a capture is an item capture,
+/// and inside a ranked group since the innermost flat braces.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ExprFlags {
+    pub sealed: bool,
+    pub chain: bool,
+    pub item: bool,
+    pub ranked: bool,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum Part {
-    Expr { whole: bool, sealed: bool },
+    Expr { whole: bool, flags: ExprFlags },
     Term,
     RecipeAtom,
     Condition,
@@ -236,7 +248,11 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         {
                             return Some("a malformed alternative");
                         }
-                        pending.push((Part::Expr { whole: true, sealed: false }, alt.get("expr").unwrap(), 0));
+                        pending.push((
+                            Part::Expr { whole: true, flags: ExprFlags::default() },
+                            alt.get("expr").unwrap(),
+                            0,
+                        ));
                         for key in ["tags", "value", "image"] {
                             if let Some(value) = alt.get(key) {
                                 pending.push((if key == "tags" { Part::Term } else { Part::Recipe }, value, 0));
@@ -348,7 +364,11 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     }
     for item in dom.get("rules").and_then(Json::as_array).unwrap() {
         let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
-        if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
+        if rule
+            .alternatives
+            .iter()
+            .any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty() || crate::clauses::repeats_item_capture(&a.expr))
+        {
             return Some("a production captures a name twice");
         }
         if rule_type_problem(&rule).is_some() {
@@ -425,8 +445,8 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
         }
         let next = depth + 1;
         match kind {
-            Part::Expr { whole, sealed } => {
-                let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
+            Part::Expr { whole, flags } => {
+                let expression = |value, flags| (Part::Expr { whole: false, flags }, value, next);
                 if base(value) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference");
@@ -444,14 +464,20 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     }
                 } else if exact(value, &["empty"], &[]) && is_true(value.get("empty")) {
                 } else if let Some(inner) = value.get("capture") {
-                    if sealed
+                    // A chain holds no capture, and an elidable optional
+                    // seals everything inside it. Flat braces hold item
+                    // captures, also inside a chain, but not inside a ranked
+                    // group (engine §3.5).
+                    if flags.sealed
+                        || flags.chain
+                        || flags.item && flags.ranked
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
                         || !value.get("expr").is_some_and(tested_base)
                     {
                         return Some("a malformed capture");
                     }
-                    pending.push(expression(value.get("expr").unwrap(), sealed));
+                    pending.push(expression(value.get("expr").unwrap(), flags));
                 } else if let Some(inner) = value.get("optional") {
                     if !exact(value, &["optional"], &["elidable"])
                         || !matches!(value.get("elidable"), None | Some(Json::Bool(true)))
@@ -461,7 +487,8 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     if value.get("elidable").is_some() && elidable_head_json(inner).is_none() {
                         return Some("a malformed elidable optional");
                     }
-                    pending.push(expression(inner, sealed || value.get("elidable").is_some()));
+                    let sealed = flags.sealed || value.get("elidable").is_some();
+                    pending.push(expression(inner, ExprFlags { sealed, ..flags }));
                 } else if let Some(inner) = value.get("repeat") {
                     if !exact(value, &["repeat"], &["separator", "chain"])
                         || value
@@ -470,15 +497,17 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     {
                         return Some("a malformed repeat");
                     }
-                    pending.push(expression(inner, true));
+                    let chain = value.get("chain").is_some();
+                    let inside = ExprFlags { sealed: flags.sealed, chain, item: !chain, ranked: false };
+                    pending.push(expression(inner, inside));
                     if let Some(separator) = value.get("separator") {
-                        pending.push(expression(separator, true));
+                        pending.push(expression(separator, inside));
                     }
                 } else if value.get("test").is_some() {
                     if !tested_base(value) {
                         return Some("a malformed test target or order");
                     }
-                    pending.push(expression(value.get("expr").unwrap(), sealed));
+                    pending.push(expression(value.get("expr").unwrap(), flags));
                     match value.get("test").and_then(Json::as_str) {
                         Some("=" | "≠") if exact(value, &["test", "value", "expr"], &[]) => {
                             pending.push((Part::String, value.get("value").unwrap(), next))
@@ -515,7 +544,8 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     if !exact(value, &[key], &[]) {
                         return Some("a malformed expression");
                     }
-                    pending.extend(items.iter().map(|item| expression(item, sealed)));
+                    let inside = ExprFlags { ranked: flags.ranked || key == "ranked", ..flags };
+                    pending.extend(items.iter().map(|item| expression(item, inside)));
                 }
             }
             Part::Recipe => {

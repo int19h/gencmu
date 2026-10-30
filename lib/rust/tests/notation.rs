@@ -188,7 +188,16 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text (A / B)",
         "%rule text A {... B}",
         "%rule text [{... A}]",
-        "%rule text {$a:A}",
+        "%rule text {... $a:A}",
+        "%rule text {... $a:A / B}",
+        "%rule text {... A / $b:B}",
+        "%rule text {(A | $a:A) ...}",
+        "%rule text { ($a:A ≻ B) }",
+        "%rule text { [($a:A ≻ B)] }",
+        "%rule text {... ({ ($a:A ≻ B) } C)}",
+        "%rule text {$a:A} $a:B",
+        "%rule text $a:B {$a:A}",
+        "%rule text {$a:A} {$a:B}",
         "%rule text $a:{A}",
         "%rule text {A}=\"a\"",
         "%rule text ({... A})",
@@ -199,6 +208,21 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text [$x:A] $x:B",
     ] {
         assert!(read(refused).is_err(), "{refused} was read");
+    }
+    // A capture inside flat braces is an item capture, also inside a
+    // chain's item, and a capture inside a ranked group outside braces, or
+    // inside braces inside a ranked group, is valid (engine §3.5, §9).
+    for valid in [
+        "%rule text {$a:A}",
+        "%rule text {A / $s:S}",
+        "%rule text {[$a:A] B}",
+        "%rule text {... ({$a:A} B) / S}",
+        "%rule text ($a:A ≻ B) {C}",
+        "%rule text ({$a:A} ≻ B)",
+        "%rule text { ({$a:A} ≻ B) }",
+        "%rule text {A | $a:A} {B | $b:B}",
+    ] {
+        assert!(read(valid).is_ok(), "{valid} was refused: {:?}", read(valid).err());
     }
 }
 

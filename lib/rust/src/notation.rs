@@ -6,7 +6,7 @@ use crate::dom::{
     Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
-use crate::fxhash::FxSet;
+use crate::fxhash::{FxMap, FxSet};
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
 mod parameters;
@@ -21,9 +21,15 @@ pub(crate) struct Reader<'a> {
     /// The captures of the alternative being read, in the order written,
     /// where an error about one is reported.
     pub captures: std::cell::RefCell<Vec<&'a Node>>,
-    /// How many braces, and how many elidable optionals, the reader is
-    /// inside, where no capture stands (engine §9).
-    pub braces: std::cell::Cell<usize>,
+    /// Whether the innermost braces around the construct being read are a
+    /// chain, where no capture stands, or flat braces, where a capture is an
+    /// item capture, and how many ranked groups stand between those braces
+    /// and the construct, where no item capture stands. `marked` is how many
+    /// elidable optionals the reader is inside, where no capture stands
+    /// either (engine §3.5, §9).
+    pub chain: std::cell::Cell<bool>,
+    pub item: std::cell::Cell<bool>,
+    pub ranked: std::cell::Cell<usize>,
     pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
@@ -515,6 +521,31 @@ impl<'a> Reader<'a> {
                 self.error(capture, format!("the capture ${name} is read twice by one production of the alternative"))
             );
         }
+        // The name of an item capture stands nowhere else in the
+        // alternative (§3.5, §9): the error stands at the later capture in
+        // the text.
+        let items = crate::clauses::item_capture_names(&expr);
+        if !items.is_empty() {
+            let captures = self.captures.borrow();
+            let mut seen: FxMap<&str, &Node> = FxMap::default();
+            for (index, name) in capture_names(&expr).into_iter().enumerate() {
+                let at = captures[index];
+                if let Some(&earlier) = seen.get(name) {
+                    if items.contains(&name) {
+                        let later = if self.first(earlier) < self.first(at) { at } else { earlier };
+                        return Err(self.error(
+                            later,
+                            format!(
+                                "the item capture ${name} is read again: the name of an item capture stands once in \
+                                 its alternative"
+                            ),
+                        ));
+                    }
+                } else {
+                    seen.insert(name, at);
+                }
+            }
+        }
         let tags = match Self::rules(node, "alternative-tags").next() {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
@@ -738,6 +769,10 @@ impl<'a> Reader<'a> {
                 frame.ranked = true;
             }
             frame.conjunctions = Some(self.some(frame.node, "conjunction", if frame.ranked { 2 } else { 1 })?);
+            if frame.ranked {
+                // No item capture stands inside a ranked group (§3.5, §9).
+                self.ranked.set(self.ranked.get() + 1);
+            }
         }
         if let Some(Val::Expr(expr)) = input {
             frame.parts.push(expr);
@@ -746,6 +781,7 @@ impl<'a> Reader<'a> {
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
+                self.ranked.set(self.ranked.get() - 1);
                 Expr::Ranked(std::mem::take(&mut frame.parts))
             } else {
                 single_or(std::mem::take(&mut frame.parts), Expr::Choice)
@@ -772,13 +808,21 @@ impl<'a> Reader<'a> {
             }
             "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
             "capture" => {
-                // A capture stands anywhere but in braces or an elidable
+                // A capture stands anywhere but in a chain or an elidable
                 // optional (§3.5, §9), and its own form is checked before
-                // what it wraps.
-                if self.braces.get() > 0 {
+                // what it wraps. Inside flat braces it is an item capture.
+                if self.chain.get() {
                     return Err(self.error(
                         inner,
-                        "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that",
+                        "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition \
+                         on $ serves each level",
+                    ));
+                }
+                if self.item.get() && self.ranked.get() > 0 {
+                    return Err(self.error(
+                        inner,
+                        "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and \
+                         capture that rule",
                     ));
                 }
                 if self.marked.get() > 0 {
@@ -915,7 +959,10 @@ impl<'a> Reader<'a> {
             } else {
                 frame.separator = Some(expr);
             }
-            self.braces.set(self.braces.get() - 1);
+            let (chain, item, ranked) = frame.outer;
+            self.chain.set(chain);
+            self.item.set(item);
+            self.ranked.set(ranked);
             let item = frame.item.take().expect("the item");
             let separator = frame.separator.take().map(Box::new);
             return Ok(Step::Done(Val::Expr(Expr::Repeat(Box::new(item), separator, frame.chain))));
@@ -946,7 +993,9 @@ impl<'a> Reader<'a> {
             return Err(self
                 .error(node, "a chain is the whole expression of its alternative: name it as a rule to use it here"));
         }
-        self.braces.set(self.braces.get() + 1);
+        // The innermost braces decide whether a capture can stand inside
+        // them (§3.5, §9).
+        frame.outer = (self.chain.replace(chain.is_some()), self.item.replace(chain.is_none()), self.ranked.replace(0));
         frame.chain = chain;
         let item = choices[0];
         frame.choices = choices;
@@ -2118,18 +2167,61 @@ impl<'a> OptionalFrame<'a> {
     }
 }
 
+/// The names of the captures of an expression in the order written, braces
+/// included, which is the order the reader meets them.
+fn capture_names(expr: &Expr) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut stack = vec![expr];
+    while let Some(current) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match current {
+            Expr::Capture(name, inner) => {
+                names.push(name.as_str());
+                stack.push(inner);
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                stack.extend(items.iter().rev());
+            }
+            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Repeat(item, separator, _) => {
+                stack.extend(separator.as_deref());
+                stack.push(item);
+            }
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
+        }
+    }
+    names
+}
+
 struct Repetition<'a> {
     node: &'a Node,
     whole: bool,
     choices: Vec<&'a Node>,
     chain: Option<Chain>,
+    /// The reader's `chain`, `item` and `ranked` before these braces,
+    /// restored after them.
+    outer: (bool, bool, usize),
     item: Option<Expr>,
     separator: Option<Expr>,
 }
 
 impl<'a> Repetition<'a> {
     fn new(node: &'a Node, whole: bool) -> Self {
-        Repetition { node, whole, choices: Vec::new(), chain: None, item: None, separator: None }
+        Repetition {
+            node,
+            whole,
+            choices: Vec::new(),
+            chain: None,
+            outer: (false, false, 0),
+            item: None,
+            separator: None,
+        }
     }
 }
 

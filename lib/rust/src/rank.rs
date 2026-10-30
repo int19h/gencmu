@@ -1395,6 +1395,9 @@ impl<'c> Ranker<'c> {
                             let m = cap.start;
                             if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| holds(m, cap.tags))
                             {
+                                // A contextual helper's items carry the frame
+                                // the predecessor entered them in (§4).
+                                let before = self.dag.chart.sets[m as usize].items[p as usize];
                                 let child = Node::Group {
                                     requested: cap.close_requested,
                                     rule,
@@ -1404,7 +1407,7 @@ impl<'c> Ranker<'c> {
                                     test: NO_TEST,
                                     structure: cap.structure,
                                     boundary: cap.boundary,
-                                    lexical: 0,
+                                    lexical: self.dag.chart.expected_lexical(before, m),
                                     option: usize::MAX,
                                 };
                                 let child_fset = if m == item.origin { fset } else { 0 };
@@ -1422,6 +1425,7 @@ impl<'c> Ranker<'c> {
                                         items.iter().any(|&index| holds(m, eset.tagset[index as usize]))
                                     });
                                 if let Some(p) = self.dag.chart.sets[m as usize].find(&pred).filter(|_| passes) {
+                                    let before = self.dag.chart.sets[m as usize].items[p as usize];
                                     let child = Node::Group {
                                         requested: false,
                                         rule,
@@ -1431,7 +1435,7 @@ impl<'c> Ranker<'c> {
                                         test: test_id,
                                         structure: ANY,
                                         boundary: ANY,
-                                        lexical: 0,
+                                        lexical: self.dag.chart.expected_lexical(before, m),
                                         option: usize::MAX,
                                     };
                                     let child_fset = if m == item.origin { fset } else { 0 };

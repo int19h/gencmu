@@ -1304,6 +1304,379 @@ impl<'e> CaptureSequences<'e> {
     }
 }
 
+/// Where an item capture stands (engine §3.5): the innermost flat braces
+/// around it, which it belongs to, and the outermost, which the enclosing
+/// alternative's productions read. Each pair of flat braces is numbered in
+/// the order written, and `braces_sequences` numbers them the same way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ItemPlace {
+    pub innermost: usize,
+    pub outermost: usize,
+}
+
+/// The item captures of an expression, the captures inside flat braces,
+/// each name once with its place (engine §3.5). A chain holds no capture,
+/// which the reader makes sure of, so a chain adds no place of its own:
+/// flat braces inside its item hold item captures.
+pub(crate) fn item_captures(expr: &Expr) -> Vec<(&str, ItemPlace)> {
+    let mut found: Vec<(&str, ItemPlace)> = Vec::new();
+    let mut order = 0;
+    let mut stack: Vec<(&Expr, Option<ItemPlace>)> = vec![(expr, None)];
+    while let Some((current, place)) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match current {
+            Expr::Capture(name, inner) => {
+                if let Some(place) = place {
+                    if !found.iter().any(|(known, _)| known == name) {
+                        found.push((name, place));
+                    }
+                }
+                stack.push((inner, place));
+            }
+            Expr::Repeat(item, separator, chain) => {
+                let inner = if chain.is_none() {
+                    let number = order;
+                    order += 1;
+                    Some(ItemPlace { innermost: number, outermost: place.map_or(number, |place| place.outermost) })
+                } else {
+                    place
+                };
+                stack.extend(separator.as_deref().map(|separator| (separator, inner)));
+                stack.push((item, inner));
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                stack.extend(items.iter().rev().map(|item| (item, place)));
+            }
+            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push((inner, place)),
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
+        }
+    }
+    found
+}
+
+/// The names of the item captures of an expression, in the order written.
+pub(crate) fn item_capture_names(expr: &Expr) -> Vec<&str> {
+    item_captures(expr).into_iter().map(|(name, _)| name).collect()
+}
+
+/// Whether the name of an item capture stands more than once in an
+/// expression, inside its braces or outside them (engine §3.5, §9).
+pub(crate) fn repeats_item_capture(expr: &Expr) -> bool {
+    let items = item_capture_names(expr);
+    if items.is_empty() {
+        return false;
+    }
+    let mut seen: Vec<&str> = Vec::new();
+    let mut stack = vec![expr];
+    while let Some(current) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match current {
+            Expr::Capture(name, inner) => {
+                if items.contains(&name.as_str()) {
+                    if seen.contains(&name.as_str()) {
+                        return true;
+                    }
+                    seen.push(name);
+                }
+                stack.push(inner);
+            }
+            Expr::Repeat(item, separator, _) => {
+                stack.extend(separator.as_deref());
+                stack.push(item);
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => stack.extend(items.iter()),
+            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
+        }
+    }
+    false
+}
+
+/// How many pairs of flat braces an expression holds, at any depth.
+fn flat_braces_in(expr: &Expr) -> usize {
+    let mut count = 0;
+    let mut stack = vec![expr];
+    while let Some(current) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match current {
+            Expr::Repeat(item, separator, chain) => {
+                count += usize::from(chain.is_none());
+                stack.extend(separator.as_deref());
+                stack.push(item);
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                stack.extend(items.iter().rev());
+            }
+            Expr::Optional(inner, _) | Expr::Tested(_, _, inner) | Expr::Capture(_, inner) => stack.push(inner),
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
+        }
+    }
+    count
+}
+
+/// What a production reads, as `braces_sequences` lists it: a capture, or
+/// a pair of flat braces by its number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Read<'e> {
+    Cap(&'e str),
+    Braces(usize),
+}
+
+/// The sequences of captures that the productions of an expression read,
+/// as `CaptureSequences` lists them, with each pair of flat braces read as
+/// one item, numbered as `item_captures` numbers it. The item captures
+/// inside the braces stay out, as in every production. The check of item
+/// conditions compares the place of the braces with the places of the
+/// captures that a condition reads (engine §3.6).
+pub(crate) fn braces_sequences(expr: &Expr) -> Vec<Vec<Read<'_>>> {
+    let mut order = 0;
+    let mut stack: Vec<(&Expr, bool)> = vec![(expr, false)];
+    let mut done: Vec<Vec<Vec<Read>>> = Vec::new();
+    while let Some((current, combine)) = stack.pop() {
+        work::count(Work::Walked, 1);
+        if !combine {
+            match current {
+                Expr::Capture(name, _) => done.push(vec![vec![Read::Cap(name)]]),
+                Expr::Repeat(item, separator, None) => {
+                    let number = order;
+                    // The braces inside these take their numbers too.
+                    order += 1 + flat_braces_in(item) + separator.as_deref().map_or(0, flat_braces_in);
+                    done.push(vec![vec![Read::Braces(number)]]);
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    stack.push((current, true));
+                    stack.extend(items.iter().rev().map(|item| (item, false)));
+                }
+                Expr::Optional(inner, Mark::Plain) => {
+                    stack.push((current, true));
+                    stack.push((inner, false));
+                }
+                Expr::Repeat(..) | Expr::Optional(..) => {
+                    // A chain and an elidable optional hold no capture.
+                    order += flat_braces_in(current);
+                    done.push(vec![Vec::new()]);
+                }
+                Expr::Tested(..)
+                | Expr::Ref(_)
+                | Expr::Terminal(_)
+                | Expr::Literal(_)
+                | Expr::ScalarRange(..)
+                | Expr::Range(..)
+                | Expr::Property(_)
+                | Expr::Empty => done.push(vec![Vec::new()]),
+            }
+            continue;
+        }
+        let combined = match current {
+            Expr::Seq(items) => {
+                let parts = done.split_off(done.len() - items.len());
+                let mut sequences = vec![Vec::new()];
+                for part in parts {
+                    sequences = read_product(sequences, &part);
+                }
+                sequences
+            }
+            Expr::Choice(items) | Expr::Ranked(items) => {
+                done.split_off(done.len() - items.len()).into_iter().flatten().collect()
+            }
+            Expr::And(items) => {
+                let parts = done.split_off(done.len() - items.len());
+                let mut all = Vec::new();
+                for mask in 1u64..(1u64 << parts.len().min(63)) {
+                    let mut sequences = vec![Vec::new()];
+                    for (bit, part) in parts.iter().enumerate() {
+                        if mask & (1 << bit) != 0 {
+                            sequences = read_product(sequences, part);
+                        }
+                    }
+                    all.extend(sequences);
+                }
+                all
+            }
+            _ => {
+                // A plain optional: none, or its content's.
+                let mut all = vec![Vec::new()];
+                all.extend(done.pop().expect("the content"));
+                all
+            }
+        };
+        done.push(combined);
+    }
+    done.pop().expect("the sequences")
+}
+
+/// Each sequence of `left` followed by each of `right`.
+fn read_product<'e>(left: Vec<Vec<Read<'e>>>, right: &[Vec<Read<'e>>]) -> Vec<Vec<Read<'e>>> {
+    let mut out = Vec::with_capacity(left.len() * right.len());
+    for first in &left {
+        for second in right {
+            work::count(Work::Checked, 1);
+            out.push(first.iter().chain(second).copied().collect());
+        }
+    }
+    out
+}
+
+/// Whether a condition compares with a tree pattern, `≅` or `≇`, anywhere
+/// in it.
+fn compares_tree(cond: &Cond) -> bool {
+    let mut stack = vec![Part::Cond(cond)];
+    while let Some(part) = stack.pop() {
+        work::count(Work::Walked, 1);
+        match part {
+            Part::Cond(Cond::Compare(op, left, right)) => {
+                if matches!(op.as_str(), "≅" | "≇") {
+                    return true;
+                }
+                stack.extend([Part::Term(left), Part::Term(right)]);
+            }
+            Part::Cond(Cond::Not(inner)) => stack.push(Part::Cond(inner)),
+            Part::Cond(Cond::Any(items) | Cond::All(items)) => stack.extend(items.iter().map(Part::Cond)),
+            Part::Cond(Cond::If(antecedent, consequent)) => {
+                stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]);
+            }
+            Part::Cond(_) => {}
+            Part::Term(Term::If(cond, then)) => stack.extend([Part::Cond(cond), Part::Term(then)]),
+            Part::Term(Term::Union(items) | Term::Intersection(items)) => stack.extend(items.iter().map(Part::Term)),
+            Part::Term(Term::Difference(left, right)) => stack.extend([Part::Term(left), Part::Term(right)]),
+            Part::Term(Term::Call(_, args)) => stack.extend(args.iter().filter_map(|arg| match arg {
+                Arg::Term(term) => Some(Part::Term(term)),
+                _ => None,
+            })),
+            Part::Term(_) => {}
+        }
+    }
+    false
+}
+
+/// The captures that a clause mentions, in a value or a presence test,
+/// each once, in the order written.
+fn mentioned_in(part: Part<'_>) -> Vec<&str> {
+    let mut names = Vec::new();
+    walk_captures(part, true, false, &mut names);
+    walk_captures(part, false, true, &mut names);
+    let mut seen: FxSet<&str> = FxSet::default();
+    names.retain(|name| seen.insert(name));
+    names
+}
+
+/// Why the item captures of a definition cannot be read (engine §3.6, §9),
+/// or `None`. Only a condition reads an item capture, and such a condition
+/// reads the item captures of one pair of braces, no `$`, no pattern and
+/// no capture that a production binds after those braces.
+fn item_capture_problem(rule: &RuleDef) -> Option<String> {
+    // Each item capture, with the alternative that holds it and its place.
+    let mut items: Vec<(&str, usize, ItemPlace)> = Vec::new();
+    for (index, alternative) in rule.alternatives.iter().enumerate() {
+        for (name, place) in item_captures(&alternative.expr) {
+            if !items.iter().any(|(known, ..)| *known == name) {
+                items.push((name, index, place));
+            }
+        }
+    }
+    if items.is_empty() {
+        return None;
+    }
+    let place_of =
+        |name: &str| items.iter().find(|(known, ..)| *known == name).map(|(_, index, place)| (*index, *place));
+    let is_item = |name: &str| place_of(name).is_some();
+    let clauses =
+        rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image).chain(
+            rule.alternatives.iter().flat_map(|a| a.tags.iter().chain(&a.strings.value).chain(&a.strings.image)),
+        );
+    for term in clauses {
+        if let Some(name) = mentioned_in(Part::Term(term)).into_iter().find(|name| is_item(name)) {
+            return Some(format!(
+                "a clause of {} names ${name}, an item capture, which only a condition reads",
+                rule.name
+            ));
+        }
+    }
+    for item in rule.emit.iter().flatten() {
+        let mut names: Vec<&str> = Vec::new();
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                // An item names its own capture and its attachments.
+                names.push(name);
+                names.extend(attachments.names());
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
+        };
+        names.extend(tags.iter().flat_map(|term| mentioned_in(Part::Term(term))));
+        names.extend(strings.value.iter().chain(&strings.image).flat_map(|term| mentioned_in(Part::Term(term))));
+        if let Some(name) = names.into_iter().find(|name| is_item(name)) {
+            return Some(format!(
+                "%emits of {} names ${name}, an item capture, which only a condition reads",
+                rule.name
+            ));
+        }
+    }
+    let mut sequences: Vec<Option<Vec<Vec<Read>>>> = vec![None; rule.alternatives.len()];
+    for cond in &rule.conditions {
+        let mentioned = mentioned_in(Part::Cond(cond));
+        let inside: Vec<&str> = mentioned.iter().copied().filter(|name| is_item(name)).collect();
+        let Some(&first) = inside.first() else { continue };
+        if mentioned.contains(&"") {
+            return Some(format!(
+                "a condition of {} reads ${first}, an item capture, together with $, which is not complete at each item",
+                rule.name
+            ));
+        }
+        if compares_tree(cond) {
+            return Some(format!("a condition of {} compares ${first}, an item capture, with a pattern", rule.name));
+        }
+        let (alternative, place) = place_of(first).expect("an item capture");
+        if let Some(other) =
+            inside.iter().find(|name| place_of(name).is_some_and(|(_, other)| other.innermost != place.innermost))
+        {
+            return Some(format!(
+                "a condition of {} reads ${first} and ${other}, item captures of two pairs of braces",
+                rule.name
+            ));
+        }
+        let outer: Vec<&str> = mentioned.iter().copied().filter(|name| !name.is_empty() && !is_item(name)).collect();
+        if outer.is_empty() {
+            continue;
+        }
+        let listed =
+            sequences[alternative].get_or_insert_with(|| braces_sequences(&rule.alternatives[alternative].expr));
+        for sequence in listed.iter() {
+            let Some(at) = sequence.iter().position(|read| *read == Read::Braces(place.outermost)) else { continue };
+            let late = outer.iter().find(|name| {
+                work::count(Work::Checked, 1);
+                sequence.iter().position(|read| *read == Read::Cap(name)).is_some_and(|position| position > at)
+            });
+            if let Some(late) = late {
+                return Some(format!(
+                    "a condition of {} reads ${late} with the item capture ${first}, but a production binds ${late} \
+                     after the braces",
+                    rule.name
+                ));
+            }
+        }
+    }
+    None
+}
+
 /// Whether a term holds a constant. A constant is its value in
 /// simplification (§3.6), and the DOM holds no value, so the checks that
 /// simplification decides wait for the loader, which substitutes the values
@@ -1381,9 +1754,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             name.is_empty() || at.contains_key(name)
         }
     };
+    // An item capture binds to the productions of its braces' helper, not
+    // to those listed here (engine §3.5).
+    let item_names: FxSet<&str> =
+        rule.alternatives.iter().flat_map(|alternative| item_capture_names(&alternative.expr)).collect();
     let any_has = |name: &str| {
         work::count(Work::Checked, 1);
-        name.is_empty() || everywhere.contains(name)
+        name.is_empty() || everywhere.contains(name) || item_names.contains(name)
     };
     let items: &[EmitItem] = rule.emit.as_deref().unwrap_or(&[]);
     if rule.erased
@@ -1446,6 +1823,11 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
         return Some(format!("${name} is captured by no alternative of {}", rule.name));
     }
+    if !item_names.is_empty() {
+        if let Some(problem) = item_capture_problem(rule) {
+            return Some(problem);
+        }
+    }
 
     // A condition that applies to no production.
     let each_part = work::mutated(Mutant::CheckEachPart);
@@ -1462,6 +1844,11 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
     }
     for cond in rule.conditions.iter().filter(|cond| !cond_waits(cond)) {
+        // An item condition applies to the productions of its braces'
+        // helper (engine §3.6), which are not listed here.
+        if !item_names.is_empty() && mentioned_in(Part::Cond(cond)).iter().any(|name| item_names.contains(name)) {
+            continue;
+        }
         let check = CondCheck::new(cond);
         let applies_to = |index: usize| {
             let has = captures_of(index);

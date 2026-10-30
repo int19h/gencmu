@@ -428,7 +428,9 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
         tokens: &stage.input,
         strings: &strings,
         captures: Default::default(),
-        braces: Default::default(),
+        chain: Default::default(),
+        item: Default::default(),
+        ranked: Default::default(),
         marked: Default::default(),
         position: &position,
         closed_for: Default::default(),
@@ -1142,13 +1144,22 @@ mod ranked_location_tests {
     fn bundled_cached_grammars_never_read_source() {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Pipeline::new(vec![], vec![], bundled.unicode.clone()).unwrap());
-        let mut preparsed = Preparsed::parse(
-            super::bundled("data/preparsed/lojban.json").unwrap(),
-            &bootstrap_hash(),
-            &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
-            bundled.unicode.properties_fingerprint.as_deref(),
-        )
-        .unwrap();
+        // Every bundled family's cache, so that each bundled pipeline finds
+        // its documents there.
+        let mut preparsed = Preparsed::default();
+        for (path, text) in bundled::BUNDLED.iter() {
+            if !path.starts_with("data/preparsed/") || *path == BOOTSTRAP_PATH {
+                continue;
+            }
+            let family = Preparsed::parse(
+                text,
+                &bootstrap_hash(),
+                &fnv1a64(super::bundled("data/unicode/unicode.txt").unwrap()),
+                bundled.unicode.properties_fingerprint.as_deref(),
+            )
+            .unwrap();
+            preparsed.by_path.extend(family.by_path);
+        }
         let notation_entries = Preparsed::parse_implicit(
             super::bundled(BOOTSTRAP_PATH).unwrap(),
             &bootstrap_hash(),
