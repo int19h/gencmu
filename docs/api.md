@@ -304,3 +304,5 @@ gencmu::to_brackets(&result, true);
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
 - A result owns its data (`String`, `Vec`) and borrows neither the text nor the pipeline. So it outlives both.
 - The crate has no dependencies. It states its minimum supported Rust version.
+
+Internal validation modes do not extend the generated declarations. The tree-conversion helpers keep their optional decoder callback in its final argument position.

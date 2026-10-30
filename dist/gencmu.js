@@ -4245,10 +4245,30 @@
 
   /**
    * @param {any} root
-   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean, deferGroups?:boolean}} [inspect]
+   * @param {{name?:(name:string)=>boolean, terminal?:(name:string)=>boolean, test?:(test:any)=>string|null, depth?:number, deferDepth?:boolean}} [inspect]
    * @returns {string|null}
    */
   function layeredPatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, false);
+  }
+
+  /**
+   * @internal
+   * @param {any} root
+   * @param {Parameters<typeof layeredPatternProblem>[1]} [inspect]
+   * @returns {string|null}
+   */
+  function sourcePatternProblem(root, inspect = {}) {
+    return inspectPattern(root, inspect, true);
+  }
+
+  /**
+   * @param {any} root
+   * @param {NonNullable<Parameters<typeof layeredPatternProblem>[1]>} inspect
+   * @param {boolean} deferGroups
+   * @returns {string|null}
+   */
+  function inspectPattern(root, inspect, deferGroups) {
     const stack = [{node:root,item:false,repeated:false,depth:inspect.depth ?? 0,inner:false}];
     const repeats = [];
     const object = (/** @type {any} */ n) => n && typeof n === 'object' && !Array.isArray(n);
@@ -4273,7 +4293,7 @@
         return true;
       };
       if (item) {
-        if (inspect.deferGroups && exact(['sequence'])) {
+        if (deferGroups && exact(['sequence'])) {
           if (!items(n.sequence)) return 'a malformed pattern sequence';
         } else if (exact(['child'])) push(n.child,false,false);
         else if (exact(['siblings'])) {
@@ -4287,7 +4307,7 @@
         } else if (exact(['choice'])) {
           if (!Array.isArray(n.choice) || n.choice.length < 2) return 'a malformed pattern choice';
           for (const arm of n.choice) {
-            if (!items(arm) || !inspect.deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
+            if (!items(arm) || !deferGroups && arm.length === 1 && object(arm[0]) && 'choice' in arm[0]) return 'a malformed pattern choice';
           }
         } else return 'a malformed pattern child item';
         continue;
@@ -4296,7 +4316,7 @@
       if (compound) {
         const operands = n[compound];
         if (!exact([compound]) || !Array.isArray(operands) || operands.length < 2 || compound === 'difference' && operands.length !== 2) return 'a malformed pattern';
-        if (!inspect.deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
+        if (!deferGroups && compound !== 'difference' && operands.some((/** @type {any} */ x) => object(x) && compound in x)) return 'a nested pattern set must be flat';
         for (const node of operands) push(node,false,false);
         continue;
       }
@@ -4552,10 +4572,31 @@
    * @param {unknown} dom
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
-   * @param {boolean} [expanded] internal definitions can use canonical instance names
    * @returns {string | null}
    */
-  function domProblem(dom, unicode, deferEmission = false, expanded = false) {
+  function domProblem(dom, unicode, deferEmission = false) {
+    return inspectDom(dom, unicode, deferEmission, false);
+  }
+
+  /**
+   * @internal
+   * @param {unknown} dom
+   * @param {Parameters<typeof domProblem>[1]} unicode
+   * @param {boolean} [deferEmission]
+   * @returns {string|null}
+   */
+  function expandedDomProblem(dom, unicode, deferEmission = false) {
+    return inspectDom(dom, unicode, deferEmission, true);
+  }
+
+  /**
+   * @param {unknown} dom
+   * @param {Parameters<typeof domProblem>[1]} unicode
+   * @param {boolean} deferEmission
+   * @param {boolean} expanded
+   * @returns {string|null}
+   */
+  function inspectDom(dom, unicode, deferEmission, expanded) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
     if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
@@ -4901,14 +4942,16 @@
 
   /**
    * Whether a term, or a condition inside one, reads the tags of `$`, the
-   * constituent whose tags it defines: `$.tags` or `$.classes`.
-   * Bare `$` and `$.value` read input values, not tags.
+   * constituent whose tags it may be defining: `$` as a value, `tags($)` or
+   * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
    * The DOM's shape need not have been checked: anything malformed reads
    * nothing, and the check of its shape refuses it.
    * @param {unknown} node
    * @returns {boolean}
    */
   function readsOwnTags(node) {
+    // Only $.tags and $.classes read the constituent's own tags.
+    // Bare $ and $.value read input values.
     // The parts to look at, with an explicit stack: the depth of a term is
     // bounded only once the whole document is read (engine §9).
     const stack = [node];
@@ -7383,7 +7426,7 @@
         const body={...event.rule};delete body.params;delete body.args;delete body.instance;
         body.name=instance.name??instance.canonical;
         const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
-        const problem=domProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
         if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,problem);
         instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded});
       }
@@ -7412,7 +7455,7 @@
         const body={...event.rule,name};delete body.params;
         const context={...event,origin,instance:name};
         const expanded=substitute(body,env,context);
-        const problem=domProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
+        const problem=expandedDomProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
         if(problem) fail(context,expanded,problem);
         const definition={...context,rule:expanded};
         validationDefinitions.push(definition);
@@ -7487,7 +7530,7 @@
     for(const event of validationDefinitions) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const event of argumentDefinitions) validation.push(event);
     for(const event of validation) {
-      const problem=domProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
+      const problem=expandedDomProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
       if(problem) fail(event,event.rule,problem);
     }
     const output=[];
@@ -8655,7 +8698,8 @@
       if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
       for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule)) this.constantUsers.push({path:event.path,rule:event.rule});
       this.bindConstants();
-      this.resolveConstants(expansion.argumentsToCheck);
+      inspectArgumentConstants(this, expansion.argumentsToCheck ?? []);
+      this.resolveConstants();
       this.featureItems = this.featureItems.map(({path,directive}) => {
         try {
           if (!directive.conditions) return {path,directive};
@@ -9161,19 +9205,9 @@
      * directly is a delimiter that is not empty, or a name (engine §2, §9,
      * §10).
      */
-    /** @param {{path:string,term:any,at:[number,number],tags:boolean}[]} [argumentsToCheck] */
-    resolveConstants(argumentsToCheck = []) {
+    resolveConstants() {
       /** @type {(name: string) => TermType} */
       const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
-      for (const {path,term,at,tags} of argumentsToCheck) {
-        for (const reference of constantsIn(term)) if (!this.constants.has(reference.const)) {
-          throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
-        }
-        const found=termType(term,types);
-        if ("problem" in found) throw this.faultError(path,found.node,at,found.problem);
-        const problem=tags ? expectedProblem(found.type,"tags") : null;
-        if (problem) throw this.faultError(path,term,at,problem);
-      }
       for (const { path, rule } of this.constantUsers) {
         for (const reference of constantsIn(rule)) {
           if (!this.constants.has(reference.const)) {
@@ -9333,6 +9367,24 @@
         remember(this.lowered, key, lowered);
       }
       return lowered;
+    }
+  }
+
+  /**
+   * @param {Grammar} grammar
+   * @param {{path:string,term:any,at:[number,number],tags:boolean}[]} argumentsToCheck
+   */
+  function inspectArgumentConstants(grammar, argumentsToCheck) {
+    /** @type {(name:string)=>TermType} */
+    const types = name => /** @type {StageConstant} */ (grammar.constants.get(name)).type;
+    for (const {path,term,at,tags} of argumentsToCheck) {
+      for (const reference of constantsIn(term)) if (!grammar.constants.has(reference.const)) {
+        throw grammar.documentError(path,reference.at,`$${reference.const} is not defined in stage ${grammar.stageName}`);
+      }
+      const found=termType(term,types);
+      if ("problem" in found) throw grammar.faultError(path,found.node,at,found.problem);
+      const problem=tags ? expectedProblem(found.type,"tags") : null;
+      if (problem) throw grammar.faultError(path,term,at,problem);
     }
   }
 
@@ -18033,11 +18085,26 @@
    * @param {string} path
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    *   the configured category table for diagnostic strings
-   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
+  function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
+    const decode = decodeString ?? ((/** @type {Token} */ token) => [...token.value].slice(1, -1).join(""));
+    return convertTree(tree, tokens, positionOf, path, unicode, decode, deferEmission);
+  }
+
+  /**
+   * @param {ResultNode} tree
+   * @param {Token[]} tokens
+   * @param {(token:Token)=>Position} positionOf
+   * @param {string} path
+   * @param {Parameters<typeof treeToDom>[4]} unicode
+   * @param {(token:Token, path:boolean)=>string} decodeString
+   * @param {boolean} deferEmission
+   * @returns {GrammarDom}
+   */
+  function convertTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission) {
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -18911,7 +18978,8 @@
           if (nodes.length > 1) {
             const found = termType(term);
             const problem = "problem" in found ? found.problem : !["string", "any"].includes(found.type) ? "++ requires string operands" : null;
-            if (problem && !featureContext && !hasUnresolved(term)) fail(problem, node);
+            const knownNonString = !("problem" in found) && !["string", "any"].includes(found.type);
+            if (problem && !featureContext && (knownNonString || !hasUnresolved(term))) fail(problem, node);
           }
           items.push(term);
         }
@@ -18948,7 +19016,7 @@
           closedFor = null;
           const pattern = yield readLayeredPattern(only(node, "pattern-primary"));
           closedFor = before;
-          const problem = layeredPatternProblem(pattern, {deferDepth:true, deferGroups:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
+          const problem = sourcePatternProblem(pattern, {deferDepth:true, name:name => CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name)});
           if (problem) fail(problem,node);
           return {pattern};
         }
@@ -19316,7 +19384,7 @@
   /**
    * A directive's operand: a bare name, lower case or with a capital, a
    * string, or another recognized term atom.
-   * @typedef {"name" | "class" | "string" | "tag"} OperandKind
+   * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
    */
 
 
@@ -20355,7 +20423,7 @@
       }
       const syntax = run.stages[run.stages.length - 1];
       const dom = domOfTree(/** @type {ResultNode} */ (syntax.tree), syntax.input || [], positionOf, path, this.unicode,
-        (token, path) => strings.decode(token, path), deferEmission);
+        deferEmission, (token, path) => strings.decode(token, path));
       if (names.dependencies) this.namesDependencies.set(dom, names.dependencies);
       return dom;
     }
@@ -20680,15 +20748,15 @@
    * @param {(token: Token) => import("./types.js").Position} positionOf
    * @param {string} path
    * @param {UnicodeTable} unicode
-   * @param {(token:Token, path:boolean)=>string} decodeString
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+   * @param {(token:Token, path:boolean)=>string} [decodeString]
    * @returns {GrammarDom}
    */
-  function domOfTree(tree, tokens, positionOf, path, unicode, decodeString, deferEmission = false) {
+  function domOfTree(tree, tokens, positionOf, path, unicode, deferEmission = false, decodeString) {
     /** @type {GrammarDom} */
     let dom;
     try {
-      dom = treeToDom(tree, tokens, positionOf, path, unicode, decodeString, deferEmission);
+      dom = treeToDom(tree, tokens, positionOf, path, unicode, deferEmission, decodeString);
     } catch (error) {
       // A count past a test's budget must reach the test as itself, or the
       // reader's work would run on past the budget as an error of the grammar.

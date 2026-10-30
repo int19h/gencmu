@@ -1059,5 +1059,5 @@ export function readSyntaxTree(markdown, path, inherited = []) {
 
 export function readDocument(markdown,path,inherited = []) {
   const {tree,tokens,positionOf,unicode,decodeString}=readSyntaxTree(markdown,path,inherited);
-  return domOfTree(tree,tokens,positionOf,path,unicode,decodeString);
+  return domOfTree(tree,tokens,positionOf,path,unicode,false,decodeString);
 }
