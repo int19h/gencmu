@@ -1071,7 +1071,7 @@ A step of the recognizer is an advance of one item, or the prediction of one pro
 1. In the check of §7, the step drops an additional item that is strict and stands at the end of its production (§7.4).
 2. The test of the symbol that the step advances over, where that symbol has one.
 3. The conditions that the step makes ready, in their written order. A condition on captures and a condition on `$` that become ready at one advance keep that order. Each one stops early as §10 says. The first that fails drops the item.
-4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. Otherwise it evaluates it once every ready condition holds.
+4. Where the step completes the item, its production's tag term. The recognizer evaluates it where a condition of step 3 first reads `$.tags` or `$.classes`. Otherwise it evaluates it once every ready condition holds. Completion reuses the result when a ready condition already computed it. Boundary processing shares that same result.
 
    So a failing condition that does not read them stops the tag term. This holds also for a production with no symbols at its prediction. How many times the step evaluates the tag term is not observable.
 5. The boundary rules of §4.2. They run last, so a test, condition or tag term that drops the item first leaves no obligation.
