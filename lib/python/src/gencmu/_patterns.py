@@ -91,6 +91,7 @@ class PatternMachine:
         for root in roots:
             self.compile(root)
         self.empty = self.intern((0, 0, 0, 0, tuple(m["epsilon"] for m in self.machines), None, False))
+        self.seal = self.node_state(0, False)
 
     def compile(self, root: Dom) -> int:
         pending = [(root, False)]
@@ -154,7 +155,9 @@ class PatternMachine:
             elif "child" in node:
                 edges.append((start, end, self.root_ids[id(node["child"])]))
             elif "siblings" in node:
-                edges.extend(((start, end, None), (start, start, -1)))
+                gap = size
+                size += 1
+                edges.extend(((start, gap, None), (gap, gap, -1), (gap, end, None)))
             elif "choice" in node:
                 pending.extend((arm, start, end) for arm in reversed(node["choice"]))
             elif "optional" in node:
@@ -163,12 +166,12 @@ class PatternMachine:
             elif "repeat" in node:
                 a, b = size, size + 1
                 size += 2
-                edges.append((a, end, None))
-                pending.extend(((node["repeat"], b, a), (node["repeat"], start, a)))
+                edges.extend(((start, a, None), (b, end, None)))
+                pending.append((node["repeat"], a, b))
                 if "separator" in node:
-                    pending.append((node["separator"], a, b))
+                    pending.append((node["separator"], b, a))
                 else:
-                    edges.append((a, b, None))
+                    edges.append((b, a, None))
         epsilon = [1 << i for i in range(size)]
         for a, b, predicate in edges:
             if predicate is None:
@@ -226,7 +229,7 @@ class PatternMachine:
         return self.intern((1, bits, bits, bits, tuple(relations), bits, False))
 
     def sealed(self) -> int:
-        return self.node_state(0,False)
+        return self.seal
 
     def node(self, name: str | None, children: int, leaf: tuple[str, str, frozenset[str]] | None = None) -> int:
         key = ("node", name, children, leaf)

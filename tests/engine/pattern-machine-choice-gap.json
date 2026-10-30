@@ -1,0 +1,10 @@
+{
+  "description": "Sibling gaps stay within their written branches, and repetitions use shared loops (engine §4.1).",
+  "grammar": "%rule text \"x\" \"b\" \"c\"\n%conditions $ ≅ #·« (\"a\" | ⋯ \"b\") \"c\" »",
+  "input": "xbc",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

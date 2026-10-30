@@ -156,7 +156,7 @@ type patternMachine struct {
 	states      []patternState
 	stateIDs    map[string]int
 	transitions map[string]int
-	empty       int
+	empty, seal int
 }
 
 func newPatternMachine(roots []*domPattern) *patternMachine {
@@ -169,6 +169,7 @@ func newPatternMachine(roots []*domPattern) *patternMachine {
 		s.relations = append(s.relations, n.epsilon)
 	}
 	m.empty = m.intern(s)
+	m.seal = m.nodeState(new(big.Int), false)
 	return m
 }
 func (m *patternMachine) compile(p *domPattern) int {
@@ -212,8 +213,10 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 		case "node":
 			edge(a, b, m.compile(p.Items[0]))
 		case "siblings":
-			edge(a, b, -2)
-			edge(a, a, -1)
+			gap := state()
+			edge(a, gap, -2)
+			edge(gap, gap, -1)
+			edge(gap, b, -2)
 		case "sequence":
 			if len(p.Items) == 0 {
 				edge(a, b, -2)
@@ -235,14 +238,14 @@ func (m *patternMachine) sequence(p *domPattern) patternNFA {
 			build(p.Items[0], a, b)
 		case "repeat":
 			x, y := state(), state()
-			build(p.Items[0], a, x)
-			edge(x, b, -2)
+			edge(a, x, -2)
+			build(p.Items[0], x, y)
+			edge(y, b, -2)
 			if len(p.Items) == 2 {
-				build(p.Items[1], x, y)
+				build(p.Items[1], y, x)
 			} else {
-				edge(x, y, -2)
+				edge(y, x, -2)
 			}
-			build(p.Items[0], y, x)
 		}
 	}
 	build(p, 0, 1)
@@ -348,7 +351,7 @@ func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
 	}
 	return m.intern(s)
 }
-func (m *patternMachine) sealed() int { return m.nodeState(new(big.Int), false) }
+func (m *patternMachine) sealed() int { return m.seal }
 
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
 	leaf := ""
