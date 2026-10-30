@@ -1541,8 +1541,12 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
     ] {
         assert_eq!(expression_problem(expr).as_deref(), Some("a malformed repeat"), "{expr}");
     }
+    // A capture inside flat braces, in the item or the separator, is an item
+    // capture; one inside a chain is malformed (engine §3.5, §9).
+    assert_eq!(expression_problem(r#"{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}}}"#), None);
     assert_eq!(
-        expression_problem(r#"{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}}}"#).as_deref(),
+        expression_problem(r#"{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}},"chain":"left"}"#)
+            .as_deref(),
         Some("a malformed capture")
     );
     // The separator counts on from the depth of its repeat.
@@ -1555,8 +1559,9 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
 }
 
 /// An elidable optional is marked true and begins
-/// with its terminal; a capture stands anywhere but in it and in braces,
-/// and a name once in each production (docs/output.md, engine §3.5, §9).
+/// with its terminal; a capture stands anywhere but in it, in a chain and in
+/// a ranked group inside flat braces, and a name once in each production
+/// (docs/output.md, engine §3.5, §9).
 #[test]
 fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     let marked = |expr: &str, extra: &str| format!(r#"{{"optional":{expr},"elidable":true{extra}}}"#);
@@ -1611,7 +1616,33 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         expression_problem(&marked(&format!(r#"{{"seq":[{ku},{{"optional":{capture}}}]}}"#), "")).as_deref(),
         sealed
     );
-    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture}}}"#)).as_deref(), sealed);
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture}}}"#)), None);
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{capture},"chain":"right"}}"#)).as_deref(), sealed);
+    assert_eq!(
+        expression_problem(&format!(r#"{{"repeat":{{"optional":{capture}}},"chain":"right"}}"#)).as_deref(),
+        sealed
+    );
+    // Flat braces inside a chain hold item captures, and a ranked group
+    // between flat braces and a capture holds none.
+    assert_eq!(expression_problem(&format!(r#"{{"repeat":{{"repeat":{capture}}},"chain":"left"}}"#)), None);
+    assert_eq!(
+        expression_problem(&format!(r#"{{"repeat":{{"ranked":[{capture},{{"ref":"B"}}]}}}}"#)).as_deref(),
+        sealed
+    );
+    assert_eq!(
+        expression_problem(&format!(r#"{{"repeat":{{"ranked":[{{"optional":{capture}}},{{"ref":"B"}}]}}}}"#))
+            .as_deref(),
+        sealed
+    );
+    assert_eq!(expression_problem(&format!(r#"{{"ranked":[{capture},{{"ref":"B"}}]}}"#)), None);
+    assert_eq!(
+        expression_problem(&format!(r#"{{"repeat":{{"ranked":[{{"repeat":{capture}}},{{"ref":"B"}}]}}}}"#)),
+        None
+    );
+    assert_eq!(
+        expression_problem(&marked(&format!(r#"{{"seq":[{ku},{{"repeat":{capture}}}]}}"#), "")).as_deref(),
+        sealed
+    );
     assert_eq!(
         expression_problem(r#"{"capture":"x","expr":{"optional":{"ref":"A"}}}"#).as_deref(),
         Some("a malformed capture")

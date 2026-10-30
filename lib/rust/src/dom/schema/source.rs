@@ -99,7 +99,7 @@ pub(super) fn argument<'a>(
         if !exact(value, &["body"], &[]) {
             return Some("a malformed body argument");
         }
-        pending.push((Part::Expr { whole: true, sealed: false }, body, depth));
+        pending.push((Part::Expr { whole: true, flags: super::ExprFlags::default() }, body, depth));
     } else if let Some(targets) = value.get("targets") {
         if !exact(value, &["targets"], &[]) {
             return Some("a malformed target choice");
@@ -119,7 +119,7 @@ pub(super) fn argument<'a>(
         }
     } else {
         let kind = if ["test", "range", "wildcard"].iter().any(|key| value.get(key).is_some()) {
-            Part::Expr { whole: false, sealed: false }
+            Part::Expr { whole: false, flags: super::ExprFlags::default() }
         } else {
             Part::Term
         };
