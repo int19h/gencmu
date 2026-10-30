@@ -118,7 +118,7 @@ func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 				continue
 			}
 			info := strings.TrimFunc(m[2], uni.isWhiteSpace)
-			if m[1][0] == '`' && strings.Contains(info, "`") {
+			if m[1][0] == '`' && strings.Contains(m[2], "`") {
 				continue
 			}
 			fence = m[1]
