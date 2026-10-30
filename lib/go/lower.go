@@ -805,7 +805,7 @@ func elidableTerminal(e *domExpr) (string, *domExpr) {
 // names a rule, so it is never the terminator of an elidable optional,
 // even one that shares its name with an identifier tag (§2, §3.8).
 func isTagSymbol(e *domExpr) bool {
-	return e.Kind == exTerminal || e.Kind == exRef && isTerminalName(e.Name)
+	return e.Kind == exRef && isTerminalName(e.Name)
 }
 
 // expandSeq is the product of the expansions of a sequence's items. Each
@@ -970,8 +970,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			return [][]slot{{{sym: lw.terminal(e.Name)}}}
 		}
 		return [][]slot{{{sym: symbol{id: lw.l.byName[e.Name]}}}}
-	case exTerminal:
-		return [][]slot{{{sym: lw.terminal(e.Name)}}}
 	case exLiteral:
 		v, err := lw.g.evaluateClosed(a.doc, e.Value, a.at)
 		if err != nil {

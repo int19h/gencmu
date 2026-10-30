@@ -184,6 +184,24 @@ class NestedArgumentAliases(unittest.TestCase):
             for instance in instances:
                 assert instance['notes'] == [dict(kind='argument-alias-twin', instances=[other['name'] for other in instances if other is not instance])]
 
+    def test_audit_twins_preserve_decorations(self):
+        for left, right, twin in [('#·named', '#atom("a")', False), ('#named« text »', '#atom("a")', False), ('#·named', '#·atom("a")', True), ('#named« text »', '#atom("a")« text »', True)]:
+            source = '%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(' + left + ') outer(' + right + ')\n%rule named = atom("a")'
+            instances = [i for i in template_audit(grammar_of(source))['instances'] if i['template'] == 'outer']
+            self.assertEqual(len(instances), 2)
+            for instance in instances:
+                self.assertEqual(bool(instance['notes']), twin)
+
+    def test_pattern_constant_fault_comes_from_pattern_schema(self):
+        unicode = grammar_of('%rule text "a"').unicode
+        for operand in ({'capture': 'x'}, None):
+            test = {'test': '=', 'expr': {'terminal': 'A'}}
+            if operand is not None:
+                test['value'] = operand
+            dom = {'format': 40, 'rules': [], 'directives': [], 'classifiers': [], 'implications': [],
+                   'constants': [{'name': 'P', 'op': 'define', 'value': {'pattern': test}, 'at': [1, 1]}]}
+            self.assertEqual(dom_problem(dom, unicode), 'a malformed pattern value test')
+
 class ParameterStructure(unittest.TestCase):
     def test_shared_structure(self):
         cases = json.loads((Path(__file__).resolve().parents[3] / 'tests/parameter-structure.json').read_text())

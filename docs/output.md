@@ -451,7 +451,7 @@ A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with capitals and never starts with `_`.
+An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with uppercase ASCII letters and never starts with `_`.
 
 An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
@@ -671,7 +671,7 @@ The tree has one node per line, and children are indented two spaces under their
 - A token node is its terminal, then its image from above in quotes. The quoted image uses the canonical string escapes of engine §9.1. For example, a line feed is `‹LF›`.
 - The attachments of a token node follow it, each on a line of its own, indented two spaces more than the node. The before-attachments come first, each after `◂ `, and then the after-attachments, each after `▸ `. These marks differ from the ` › ` that joins a chain of rule nodes.
 
-  An attachment is its classes, then its image in quotes with the same escapes. Its classes are its tags that start and end with a capital and never start with `_`, in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
+  An attachment is its classes, then its image in quotes with the same escapes. A class tag starts and ends with an uppercase ASCII letter and never starts with `_`. Class tags appear in code point order, joined by ` ∪ `. An attachment with no class is its quoted image alone. Its own attachments follow it in the same way, indented two spaces more.
 - An elided node is its terminal in angle brackets.
 
 The tree renderer writes chains of rule nodes with one child on one line. It joins them with ` › `. So in the `lojban/cll` pipeline, the token node of `mi` in `mi ui nai klama` has these lines, at the indentation of the node:

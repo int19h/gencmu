@@ -14,12 +14,12 @@ import (
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
-	categories             []categoryRange
+	categories             []coreRange[string]
 	whiteSpace             [][2]rune
 	emojiPresentation      [][2]rune
 	emojiComponent         [][2]rune
 	decompositions         map[rune][]rune
-	combining              []combiningRange
+	combining              []coreRange[int]
 	abbreviations          map[string]rune
 	canonicalAbbreviations map[rune]string
 	hash                   string
@@ -29,14 +29,32 @@ type unicodeTable struct {
 	properties             map[string]*propertyData
 }
 
-type combiningRange struct {
+type coreRange[T comparable] struct {
 	start, end rune
-	class      int
+	value      T
 }
 
-type categoryRange struct {
-	start, end rune
-	category   string
+// addCoreRange keeps disjoint ranges and reports conflicts at the later record.
+func addCoreRange[T comparable](ranges []coreRange[T], start, end rune, value T, line int) ([]coreRange[T], error) {
+	low := sort.Search(len(ranges), func(i int) bool { return ranges[i].end >= start })
+	high := low
+	for high < len(ranges) && ranges[high].start <= end {
+		if ranges[high].value != value {
+			return nil, fmt.Errorf("data/unicode/unicode.txt line %d: overlapping ranges with different values", line)
+		}
+		high++
+	}
+	if low > 0 && ranges[low-1].end+1 == start && ranges[low-1].value == value {
+		low--
+	}
+	if high < len(ranges) && ranges[high].start == end+1 && ranges[high].value == value {
+		high++
+	}
+	if low < high {
+		start = min(start, ranges[low].start)
+		end = max(end, ranges[high-1].end)
+	}
+	return slices.Replace(ranges, low, high, coreRange[T]{start, end, value}), nil
 }
 
 // categoryNames are the General_Category values in their short form
@@ -45,17 +63,6 @@ var categoryNames = []string{
 	"Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
 	"Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
 }
-
-// propertyNames are the names a property can have (engine §1): the
-// General_Category values in their short form, their one-letter groups,
-// White_Space and Any.
-var propertyNames = func() map[string]bool {
-	m := map[string]bool{"L": true, "M": true, "N": true, "P": true, "S": true, "Z": true, "C": true, "White_Space": true, "Any": true, "Emoji_Presentation": true, "Emoji_Component": true}
-	for _, c := range categoryNames {
-		m[c] = true
-	}
-	return m
-}()
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
 	t := &unicodeTable{decompositions: map[rune][]rune{}, abbreviations: map[string]rune{}, canonicalAbbreviations: map[rune]string{}, hash: fnv1a64(text)}
@@ -129,6 +136,9 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 				}
 				scalars[i] = c
 			}
+			if _, duplicate := t.decompositions[scalars[0]]; duplicate {
+				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: a duplicate decomposition", n+1)
+			}
 			t.decompositions[scalars[0]] = scalars[1:]
 			continue
 		case "category", "combining":
@@ -147,10 +157,14 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 		}
 		switch f[0] {
 		case "category":
-			if !slices.Contains(categoryNames, f[1]) {
+			if !slices.Contains(categoryNames, f[1]) || f[1] == "Cs" {
 				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad category", n+1)
 			}
-			t.categories = append(t.categories, categoryRange{a, b, f[1]})
+			var err error
+			t.categories, err = addCoreRange(t.categories, a, b, f[1], n+1)
+			if err != nil {
+				return nil, err
+			}
 		case "combining":
 			for _, c := range f[1] {
 				if c < '0' || c > '9' {
@@ -165,7 +179,10 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			if err != nil || class < 1 || class > 254 {
 				return nil, fmt.Errorf("data/unicode/unicode.txt line %d: bad combining class", n+1)
 			}
-			t.combining = append(t.combining, combiningRange{a, b, class})
+			t.combining, err = addCoreRange(t.combining, a, b, class, n+1)
+			if err != nil {
+				return nil, err
+			}
 		case "emoji-presentation":
 			t.emojiPresentation = append(t.emojiPresentation, [2]rune{a, b})
 		case "emoji-component":
@@ -176,9 +193,7 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 	}
 	t.emojiPresentation = unionUnicodeRanges(t.emojiPresentation)
 	t.emojiComponent = unionUnicodeRanges(t.emojiComponent)
-	sort.Slice(t.categories, func(i, j int) bool { return t.categories[i].start < t.categories[j].start })
-	sort.Slice(t.whiteSpace, func(i, j int) bool { return t.whiteSpace[i][0] < t.whiteSpace[j][0] })
-	sort.Slice(t.combining, func(i, j int) bool { return t.combining[i].start < t.combining[j].start })
+	t.whiteSpace = unionUnicodeRanges(t.whiteSpace)
 	return t, nil
 }
 
@@ -192,7 +207,7 @@ func (t *unicodeTable) category(c rune) string {
 	r := t.categories
 	i := sort.Search(len(r), func(i int) bool { return r[i].end >= c })
 	if i < len(r) && r[i].start <= c {
-		return r[i].category
+		return r[i].value
 	}
 	return "Cn"
 }
@@ -208,8 +223,8 @@ func (t *unicodeTable) isWhiteSpace(c rune) bool {
 	return i < len(r) && r[i][0] <= c
 }
 
-// hasProperty says whether a scalar value has a property (engine §1),
-// whose name must be one of propertyNames.
+// hasProperty tests a core predicate used to build stored scalar tags (engine §1).
+// The wildcard uses Any and requires no stored tag. Stored tags use qualified long names.
 func (t *unicodeTable) hasProperty(name string, c rune) bool {
 	switch {
 	case name == "Any":
@@ -241,7 +256,7 @@ func fnv1a64(text string) string {
 func (t *unicodeTable) combiningClass(c rune) int {
 	i := sort.Search(len(t.combining), func(i int) bool { return t.combining[i].end >= c })
 	if i < len(t.combining) && t.combining[i].start <= c {
-		return t.combining[i].class
+		return t.combining[i].value
 	}
 	return 0
 }

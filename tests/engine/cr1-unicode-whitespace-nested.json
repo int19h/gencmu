@@ -1,0 +1,15 @@
+{
+  "description": "whitespace nested (engine §1).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text _White_Space\n```",
+    "data/unicode/unicode.txt": "unicode 15.1.0\nwhite-space 0009 000D\nwhite-space 0020 0020\nwhite-space 000A 0020\nwhite-space 000B 000B\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "\r",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

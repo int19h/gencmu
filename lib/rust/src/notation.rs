@@ -235,12 +235,11 @@ impl<'a> Reader<'a> {
         };
         let class_node = self.one(node, "classifier-class")?;
         let written = self.value(self.token(class_node)?);
-        let class = written.strip_prefix('~').unwrap_or(written);
+        let class = written;
         if !is_capital(class) || !class.ends_with(|c: char| c.is_ascii_uppercase()) {
-            return Err(self.error(
-                class_node,
-                format!("{written} is not a class: a class is an identifier tag that begins with a capital"),
-            ));
+            return Err(
+                self.error(class_node, format!("{written} is not a class: a class starts and ends with a capital"))
+            );
         }
         Ok(Entry { guards, keys, adds, class: class.to_string(), at: self.first(node) })
     }
@@ -367,20 +366,7 @@ impl<'a> Reader<'a> {
         Ok(Directive { name: name.into(), args, conditions, at: self.at(token) })
     }
 
-    fn rule(&self, node: &'a Node) -> R<RuleDef> {
-        let definer = self.token(self.one(node, "definer")?)?;
-        let name_token = self.token(self.one(node, "rule-name")?)?;
-        if !self.unicode.is_emoji_name(self.value(name_token))
-            && !self.value(name_token).starts_with(|c: char| c.is_ascii_lowercase())
-        {
-            return Err(self.error(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji"));
-        }
-        let op = match self.value(definer) {
-            "%redefine-rule" => Op::Redefine,
-            "%extend-rule" => Op::Extend,
-            "%rule" => Op::Define,
-            _ => return Err(self.error(definer, "unknown rule definer")),
-        };
+    fn rule_flags(&self, node: &'a Node, op: Op) -> R<Vec<String>> {
         let mut flags = Vec::new();
         if let Some(list) = Self::rules(node, "rule-flags").next() {
             if op == Op::Extend {
@@ -400,6 +386,24 @@ impl<'a> Reader<'a> {
                 flags.push(name.to_string());
             }
         }
+        Ok(flags)
+    }
+
+    fn rule(&self, node: &'a Node) -> R<RuleDef> {
+        let definer = self.token(self.one(node, "definer")?)?;
+        let name_token = self.token(self.one(node, "rule-name")?)?;
+        if !self.unicode.is_emoji_name(self.value(name_token))
+            && !self.value(name_token).starts_with(|c: char| c.is_ascii_lowercase())
+        {
+            return Err(self.error(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji"));
+        }
+        let op = match self.value(definer) {
+            "%redefine-rule" => Op::Redefine,
+            "%extend-rule" => Op::Extend,
+            "%rule" => Op::Define,
+            _ => return Err(self.error(definer, "unknown rule definer")),
+        };
+        let flags = self.rule_flags(node, op)?;
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
@@ -835,7 +839,7 @@ impl<'a> Reader<'a> {
     /// An optional, and with a marker `+` among its parts an
     /// elidable one (§3.8, §9). Its form is checked on the tree, where a
     /// group is still a node: one sequence, whose first primary is the
-    /// terminal itself, `=`-tested or not.
+    /// terminal itself, with or without symbol tests.
     fn resume_optional(&self, frame: &mut OptionalFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if let Some(Val::Expr(expr)) = input {
             if frame.mark != Mark::Plain {
@@ -856,8 +860,7 @@ impl<'a> Reader<'a> {
         let form = || {
             self.error(
                 node,
-                "an elidable optional begins with its terminator, a name with a capital or ~name, written directly \
-                 after the marker, and joins it to nothing with | or &",
+                "an elidable optional begins with a user tag or parameter directly after +, without | or &",
             )
         };
         // One conjunction of one sequence, with no leading | or & either:
@@ -1525,6 +1528,9 @@ impl<'a> Reader<'a> {
                 _ => false,
             }
         };
+        if name == "ends" && crate::dom::restored_span(&receiver) {
+            return Err(self.error(frame.node, "ends requires an ordinary span, not a restored span"));
+        }
         if !valid {
             let hint = if name == "without-elision" {
                 "; write $x.without-elision.onward for an extended restored query"

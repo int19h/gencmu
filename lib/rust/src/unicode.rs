@@ -10,14 +10,14 @@ pub(crate) const CATEGORIES: [&str; 30] = [
     "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
 ];
 
-/// Whether a name is a property (engine §1): a General_Category value in its
-/// short form, one of their one-letter groups, `White_Space` or `Any`.
+/// Resolve a core property name for tests of stored scalar tags (engine §1).
 #[cfg(test)]
 pub(crate) fn is_property_name(name: &str) -> bool {
     Property::of(name).is_some()
 }
 
-/// A property (engine §1), resolved from its name.
+/// A core scalar predicate (engine §1). Stored tags use qualified long names.
+/// Production recognition uses `Any` for `_`, which requires no stored tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Property {
     Any,
@@ -107,6 +107,7 @@ impl Unicode {
             properties: std::collections::BTreeMap::new(),
             properties_fingerprint: None,
         };
+        let mut decomposition_codes = std::collections::BTreeSet::new();
         for (index, raw) in text.split_inclusive('\n').enumerate() {
             let number = index + 1;
             let line = raw.strip_suffix('\n').map_or(raw, |line| line.strip_suffix('\r').unwrap_or(line));
@@ -144,8 +145,11 @@ impl Unicode {
                     let Some(&category) = CATEGORIES.iter().find(|&&known| known == *name) else {
                         return Err(format!("data/unicode/unicode.txt line {number}: an unknown category {name:?}"));
                     };
+                    if category == "Cs" {
+                        return Err(format!("data/unicode/unicode.txt line {number}: an invalid category Cs"));
+                    }
                     let (first, last) = range(first, last, number)?;
-                    table.categories.push((first, last, category));
+                    Self::add_value_range(&mut table.categories, first, last, category, number)?;
                 }
                 [entry @ ("white-space" | "emoji-presentation" | "emoji-component"), first, last] => {
                     let record = range(first, last, number)?;
@@ -167,6 +171,9 @@ impl Unicode {
                                 .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: an invalid scalar"))
                         })
                         .collect::<Result<Vec<_>, String>>()?;
+                    if !decomposition_codes.insert(code) {
+                        return Err(format!("data/unicode/unicode.txt line {number}: a duplicate decomposition"));
+                    }
                     table.decompositions.push((code, scalars));
                 }
                 ["combining", klass, first, last] => {
@@ -180,17 +187,15 @@ impl Unicode {
                         .filter(|&n| n > 0 && n < 255)
                         .ok_or_else(|| format!("data/unicode/unicode.txt line {number}: a bad combining class"))?;
                     let (first, last) = range(first, last, number)?;
-                    table.combining.push((first, last, klass));
+                    Self::add_value_range(&mut table.combining, first, last, klass, number)?;
                 }
                 _ => return Err(format!("data/unicode/unicode.txt line {number}: an unreadable record")),
             }
         }
-        table.categories.sort_unstable();
-        table.white_space.sort_unstable();
+        Self::union_ranges(&mut table.white_space);
         Self::union_ranges(&mut table.emoji_presentation);
         Self::union_ranges(&mut table.emoji_component);
         table.decompositions.sort_unstable_by_key(|entry| entry.0);
-        table.combining.sort_unstable();
         Ok(table)
     }
 
@@ -266,6 +271,36 @@ impl Unicode {
         } else {
             "Cn"
         }
+    }
+
+    // Inspect records in file order so a conflict names the later record.
+    fn add_value_range<T: Copy + Eq>(
+        ranges: &mut Vec<(u32, u32, T)>,
+        mut first: u32,
+        mut last: u32,
+        value: T,
+        line: usize,
+    ) -> Result<(), String> {
+        let mut low = ranges.partition_point(|&(_, end, _)| end < first);
+        let mut high = low;
+        while high < ranges.len() && ranges[high].0 <= last {
+            if ranges[high].2 != value {
+                return Err(format!("data/unicode/unicode.txt line {line}: overlapping ranges with different values"));
+            }
+            high += 1;
+        }
+        if low > 0 && ranges[low - 1].1 + 1 == first && ranges[low - 1].2 == value {
+            low -= 1;
+        }
+        if high < ranges.len() && ranges[high].0 == last + 1 && ranges[high].2 == value {
+            high += 1;
+        }
+        if low < high {
+            first = first.min(ranges[low].0);
+            last = last.max(ranges[high - 1].1);
+        }
+        ranges.splice(low..high, [(first, last, value)]);
+        Ok(())
     }
 
     fn union_ranges(ranges: &mut Vec<(u32, u32)>) {

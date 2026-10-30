@@ -473,9 +473,9 @@ pub enum AmbiguityReason {
 /// an error of kind `Grammar` can have one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorCode {
-    /// The check of `elision-only` lost the chosen derivation: the text with
-    /// its elided terminators written back had no reading at all. It is a
-    /// defect of the library, not of the text or the grammar.
+    /// The raw reconstruction forest lacks W(D), the witness of the chosen
+    /// derivation (engine §7.9). Other derivations of the reconstructed input
+    /// can remain. This is a defect of the library.
     ElisionWitnessLost,
 }
 

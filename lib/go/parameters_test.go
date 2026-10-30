@@ -540,3 +540,49 @@ func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
 		t.Fatalf("got %v", p)
 	}
 }
+
+func TestParameterAliasDecorations(t *testing.T) {
+	for _, c := range []struct {
+		left, right string
+		twin        bool
+	}{
+		{`#·named`, `#atom("a")`, false}, {`#named« text »`, `#atom("a")`, false},
+		{`#·named`, `#·atom("a")`, true}, {`#named« text »`, `#atom("a")« text »`, true},
+	} {
+		source := "%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer(" + c.left + ") outer(" + c.right + ")\n%rule named = atom(\"a\")"
+		count := 0
+		for _, v := range templateList(templateAudit(parameterGrammar(t, source))["instances"]) {
+			i := templateObj(v)
+			if i["template"] != "outer" {
+				continue
+			}
+			count++
+			parameterEqual(t, len(templateList(i["notes"])) > 0, c.twin)
+		}
+		parameterEqual(t, count, 2)
+	}
+}
+
+func TestTemplatePatternClosedness(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, missing := range []bool{false, true} {
+		test := templateObject{"test": "=", "expr": templateObject{"terminal": "A"}}
+		if !missing {
+			test["value"] = templateObject{"capture": "x", "call": "atom", "args": []any{templateObject{"string": "a"}}, "at": templatePosition([2]int{3, 12})}
+		}
+		value := templateObject{"pattern": test}
+		if p := templateClosedProblem(value); p != "" {
+			t.Fatalf("closedness entered a pattern: %s", p)
+		}
+		constant := templateObject{"name": "P", "op": "define", "value": value, "at": templatePosition([2]int{3, 1})}
+		implication := templateObject{"if": value, "then": templateObject{"tag": "A"}, "at": templatePosition([2]int{3, 1})}
+		for kind, r := range map[string]templateObject{"constants": constant, "implications": implication} {
+			p := checkTemplateDeclaration(r, kind, bundled.uni)
+			if p == nil || p.message != "a malformed pattern value test" {
+				t.Fatalf("%s missing=%v: %v", kind, missing, p)
+			}
+		}
+	}
+}

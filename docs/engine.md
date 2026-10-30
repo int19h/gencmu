@@ -29,7 +29,7 @@ Tokens need not follow the order of their sources. An emission lists its capture
 
 A tag is a named identifier mark. User tags start with an uppercase ASCII letter, followed by ASCII letters, digits, hyphens, or underscores. A reserved engine tag starts with `_`. `_` alone is a wildcard terminal and not a tag. Every tag compares by its exact identifier spelling.
 
-- A user class starts and ends with a capital and never starts with `_`, such as `KOhA`.
+- A user class starts and ends with an uppercase ASCII letter and never starts with `_`, such as `KOhA`.
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_General_Category_Uppercase_Letter`, `_General_Category_Letter`, or `_White_Space`.
 
@@ -87,6 +87,12 @@ Code point fields contain hexadecimal digits and range from U+0000 to U+10FFFF. 
 Any number of leading zeros is allowed in a number field. After these zeros, a code point has at most six hexadecimal digits. A combining class has at most three decimal digits. The value bounds above still apply.
 
 The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+
+Overlapping or touching category ranges with the same value merge. Combining ranges with the same class follow this rule. White-space ranges form their union.
+
+An overlap between category ranges with different values is a grammar error. Combining ranges with different classes follow this rule. A second `decompose` record for one scalar is also a grammar error, even when its mapping matches.
+
+These errors name `data/unicode/unicode.txt` and the line of the later record. A category record with the value `Cs` is a grammar error at that record.
 
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
@@ -477,6 +483,8 @@ When `%extend-rule` extends a rule, each appended alternative carries the extens
 
 A rule flag gives a rule a preference. Two flags exist, `leftmost-longest` and `fewest`, and a rule carries at most one. `%rule(F)` defines a flagged rule, and `%redefine-rule(F)` replaces its body and flag. A `%rule` or `%redefine-rule` without parentheses gives the rule no flags. `%extend-rule` accepts no flags and inherits the stitched rule's flag for all added alternatives. Flags belong to the rule, while clauses belong to each definition.
 
+Rule flags follow the same reader checks in ordinary rules, templates, calls, and patterns. An unknown flag fails at that flag. A repeated flag fails at the repetition. Two different flags fail at the second flag.
+
 Parentheses follow the keyword and precede the name. Their only accepted content is one flag name, `leftmost-longest` or `fewest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
 The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, and `%include` shape the pipeline (§13). Global `%features` also shapes the pipeline. Local `%features` and `%ambiguity-resolution` belong to a stage.
@@ -498,6 +506,8 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
+
+Constant type propagation revisits dependent declarations in ascending declaration order. This order also decides which dependent type error the loader reports first.
 
 A constant belongs to its stage, as a rule does. A document in several stages or pipelines takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
@@ -2715,6 +2725,8 @@ The error stands at the first atom of the recipe whose dependency reaches a chan
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
+Capture validation queries the expression without listing capture sequences or production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
+
 Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 
 The analysis ignores feature gates, conditions, and symbol tests. It therefore covers every feature configuration without proving that a consuming route can succeed. Erasure changes output ownership but never removes a possible input read. Recipes and emissions do not change the analysis.
@@ -2722,6 +2734,8 @@ The analysis ignores feature gates, conditions, and symbol tests. It therefore c
 Initially, every string, range, wildcard, or tag terminal is consuming. `ε` is not consuming. A composite expression is consuming when any operand is consuming, including an optional body, repeat item, or repeat separator. Captures and groups use their contents. A rule reference is consuming when any alternative of that rule is consuming.
 
 Propagate consuming marks until none changes, starting with terminals alone. Recursive references without a reachable terminal remain unmarked. Recursion with a reachable terminal becomes consuming. This does not require a finite successful derivation. Thus `z → z` is unmarked, but `"a" z` is consuming even though its branch is unproductive.
+
+The loader can decide overlap with one expression walk after consuming marks settle. Two whole carriers conflict when any expansion consumes input. A whole carrier conflicts with a named carrier when any binding of that name consumes input. The analysis does not enumerate expansion products.
 
 Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means that this analysis does not mark it. An absent carrier drops before overlap comparison, while an inserted item has no input span.
 
@@ -2770,6 +2784,12 @@ String decoding preserves dollar signs literally. `++` joins string operands in 
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
+Reader errors retain their construct positions. After constant binding, a wide endpoint error uses that endpoint's first constant reference, otherwise the definition. A reversed range error uses the first constant reference in the left endpoint. Without one, it uses the first constant reference in the right endpoint, otherwise the definition.
+
+For an elidable head, take the first item of a sequence, otherwise the expression itself. Unwrap only `=`, `≠`, and `tags` tests. Require a capitalized user-tag reference, or a declared parameter before expansion. The symbol-test walk then rejects repeated tests at the later test.
+
+A pattern term is closed for constant validation. Its pattern schema reports malformed value tests, including missing operands and captures.
+
 Pattern constructors use the authoritative table above. Readers retain every child-list boundary specified in `docs/output.md`, including empty and singleton lists. Parentheses add no boundary.
 
 For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write #NAME, not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
@@ -2816,7 +2836,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `s.tags` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `s.tags(R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible proof tree (§4), or empty |
-| `s.classes` | tag set | the tags of `s.tags` whose names start and end with a capital and never start with `_` |
+| `s.classes` | tag set | the tags of `s.tags` whose names start and end with an uppercase ASCII letter and never start with `_` |
 | `a.classify(classifier)` | tag set | the classes that `classifier` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
 | `$x`, `$`, `s.first-token`, and the other span methods | capture or span | A method receiver or argument, converted to input value when a string is required |
 

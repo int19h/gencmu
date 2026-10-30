@@ -29,6 +29,40 @@ def _number(field: str, base: int, limit: int) -> int:
     return int(digits or "0", base)
 
 
+def _add_value_range[T](ranges: list[tuple[int, int, T]], start: int, end: int, value: T) -> None:
+    """Keep disjoint ranges, with conflicts raised at the later record."""
+    low, high = 0, len(ranges)
+    while low < high:
+        mid = (low + high) // 2
+        if ranges[mid][1] < start:
+            low = mid + 1
+        else:
+            high = mid
+    last = low
+    while last < len(ranges) and ranges[last][0] <= end:
+        if ranges[last][2] != value:
+            raise ValueError("overlapping ranges with different values")
+        last += 1
+    if low and ranges[low - 1][1] + 1 == start and ranges[low - 1][2] == value:
+        low -= 1
+    if last < len(ranges) and ranges[last][0] == end + 1 and ranges[last][2] == value:
+        last += 1
+    if low < last:
+        start = min(start, ranges[low][0])
+        end = max(end, ranges[last - 1][1])
+    ranges[low:last] = [(start, end, value)]
+
+
+def _union_ranges(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    union: list[tuple[int, int]] = []
+    for start, end in sorted(ranges):
+        if union and start <= union[-1][1] + 1:
+            union[-1] = (union[-1][0], max(union[-1][1], end))
+        else:
+            union.append((start, end))
+    return union
+
+
 class UnicodeTable:
     """Character properties and canonical decomposition from the shared table."""
 
@@ -80,37 +114,31 @@ class UnicodeTable:
                     if earlier is None or (len(alias), alias) < (len(earlier), earlier):
                         self.canonical_abbreviations[code] = alias
                 elif fields[0] == "category":
-                    if fields[1] not in CATEGORIES:
+                    if fields[1] not in CATEGORIES or fields[1] == "Cs":
                         raise ValueError(fields[1])
-                    categories.append((codes[0], codes[1], fields[1]))
+                    _add_value_range(categories, codes[0], codes[1], fields[1])
                 elif fields[0] == "white-space":
                     white_space.append((codes[0], codes[1]))
                 elif fields[0] in ("emoji-presentation", "emoji-component"):
                     prop = "Emoji_Presentation" if fields[0] == "emoji-presentation" else "Emoji_Component"
                     self.emoji[prop].append((codes[0], codes[1]))
                 elif fields[0] == "decompose":
+                    if codes[0] in self.decompositions:
+                        raise ValueError("duplicate decomposition")
                     self.decompositions[codes[0]] = tuple(codes[1:])
                 elif fields[0] == "combining":
                     klass = _number(fields[1], 10, 3)
                     if not 1 <= klass <= 254:
                         raise ValueError(fields[1])
-                    combining.append((codes[0], codes[1], klass))
+                    _add_value_range(combining, codes[0], codes[1], klass)
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
                 raise GencmuError(f"unreadable line: {line!r}", document="data/unicode/unicode.txt", line=number) from error
         for prop, ranges in self.emoji.items():
-            union: list[tuple[int, int]] = []
-            for start, end in sorted(ranges):
-                if union and start <= union[-1][1] + 1:
-                    union[-1] = (union[-1][0], max(union[-1][1], end))
-                else:
-                    union.append((start, end))
-            self.emoji[prop] = union
+            self.emoji[prop] = _union_ranges(ranges)
         self._emoji_starts = {prop: [start for start, _ in ranges] for prop, ranges in self.emoji.items()}
-        categories.sort()
-        white_space.sort()
-        combining.sort()
+        white_space = _union_ranges(white_space)
         self._combining_starts = [start for start, _, _ in combining]
         self._combining_ends = [end for _, end, _ in combining]
         self._combining_classes = [klass for _, _, klass in combining]

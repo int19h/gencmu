@@ -26,12 +26,23 @@ fn user_tag(n: &Json) -> bool {
     n.as_str().is_some_and(|s| s.starts_with(|c: char| c.is_ascii_uppercase()) && is_name(s))
 }
 fn closed(n: &Json) -> Option<&'static str> {
-    if nodes(n).any(|n| has(n, "capture") || has(n, "captured") || text(get(n, "tag")).starts_with('_')) {
-        Some("a closed declaration requires a closed term without engine-tag literals")
-    } else {
-        None
+    let mut pending = vec![n];
+    while let Some(n) = pending.pop() {
+        if has(n, "pattern") {
+            continue;
+        }
+        if has(n, "capture") || has(n, "captured") || text(get(n, "tag")).starts_with('_') {
+            return Some("a closed declaration requires a closed term without engine-tag literals");
+        }
+        match n {
+            Json::Obj(fields) => pending.extend(fields.iter().filter(|(key, _)| key != "at").map(|(_, value)| value)),
+            Json::Arr(items) => pending.extend(items),
+            _ => {}
+        }
     }
+    None
 }
+
 pub(crate) fn engine_literals(root: &Json) -> Vec<(String, usize)> {
     let mut pending = vec![(root, false)];
     let mut values: Vec<Vec<(String, usize)>> = Vec::new();
@@ -409,6 +420,9 @@ fn method_problem(n: &Json, recipe: bool, uni: &Unicode) -> Option<&'static str>
         .contains(&text(get(receiver, "method")));
     let rule = |a: &Json| only(a, &["rule"]) && named(get(a, "rule"), uni) || has(a, "param") || has(a, "call");
     let target = |a: &Json| rule(a) || only(a, &["terminal"]) && user_tag(get(a, "terminal"));
+    if name == "ends" && dom::schema::restored_span(receiver) {
+        return Some("ends requires an ordinary span, not a restored span");
+    }
     let valid = match name {
         "ngrams" => {
             matches!(args,[a] if only(a,&["integer"]) && get(a,"integer").as_str().is_some_and(dom::valid_integer))
@@ -693,6 +707,9 @@ fn node_step<'a>(
     if !forms.iter().any(|k| has(n, k)) {
         return Some(if kind == "term" { "a malformed term" } else { "a malformed source category" });
     }
+    if text(get(n, "method")) == "ends" && dom::schema::restored_span(get(n, "receiver")) {
+        return Some("ends requires an ordinary span, not a restored span");
+    }
     if !unresolved(n) {
         let part = match kind {
             "expr" => Part::Expr { whole, sealed },
@@ -913,11 +930,8 @@ fn symbol(n: &Json) -> bool {
 }
 fn elidable(n: &Json) -> bool {
     let n = list(get(n, "seq")).first().unwrap_or(n);
-    if !symbol(n) {
-        return false;
-    }
     let mut n = n;
-    while has(n, "test") {
+    while matches!(text(get(n, "test")), "=" | "≠" | "tags") {
         n = get(n, "expr")
     }
     has(n, "param") || only(n, &["ref"]) && user_tag(get(n, "ref"))

@@ -1,0 +1,13 @@
+{
+  "description": "Capturing optionals use one structural walk for emission overlap.",
+  "grammar": "%rule text [$c0:\"a\"] [$c1:\"a\"] [$c2:\"a\"] [$c3:\"a\"] [$c4:\"a\"] [$c5:\"a\"] [$c6:\"a\"] [$c7:\"a\"] [$c8:\"a\"] [$c9:\"a\"] [$c10:\"a\"] [$c11:\"a\"] [$c12:\"a\"] [$c13:\"a\"] [$c14:\"a\"] [$c15:\"a\"] [$c16:\"a\"] [$c17:\"a\"] [$c18:\"a\"] [$c19:\"a\"] [$c20:\"a\"] [$c21:\"a\"] [$c22:\"a\"] [$c23:\"a\"] [$c24:\"a\"] [$c25:\"a\"] [$c26:\"a\"] [$c27:\"a\"] [$c28:\"a\"] [$c29:\"a\"]\n%emits $, $c0",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

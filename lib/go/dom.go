@@ -31,8 +31,8 @@ type domClassifier struct {
 }
 
 // domEntry is an entry of a classifier: its gates, one or more keys, each a
-// canonical sound, ∈ or ∉, and one class, a name that begins with a
-// capital. At is its first token, where the loader reports an error of the
+// canonical sound, ∈ or ∉, and one class whose name starts and ends
+// with an uppercase ASCII letter. At is its first token, where the loader reports an error of the
 // entry.
 type domEntry struct {
 	Guards   []domGuard
@@ -102,7 +102,6 @@ const (
 	exOptional = "optional"
 	exRepeat   = "repeat"
 	exRef      = "ref"
-	exTerminal = "terminal"
 	exCapture  = "capture"
 	exTest     = "test"
 	exEmpty    = "empty"
@@ -120,7 +119,7 @@ type domExpr struct {
 	Sep          *domExpr
 	Chain        string
 	Elidable     bool
-	Name         string   // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Name         string   // ref or capture name
 	Op           string   // test: its comparator, one of testOps
 	Value        *domTerm // test: its value, a closed term
 	Ends         [2]*domTerm
@@ -494,7 +493,7 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 			w.str(e.Chain)
 		}
 		w.raw("}")
-	case exRef, exTerminal:
+	case exRef:
 		w.raw("{")
 		w.str("ref")
 		w.raw(":")
@@ -1176,7 +1175,7 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		}
 		return e, err
 	}
-	for _, k := range []string{exRef, exTerminal} {
+	for _, k := range []string{exRef} {
 		if v, ok := o[k]; ok {
 			name, err := decodeString(v)
 			return &domExpr{Kind: k, Name: name}, err

@@ -31,11 +31,26 @@ func templateAudit(g *stageGrammar) templateObject {
 			if !ok {
 				return false
 			}
+			expand := func(node templateObject, i *ruleInstance) templateObject {
+				result := templateObject{"call": i.call["call"], "args": i.call["args"]}
+				for k, v := range node {
+					if k != "rule" && k != "ref" && k != "name" {
+						result[k] = v
+					}
+				}
+				return result
+			}
 			if i := byName[reference(a)]; i != nil && o["call"] != nil {
-				return i.key == templateKey(templateNormalize(o))
+				if i.key != templateKey(templateNormalize(templateObject{"call": o["call"], "args": o["args"]})) {
+					return false
+				}
+				a = expand(a, i)
 			}
 			if i := byName[reference(o)]; i != nil && a["call"] != nil {
-				return i.key == templateKey(templateNormalize(a))
+				if i.key != templateKey(templateNormalize(templateObject{"call": a["call"], "args": a["args"]})) {
+					return false
+				}
+				o = expand(o, i)
 			}
 			ak, bk := 0, 0
 			for k, v := range a {

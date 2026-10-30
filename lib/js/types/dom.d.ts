@@ -15,7 +15,7 @@ export declare function isSoundTest(op: string): boolean;
 /**
  * What is wrong with a test's value (engine §9), or null: it must be a
  * closed term, of type string for a value test and tag set for a tag test,
- * and a string literal of a value test must be a canonical value. The shape
+ * with no canonical-value restriction on string literals. The shape
  * of the value must already be checked, and its nesting bounded.
  * @param {string} op
  * @param {any} value
@@ -31,19 +31,12 @@ export declare function testValueFault(op: string, value: any, unicode?: {
     node: any;
 } | null;
 /**
- * What is wrong with a range (engine §1, §9), or null: its ends must be two
- * character tags in their canonical spelling by the table, which says which
- * code points are marks, the start not above the end.
+ * What is wrong with a range (engine §1, §9), or null: visible endpoints
+ * must each contain one scalar, with the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
  * @returns {string | null}
  */
-export declare function rangeProblem(range: unknown, unicode: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
-}): string | null;
+export declare function rangeProblem(range: unknown): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the loader's table: the lowercase mapping that the strings of value
@@ -228,40 +221,6 @@ export declare function strayAttachment(items: any[], has: (name: string) => boo
  */
 export declare function capturesUsed(node: unknown): string[];
 /**
- * The captures of each production of an alternative, name to its place in
- * the order that the production reads them, with `$` at -1 (engine §3.5).
- * @param {any} alternative
- * @returns {Map<string, number>[]}
- */
-export declare function alternativeCaptures(alternative: any): Map<string, number>[];
-export type CaptureNode = {
-    parent: CaptureNode | null;
-    name: string;
-    length: number;
-    children: Map<string, CaptureNode> | null;
-};
-/**
- * A sequence of capture names, as a node of a trie of all the sequences
- * of one expression: one node for each distinct sequence, which shares its
- * prefix with the sequences it extends.
- * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
- */
-/**
- * The distinct sequences of captures that the productions of an expression
- * read, each in the order read (engine §3.2, §3.5): a choice gives each
- * branch's, an `&` each subsequence's, a plain optional none or its
- * content's, and braces and an elidable optional none. Productions that
- * read the same names in the same order are one sequence. Gates do not
- * matter, since they drop whole alternatives.
- *
- * The sequences are nodes of a trie, so that extending one by a capture
- * costs one step and two equal sequences are one node. A copy of each
- * growing prefix would cost the square of a sequence's length.
- * @param {any} expr
- * @returns {string[][]}
- */
-export declare function captureSequences(expr: any): string[][];
-/**
  * The captures that some production of an expression reads after a
  * capture of the same name (engine §3.5, §9), found from the structure
  * alone: two captures are read by one production exactly when they stand
@@ -277,8 +236,8 @@ export declare function duplicateCaptures(expr: any): {
 /**
  * The terminal at the head of an elidable optional's expression, or null
  * when the expression has no such head (engine §3.8, §9): a `ref` whose
- * name begins with a capital, a `terminal` whose tag is a name, or an `=`
- * test of one of these, alone or first in a `seq`.
+ * name begins with a capital, or a declared parameter before expansion.
+ * Only `=`, `≠`, and `tags` tests unwrap, after selecting the first `seq` item.
  * @param {any} expr
  * @returns {any}
  */
@@ -287,6 +246,12 @@ export declare function elidableHead(expr: any): any;
 export declare const deferredRecipeProblem: (rule: object) => string | undefined;
 /** @param {object} rule @returns {string | undefined} */
 export declare const deferredEmissionProblem: (rule: object) => string | undefined;
+export type CaptureWitness = {
+    count: number;
+    names: any;
+    key: any;
+    mask?: number;
+};
 /**
  * Why a definition, a rule's alternatives with its own clauses, cannot be
  * read (engine §9), or null. The DOM's shape must already be checked. The
@@ -402,7 +367,7 @@ export declare function constantValueType(value: any, redefine: boolean, constan
 } | TypeFault;
 /**
  * The first part of a term that is not closed (engine §10), or null: a
- * capture, a guarded term, or a call of anything but split and tag. The
+ * capture, a guarded term, or a call of anything but split and ngrams. The
  * shape of the term need not be checked.
  * @param {unknown} term
  * @returns {any}

@@ -86,7 +86,7 @@ def is_tag(tag: object, unicode=None) -> bool:
 
 
 def is_class(tag: str) -> bool:
-    """Whether a tag's first character is ``A`` to ``Z`` (engine §10)."""
+    """Whether a tag starts and ends with an uppercase ASCII letter (engine §10)."""
     return bool(tag) and "A" <= tag[0] <= "Z" and "A" <= tag[-1] <= "Z"
 
 

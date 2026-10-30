@@ -179,24 +179,23 @@ pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
     small.iter().all(|&id| listed(found(large, id)))
 }
 
-/// Whether a string is a name (engine §9), and so an identifier tag: an
-/// ASCII letter followed by ASCII letters, digits and hyphens.
+/// A name starts with an ASCII letter, followed by ASCII letters, digits,
+/// underscores, or hyphens (engine §9).
 pub(crate) fn is_name(tag: &str) -> bool {
     let mut chars = tag.chars();
     chars.next().is_some_and(|c| c.is_ascii_alphabetic())
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-/// Whether a code point is written as `\u{h…}` in a character tag's
-/// canonical spelling (engine §1): a control character, a nonspacing mark,
-/// a private-use character, the quote or the backslash.
+/// Whether the private range-endpoint spelling escapes a scalar: controls,
+/// nonspacing marks, private-use scalars, apostrophes, and backslashes.
 fn escaped_in_tag(code: u32, unicode: &Unicode) -> bool {
     matches!(code, 0..=0x1F | 0x7F..=0x9F | 0x27 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x10_0000..=0x10_FFFD)
         || unicode.is_mark(code)
 }
 
-/// The character tag of a character, in its canonical spelling (engine
-/// §1): `'a'`, or `'\u{301}'` for a code point that is escaped.
+/// The private range-endpoint spelling that `code_of_character_tag` reads.
+/// `string_name` supplies the canonical diagnostic spelling (engine §1).
 pub(crate) fn character_tag(c: char, unicode: &Unicode) -> String {
     let code = c as u32;
     if escaped_in_tag(code, unicode) {
@@ -206,9 +205,7 @@ pub(crate) fn character_tag(c: char, unicode: &Unicode) -> String {
     }
 }
 
-/// The scalar value of a character tag, `'c'` or `'\u{h…}'`, or `None` for
-/// any other tag. The tag is not checked to be in its canonical spelling:
-/// every tag inside the engine is (engine §1).
+/// Read a private range-endpoint spelling, or return `None` for other tags.
 pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
     let inner = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\''))?;
     if let Some(digits) = inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {

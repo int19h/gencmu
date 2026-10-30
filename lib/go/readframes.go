@@ -210,9 +210,6 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		if !capturedRules[base.Rule] || base.Rule == "tested" {
 			b.fail(n, "a capture wraps one symbol")
 		}
-		if !capturedRules[wrapped.Rule] {
-			b.fail(n, "a capture wraps one reference, tag, string, range, wildcard, or tested symbol")
-		}
 		f.capture = name
 		return ask(&exprFrame{n: wrapped})
 	case "group":
@@ -232,7 +229,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 // startOptional checks an optional, and with a marker + among its
 // parts an elidable one (engine §3.8, §9). Its form is checked on the
 // tree, where a group is still a node: one sequence, with no leading | or
-// &, whose first primary is the terminal itself, =-tested or not. Its
+// &, whose first primary is the terminal itself, with or without tests. Its
 // parts are looked up in the order of §9: its choice, then its markers.
 func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	n := f.n
@@ -250,7 +247,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		f.elide = &domExpr{Kind: exOptional}
 		return ask(&exprFrame{n: choice})
 	}
-	const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &"
+	const form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
 	hasToken := func(node *Node, text string) bool {
 		for _, p := range parts(node) {
 			if p.Kind == KindToken && b.tokenValue(p) == text {

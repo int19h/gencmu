@@ -1,0 +1,13 @@
+{
+  "description": "constant type retry order.",
+  "grammar": "%const $B $P \u222a $Q\n%const $C $P \u222a $R\n%const $P A\n%const $Q \"a\"\n%const $R \"b\"\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 11
+    }
+  }
+}

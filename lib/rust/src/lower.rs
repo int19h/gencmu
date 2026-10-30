@@ -776,9 +776,8 @@ impl<'a> Lowerer<'a> {
             }
             Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None))],
             Expr::Terminal(name) => vec![Sequence::one((self.symbol(name, false), None, None))],
-            // A range or a property is a terminal whose name is its written
-            // form, and which matches by its characters rather than by a
-            // tag (engine §4).
+            // Private endpoint spellings become one canonical diagnostic name.
+            // The terminal matches by its characters (engine §4).
             Expr::Range(start, end) => {
                 let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
                 let (first, last) = codes.expect("a range of two character tags, which reading checks");

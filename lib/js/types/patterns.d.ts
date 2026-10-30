@@ -3,13 +3,6 @@ export declare function leafTest(test: any, input: string, tags: Set<string>): b
 /** @param {any} node @returns {any[]} */
 export declare function patternParts(node: any): any[];
 /**
- * Shape only. Term and test typing remains in dom.js. The caller bounds
- * nesting before calling this walk.
- * @param {any} root @param {(test: any) => string | null} testFault
- * @returns {string | null}
- */
-export declare function patternProblem(root: any, testFault: (test: any) => string | null): string | null;
-/**
  * @param {any} root
  * @param {(name:string, at:[number,number]) => any} constant
  * @param {(term:any, test:any) => any} value

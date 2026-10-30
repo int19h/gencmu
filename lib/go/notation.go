@@ -682,7 +682,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 	written := b.tokenValue(b.token(classNode))
 	e.Class = written
 	if !isClass(e.Class) {
-		b.fail(classNode, "%s is not a class: a class is an identifier tag that begins with a capital", written)
+		b.fail(classNode, "%s is not a class: a class starts and ends with a capital", written)
 	}
 	return e
 }
@@ -708,6 +708,31 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 // constantInBody is the error of a constant that stands in a body (§9).
 const constantInBody = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
 
+func (b *domBuilder) ruleFlags(n *Node, op string) []string {
+	flags := []string{}
+	if list := one(n, "rule-flags"); list != nil {
+		if op == "extend" {
+			b.fail(list, "%%extend-rule accepts no flags")
+		}
+		for _, flag := range b.some(list, "rule-flag", 1) {
+			name := b.tokenValue(b.token(flag))
+			if name != "leftmost-longest" && name != "fewest" {
+				b.fail(flag, "unknown rule flag %s", name)
+			}
+			for _, previous := range flags {
+				if previous == name {
+					b.fail(flag, "duplicate rule flag %s", name)
+				}
+			}
+			if len(flags) > 0 {
+				b.fail(flag, "a rule accepts only one flag")
+			}
+			flags = append(flags, name)
+		}
+	}
+	return flags
+}
+
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
 	// The definer, the name, the alternatives and the clauses; the syntax
@@ -725,21 +750,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	default:
 		r.Op = "define"
 	}
-	if list := one(n, "rule-flags"); list != nil {
-		if r.Op == "extend" {
-			b.fail(list, "%%extend-rule accepts no flags")
-		}
-		for _, flag := range b.some(list, "rule-flag", 1) {
-			name := b.tokenValue(b.token(flag))
-			if name != "leftmost-longest" && name != "fewest" {
-				b.fail(flag, "unknown rule flag %s", name)
-			}
-			if len(r.Flags) > 0 {
-				b.fail(flag, "duplicate rule flag %s", name)
-			}
-			r.Flags = append(r.Flags, name)
-		}
-	}
+	r.Flags = b.ruleFlags(n, r.Op)
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).

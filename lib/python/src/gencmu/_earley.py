@@ -1602,12 +1602,12 @@ class Parser:
                 return
             add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations)
 
-        # A production whose first symbol is a terminal the next token lacks
-        # is not predicted, since its item could never advance; a rejection
-        # at that position lists the terminals it expected all the same.
+        # Prediction conditions run before lookahead. Other terminal-first
+        # productions use the terminal indexes to avoid prediction work.
+        # Rejection still lists the terminals that lookahead leaves out.
         by_first = lowered.by_first_terminal
         by_first_characters = lowered.by_first_characters
-        not_terminal_first = lowered.not_terminal_first
+        unfiltered_predictions = lowered.unfiltered_predictions
         characters = lowered.characters
         carries = context.carries
 
@@ -1677,7 +1677,10 @@ class Parser:
                     if not production.conds_predict or (yield allowed(production,j)):
                         add(production.id,0,j,NO_CAPS,j,SEED)
                 return
-            for number in not_terminal_first[rule]:
+            # A frame can add prediction conditions to a helper. Inspect the
+            # candidate before lookahead instead of using its base's index.
+            numbers = lowered.rule_productions[rule] if frame is not None else unfiltered_predictions[rule]
+            for number in numbers:
                 production = candidate(productions[number],frame,requested)
                 number = production.id
                 if production.elided is not None and not omission_allowed(production):
@@ -1693,15 +1696,19 @@ class Parser:
                     if strict_prediction and last_reading[production.real_id] < 0:
                         continue
                 if not production.conds_predict or (yield allowed(production, j)):
+                    if production.rhs and production.terminal[0]:
+                        first = production.rhs[0]
+                        if j == n or not (carries(first, base + j) if first in characters else first in tokens[base + j].tags):
+                            continue
                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
-            if j < n:
+            if j < n and frame is None:
                 table = by_first[rule]
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
                             p = candidate(productions[number],frame,requested)
                             number = p.id
-                            if not p.conds_predict or (yield allowed(p, j)):
+                            if not p.conds_predict:
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
                 # A string, range, or wildcard matches the stored token value.
                 table = by_first_characters[rule]
@@ -1712,7 +1719,7 @@ class Parser:
                             for number in numbers:
                                 p = candidate(productions[number],frame,requested)
                                 number = p.id
-                                if not p.conds_predict or (yield allowed(p, j)):
+                                if not p.conds_predict:
                                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]

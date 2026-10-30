@@ -250,7 +250,7 @@ class DomBuilder:
         class_node = self.only(node, "classifier-class")
         name = self.token_value(self.token(class_node))
         if USER_NAME.fullmatch(name) is None or not "A" <= name[-1] <= "Z":
-            raise self.fail(class_node, "a class starts and ends with an uppercase ASCII letter")
+            raise self.fail(class_node, f"{name} is not a class: a class starts and ends with an uppercase ASCII letter")
         return {"guards": guards, "keys": keys, "op": op, "class": name, "at": list(self.position(node))}
 
     def implication(self, node: Node) -> Dom:
@@ -603,7 +603,7 @@ class DomBuilder:
         """An optional, and with a marker ``+`` among its parts an
         elidable one (engine §3.8, §9). Its form is checked on the tree,
         where a group is still a node: one sequence, whose first primary is
-        the terminal itself, ``=``-tested or not."""
+        the terminal itself, with or without symbol tests."""
         # Its choice is looked up before its markers are counted (engine §9).
         choice = self.only(node, "choice")
         markers = [kid for kid in self.kids(node) if self._token_value(kid) == "+"]
@@ -611,10 +611,7 @@ class DomBuilder:
             raise self.fail(markers[1], "an optional has one marker + at most")
         if not markers:
             return {"optional": (yield self._expr(choice))}
-        form = (
-            "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker,"
-            " and joins it to nothing with | or &"
-        )
+        form = "an elidable optional begins with a user tag or parameter directly after +, without | or &"
         # One conjunction of one sequence, with no leading | or & either:
         # the terminator stands directly after the marker (engine §9).
         conjunctions = self.rules(choice, "conjunction")

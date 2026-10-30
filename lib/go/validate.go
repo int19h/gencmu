@@ -348,8 +348,8 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 	return nil
 }
 
-// directiveOperandsOK checks a directive's name, one of the notation's four
-// directives, and the operands the notation's syntax allows the pipeline
+// directiveOperandsOK checks all seven directive names and the operands
+// that the notation's syntax allows the pipeline
 // directives (engine §9): stage selectors take one name, %include one string and
 // %features one or more names.
 func directiveOperandsOK(dir *domDirective) bool {
@@ -529,11 +529,6 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		if !c.uni.isEmojiName(e.Name) && !domName.MatchString(e.Name) && !engineTag(e.Name) {
 			c.fail("a reference to %q, which is not a name", e.Name)
 		}
-	case exTerminal:
-		// A tag in its canonical spelling (engine §1).
-		if !isTag(e.Name, c.uni) {
-			c.fail("a malformed terminal %q", e.Name)
-		}
 	case exRange:
 		for _, end := range e.Ends {
 			c.term(end, depth, false)
@@ -563,10 +558,8 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	}
 }
 
-// elidableHead is the terminal at the head of an elidable optional's
-// expression, or nil when it has none (engine §3.8, §9): a reference whose
-// name begins with a capital, a terminal whose tag is a name, or an = test
-// of one of these, alone or first in a sequence.
+// elidableHead selects the first sequence item, then unwraps only symbol tests.
+// The base must be one capitalized user-tag reference (engine §9).
 func elidableHead(e *domExpr) *domExpr {
 	if e == nil {
 		return nil
@@ -575,13 +568,11 @@ func elidableHead(e *domExpr) *domExpr {
 	if e.Kind == exSeq && len(e.Items) > 0 {
 		head = e.Items[0]
 	}
-	if head == nil {
-		return nil
+	base := head
+	for base != nil && base.Kind == exTest && (base.Op == "=" || base.Op == "≠" || base.Op == "tags") {
+		base = base.Inner
 	}
-	isTerminal := func(n *domExpr) bool {
-		return n != nil && ((n.Kind == exRef && constName.MatchString(n.Name)) || (n.Kind == exTerminal && domName.MatchString(n.Name)))
-	}
-	if isTerminal(head) || (head.Kind == exTest && (testOps[head.Op] || head.Op == "tags") && elidableHead(head.Inner) != nil) {
+	if base != nil && base.Kind == exRef && constName.MatchString(base.Name) {
 		return head
 	}
 	return nil
@@ -712,213 +703,10 @@ func duplicateCaptures(e *domExpr) map[*domExpr]bool {
 	return duplicates
 }
 
-// captureSequences lists the distinct sequences of captures that the
-// productions of an expression read, each in the order read (engine §3.2,
-// §3.5): a choice gives each branch's, an & each subsequence's, a plain
-// optional none or its content's, and braces and an elidable optional
-// none. Productions that read the same names in the same order are one
-// sequence. Gates do not matter, since they drop whole alternatives.
-// Repeated names are duplicateCaptures' concern.
-func captureSequences(e *domExpr) [][]*domExpr {
-	// Each capture or join that the work below makes, looks up, compares
-	// or writes out counts before it does.
-	w := work.Load()
-	step := func() {
-		if w != nil {
-			w.readerSteps.add("reader steps")
-		}
-	}
-	// A sequence is a tree of the sequences it joins, so a join shares its
-	// parts and costs one step. A copy at each join would cost nested
-	// sequences the square of their depth. Each sequence is written out
-	// once, at the end.
-	type capSeq struct {
-		c    *domExpr
-		l, r *capSeq
-		// h is a hash of the names in order, and pw the base to the power
-		// of their number, so that a join finds its hash in one step.
-		h, pw uint64
-	}
-	const base = 1099511628211
-	empty := (*capSeq)(nil)
-	powOf := func(s *capSeq) uint64 {
-		if s == nil {
-			return 1
-		}
-		return s.pw
-	}
-	hashOf := func(s *capSeq) uint64 {
-		if s == nil {
-			return 0
-		}
-		return s.h
-	}
-	leaf := func(c *domExpr) *capSeq {
-		// The hash of a name reads each of its bytes once, as reading the
-		// name did.
-		h := uint64(14695981039346656037)
-		for i := 0; i < len(c.Name); i++ {
-			h = (h ^ uint64(c.Name[i])) * base
-		}
-		return &capSeq{c: c, h: h | 1, pw: base}
-	}
-	// flat writes a sequence out in order, each part of its tree counted
-	// before it is entered.
-	flat := func(s *capSeq) []*domExpr {
-		var out []*domExpr
-		stack := []*capSeq{s}
-		for len(stack) > 0 {
-			step()
-			top := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-			switch {
-			case top == nil:
-			case top.c != nil:
-				out = append(out, top.c)
-			default:
-				stack = append(stack, top.r, top.l)
-			}
-		}
-		return out
-	}
-	join := func(a, b *capSeq) *capSeq {
-		step()
-		switch {
-		case a == nil:
-			return b
-		case b == nil:
-			return a
-		}
-		return &capSeq{l: a, r: b, h: hashOf(a)*powOf(b) + b.h, pw: a.pw * b.pw}
-	}
-	same := func(a, b *capSeq) bool {
-		x, y := flat(a), flat(b)
-		if len(x) != len(y) {
-			return false
-		}
-		for i := range x {
-			step()
-			if x[i].Name != y[i].Name {
-				return false
-			}
-		}
-		return true
-	}
-	// distinct keeps the first of each list of names. Lists are found by
-	// their hash, and only lists of equal hash are written out and
-	// compared, so a list that is not repeated is never written out here.
-	distinct := func(lists []*capSeq) []*capSeq {
-		if len(lists) < 2 {
-			return lists
-		}
-		seen := map[uint64][]*capSeq{}
-		var out []*capSeq
-	next:
-		for _, list := range lists {
-			step()
-			h := hashOf(list)
-			for _, other := range seen[h] {
-				if same(list, other) {
-					continue next
-				}
-			}
-			seen[h] = append(seen[h], list)
-			out = append(out, list)
-		}
-		return out
-	}
-	product := func(left, right []*capSeq) []*capSeq {
-		var out []*capSeq
-		for _, a := range left {
-			for _, b := range right {
-				out = append(out, join(a, b))
-			}
-		}
-		return distinct(out)
-	}
-	// Each node is met twice, with an explicit stack: first to push its
-	// parts, and then to combine their sequences, which stand on done.
-	kids := func(n *domExpr) []*domExpr {
-		switch {
-		case n == nil:
-			return nil
-		case n.Kind == exSeq || n.Kind == exAnd || n.Kind == exChoice || n.Kind == exRanked:
-			return n.Items
-		case n.Kind == exOptional && !n.Elidable:
-			return []*domExpr{n.Inner}
-		}
-		return nil
-	}
-	type frame struct {
-		n       *domExpr
-		combine bool
-	}
-	stack := []frame{{n: e}}
-	var done [][]*capSeq
-	for len(stack) > 0 {
-		step()
-		top := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		n := top.n
-		if !top.combine {
-			if n != nil && n.Kind == exCapture {
-				done = append(done, []*capSeq{leaf(n)})
-				continue
-			}
-			items := kids(n)
-			if len(items) == 0 {
-				done = append(done, []*capSeq{empty})
-				continue
-			}
-			stack = append(stack, frame{n: n, combine: true})
-			for i := len(items) - 1; i >= 0; i-- {
-				stack = append(stack, frame{n: items[i]})
-			}
-			continue
-		}
-		count := len(kids(n))
-		parts := appendCounted(nil, done[len(done)-count:], readerCount(), "reader steps")
-		done = done[:len(done)-count]
-		var out []*capSeq
-		switch n.Kind {
-		case exSeq:
-			out = []*capSeq{empty}
-			for _, part := range parts {
-				out = product(out, part)
-			}
-		case exChoice, exRanked:
-			for _, part := range parts {
-				out = appendCounted(out, part, readerCount(), "reader steps")
-			}
-			out = distinct(out)
-		case exAnd:
-			for mask := 1; mask < 1<<len(parts); mask++ {
-				seqs := []*capSeq{empty}
-				for i, part := range parts {
-					if mask&(1<<i) != 0 {
-						seqs = product(seqs, part)
-					}
-				}
-				out = appendCounted(out, seqs, readerCount(), "reader steps")
-			}
-			out = distinct(out)
-		default:
-			out = distinct(appendCounted([]*capSeq{empty}, parts[0], readerCount(), "reader steps"))
-		}
-		done = append(done, out)
-	}
-	sequences := make([][]*domExpr, len(done[0]))
-	for i, s := range done[0] {
-		sequences[i] = flat(s)
-	}
-	return sequences
-}
-
-// isCapturable says whether a capture can wrap an expression of a kind: a
 // reference, a terminal, a range, a property or a tested symbol (engine §9).
 func isCapturable(kind string) bool {
 	switch kind {
-	case exRef, exTerminal, exRange, exLiteral, exWildcard, exTest:
+	case exRef, exRange, exLiteral, exWildcard, exTest:
 		return true
 	}
 	return false
@@ -933,7 +721,7 @@ func isTestable(e *domExpr) bool {
 	switch e.Kind {
 	case exRef:
 		return true
-	case exTerminal, exRange, exLiteral, exWildcard:
+	case exRange, exLiteral, exWildcard:
 		return true
 	}
 	return false
@@ -992,9 +780,8 @@ func testsIn(e *domExpr) []*domExpr {
 	return found
 }
 
-// literalCallProblem is what is wrong with a call of split or tag whose
-// argument the reader sees as a string literal (engine §9, §10), or "": an
-// empty delimiter, or a tag's string that is not a name.
+// literalCallProblem rejects an empty split delimiter visible to the reader
+// as a string literal, or returns "" (engine §9, §10).
 func literalCallProblem(call string, args []*domTerm) string {
 	literal := func(i int) (string, bool) {
 		if i < len(args) && args[i] != nil && args[i].Kind == tmString {
@@ -1933,7 +1720,7 @@ func constantValueType(value *domTerm, redefine bool, ct constTypes) (termType, 
 var constName = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
 
 // openPart is the first part of a term that is not closed (engine §10), or
-// nil: a capture, a guarded term, or a call of anything but split and tag.
+// nil: a capture, a guarded term, or a call of anything but split and ngrams.
 func openPart(t *domTerm) *domTerm {
 	if t == nil {
 		return nil

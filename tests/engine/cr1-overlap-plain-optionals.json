@@ -1,0 +1,10 @@
+{
+  "description": "Capture-free optionals do not require expansion products for emission overlap.",
+  "grammar": "%rule text [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"] [\"a\"]\n%emits $, \u03b5",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -429,8 +429,11 @@ class _Constants:
                 ends = []
                 for end in root["range"]:
                     ends.append((yield self._closed(path, end, at)))
-                if any(not isinstance(end, str) or len(end) != 1 for end in ends) or ends[0] > ends[1]:
-                    raise self.fault_error(path, root, at, "invalid pattern range")
+                for i, end in enumerate(ends):
+                    if not isinstance(end, str) or len(end) != 1:
+                        raise self.fault_error(path, root["range"][i], at, "invalid pattern range endpoint")
+                if ends[0] > ends[1]:
+                    raise self.fault_error(path, root["range"], at, "invalid pattern range")
                 terminal = "..".join(spelling(end, self.unicode) for end in ends)
             else:
                 terminal = "_"
@@ -538,8 +541,11 @@ class _Constants:
                     else:
                         if "range" in node:
                             ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
-                            if any(len(end) != 1 for end in ends) or ends[0] > ends[1]:
-                                raise self.fault_error(path, node, rule["at"], "invalid scalar range")
+                            for i, end in enumerate(ends):
+                                if len(end) != 1:
+                                    raise self.fault_error(path, node["range"][i], rule["at"], "invalid scalar range endpoint")
+                            if ends[0] > ends[1]:
+                                raise self.fault_error(path, node["range"], rule["at"], "invalid scalar range")
                         pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).
@@ -1108,7 +1114,8 @@ class Lowered:
     # a token matches them by its characters and not by a tag.
     by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
     by_first_characters: list[dict[str, list[int]]] = field(default_factory=list)
-    not_terminal_first: list[list[int]] = field(default_factory=list)
+    # Nonterminal-first productions and productions with prediction conditions.
+    unfiltered_predictions: list[list[int]] = field(default_factory=list)
     # The stage's classifiers for the same features, and its implications
     # (engine §2, §11).
     classifiers: Classifiers = field(default_factory=dict)
@@ -1152,14 +1159,14 @@ class Lowered:
         )
         self.by_first_terminal = [{} for _ in self.rule_names]
         self.by_first_characters = [{} for _ in self.rule_names]
-        self.not_terminal_first = [[] for _ in self.rule_names]
+        self.unfiltered_predictions = [[] for _ in self.rule_names]
         for production in self.productions:
             if production.rhs and production.terminal[0]:
                 first: str = production.rhs[0]  # type: ignore[assignment]
                 table = self.by_first_characters if first in self.characters else self.by_first_terminal
                 table[production.lhs].setdefault(first, []).append(production.id)
-            else:
-                self.not_terminal_first[production.lhs].append(production.id)
+            if not production.rhs or not production.terminal[0] or production.conds_predict:
+                self.unfiltered_predictions[production.lhs].append(production.id)
 
 
 CharacterClass = Union[tuple[int, int], str, None]

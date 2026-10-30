@@ -367,9 +367,25 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 	return nil
 }
 func templateClosedProblem(root any) string {
-	for _, n := range templateNodes(root) {
-		if n["capture"] != nil || n["captured"] != nil || strings.HasPrefix(templateText(n["tag"]), "_") {
-			return "a closed declaration requires a closed term without engine-tag literals"
+	pending := []any{root}
+	for len(pending) > 0 {
+		value := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch n := value.(type) {
+		case map[string]any:
+			if n["pattern"] != nil {
+				continue
+			}
+			if n["capture"] != nil || n["captured"] != nil || strings.HasPrefix(templateText(n["tag"]), "_") {
+				return "a closed declaration requires a closed term without engine-tag literals"
+			}
+			for key, child := range n {
+				if key != "at" {
+					pending = append(pending, child)
+				}
+			}
+		case []any:
+			pending = append(pending, n...)
 		}
 	}
 	return ""
@@ -930,13 +946,10 @@ func templateElidableHead(n templateObject) bool {
 	if xs := templateList(n["seq"]); len(xs) > 0 {
 		n = templateObj(xs[0])
 	}
-	if !templateSymbol(n) {
-		return false
-	}
-	for n["test"] != nil {
+	for n["test"] == "=" || n["test"] == "≠" || n["test"] == "tags" {
 		n = templateObj(n["expr"])
 	}
-	return n["param"] != nil || templateOnly(n, "ref") && className.MatchString(templateText(n["ref"]))
+	return n["param"] != nil || templateOnly(n, "ref") && constName.MatchString(templateText(n["ref"]))
 }
 func templateCaptureShape(n templateObject) *domExpr {
 	for _, kind := range []string{exSeq, exChoice, exRanked, exAnd} {

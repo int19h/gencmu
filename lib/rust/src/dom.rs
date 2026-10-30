@@ -975,7 +975,7 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
         base = base.get("expr")?;
     }
     match base.get("ref").and_then(Json::as_str) {
-        Some(tag) if tag.starts_with(|c: char| c.is_ascii_uppercase()) => Some(head),
+        Some(tag) if base.as_object().is_some_and(|fields| fields.len() == 1) && is_constant_name(tag) => Some(head),
         _ => None,
     }
 }
@@ -1965,8 +1965,7 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
             return None;
         }
         if left == Type::String && right == Type::String {
-            return (left != right)
-                .then(|| format!("{op} compares two values of one type, not {} and {}", left.name(), right.name()));
+            return None;
         }
     }
     // `⊆` and `⊈` compare two sets, as `=` and `≠` do.

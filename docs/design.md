@@ -151,7 +151,7 @@ The core file owns categories, combining classes, whitespace, and two emoji prop
 
 Libraries can share immutable scalar profiles. They do not copy a property set onto every token. Generic set operations and output still see every retained membership. A property reference in a later stage never changes initial profiles. Engine §1 defines the performance gate for pipelines naming no additional property.
 
-A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
+A class is a tag with uppercase ASCII letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
 ## The notation
 
@@ -911,7 +911,7 @@ An instance entry contains `template`, `arguments`, `name`, `binding`, `firstCal
 
 An `argument-alias-twin` note names distinct instance keys with equivalent argument references. It does not claim that local edits give those instances identical bodies. The note has `kind` and an `instances` list of the other effective names, in expanded rule order.
 
-Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. The comparison follows the finite written argument trees and never expands a nominal reference's body. It accepts either direction of that replacement. It also applies inside nested argument forms.
+Twin instances use the same template. Corresponding arguments must be identical after key normalization, apart from a named-instance reference standing for a call of that same instance key. Only the bare reference changes during this comparison. Decorations, including `exact` and `children`, must still match on both nodes. The comparison follows the finite written argument trees and never expands a nominal reference's body. The comparison accepts either direction and applies inside nested argument forms.
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `flagsBefore`, and `flagsAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `flags` gives the final effective flag list. The printed report shows the same facts and names public bindings without implying wrapper rules.
 

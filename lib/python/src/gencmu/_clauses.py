@@ -135,125 +135,6 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         stack[-1][2].append(joined)
 
 
-class _Sequence:
-    """One sequence of captures as capture_sequences builds it, with the
-    set of its names and its key of names, so that extending it by a few
-    captures costs those captures and not the whole sequence again."""
-
-    __slots__ = ("captures", "names", "cached")
-
-    def __init__(self, captures: list[Dom], names: set[str]) -> None:
-        self.captures = captures
-        self.names = names
-        self.cached: tuple[str, ...] | None = None
-
-    def key(self) -> tuple[str, ...]:
-        if self.cached is None:
-            self.cached = tuple(capture["capture"] for capture in self.captures)
-        return self.cached
-
-    def extend(self, captures: list[Dom]) -> None:
-        if captures:
-            self.captures.extend(captures)
-            self.names.update(capture["capture"] for capture in captures)
-            self.cached = None
-
-    def copy(self) -> _Sequence:
-        return _Sequence(list(self.captures), set(self.names))
-
-
-def capture_sequences(expr: Any) -> tuple[list[list[Dom]], list[Dom]]:
-    """The distinct sequences of captures that the productions of an
-    expression read, each in the order read (engine §3.2, §3.5): a choice
-    gives each branch's, an ``&`` each subsequence's, a plain optional none
-    or its content's, and braces and an elidable optional none. Productions
-    that read the same names in the same order are one sequence. The second
-    list holds the capture nodes that some production reads after one of
-    the same name, in no particular order. Gates do not matter, since they
-    drop whole alternatives."""
-    duplicates: dict[int, Dom] = {}
-
-    def distinct(sequences: list[_Sequence]) -> list[_Sequence]:
-        seen: set[tuple[str, ...]] = set()
-        result: list[_Sequence] = []
-        for sequence in sequences:
-            key = sequence.key()
-            if key not in seen:
-                seen.add(key)
-                result.append(sequence)
-        return result
-
-    def product(left: list[_Sequence], right: list[_Sequence], owned: bool) -> list[_Sequence]:
-        """Each sequence of the left followed by each of the right. Where the
-        right has one sequence, distinct lefts stay distinct, and a left that
-        this product's caller ``owned`` is extended in place, since a copy of
-        each would cost the sequence's whole length at every step."""
-        for first in left:
-            for second in right:
-                for capture in second.captures:
-                    if capture["capture"] in first.names:
-                        duplicates[id(capture)] = capture
-        if len(right) == 1:
-            result = left if owned else [first.copy() for first in left]
-            for first in result:
-                first.extend(right[0].captures)
-            return result
-        joined: list[_Sequence] = []
-        for first in left:
-            for second in right:
-                sequence = first.copy()
-                sequence.extend(second.captures)
-                joined.append(sequence)
-        return distinct(joined)
-
-    def visit(node: Any) -> Walk:
-        if not isinstance(node, dict):
-            return [_Sequence([], set())]
-        if isinstance(node.get("capture"), str) and "expr" in node:
-            return [_Sequence([node], {node["capture"]})]
-        if isinstance(node.get("seq"), list):
-            # The sequences built here are this loop's own, so the product
-            # may extend them in place.
-            sequences: list[_Sequence] = [_Sequence([], set())]
-            for item in node["seq"]:
-                sequences = product(sequences, (yield visit(item)), True)
-            return sequences
-        if isinstance(node.get("choice", node.get("ranked")), list):
-            branches: list[_Sequence] = []
-            for item in node.get("choice", node.get("ranked", [])):
-                branches.extend((yield visit(item)))
-            return distinct(branches)
-        if isinstance(node.get("and"), list):
-            parts = []
-            for item in node["and"]:
-                parts.append((yield visit(item)))
-            result: list[_Sequence] = []
-            for mask in range(1, 1 << len(parts)):
-                chosen: list[_Sequence] = [_Sequence([], set())]
-                for index, part in enumerate(parts):
-                    if mask >> index & 1:
-                        chosen = product(chosen, part, True)
-                result.extend(chosen)
-            return distinct(result)
-        if "optional" in node:
-            if node.get("elidable") is True:
-                return [_Sequence([], set())]
-            return distinct([_Sequence([], set()), *(yield visit(node["optional"]))])
-        return [_Sequence([], set())]
-
-    sequences: list[_Sequence] = run(visit(expr))
-    return [sequence.captures for sequence in sequences], list(duplicates.values())
-
-
-def alternative_captures(alternative: Dom) -> list[dict[str, int]]:
-    """The captures of each production of an alternative, each name with its
-    place in the order that the production reads them, and ``$`` at -1
-    (engine §3.5). Productions that read the same captures in the same order
-    are one."""
-    sequences, _ = capture_sequences(alternative["expr"])
-    return [{WHOLE: -1, **{capture["capture"]: index for index, capture in enumerate(sequence)}} for sequence in sequences]
-
-
 def simplify_condition(condition: Dom, present: AbstractSet[str]) -> Simplified:
     """A condition simplified for a production that has the captures
     ``present`` (engine §3.6)."""
@@ -719,6 +600,223 @@ class Emission:
         return first, next(name for name in attachments_of(self.items[first]) if name in present)
 
 
+def _witness_flat(tree):
+    out, pending = [], [tree]
+    while pending:
+        part = pending.pop()
+        if isinstance(part, tuple):
+            pending.extend((part[1], part[0]))
+        elif part is not None:
+            out.append(part)
+    return out
+
+
+def _witness_key_less(left, right):
+    x, y = [left], [right]
+    while x and y:
+        a, b = x[-1], y[-1]
+        if a is None:
+            x.pop()
+        elif b is None:
+            y.pop()
+        elif a is b or not isinstance(a, tuple) and not isinstance(b, tuple) and a == b:
+            x.pop()
+            y.pop()
+        elif isinstance(a, tuple):
+            x.pop()
+            x.extend((a[1], a[0]))
+        elif isinstance(b, tuple):
+            y.pop()
+            y.extend((b[1], b[0]))
+        else:
+            return a < b
+    return not any(p is not None for p in x) and any(p is not None for p in y)
+
+
+def _capture_witness(expr, required=(), forbidden=(), order=()):
+    required, forbidden = set(required) - {WHOLE}, set(forbidden)
+    if WHOLE in forbidden or required & forbidden:
+        return None
+
+    def pick(into, state, candidate):
+        old = into.get(state)
+        if old is None or candidate[0] > old[0] or candidate[0] == old[0] and _witness_key_less(candidate[2], old[2]):
+            into[state] = candidate
+
+    def join(left, right):
+        out = {}
+        for a, x in left.items():
+            for b, y in right.items():
+                if a & b or a & 2 and b & 1:
+                    continue
+                pick(out, a | b, (x[0] + y[0], (x[1], y[1]), (x[2], y[2])))
+        return out
+
+    def visit(node):
+        if 'capture' in node:
+            name = node['capture']
+            state = 1 if order and name == order[0] else 2 if order and name == order[1] else 0
+            return {} if name in forbidden else {state: (int(name in required), name, None)}
+        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
+        if children is not None:
+            all_parts = {0: (0, None, None)}
+            if 'choice' in node or 'ranked' in node:
+                all_parts = {}
+                for i, child in enumerate(children):
+                    for state, w in (yield visit(child)).items():
+                        pick(all_parts, state, (w[0], w[1], (i, w[2])))
+            elif 'and' in node:
+                all_parts = {}
+                for i, child in enumerate(children):
+                    part = yield visit(child)
+                    next_parts = dict(all_parts)
+                    for state, w in part.items():
+                        pick(next_parts, state, (w[0], w[1], (1 << i, w[2])))
+                    for a, x in all_parts.items():
+                        for b, y in part.items():
+                            if a & b or a & 2 and b & 1:
+                                continue
+                            pick(next_parts, a | b, (x[0] + y[0], (x[1], y[1]), (x[2][0] | 1 << i, (x[2][1], y[2]))))
+                    all_parts = next_parts
+            else:
+                for child in children:
+                    all_parts = join(all_parts, (yield visit(child)))
+            return all_parts
+        if 'optional' in node and not node.get('elidable'):
+            out = {0: (0, None, 0)}
+            for state, w in (yield visit(node['optional'])).items():
+                pick(out, state, (w[0], w[1], (1, w[2])))
+            return out
+        if 'test' in node:
+            return (yield visit(node['expr']))
+        return {0: (0, None, None)}
+
+    result = run(visit(expr)).get(3 if order else 0)
+    return result if result is not None and result[0] == len(required) else None
+
+
+def _variable_captures(expr):
+    pending, done = [(expr, False)], []
+    while pending:
+        node, ready = pending.pop()
+        children = next((node[k] for k in ('seq', 'choice', 'ranked', 'and') if k in node), None)
+        if children is None:
+            children = [node['optional']] if 'optional' in node and not node.get('elidable') else [node['expr']] if 'test' in node else []
+        if not ready:
+            pending.append((node, True))
+            pending.extend((child, False) for child in reversed(children))
+            continue
+        parts = done[-len(children):] if children else []
+        if children:
+            del done[-len(children):]
+        has = 'capture' in node or any(p[0] for p in parts)
+        variable = any(p[1] for p in parts) or has and ('optional' in node or len(children) > 1 and any(k in node for k in ('choice', 'ranked', 'and')))
+        done.append((has, variable))
+    return done[0][1]
+
+
+def validation_captures(rule, alternative):
+    expr = alternative['expr']
+    if not _variable_captures(expr):
+        captures, pending = {WHOLE: -1}, [expr]
+        while pending:
+            node = pending.pop()
+            if 'capture' in node:
+                captures[node['capture']] = len(captures) - 1
+            elif 'seq' in node:
+                pending.extend(reversed(node['seq']))
+            elif any(k in node for k in ('choice', 'ranked', 'and')):
+                pending.append(next(node[k][0] for k in ('choice', 'ranked', 'and') if k in node))
+            elif 'test' in node:
+                pending.append(node['expr'])
+        return [captures]
+    witnesses = []
+
+    def ask(required=(), forbidden=(), order=()):
+        w = _capture_witness(expr, required, forbidden, order)
+        if w is not None:
+            witnesses.append(w)
+
+    ask()
+    items = rule.get('emit', {}).get('items', [])
+    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions'], *items]
+    clauses.extend(a.get(k) for a in rule['alternatives'] for k in ('tags', 'value', 'image'))
+    for value in clauses:
+        for name in mentioned_in(value):
+            ask([name])
+    for item in items:
+        if 'capture' in item:
+            for name in attachment_order(item):
+                ask([name])
+
+    def clause(value, condition=False, carrier=()):
+        if value is None or waits(value):
+            return
+        # A capture can be both tested for presence and read as a value.
+        pending = [value]
+        guards = set()
+        while pending:
+            n = pending.pop()
+            if isinstance(n, dict) and 'pattern' not in n:
+                if 'captured' in n and n['captured'] != WHOLE:
+                    guards.add(n['captured'])
+                pending.extend(n.values())
+            elif isinstance(n, list):
+                pending.extend(n)
+        guards = sorted(guards)
+
+        def branch(i, yes, no):
+            if i < len(guards):
+                branch(i + 1, yes, no + [guards[i]])
+                branch(i + 1, yes + [guards[i]], no)
+                return
+            simple = simplify_condition(value, set(yes) | {WHOLE}) if condition else simplify_term(value, set(yes) | {WHOLE})
+            used = captures_in(simple)
+            if condition:
+                if simple is not True:
+                    ask([*carrier, *yes, *used], no)
+            else:
+                for name in used:
+                    ask([*carrier, *yes], [*no, name])
+        branch(0, [], [])
+
+    for value in rule['conditions']:
+        clause(value, True)
+    for value in (rule.get('tags'), alternative.get('tags')):
+        clause(value)
+    value = alternative.get('value', rule.get('value'))
+    for recipe in (value, alternative.get('image', rule.get('image', value))):
+        for name in captures_in(recipe):
+            ask(forbidden=[name])
+    if items and not any('insert' in i or i.get('capture') == WHOLE for i in items):
+        ask(forbidden=[i['capture'] for i in items])
+    written = []
+    for item in items:
+        carrier = [item['capture']] if 'capture' in item else []
+        if carrier:
+            for name in attachments_of(item):
+                ask([name], carrier)
+            ask(forbidden=carrier)
+        for channel in ('value', 'image'):
+            for name in captures_in(item.get(channel)):
+                ask(carrier, [name])
+        clause(item.get('tags'), carrier=carrier)
+        if item.get('capture'):
+            written.extend((name, item['capture']) for name in attachment_order(item))
+    for i, (a, ac) in enumerate(written):
+        for b, bc in written[i + 1:]:
+            if a != b:
+                ask([a, ac, b, bc], order=[b, a])
+    witnesses.sort(key=lambda w: _witness_flat(w[2]))
+    found, out = set(), []
+    for w in witnesses:
+        names = tuple(_witness_flat(w[1]))
+        if names not in found:
+            found.add(names)
+            out.append({WHOLE: -1, **{name: i for i, name in enumerate(names)}})
+    return out
+
+
 def definition_problem(rule: Dom) -> str | None:
     """Why a definition, a well-formed rule of a DOM with its clauses, is an
     error of its document as a whole (engine §9), or None. The checks that
@@ -734,7 +832,7 @@ def definition_problem(rule: Dom) -> str | None:
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.
-    productions = [(alternative, captures) for alternative in alternatives for captures in alternative_captures(alternative)]
+    productions = [(alternative, captures) for alternative in alternatives for captures in validation_captures(rule, alternative)]
     captured = [[name for name, _ in sorted(captures.items(), key=lambda pair: pair[1]) if name != WHOLE] for _, captures in productions]
     presents = [set(captures) for _, captures in productions]
     known = set().union(*presents)

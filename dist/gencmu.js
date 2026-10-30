@@ -1585,6 +1585,49 @@
   const PROPERTY_NAMES = new Set(Object.keys(PROPERTY_CATALOG.tags).map(name => name.slice(1)));
 
 
+  // Keep disjoint ranges while reading records, so a conflict names the later line.
+  /**
+   * @template T
+   * @param {[number, number, T][]} ranges
+   * @param {number} start
+   * @param {number} end
+   * @param {T} value
+   * @param {() => void} fail
+   */
+  function addValueRange(ranges, start, end, value, fail) {
+    let low = 0, high = ranges.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (ranges[mid][1] < start) low = mid + 1;
+      else high = mid;
+    }
+    let last = low;
+    while (last < ranges.length && ranges[last][0] <= end) {
+      if (ranges[last][2] !== value) fail();
+      last++;
+    }
+    if (low > 0 && ranges[low - 1][1] + 1 === start && ranges[low - 1][2] === value) low--;
+    if (last < ranges.length && ranges[last][0] === end + 1 && ranges[last][2] === value) last++;
+    if (low < last) {
+      start = Math.min(start, ranges[low][0]);
+      end = Math.max(end, ranges[last - 1][1]);
+    }
+    ranges.splice(low, last - low, [start, end, value]);
+  }
+
+  /** @param {[number, number][]} ranges @returns {[number, number][]} */
+  function unionRanges(ranges) {
+    ranges.sort((a, b) => a[0] - b[0]);
+    /** @type {[number, number][]} */
+    const union = [];
+    for (const [start, end] of ranges) {
+      const previous = union.at(-1);
+      if (previous && start <= previous[1] + 1) previous[1] = Math.max(previous[1], end);
+      else union.push([start, end]);
+    }
+    return union;
+  }
+
   class UnicodeTable {
     /** @param {string} text the contents of data/unicode/unicode.txt @param {string} [properties] */
     constructor(text, properties) {
@@ -1644,38 +1687,26 @@
         }
         else if (entry === "decompose") {
           const scalars = fields.slice(1).map(hex);
-          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff)) fail();
+          if (scalars.some(code => code >= 0xd800 && code <= 0xdfff) || this.decompositions.has(scalars[0])) fail();
           this.decompositions.set(scalars[0], scalars.slice(1));
         } else {
           const start = hex(fields[fields.length - 2]), end = hex(fields[fields.length - 1]);
           if (start > end) fail();
           if (entry === "category") {
-            if (!CATEGORIES.includes(fields[1])) fail();
-            ranges.push([start, end, fields[1]]);
+            if (!CATEGORIES.includes(fields[1]) || fields[1] === "Cs") fail();
+            addValueRange(ranges, start, end, fields[1], fail);
           } else if (entry === "combining") {
             const digits = fields[1].replace(/^0+/, "");
             if (!/^[0-9]+$/.test(fields[1]) || digits.length > 3) fail();
             const klass = Number(digits);
             if (klass < 1 || klass > 254) fail();
-            this.combining.push([start, end, klass]);
+            addValueRange(this.combining, start, end, klass, fail);
           } else if (entry === "white-space") this.whiteSpace.push([start, end]);
           else this.emoji.get(entry === "emoji-presentation" ? "Emoji_Presentation" : "Emoji_Component")?.push([start, end]);
         }
       }
-      // The records can stand in any order in the file (engine §1).
-      ranges.sort((a, b) => a[0] - b[0]);
-      for (const [property, ranges] of this.emoji) {
-        ranges.sort((a, b) => a[0] - b[0]);
-        /** @type {[number, number][]} */
-        const union = [];
-        for (const [start, end] of ranges) {
-          const previous = union.at(-1);
-          if (previous && start <= previous[1] + 1) previous[1] = Math.max(previous[1], end);
-          else union.push([start, end]);
-        }
-        this.emoji.set(property, union);
-      }
-      this.combining.sort((a, b) => a[0] - b[0]);
+      this.whiteSpace = unionRanges(this.whiteSpace);
+      for (const [property, ranges] of this.emoji) this.emoji.set(property, unionRanges(ranges));
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
         this.ends.push(end);
@@ -2288,17 +2319,6 @@
     return names.some(name => /[\uD800-\uDFFF]/.test(name)) ? names.sort(compareCodePoints) : names.sort();
   }
 
-  const NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
-
-  /**
-   * Whether a string is a name, and so an identifier tag (engine §1).
-   * @param {string} tag
-   * @returns {boolean}
-   */
-  function isName(tag) {
-    return NAME.test(tag);
-  }
-
   /** @param {string} string @param {string} digits @returns {Set<string>} */
   function ngrams(string, digits) {
     const points = [...string], n = Number(digits);
@@ -2332,17 +2352,6 @@
   function isTag(tag, unicode) {
     if (typeof tag !== "string") return false;
     return /^[A-Z][A-Za-z0-9_-]*$/.test(tag) || tag.startsWith("_") && (unicode?.canonicalTag ? unicode.canonicalTag(tag) !== null : PROPERTY_NAMES.has(tag.slice(1)));
-  }
-
-
-  /**
-   * The written form of a range, its identity as a terminal (engine §4):
-   * its two ends, in their canonical spelling, joined by `..`.
-   * @param {[string, string]} range
-   * @returns {string}
-   */
-  function rangeName(range) {
-    return `${range[0]}..${range[1]}`;
   }
 
   // ---- walk.js
@@ -2666,7 +2675,7 @@
   }
 
   /**
-   * A token's classes, its tags that begin with a capital, in code point
+   * A token's classes, its tags that start and end with an uppercase ASCII letter, in code point
    * order: how the renderings name an attached token (docs/output.md).
    * @param {AttachedToken} token
    * @returns {string[]}
@@ -4001,6 +4010,219 @@
     return value;
   }
 
+  // ---- patterns.js
+  // Finite observations of structural trees (engine §4.1). A helper carries
+  // a sequence monoid: its relations concatenate without retaining trees.
+
+
+
+
+
+  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
+  function leafTest(test, input, tags) {
+    if (test.test === "=") return input === test.value.string;
+    if (test.test === "≠") return input !== test.value.string;
+    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
+      if (tags.has(tag) === requirement.negated) return false;
+    }
+    return true;
+  }
+
+  /** @param {any} pattern @param {any} leaf @returns {boolean} */
+  function leafMatches(pattern,leaf) {
+    if (!leaf) return false;
+    if (pattern.test) return leafMatches(pattern.expr,leaf) && leafTest(pattern,leaf.value,leaf.tags);
+    return pattern.terminal === leaf.terminal;
+  }
+
+  /** @param {any} node @returns {any[]} */
+  function patternParts(node) {
+    if (Array.isArray(node)) return node;
+    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
+    if (node.path) return [node.pattern];
+    if (node.test) return [node.expr];
+    if (node.child) return [node.child];
+    if (node.choice) return node.choice.flat();
+    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
+  }
+
+  /**
+   * @param {any} root
+   * @param {(name:string, at:[number,number]) => any} constant
+   * @param {(term:any, test:any) => any} value
+   * @param {import("./unicode.js").UnicodeTable} unicode
+   * @returns {any}
+   */
+  function resolvePattern(root, constant, value, unicode) {
+    /** @param {any} atom @param {string} message @returns {never} */
+    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
+    /** @param {any} node @returns {Generator<any,any,any>} */
+    function* resolve(node) {
+      if (Array.isArray(node)) {
+        const items=[];
+        for(const child of node) items.push(yield resolve(child));
+        return items;
+      }
+      let result={...node};
+      if (node.constant) {
+        const resolved=constant(node.constant,node.at);
+        if ('pattern' in resolved) {
+          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
+          return resolved.pattern;
+        }
+        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.literal || node.range || node.wildcard) {
+        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
+          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
+        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
+      } else if (node.test) {
+        let base=node.expr;
+        while(base.test) base=base.expr;
+        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
+        result.expr=yield resolve(node.expr);
+        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
+        else result.value=value(node.value,node);
+        return result;
+      }
+      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
+        if(node[key]) result[key]=yield resolve(node[key]);
+      }
+      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
+      return result;
+    }
+    return run(resolve(root));
+  }
+
+  /** @param {any} value @returns {any} */
+  function patternKey(value) {
+    if (value instanceof Set) return [...value].sort();
+    if (Array.isArray(value)) return value.map(patternKey);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
+  }
+
+  class PatternMachine {
+    /** @param {any[]} roots */
+    constructor(roots) {
+      /** @type {any[]} */ this.predicates = [];
+      /** @type {any[]} */ this.machines = [];
+      /** @type {Map<string,number>} */ this.ids = new Map();
+      /** @type {any[]} */ this.states = [];
+      /** @type {Map<string,number>} */ this.stateIds = new Map();
+      /** @type {Map<string,number>} */ this.transitions = new Map();
+      roots.forEach(n => this.compile(n));
+      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
+      // A seal contributes one nameless child even over an empty interval.
+      this.seal = this.nodeState(0n,false);
+    }
+    /** @param {any} n @returns {number} */
+    compile(n) {
+      const key = JSON.stringify(patternKey(n));
+      const old = this.ids.get(key); if (old !== undefined) return old;
+      const p = {...n};
+      if (n.path) p.child = this.compile(n.pattern);
+      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
+      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
+      const id = this.predicates.length;
+      this.predicates.push(p); this.ids.set(key,id); return id;
+    }
+    /** @param {any} body @returns {any} */
+    sequence(body) {
+      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
+      let size=0;
+      const state=() => size++;
+      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
+      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
+        if (Array.isArray(n)) {
+          if (!n.length) edge(from,to);
+          let a=from;
+          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
+        } else if (n.child) edge(from,to,this.compile(n.child));
+        else if (n.siblings) { edge(from,to); edge(from,from,-1); }
+        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
+        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
+        else if (n.repeat) {
+          const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
+          if (n.separator) build(n.separator,a,b); else edge(a,b);
+          build(n.repeat,b,a);
+        }
+      };
+      const start=state(),end=state(); build(body,start,end);
+      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
+      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
+      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
+      return {size,start,end,edges,epsilon};
+    }
+    /** @param {any} s @returns {number} */
+    intern(s) {
+      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
+      const old=this.stateIds.get(key);if(old!==undefined)return old;
+      if (hooks.work) countWork(hooks.work, "structuralStates");
+      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
+    }
+    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
+    compose(a,b) {
+      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
+    }
+    /** @param {number} left @param {number} right @returns {number} */
+    concat(left,right) {
+      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
+      const a=this.states[left],b=this.states[right];
+      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
+        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {bigint} bits @param {boolean} empty @returns {number} */
+    nodeState(bits,empty) {
+      const relations=this.machines.map(m => {
+        const move=Array.from({length:m.size},() => 0n);
+        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
+        return this.compose(this.compose(m.epsilon,move),m.epsilon);
+      });
+      // A node state retains its own bits even when empty. Its sequence
+      // contribution is empty in that case, so captures retain root names.
+      const zero=this.states[this.empty];
+      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
+    }
+    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
+    node(name,children,leaf=null) {
+      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):''}`;
+      const old=this.transitions.get(key);if(old!==undefined)return old;
+      const s=this.states[children];let bits=0n;
+      this.predicates.forEach((p,i) => {
+        const bit=1n<<BigInt(i);let holds=false;
+        if (p.name) holds=name===p.name;
+        else if(p.terminal) holds=leaf?.terminal===p.terminal;
+        else if(p.test) holds=leafMatches(p,leaf);
+        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
+        else if(p.path) {
+          holds=!!(bits&(1n<<BigInt(p.child)));
+          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
+          holds=holds||!!(child&bit);
+        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
+        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
+        if (p.children) {
+          const m=this.machines[p.machine];
+          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
+        }
+        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
+        if(holds)bits|=bit;
+      });
+      const id=this.nodeState(bits,!leaf&&s.count===0);
+      if (hooks.work) countWork(hooks.work, "structuralTransitions");
+      this.transitions.set(key,id);return id;
+    }
+    /** @param {number} state @param {any} pattern @returns {boolean} */
+    matches(state,pattern) {
+      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
+      if(id===undefined)throw new Error('undemanded structural pattern');
+      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
+    }
+  }
+
+
   // ---- pattern-shapes.js
   // Layered pattern constructors (docs/output.md, "Pattern values").
   // This walk keeps pattern and item positions distinct before substitution.
@@ -4189,231 +4411,6 @@
     return literal ? '#'+(atom(root) ? text : '('+text+')') : text;
   }
 
-  // ---- patterns.js
-
-  // Finite observations of structural trees (engine §4.1). A helper carries
-  // a sequence monoid: its relations concatenate without retaining trees.
-
-
-
-
-
-
-  /** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
-  function leafTest(test, input, tags) {
-    if (test.test === "=") return input === test.value.string;
-    if (test.test === "≠") return input !== test.value.string;
-    for (const requirement of test.requirements) for (const tag of requirement.value.set) {
-      if (tags.has(tag) === requirement.negated) return false;
-    }
-    return true;
-  }
-
-  /** @param {any} pattern @param {any} leaf @returns {boolean} */
-  function leafMatches(pattern,leaf) {
-    if (!leaf) return false;
-    if (pattern.test) return leafMatches(pattern.expr,leaf) && leafTest(pattern,leaf.value,leaf.tags);
-    return pattern.terminal === leaf.terminal;
-  }
-
-  /** @param {any} node @returns {any[]} */
-  function patternParts(node) {
-    if (Array.isArray(node)) return node;
-    if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
-    if (node.path) return [node.pattern];
-    if (node.test) return [node.expr];
-    if (node.child) return [node.child];
-    if (node.choice) return node.choice.flat();
-    return [...(node.children ?? []), ...(node.optional ?? node.repeat ?? []), ...(node.separator ?? [])];
-  }
-
-  /**
-   * Shape only. Term and test typing remains in dom.js. The caller bounds
-   * nesting before calling this walk.
-   * @param {any} root @param {(test: any) => string | null} testFault
-   * @returns {string | null}
-   */
-  function patternProblem(root, testFault) {
-    return layeredPatternProblem(root, {test:testFault, terminal:name=>/^[A-Z][A-Za-z0-9_-]*$/.test(name) || name.startsWith('_') && PROPERTY_NAMES.has(name.slice(1))});
-  }
-
-  /**
-   * @param {any} root
-   * @param {(name:string, at:[number,number]) => any} constant
-   * @param {(term:any, test:any) => any} value
-   * @param {import("./unicode.js").UnicodeTable} unicode
-   * @returns {any}
-   */
-  function resolvePattern(root, constant, value, unicode) {
-    /** @param {any} atom @param {string} message @returns {never} */
-    const fault=(atom,message)=>{throw new GencmuError('grammar',message,{line:atom.at?.[0],column:atom.at?.[1]});};
-    /** @param {any} node @returns {Generator<any,any,any>} */
-    function* resolve(node) {
-      if (Array.isArray(node)) {
-        const items=[];
-        for(const child of node) items.push(yield resolve(child));
-        return items;
-      }
-      let result={...node};
-      if (node.constant) {
-        const resolved=constant(node.constant,node.at);
-        if ('pattern' in resolved) {
-          if (node.exact || node.children) return fault(node,'a pattern-valued constant cannot carry node decorations');
-          return resolved.pattern;
-        }
-        result={terminal:stringName(resolved.string,unicode),at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.literal || node.range || node.wildcard) {
-        const terminal=node.literal ? stringName(value(node.literal,node).string,unicode)
-          : node.range ? node.range.map((/** @type {any} */ end)=>stringName(value(end,node).string,unicode)).join('..') : '_';
-        result={terminal,at:node.at,...(node.exact?{exact:true}:{})};
-      } else if (node.test) {
-        let base=node.expr;
-        while(base.test) base=base.expr;
-        if(base.constant && 'pattern' in constant(base.constant,base.at)) return fault(base,'a tested pattern atom requires a string constant');
-        result.expr=yield resolve(node.expr);
-        if (node.test==='tags') result.requirements=node.requirements.map((/** @type {any} */ requirement)=>({...requirement,value:value(requirement.value,node)}));
-        else result.value=value(node.value,node);
-        return result;
-      }
-      for(const key of ['union','intersection','difference','choice','pattern','children','child','optional','repeat','separator']) {
-        if(node[key]) result[key]=yield resolve(node[key]);
-      }
-      for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
-      return result;
-    }
-    return run(resolve(root));
-  }
-
-  /** @param {any} value @returns {any} */
-  function patternKey(value) {
-    if (value instanceof Set) return [...value].sort();
-    if (Array.isArray(value)) return value.map(patternKey);
-    if (!value || typeof value !== 'object') return value;
-    return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'at').map(([key,val]) => [key,patternKey(val)]));
-  }
-
-  class PatternMachine {
-    /** @param {any[]} roots */
-    constructor(roots) {
-      /** @type {any[]} */ this.predicates = [];
-      /** @type {any[]} */ this.machines = [];
-      /** @type {Map<string,number>} */ this.ids = new Map();
-      /** @type {any[]} */ this.states = [];
-      /** @type {Map<string,number>} */ this.stateIds = new Map();
-      /** @type {Map<string,number>} */ this.transitions = new Map();
-      roots.forEach(n => this.compile(n));
-      this.empty = this.intern({count:0, first:0n,last:0n,any:0n, relations:this.machines.map(m => m.epsilon)});
-      // A seal contributes one nameless child even over an empty interval.
-      this.seal = this.nodeState(0n,false);
-    }
-    /** @param {any} n @returns {number} */
-    compile(n) {
-      const key = JSON.stringify(patternKey(n));
-      const old = this.ids.get(key); if (old !== undefined) return old;
-      const p = {...n};
-      if (n.path) p.child = this.compile(n.pattern);
-      for (const k of ['union','intersection','difference']) if (n[k]) p.operands = n[k].map((/** @type {any} */ x) => this.compile(x));
-      if (n.children) { const m = this.sequence(n.children); p.machine = this.machines.length; this.machines.push(m); }
-      const id = this.predicates.length;
-      this.predicates.push(p); this.ids.set(key,id); return id;
-    }
-    /** @param {any} body @returns {any} */
-    sequence(body) {
-      /** @type {{from:number,to:number,predicate:number | null}[]} */ const edges=[];
-      let size=0;
-      const state=() => size++;
-      const edge=(/** @type {number} */ from,/** @type {number} */ to,/** @type {number|null} */ predicate=null) => edges.push({from,to,predicate});
-      const build=(/** @type {any} */ n,/** @type {number} */ from,/** @type {number} */ to) => {
-        if (Array.isArray(n)) {
-          if (!n.length) edge(from,to);
-          let a=from;
-          n.forEach((x,i) => { const b=i===n.length-1?to:state(); build(x,a,b);a=b; });
-        } else if (n.child) edge(from,to,this.compile(n.child));
-        else if (n.siblings) { edge(from,to); edge(from,from,-1); }
-        else if (n.choice) n.choice.forEach((/** @type {any} */ arm) => build(arm,from,to));
-        else if (n.optional) { edge(from,to); build(n.optional,from,to); }
-        else if (n.repeat) {
-          const a=state(),b=state(); build(n.repeat,from,a); edge(a,to);
-          if (n.separator) build(n.separator,a,b); else edge(a,b);
-          build(n.repeat,b,a);
-        }
-      };
-      const start=state(),end=state(); build(body,start,end);
-      const epsilon=Array.from({length:size},(_,i) => 1n<<BigInt(i));
-      edges.filter(e => e.predicate===null).forEach(e => epsilon[e.from] |= 1n<<BigInt(e.to));
-      for (let k=0;k<size;k++) for (let i=0;i<size;i++) if (epsilon[i] & (1n<<BigInt(k))) epsilon[i] |= epsilon[k];
-      return {size,start,end,edges,epsilon};
-    }
-    /** @param {any} s @returns {number} */
-    intern(s) {
-      const key = `${s.count}/${s.first}/${s.last}/${s.any}/${s.relations.map((/** @type {bigint[]} */ r) => r.join(',')).join(';')}/${s.bits??''}/${s.empty??''}`;
-      const old=this.stateIds.get(key);if(old!==undefined)return old;
-      if (hooks.work) countWork(hooks.work, "structuralStates");
-      const id=this.states.length;this.states.push(s);this.stateIds.set(key,id);return id;
-    }
-    /** @param {bigint[]} a @param {bigint[]} b @returns {bigint[]} */
-    compose(a,b) {
-      return a.map(row => { let out=0n;for(let k=0;k<b.length;k++)if(row&(1n<<BigInt(k)))out|=b[k];return out; });
-    }
-    /** @param {number} left @param {number} right @returns {number} */
-    concat(left,right) {
-      const key=`c${left},${right}`;const old=this.transitions.get(key);if(old!==undefined)return old;
-      const a=this.states[left],b=this.states[right];
-      const id=this.intern({count:Math.min(2,a.count+b.count),first:a.count?a.first:b.first,last:b.count?b.last:a.last,any:a.any|b.any,
-        relations:a.relations.map((/** @type {bigint[]} */ r,/** @type {number} */ i) => this.compose(r,b.relations[i]))});
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {bigint} bits @param {boolean} empty @returns {number} */
-    nodeState(bits,empty) {
-      const relations=this.machines.map(m => {
-        const move=Array.from({length:m.size},() => 0n);
-        m.edges.forEach((/** @type {any} */ e) => { if(e.predicate!==null&&(e.predicate===-1||(bits&(1n<<BigInt(e.predicate)))))move[e.from]|=1n<<BigInt(e.to); });
-        return this.compose(this.compose(m.epsilon,move),m.epsilon);
-      });
-      // A node state retains its own bits even when empty. Its sequence
-      // contribution is empty in that case, so captures retain root names.
-      const zero=this.states[this.empty];
-      return this.intern({bits,empty,count:empty?0:1,first:empty?0n:bits,last:empty?0n:bits,any:empty?0n:bits,relations:empty?zero.relations:relations});
-    }
-    /** @param {string|null} name @param {number} children @param {any} [leaf] @returns {number} */
-    node(name,children,leaf=null) {
-      const key=`n${name}/${children}/${leaf?JSON.stringify([leaf.terminal,leaf.value,[...leaf.tags].sort()]):''}`;
-      const old=this.transitions.get(key);if(old!==undefined)return old;
-      const s=this.states[children];let bits=0n;
-      this.predicates.forEach((p,i) => {
-        const bit=1n<<BigInt(i);let holds=false;
-        if (p.name) holds=name===p.name;
-        else if(p.terminal) holds=leaf?.terminal===p.terminal;
-        else if(p.test) holds=leafMatches(p,leaf);
-        else if(p.any || p.children) holds=p.any ? name!==null || leaf!==null : true;
-        else if(p.path) {
-          holds=!!(bits&(1n<<BigInt(p.child)));
-          const child=p.path==='descendant'?s.any:p.path==='first'?s.first:s.last;
-          holds=holds||!!(child&bit);
-        } else if(p.union) holds=p.operands.some((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.intersection) holds=p.operands.every((/** @type {number} */ j) => !!(bits&(1n<<BigInt(j))));
-        else if(p.difference) holds=!!(bits&(1n<<BigInt(p.operands[0])))&&! (bits&(1n<<BigInt(p.operands[1])));
-        if (p.children) {
-          const m=this.machines[p.machine];
-          holds=holds&&!!(s.relations[p.machine][m.start]&(1n<<BigInt(m.end)));
-        }
-        if ((p.name||p.terminal||p.test||p.any||p.children)&&!p.exact&&s.count===1) holds=holds||!!(s.first&bit);
-        if(holds)bits|=bit;
-      });
-      const id=this.nodeState(bits,!leaf&&s.count===0);
-      if (hooks.work) countWork(hooks.work, "structuralTransitions");
-      this.transitions.set(key,id);return id;
-    }
-    /** @param {number} state @param {any} pattern @returns {boolean} */
-    matches(state,pattern) {
-      const id=this.ids.get(JSON.stringify(patternKey(pattern)));
-      if(id===undefined)throw new Error('undemanded structural pattern');
-      return !!((this.states[state].bits ?? 0n)&(1n<<BigInt(id)));
-    }
-  }
-
-
   // ---- dom.js
 
 
@@ -4446,8 +4443,8 @@
   const DOM_FORMAT = 40;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
-  // A classifier's name begins with a lower-case letter, and a class with a
-  // capital (engine §2, §9).
+  // A classifier name starts with a lowercase letter. A class name starts
+  // and ends with an uppercase ASCII letter (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
@@ -4469,7 +4466,7 @@
   /**
    * What is wrong with a test's value (engine §9), or null: it must be a
    * closed term, of type string for a value test and tag set for a tag test,
-   * and a string literal of a value test must be a canonical value. The shape
+   * with no canonical-value restriction on string literals. The shape
    * of the value must already be checked, and its nesting bounded.
    * @param {string} op
    * @param {any} value
@@ -4487,18 +4484,15 @@
   }
 
   /**
-   * What is wrong with a range (engine §1, §9), or null: its ends must be two
-   * character tags in their canonical spelling by the table, which says which
-   * code points are marks, the start not above the end.
+   * What is wrong with a range (engine §1, §9), or null: visible endpoints
+   * must each contain one scalar, with the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
    * @returns {string | null}
    */
-  function rangeProblem(range, unicode) {
+  function rangeProblem(range) {
     if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
     const strings = range.map(end => {
       if (isDomObject(end) && typeof end.string === "string") return end.string;
-      if (isDomObject(end) && isDomObject(end.value) && typeof end.value.string === "string") return end.value.string;
 
       return null;
     });
@@ -4675,7 +4669,7 @@
         }
         if (value.literal) push("term",value.literal,depth,{params:task.params});
         if (value.range) {
-          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+          const problem = rangeProblem(value.range); if (problem) return problem;
           for (const endpoint of value.range) push("term",endpoint,depth,{params:task.params});
         }
         if (value.test === "tags") for (const requirement of value.requirements) child("term",requirement.value);
@@ -4761,7 +4755,7 @@
         else if ("range" in value) {
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
           for (const end of value.range) push("term", end, depth);
-          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+          const problem = rangeProblem(value.range); if (problem) return problem;
         } else if ("ref" in value) { if (fields.length !== 1 || !(ruleName(value.ref) || tag(value.ref))) return "a malformed reference"; }
         else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
       } else if (kind === "tags") {
@@ -5440,122 +5434,6 @@
   }
 
   /**
-   * The captures of each production of an alternative, name to its place in
-   * the order that the production reads them, with `$` at -1 (engine §3.5).
-   * @param {any} alternative
-   * @returns {Map<string, number>[]}
-   */
-  function alternativeCaptures(alternative) {
-    return captureSequences(alternative.expr).map((sequence) => {
-      /** @type {Map<string, number>} */
-      const captures = new Map([["", -1]]);
-      sequence.forEach((name, index) => captures.set(name, index));
-      return captures;
-    });
-  }
-
-  /**
-   * A sequence of capture names, as a node of a trie of all the sequences
-   * of one expression: one node for each distinct sequence, which shares its
-   * prefix with the sequences it extends.
-   * @typedef {{parent: CaptureNode | null, name: string, length: number, children: Map<string, CaptureNode> | null}} CaptureNode
-   */
-
-  /**
-   * The distinct sequences of captures that the productions of an expression
-   * read, each in the order read (engine §3.2, §3.5): a choice gives each
-   * branch's, an `&` each subsequence's, a plain optional none or its
-   * content's, and braces and an elidable optional none. Productions that
-   * read the same names in the same order are one sequence. Gates do not
-   * matter, since they drop whole alternatives.
-   *
-   * The sequences are nodes of a trie, so that extending one by a capture
-   * costs one step and two equal sequences are one node. A copy of each
-   * growing prefix would cost the square of a sequence's length.
-   * @param {any} expr
-   * @returns {string[][]}
-   */
-  function captureSequences(expr) {
-    /** @type {CaptureNode} */
-    const root = { parent: null, name: "", length: 0, children: null };
-    /** @type {(node: CaptureNode, name: string) => CaptureNode} */
-    const extended = (node, name) => {
-      if (hooks.work) countWork(hooks.work, "lowering");
-      const children = node.children ?? (node.children = new Map());
-      let child = children.get(name);
-      if (!child) children.set(name, (child = { parent: node, name, length: node.length + 1, children: null }));
-      return child;
-    };
-    /** @type {(node: CaptureNode) => string[]} */
-    const names = (node) => {
-      const list = new Array(node.length);
-      for (let at = node; at.parent !== null; at = at.parent) {
-        if (hooks.work) countWork(hooks.work, "lowering");
-        list[at.length - 1] = at.name;
-      }
-      return list;
-    };
-    /** @type {(lists: CaptureNode[]) => CaptureNode[]} */
-    const distinct = (lists) => (lists.length < 2 ? lists : [...new Set(lists)]);
-    /** @type {(left: CaptureNode[], right: CaptureNode[]) => CaptureNode[]} */
-    const product = (left, right) => {
-      /** @type {CaptureNode[]} */
-      const result = [];
-      const suffixes = right.map(names);
-      for (const a of left) {
-        for (const suffix of suffixes) {
-          let node = a;
-          for (const name of suffix) node = extended(node, name);
-          result.push(node);
-        }
-      }
-      return distinct(result);
-    };
-    /** @type {(node: any) => Generator<Step, CaptureNode[], any>} */
-    const visit = function* (node) {
-      if (!isDomObject(node)) return [root];
-      if (typeof node.capture === "string") return [extended(root, node.capture)];
-      if (Array.isArray(node.seq)) {
-        /** @type {CaptureNode[]} */
-        let sequences = [root];
-        for (const item of node.seq) sequences = product(sequences, yield visit(item));
-        return sequences;
-      }
-      if (Array.isArray(node.choice) || Array.isArray(node.ranked)) {
-        /** @type {CaptureNode[]} */
-        const all = [];
-        for (const item of /** @type {unknown[]} */ (node.choice ?? node.ranked)) for (const sequence of yield visit(item)) all.push(sequence);
-        return distinct(all);
-      }
-      if (Array.isArray(node.and)) {
-        /** @type {CaptureNode[][]} */
-        const parts = [];
-        for (const item of node.and) parts.push(yield visit(item));
-        /** @type {CaptureNode[]} */
-        const result = [];
-        for (let mask = 1; mask < 1 << parts.length; mask++) {
-          /** @type {CaptureNode[]} */
-          let sequences = [root];
-          parts.forEach((part, index) => {
-            if (mask & (1 << index)) sequences = product(sequences, part);
-          });
-          for (const sequence of sequences) result.push(sequence);
-        }
-        return distinct(result);
-      }
-      if ("optional" in node) {
-        if (node.elidable === true) return [root];
-        /** @type {CaptureNode[]} */
-        const all = [root];
-        for (const sequence of yield visit(node.optional)) all.push(sequence);
-        return distinct(all);
-      }
-      return [root];
-    };
-    return run(visit(expr)).map(names);
-  }
-
-  /**
    * The captures that some production of an expression reads after a
    * capture of the same name (engine §3.5, §9), found from the structure
    * alone: two captures are read by one production exactly when they stand
@@ -5662,8 +5540,8 @@
   /**
    * The terminal at the head of an elidable optional's expression, or null
    * when the expression has no such head (engine §3.8, §9): a `ref` whose
-   * name begins with a capital, a `terminal` whose tag is a name, or an `=`
-   * test of one of these, alone or first in a `seq`.
+   * name begins with a capital, or a declared parameter before expansion.
+   * Only `=`, `≠`, and `tags` tests unwrap, after selecting the first `seq` item.
    * @param {any} expr
    * @returns {any}
    */
@@ -5675,7 +5553,7 @@
     if (isTerminal(head)) return head;
     /** @type {any} */
     let base = head;
-    while (base.test) base = base.expr;
+    while (isDomObject(base) && typeof base.test === "string" && TEST_OPS.has(base.test)) base = base.expr;
     if (isTerminal(base)) return head;
     return null;
   }
@@ -5699,6 +5577,160 @@
       for (const child of expressionChildren(expr)) pending.push(child);
     }
     return false;
+  }
+
+  /** @typedef {{count:number, names:any, key:any, mask?:number}} CaptureWitness */
+  /** @param {any} tree @returns {any[]} */
+  function witnessList(tree) {
+    const out=[], pending=[tree];
+    while(pending.length) {
+      const part=pending.pop();
+      if(Array.isArray(part)) { pending.push(part[1]); pending.push(part[0]); }
+      else if(part!==null && part!==undefined) out.push(part);
+    }
+    return out;
+  }
+  /** @param {CaptureWitness} a @param {CaptureWitness} b @returns {number} */
+  function witnessOrder(a,b) {
+    const x=[a.key],y=[b.key];
+    while(x.length && y.length) {
+      const u=x[x.length-1],v=y[y.length-1];
+      if(u===null || u===undefined) {x.pop();continue;}
+      if(v===null || v===undefined) {y.pop();continue;}
+      if(u===v) {x.pop();y.pop();continue;}
+      if(Array.isArray(u)) {x.pop();x.push(u[1]);x.push(u[0]);continue;}
+      if(Array.isArray(v)) {y.pop();y.push(v[1]);y.push(v[0]);continue;}
+      return u-v;
+    }
+    return x.some(v=>v!==null&&v!==undefined)?1:y.some(v=>v!==null&&v!==undefined)?-1:0;
+  }
+  /** One bounded-state walk, with no product of production capture lists.
+   * @param {any} expr @param {Set<string>} required @param {Set<string>} forbidden
+   * @param {string[]} [order] @returns {CaptureWitness|null} */
+  function captureWitness(expr,required,forbidden,order=[]) {
+    if(forbidden.has('') || [...required].some(name=>forbidden.has(name))) return null;
+    required=new Set([...required].filter(name=>name!==''));
+    const empty=()=>({count:0,names:null,key:null});
+    const pick=(/** @type {Map<number,CaptureWitness>} */ into,/** @type {number} */ state,/** @type {CaptureWitness} */ candidate)=>{
+      const old=into.get(state);
+      if(!old || candidate.count>old.count || candidate.count===old.count && witnessOrder(candidate,old)<0) into.set(state,candidate);
+    };
+    const join=(/** @type {Map<number,CaptureWitness>} */ left,/** @type {Map<number,CaptureWitness>} */ right)=>{
+      const out=new Map();
+      for(const [a,x] of left) for(const [b,y] of right) {
+        if(a&b || a&2 && b&1) continue;
+        pick(out,a|b,{count:x.count+y.count,names:[x.names,y.names],key:[x.key,y.key]});
+      }
+      return out;
+    };
+    /** @param {any} node @returns {Generator<any,Map<number,CaptureWitness>,any>} */
+    function* visit(node) {
+      if(hooks.work) countWork(hooks.work,'clauses');
+      if(node.capture!==undefined) return forbidden.has(node.capture) ? new Map() : new Map([[order[0]===node.capture?1:order[1]===node.capture?2:0,{count:+required.has(node.capture),names:node.capture,key:null}]]);
+      const children=node.seq??node.choice??node.ranked??node.and;
+      if(children) {
+        let all=new Map([[0,empty()]]);
+        if(node.choice || node.ranked) {
+          all.clear();
+          for(let i=0;i<children.length;i++) for(const [state,w] of yield visit(children[i])) pick(all,state,{...w,key:[i,w.key]});
+        } else if(node.and) {
+          // States include the selected mask, but keep only its earliest value.
+          let selected=new Map();
+          for(let i=0;i<children.length;i++) {
+            const part=yield visit(children[i]);
+            const next=new Map(selected);
+            for(const [state,w] of part) pick(next,state,{...w,key:[1<<i,w.key],mask:1<<i});
+            for(const [a,x] of selected) for(const [b,y] of part) {
+              if(a&b || a&2 && b&1) continue;
+              const mask=(x.mask??0)|(1<<i);
+              // Remove the old mask before joining child keys.
+              pick(next,a|b,{count:x.count+y.count,names:[x.names,y.names],key:[mask,[x.key[1],y.key]],mask});
+            }
+            selected=next;
+          }
+          all=selected;
+        } else for(const child of children) all=join(all,yield visit(child));
+        return all;
+      }
+      if(node.optional && !node.elidable) {
+        const out=new Map([[0,{...empty(),key:0}]]);
+        for(const [state,w] of yield visit(node.optional)) pick(out,state,{...w,key:[1,w.key]});
+        return out;
+      }
+      if(node.test) return yield visit(node.expr);
+      return new Map([[0,empty()]]);
+    }
+    const result=run(visit(expr)).get(order.length?3:0);
+    return result?.count===required.size?result:null;
+  }
+  /** @param {any} expr @returns {boolean} */
+  function variableCaptures(expr) {
+    /** @type {any[][]} */ const pending=[[expr,false]];
+    /** @type {{has:boolean,variable:boolean}[]} */ const done=[];
+    while(pending.length) {
+      const [node,ready]=/** @type {any[]} */ (pending.pop());
+      const children=node.seq??node.choice??node.ranked??node.and??(node.optional&&!node.elidable?[node.optional]:node.test?[node.expr]:[]);
+      if(!ready) { pending.push([node,true]); for(let i=children.length-1;i>=0;i--) pending.push([children[i],false]); continue; }
+      const parts=done.splice(done.length-children.length,children.length);
+      /** @type {boolean} */ const has=node.capture!==undefined || parts.some(x=>x.has);
+      const variable=parts.some(x=>x.variable) || has && !!(node.optional || children.length>1 && (node.choice||node.ranked||node.and));
+      done.push({has,variable});
+    }
+    return !!done[0].variable;
+  }
+  /** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
+  function validationCaptures(rule,alternative) {
+    if(!variableCaptures(alternative.expr)) {
+      const caps=new Map([['',-1]]), pending=[alternative.expr];
+      while(pending.length) {
+        const node=pending.pop();
+        if(node.capture!==undefined) caps.set(node.capture,caps.size-1);
+        else if(node.seq) for(let i=node.seq.length-1;i>=0;i--) pending.push(node.seq[i]);
+        else if(node.choice||node.ranked||node.and) pending.push((node.choice??node.ranked??node.and)[0]);
+        else if(node.test) pending.push(node.expr);
+      }
+      return [caps];
+    }
+    /** @type {CaptureWitness[]} */ const witnesses=[];
+    const ask=(/** @type {Iterable<string>} */ required=[],/** @type {Iterable<string>} */ forbidden=[],/** @type {string[]} */ order=[])=>{
+      const found=captureWitness(alternative.expr,new Set(required),new Set(forbidden),order);
+      if(found) witnesses.push(found);
+    };
+    ask();
+    const items=rule.emit?.items??[];
+    const mentioned=[rule.tags,rule.value,rule.image,...rule.conditions,...rule.alternatives.flatMap((/** @type {any} */ a)=>[a.tags,a.value,a.image]),...items];
+    for(const clause of mentioned) for(const name of capturesMentioned(clause)) ask([name]);
+    for(const item of items) if(item.capture!==undefined) for(const name of [item.capture,...attachmentsOf(item)]) ask([name]);
+    const clause=(/** @type {any} */ value,/** @type {boolean} */ condition,/** @type {string[]} */ carrier=[])=>{
+      if(value===undefined || constantsIn(value).some(ref=>!('value' in ref))) return;
+      /** @type {string[]} */ const guards=[]; const pending=[value];
+      while(pending.length) { const n=pending.pop(); if(n && typeof n==='object') { if(typeof n.captured==='string' && n.captured!=='' && !guards.includes(n.captured)) guards.push(n.captured); for(const c of clauseChildren(n)) pending.push(c); } }
+      const branch=(/** @type {number} */ i,/** @type {string[]} */ yes,/** @type {string[]} */ no)=>{
+        if(i<guards.length) { branch(i+1,yes,[...no,guards[i]]); branch(i+1,[...yes,guards[i]],no); return; }
+        const simple=simplify(value,name=>name===''||yes.includes(name));
+        const used=capturesUsed(simple);
+        if(condition) { if(simple!==DOM_TRUE) ask([...carrier,...yes,...used],no); }
+        else for(const name of used) ask([...carrier,...yes],[...no,name]);
+      };
+      branch(0,[],[]);
+    };
+    for(const c of rule.conditions) clause(c,true);
+    for(const t of [rule.tags,alternative.tags]) clause(t,false);
+    for(const t of [alternative.value??rule.value,alternative.image??rule.image??alternative.value??rule.value]) if(t) for(const name of capturesUsed(t)) ask([],[name]);
+    if(items.length && !items.some((/** @type {any} */ item)=>item.insert || item.capture==='')) ask([],items.map((/** @type {any} */ item)=>item.capture));
+    const written=[];
+    for(const item of items) {
+      const carrier=item.capture===undefined?[]:[item.capture];
+      if(item.capture!==undefined) for(const name of attachmentsOf(item)) ask([name],[item.capture]);
+      for(const recipe of [item.value,item.image]) if(recipe) for(const name of capturesUsed(recipe)) ask(carrier,[name]);
+      clause(item.tags,false,carrier);
+      if(item.capture) for(const name of [...(item.before??[]),item.capture,...(item.after??[])]) written.push({name,carrier:item.capture});
+      if(item.capture!==undefined) ask([],[item.capture]);
+    }
+    for(let i=0;i<written.length;i++) for(let j=i+1;j<written.length;j++) if(written[i].name!==written[j].name) ask([written[i].name,written[i].carrier,written[j].name,written[j].carrier],[],[written[j].name,written[i].name]);
+    witnesses.sort(witnessOrder);
+    const seen=new Set();
+    return witnesses.map(w=>new Map([['',-1],...witnessList(w.names).map((name,i)=>/** @type {[string,number]} */ ([name,i]))])).filter(caps=>{const key=JSON.stringify([...caps]); if(seen.has(key)) return false; seen.add(key); return true;});
   }
 
   /**
@@ -5730,7 +5762,7 @@
     // Each production of each alternative, with the captures it reads
     // (engine §3.5, §9); productions that read the same captures in the same
     // order are one.
-    const productions = rule.alternatives.flatMap((/** @type {any} */ alternative) => alternativeCaptures(alternative).map((captures) => ({ captures, alternative })));
+    const productions = rule.alternatives.flatMap((/** @type {any} */ alternative) => validationCaptures(rule,alternative).map((captures) => ({ captures, alternative })));
     const alternatives = productions.map((/** @type {{captures: Map<string, number>}} */ production) => production.captures);
     // The names some production captures, and those every one does, found
     // once rather than by a scan of the productions for each name.
@@ -6260,7 +6292,11 @@
           if (problem) return {problem,node:operand};
         }
         if (expr.range) {
-          const problem = rangeProblem(expr.range,/** @type {any} */ (null));
+          const ends = expr.range.map((/** @type {any} */ end) => end.const ? end.value : end);
+          for (let i=0;i<ends.length;i++) {
+            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) return {problem:"a range endpoint is one scalar",node:expr.range[i]};
+          }
+          const problem = rangeProblem(ends);
           if (problem) return {problem,node:expr};
         }
         for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (const child of expr[key]) pending.push(child);
@@ -6349,7 +6385,7 @@
 
   /**
    * The first part of a term that is not closed (engine §10), or null: a
-   * capture, a guarded term, or a call of anything but split and tag. The
+   * capture, a guarded term, or a call of anything but split and ngrams. The
    * shape of the term need not be checked.
    * @param {unknown} term
    * @returns {any}
@@ -6977,7 +7013,6 @@
     if(n.wildcard) return '_';
     if(n.empty) return 'ε';
     if(n.emptySet) return '∅';
-    if(n.set) return [...n.set].sort(compareCodePoints).join(' ') || '∅';
     if(n.requirements && !n.test) return '<'+n.requirements.map((/** @type {any} */ x)=>(x.negated?'¬':'')+print(x.value)).join(' ')+'>';
     if(n.targets) return n.targets.map(print).join(' | ');
     if(n.body) {
@@ -7174,7 +7209,6 @@
       if(rule.args) {
         const template=templates.get(rule.name);
         if(!template || template.events[0].index>=event.index) fail(event,rule,'an instance edit requires an earlier template');
-        if(templateNodes(rule.args).some((/** @type {any} */ n)=>n.param)) fail(event,rule,'an instance edit requires a closed call');
         const instance=intern({call:rule.name,args:rule.args,at:rule.at},event);instance.locals.push(event);
         continue;
       }
@@ -7398,8 +7432,15 @@
       /** @type {(a:any,b:any)=>boolean} */
       const same=(a,b)=>{
         const an=a?.rule??a?.ref??a?.name,bn=b?.rule??b?.ref??b?.name;
-        if(an && byName.has(an) && b?.call) return byName.get(an).key===JSON.stringify(templateIdentity(normalizeArgument(b)));
-        if(bn && byName.has(bn) && a?.call) return byName.get(bn).key===JSON.stringify(templateIdentity(normalizeArgument(a)));
+        const expand=(/** @type {any} */ node,/** @type {any} */ instance)=>({...instance.call,...Object.fromEntries(Object.entries(node).filter(([key])=>!['rule','ref','name'].includes(key)))});
+        if(an && byName.has(an) && b?.call) {
+          if(byName.get(an).key!==JSON.stringify(templateIdentity(normalizeArgument({call:b.call,args:b.args})))) return false;
+          a=expand(a,byName.get(an));
+        }
+        if(bn && byName.has(bn) && a?.call) {
+          if(byName.get(bn).key!==JSON.stringify(templateIdentity(normalizeArgument({call:a.call,args:a.args})))) return false;
+          b=expand(b,byName.get(bn));
+        }
         if(Array.isArray(a)||Array.isArray(b)) return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&a.every((x,i)=>same(x,b[i]));
         if(!a||!b||typeof a!=='object'||typeof b!=='object') return a===b;
         const ka=Object.keys(a).filter(k=>k!=='at'),kb=Object.keys(b).filter(k=>k!=='at');
@@ -8969,8 +9010,11 @@
           }, (value,atom) => {
             if (atom.range) {
               const strings = atom.range.map((/** @type {Term} */ end) => this.evaluateClosed(path,end,atom.at ?? item,lookup));
-              const problem = rangeProblem(strings,this.unicode);
-              if (problem) throw this.faultError(path,atom.range,atom.at ?? item,problem);
+              const problem = rangeProblem(strings);
+              if (problem) {
+                const wide = strings.findIndex((/** @type {any} */ end)=>[...end.string].length !== 1);
+                throw this.faultError(path,wide >= 0 ? atom.range[wide] : atom.range,atom.at ?? item,problem);
+              }
             }
             return this.evaluateClosed(path,value,atom.at ?? item,lookup);
           }, this.unicode) };
@@ -12774,7 +12818,7 @@
   }
 
   /**
-   * The classes among tags: those that begin with a capital letter.
+   * The classes among tags start and end with an uppercase ASCII letter.
    * @param {TagSet} tags
    * @returns {TermValue}
    */
@@ -14803,7 +14847,6 @@
 
 
   /** @import { Expr } from "./types.js" */
-  /** @typedef {{parts:Expr[],captures:Map<string,Expr>}} Route */
 
   /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
   function consuming(expr,rules) {
@@ -14814,47 +14857,6 @@
     if ("optional" in expr) return consuming(expr.optional,rules);
     if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
     return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
-  }
-
-  /** @param {Expr} expr @returns {boolean} */
-  function expandedCapture(expr) {
-    if ("capture" in expr) return true;
-    if ("ranked" in expr || "repeat" in expr) return false;
-    if ("optional" in expr) return expr.elidable !== true && expandedCapture(expr.optional);
-    if ("test" in expr) return expandedCapture(expr.expr);
-    const children = /** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).and ?? [];
-    return children.some(expandedCapture);
-  }
-
-  /** @param {Route[]} left @param {Route[]} right @returns {Route[]} */
-  function overlapProduct(left,right) {
-    return left.flatMap(a => right.map(b => ({parts:[...a.parts,...b.parts],captures:new Map([...a.captures,...b.captures])})));
-  }
-
-  /** @param {Expr} expr @returns {Route[]} */
-  function routes(expr) {
-    if ("empty" in expr) return [{parts:[],captures:new Map()}];
-    if ("capture" in expr) return [{parts:[expr.expr],captures:new Map([[expr.capture,expr.expr]])}];
-    if ("choice" in expr) return expr.choice.flatMap(routes);
-    if ("seq" in expr) {
-      /** @type {Route[]} */
-      let all = [{parts:[],captures:new Map()}];
-      for (const child of expr.seq) all = overlapProduct(all,routes(child));
-      return all;
-    }
-    if ("and" in expr) {
-      const choices = expr.and.map(routes);
-      const all = [];
-      for (let mask=1;mask<1<<choices.length;mask++) {
-        /** @type {Route[]} */
-        let selected = [{parts:[],captures:new Map()}];
-        choices.forEach((choice,index) => { if (mask & (1<<index)) selected = overlapProduct(selected,choice); });
-        for (const route of selected) all.push(route);
-      }
-      return all;
-    }
-    if ("optional" in expr && expr.elidable !== true && expandedCapture(expr.optional)) return [{parts:[],captures:new Map()},...routes(expr.optional)];
-    return [{parts:[expr],captures:new Map()}];
   }
 
   /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
@@ -14871,16 +14873,23 @@
     for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
       const emission = alternative.clauses.emit;
       if (!emission || emission.items.length < 2) continue;
-      for (const route of routes(alternative.expr)) {
-        const whole = route.parts.some(part => consuming(part,marked));
-        const kept = emission.items.filter(item => item.insert || item.capture === "" || route.captures.has(/** @type {string} */ (item.capture)));
-        const parts = kept.map(item => item.insert ? [] : [...(item.before ?? []),/** @type {string} */ (item.capture),...(item.after ?? [])].filter(name => name === "" || route.captures.has(name)));
-        const consumes = (/** @type {string} */ name) => name === "" ? whole : consuming(/** @type {Expr} */ (route.captures.get(name)),marked);
-        for (let left=0;left<parts.length;left++) for (let right=left+1;right<parts.length;right++) {
-          for (const a of parts[left]) for (const b of parts[right]) if ((a === "" || b === "") && consumes(a) && consumes(b)) {
-            const at = alternative.at;
-            throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
-          }
+      const captures = new Map();
+      const pending = [alternative.expr];
+      while (pending.length) {
+        const expr = /** @type {Expr} */ (pending.pop());
+        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
+        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
+        for (const key of ["expr","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
+      }
+      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
+        const a=emission.items[left], b=emission.items[right];
+        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
+        const other = a.capture === "" ? b : a;
+        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
+          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
+        if (overlap) {
+          const at = alternative.at;
+          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
         }
       }
     }
@@ -17994,12 +18003,12 @@
     };
     /** @type {(node: ResultNode) => ResultNode} */
     const token = (node) => parts(node).find((child) => child.kind === "token") || lacks(node, "token");
-    // The first part, a token, a range or a property.
+    // The first part, a token or a range.
     /** @type {(node: ResultNode) => ResultNode} */
     const symbolPart = (node) => {
       const first = parts(node)[0];
-      if (first && (first.kind === "token" || ruleOf(first) === "range" || ruleOf(first) === "property")) return first;
-      return lacks(node, "token, range or property");
+      if (first && (first.kind === "token" || ruleOf(first) === "range")) return first;
+      return lacks(node, "token or range");
     };
     // The one rule among the parts, which must be one of `kinds`.
     /** @type {(node: ResultNode, kinds: Set<string>) => RuleNode} */
@@ -18369,10 +18378,10 @@
     }
 
     /**
-     * An optional, and with a marker `+` or `++` among its parts an elidable
+     * An optional, and with a marker `+` among its parts an elidable
      * one (engine §3.8, §9). Its form is checked on the tree, where a group
      * is still a node: one sequence, whose first primary is the terminal
-     * itself, `=`-tested or not.
+     * itself, with or without symbol tests.
      * @param {RuleNode} node
      * @returns {Generator<Step, Expr, any>}
      */
@@ -18878,7 +18887,6 @@
           return { union };
         }
         case "range": return fail("a range is a terminal, not a term", node);
-        case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", node);
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
@@ -21062,7 +21070,7 @@
    * @property {Guard[]} guards gates only
    * @property {Term[]} keys the unresolved string keys
    * @property {"∈" | "∉"} op
-   * @property {string} class an identifier tag that begins with a capital
+   * @property {string} class an identifier tag that starts and ends with an uppercase ASCII letter
    * @property {Position} at
    */
 

@@ -1,0 +1,8 @@
+{
+  "description": "Prediction evaluates capture-free conditions at the end of input (engine §4).",
+  "grammar": "%rule text \"a\" bad\n%rule bad \"b\" %conditions \"x\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

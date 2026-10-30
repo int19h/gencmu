@@ -197,6 +197,18 @@ fn uncalled_source_validation() {
         ("%rule unused(@X) @X :: $.tags ∪ @X", "own tags"),
         ("%rule unused(@X) @X := @X %erased", "erased"),
         ("%rule unused(@X) [+| @X]", "one sequence"),
+        (
+            "%rule unused(@X) @X %conditions $.without-elision.ends(text)",
+            "ends requires an ordinary span, not a restored span",
+        ),
+        (
+            "%rule unused(@X) @X %conditions $.without-elision.onward.ends(@X)",
+            "ends requires an ordinary span, not a restored span",
+        ),
+        (
+            "%rule unused(@X) @X %conditions $.starts-input ∧ $.without-elision-except(text).onward.ends(text)",
+            "ends requires an ordinary span, not a restored span",
+        ),
     ] {
         let error =
             crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n%rule text \"a\"\n```\n"), "")
@@ -448,4 +460,44 @@ fn supplied_dom_depth_does_not_use_the_call_stack() {
         .unwrap()
         .join()
         .unwrap();
+}
+
+#[test]
+fn alias_twins_preserve_decorations() {
+    for (left, right, twin) in [
+        ("#·named", r#"#atom("a")"#, false),
+        ("#named« text »", r#"#atom("a")"#, false),
+        ("#·named", r#"#·atom("a")"#, true),
+        ("#named« text »", r#"#atom("a")« text »"#, true),
+    ] {
+        let source=format!("%rule atom(@X) @X\n%rule outer(@P) $x:named %conditions $x ≅ @P\n%rule text outer({left}) outer({right})\n%rule named = atom(\"a\")");
+        let a = audit(&grammar(&source));
+        let instances: Vec<_> =
+            list(get(&a, "instances")).iter().filter(|i| text(get(i, "template")) == "outer").collect();
+        assert_eq!(instances.len(), 2);
+        for i in instances {
+            assert_eq!(!list(get(i, "notes")).is_empty(), twin);
+        }
+    }
+}
+
+#[test]
+fn pattern_closedness_leaves_tests_to_schema() {
+    for missing in [false, true] {
+        let mut test = j(r#"{"test":"=","expr":{"terminal":"A"}}"#);
+        if !missing {
+            set(&mut test, "value", j(r#"{"capture":"x","call":"atom","args":[{"string":"a"}],"at":[3,12]}"#));
+        }
+        let value = obj([("pattern", test)]);
+        let constant =
+            obj([("name", string("P")), ("op", string("define")), ("value", value.clone()), ("at", j("[3,1]"))]);
+        let implication = obj([("if", value), ("then", obj([("tag", string("A"))])), ("at", j("[3,1]"))]);
+        for (kind, r) in [("constants", constant), ("implications", implication)] {
+            assert_eq!(
+                declaration_problem(&r, kind, &unicode()),
+                Some("a malformed pattern"),
+                "{kind}, missing={missing}"
+            );
+        }
+    }
 }
