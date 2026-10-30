@@ -21,10 +21,9 @@ impl GrammarText {
     }
 }
 
-/// One line of a document: its characters, its terminator, its number.
+/// One line of a document: its characters and its number.
 struct Line {
     chars: Vec<char>,
-    terminator: Vec<char>,
     number: usize,
 }
 
@@ -36,24 +35,21 @@ fn lines(text: &str) -> Vec<Line> {
     while let Some(c) = iter.next() {
         match c {
             '\n' => {
-                lines.push(Line { chars: std::mem::take(&mut chars), terminator: vec!['\n'], number });
+                lines.push(Line { chars: std::mem::take(&mut chars), number });
                 number += 1;
             }
             '\r' => {
-                let terminator = if iter.peek() == Some(&'\n') {
+                if iter.peek() == Some(&'\n') {
                     iter.next();
-                    vec!['\r', '\n']
-                } else {
-                    vec!['\r']
-                };
-                lines.push(Line { chars: std::mem::take(&mut chars), terminator, number });
+                }
+                lines.push(Line { chars: std::mem::take(&mut chars), number });
                 number += 1;
             }
             c => chars.push(c),
         }
     }
     if !chars.is_empty() {
-        lines.push(Line { chars, terminator: Vec::new(), number });
+        lines.push(Line { chars, number });
     }
     lines
 }
@@ -121,10 +117,8 @@ pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
                     cursor = (line.number, column + 2);
                 }
                 if index + 1 + offset + 1 < end {
-                    for (extra, &c) in line.terminator.iter().enumerate() {
-                        text.chars.push(c);
-                        text.positions.push((line.number, line.chars.len() + 1 + extra));
-                    }
+                    text.chars.push('\n');
+                    text.positions.push((line.number, line.chars.len() + 1));
                     cursor = (line.number + 1, 1);
                 }
             }
@@ -166,14 +160,14 @@ mod tests {
     fn blocks_keep_positions() {
         let text = grammar_text("# x\n\n```jbogenbau\n%rule a\n```\n\n~~~ jbogenbau\nb\r\n c\n~~~\n").unwrap();
         let chars: String = text.chars.iter().collect();
-        assert_eq!(chars, "%rule a\nb\r\n c");
+        assert_eq!(chars, "%rule a\nb\n c");
         assert_eq!(text.position(0), (4, 1));
         assert_eq!(text.position(2), (4, 3));
         assert_eq!(text.position(7), (4, 8));
         assert_eq!(text.position(8), (8, 1));
-        assert_eq!(text.position(11), (9, 1));
-        assert_eq!(text.position(12), (9, 2));
-        assert_eq!(text.position(13), (9, 3));
+        assert_eq!(text.position(10), (9, 1));
+        assert_eq!(text.position(11), (9, 2));
+        assert_eq!(text.position(12), (9, 3));
     }
 
     #[test]

@@ -19285,6 +19285,8 @@
     let inside = null;
     let openedAt = 0;
     let blocks = 0;
+    let linesInBlock = 0;
+    let lastEnd = /** @type {import("./types.js").Position} */ ([1, 1]);
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number];
       if (inside === null) {
@@ -19298,9 +19300,10 @@
           openedAt = number + 1;
           if (blocks > 0) {
             chars.push("\n");
-            positions.push([number + 1, 1]);
+            positions.push(lastEnd);
           }
           blocks++;
+          linesInBlock = 0;
         } else if (open) {
           inside = { skip: open[1] };
         }
@@ -19313,18 +19316,22 @@
         continue;
       }
       if (typeof inside !== "string") continue;
+      if (linesInBlock++ > 0) {
+        chars.push("\n");
+        positions.push(lastEnd);
+      }
       let column = 1;
       for (const character of line) {
         chars.push(character);
         positions.push([number + 1, column++]);
       }
-      chars.push("\n");
-      positions.push([number + 1, column]);
+      lastEnd = [number + 1, column];
     }
     if (inside !== null && typeof inside === "string") {
       const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
       throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
     }
+    positions.push(lastEnd);
     return { text: chars.join(""), positions, blocks };
   }
 
