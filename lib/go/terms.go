@@ -193,10 +193,23 @@ func (w *walk) endTerm(v value) {
 
 func (w *walk) endSet(set *tagset) { w.endTerm(value{kind: vSet, set: set}) }
 
+type invalidRestoration struct{}
+
 // resume goes on with the walk until it ends, or halts for the nested parse
 // that it returns. Each step works on the frame on top: it enters a child,
 // ends the frame with its value, or halts and keeps it as it is.
-func (w *walk) resume() *nestedQuery {
+
+func (w *walk) resume() (query *nestedQuery) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			if _, invalid := failure.(invalidRestoration); !invalid {
+				panic(failure)
+			}
+			w.frames = w.frames[:0]
+			w.b = false
+			w.v = value{}
+		}
+	}()
 	for len(w.frames) > 0 {
 		f := &w.frames[len(w.frames)-1]
 		var q *nestedQuery
@@ -246,6 +259,7 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		case "without-elision", "without-elision-except":
 			if s.arena != nil && s.closes == invalidCloses {
 				w.invalidObservation = true
+				panic(invalidRestoration{})
 			}
 			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
 			if call.Str == "without-elision-except" {
