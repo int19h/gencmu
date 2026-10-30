@@ -409,7 +409,7 @@ Normalized resolved paths identify resources. Repeated declarations of one path 
 
 Extras contain only `name` records for unnamed scalars, without aliases or algorithms. Duplicate equal records across files are harmless. All other duplicate and conflict rules still apply.
 
-The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
+The first noncore name escape loads the base file, followed by extras in code-point order of resolved paths. The loader inspects the complete combined namespace before lookup. Each added record uses combined indexes for spellings and formal names. A conflict is a resource error naming the later file. Core abbreviation lookup still comes first. A missing extra file names its resolved path. A declared file that remains unused is not loaded.
 
 The DOM retains each `%names` directive and its decoded path. Its declaration order follows source positions across all five declaration arrays. Distinct names declarations require distinct positions. Every statement of another kind must follow all names declarations.
 
