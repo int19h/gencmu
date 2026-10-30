@@ -45,7 +45,7 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 
 func TestReviewEmptyConstructorAnchor(t *testing.T) {
 	t.Parallel()
-	gt := extractGrammarText(block("A"))
+	gt := extractGrammarText(block("A"), &unicodeTable{})
 	b := &domBuilder{gt: gt}
 	end := len(gt.text)
 	node := &Node{Kind: KindRule, Source: [2]int{end, end}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}

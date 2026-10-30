@@ -48,7 +48,7 @@ export function isSingleSymbol(expr) {
  * @returns {EligibleRule[]}
  */
 export function eligibleRules(markdown, dom, path) {
-  const { text, positions } = extractGrammarText(markdown, path);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
   const lines = splitLines(markdown);
   /** @type {Map<string, number>} */
@@ -374,7 +374,7 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
  * @returns {string[]}
  */
 function clauseLayoutProblems(markdown, dom, path) {
-  const { text, positions } = extractGrammarText(markdown, path);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
   const chars = [...text];
   const lines = splitLines(markdown);
   const codeLines = new Set(positions.map(([line]) => line));

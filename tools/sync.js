@@ -143,7 +143,7 @@ const read = new Map();
 for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
-  read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
+  read.set(file, { text, dom: extractGrammarText(text, file, reader.unicode).blocks === 0 ? { rules: [] } : reader.readDocument(text, `grammars/${file}`) });
 }
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each pipeline that reads the document. With no such test, this
@@ -184,7 +184,7 @@ for (const file of grammarFiles()) {
   if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
-  if (extractGrammarText(text, file).blocks === 0) continue;
+  if (extractGrammarText(text, file, reader.unicode).blocks === 0) continue;
   const earlier = read.get(file);
   const dom = !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, `grammars/${file}`);
   const names = loader.namesDependencies.get(dom);

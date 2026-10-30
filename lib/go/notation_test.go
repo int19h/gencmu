@@ -218,7 +218,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err := d.Parse(string(extractGrammarText(text).text), ParseOptions{})
+		res, err := d.Parse(string(extractGrammarText(text, bundled.uni).text), ParseOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}

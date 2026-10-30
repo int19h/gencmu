@@ -1027,7 +1027,7 @@ class Parser {
  */
 export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
-  const { text, positions } = extractGrammarText(markdown, path);
+  const { text, positions } = extractGrammarText(markdown, path, unicode);
   const names = new NamesScope(readResource, unicode, fnv1a64, inherited);
   const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;

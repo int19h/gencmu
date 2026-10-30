@@ -123,7 +123,7 @@ func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 	return nr.readMode(text, docPath, false)
 }
 func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
-	gt := extractGrammarText(text)
+	gt := extractGrammarText(text, nr.uni)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}

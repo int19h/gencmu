@@ -343,7 +343,7 @@ impl Context {
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
-            let grammar = grammar_text(text)?;
+            let grammar = grammar_text(text, &self.unicode)?;
             let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
@@ -367,7 +367,7 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
 }
 
 fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
-    let grammar = grammar_text(text)?;
+    let grammar = grammar_text(text, &notation.unicode)?;
     let position = |index: usize| grammar.position(index);
     let strings =
         DocumentStrings { unicode: &notation.unicode, names, position: &position, names_paths: Default::default() };

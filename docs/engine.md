@@ -1957,7 +1957,7 @@ A caller can switch the check off, or on, for every stage that runs (`docs/api.m
 
 A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. A backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
 
-The info string is `jbogenbau` after the reader removes leading and trailing Unicode White_Space (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only Unicode White_Space follows it.
+The info string is `jbogenbau` after the reader removes leading and trailing White_Space from the configured Unicode table (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only White_Space from that table follows it.
 
 An unclosed `jbogenbau` block is a document error. The reader reports it at the column of its opening fence character. Any other unclosed block runs to the end of the document, as in CommonMark.
 

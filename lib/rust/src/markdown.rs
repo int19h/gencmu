@@ -3,6 +3,7 @@
 //! paths of `%include`.
 
 use crate::error::Error;
+use crate::unicode::Unicode;
 
 /// A document's grammar text: its `jbogenbau` blocks joined with a newline,
 /// each character remembering its line and column in the document.
@@ -78,7 +79,7 @@ fn fence(line: &[char]) -> Option<(char, usize, String)> {
 
 /// Extracts the grammar text of a Markdown document (engine §8). An
 /// `jbogenbau` block that is never closed is an error at its opening fence.
-pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
+pub(crate) fn grammar_text(document: &str, unicode: &Unicode) -> Result<GrammarText, Error> {
     let mut text = GrammarText { chars: Vec::new(), positions: Vec::new(), end: (1, 1) };
     let lines = lines(document);
     let mut cursor = (1, 1);
@@ -89,11 +90,14 @@ pub(crate) fn grammar_text(document: &str) -> Result<GrammarText, Error> {
             index += 1;
             continue;
         };
-        let grammar = info.trim() == "jbogenbau";
+        let grammar = info.trim_matches(|c: char| unicode.is_white_space(c as u32)) == "jbogenbau";
         let mut end = index + 1;
         while end < lines.len() {
             if let Some((closing, closing_length, rest)) = fence(&lines[end].chars) {
-                if closing == mark && closing_length >= length && rest.trim().is_empty() {
+                if closing == mark
+                    && closing_length >= length
+                    && rest.trim_matches(|c: char| unicode.is_white_space(c as u32)).is_empty()
+                {
                     break;
                 }
             }
@@ -158,7 +162,9 @@ mod tests {
 
     #[test]
     fn blocks_keep_positions() {
-        let text = grammar_text("# x\n\n```jbogenbau\n%rule a\n```\n\n~~~ jbogenbau\nb\r\n c\n~~~\n").unwrap();
+        let unicode = Unicode::parse(include_str!("../data/unicode/unicode.txt")).unwrap();
+        let text =
+            grammar_text("# x\n\n```jbogenbau\n%rule a\n```\n\n~~~ jbogenbau\nb\r\n c\n~~~\n", &unicode).unwrap();
         let chars: String = text.chars.iter().collect();
         assert_eq!(chars, "%rule a\nb\n c");
         assert_eq!(text.position(0), (4, 1));

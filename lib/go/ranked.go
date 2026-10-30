@@ -619,7 +619,7 @@ func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]i
 	}
 }
 func (nr *notationReader) restoreLocations(text string, dom *domDoc) {
-	gt := extractGrammarText(text)
+	gt := extractGrammarText(text, nr.uni)
 	ps := newParseState(nr.uni, gt.text)
 	if len(nr.stages) == 0 {
 		return

@@ -100,7 +100,7 @@ var fenceOpen = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
 // jbogenbau and joins their contents with a newline between blocks. A
 // block's lines are joined with a newline too, so every line ending reads
 // as \n.
-func extractGrammarText(doc string) *grammarText {
+func extractGrammarText(doc string, uni *unicodeTable) *grammarText {
 	g := &grammarText{}
 	lines := splitLines(doc)
 	var fence string // the open fence, or "" outside a block
@@ -117,7 +117,7 @@ func extractGrammarText(doc string) *grammarText {
 			if m == nil {
 				continue
 			}
-			info := strings.TrimSpace(m[2])
+			info := strings.TrimFunc(m[2], uni.isWhiteSpace)
 			if m[1][0] == '`' && strings.Contains(info, "`") {
 				continue
 			}
@@ -133,7 +133,7 @@ func extractGrammarText(doc string) *grammarText {
 			}
 			continue
 		}
-		if isClosingFence(line, fence) {
+		if isClosingFence(line, fence, uni) {
 			fence = ""
 			continue
 		}
@@ -162,8 +162,8 @@ func extractGrammarText(doc string) *grammarText {
 }
 
 // isClosingFence: a fence of the same character at least as long, indented
-// up to three spaces, followed by Unicode White_Space.
-func isClosingFence(line, fence string) bool {
+// up to three spaces, followed by the configured table's White_Space.
+func isClosingFence(line, fence string, uni *unicodeTable) bool {
 	t := strings.TrimLeft(line, " ")
 	if len(line)-len(t) > 3 {
 		return false
@@ -172,7 +172,7 @@ func isClosingFence(line, fence string) bool {
 	for n < len(t) && t[n] == fence[0] {
 		n++
 	}
-	return n >= len(fence) && strings.TrimSpace(t[n:]) == ""
+	return n >= len(fence) && strings.TrimFunc(t[n:], uni.isWhiteSpace) == ""
 }
 
 func runeColumn(line string, byteOffset int) int {

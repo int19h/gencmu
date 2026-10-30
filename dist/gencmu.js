@@ -19273,9 +19273,10 @@
   /**
    * @param {string} markdown
    * @param {string} path
+   * @param {import("./unicode.js").UnicodeTable} unicode
    * @returns {{text: string, positions: import("./types.js").Position[], blocks: number}}
    */
-  function extractGrammarText(markdown, path) {
+  function extractGrammarText(markdown, path, unicode) {
     const lines = splitLines(markdown);
     /** @type {string[]} */
     const chars = [];
@@ -19294,7 +19295,7 @@
         // backtick, or the line is not a fence (CommonMark). Only an info
         // string that is exactly `jbogenbau` makes a grammar block.
         const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/s.exec(line);
-        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], trimWhiteSpace(fence[2])] : null;
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], trimWhiteSpace(fence[2], unicode)] : null;
         if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
@@ -19310,8 +19311,8 @@
         continue;
       }
       const fence = typeof inside === "string" ? inside : inside.skip;
-      const close = /^ {0,3}(`{3,}|~{3,})\p{White_Space}*$/u.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) {
+      const close = /^ {0,3}(`{3,}|~{3,})(.*)$/su.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length && trimWhiteSpace(close[2], unicode) === "") {
         inside = null;
         continue;
       }
@@ -19344,12 +19345,13 @@
   }
 
   // Scan only the edges, so a long inner whitespace run costs no backtracking.
-  /** @param {string} text @returns {string} */
-  function trimWhiteSpace(text) {
-    let start = 0, end = text.length;
-    while (start < end && /\p{White_Space}/u.test(text[start])) start++;
-    while (end > start && /\p{White_Space}/u.test(text[end - 1])) end--;
-    return text.slice(start, end);
+  /** @param {string} text @param {import("./unicode.js").UnicodeTable} unicode @returns {string} */
+  function trimWhiteSpace(text, unicode) {
+    const chars = [...text];
+    let start = 0, end = chars.length;
+    while (start < end && unicode.isWhiteSpace(/** @type {number} */ (chars[start].codePointAt(0)))) start++;
+    while (end > start && unicode.isWhiteSpace(/** @type {number} */ (chars[end - 1].codePointAt(0)))) end--;
+    return chars.slice(start, end).join("");
   }
 
   // A path relative to a document, resolved and normalized.
@@ -19936,7 +19938,7 @@
     const frames = [];
     /** @param {string} documentPath @param {string[]} inherited */
     const enter = (documentPath, inherited) => {
-      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
+      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath, loader.unicode);
       const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
       const dom = loader.documentDom(documentPath, inherited);
       const items = itemsInOrder(dom), chars = [...text];
@@ -20228,7 +20230,7 @@
      */
     readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
-      const { text, positions } = extractGrammarText(markdown, path);
+      const { text, positions } = extractGrammarText(markdown, path, this.unicode);
       const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
@@ -20298,7 +20300,7 @@
         const dom = this.documentDom(document,inherited);
         if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true,inherited));
         else {
-          const {text:body,positions} = extractGrammarText(text,document);
+          const {text:body,positions} = extractGrammarText(text,document,this.unicode);
           const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
           if (lexical.ok) {
             const tokens = /** @type {Token[]} */ (lexical.stages[0].output);
