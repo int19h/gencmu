@@ -921,6 +921,8 @@ An item of braces, flat or chain, that can derive the empty sequence is an error
 
 Logical optional markers consume no symbols and name no rules in this structural grammar.
 
+When one sequence continues along one route, lowering extends its owned physical and logical prefixes in place. Branches receive independent prefixes before either branch extends them.
+
 A rule that `text` cannot reach counts too, and lowering makes sure that all remaining braces meet these rules, reachable or not. An alternative that a gate drops, and a definition that a later `%redefine-rule` replaces, do not count. An alternative that an `%extend-rule` adds counts like any other. Every implementation decides nullability in this phase, whatever order it builds its productions in.
 
 A separator can derive the empty sequence. So a list or a chain never has a derivation that repeats an empty item, and `[{x}]` derives the empty sequence in exactly one way.
@@ -1679,6 +1681,8 @@ The prefix includes bound common captures, their values, structural state, and i
 The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It also excludes omission vectors, flagged profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
 
 An invocation is a recognition state, rather than a call-stack identity. Different callers share admission when all key components agree. Different continuations remain separate. Equal spelling at another location does not establish equal spans. Empty spans participate.
+
+Intern each lexical frame description within its recognition. A nested description refers to its canonical parent identifier. It does not quote the parent's complete description again. Admission uses the same identifier within that recognition.
 
 Compute the options with a qualified finite proof in each admission group. Keep a qualified proof unless a qualified proof from a higher option has dominating open facts, as defined below. With no qualifying option, the group supplies no completion.
 
@@ -2705,6 +2709,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 A template first undergoes binder and syntax analysis (§2.3). Argument-dependent requirements apply after substitution to every expanded definition.
 
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
+
+Before extending a partial presence assignment, discard it when no structural production can realize its required and absent captures. A choice among mutually exclusive captures does not require all Boolean combinations of those captures.
 
 Each of the following is an error of the document too, and the reader reports it at the definition:
 

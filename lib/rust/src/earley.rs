@@ -364,7 +364,6 @@ pub(crate) struct Chart {
 pub(crate) struct LexicalFrame {
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
-    pub key: String,
     pub captures: std::collections::BTreeMap<String, Cap>,
     pub declared: Vec<String>,
     pub known_private: Vec<String>,
@@ -443,7 +442,7 @@ impl Chart {
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
             "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
-            outer.map(|f| &f.key),
+            before.lexical,
             before.dot,
             before.origin,
             before.prefix,
@@ -520,7 +519,6 @@ impl Chart {
         self.lexical.push(LexicalFrame {
             family: self.family,
             observes_closes,
-            key: key.clone(),
             available: captures.keys().cloned().collect(),
             captures,
             declared: declared.into_iter().collect(),

@@ -1,0 +1,26 @@
+{
+  "description": "Capture checks discard impossible presence assignments before extending them (engine §2.1).",
+  "grammar": "%rule text \"x\" ($c00:T00 | $c01:T01 | $c02:T02 | $c03:T03 | $c04:T04 | $c05:T05 | $c06:T06 | $c07:T07 | $c08:T08 | $c09:T09 | $c10:T10 | $c11:T11 | $c12:T12 | $c13:T13 | $c14:T14 | $c15:T15 | $c16:T16 | $c17:T17 | $c18:T18 | $c19:T19 | $c20:T20 | $c21:T21 | $c22:T22 | $c23:T23 | $c24:T24 | $c25:T25 | $c26:T26 | $c27:T27 | $c28:T28 | $c29:T29)\n%conditions ($c00 ⟹ $c00.value = \"a\") ∧ ($c01 ⟹ $c01.value = \"a\") ∧ ($c02 ⟹ $c02.value = \"a\") ∧ ($c03 ⟹ $c03.value = \"a\") ∧ ($c04 ⟹ $c04.value = \"a\") ∧ ($c05 ⟹ $c05.value = \"a\") ∧ ($c06 ⟹ $c06.value = \"a\") ∧ ($c07 ⟹ $c07.value = \"a\") ∧ ($c08 ⟹ $c08.value = \"a\") ∧ ($c09 ⟹ $c09.value = \"a\") ∧ ($c10 ⟹ $c10.value = \"a\") ∧ ($c11 ⟹ $c11.value = \"a\") ∧ ($c12 ⟹ $c12.value = \"a\") ∧ ($c13 ⟹ $c13.value = \"a\") ∧ ($c14 ⟹ $c14.value = \"a\") ∧ ($c15 ⟹ $c15.value = \"a\") ∧ ($c16 ⟹ $c16.value = \"a\") ∧ ($c17 ⟹ $c17.value = \"a\") ∧ ($c18 ⟹ $c18.value = \"a\") ∧ ($c19 ⟹ $c19.value = \"a\") ∧ ($c20 ⟹ $c20.value = \"a\") ∧ ($c21 ⟹ $c21.value = \"a\") ∧ ($c22 ⟹ $c22.value = \"a\") ∧ ($c23 ⟹ $c23.value = \"a\") ∧ ($c24 ⟹ $c24.value = \"a\") ∧ ($c25 ⟹ $c25.value = \"a\") ∧ ($c26 ⟹ $c26.value = \"a\") ∧ ($c27 ⟹ $c27.value = \"a\") ∧ ($c28 ⟹ $c28.value = \"a\") ∧ ($c29 ⟹ $c29.value = \"a\")",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  },
+  "tokens": [
+    {
+      "text": "x",
+      "tags": []
+    },
+    {
+      "text": "a",
+      "tags": [
+        "T00"
+      ]
+    }
+  ]
+}

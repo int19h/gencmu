@@ -221,7 +221,7 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         .zip(chart.caps(item.caps))
         .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
         .collect();
-    let lexical = chart.lexical_frame(item.lexical).map(|f| &f.key);
+    let lexical = item.lexical;
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(

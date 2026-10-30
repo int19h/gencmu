@@ -5705,6 +5705,7 @@
       /** @type {string[]} */ const guards=[]; const pending=[value];
       while(pending.length) { const n=pending.pop(); if(n && typeof n==='object') { if(typeof n.captured==='string' && n.captured!=='' && !guards.includes(n.captured)) guards.push(n.captured); for(const c of clauseChildren(n)) pending.push(c); } }
       const branch=(/** @type {number} */ i,/** @type {string[]} */ yes,/** @type {string[]} */ no)=>{
+        if(i && !captureWitness(alternative.expr,new Set(yes),new Set(no),[])) return;
         if(i<guards.length) { branch(i+1,yes,[...no,guards[i]]); branch(i+1,[...yes,guards[i]],no); return; }
         const simple=simplify(value,name=>name===''||yes.includes(name));
         const used=capturesUsed(simple);
@@ -6477,9 +6478,12 @@
       ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
   }
 
-  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset */
-  function joinedLogical(sequence,left,right,offset) {
-    structures.set(sequence,[...left,...right.map(node => shifted(node,offset))]);
+  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
+  function joinedLogical(sequence,left,right,offset,owned=false) {
+    const suffix = right.map(node => shifted(node,offset));
+    const logical = owned ? left : [...left];
+    for (const node of suffix) logical.push(node);
+    structures.set(sequence,logical);
   }
 
   /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
@@ -8368,7 +8372,7 @@
         const outer = item.production.lexicalFrame;
         // The recursive production of a flat repetition keeps its entry.
         if (outer && item.production.lhs === name) return outer;
-        const key = JSON.stringify([outer?.key ?? null,prefixKey(item)]);
+        const key = JSON.stringify([outer?.id ?? null,prefixKey(item)]);
         const old = frames.get(key);
         if (old) return old;
         const captures = new Map(outer?.captures ?? []);
@@ -9993,7 +9997,7 @@
           if (hooks.work) countWork(hooks.work, "lowering");
           sequence.push(item);
         }
-        joinedLogical(sequence,logical,suffix,offset);
+        joinedLogical(sequence,logical,suffix,offset,sequence===a);
         result.push(sequence);
       }
     }
@@ -16514,7 +16518,7 @@
           const name = item.production.captures[part.index].name;
           if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
         }
-        return [item.production.lexicalFrame?.key ?? null,written(item.production),item.origin,
+        return [item.production.lexicalFrame?.id ?? null,written(item.production),item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null,item.observationPrefix?.id];

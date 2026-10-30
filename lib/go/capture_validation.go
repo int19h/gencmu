@@ -356,6 +356,18 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 		})
 		var branch func(int, []string, []string)
 		branch = func(i int, yes, no []string) {
+			if i > 0 {
+				required, forbidden := map[string]bool{}, map[string]bool{}
+				for _, name := range yes {
+					required[name] = true
+				}
+				for _, name := range no {
+					forbidden[name] = true
+				}
+				if captureQuery(a.Expr, required, forbidden, nil) == nil {
+					return
+				}
+			}
 			if i < len(guards) {
 				branch(i+1, yes, append(append([]string{}, no...), guards[i]))
 				branch(i+1, append(append([]string{}, yes...), guards[i]), no)

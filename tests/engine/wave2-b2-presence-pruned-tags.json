@@ -1,0 +1,26 @@
+{
+  "description": "Capture checks discard impossible presence assignments before extending them (engine §2.1).",
+  "grammar": "%rule text \"x\" ($c00:T00 | $c01:T01 | $c02:T02 | $c03:T03 | $c04:T04 | $c05:T05 | $c06:T06 | $c07:T07 | $c08:T08 | $c09:T09 | $c10:T10 | $c11:T11 | $c12:T12 | $c13:T13 | $c14:T14 | $c15:T15 | $c16:T16 | $c17:T17 | $c18:T18 | $c19:T19 | $c20:T20 | $c21:T21 | $c22:T22 | $c23:T23 | $c24:T24 | $c25:T25 | $c26:T26 | $c27:T27 | $c28:T28 | $c29:T29) :: ($c00 ⟹ T) ∪ ($c01 ⟹ T) ∪ ($c02 ⟹ T) ∪ ($c03 ⟹ T) ∪ ($c04 ⟹ T) ∪ ($c05 ⟹ T) ∪ ($c06 ⟹ T) ∪ ($c07 ⟹ T) ∪ ($c08 ⟹ T) ∪ ($c09 ⟹ T) ∪ ($c10 ⟹ T) ∪ ($c11 ⟹ T) ∪ ($c12 ⟹ T) ∪ ($c13 ⟹ T) ∪ ($c14 ⟹ T) ∪ ($c15 ⟹ T) ∪ ($c16 ⟹ T) ∪ ($c17 ⟹ T) ∪ ($c18 ⟹ T) ∪ ($c19 ⟹ T) ∪ ($c20 ⟹ T) ∪ ($c21 ⟹ T) ∪ ($c22 ⟹ T) ∪ ($c23 ⟹ T) ∪ ($c24 ⟹ T) ∪ ($c25 ⟹ T) ∪ ($c26 ⟹ T) ∪ ($c27 ⟹ T) ∪ ($c28 ⟹ T) ∪ ($c29 ⟹ T)",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  },
+  "tokens": [
+    {
+      "text": "x",
+      "tags": []
+    },
+    {
+      "text": "a",
+      "tags": [
+        "T00"
+      ]
+    }
+  ]
+}

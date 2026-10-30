@@ -10,8 +10,8 @@ export type LogicalSymbol = {
 export declare function logicalOf(sequence: {
     symbol: GrammarSymbol;
 }[]): LogicalSymbol[];
-/** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset */
-export declare function joinedLogical(sequence: object, left: LogicalSymbol[], right: LogicalSymbol[], offset: number): void;
+/** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
+export declare function joinedLogical(sequence: object, left: LogicalSymbol[], right: LogicalSymbol[], offset: number, owned?: boolean): void;
 /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
 export declare function optionalLogical(sequence: {
     symbol: GrammarSymbol;

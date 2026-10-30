@@ -767,6 +767,8 @@ def validation_captures(rule, alternative):
         guards = sorted(guards)
 
         def branch(i, yes, no):
+            if i and _capture_witness(expr, yes, no) is None:
+                return
             if i < len(guards):
                 branch(i + 1, yes, no + [guards[i]])
                 branch(i + 1, yes + [guards[i]], no)
