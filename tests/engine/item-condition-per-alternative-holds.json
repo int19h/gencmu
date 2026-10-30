@@ -1,0 +1,29 @@
+{
+  "description": "An item condition is checked in each alternative. In the second alternative it compares $c and $d of one item, which hold here (engine §3.6).",
+  "grammar": "%rule text {$c:A} | {$c:A $d:B}\n%conditions $c.value = $d.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

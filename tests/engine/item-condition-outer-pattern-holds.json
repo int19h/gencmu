@@ -1,0 +1,35 @@
+{
+  "description": "A pattern comparison of an outer capture can stand in an item condition, since it names no item capture. Every item satisfies it here (engine §3.6).",
+  "grammar": "%rule text $o:A {$c:B}\n%conditions $o ≅ #A ∧ $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
