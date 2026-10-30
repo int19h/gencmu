@@ -31,7 +31,7 @@ export declare function helperSlotForest(chart: import("./earley.js").Chart, nam
             waiting: Map<string, import("./earley.js").Item[]>;
             nullable: Map<string, import("./earley.js").Item[]>;
             predicted: Map<string, boolean>;
-            skipped: string[];
+            skipped: (string | import("./types.js").Production)[];
             items: Item[];
         }[];
     };

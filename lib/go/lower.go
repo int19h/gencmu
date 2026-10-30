@@ -456,11 +456,16 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				lw.addProduction(lhs, x, a)
 			}
 		}
+		numbered := map[int32]bool{}
 		// Then the helpers, in the order their places are written, each
 		// followed at once by those inside it (§3, Numbering).
 		var number func(hs []*helperNode)
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
+				if numbered[h.rule] {
+					continue
+				}
+				numbered[h.rule] = true
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
@@ -915,11 +920,27 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		if !e.Elidable && lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 && holdsCapture(inner, true) {
 			// Preserve tag arity while each helper selects one complete route.
 			// Reachable descendant groups then distinguish absence from future names.
+			outer := lw.into
+			var nested []*helperNode
+			lw.into = &nested
 			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			lw.into = outer
+			roots := map[int32]*helperNode{}
+			for _, child := range nested {
+				roots[child.rule] = child
+			}
 			var out [][]slot
 			for _, body := range bodies {
 				selected := body
 				route := lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+					// The route precedes each helper that its body reaches.
+					for _, slot := range selected {
+						if !slot.sym.term {
+							if child := roots[slot.sym.id]; child != nil {
+								*lw.into = append(*lw.into, child)
+							}
+						}
+					}
 					return [][]slot{selected}
 				})[0]
 				// Each physical helper is one route through the same written optional.

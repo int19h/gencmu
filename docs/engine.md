@@ -903,9 +903,11 @@ Lowered productions retain every written warning name. Warning collection select
 
 The reader and DOM validation enforce expression shape, terminal types, range endpoints, and elidable heads before lowering. Lowering relies on these guarantees.
 
-Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. A plain optional `[x]` that holds a capture (§3.5), at any depth, expands in place as `(ε | x)` does.
+Lowering expands each remaining alternative into sequences of symbols. `(a | b)` expands to both, in written order. A plain optional `[x]` with a capture outside nested ranked groups expands in place as `(ε | x)` does (§3.5).
 
-It expands first to the empty sequence, then to each expansion of `x`, in order. It has no helper. Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
+It expands first to the empty sequence, then to each expansion of `x`, in order. It has no helper.
+
+A plain optional whose captures occur only inside ranked groups uses a separate helper for each route. The absent route has an empty helper. Each present route has a helper for its expansion of `x`. These helpers preserve the optional as one logical symbol. Any other `[x]`, plain or elidable (§3.8), is a helper `h → ε | x`.
 
 The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 
@@ -1024,15 +1026,17 @@ Lowering retains each surviving alternative's original index from the stitched r
 
 Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
-A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the expanded rules in the order of §2.3. Ordinary rules and named instances retain declaration slots, followed by unnamed instances in discovery order. Alternatives added with `%extend-rule` follow the rule's own alternatives.
+A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Only ranked helpers reachable through that production defer conditions on their private captures. Other private captures are absent.
+
+Lowering takes the expanded rules in the order of §2.3. Ordinary rules and named instances retain declaration slots, followed by unnamed instances in discovery order. Alternatives added with `%extend-rule` follow the rule's own alternatives.
 
 Within a rule, lowering takes its remaining alternatives in order. Each alternative contributes its own productions first, and then its helpers. Its own productions come in the order of its expansions (§3.2). For a chain, the base productions come first, one for each expansion of `x`. The recursive ones follow, one for each expansion of the sequence that the recursion adds, in the order of §3.2. That sequence is `s x` in a left chain and `x s` in a right chain.
 
-An alternative's helpers come one for each place in the alternative where a helper's `[ ]` or flat `{ }` is written. They come in the order in which those places are written, left to right. The engine expands a plain optional that holds a capture in place (§3.2). That optional has no helper and no place of its own. The places written inside it keep their order among the others.
+Except for optional routes (§3.2), an alternative has one helper for each helper place. These places are written `[ ]`, ranked groups, or flat `{ }`. They come in the order in which those places are written, left to right. The engine expands a plain optional with a capture outside ranked groups in place (§3.2). That optional has no helper and no place of its own. The places written inside it keep their order among the others.
 
 So the expansions of such an optional are productions of the rule itself, numbered in the order of §3.2. The canonical order *T* of §6 compares them by those numbers.
 
-The helpers of the places written inside a helper follow that helper's productions at once, depth first, before the next helper of the alternative. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
+A helper's nested helpers follow its productions at once, depth first. They precede the alternative's next helper. Each optional route helper precedes its nested ranked helper. Shared nested helpers receive numbers once, at their first route. A helper of flat braces has its base productions first and then its recursive ones, as a chain does. The places inside `x` come before those inside `s`, since `x` is written first.
 
 The braces of a chain (§3.3) have no helper: they are lowered into the rule's own productions. But the `[ ]` and flat `{ }` inside its item and its separator have helpers, as anywhere else.
 
@@ -1083,6 +1087,8 @@ The test is not part of the terminal's identity. A tested terminal `T="s"` is th
 When an item completes, its constituent's tags are its production's tag terms evaluated over its captured parts (§10) and joined as §3.7 says. A completed item has exactly one tag set. So two derivations of one production over one span that are one item have equal tag sets. Two such derivations with different tag sets differ in a captured part, so they are two items.
 
 The recognizer evaluates a condition, as simplified for its production (§3.6), as soon as the item reads the last capture that it uses. It evaluates a condition that uses `$` as soon as the item is complete. At that point, `$` spans from the item's origin to the set that the item completes in. It has the tags that its production's tag term gives it. If the condition fails, the recognizer does not produce the advanced item.
+
+A skipped lookahead prediction retains its lexical conditions for rejection diagnostics. A condition that fails before prediction contributes no expected terminal.
 
 The recognizer evaluates a condition that uses no capture when it predicts the item. It does the same with a condition that uses only `$` in a production with no symbols, over the empty span there. So a rule whose only production has no symbols and the condition `$.starts-input` completes only at the start of the input. Anywhere else, the recognizer never advances an alternative that begins with that rule, and that alternative predicts nothing after the rule.
 

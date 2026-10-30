@@ -733,12 +733,24 @@ impl<'a> Lowerer<'a> {
             {
                 // Preserve tag arity, but select one complete route per helper.
                 // Only descendant groups reachable on that route stay unknown.
+                self.enter();
                 let mut routes = vec![Sequence::new()];
                 routes.extend(self.expand(inner));
+                let nested = self.places.pop().expect("the optional's nested places");
+                let roots: FxSet<usize> = nested.into_iter().collect();
                 routes
                     .into_iter()
                     .map(|route| {
                         self.enter();
+                        for (sym, ..) in route.iter() {
+                            if let Sym::N(id) = sym {
+                                if let Some(helper) = (*id as usize).checked_sub(self.grammar.rules.len()) {
+                                    if roots.contains(&helper) {
+                                        self.places.last_mut().expect("the route's places").push(helper);
+                                    }
+                                }
+                            }
+                        }
                         let sym = self.helper(vec![route], None, expr);
                         let mut sequence = Sequence::one((sym, None, None));
                         sequence.optional(self.optional_id(expr));
@@ -1140,7 +1152,11 @@ fn lower_mode(
             }
             let roots = lowerer.places.pop().expect("the alternative's places");
             let mut stack: Vec<usize> = roots.into_iter().rev().collect();
+            let mut numbered = FxSet::default();
             while let Some(helper) = stack.pop() {
+                if !numbered.insert(helper) {
+                    continue;
+                }
                 slots.push(Slot::Helper(helper));
                 stack.extend(lowerer.helpers[helper].children.iter().rev());
             }

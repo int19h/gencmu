@@ -9360,6 +9360,14 @@
       this.helperCount = 0;
       this.validation = false;
       this.helperExpressions = new Map();
+      /** @type {Map<string, SequenceItem[][]>} */
+      this.helperBodies = new Map();
+      /** @type {Map<string, PendingHelper>} */
+      this.pendingHelpers = new Map();
+      /** @type {Map<string, number>} */
+      this.helperOrder = new Map();
+      /** @type {WeakMap<StitchedAlternative, Map<string, import("./types.js").Condition[]>>} */
+      this.commonConditions = new WeakMap();
       /** @type {WeakMap<SequenceItem[],{group:import("./ranked.js").RankedGroup,option:number}>} */
       this.rankedSequences = new WeakMap();
       this.rankedHelpers = new Set();
@@ -9481,6 +9489,7 @@
       const where = { rule, alternative, pending };
       this.source = alternative;
       const expr = alternative.expr;
+      let sequences;
       if (isChain(expr)) {
         // A chain is recursion on the rule itself, with no helper: its base
         // productions first, one for each expansion of the item, then its
@@ -9491,11 +9500,19 @@
         /** @type {SequenceItem[][]} */
         const self = [[{ symbol: { name: rule.name, terminal: false } }]];
         const recursive = expr.chain === "left" ? product(self, product(separators, items)) : product(product(items, separators), self);
-        for (const sequence of [...items, ...recursive]) this.addRuleProduction(rule, alternative, sequence);
+        sequences = [...items, ...recursive];
       } else {
-        for (const sequence of this.expand(expr, where)) this.addRuleProduction(rule, alternative, sequence);
+        sequences = this.expand(expr, where);
       }
-      this.flushHelpers(pending, rule, alternative);
+      // Build each helper once before condition pruning examines reachability.
+      for (let index = 0; index < pending.length; index++) {
+        const helper = pending[index];
+        this.pendingHelpers.set(helper.name, helper);
+        this.helperOrder.set(helper.name, index);
+        this.helperBodies.set(helper.name, helper.build(where));
+      }
+      for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence);
+      this.flushHelpers(sequences, rule, alternative);
     }
 
     /**
@@ -9559,25 +9576,33 @@
     }
 
     /**
-     * @param {PendingHelper[]} pending
+     * The helpers directly used by expansions, in construction order.
+     * @param {SequenceItem[][]} sequences
+     * @returns {string[]}
+     */
+    usedHelpers(sequences) {
+      const names = new Set();
+      for (const sequence of sequences) for (const {symbol} of sequence) {
+        if (hooks.work) countWork(hooks.work, "lowering");
+        if (!symbol.terminal && this.helperBodies.has(symbol.name)) names.add(symbol.name);
+      }
+      return [...names].sort((a, b) => /** @type {number} */ (this.helperOrder.get(a)) - /** @type {number} */ (this.helperOrder.get(b)));
+    }
+
+    /**
+     * @param {SequenceItem[][]} sequences
      * @param {StitchedRule} rule
      * @param {StitchedAlternative} alternative
      */
-    flushHelpers(pending, rule, alternative) {
-      // A stack whose top is the next helper, so that a helper's nested ones
-      // come next, as a queue with each put at its front would give. A shift
-      // or an unshift moves every helper still waiting.
-      /** @type {PendingHelper[]} */
-      const stack = [];
-      for (let index = pending.length - 1; index >= 0; index--) {
-        if (hooks.work) countWork(hooks.work, "lowering");
-        stack.push(pending[index]);
-      }
-      pending.length = 0;
-      for (let helper = stack.pop(); helper !== undefined; helper = stack.pop()) {
-        /** @type {PendingHelper[]} */
-        const nested = [];
-        for (const sequence of helper.build({ rule, alternative, pending: nested })) {
+    flushHelpers(sequences, rule, alternative) {
+      const stack = this.usedHelpers(sequences).reverse();
+      const emitted = new Set();
+      for (let name = stack.pop(); name !== undefined; name = stack.pop()) {
+        if (emitted.has(name)) continue;
+        emitted.add(name);
+        const bodies = /** @type {SequenceItem[][]} */ (this.helperBodies.get(name));
+        const helper = /** @type {PendingHelper} */ (this.pendingHelpers.get(name));
+        for (const sequence of bodies) {
           // A helper with one symbol has that symbol's tags, like any
           // production (engine §3.7).
           const logical = logicalOf(sequence);
@@ -9604,10 +9629,8 @@
             ...(ranked ? {rankedGroup:ranked.group,rankedOption:ranked.option} : {}),
           });
         }
-        for (let index = nested.length - 1; index >= 0; index--) {
-          if (hooks.work) countWork(hooks.work, "lowering");
-          stack.push(nested[index]);
-        }
+        const children = this.usedHelpers(bodies);
+        for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
       }
     }
 
@@ -9661,18 +9684,29 @@
       const conditions = [];
       // The conditions not true for this production, in order (engine §3.6).
       const privateNames = new Set();
-      for (const group of this.grammar.ranked.groups) if (group.source === alternative) {
-        const pending = [group.expr];
-        while (pending.length) {
-          const expr = pending.pop();
-          if (expr.capture) privateNames.add(expr.capture);
-          for (const [key,value] of Object.entries(expr)) {
-            if (["ranked","seq","choice","and"].includes(key)) for (const child of value) pending.push(child);
-            else if (["node","optional","repeat","separator","group"].includes(key)) pending.push(value);
-          }
-        }
+      const seen = new Set();
+      const pending = this.grammar.ranked.groups.length ? this.usedHelpers([sequence]) : [];
+      while (pending.length) {
+        const name = /** @type {string} */ (pending.pop());
+        if (seen.has(name)) continue;
+        seen.add(name);
+        const expr = this.helperExpressions.get(name);
+        const group = expr && this.grammar.ranked.byExpression.get(expr);
+        if (group) for (const capture of group.captures) privateNames.add(capture);
+        for (const child of this.usedHelpers(/** @type {SequenceItem[][]} */ (this.helperBodies.get(name)))) pending.push(child);
       }
-      const commonConditions = privateNames.size ? clauses.conditions.filter(c => ![...rankedCaptureReads(c)].some(n => privateNames.has(n))) : clauses.conditions;
+      let commonConditions = clauses.conditions;
+      if (privateNames.size) {
+        let cached = this.commonConditions.get(alternative);
+        if (!cached) this.commonConditions.set(alternative, cached = new Map());
+        const key = JSON.stringify([...privateNames].sort());
+        let common = cached.get(key);
+        if (!common) {
+          common = clauses.conditions.filter(c => ![...rankedCaptureReads(c)].some(n => privateNames.has(n)));
+          cached.set(key, common);
+        }
+        commonConditions = common;
+      }
       for (const condition of partsFor(prepareConditions(commonConditions), has, names)) {
         // A condition false for this production removes it.
         if (condition === DOM_FALSE && !this.validation) return;
@@ -10634,8 +10668,9 @@
        * The rules predicted here with productions not made items, since they
        * begin with a terminal the next token does not carry; kept for saying
        * what could have come next (see expectedAt). A rule, not each of its
-       * productions: a long text skips millions.
-       * @type {string[]}
+       * productions for ordinary rules: a long text skips millions. Bound
+       * productions retain the lexical conditions that already passed.
+       * @type {(string | Production)[]}
        */
       this.skipped = [];
     }
@@ -11355,7 +11390,8 @@
         // The conditions run first, as they did when every prediction was
         // made an item, so that a trace shows the production as dropped.
         if (lookaheadSkips(context, production, next)) {
-          predictSkipped = true;
+          if (production.lexicalFrame || production.baseProduction) set.skipped.push(production);
+          else predictSkipped = true;
           return;
         }
         value = -1;
@@ -13437,8 +13473,9 @@
     // it checked then use no captures, so they hold again now.
     const context = chart.context;
     const next = position < chart.end ? context.tokens[position] : null;
-    for (const rule of set.skipped) {
-      for (const production of context.lowered.byLhs.get(rule) || []) {
+    for (const skipped of set.skipped) {
+      const productions = typeof skipped === "string" ? context.lowered.byLhs.get(skipped) ?? [] : [skipped];
+      for (const production of productions) {
         if (!lookaheadSkips(context, production, next)) continue;
         const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure, observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
         if (failed) continue;

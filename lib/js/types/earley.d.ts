@@ -297,10 +297,11 @@ export declare class ChartSet {
      * The rules predicted here with productions not made items, since they
      * begin with a terminal the next token does not carry; kept for saying
      * what could have come next (see expectedAt). A rule, not each of its
-     * productions: a long text skips millions.
-     * @type {string[]}
+     * productions for ordinary rules: a long text skips millions. Bound
+     * productions retain the lexical conditions that already passed.
+     * @type {(string | Production)[]}
      */
-    skipped: string[];
+    skipped: (string | Production)[];
     /** @param {number} position */
     constructor(position: number);
 }

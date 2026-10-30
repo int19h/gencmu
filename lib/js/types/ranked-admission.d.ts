@@ -21,7 +21,7 @@ export declare class RankedAdmission {
                 waiting: Map<string, import("./earley.js").Item[]>;
                 nullable: Map<string, import("./earley.js").Item[]>;
                 predicted: Map<string, boolean>;
-                skipped: string[];
+                skipped: (string | import("./types.js").Production)[];
                 items: import("./slot-forest.js").Item[];
             }[];
         };
