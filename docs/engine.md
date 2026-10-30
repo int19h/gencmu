@@ -969,6 +969,8 @@ A production's captures stand in the order in which it reads them. That is the o
 
 Conditions, tags, recipes, emission, and erasure attach to the production that an alternative lowers to, or to each production if it expands to several. They attach with the clauses of the alternative's definition (§2). A production has a capture where its expansion reads the captured symbol (§3.5), and every production has `$`.
 
+A condition without a presence test remains a runtime condition. Valid documents have no literal truth values or empty conjunctions or disjunctions. A fixed term can still simplify to the empty set.
+
 Before lowering attaches a clause, it simplifies the clause for the production, by these rules:
 
 - Each presence test `$x` (§10) becomes true or false as the production has `x` or not.

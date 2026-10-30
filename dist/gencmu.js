@@ -5018,10 +5018,6 @@
    *   keeps only if it has a capture, by that capture, each list in order
    * @property {any} absent for a guarded clause alone, its value for a
    *   production without the capture
-   * @property {boolean} decided for a ∨, whether a part true for every
-   *   production makes it true
-   * @property {boolean} guardedTrue for a ∨, whether a guarded part is true
-   *   where its capture is present
    */
 
   /**
@@ -5074,10 +5070,9 @@
    */
   function prepareParts(parts, join, list) {
     /** @type {PreparedClause} */
-    const prepared = { join, parts, list, fixed: [], values: [], guards: new Map(), absent: undefined, decided: false, guardedTrue: false };
-    // A part's value vanishes from its join where the join drops it. In a
-    // ∨, a part that is true decides the whole instead.
-    const vanishes = (/** @type {any} */ value) => (join === "union" ? isEmptySet(value) : join === "all" ? value === DOM_TRUE : join === "any" ? value === DOM_FALSE : false);
+    const prepared = { join, parts, list, fixed: [], values: [], guards: new Map(), absent: undefined };
+    // Only fixed terms can vanish. A condition with no presence test stays open.
+    const vanishes = (/** @type {any} */ value) => join === "union" && isEmptySet(value);
     /** @type {(name: string, index: number) => void} */
     const index = (name, at) => {
       const names = prepared.guards.get(name);
@@ -5091,14 +5086,13 @@
         const absent = isCondition(part.then) ? DOM_TRUE : DOM_EMPTY;
         // Without its capture, a guarded part vanishes from a union or an
         // ∧, and makes a ∨ true.
-        if (join === null || vanishes(absent) || (join === "any" && absent === DOM_TRUE)) {
+        if (join === null || vanishes(absent) || ((join === "all" || join === "any") && absent === DOM_TRUE)) {
           const value = simplify(part.then, hasNone);
           prepared.values[at] = value;
           prepared.absent = absent;
           // A part that vanishes where its capture is present too is never
           // kept.
           if (join !== null && vanishes(value)) return;
-          if (join === "any" && value === DOM_TRUE) prepared.guardedTrue = true;
           index(name, at);
           return;
         }
@@ -5106,14 +5100,10 @@
         const value = simplify(part, hasNone);
         prepared.values[at] = value;
         if (join !== null && vanishes(value)) return;
-        if (join === "any" && value === DOM_TRUE) {
-          prepared.decided = true;
-          return;
-        }
         // A condition of a list that uses a capture is dropped by every
         // production without it. So it is kept under the first such name,
         // and a production without that name never looks at it.
-        if (list && value !== DOM_FALSE) {
+        if (list) {
           let first = null;
           for (const used of capturesUsed(value)) if (used !== "" && (first === null || used < first)) first = used;
           if (first !== null) {
@@ -5250,16 +5240,12 @@
       return has(name) ? values[0] : prepared.absent;
     }
     if (join === "any") {
-      // A part true for every production, or a guarded part whose capture
-      // the production lacks, makes the ∨ true.
-      if (prepared.decided) return DOM_TRUE;
+      // A guarded part whose capture the production lacks makes the ∨ true.
       if (names.size < guards.size) return DOM_TRUE;
       for (const name of guards.keys()) {
         if (hooks.work) countWork(hooks.work, "walkSteps");
         if (!has(name)) return DOM_TRUE;
       }
-      // Every guarded part is kept, and one that is true makes it true.
-      if (prepared.guardedTrue) return DOM_TRUE;
     }
     const items = partsFor(prepared, has, names);
     if (join === "union") return items.length === 0 ? DOM_EMPTY : items.length === 1 ? items[0] : { union: items };
