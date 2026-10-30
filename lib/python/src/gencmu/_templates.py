@@ -167,7 +167,7 @@ def expand_templates(documents, unicode):
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
     templates, names, instances = {}, {}, {}
-    slots, events, queue, extra = [], [], [], []
+    slots, events, queue, extra, source_events = [], [], [], [], []
 
     def fail(event, node, message):
         at = node.get('at', event['rule']['at'])
@@ -183,6 +183,7 @@ def expand_templates(documents, unicode):
         for kind, rule in declarations:
             event = dict(path=path, rule=rule, index=serial)
             serial += 1
+            source_events.append(event)
             if kind != 'rules':
                 extra.append(event)
                 continue
@@ -211,7 +212,7 @@ def expand_templates(documents, unicode):
                         fail(event, rule, f'{name} requires an earlier definition')
                     names[name].append(event)
     edges = {(t['name'], i): [] for t in templates.values() for i in range(t['arity'])}
-    for event in sorted(events + extra, key=lambda event: event['index']):
+    for event in source_events:
         rule, params = event['rule'], event['rule'].get('params', [])
         for n in nodes(rule, source=True):
             if 'param' in n and n['param'] not in params:
@@ -326,9 +327,23 @@ def expand_templates(documents, unicode):
                 start = i
         return items[start:]
 
-    for event in sorted(events + extra, key=lambda e: e['index']):
+    extra_indexes = {event['index'] for event in extra}
+    retained_indexes = set()
+
+    def remember_retained(*histories):
+        first = max((event['index'] for history in histories for event in history if event['rule']['op'] != 'extend'), default=0)
+        retained_indexes.update(event['index'] for history in histories for event in history if event['index'] >= first)
+
+    for template in templates.values():
+        remember_retained(template['events'])
+    for history in ordinary.values():
+        remember_retained(history)
+    for instance in instances.values():
+        remember_retained(templates[instance['call']['call']]['events'], instance['locals'])
+
+    for event in source_events:
         rule = event['rule']
-        if any(e is event for e in extra):
+        if event['index'] in extra_indexes:
             discover(rule, event)
             continue
         if 'instance' in rule:
@@ -336,12 +351,7 @@ def expand_templates(documents, unicode):
             continue
         if 'args' in rule:
             discover(dict(call=rule['name'], args=rule['args'], at=rule['at']), event)
-        items = templates[rule['name']]['events'] if 'params' in rule else ordinary.get(rule['name'])
-        if items is None:
-            subject = next((i for i in instances.values() if any(e is event for e in i['locals'])), None)
-            if subject:
-                items = sorted(templates[subject['call']['call']]['events'] + subject['locals'], key=lambda e: e['index'])
-        if items and any(e is event for e in retained(items)):
+        if event['index'] in retained_indexes:
             body = dict(rule)
             body.pop('args', None)
             discover(body, event)

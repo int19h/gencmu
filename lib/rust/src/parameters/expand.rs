@@ -86,6 +86,10 @@ fn retained(items: &[Event]) -> &[Event] {
     let start = items.iter().rposition(|e| text(get(&e.rule, "op")) != "extend").unwrap_or(0);
     &items[start..]
 }
+fn remember_retained<'a>(events: impl Iterator<Item = &'a Event> + Clone, indexes: &mut BTreeSet<usize>) {
+    let first = events.clone().filter(|e| text(get(&e.rule, "op")) != "extend").map(|e| e.index).max().unwrap_or(0);
+    indexes.extend(events.filter(|e| e.index >= first).map(|e| e.index));
+}
 fn sorted(a: &[Event], b: &[Event]) -> Vec<Event> {
     let mut xs = a.to_vec();
     xs.extend_from_slice(b);
@@ -225,7 +229,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         raw_docs.push(raw);
     }
     x.patterns = pattern_constant_names(raw_docs.iter().flat_map(|d| list(get(d, "constants"))));
-    x.flow(&sorted(&events, &extra))?;
+    let mut source_events: Vec<_> = events.iter().chain(&extra).collect();
+    source_events.sort_by_key(|e| e.index);
+    x.flow(&source_events)?;
     let mut current: BTreeMap<String, usize> = BTreeMap::new();
     let mut ordinary: BTreeMap<String, Vec<Event>> = BTreeMap::new();
     for e in &events {
@@ -271,38 +277,39 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             ordinary.entry(name.into()).or_default().push(e.clone())
         }
     }
-    for e in sorted(&events, &extra) {
+    let extra_indexes: BTreeSet<_> = extra.iter().map(|e| e.index).collect();
+    let mut retained_indexes = BTreeSet::new();
+    for template in &x.templates {
+        remember_retained(template.events.iter(), &mut retained_indexes);
+    }
+    for history in ordinary.values() {
+        remember_retained(history.iter(), &mut retained_indexes);
+    }
+    for instance in &x.instances {
+        let template = &x.templates[x.template_names[text(get(&instance.call, "call"))]];
+        remember_retained(template.events.iter().chain(&instance.locals), &mut retained_indexes);
+    }
+    for e in source_events {
         let r = &e.rule;
         let name = text(get(r, "name"));
-        if extra.iter().any(|v| v.index == e.index) {
-            x.discover(r, &e)?;
+        if extra_indexes.contains(&e.index) {
+            x.discover(r, e)?;
             continue;
         }
         if has(r, "instance") {
-            x.discover(get(r, "instance"), &e)?;
+            x.discover(get(r, "instance"), e)?;
             continue;
         }
         if has(r, "args") {
             x.discover(
                 &obj([("call", string(name)), ("args", get(r, "args").clone()), ("at", get(r, "at").clone())]),
-                &e,
+                e,
             )?
         }
-        let items = if has(r, "params") {
-            Some(x.templates[x.template_names[name]].events.clone())
-        } else {
-            ordinary.get(name).cloned()
-        }
-        .or_else(|| {
-            x.instances
-                .iter()
-                .find(|i| i.locals.iter().any(|v| v.index == e.index))
-                .map(|i| sorted(&x.templates[x.template_names[text(get(&i.call, "call"))]].events, &i.locals))
-        });
-        if items.is_some_and(|items| retained(&items).iter().any(|v| v.index == e.index)) {
+        if retained_indexes.contains(&e.index) {
             let mut body = r.clone();
             remove(&mut body, "args");
-            x.discover(&body, &e)?
+            x.discover(&body, e)?
         }
     }
     let mut cursor = 0;
@@ -402,7 +409,7 @@ impl Expander<'_> {
     fn normalize(&self, root: &Json) -> Json {
         normalize_patterns(root, &self.patterns)
     }
-    fn flow(&self, events: &[Event]) -> R<()> {
+    fn flow(&self, events: &[&Event]) -> R<()> {
         struct Edge<'a> {
             from: (&'a str, usize),
             to: (&'a str, usize),
@@ -413,7 +420,7 @@ impl Expander<'_> {
         }
         let mut edges = Vec::new();
         let mut outgoing = BTreeMap::<_, Vec<usize>>::new();
-        for e in events {
+        for &e in events {
             let params = list(get(&e.rule, "params"));
             for n in source_nodes(&e.rule) {
                 if has(n, "param") && !params.contains(get(n, "param")) {
@@ -709,7 +716,7 @@ impl Expander<'_> {
         if let Json::Arr(xs) = root {
             return Ok(Json::Arr(xs.iter().map(|v| self.substitute(v, env, event, position)).collect::<R<_>>()?));
         }
-        let Some(fields) = root.as_object() else { return Ok(root.clone()) };
+        let Some(_) = root.as_object() else { return Ok(root.clone()) };
         if has(root, "param") {
             let arg =
                 env.get(text(get(root, "param"))).ok_or_else(|| event.fail(root, "an undeclared parameter".into()))?;

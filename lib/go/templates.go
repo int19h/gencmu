@@ -83,14 +83,6 @@ func templateSorted(items ...[]*templateEvent) []*templateEvent {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].index < out[j].index })
 	return out
 }
-func templateHasEvent(xs []*templateEvent, e *templateEvent) bool {
-	for _, v := range xs {
-		if v == e {
-			return true
-		}
-	}
-	return false
-}
 func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansion, err *Error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -112,7 +104,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	x := &templateExpander{uni: uni, templates: map[string]*ruleTemplate{}, instances: map[string]*ruleInstance{}}
 	names := map[string][]*templateEvent{}
 	slots := []string{}
-	events, extra := []*templateEvent{}, []*templateEvent{}
+	events, extra, sourceEvents := []*templateEvent{}, []*templateEvent{}, []*templateEvent{}
 	rawDocs := []templateObject{}
 	serial := 0
 	for _, d := range docs {
@@ -137,6 +129,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			r := it.rule
 			e := &templateEvent{path: d.path, rule: r, index: serial}
 			serial++
+			sourceEvents = append(sourceEvents, e)
 			if it.kind != "rules" {
 				extra = append(extra, e)
 				continue
@@ -184,7 +177,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		}
 	}
 	x.patterns = templatePatternConstants(definitions)
-	x.flow(templateSorted(events, extra))
+	x.flow(sourceEvents)
 	current := map[string]*ruleInstance{}
 	ordinary := map[string][]*templateEvent{}
 	for _, e := range events {
@@ -223,9 +216,40 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			ordinary[name] = append(ordinary[name], e)
 		}
 	}
-	for _, e := range templateSorted(events, extra) {
+	extraIndexes := map[int]bool{}
+	for _, e := range extra {
+		extraIndexes[e.index] = true
+	}
+	retainedIndexes := map[int]bool{}
+	rememberRetained := func(histories ...[]*templateEvent) {
+		first := 0
+		for _, history := range histories {
+			for _, e := range history {
+				if e.rule["op"] != "extend" && e.index > first {
+					first = e.index
+				}
+			}
+		}
+		for _, history := range histories {
+			for _, e := range history {
+				if e.index >= first {
+					retainedIndexes[e.index] = true
+				}
+			}
+		}
+	}
+	for _, t := range x.templateOrder {
+		rememberRetained(t.events)
+	}
+	for _, history := range ordinary {
+		rememberRetained(history)
+	}
+	for _, i := range x.instanceOrder {
+		rememberRetained(x.templates[templateText(i.call["call"])].events, i.locals)
+	}
+	for _, e := range sourceEvents {
 		r := e.rule
-		if templateHasEvent(extra, e) {
+		if extraIndexes[e.index] {
 			x.discover(r, e)
 			continue
 		}
@@ -236,21 +260,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		if r["args"] != nil {
 			x.discover(templateObject{"call": r["name"], "args": r["args"], "at": r["at"]}, e)
 		}
-		var items []*templateEvent
-		if r["params"] != nil {
-			items = x.templates[templateText(r["name"])].events
-		} else {
-			items = ordinary[templateText(r["name"])]
-		}
-		if items == nil {
-			for _, i := range x.instanceOrder {
-				if templateHasEvent(i.locals, e) {
-					items = templateSorted(x.templates[templateText(i.call["call"])].events, i.locals)
-					break
-				}
-			}
-		}
-		if items != nil && templateHasEvent(templateRetained(items), e) {
+		if retainedIndexes[e.index] {
 			body := templateCopy(r)
 			delete(body, "args")
 			x.discover(body, e)
