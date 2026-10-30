@@ -1240,6 +1240,14 @@ A query is active from the start of its nested parse to its end. Take a query ab
 
 Whether a query is negated does not matter either. The error names the rule, and the whole parse fails with it. Such a query makes the grammar define the rule in terms of itself over the same text.
 
+The recursive-query reason uses this template, with the requested rule name in place of `R`:
+
+```text
+a condition asks whether its own span parses as R from inside the parse of that span as R: the grammar defines R in terms of itself over the same text
+```
+
+The reason omits source text, so arbitrary token contents do not require a second escaping convention.
+
 Only queries are active. The main parse of a stage is not a query, and neither is the recognition of the check of §7. In the main parse this changes no result. A query there about the whole input as `text` runs a nested parse of the same tokens with the same grammar. That nested parse reaches the same condition again, and then it is the active query. The check of §7 reads other tokens, so there the difference shows (§7.6).
 
 A query names its span in positions of the stage's input. A query that the check of §7 starts names its projected span (§7.3). So two queries are about the same span exactly where they read the same tokens of the stage's input.
