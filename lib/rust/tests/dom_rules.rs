@@ -1626,3 +1626,20 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         assert_eq!(expression_problem(expr).as_deref(), twice, "{expr}");
     }
 }
+
+#[test]
+fn absent_recipe_capture_order() {
+    for recipe in ["$x.value ++ $y.value", "$y.value ++ $x.value"] {
+        for grammar in [
+            format!("%rule text := {recipe} | [$x:A] [$y:B]"),
+            format!("%rule text [$x:A] [$y:B] %emits $ := {recipe}"),
+        ] {
+            let sources = std::collections::BTreeMap::from([
+                ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+                ("g.md".to_string(), format!("```jbogenbau\n%ambiguity-resolution greedy\n{grammar}\n```\n")),
+            ]);
+            let error = gencmu::load_pipeline_sources(&sources, "p.md").err().expect("an absent recipe capture");
+            assert!(error.message.contains(&format!("capture {}", &recipe[..2])), "{error}");
+        }
+    }
+}

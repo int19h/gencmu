@@ -5388,7 +5388,11 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
-      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
+      const children = clauseChildren(current);
+      for (let index = children.length - 1; index >= 0; index--) {
+        const value = children[index];
+        if (value && typeof value === "object") stack.push(value);
+      }
     }
     return names;
   }

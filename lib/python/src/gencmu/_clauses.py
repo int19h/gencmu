@@ -44,6 +44,19 @@ def captures_in(dom: Any) -> set[str]:
     return found
 
 
+def first_absent_recipe_capture(recipe: Dom, present: AbstractSet[str]) -> str | None:
+    """Find the first absent capture in the recipe's written order."""
+    for atom in recipe["concat"]:
+        receiver = atom.get("receiver")
+        while isinstance(receiver, dict) and "method" in receiver:
+            receiver = receiver.get("receiver")
+        if isinstance(receiver, dict):
+            name = receiver.get("capture")
+            if isinstance(name, str) and name not in present:
+                return name
+    return None
+
+
 def mentioned_in(dom: Any) -> set[str]:
     """The capture names a clause mentions, presence tests included."""
     found = captures_in(dom)
@@ -909,8 +922,9 @@ def definition_problem(rule: Dom) -> str | None:
         for recipe in (value, image):
             if recipe is None:
                 continue
-            if not captures_in(recipe) <= present:
-                return "a selected recipe uses a capture that its production lacks"
+            missing = first_absent_recipe_capture(recipe, present)
+            if missing is not None:
+                return f"a selected recipe reads an absent capture ${missing}"
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
     anchors: list[str | None] = [None] * len(items)
@@ -928,8 +942,9 @@ def definition_problem(rule: Dom) -> str | None:
             for channel in ("value", "image"):
                 if channel not in item:
                     continue
-                if not captures_in(item[channel]) <= present:
-                    return "an item recipe uses a capture that its production lacks"
+                missing = first_absent_recipe_capture(item[channel], present)
+                if missing is not None:
+                    return f"an item recipe reads an absent capture ${missing}"
             if "tags" in item and lacks(item["tags"], present):
                 return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
         # A production without an item's carrier lacks its attachments too
@@ -965,8 +980,7 @@ def rule_has_ranked(rule: Dom) -> bool:
 
 
 def deferred_emission_problem(message):
-    return any(part in message for part in (
-        "leaves a production nothing to emit",
-        "a selected recipe uses a capture that its production lacks",
-        "an item recipe uses a capture that its production lacks",
+    return "leaves a production nothing to emit" in message or message.startswith((
+        "a selected recipe reads an absent capture $",
+        "an item recipe reads an absent capture $",
     ))

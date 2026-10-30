@@ -1300,6 +1300,13 @@ class Constants(unittest.TestCase):
     """A constant's definition and a reference to one in a preparsed or
     bootstrap DOM are checked as the reader checks them (engine §2, §9)."""
 
+    def test_absent_recipe_capture_order(self) -> None:
+        for recipe in ("$x.value ++ $y.value", "$y.value ++ $x.value"):
+            for grammar in (f"%rule text := {recipe} | [$x:A] [$y:B]", f"%rule text [$x:A] [$y:B] %emits $ := {recipe}"):
+                with self.assertRaises(gencmu.GencmuError) as raised:
+                    gencmu.load_pipeline_sources({"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
+                self.assertIn("capture " + recipe[:2], raised.exception.message)
+
     @staticmethod
     def text(constants: list[Dom], conditions: list[Dom] | None = None) -> Dom:
         return {

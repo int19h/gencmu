@@ -884,3 +884,17 @@ func TestBootstrapGuardMembers(t *testing.T) {
 	assertGrammarError(t, bootstrapError(t, "rules", rule(`{"feature":"f","kind":"gate","negated":false,"extra":true}`)), "a malformed guard")
 	assertGrammarError(t, bootstrapError(t, "rules", rule(`{"kind":"gate","negated":false,"feature":"f","note":"x"}`)), "a malformed guard")
 }
+
+func TestAbsentRecipeCaptureOrder(t *testing.T) {
+	for _, recipe := range []string{"$x.value ++ $y.value", "$y.value ++ $x.value"} {
+		for _, grammar := range []string{"%rule text := " + recipe + " | [$x:A] [$y:B]", "%rule text [$x:A] [$y:B] %emits $ := " + recipe} {
+			_, err := LoadPipelineSources(map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n", "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n" + grammar + "\n```\n"}, "p.md")
+			if err == nil {
+				t.Fatal("an absent recipe capture was accepted")
+			}
+			if !strings.Contains(err.Error(), "capture "+recipe[:2]) {
+				t.Fatal(err)
+			}
+		}
+	}
+}

@@ -179,13 +179,17 @@ func recipeCapturesProblem(recipe *domTerm, has func(string) bool) string {
 	if recipe == nil {
 		return ""
 	}
-	used := map[string]bool{}
-	termCaptures(recipe, used)
-	for name := range used {
-		if !has(name) {
-			return "a selected recipe reads an absent capture $" + name
+	missing, found := "", false
+	walkClause(clausePart{t: recipe}, func(p clausePart) bool {
+		if !found && p.t != nil && p.t.Kind == tmCapture && !has(p.t.Str) {
+			missing, found = p.t.Str, true
 		}
+		return !found
+	})
+	if found {
+		return "a selected recipe reads an absent capture $" + missing
 	}
+
 	return ""
 }
 

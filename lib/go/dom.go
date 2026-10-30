@@ -30,10 +30,9 @@ type domClassifier struct {
 	At      [2]int
 }
 
-// domEntry is an entry of a classifier: its gates, one or more keys, each a
-// exact scalar string, ∈ or ∉, and one class whose name starts and ends
-// with an uppercase ASCII letter. At is its first token, where the loader reports an error of the
-// entry.
+// domEntry holds a classifier entry's gates, exact scalar string keys,
+// operator, class, and source position.
+// The class starts and ends with an uppercase ASCII letter.
 type domEntry struct {
 	Guards   []domGuard
 	Keys     []string

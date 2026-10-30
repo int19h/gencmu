@@ -295,8 +295,8 @@ var (
 	className      = regexp.MustCompile(`^[A-Z][A-Za-z0-9_-]*$`)
 )
 
-// entryProblem is what is wrong with an entry of a classifier (engine §9),
-// or nil: its guards are gates, it has one or more exact scalar string keys, its operator is ∈ or ∉, and its class starts and ends uppercase.
+// entryProblem validates classifier gates, keys, operators, and classes.
+// Each key is a string term. Each class starts and ends uppercase.
 func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
 	if e == nil || e.Guards == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 {
 		return &domProblem{message: "a malformed entry of a classifier"}
