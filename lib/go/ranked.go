@@ -359,7 +359,9 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	site := r.sourceSites[group.source]
 	site.Path = group.path
 	site.At = nil
-	if at, known := group.source.alt.rankedLocations[group.path]; known {
+	if at := group.expr.RankedAt; at != [2]int{} {
+		site.At = &at
+	} else if at, known := group.source.alt.rankedLocations[group.path]; known {
 		site.At = &at
 	}
 	at := [2]int{}
@@ -551,83 +553,12 @@ func containsRanked(expr *domExpr) bool {
 	}
 	return false
 }
-func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]int) {
-	if restoreTemplateRankedLocations(dom, tokens, position) {
-		return
-	}
-	separators := [][2]int{}
-	for _, token := range tokens {
-		if token.Value == "≻" {
-			separators = append(separators, position(token.Source[0]))
-		}
-	}
-	index := 0
-	type task struct {
-		expr   *domExpr
-		path   string
-		action int
-	}
-	for _, rule := range dom.Rules {
-		for _, alternative := range rule.Alternatives {
-			locations := map[string][2]int{}
-			alternative.rankedLocations = locations
-			pending := []task{{alternative.Expr, "", 0}}
-			for len(pending) > 0 {
-				item := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				expr, path := item.expr, item.path
-				if item.action == 1 {
-					if index < len(separators) {
-						locations[path] = separators[index]
-					}
-					continue
-				}
-				if item.action == 2 {
-					index++
-					continue
-				}
-				if expr == nil {
-					continue
-				}
-				if expr.Kind == exRanked && len(expr.Items) > 0 {
-					for i := len(expr.Items) - 1; i > 0; i-- {
-						pending = append(pending, task{expr.Items[i], fmt.Sprintf("%s/ranked/%d", path, i), 0}, task{nil, "", 2})
-					}
-					pending = append(pending, task{nil, path, 1}, task{expr.Items[0], path + "/ranked/0", 0})
-					continue
-				}
-				switch expr.Kind {
-				case exOptional:
-					pending = append(pending, task{expr.Inner, path + "/optional", 0})
-				case exRepeat:
-					pending = append(pending, task{expr.Sep, path + "/separator", 0}, task{expr.Inner, path + "/repeat", 0})
-				case exCapture, exTest:
-					pending = append(pending, task{expr.Inner, path + "/expr", 0})
-				}
-				for i := len(expr.Items) - 1; i >= 0; i-- {
-					pending = append(pending, task{expr.Items[i], fmt.Sprintf("%s/%s/%d", path, expr.Kind, i), 0})
-				}
-			}
-		}
-	}
-	if index != len(separators) {
-		for _, rule := range dom.Rules {
-			for _, alternative := range rule.Alternatives {
-				alternative.rankedLocations = nil
-			}
-		}
-	}
-}
-func (nr *notationReader) restoreLocations(text string, dom *domDoc) {
-	gt := extractGrammarText(text)
-	ps := newParseState(nr.uni, gt.text)
-	if len(nr.stages) == 0 {
-		return
-	}
-	run := ps.newRun(nr.stages[0].name, nr.stages[0], ps.characterTokens())
-	out := run.run(nr.lowered[0], nr.stages[0].elisionOnly)
-	if out.err == nil {
-		restoreRankedLocations(dom, out.stage.Output, gt.at)
+
+// Recover metadata from the same source constructors used on a cache miss.
+func (nr *notationReader) restoreLocations(text, document string, cached *domDoc, names *namesScope) {
+	source, err := nr.readMode(text, document, true, names)
+	if err == nil {
+		restoreSourceLocations(cached, source)
 	}
 }
 func rankedSyntaxFailure(tokens []Token, at int) bool {

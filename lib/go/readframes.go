@@ -89,6 +89,7 @@ type exprFrame struct {
 	elide   *domExpr
 	repeat  *domExpr
 	choices []*Node
+	call    bool
 }
 
 func (f *exprFrame) resume(b *domBuilder, in any) readStep {
@@ -98,6 +99,9 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		return f.start(b)
 	}
 	switch {
+	case f.call:
+		call := in.(*domSourceCall)
+		return give(&domExpr{Kind: exCall, Call: call, At: call.At})
 	case f.pass:
 		return give(in)
 	case f.kind != "":
@@ -105,6 +109,9 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		return f.next(b)
 	case f.capture != "":
 		e := &domExpr{Kind: exCapture, Name: f.capture, Inner: in.(*domExpr)}
+		if b.captureNodes == nil {
+			b.captureNodes = map[*domExpr]*Node{}
+		}
 		b.captureNodes[e] = n
 		return give(e)
 	case f.elide != nil:
@@ -140,12 +147,27 @@ func (f *exprFrame) next(b *domBuilder) readStep {
 	if len(f.items) == 1 {
 		return give(f.items[0])
 	}
-	return give(&domExpr{Kind: f.kind, Items: f.items})
+	expr := &domExpr{Kind: f.kind, Items: f.items, At: b.at(f.n)}
+	if f.kind == exRanked {
+		for _, part := range parts(f.n) {
+			if part.Kind == KindToken && b.tokenValue(part) == "≻" {
+				expr.RankedAt = b.at(part)
+				break
+			}
+		}
+	}
+	return give(expr)
 }
 
 func (f *exprFrame) start(b *domBuilder) readStep {
 	n := f.n
 	switch n.Rule {
+	case "parameter":
+		parameter := b.parameter(n)
+		return give(&domExpr{Kind: exParam, Name: parameter.Str, At: parameter.At})
+	case "call":
+		f.call = true
+		return ask(&sourceCallFrame{n: n})
 	case "choice", "ranked-choice", "conjunction", "sequence":
 		if n.Rule == "choice" {
 			if ranked := one(n, "ranked-choice"); ranked != nil {
@@ -267,7 +289,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 	}
 	isTerminal := func(symbol *Node) bool {
-		return (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol)))
+		return symbol.Rule == "parameter" || (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol)))
 	}
 	switch {
 	case head == nil:
@@ -342,6 +364,7 @@ type termFrame struct {
 	argument bool
 	started  bool
 	pass     bool
+	call     bool
 	// A guarded term: its guards, the conditions read, and its last part.
 	guards []*Node
 	conds  []*domCond
@@ -361,6 +384,10 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	}
 	if f.pass {
 		return give(in)
+	}
+	if f.call {
+		call := in.(*domSourceCall)
+		return give(&domTerm{Kind: tmSourceCall, Call: call, At: call.At})
 	}
 	if f.guards != nil {
 		if c, ok := in.(*domCond); ok {
@@ -458,6 +485,11 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 func (f *termFrame) start(b *domBuilder) readStep {
 	n := f.n
 	switch n.Rule {
+	case "parameter":
+		return give(b.parameter(n))
+	case "call":
+		f.call = true
+		return ask(&sourceCallFrame{n: n})
 	case "term":
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, termRules), argument: f.argument})
@@ -549,7 +581,11 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		closed := b.closedFor
 		b.closedFor = ""
 		defer func() { b.closedFor = closed }()
-		return give(&domTerm{Kind: tmPattern, Pattern: b.run(&patternFrame{n: b.only(n, "pattern-primary")}).(*domPattern)})
+		pattern := b.run(&patternFrame{n: b.only(n, "pattern-primary")}).(*domPattern)
+		if problem := sourcePatternProblem(pattern); problem != "" {
+			b.fail(n, "%s", problem)
+		}
+		return give(&domTerm{Kind: tmPattern, Pattern: pattern})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return readStep{}

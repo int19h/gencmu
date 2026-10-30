@@ -228,7 +228,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 				}
 				dom.namesDependencies = candidate.dependencies
 				if p == l.diagnosticDocument {
-					l.reader.restoreLocations(text, dom)
+					l.reader.restoreLocations(text, p, dom, names)
 				}
 				if p == l.boundaryDocument {
 					if source, e := l.reader.readMode(text, p, true, names); e == nil {
@@ -248,7 +248,7 @@ func (l *loader) document(p string, selected ...[]string) (*domDoc, *Error) {
 func (l *loader) readSource(p, text string, names *namesScope) (*domDoc, *Error) {
 	dom, err := l.reader.readMode(text, p, true, names)
 	if err == nil && p == l.diagnosticDocument {
-		l.reader.restoreLocations(text, dom)
+		l.reader.restoreLocations(text, p, dom, names)
 	}
 	return dom, err
 }

@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -13,15 +12,6 @@ func templateWrittenDirective(d *domDirective) templateObject {
 		panic(e)
 	}
 	return templateObj(templateList(raw["directives"])[0])
-}
-func templateWrittenPattern(p *domPattern) templateObject {
-	w := &jsonWriter{}
-	w.pattern(p)
-	r, e := templateFromJSON(w.buf)
-	if e != nil {
-		panic(e)
-	}
-	return r
 }
 func appendTemplateDeclaration(d *domDoc, kind string, r templateObject) error {
 	at := templateAt(r)
@@ -59,37 +49,6 @@ func appendTemplateDeclaration(d *domDoc, kind string, r templateObject) error {
 	return nil
 }
 
-// A closed declaration uses the same native representation as a cached DOM.
-// Pattern syntax alone does not make a declaration an unresolved template.
-func (b *domBuilder) appendReadDeclaration(d *domDoc, kind string, raw templateObject) error {
-	if templateUnresolved(raw) {
-		return appendTemplateDeclaration(d, kind, raw)
-	}
-	field := map[string]string{"rule": "rules", "constant-definition": "constants", "directive": "directives", "implication-declaration": "implications"}[kind]
-	if field == "" {
-		return fmt.Errorf("unexpected closed declaration %s", kind)
-	}
-	document := templateDocument([]any{})
-	document[field] = []any{raw}
-	closed, err := decodeDOMMode(templateJSON(document), b.uni, true)
-	if errors.Is(err, errTooDeep) {
-		return appendTemplateDeclaration(d, kind, raw)
-	}
-	if err != nil {
-		return err
-	}
-	for _, rule := range closed.Rules {
-		restoreTemplateRuleLocations(rule, raw)
-	}
-	for _, directive := range closed.Directives {
-		restoreTemplateRuleLocations(&domRule{Conditions: directive.Conditions}, raw)
-	}
-	d.Rules = append(d.Rules, closed.Rules...)
-	d.Constants = append(d.Constants, closed.Constants...)
-	d.Directives = append(d.Directives, closed.Directives...)
-	d.Implications = append(d.Implications, closed.Implications...)
-	return nil
-}
 func decodeTemplateDOM(root templateObject, uni *unicodeTable) (*domDoc, error) {
 	if root["format"] != float64(domFormat) {
 		return nil, fmt.Errorf("unsupported DOM format")

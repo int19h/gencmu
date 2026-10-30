@@ -311,21 +311,6 @@ func templateChildPosition(key, position string) string {
 	return position
 }
 
-func templateJoined(key string, items []any) templateObject {
-	if key != "union" && key != "concat" && key != "any" && key != "all" {
-		return templateObject{key: items}
-	}
-	flat := []any{}
-	for _, v := range items {
-		if nested := templateList(templateObj(v)[key]); nested != nil {
-			flat = append(flat, nested...)
-		} else {
-			flat = append(flat, v)
-		}
-	}
-	return templateObject{key: flat}
-}
-
 func templatePatternTerm(root any, patterns ...map[string]bool) bool {
 	pending := []any{root}
 	for len(pending) > 0 {

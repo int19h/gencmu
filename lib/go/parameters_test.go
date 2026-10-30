@@ -300,13 +300,12 @@ func TestParameterCacheValidation(t *testing.T) {
 func TestParameterRankedLocations(t *testing.T) {
 	d := parameterRead(t, "%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅")
 	before := string(d.json())
-	restoreRankedLocations(d, []Token{{Value: "≻", Source: [2]int{0, 1}}}, func(int) [2]int { return [2]int{3, 42} })
-	if string(d.json()) != before {
-		t.Fatal("locations changed source DOM")
-	}
 	x, e := expandTemplates([]docDOM{{"locations.md", d}}, bundled.uni)
 	if e != nil {
 		t.Fatal(e)
+	}
+	if string(d.json()) != before {
+		t.Fatal("expansion of source positions changed the source DOM")
 	}
 	var at [2]int
 	for _, doc := range x.docs {
@@ -316,11 +315,10 @@ func TestParameterRankedLocations(t *testing.T) {
 			}
 		}
 	}
-	parameterEqual(t, at, [2]int{3, 42})
+	parameterEqual(t, at, [2]int{3, 31})
 }
 func TestParameterRankedArgumentLocation(t *testing.T) {
 	d := parameterRead(t, "%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))")
-	restoreRankedLocations(d, []Token{{Value: "≻", Source: [2]int{0, 1}}}, func(int) [2]int { return [2]int{3, 29} })
 	x, e := expandTemplates([]docDOM{{"locations.md", d}}, bundled.uni)
 	if e != nil {
 		t.Fatal(e)
@@ -333,19 +331,19 @@ func TestParameterRankedArgumentLocation(t *testing.T) {
 			}
 		}
 	}
-	parameterEqual(t, at, [2]int{3, 29})
+	parameterEqual(t, at, [2]int{3, 24})
 }
 
 func TestParameterUncalledTemplateValidation(t *testing.T) {
 	for _, c := range []struct{ source, message string }{
-		{`%rule unused(@X) $x:A $x:@X`, "capture name used twice"},
-		{`%rule unused(@X) $x:(A @X)`, "malformed capture"},
-		{`%rule unused(@X) @X %emits $x :: @X, $x`, "lists a capture twice"},
-		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "lists a capture twice"},
+		{`%rule unused(@X) $x:A $x:@X`, "the capture $x is read twice by one production"},
+		{`%rule unused(@X) $x:(A @X)`, "a capture wraps one symbol"},
+		{`%rule unused(@X) @X %emits $x :: @X, $x`, "an emission lists $x twice"},
+		{`%rule unused(@X) @X %emits ($y) $x ($y) :: @X`, "an emission lists $y twice"},
 		{`%rule unused(@X) @X :: _General_Category_Letter ∪ @X`, "engine tag"},
 		{`%rule unused(@X) @X :: $.tags ∪ @X`, "own tags"},
 		{`%rule unused(@X) @X := @X %erased`, "erased"},
-		{`%rule unused(@X) [+| @X]`, "leading separator"},
+		{`%rule unused(@X) [+| @X]`, "without | or &"},
 	} {
 		t.Run(c.source, func(t *testing.T) {
 			text := c.source + "\n%rule text \"a\""

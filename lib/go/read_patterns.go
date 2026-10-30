@@ -31,7 +31,7 @@ func (f *patternFrame) resume(b *domBuilder, in any) readStep {
 			}
 			f.parts = nil
 			if children := one(n, "pattern-children"); children != nil {
-				if f.atom.Kind != "name" && f.atom.Kind != "any" {
+				if f.atom.Kind != "name" && f.atom.Kind != "any" && f.atom.Kind != "param" && f.atom.Kind != "call" {
 					b.fail(children, "a child list requires a rule test")
 				}
 				f.parts = []*Node{children}

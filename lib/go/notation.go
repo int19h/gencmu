@@ -272,6 +272,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	parameters     map[string]bool
+	readingHead    bool
+	unresolved     bool
 	strings        *documentStrings
 	hasBoundary    bool
 	deferEmission  bool
@@ -476,10 +479,10 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
+	primaryRules   = []string{"call", "parameter", "reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"call", "parameter", "string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 // sourceText reads original spelling only for include paths and source positions.
@@ -528,18 +531,12 @@ func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	statementSeen := false
 	for _, c := range ruleParts(root) {
+		b.unresolved = false
 		names := c.Rule == "directive" && b.tokenValue(b.token(c)) == "%names"
 		if names && statementSeen {
 			b.fail(c, "%%names must precede every other statement")
 		}
 		statementSeen = statementSeen || !names
-		if templateSyntax(c) {
-			raw := b.templateDeclaration(c)
-			if err := b.appendReadDeclaration(d, c.Rule, raw); err != nil {
-				b.fail(c, "%s", err)
-			}
-			continue
-		}
 		switch c.Rule {
 		case "rule", "constant-definition", "classifier", "implication-declaration", "directive":
 		default:
@@ -549,11 +546,19 @@ func (b *domBuilder) document(root *Node) *domDoc {
 		case "rule":
 			d.Rules = append(d.Rules, b.rule(c))
 		case "constant-definition":
-			d.Constants = append(d.Constants, b.constant(c))
+			constant := b.constant(c)
+			if b.unresolved {
+				constant.rawTemplate = templateObject{"name": constant.Name, "op": constant.Op, "value": templateSourceTerm(constant.Value), "at": templatePosition(constant.At)}
+			}
+			d.Constants = append(d.Constants, constant)
 		case "classifier":
 			d.Classifiers = append(d.Classifiers, b.classifier(c))
 		case "implication-declaration":
-			d.Implications = append(d.Implications, b.implicationDeclaration(c))
+			implication := b.implicationDeclaration(c)
+			if b.unresolved {
+				implication.rawTemplate = templateObject{"if": templateSourceTerm(implication.If), "then": templateSourceTerm(implication.Then), "at": templatePosition(implication.At)}
+			}
+			d.Implications = append(d.Implications, implication)
 		case "directive":
 			keyword := b.token(c)
 			ps := parts(c)
@@ -617,6 +622,12 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					b.fail(keyword, "only %%features accepts conditions")
 				}
 				dir.Conditions = b.featureConditions(keyword, clause)
+			}
+			if b.unresolved {
+				dir.rawTemplate = templateWrittenDirective(dir)
+				for i, condition := range dir.Conditions {
+					templateAnnotateCond(templateObj(templateList(dir.rawTemplate["conditions"])[i]), condition)
+				}
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -735,13 +746,13 @@ func (b *domBuilder) ruleFlags(n *Node, op string) []string {
 
 func (b *domBuilder) rule(n *Node) *domRule {
 	b.hasBoundary = false
+	previous := b.parameters
+	b.parameters = map[string]bool{}
+	defer func() { b.parameters = previous }()
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
-	r := &domRule{Name: b.tokenValue(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
-	if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
-		b.fail(b.only(n, "rule-name"), "a rule name starts with a lowercase letter or uses one eligible emoji")
-	}
+	r := &domRule{At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
 	switch b.tokenValue(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -751,6 +762,42 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Op = "define"
 	}
 	r.Flags = b.ruleFlags(n, r.Op)
+	if name := one(n, "rule-name"); name != nil {
+		r.Name = b.tokenValue(b.token(name))
+		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
+			b.fail(name, "a rule name starts with a lowercase letter or uses one eligible emoji")
+		}
+	} else {
+		head := ofRule(n, "call")[0]
+		b.readingHead = true
+		call := b.run(&sourceCallFrame{n: head}).(*domSourceCall)
+		b.readingHead = false
+		r.Name = call.Name
+		allParameters := true
+		for _, arg := range call.Args {
+			allParameters = allParameters && arg.Term != nil && arg.Term.Kind == tmParam
+		}
+		if allParameters {
+			r.Params = []string{}
+			for _, arg := range call.Args {
+				if b.parameters[arg.Term.Str] {
+					b.fail(head, "duplicate parameter @%s", arg.Term.Str)
+				}
+				b.parameters[arg.Term.Str] = true
+				r.Params = append(r.Params, arg.Term.Str)
+			}
+		} else {
+			r.Args = call.Args
+		}
+	}
+	for _, p := range parts(n) {
+		if p.Kind == KindToken && b.tokenValue(p) == "=" {
+			calls := ofRule(n, "call")
+			r.Instance = b.run(&sourceCallFrame{n: calls[len(calls)-1]}).(*domSourceCall)
+			r.rawTemplate = nativeRuleSource(r)
+			return r
+		}
+	}
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
@@ -782,6 +829,10 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	r.Erased = one(n, "erased-clause") != nil
 	flattenGroups(r)
+	if b.unresolved {
+		r.rawTemplate = nativeRuleSource(r)
+		return r
+	}
 	if b.hasBoundary {
 		if atom, msg := boundaryRuleProblem(r); msg != "" {
 			panic(grammarError(b.doc, atom.At, "%s", msg))
@@ -902,6 +953,7 @@ func (b *domBuilder) comparator(testNode *Node) string {
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
 var capturedRules = map[string]bool{
+	"call": true, "parameter": true,
 	"reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested": true,
 }
 
@@ -942,7 +994,7 @@ func (b *domBuilder) tagOf(n *Node) string {
 }
 
 func isSpanTerm(t *domTerm) bool {
-	return t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str))
+	return t.Kind == tmCapture || t.Kind == tmParam || t.Kind == tmSourceCall || (t.Kind == tmCall && isSpanFunction(t.Str))
 }
 
 // isStringTerm says whether a term, not a rule, is a string (§10). A
