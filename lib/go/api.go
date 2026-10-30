@@ -618,7 +618,16 @@ func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline,
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	texts := make(map[string]string, len(sources))
-	for p, t := range sources {
+	paths := make([]string, 0, len(sources))
+	for p := range sources {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		t := sources[p]
+		if problem := utf8Problem(t); problem != "" {
+			return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
+		}
 		texts[p] = t
 	}
 	_, customCore := texts["data/unicode/unicode.txt"]

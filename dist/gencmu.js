@@ -20731,6 +20731,14 @@
     return null;
   }
 
+  /** @param {Map<string, string>} sources */
+  function checkSourceStrings(sources) {
+    for (const path of [...sources.keys()].sort(compareCodePoints)) {
+      const problem = loneSurrogate(/** @type {string} */ (sources.get(path)));
+      if (problem !== null) throw new GencmuError("usage", "the document is not a sequence of Unicode scalar values", {document:path});
+    }
+  }
+
   /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
   function knownDomMembers(dom) {
     return {...dom, directives:dom.directives.map(({name,args,at,conditions}) => ({name,args,at,...(conditions === undefined ? {} : {conditions})}))};
@@ -20793,7 +20801,8 @@
    * @returns {Loader}
    */
   function loaderFromSources(sources) {
-    const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
+    const map = new Map(sources instanceof Map ? sources : Object.entries(sources));
+    checkSourceStrings(map);
     return new Loader((path) => map.get(path), path => map.has(path));
   }
 

@@ -89,7 +89,11 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
-A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
+A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for every source-map string, including Unicode resources and cached JSON. The loader inspects supplied strings in code point order of their keys before hashing or parsing any entry. A non-scalar string gives a `usage` error with its key and no line or column.
+
+Each source-map loader copies the supplied entries. Later changes to the caller's map do not change that loader's strings.
+
+A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
 A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`.
 

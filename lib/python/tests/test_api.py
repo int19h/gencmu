@@ -110,6 +110,20 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
 
 
 class Loaders(unittest.TestCase):
+    def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
+        for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+                     "data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json",
+                     "data/preparsed/test.json", "unused.md"):
+            with self.subTest(path=path), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_pipeline_sources({path: "header\n\ud800"}, "missing.md")
+            self.assertEqual(caught.exception.kind, "usage")
+            self.assertEqual(caught.exception.document, path)
+            self.assertIsNone(caught.exception.line)
+            self.assertIsNone(caught.exception.column)
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({"z": "\ud800", "a": "\ud800"}, "missing.md")
+        self.assertEqual(caught.exception.document, "a")
+
     def test_replacements_record_flag_changes(self) -> None:
         from gencmu._grammar import FlagChange
 

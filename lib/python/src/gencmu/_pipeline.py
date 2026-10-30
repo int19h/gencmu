@@ -623,6 +623,10 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
     ``data/preparsed/FAMILY.json``; any it lacks come from the bundled resources."""
     documents = dict(sources)
+    for path in sorted(documents):
+        problem = scalar_problem(documents[path])
+        if problem is not None:
+            raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 

@@ -1464,3 +1464,19 @@ func TestMarshalWitnessLost(t *testing.T) {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
 }
+
+func TestSourceMapsRejectNonScalarResourcesBeforeParsing(t *testing.T) {
+	for _, path := range []string{"data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+		"data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json", "data/preparsed/test.json", "unused.md"} {
+		_, err := LoadPipelineSources(map[string]string{path: "header\n\xed\xa0\x80"}, "missing.md")
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != path || e.Line != 0 || e.Column != 0 {
+			t.Fatalf("%s: %v", path, err)
+		}
+	}
+	_, err := LoadPipelineSources(map[string]string{"z": "\xff", "a": "\xff"}, "missing.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Document != "a" {
+		t.Fatal(err)
+	}
+}

@@ -155,3 +155,5 @@ export declare class Pipeline {
  * @returns {GrammarDom}
  */
 export declare function domOfTree(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => import("./types.js").Position, path: string, unicode: UnicodeTable, deferEmission?: boolean, decodeString?: (token: Token, path: boolean) => string): GrammarDom;
+/** @param {Map<string, string>} sources */
+export declare function checkSourceStrings(sources: Map<string, string>): void;
