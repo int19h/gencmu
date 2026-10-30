@@ -944,7 +944,7 @@ fn capture_shape(n: &Json) -> dom::Expr {
             return match k {
                 "seq" => Expr::Seq(xs),
                 "choice" => Expr::Choice(xs),
-                "ranked" => Expr::Ranked(xs),
+                "ranked" => Expr::Ranked(xs, None),
                 _ => Expr::And(xs),
             };
         }

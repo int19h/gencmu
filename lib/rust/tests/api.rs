@@ -1095,6 +1095,22 @@ fn ranked_groups_grow_with_forest_positions() {
 }
 
 #[test]
+fn ranked_template_locations_follow_nodes_before_and_after_cache_recovery() {
+    let text = "%ambiguity-resolution late-elision\n%rule f(@X)\n  @X C\n%rule text\n  (A ≻ B) C\n  | (E ≻ F)\n%conditions $ ≅ #f((G ≻ H))";
+    let sources = single(text)
+        .into_iter()
+        .map(|(path, text)| (format!("grammars/test/{path}"), text))
+        .collect::<BTreeMap<_, _>>();
+    let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
+    assert_eq!(plain.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(plain.group.as_ref().unwrap().at, Some(common::position_of(&grammar(text), "≻ F")));
+    let mut cached = sources;
+    let dom = gencmu::tools::read_grammar_document(&grammar(text), "").unwrap();
+    cached.insert("data/preparsed/test.json".into(), preparsed(text, &dom));
+    assert_eq!(gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err(), plain);
+}
+
+#[test]
 fn ranked_diagnostics_match_with_a_dom_cache() {
     let text="%const $K Tag-k\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S";
     let sources = single(text)

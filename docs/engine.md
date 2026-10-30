@@ -1975,6 +1975,8 @@ Cached and supplied DOMs use the same node decoder and validity checks for ordin
 
 Decoding retains every declaration and its children as typed nodes, including declarations that still need template expansion.
 
+Each ranked-choice node retains the position of its first `≻`. Expansion carries that position with the node, including nodes inside call arguments.
+
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.

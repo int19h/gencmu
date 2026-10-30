@@ -118,7 +118,7 @@ fn query<'a>(
                     mask: 0,
                 });
             }
-            Expr::Choice(items) | Expr::Ranked(items) => {
+            Expr::Choice(items) | Expr::Ranked(items, _) => {
                 for (i, child) in items.iter().enumerate() {
                     for (state, w) in visit(child, yes, no, order).into_iter().enumerate() {
                         if let Some(mut w) = w {
@@ -198,7 +198,9 @@ fn variable(expr: &Expr) -> bool {
     let mut done: Vec<(bool, bool)> = Vec::new();
     while let Some((e, ready)) = pending.pop() {
         let children: Vec<&Expr> = match e {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => items.iter().collect(),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
+                items.iter().collect()
+            }
             Expr::Optional(inner, Mark::Plain) | Expr::Tested(_, _, inner) => vec![inner],
             _ => Vec::new(),
         };
@@ -212,7 +214,7 @@ fn variable(expr: &Expr) -> bool {
         let varies = parts.iter().any(|p| p.1)
             || has
                 && (matches!(e, Expr::Optional(_, Mark::Plain))
-                    || children.len() > 1 && matches!(e, Expr::Choice(_) | Expr::Ranked(_) | Expr::And(_)));
+                    || children.len() > 1 && matches!(e, Expr::Choice(_) | Expr::Ranked(_, _) | Expr::And(_)));
         done.push((has, varies));
     }
     done[0].1
@@ -302,7 +304,7 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
     let mut seen = FxSet::default();
     while let Some(expr) = branches.pop() {
         match expr {
-            Expr::Choice(items) | Expr::Ranked(items) => {
+            Expr::Choice(items) | Expr::Ranked(items, _) => {
                 work::count(Work::Checked, 1);
                 branches.extend(items.iter().rev());
                 continue;
@@ -322,7 +324,7 @@ fn independent_choices(expr: &Expr) -> Option<Vec<Vec<&str>>> {
             match e {
                 Expr::Capture(name, _) => names.push(name.as_str()),
                 Expr::Seq(items) => pending.extend(items.iter().rev()),
-                Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.push(&items[0]),
+                Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.push(&items[0]),
                 Expr::Tested(_, _, inner) => pending.push(inner),
                 _ => {}
             }

@@ -28,6 +28,9 @@ fn source_dom_decodes_into_native_nodes() {
         assert_eq!(j(&dom::dom_to_json(&decoded)), expected, "{source}");
     }
 }
+fn located(s: &str) -> Dom {
+    crate::loader::read_grammar_dom(&format!("```jbogenbau\n{s}\n```\n"), "").unwrap()
+}
 fn grammar(s: &str) -> crate::grammar::StageGrammar {
     let d = read(&format!("%ambiguity-resolution greedy\n{s}"));
     crate::grammar::stitch("main", &[(Arc::from("grammars/test/test.md"), Arc::new(d))], &unicode()).unwrap()
@@ -256,43 +259,19 @@ fn pattern_test_operands() {
 }
 #[test]
 fn ranked_locations_do_not_change_dom() {
-    let mut d = read("%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅");
+    let d = located("%rule pair(@X,@Y) @X @Y\n%rule text pair(\"a\",\"b\") (\"c\" ≻ \"d\") :: ∅");
     let before = dom::dom_to_json(&d);
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 42));
     assert_eq!(dom::dom_to_json(&d), before);
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 42));
+    assert_eq!(r.alternatives[0].ranked_locations["/seq/1"], (3, 31));
 }
 #[test]
 fn ranked_argument_location() {
-    let mut d = read("%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))");
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 29));
+    let d = located("%rule choice(@X) @X :: ∅\n%rule text choice((\"a\" ≻ \"b\"))");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "choice((\"a\" ≻ \"b\"))").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 29));
+    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 24));
 }
 
 #[test]
@@ -337,22 +316,10 @@ fn deep_source_constructors_report_the_dom_limit() {
 }
 #[test]
 fn ordinary_ranked_locations_survive_template_expansion() {
-    let mut d = read("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
-    let token = crate::result::Token {
-        text: String::new(),
-        value: "≻".into(),
-        image: String::new(),
-        tags: Default::default(),
-        span: 0..1,
-        source: 0..1,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    crate::ranked::restore_locations(&mut d, &[token], &|_| (3, 21));
+    let d = located("%rule unused(@X) @X\n%rule text (\"a\" ≻ \"b\") :: ∅");
     let x = expand(&[(Arc::from("grammars/test/locations.md"), Arc::new(d))], &unicode()).unwrap().unwrap();
     let r = x.documents.iter().flat_map(|(_, d)| &d.rules).find(|r| r.name == "text").unwrap();
-    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 21));
+    assert_eq!(r.alternatives[0].ranked_locations[""], (3, 17));
 }
 
 #[test]

@@ -482,7 +482,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
             Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Property(_) => {
                 return true
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
             Expr::Capture(_, inner) | Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
             Expr::Repeat(item, separator, _) => {
                 pending.push(item);
@@ -524,7 +524,7 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
                         *captures.entry(name.clone()).or_default() |= consuming(inner, &reads);
                         pending.push(inner);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items)
                     }
                     Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
@@ -1406,7 +1406,7 @@ impl Constants<'_> {
                 Expr::ScalarRange(a, b) => {
                     self.scalar_endpoints(a, b, document, at)?;
                 }
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     pending.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
@@ -1429,7 +1429,7 @@ impl Constants<'_> {
                 let mut stack = vec![&mut alternative.alternative.expr];
                 while let Some(expr) = stack.pop() {
                     match expr {
-                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                             stack.extend(items.iter_mut())
                         }
                         Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
@@ -1671,7 +1671,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
-        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+        Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
             for item in items {
                 check_expr(grammar, item)?;
             }

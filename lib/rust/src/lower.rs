@@ -684,7 +684,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Ranked(items) => {
+            Expr::Ranked(items, _) => {
                 self.enter();
                 let mut prods = Vec::new();
                 let mut options = Vec::new();
@@ -829,8 +829,8 @@ impl<'a> Lowerer<'a> {
 fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
     match expr {
         Expr::Capture(..) => true,
-        Expr::Ranked(_) if !include_ranked => false,
-        Expr::Ranked(items) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+        Expr::Ranked(_, _) if !include_ranked => false,
+        Expr::Ranked(items, _) | Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
             items.iter().any(|item| holds_capture(item, include_ranked))
         }
         Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => holds_capture(inner, include_ranked),

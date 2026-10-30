@@ -15,6 +15,7 @@ pub(crate) struct Group {
     pub source: (usize, usize),
     pub path: String,
     pub expression: usize,
+    pub at: Option<(usize, usize)>,
     pub final_position: bool,
     pub names: BTreeSet<String>,
 }
@@ -58,7 +59,7 @@ fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
         Expr::Empty => vec![Route::default()],
         Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, item| product(left, routes(item, groups))),
         Expr::Choice(items) => items.iter().flat_map(|item| routes(item, groups)).collect(),
-        Expr::Ranked(items) => {
+        Expr::Ranked(items, _) => {
             let group = groups.expressions[&(expr as *const Expr as usize)];
             items
                 .iter()
@@ -358,13 +359,14 @@ impl RankedGroups {
     fn visit(&mut self, expr: &Expr, path: &str, final_position: bool, owner: Option<usize>, source: (usize, usize)) {
         let pointer = expr as *const Expr as usize;
         self.paths.insert(pointer, path.to_string());
-        if let Expr::Ranked(items) = expr {
+        if let Expr::Ranked(items, at) = expr {
             let id = self.groups.len();
             self.groups.push(Group {
                 id,
                 source,
                 path: path.into(),
                 expression: pointer,
+                at: *at,
                 final_position,
                 names: capture_names(expr),
             });
@@ -410,7 +412,10 @@ impl RankedGroups {
         }
     }
     fn fail(&self, grammar: &StageGrammar, group: &Group, code: &str, message: &str) -> Error {
-        let site = self.site(grammar, group.source, group.path.clone(), true);
+        let mut site = self.site(grammar, group.source, group.path.clone(), true);
+        if group.at.is_some() {
+            site.at = group.at;
+        }
         let mut error = Error::grammar(format!("{code}: {message}")).coded(code);
         if let Some(document) = &site.document {
             error = error.in_document(document);
@@ -567,7 +572,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
                 names.insert(name.clone());
                 pending.push(child);
             }
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => pending.extend(items),
             Expr::Optional(child, _) | Expr::Tested(_, _, child) => pending.push(child),
             Expr::Repeat(child, separator, _) => {
                 pending.push(child);
@@ -584,7 +589,7 @@ pub(crate) fn capture_names(expr: &Expr) -> BTreeSet<String> {
 pub(crate) fn contains_ranked(expr: &Expr) -> bool {
     let mut pending = vec![expr];
     while let Some(expr) = pending.pop() {
-        if matches!(expr, Expr::Ranked(_)) {
+        if matches!(expr, Expr::Ranked(_, _)) {
             return true;
         }
         pending.extend(expression_children(expr).into_iter().map(|(child, _)| child));
@@ -593,7 +598,7 @@ pub(crate) fn contains_ranked(expr: &Expr) -> bool {
 }
 fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
     match expr {
-        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) | Expr::Ranked(items) => {
+        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) | Expr::Ranked(items, _) => {
             let key = match expr {
                 Expr::Seq(_) => "seq",
                 Expr::Choice(_) => "choice",
@@ -614,52 +619,8 @@ fn expression_children(expr: &Expr) -> Vec<(&Expr, String)> {
         _ => vec![],
     }
 }
-pub(crate) fn restore_locations(
-    dom: &mut crate::dom::Dom,
-    tokens: &[crate::result::Token],
-    position: &dyn Fn(usize) -> (usize, usize),
-) {
-    if crate::parameters::locations::recover(dom, tokens, position) {
-        return;
-    }
-    let separators: Vec<_> =
-        tokens.iter().filter(|token| token.value == "≻").map(|token| position(token.source.start)).collect();
-    let mut index = 0;
-    for rule in &mut dom.rules {
-        for alternative in &mut rule.alternatives {
-            let locations = &mut alternative.ranked_locations;
-            let mut pending = vec![(&alternative.expr, String::new(), 0)];
-            while let Some((expr, path, action)) = pending.pop() {
-                if action == 1 {
-                    if let Some(at) = separators.get(index) {
-                        locations.insert(path, *at);
-                    }
-                } else if action == 2 {
-                    index += 1;
-                } else if let Expr::Ranked(options) = expr {
-                    for (i, option) in options.iter().enumerate().skip(1).rev() {
-                        pending.push((option, format!("{path}/ranked/{i}"), 0));
-                        pending.push((expr, String::new(), 2));
-                    }
-                    pending.push((expr, path.clone(), 1));
-                    if let Some(option) = options.first() {
-                        pending.push((option, format!("{path}/ranked/0"), 0));
-                    }
-                } else {
-                    for (child, component) in expression_children(expr).into_iter().rev() {
-                        pending.push((child, format!("{path}{component}"), 0));
-                    }
-                }
-            }
-        }
-    }
-    if index != separators.len() {
-        for rule in &mut dom.rules {
-            for alternative in &mut rule.alternatives {
-                alternative.ranked_locations.clear();
-            }
-        }
-    }
+pub(crate) fn restore_locations(dom: &mut crate::dom::Dom, source: &crate::dom::Dom) {
+    crate::parameters::locations::recover(dom, source);
 }
 pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool {
     if tokens.get(at).is_some_and(|token| token.value == "≻")

@@ -1011,7 +1011,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     duplicate.push(false);
                     done.push((HashMap::from([(name.as_str(), vec![duplicate.len() - 1])]), 1));
                 }
-                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => {
                     stack.push((expr, true));
                     stack.extend(items.iter().rev().map(|item| (item, false)));
                 }
@@ -1027,7 +1027,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                         work::count(Work::Walked, 1);
                         match current {
                             Expr::Capture(..) => duplicate.push(false),
-                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                                 inside.extend(items.iter().rev())
                             }
                             Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => inside.push(inner),
@@ -1052,7 +1052,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
             continue;
         }
         let count = match expr {
-            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items) => items.len(),
+            Expr::Seq(items) | Expr::And(items) | Expr::Choice(items) | Expr::Ranked(items, _) => items.len(),
             _ => 1,
         };
         let parts = done.split_off(done.len() - count);
@@ -1220,7 +1220,7 @@ impl<'e> CaptureSequences<'e> {
             work::count(Work::Walked, 1);
             match current {
                 Expr::Capture(name, _) => self.names.push(name),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().rev())
                 }
                 Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => stack.push(inner),
@@ -1255,7 +1255,7 @@ impl<'e> CaptureSequences<'e> {
                         self.names.push(name);
                         done.push(vec![vec![self.names.len() - 1]]);
                     }
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         stack.push((expr, true));
                         stack.extend(items.iter().rev().map(|item| (item, false)));
                     }
@@ -1288,7 +1288,7 @@ impl<'e> CaptureSequences<'e> {
                     }
                     sequences
                 }
-                Expr::Choice(items) | Expr::Ranked(items) => {
+                Expr::Choice(items) | Expr::Ranked(items, _) => {
                     let parts = done.split_off(done.len() - items.len());
                     let all = parts.into_iter().flatten().collect();
                     self.distinct(all)

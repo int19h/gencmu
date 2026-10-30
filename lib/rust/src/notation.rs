@@ -816,7 +816,10 @@ impl<'a> Reader<'a> {
         match conjunctions.get(frame.parts.len()) {
             Some(&conjunction) => Ok(Step::Call(Frame::Conjunction(Conjunction::new(conjunction, false)))),
             None => Ok(Step::Done(Val::Expr(if frame.ranked {
-                Expr::Ranked(std::mem::take(&mut frame.parts))
+                let separator = Self::tokens_of(frame.node)
+                    .find(|token| self.value(token) == "≻")
+                    .ok_or_else(|| self.shape_error(frame.node, "≻"))?;
+                Expr::Ranked(std::mem::take(&mut frame.parts), Some(self.first(separator)))
             } else {
                 single_or(std::mem::take(&mut frame.parts), Expr::Choice)
             }))),

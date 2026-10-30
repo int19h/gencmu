@@ -343,11 +343,13 @@ impl Context {
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
+            if let Ok(source) = read_document_named(&self.notation, text, true, names) {
+                crate::ranked::restore_locations(&mut dom, &source);
+            }
             let grammar = grammar_text(text)?;
             let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
-                crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
                 crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
         }
@@ -887,8 +889,12 @@ where
 /// "A grammar DOM"). The path supplies the base for relative names resources.
 /// An empty path selects the resource root. For tests and tools.
 pub fn read_grammar_document(text: &str, path: &str) -> Result<String, Error> {
+    read_grammar_dom(text, path).map(|dom| dom_to_json(&dom))
+}
+
+pub(crate) fn read_grammar_dom(text: &str, path: &str) -> Result<Dom, Error> {
     let context = Context::bundled()?;
-    read_document(&context.notation, text, path).map(|dom| dom_to_json(&dom))
+    read_document(&context.notation, text, path)
 }
 
 /// Why a DOM, given as JSON, is malformed (engine §9), or `None` when it is
@@ -1181,7 +1187,11 @@ mod ranked_location_tests {
         let mut preparsed = Preparsed::default();
         for (path, text) in &sources.map {
             let dom = read_document(&bundled.notation, text, "").unwrap();
-            assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
+            let cached = dom_from_json(&json::parse(&dom_to_json(&dom)).unwrap(), &bundled.unicode).unwrap();
+            assert!(cached
+                .rules
+                .iter()
+                .all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             preparsed.by_path.insert(
                 path.clone(),
                 (

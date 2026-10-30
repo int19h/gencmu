@@ -189,7 +189,7 @@ pub(crate) enum Expr {
     Source(SourceSymbol),
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
-    Ranked(Vec<Expr>),
+    Ranked(Vec<Expr>, Option<(usize, usize)>),
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
@@ -683,7 +683,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     Ok(match first_key(value)? {
         "seq" => Expr::Seq(list("seq")?),
         "choice" => Expr::Choice(list("choice")?),
-        "ranked" => Expr::Ranked(list("ranked")?),
+        "ranked" => Expr::Ranked(list("ranked")?, None),
         "and" => Expr::And(list("and")?),
         "optional" => {
             let mark = if is_true(value.get("elidable")) { Mark::Elidable } else { Mark::Plain };
@@ -1293,7 +1293,7 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
         Expr::Source(symbol) => symbol.write(out),
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
-        Expr::Ranked(items) => write_list(out, "ranked", items, write_expr),
+        Expr::Ranked(items, _) => write_list(out, "ranked", items, write_expr),
         Expr::And(items) => write_list(out, "and", items, write_expr),
         Expr::Optional(inner, mark) => {
             out.push_str("{\"optional\":");
@@ -1748,7 +1748,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().map(|part| (part, below))),
             Nested::Expr(expr) => match expr {
                 Expr::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
-                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
                 Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push((Nested::Expr(inner), below)),
@@ -1910,7 +1910,7 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
     let mut stack = vec![expr];
     while let Some(current) = stack.pop() {
         match current {
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.iter().rev())
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => stack.push(inner),
@@ -1956,7 +1956,9 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
                     references_in_term(value, &mut out);
                     pending.push(inner);
                 }
-                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => pending.extend(xs.iter().rev()),
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs, _) | Expr::And(xs) => {
+                    pending.extend(xs.iter().rev())
+                }
                 Expr::Capture(_, x) | Expr::Optional(x, _) => pending.push(x),
                 Expr::Repeat(x, s, _) => {
                     pending.extend(s.as_deref());
@@ -2277,7 +2279,7 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                 let terms: [Option<&Term>; 2] = match expr {
                     Expr::Literal(t) => [Some(t), None],
                     Expr::ScalarRange(a, b) => [Some(a), Some(b)],
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                         pending.extend(items);
                         continue;
                     }
@@ -2456,7 +2458,7 @@ impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
             Self::Source(symbol) => symbol.take_parts(stack),
-            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items, _) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
             Expr::Optional(inner, _) | Expr::Capture(_, inner) => {
