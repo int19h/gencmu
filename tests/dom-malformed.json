@@ -14716,5 +14716,303 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A capture inside flat braces is an item capture, so the DOM is well formed (engine §3.5, docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "repeat": {
+              "capture": "c",
+              "expr": {
+                "ref": "A"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A capture inside the separator of flat braces is an item capture (engine §3.5, docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "repeat": {
+              "ref": "A"
+            },
+            "separator": {
+              "capture": "s",
+              "expr": {
+                "ref": "S"
+              }
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A capture inside a chain is malformed, since a chain holds no capture (engine §3.5, docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "repeat": {
+              "capture": "c",
+              "expr": {
+                "ref": "A"
+              }
+            },
+            "chain": "left"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Flat braces inside a chain's item hold item captures (engine §3.5).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "repeat": {
+              "repeat": {
+                "capture": "c",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            },
+            "chain": "right"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An item capture inside a ranked group is malformed (engine §3.5, docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "repeat": {
+              "seq": [
+                {
+                  "ref": "X"
+                },
+                {
+                  "ranked": [
+                    {
+                      "capture": "c",
+                      "expr": {
+                        "ref": "A"
+                      }
+                    },
+                    {
+                      "ref": "B"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A capture inside a ranked group outside braces is an ordinary capture (engine §3.5).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ranked": [
+              {
+                "capture": "c",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              {
+                "ref": "B"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Flat braces inside a ranked group hold item captures (engine §3.5).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ranked": [
+              {
+                "repeat": {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              },
+              {
+                "ref": "B"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The name of an item capture stands nowhere else in its alternative, so a capture of the same name after the braces is malformed (engine §3.5, §9, docs/output.md).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "seq": [
+              {
+                "repeat": {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              },
+              {
+                "capture": "c",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "The name of an item capture stands nowhere else in its alternative, so a second capture of it in another pair of braces is malformed (engine §3.5, §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "seq": [
+              {
+                "repeat": {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              },
+              {
+                "repeat": {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "B"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

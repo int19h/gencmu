@@ -1,0 +1,16 @@
+{
+  "description": "Braces inside an elidable optional do not move the braces of an item condition, which still sees the capture bound after them (engine §3.6, §9).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text [+KU {D}] {$c:A} $b:B\n%conditions $c.value = $b.value\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

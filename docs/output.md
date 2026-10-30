@@ -315,7 +315,7 @@ A query parameter uses the same unresolved node in its target list:
 
 After substitution, the capture target must be one symbol. The query target must meet its method's target rules.
 
-Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside chains or elidable optionals. A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). It cannot occur inside a ranked group. Each expanded production binds a name at most once.
+Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside chains or elidable optionals. A capture inside the braces of a flat list is an item capture, which binds in the productions of the list's helper (engine §3.5). It cannot occur inside a ranked group, and its name occurs nowhere else in its alternative. Each expanded production binds a name at most once.
 
 A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`. Its value is a tag literal, tag-set constant, or declared parameter before expansion. A negative requirement has `negated:true`.
 

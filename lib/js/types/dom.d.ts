@@ -235,28 +235,30 @@ export declare function capturesUsed(node: unknown): string[];
 export declare function capturesMentioned(node: unknown): string[];
 /**
  * The item captures of an expression: the captures inside flat braces, each
- * with the innermost flat braces around it (engine §3.5). A chain holds no
- * capture, which the reader makes sure of, so a capture inside a chain's
- * braces is not listed.
+ * with the innermost flat braces around it and the outermost ones (engine
+ * §3.5). The production of the alternative reads the outermost braces as
+ * one symbol, so the check of item conditions places them among its
+ * captures. A chain holds no capture, which the reader makes sure of, so a
+ * capture inside a chain's braces is not listed.
  * @param {any} expr
- * @returns {Map<string, {braces: any, order: number}>} name to its braces,
- *   numbered in the order in which the braces are written
+ * @returns {Map<string, {braces: any, outer: any}>} name to its innermost
+ *   and outermost flat braces
  */
 export declare function itemCaptures(expr: any): Map<string, {
     braces: any;
-    order: number;
+    outer: any;
 }>;
 /**
  * The sequences of captures that the productions of an expression read, as
- * `captureSequences` lists them, with each pair of flat braces read as the
- * pseudo-capture `\u0001` and its order among the braces. The item captures
- * inside the braces stay out, as in every production. The check of item
- * conditions compares the place of the braces with the places of the
- * captures a condition reads (engine §3.6).
+ * `captureSequences` lists them, with each pair of flat braces that the
+ * production reads as the braces node itself. The item captures inside the
+ * braces stay out, as in every production. The check of item conditions
+ * compares the place of the braces with the places of the captures a
+ * condition reads (engine §3.6).
  * @param {any} expr
- * @returns {string[][]}
+ * @returns {unknown[][]}
  */
-export declare function bracesSequences(expr: any): string[][];
+export declare function bracesSequences(expr: any): unknown[][];
 /**
  * The captures of each production of an alternative, name to its place in
  * the order that the production reads them, with `$` at -1 (engine §3.5).
