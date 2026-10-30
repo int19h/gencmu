@@ -409,6 +409,12 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	selector := f.selectors[f.index]
 	name := b.tokenValue(b.token(b.only(selector, "method-name")))
 	if f.arguments == nil {
+		if !knownMethod(name) {
+			b.fail(f.n, "unknown method .%s", name)
+		}
+		if b.closedFor != "" && name != "split" && name != "ngrams" {
+			b.fail(f.n, "%s requires a closed term", b.closedFor)
+		}
 		f.arguments = []*Node{}
 		if arguments := one(selector, "arguments"); arguments != nil {
 			f.arguments = b.some(arguments, "argument", 1)
@@ -444,6 +450,14 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	}
 	f.args, f.arguments = nil, nil
 	return f.resume(b, nil)
+}
+
+func knownMethod(name string) bool {
+	switch name {
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "preceding-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input", "without-elision", "without-elision-except", "verbatim-text", "emitted", "tags", "followed-by", "preceded-by", "matches", "begins", "ends", "ngrams", "split", "classify":
+		return true
+	}
+	return false
 }
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
@@ -502,9 +516,6 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	}
 	if !valid {
 		fail()
-	}
-	if b.closedFor != "" && name != "split" && name != "ngrams" {
-		b.fail(n, "%s requires a closed term", b.closedFor)
 	}
 	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins" || name == "ends"
 	if isPredicate != predicate {

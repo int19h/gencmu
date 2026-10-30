@@ -1,0 +1,10 @@
+{
+  "description": "A method retains its complete guarded argument during conversion.",
+  "document": "```jbogenbau\n%const $X \"a\".split(($missing ⟹ \"a\"))\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 22
+    }
+  }
+}

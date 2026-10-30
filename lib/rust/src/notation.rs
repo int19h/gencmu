@@ -242,9 +242,6 @@ impl<'a> Reader<'a> {
             let term = self.union(side, false);
             self.closed_for.set(None);
             let (term, ty) = term?;
-            if let Some(token) = self.first_engine_literal(side)? {
-                return Err(self.error(token, "an implication cannot name an engine tag"));
-            }
             if let Some(problem) = expected_problem(ty, Type::Tags) {
                 return Err(self.error(side, format!("a side of an implication is a tag set: {problem}")));
             }
@@ -274,9 +271,6 @@ impl<'a> Reader<'a> {
         let value = self.term(value_node, false);
         self.closed_for.set(None);
         let (value, ty) = value?;
-        if let Some(token) = self.first_engine_literal(value_node)? {
-            return Err(self.error(token, "a constant cannot hold an engine-tag literal outside a pattern"));
-        }
         if let Some(problem) = constant_type_problem(ty, redefine) {
             return Err(self.error(value_node, problem));
         }
@@ -573,23 +567,6 @@ impl<'a> Reader<'a> {
             return Err(self.error(node, "a constituent's tags cannot be made of its own tags, tags($) or classes($)"));
         }
         Ok(term)
-    }
-
-    fn first_engine_literal(&self, root: &'a Node) -> R<Option<&'a Node>> {
-        let mut pending = vec![root];
-        while let Some(node) = pending.pop() {
-            if rule_name(node) == "pattern-literal" {
-                continue;
-            }
-            if rule_name(node) == "tag" {
-                let token = self.token(node)?;
-                if self.value(token).starts_with('_') {
-                    return Ok(Some(token));
-                }
-            }
-            pending.extend(node.children.iter().rev());
-        }
-        Ok(None)
     }
 
     fn own_tags_in(&self, root: &'a Node) -> R<bool> {
@@ -1332,7 +1309,7 @@ impl<'a> Reader<'a> {
             "string" => typed(self.string_term(token()?)?, Type::String),
             "tag" => {
                 let token = token()?;
-                let tag = self.tag_of(token)?;
+                let tag = self.term_tag(token)?;
                 typed(Term::Tag(tag), Type::Tags)
             }
             "tag-run" | "string-run" => {
@@ -1350,7 +1327,7 @@ impl<'a> Reader<'a> {
                     items.push(if strings {
                         self.string_term(self.token(tag)?)?
                     } else {
-                        Term::Tag(self.tag_of(self.token(tag)?)?)
+                        Term::Tag(self.term_tag(self.token(tag)?)?)
                     })
                 }
                 typed(Term::Union(items), if strings { Type::Strings } else { Type::Tags })
@@ -1557,6 +1534,12 @@ impl<'a> Reader<'a> {
         let selector = selectors[frame.index];
         let name = self.value(self.token(self.one(selector, "method-name")?)?);
         if frame.arguments.is_none() {
+            if !known_method(name) {
+                return Err(self.error(frame.node, format!("unknown method {name}")));
+            }
+            if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
+                return Err(self.error(frame.node, format!("{closed} cannot read .{name}")));
+            }
             frame.arguments = Some(match Self::rules(selector, "arguments").next() {
                 Some(arguments) => self.some(arguments, "argument", 1)?,
                 None => Vec::new(),
@@ -1646,9 +1629,6 @@ impl<'a> Reader<'a> {
         }
         if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
             return Err(self.error(frame.node, format!(".{name} is allowed only in a recipe")));
-        }
-        if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
-            return Err(self.error(frame.node, format!("{closed} cannot read .{name}")));
         }
         let mut args = vec![Arg::Term(receiver)];
         args.append(&mut frame.args);
@@ -1743,11 +1723,13 @@ impl<'a> Reader<'a> {
             }
             return Ok(Step::Done(Val::Arg(Arg::Integer(digits.into()), None)));
         }
-        let union = first_of_rule(frame.node, "union").ok_or_else(|| self.shape_error(frame.node, "term"))?;
-        if let Some(rule) = self.rule_name_in(union) {
-            return Ok(Step::Done(Val::Arg(Arg::Rule(rule), None)));
+        let term = self.one(frame.node, "term")?;
+        if let Some(union) = Self::rules(term, "union").next() {
+            if let Some(rule) = self.rule_name_in(union) {
+                return Ok(Step::Done(Val::Arg(Arg::Rule(rule), None)));
+            }
         }
-        Ok(Step::Call(Frame::Union(Joined::new(union, true))))
+        Ok(Step::Call(Frame::Term(TermFrame::new(term, true))))
     }
 
     /// `A ⟹ B ⟹ C`: its any-ofs in order, and after them the implication
@@ -2030,6 +2012,14 @@ impl<'a> Reader<'a> {
             }
         }
         Ok(channels)
+    }
+
+    fn term_tag(&self, token: &'a Node) -> R<String> {
+        let tag = self.tag_of(token)?;
+        if let Some(closed) = self.closed_for.get().filter(|_| tag.starts_with('_')) {
+            return Err(self.error(token, format!("{closed} cannot contain an engine-tag literal")));
+        }
+        Ok(tag)
     }
 
     fn tag_of(&self, token: &'a Node) -> R<String> {
@@ -2561,6 +2551,38 @@ const ATOMS: &[&str] = &[
 
 /// Whether a name begins with a capital, and so is a terminal and a tag
 /// literal (engine §2).
+fn known_method(name: &str) -> bool {
+    matches!(
+        name,
+        "value"
+            | "image"
+            | "source-text"
+            | "decomposed-source-text"
+            | "classes"
+            | "onward"
+            | "following-tokens"
+            | "preceding-tokens"
+            | "first-token"
+            | "last-token"
+            | "tokens-after-first"
+            | "starts-input"
+            | "ends-input"
+            | "without-elision"
+            | "without-elision-except"
+            | "verbatim-text"
+            | "emitted"
+            | "tags"
+            | "followed-by"
+            | "preceded-by"
+            | "matches"
+            | "begins"
+            | "ends"
+            | "ngrams"
+            | "split"
+            | "classify"
+    )
+}
+
 fn is_capital(name: &str) -> bool {
     name.starts_with(|c: char| c.is_ascii_uppercase())
 }
