@@ -317,6 +317,8 @@ A recipe supplies one string channel. `:=` supplies a value and an implied image
 
 The emission walk determines which tokens reach the next stage. A constituent with `%emits` emits its items and stops that walk. `%erased` contributes nothing. Without either directive, the walk enters children.
 
+Emission boundary tests index only their requested rule and terminal identities in the chosen derivation. A stage without these tests needs no boundary index.
+
 The string walk determines a covering token's value and image. It enters child constituents but skips their emission lists. Their alternative and definition recipes still apply. Erased children contribute nothing. Attachment ownership counts surviving input parts independently of either string.
 
 Item recipes and constituent recipes use the same string evaluator. Each request starts with its owning occurrence and either a channel or a recipe.
