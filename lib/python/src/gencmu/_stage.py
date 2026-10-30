@@ -546,7 +546,6 @@ class StageRunner:
         tokens: list[Token],
         text: str,
         unicode: UnicodeTable,
-        emit: bool = True,
         features: frozenset[str] = frozenset(),
     ) -> None:
         self.name = name
@@ -554,7 +553,6 @@ class StageRunner:
         self.tokens = tokens
         self.text = text
         self.unicode = unicode
-        self.emit = emit
         self.features = features
 
     def context(self, lowered: Lowered, tokens: list[Token]) -> StageContext:
@@ -622,8 +620,7 @@ class StageRunner:
         outcome.warnings = warnings_of(root, tree, self.features, self.name)
         emitter = Emitter(context, forest, tree, root)
         try:
-            if self.emit:
-                outcome.output = emitter.emit()
+            outcome.output = emitter.emit()
             if elision_only and (ranking.verdict == "resolved" or
                                  ranking.verdict == "unique" and elided_nodes(tree.root)):
                 # The stage accepted its input, so it has its output; the

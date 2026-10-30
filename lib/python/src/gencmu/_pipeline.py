@@ -269,7 +269,7 @@ class NotationReader:
             if features:
                 lowered = lower(lowered.grammar, features)
             last = number == len(self.stages) - 1
-            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last, features=features)
+            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, features=features)
             # Each notation stage runs the check of elision-only where its
             # own directive declares it (engine §8).
             outcome = runner.run(lowered.grammar.elision_only)

@@ -9,13 +9,33 @@ import unittest
 from unittest.mock import patch
 
 import gencmu
-from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, read_document
+from gencmu._pipeline import DOM_FORMAT, _Loader, _Resources, _resources, _reader, read_document
 from gencmu._hash import fnv1a64
 
 from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, write_json
 
 
 class NotationCases(unittest.TestCase):
+    def test_the_final_notation_stage_reports_emission_errors(self) -> None:
+        found = _resources()
+        bootstrap = json.loads(found.bootstrap)
+        rules = bootstrap["documents"]["grammars/gencmu/jbogenbau/syntax.md"]["dom"]["rules"]
+        root = next(rule for rule in rules if rule["name"] == "text")
+        root["emit"] = {"items": [{"capture": "", "tags": {
+            "if": {"op": "∈", "left": {"string": "x"}, "right": {
+                "method": "split", "receiver": {"string": "x"},
+                "args": [{"method": "value", "receiver": {"capture": ""}, "args": []}],
+            }}, "then": {"tag": "X"},
+        }}]}
+        reader = _reader(json.dumps(bootstrap), found.unicode, found.properties)
+        self.assertTrue(reader.read('```jbogenbau\n%rule text "a"\n```', "valid.md")["rules"])
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            reader.read("", "empty.md")
+        self.assertEqual(caught.exception.kind, "grammar")
+        self.assertEqual(caught.exception.document, "empty.md")
+        self.assertIn("split", caught.exception.message)
+        self.assertIn("empty", caught.exception.message)
+
     def test_every_recipe_position_instructs_the_author_to_use_concat(self) -> None:
         data = read_json((REPOSITORY / "tests" / "recipe-diagnostics.json").read_text())
         for position in data["positions"]:
