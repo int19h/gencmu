@@ -1,7 +1,6 @@
 package gencmu
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -12,82 +11,6 @@ func templateWrittenDirective(d *domDirective) templateObject {
 		panic(e)
 	}
 	return templateObj(templateList(raw["directives"])[0])
-}
-func appendTemplateDeclaration(d *domDoc, kind string, r templateObject) error {
-	at := templateAt(r)
-	if at == [2]int{} {
-		return fmt.Errorf("a declaration requires a position")
-	}
-	switch kind {
-	case "rule", "rules":
-		flags := []string{}
-		for _, v := range templateList(r["flags"]) {
-			flags = append(flags, templateText(v))
-		}
-		d.Rules = append(d.Rules, &domRule{Name: templateText(r["name"]), Op: templateText(r["op"]), Flags: flags, At: at, Conditions: []*domCond{}, rawTemplate: r})
-	case "constant-definition", "constants":
-		d.Constants = append(d.Constants, &domConst{Name: templateText(r["name"]), Op: templateText(r["op"]), At: at, rawTemplate: r})
-	case "directive", "directives":
-		args := []string{}
-		for _, v := range templateList(r["args"]) {
-			s, ok := v.(string)
-			if !ok {
-				return fmt.Errorf("a malformed directive")
-			}
-			args = append(args, s)
-		}
-		dir := &domDirective{Name: templateText(r["name"]), Args: args, At: at, rawTemplate: r}
-		if r["conditions"] != nil {
-			dir.Conditions = []*domCond{{}}
-		}
-		d.Directives = append(d.Directives, dir)
-	case "implication-declaration", "implications":
-		d.Implications = append(d.Implications, &domImplication{At: at, rawTemplate: r})
-	default:
-		return fmt.Errorf("unexpected unresolved declaration %s", kind)
-	}
-	return nil
-}
-
-func decodeTemplateDOM(root templateObject, uni *unicodeTable) (*domDoc, error) {
-	if root["format"] != float64(domFormat) {
-		return nil, fmt.Errorf("unsupported DOM format")
-	}
-	closed := templateCopy(root)
-	d := &domDoc{}
-	for _, kind := range []string{"rules", "constants", "directives", "classifiers", "implications"} {
-		items, ok := root[kind].([]any)
-		if !ok {
-			return nil, fmt.Errorf("not a DOM of format %d", domFormat)
-		}
-		closed[kind] = []any{}
-		for _, item := range items {
-			r := templateObj(item)
-			if r == nil {
-				return nil, fmt.Errorf("a malformed declaration")
-			}
-			if templateUnresolved(r) {
-				if err := appendTemplateDeclaration(d, kind, r); err != nil {
-					return nil, err
-				}
-			} else {
-				closed[kind] = append(templateList(closed[kind]), item)
-			}
-		}
-	}
-	ordinary, err := decodeDOMMode(templateJSON(closed), uni, true)
-	if err != nil {
-		return nil, err
-	}
-	d.Rules = append(d.Rules, ordinary.Rules...)
-	d.Constants = append(d.Constants, ordinary.Constants...)
-	d.Directives = append(d.Directives, ordinary.Directives...)
-	d.Classifiers = ordinary.Classifiers
-	d.Implications = append(d.Implications, ordinary.Implications...)
-	if err = validateDOM(d, uni); err != nil {
-		return nil, err
-	}
-	return d, nil
 }
 func templateOnly(n templateObject, keys ...string) bool {
 	if templateLen(n) != len(keys) {

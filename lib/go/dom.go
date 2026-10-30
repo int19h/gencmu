@@ -756,7 +756,9 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	return decodeDOMMode(raw, uni, false)
 }
 func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
+	var sourceDocument templateObject
 	if node, err := templateFromJSON(raw); err == nil {
+		sourceDocument = node
 		// Unknown directive members carry no grammar nodes.
 		for _, directive := range templateList(templateObj(node)["directives"]) {
 			for key := range templateObj(directive) {
@@ -777,9 +779,6 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 					return nil, fmt.Errorf("unknown, unavailable, or noncanonical engine tag")
 				}
 			}
-		}
-		if !expanded && templateUnresolved(node) {
-			return decodeTemplateDOM(node, uni)
 		}
 	}
 	o, err := decodeObj(raw)
@@ -857,6 +856,30 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})
 	}
 	if !expanded {
+		for i, rule := range d.Rules {
+			value := templateObj(templateList(sourceDocument["rules"])[i])
+			if templateUnresolved(value) {
+				rule.rawTemplate = value
+			}
+		}
+		for i, constant := range d.Constants {
+			value := templateObj(templateList(sourceDocument["constants"])[i])
+			if templateUnresolved(value) {
+				constant.rawTemplate = value
+			}
+		}
+		for i, implication := range d.Implications {
+			value := templateObj(templateList(sourceDocument["implications"])[i])
+			if templateUnresolved(value) {
+				implication.rawTemplate = value
+			}
+		}
+		for i, directive := range d.Directives {
+			value := templateObj(templateList(sourceDocument["directives"])[i])
+			if templateUnresolved(value) {
+				directive.rawTemplate = value
+			}
+		}
 		if err := validateDOM(d, uni); err != nil {
 			return nil, err
 		}
@@ -1000,6 +1023,28 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if _, ok := o["conditions"]; !ok {
 		return nil, fmt.Errorf("a malformed rule")
 	}
+	if params, ok := o["params"]; ok {
+		if r.Params, err = decodeList(params, decodeString); err != nil {
+			return nil, err
+		}
+	}
+	if args, ok := o["args"]; ok {
+		if r.Args, err = decodeSourceArguments(args, 1); err != nil {
+			return nil, err
+		}
+	}
+	if instance, ok := o["instance"]; ok {
+		call, err := decodeObj(instance)
+		if err != nil {
+			return nil, err
+		}
+		r.Instance, err = decodeSourceCall(call, 0)
+		if err != nil {
+			return nil, err
+		}
+		r.Conditions, err = decodeList(o["conditions"], decodeCond)
+		return r, err
+	}
 	if t, ok := o["tags"]; ok {
 		if r.Tags, err = decodeTerm(t); err != nil {
 			return nil, err
@@ -1140,6 +1185,14 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		}
 		return nil, fmt.Errorf("a malformed expression")
 	}
+	if _, ok := o["param"]; ok {
+		name, at, err := decodeParameter(o)
+		return &domExpr{Kind: exParam, Name: name, At: at}, err
+	}
+	if _, ok := o["call"]; ok {
+		call, err := decodeSourceCall(o, depth)
+		return &domExpr{Kind: exCall, Call: call}, err
+	}
 	if v, ok := o[exRange]; ok {
 		r, err := decodeStringRange(v, depth)
 		return &domExpr{Kind: exRange, Ends: r}, err
@@ -1241,11 +1294,13 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 // forms of a term too.
 var exprForms = [][]string{
 	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{"param", "at"}, {"call", "args", "at"},
 	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
 }
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
+	{"param", "at"}, {"call", "args", "at"},
 	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmConcat}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
@@ -1289,6 +1344,14 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 	}
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
+	}
+	if _, ok := o["param"]; ok {
+		name, at, err := decodeParameter(o)
+		return &domTerm{Kind: tmParam, Str: name, At: at}, err
+	}
+	if _, ok := o["call"]; ok {
+		call, err := decodeSourceCall(o, depth)
+		return &domTerm{Kind: tmSourceCall, Call: call}, err
 	}
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger} {
 		if v, ok := o[k]; ok {

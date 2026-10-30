@@ -87,6 +87,17 @@ func decodeLayeredPattern(raw json.RawMessage, depth int) (*domPattern, error) {
 			scheduleItems(values, p.Attached, d+1)
 		}
 		switch {
+		case n["param"] != nil:
+			p.Kind, p.Name, p.At = "param", templateText(n["param"]), templateAt(n)
+		case n["call"] != nil:
+			p.Kind, p.Name, p.At = "call", templateText(n["call"]), templateAt(n)
+			// Decorations belong to the pattern node, not to the call itself.
+			raw := templateJSON(templateObject{"call": n["call"], "args": n["args"], "at": n["at"]})
+			call, problem := decodeObj(raw)
+			if problem != nil {
+				return nil, problem
+			}
+			p.Call, err = decodeSourceCall(call, d)
 		case n["name"] != nil:
 			p.Kind, p.Name, p.At = "name", templateText(n["name"]), templateAt(n)
 		case n["terminal"] != nil:

@@ -1971,6 +1971,8 @@ The grammar text is a text like any other, so stage zero decomposes it. Line and
 
 Calls, parameters, and patterns use the same reader constructors as ordinary declarations. Their presence never changes local checks or diagnostic precedence. Source positions stay on the nodes that produce them.
 
+Cached and supplied DOMs use the same node decoder and validity checks for ordinary syntax, calls, parameters, and patterns. Each expanded definition is decoded once. Validation and runtime output use that same decoded definition.
+
 A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
