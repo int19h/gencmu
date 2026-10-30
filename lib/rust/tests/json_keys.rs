@@ -50,7 +50,7 @@ fn shared_json_keys() {
                 "{}: {e}",
                 text(case, "description")
             );
-            assert!(e.message.starts_with("data/preparsed/gencmu.json:"));
+            assert!(e.to_string().starts_with("data/preparsed/gencmu.json:"));
         }
     }
     for case in fixtures.get("preparsed").unwrap().array() {
@@ -103,5 +103,15 @@ fn shared_json_keys() {
             let expected: Vec<_> = tags.array().iter().map(|tag| tag.str().unwrap().to_owned()).collect();
             assert_eq!(actual, expected, "{}", text(case, "description"));
         }
+    }
+}
+
+#[test]
+fn json_readers_refuse_malformed_spellings() {
+    for text in ["00", "01", "-01", "040", r#""\u+061""#, r#""\u-061""#, r#""\u00g1""#] {
+        assert!(parse_json(text).is_err(), "{text}");
+    }
+    for text in ["0", "-0", "1", "-10", r#""\u0061""#, r#""\uD83D\uDE00""#] {
+        assert!(parse_json(text).is_ok(), "{text}");
     }
 }

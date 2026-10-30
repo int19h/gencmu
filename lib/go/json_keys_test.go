@@ -97,7 +97,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				if !errors.As(err, &e) {
 					t.Fatalf("expected grammar error, got %v", err)
 				}
-				if e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Message, "data/preparsed/gencmu.json:") {
+				if e.Kind != ErrorGrammar || e.Document != "data/preparsed/gencmu.json" || e.Stage != "" || e.Line != 0 || e.Column != 0 || !strings.HasPrefix(e.Error(), "data/preparsed/gencmu.json:") {
 					t.Fatalf("metadata: %#v", e)
 				}
 			}
@@ -297,7 +297,7 @@ func BenchmarkReadPreparsedJSON(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readPreparsed(text, hash, unicodeHash, propertiesHash)) == 0 {
+		if got, _, _ := readPreparsedCache(text, hash, unicodeHash, propertiesHash); len(got) == 0 {
 			b.Fatal("cache miss")
 		}
 	}

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Any, Union
 
@@ -210,10 +211,6 @@ def elided_nodes(tree: Node) -> list[Node]:
     return found
 
 
-def emits_nothing(production: Production) -> bool:
-    return production.erased
-
-
 def implied(tags: Tags, lowered: Lowered) -> Tags:
     """A token's explicit tags with the tags of the stage's implications,
     added until no tag changes (engine §11). Each tag gained is looked up
@@ -252,7 +249,9 @@ class Emitter:
         self.channels = {}
         self.recipes = {}
         self.active = set()
-        self.claims = {}
+        self.claims = set()
+        self.claim_points = None
+        self.claimed_cells = set()
         self.inherited = set()
         self.forwards = any(token.before or token.after for token in self.tokens)
         self.coverage = []
@@ -261,6 +260,9 @@ class Emitter:
                 self.coverage[-1] = (self.coverage[-1][0], max(end, self.coverage[-1][1]))
             else:
                 self.coverage.append((start, end))
+
+        self.coverage_starts = [interval[0] for interval in self.coverage]
+        self.coverage_ends = [interval[1] for interval in self.coverage]
 
     def boundary_index(self):
         self.boundary_first, self.boundary_last = {}, {}
@@ -288,32 +290,28 @@ class Emitter:
         span = part.start, part.end
         if part.start == part.end:
             return ""
+        if self.claim_points is None:
+            self.claim_points = sorted({0, len(self.context.text)} | {point for token in self.tokens for point in token.source})
         left, right = self.part_source(part)
         before = self.tokens[part.start - 1].source[1] if part.start else 0
         after = self.tokens[part.end].source[0] if part.end < len(self.tokens) else len(self.context.text)
         start, end = left, right
         if before < left:
-            start = before
-            for a, b in self.coverage:
-                if a >= left:
-                    break
-                if b > start:
-                    start = min(left, b)
+            previous = bisect_left(self.coverage_starts, left) - 1
+            start = max(before, 0 if previous < 0 else min(left, self.coverage[previous][1]))
         if right < after:
-            end = after
-            for a, b in self.coverage:
-                if b <= right:
-                    continue
-                end = max(right, min(end, a))
-                break
+            following = bisect_right(self.coverage_ends, right)
+            end = max(right, after if following == len(self.coverage) else min(after, self.coverage[following][0]))
         extensions = [(start, left)] if start < left else []
         if right < end:
             extensions.append((right, end))
         if span not in self.claims:
-            for other in self.claims.values():
-                if any(max(a, c) < min(b, d) for a, b in extensions for c, d in other):
-                    raise _GrammarFault("verbatim recipes claim the same uncovered text from different spans")
-            self.claims[span] = extensions
+            for a, b in extensions:
+                for cell in range(bisect_left(self.claim_points, a), bisect_left(self.claim_points, b)):
+                    if cell in self.claimed_cells:
+                        raise _GrammarFault("verbatim recipes claim the same uncovered text from different spans")
+                    self.claimed_cells.add(cell)
+            self.claims.add(span)
         return self.context.text[start:end]
 
     def string(self, part: DChild, channel: str):
@@ -546,7 +544,6 @@ class StageRunner:
         tokens: list[Token],
         text: str,
         unicode: UnicodeTable,
-        emit: bool = True,
         features: frozenset[str] = frozenset(),
     ) -> None:
         self.name = name
@@ -554,7 +551,6 @@ class StageRunner:
         self.tokens = tokens
         self.text = text
         self.unicode = unicode
-        self.emit = emit
         self.features = features
 
     def context(self, lowered: Lowered, tokens: list[Token]) -> StageContext:
@@ -622,8 +618,7 @@ class StageRunner:
         outcome.warnings = warnings_of(root, tree, self.features, self.name)
         emitter = Emitter(context, forest, tree, root)
         try:
-            if self.emit:
-                outcome.output = emitter.emit()
+            outcome.output = emitter.emit()
             if elision_only and (ranking.verdict == "resolved" or
                                  ranking.verdict == "unique" and elided_nodes(tree.root)):
                 # The stage accepted its input, so it has its output; the

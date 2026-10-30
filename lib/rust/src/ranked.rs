@@ -417,7 +417,7 @@ impl RankedGroups {
         if let Some((line, column)) = site.at {
             error = error.at(line, column);
         }
-        error.group = Some(site);
+        error.diagnostic.get_or_insert_with(Default::default).group = Some(site);
         error
     }
     fn tag_failure(
@@ -434,8 +434,8 @@ impl RankedGroups {
             "ranked-choice-tags",
             "A ranked choice must discard its returned tags or return provably empty tags.",
         );
-        error.expression = self.written_expression(grammar, group);
-        let mut queue = vec![(helper, vec![error.group.clone().unwrap()], None)];
+        error.diagnostic.get_or_insert_with(Default::default).expression = self.written_expression(grammar, group);
+        let mut queue = vec![(helper, vec![error.group().cloned().unwrap()], None)];
         let mut seen = FxSet::default();
         seen.insert(helper);
         let mut at = 0;
@@ -465,8 +465,9 @@ impl RankedGroups {
                     || terms.is_empty()
                         && production.inherited.is_some_and(|position| matches!(production.syms[position], Sym::T(_)))
                 {
-                    error.option = option;
-                    error.inheritance = Some(steps);
+                    let diagnostic = error.diagnostic.get_or_insert_with(Default::default);
+                    diagnostic.option = option;
+                    diagnostic.inheritance = Some(steps);
                     return error;
                 }
                 if terms.is_empty() {

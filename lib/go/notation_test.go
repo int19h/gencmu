@@ -218,7 +218,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err := d.Parse(string(extractGrammarText(text).text), ParseOptions{})
+		res, err := d.Parse(string(extractGrammarText(text, bundled.uni).text), ParseOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,7 +233,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 	}
 	// A cache entry for a different bootstrap is a miss.
 	preparsedText, _ := bundledNamesText("data/preparsed/lojban.json")
-	if got := readPreparsed(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got, _, _ := readPreparsedCache(preparsedText, "0000000000000000", bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Error("data/preparsed/lojban.json was used with another bootstrap")
 	}
 }
@@ -641,10 +641,10 @@ func TestFormat17Refused(t *testing.T) {
 	entry := func(format int, d string) string {
 		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","properties":"` + fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]) + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readPreparsed(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
+	if got, _, _ := readPreparsedCache(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 1 {
 		t.Fatalf("a data/preparsed/lojban.json of format %d is not used", domFormat)
 	}
-	if got := readPreparsed(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
+	if got, _, _ := readPreparsedCache(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"])); len(got) != 0 {
 		t.Fatal("a data/preparsed/lojban.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {

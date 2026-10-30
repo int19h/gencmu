@@ -1,0 +1,47 @@
+{
+  "description": "Independent verbatim spans claim separate commas, and repeated channel requests reuse each span (engine §11).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage chars\n%ambiguity-resolution greedy\n%rule text {pair}\n%rule pair $a:a \",\" $b:b\n%emits $a, $b\n%rule a :: A | \"a\"\n%rule b :: B | \"b\"\n%stage words\n%ambiguity-resolution greedy\n%rule text {pair}\n%rule pair $a:A $b:B\n%emits $a := $a.verbatim-text :- $a.verbatim-text, $b\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "a,ba,ba,b",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "chars"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "a,",
+              "image": "a,"
+            },
+            {
+              "value": "b",
+              "image": "b"
+            },
+            {
+              "value": "a,",
+              "image": "a,"
+            },
+            {
+              "value": "b",
+              "image": "b"
+            },
+            {
+              "value": "a,",
+              "image": "a,"
+            },
+            {
+              "value": "b",
+              "image": "b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "description": "Usage errors inspect caller tokens before feature conflicts and unknown stages (docs/api.md).",
+  "grammar": "%rule text A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "invalid tag"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "another invalid tag"
+      ]
+    }
+  ],
+  "options": {
+    "features": [
+      "f"
+    ],
+    "withoutFeatures": [
+      "f"
+    ],
+    "until": "missing"
+  },
+  "expect": {
+    "error": "usage"
+  }
+}

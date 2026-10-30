@@ -182,17 +182,6 @@ fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline,
             }
         }
         error.document = Some("data/preparsed/gencmu.json".to_string());
-        let mut location = "data/preparsed/gencmu.json".to_string();
-        if let Some(line) = error.line {
-            location.push_str(&format!(":{line}"));
-            if let Some(column) = error.column {
-                location.push_str(&format!(":{column}"));
-            }
-        }
-        if !error.message.starts_with(&format!("{location}: ")) {
-            let stage = error.stage.as_ref().map(|name| format!("stage {name}: ")).unwrap_or_default();
-            error.message = format!("{location}: {stage}{}", error.message);
-        }
         error
     })
 }
@@ -338,12 +327,12 @@ impl Context {
             read_document_named(&self.notation, text, true, names).map_err(|error| error.in_document(path))?
         };
         if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
-            return read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path));
+            dom = read_document_named(&self.notation, text, true, names).map_err(|e| e.in_document(path))?;
         }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
-            let grammar = grammar_text(text)?;
+            let grammar = grammar_text(text, &self.unicode)?;
             let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
@@ -367,17 +356,13 @@ fn bundled_names(path: &str) -> Result<Option<String>, Error> {
 }
 
 fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &NamesScope<'_>) -> Result<Dom, Error> {
-    let grammar = grammar_text(text)?;
+    let grammar = grammar_text(text, &notation.unicode)?;
     let position = |index: usize| grammar.position(index);
     let strings =
         DocumentStrings { unicode: &notation.unicode, names, position: &position, names_paths: Default::default() };
     let options = ParseOptions::default();
     let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
-    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
-        let (line, column) = grammar.position(token.source.start);
-        return Err(Error::grammar("unknown directive %prefer; use an inline ranked choice (A ≻ B)").at(line, column));
-    }
     if let Some(error) = &result.error {
         // A tie has no single position, so the error names the document
         // alone (engine §8).
@@ -408,7 +393,7 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
             if let Some(tokens) = syntax_input {
                 let at = error.token.unwrap_or(0);
                 if crate::ranked::syntax_failure(tokens, at) {
-                    failure.code = Some("ranked-choice-syntax".into());
+                    failure = failure.coded("ranked-choice-syntax");
                 }
             }
         }
@@ -629,10 +614,11 @@ fn normalize(path: &Path) -> PathBuf {
 
 impl Sources for DiskSources {
     fn names_override(&self, path: &str) -> bool {
-        !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
+        !matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt")
+            && !matches!(std::fs::metadata(path), Err(error) if error.kind() == std::io::ErrorKind::NotFound)
     }
     fn names(&self, path: &str) -> Result<Option<String>, Error> {
-        if path == "data/unicode/unicode-names-reference.txt" {
+        if matches!(path, "data/unicode/unicode-names.txt" | "data/unicode/unicode-names-reference.txt") {
             return bundled_names(path);
         }
         match self.read(path)? {
@@ -744,19 +730,14 @@ fn splice_pipeline(context: &Context, sources: &dyn Sources, path: &str) -> Resu
 fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result<Pipeline, Error> {
     match load_mode(context, sources, pipeline_path, None) {
         Err(error)
-            if error.code.as_deref().is_some_and(|code| code.starts_with("ranked-choice-"))
-                && error.group.as_ref().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
+            if error.code().is_some_and(|code| code.starts_with("ranked-choice-"))
+                && error.group().is_some_and(|group| group.at.is_none() && group.document.is_some()) =>
         {
             // Retry only a failed load, with locations for its diagnostic document.
-            let document = error.group.as_ref().and_then(|group| group.document.as_deref());
+            let document = error.group().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
         }
-        Err(error)
-            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
-        {
-            load_mode(context, sources, pipeline_path, error.document.as_deref())
-        }
-        Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
+        Err(error) if error.location_recovery.is_some() && error.line.is_none() && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         result => result,
@@ -1167,6 +1148,18 @@ mod ranked_location_tests {
         for path in sources.map.keys().filter(|path| path.starts_with("grammars/") && path.ends_with("/pipeline.md")) {
             load(&context, &sources, path).expect("the preparsed grammar cache loads without notation stages");
         }
+    }
+
+    #[test]
+    fn located_recipe_cycles_never_recover_locations() {
+        let context = Context::bundled().unwrap();
+        let sources = MapSources { map: [("p.md".into(),
+            "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text \"a\" := $.emitted.image :- $.emitted.value\n```\n".into())].into() };
+        LOCATION_RECOVERIES.with(|count| count.set(0));
+        let error = load(&context, &sources, "p.md").unwrap_err();
+        assert!(error.message.contains("recipe cycles"), "{error}");
+        assert_eq!(error.line, Some(4));
+        LOCATION_RECOVERIES.with(|count| assert_eq!(count.get(), 0));
     }
 
     #[test]

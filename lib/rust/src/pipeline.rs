@@ -58,7 +58,7 @@ pub struct Feature {
 pub struct InputToken {
     /// The token's text.
     pub text: String,
-    /// Its tags, each in its canonical spelling (engine §1).
+    /// Its tags. Property aliases are accepted and normalized (engine §1).
     pub tags: Tags,
     /// What it sounds like, if anything (engine §5).
     pub value: Option<String>,
@@ -245,10 +245,8 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
                 line += 1;
                 column = 1;
             }
+            '\r' if text.get(index + 1) == Some(&'\n') => column += 1,
             '\r' => {
-                if text.get(index + 1) == Some(&'\n') && index + 1 < offset {
-                    index += 1;
-                }
                 line += 1;
                 column = 1;
             }

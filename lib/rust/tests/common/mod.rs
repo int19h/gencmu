@@ -151,11 +151,10 @@ impl PartialEq for Value {
             match pair {
                 (Value::Array(a), Value::Array(b)) if a.len() == b.len() => pairs.extend(a.iter().zip(b)),
                 (Value::Object(a), Value::Object(b)) if a.len() == b.len() => {
-                    for ((name_a, value_a), (name_b, value_b)) in a.iter().zip(b) {
-                        if name_a != name_b {
-                            return false;
-                        }
-                        pairs.push((value_a, value_b));
+                    let by_name: BTreeMap<_, _> = b.iter().map(|(name, value)| (name.as_str(), value)).collect();
+                    for (name, value) in a {
+                        let Some(other) = by_name.get(name.as_str()) else { return false };
+                        pairs.push((value, *other));
                     }
                 }
                 (Value::Null, Value::Null) => {}
@@ -365,6 +364,9 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                                 let hex = |at: &mut usize| -> Result<u32, String> {
                                     let digits: String =
                                         chars.get(*at..*at + 4).ok_or("a short escape")?.iter().collect();
+                                    if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                                        return Err("a bad hexadecimal escape".into());
+                                    }
                                     *at += 4;
                                     u32::from_str_radix(&digits, 16).map_err(|e| e.to_string())
                                 };
@@ -406,6 +408,10 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                     || chars[*at].is_ascii_digit())
             {
                 *at += 1;
+            }
+            let digits = start + usize::from(chars[start] == '-');
+            if chars.get(digits) == Some(&'0') && chars.get(digits + 1).is_some_and(char::is_ascii_digit) {
+                return Err("a leading zero in a number".into());
             }
             let text: String = chars[start..*at].iter().collect();
             text.parse().map(Value::Number).map_err(|_| format!("a bad number {text}"))
@@ -749,7 +755,7 @@ pub fn check_load_error(expect: &Value, error: &gencmu::Error) -> Result<(), Str
         return Err(format!("expect.where is only for a grammar error: {error}"));
     }
     if let Some(code) = expect.get("diagnostic").and_then(Value::str) {
-        if error.code.as_deref() != Some(code) {
+        if error.code() != Some(code) {
             return Err(format!("expected diagnostic {code}: {error}"));
         }
     }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -27,20 +26,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 				e.Message += " (embedded document: " + embedded + ")"
 			}
 			e.Document = "data/preparsed/gencmu.json"
-			location := e.Document
-			if e.Line != 0 {
-				location += ":" + strconv.Itoa(e.Line)
-				if e.Column != 0 {
-					location += ":" + strconv.Itoa(e.Column)
-				}
-			}
-			if !strings.HasPrefix(e.Message, location+": ") {
-				stage := ""
-				if e.Stage != "" {
-					stage = "stage " + e.Stage + ": "
-				}
-				e.Message = location + ": " + stage + e.Message
-			}
+
 		}
 	}()
 	var b struct {
@@ -123,7 +109,7 @@ func (nr *notationReader) read(text, docPath string) (*domDoc, *Error) {
 	return nr.readMode(text, docPath, false)
 }
 func (nr *notationReader) readMode(text, docPath string, deferEmission bool, selected ...*namesScope) (dom *domDoc, err *Error) {
-	gt := extractGrammarText(text)
+	gt := extractGrammarText(text, nr.uni)
 	if gt.unclosed != nil {
 		return nil, grammarError(docPath, *gt.unclosed, "a jbogenbau block is never closed")
 	}
@@ -140,13 +126,6 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 		features[name] = true
 	}
 	for i, g := range nr.stages {
-		if g.name == "syntax" {
-			for _, token := range toks {
-				if token.Value == "%prefer" {
-					return nil, grammarError(docPath, gt.at(token.Source[0]), "unknown directive %%prefer; use an inline ranked choice (A ≻ B)")
-				}
-			}
-		}
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).

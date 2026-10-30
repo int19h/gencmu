@@ -324,6 +324,18 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         selected: None,
     };
     splicer.splice(Arc::from(path), top)?;
+    let stages = &splicer.stages;
+    if stages.is_empty() {
+        return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
+    }
+    for stage in stages {
+        if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
+            return Err(Error::grammar(format!("stage {} has no rules", stage.name))
+                .in_document(&stage.document)
+                .at(stage.at.0, stage.at.1)
+                .in_stage(&stage.name));
+        }
+    }
     let mut owners = FxMap::default();
     for item in &splicer.declarations {
         if item.generation != splicer.generations[item.stage] {
@@ -343,17 +355,6 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         }
     }
     let Splicer { stages, mut features, .. } = splicer;
-    if stages.is_empty() {
-        return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));
-    }
-    for stage in &stages {
-        if stage.documents.iter().all(|(_, dom)| dom.rules.is_empty()) {
-            return Err(Error::grammar(format!("stage {} has no rules", stage.name))
-                .in_document(&stage.document)
-                .at(stage.at.0, stage.at.1)
-                .in_stage(&stage.name));
-        }
-    }
     features.sort();
     Ok(Spliced { stages, features })
 }

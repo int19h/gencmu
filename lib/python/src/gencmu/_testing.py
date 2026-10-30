@@ -12,6 +12,7 @@ test turns on, one at a time, to show that the shared cases catch each
 (tests/README.md, tests/test_faults.py). An empty set is the engine as
 specified:
 
+- "omission" skips the predicate of an elided terminal.
 - "reprocess" leaves an item that an ordinary step reaches after it was
   processed as strict as it was (engine §7.4).
 - "again" makes the processing of such an item again do nothing: no

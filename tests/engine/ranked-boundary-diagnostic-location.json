@@ -1,0 +1,18 @@
+{
+  "description": "Boundary-aware recovery also restores the first ranked separator.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n",
+    "main.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W ($x:X ≻ Z) Y X %conditions ($x ⟹ ¬$.preceded-by(X))\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-continuation",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 20
+    }
+  }
+}

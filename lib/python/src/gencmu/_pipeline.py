@@ -72,10 +72,6 @@ def _bootstrap_error(error: GencmuError) -> GencmuError:
     if embedded and embedded != "data/preparsed/gencmu.json" and embedded not in error.message:
         error.message += f" (embedded document: {embedded})"
     error.document = "data/preparsed/gencmu.json"
-    location = error.where
-    if not error.message.startswith(f"{location}: "):
-        stage = f"stage {error.stage}: " if error.stage else ""
-        error.message = f"{location}: {stage}{error.message}"
     error.args = (error.message,)
     return error
 
@@ -219,7 +215,7 @@ class NotationReader:
             except GencmuError as error:
                 error.stage = name
                 raise
-        _pipeline_features(where, stages, pipeline.features)
+        _pipeline_features(stages, pipeline.features)
         lowered = []
         for grammar in stages:
             try:
@@ -268,13 +264,8 @@ class NotationReader:
             features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, features)
             if features:
                 lowered = lower(lowered.grammar, features)
-            if name == 'syntax':
-                for token in tokens:
-                    if token.value == '%prefer':
-                        line, column = grammar_text.position(token.source[0])
-                        raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
-            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last, features=features)
+            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, features=features)
             # Each notation stage runs the check of elision-only where its
             # own directive declares it (engine §8).
             outcome = runner.run(lowered.grammar.elision_only)
@@ -455,7 +446,7 @@ class _Loader:
         return text
 
     def names_text(self, path: str) -> str | None:
-        if self.from_disk and path == "data/unicode/unicode-names-reference.txt":
+        if self.from_disk and path in ("data/unicode/unicode-names.txt", "data/unicode/unicode-names-reference.txt"):
             return bundled_text(path)
         text = self.lookup(path)
         return text if text is not None else bundled_text(path)
@@ -609,6 +600,8 @@ def load_pipeline_file(path: str | os.PathLike[str], *, use_cache: bool = True) 
         return _decode(data, key)
 
     def names_override(key):
+        if key in ("data/unicode/unicode-names.txt", "data/unicode/unicode-names-reference.txt"):
+            return False
         try:
             os.stat(key.replace("/", os.sep))
         except FileNotFoundError:
@@ -626,10 +619,14 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     may hold its own ``data/unicode/unicode.txt``, ``data/preparsed/gencmu.json`` and
     ``data/preparsed/FAMILY.json``; any it lacks come from the bundled resources."""
     documents = dict(sources)
+    for path in sorted(documents):
+        problem = scalar_problem(documents[path])
+        if problem is not None:
+            raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 
-def _pipeline_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
+def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
     """A pipeline's features (engine §13): every name a guard of a stage's
     stitched rules or a gate of its classifiers' entries uses, and every
     name the pipeline's ``%features`` declares, in code point order. Each is
@@ -675,7 +672,7 @@ class Pipeline:
         self.path = path
         # The features the pipeline turns on, and every feature with its kind.
         self.declared = pipeline.features
-        self.features = _pipeline_features(path, stages, pipeline.features)
+        self.features = _pipeline_features(stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on, or
@@ -719,6 +716,10 @@ class Pipeline:
         for option, value in (("features", features), ("without_features", without_features)):
             if isinstance(value, str):
                 raise GencmuError(f"{option} is a collection of names, not one string", kind="usage")
+        on = frozenset(features)
+        off = frozenset(without_features)
+        if on & off:
+            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         names = self.stage_names
         if until is None:
             last = len(names) - 1
@@ -726,10 +727,6 @@ class Pipeline:
             last = names.index(until)
         else:
             raise GencmuError(f"the pipeline has no stage {until}; its stages are {', '.join(names)}", kind="usage")
-        on = frozenset(features)
-        off = frozenset(without_features)
-        if on & off:
-            raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         return (self.declared | on) - off, off, last
 
     def parse(
@@ -773,7 +770,6 @@ class Pipeline:
         problem = scalar_problem(text)
         if problem is not None:
             raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
-        enabled, off, last = self._parse_selection(features, without_features, until)
         # A caller token stores value and image independently (engine
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
@@ -795,14 +791,16 @@ class Pipeline:
                 raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
             if not valid_range(token.source, len(text)) or not valid_range(token.span):
                 raise GencmuError(f"token {index}: invalid source or span", kind="usage")
+        enabled, off, last = self._parse_selection(features, without_features, until)
         tokens = [
             replace(
                 token,
                 tags=frozenset(self.unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
-                span=None if token.span is None else (token.span[0], token.span[1]),
+                span=(token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
                 after=[],
+                inserted_by=None,
             )
             for token in tokens
         ]

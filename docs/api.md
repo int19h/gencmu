@@ -11,7 +11,9 @@ The audit is a JavaScript library and CLI tool outside the common API. Engine re
 A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document names its stages and the grammar documents that each stage uses. The loaded object is a `Pipeline`. A library loads a pipeline in three ways:
 
 - It loads a bundled pipeline by its full name. The name is its directory path under `grammars/`, such as `lojban/cll`. Its resource key is `grammars/NAME/pipeline.md`.
-- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `data/unicode/unicode.txt`, `data/unicode/unicode-properties.txt`, and `data/preparsed/gencmu.json`. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
+- It loads a pipeline document from disk. The library finds grammar documents relative to that pipeline document. Bundled resources supply `data/unicode/unicode.txt`, `data/unicode/unicode-properties.txt`, and `data/preparsed/gencmu.json`. The standard names file, `data/unicode/unicode-names.txt`, also comes from the bundle.
+
+  The working directory never replaces these resources. A source map can supply replacement names data. The library loads properties and abbreviations with the core data. Core abbreviation escapes use the core map, and other source names require names data. Absolute paths identify documents in errors.
 - It loads documents held in memory through a map of `/`-separated paths to text. The caller gives the pipeline document's path in that map. Resource keys are relative to the package root, which holds sibling `grammars/` and `data/` directories. The map can replace Unicode resources and any `data/preparsed/FAMILY.json`. Libraries fill missing entries from bundled resources except a properties companion for an overridden core.
 
 A bundled name has two or more segments separated by `/`. Each segment matches `[a-z0-9][a-z0-9-]*`. Names are case-sensitive and have no short aliases. Invalid names and missing bundled pipelines cause a `usage` error before grammar loading.
@@ -62,7 +64,11 @@ An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie wh
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
+A diagnostic copies its location fields. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
+
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
+
+Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.
 
 [Output formats](output.md) defines the grammar DOM, cache, and parse-result schemas. The compatibility boundary is the schema version and the notation contract. Callers supply DOMs of that version or grammar text in the specified notation.
 
@@ -80,6 +86,8 @@ Unconditional declarations, global or stage-local, set `default:true`. The inven
 
 A loaded pipeline parses a text with these configuration arguments. Each argument is optional:
 
+Usage errors follow this order: the original text, each caller token in input order, the feature lists, then `until`. The first invalid category ends the call. Within one token, the order of field errors is not defined.
+
 | Argument | Default | Meaning |
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on. Unknown names are legal and do not change grammar behavior. |
@@ -87,7 +95,11 @@ A loaded pipeline parses a text with these configuration arguments. Each argumen
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
-A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
+A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for every source-map string, including Unicode resources and cached JSON. The loader inspects supplied strings in code point order of their keys before hashing or parsing any entry. A non-scalar string gives a `usage` error with its key and no line or column.
+
+Each source-map loader copies the supplied entries. Later changes to the caller's map do not change that loader's strings.
+
+A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
 A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`.
 
@@ -169,7 +181,7 @@ Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string`
 
 For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied syllable comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_General_Category_Uppercase_Letter` or any other engine tag unless the caller supplies it.
 
-Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
+Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged. Insertion provenance belongs to emitted tokens. A parser drops any caller-supplied insertion provenance when it copies input tokens.
 
 ### Tests
 

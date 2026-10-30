@@ -457,6 +457,8 @@
   // run. A text that does not parse is not an error but a result.
 
   class GencmuError extends Error {
+    /** @type {string} */
+    #description;
     /**
      * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
      *   run, or a caller's mistake such as an unknown stage name
@@ -465,6 +467,7 @@
      * @param {{cause?: unknown}} [options] the error that caused this one
      */
     constructor(kind, message, where, options) {
+      where = {...where};
       const location = where?.document === undefined ? "" : [where.document, where.line, where.column].filter(part => part !== undefined).join(":");
       if (location) {
         // Some callers already include all or part of the location.
@@ -472,9 +475,10 @@
         for (const prefix of prefixes) {
           if (prefix && message.startsWith(`${prefix}: `)) { message = message.slice(prefix.length + 2); break; }
         }
-        message = `${location}: ${message}`;
       }
-      super(message, options);
+      const stage = where?.stage ? `stage ${where.stage}: ` : "";
+      super(`${location ? `${location}: ` : ""}${stage}${message}`, options);
+      this.#description = message;
       this.name = "GencmuError";
       this.kind = kind;
       this.where = where || {};
@@ -483,6 +487,16 @@
       this.option = this.where.option;
       this.expression = this.where.expression;
       this.inheritance = this.where.inheritance;
+    }
+
+    /**
+     * Copies the diagnostic with a new location and an optional explanation.
+     * @param {import("./types.js").ErrorLocation} where
+     * @param {string} [suffix]
+     * @returns {GencmuError}
+     */
+    withLocation(where, suffix = "") {
+      return new GencmuError(this.kind, this.#description + suffix, {...this.where, ...where}, {cause:this});
     }
 
     // Loading diagnostics have their own canonical schema.
@@ -1899,6 +1913,7 @@
   //   T. "F32:queue" leaves an item that an ordinary step reaches as it was
   //   processed while strict, and "F32:predict" never predicts again a rule
   //   that a strict prediction predicted first.
+  // - "omission:skip" skips the predicate that records an allowed omission.
   // - "lost:roots" and "lost:count" lose the witness after recognition
   //   (engine §7.9).
   // - "lost:rank" gives a restoration no derivation in the ranking, so the
@@ -1952,6 +1967,59 @@
   // the step. A loop that rescanned or copied a growing list would count
   // the square of the input, so the tests that read these kinds fail on it.
   // Tools outside the library count through the same hook.
+
+  // The faults, one switch each (src/testing.js). F1 has two per observer,
+  // one for the tokens of R behind its argument and one for positions, except
+  // that from and after have only the second: applied before the projection
+  // or after it, they give the same span. F7, F26, F27 and F32 have one
+  // switch for each of their variants. faults.json records how each case
+  // catches each fault: F28 and lost:rank, for example, through the result
+  // and the hook together in most cases, and lost:context through the hook
+  // alone.
+  const OBSERVERS = ["following-tokens", "onward", "first-token", "tokens-after-first", "last-token", "starts-input", "source-text", "value", "classes", "tags"];
+  // The order of one step of the recognizer (engine §4), which the check
+  // meets on its own competing routes as the main parse does.
+  const ORDER = ["order:tags", "order:conditions"];
+  // A ranking that does not count W(D) though the chart holds it.
+  const LOST = ["lost:roots", "lost:count", "lost:rank", "lost:context", "lost:select"];
+  // A witness of elision-only that is not mapped to the stage's input.
+  const WITNESS = ["witness:project"];
+  const VARIANTS = { F7: ["restoration", "capture", "union"], F26: ["lost", "relabel"], F27: ["order", "bare"], F32: ["queue", "predict"] };
+
+  // The sites of each fault that has several (src/testing.js): the named
+  // cases must enter every one while the fault is on. A fault not listed
+  // has one site.
+  const SITES = {
+    F11: ["restore", "test"],
+    F16: ["predict", "item", "empty"],
+    F29: ["predict", "reading"],
+    "order:tags": ["predict", "advance"],
+    "lost:rank": ["candidates", "count"],
+  };
+  /** @type {(fault: string) => string[]} */
+  const sitesOf = (fault) => {
+    if (fault in SITES) return SITES[/** @type {keyof typeof SITES} */ (fault)].map((site) => `${fault}@${site}`);
+    // An F1 fault of a function of a span, head, tail or last, applies the
+    // function before the projection, and so do the F1pos faults of the
+    // functions with from and after. The other observers read their
+    // argument's tokens or positions.
+    const functions = ["first-token", "tokens-after-first", "last-token", "onward", "following-tokens"];
+    const [family, observer] = fault.split(":");
+    if (family === "F1") return [`${fault}@${functions.includes(observer) ? "function" : "argument"}`];
+    if (family === "F1pos") return [`${fault}@${functions.includes(observer) ? "observe" : "argument"}`];
+    return [fault];
+  };
+  const FAULTS = [
+    ...OBSERVERS.flatMap((name) => name === "onward" || name === "following-tokens" ? [`F1pos:${name}`] : [`F1:${name}`, `F1pos:${name}`]),
+    ...Array.from({ length: 31 }, (_, index) => `F${index + 2}`)
+      .filter((name) => !["F5", "F6", "F20"].includes(name))
+      .flatMap((name) => name in VARIANTS ? VARIANTS[/** @type {keyof typeof VARIANTS} */ (name)].map((variant) => `${name}:${variant}`) : [name]),
+    "omission:skip",
+    ...ORDER,
+    ...LOST,
+    ...WITNESS,
+  ].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+
 
   /** @type {Set<string>} */
   const faults = new Set();
@@ -3186,11 +3254,34 @@
   function caseDifference(expected, got) {
     for (const key of CASE_FIELDS) {
       if (!(key in expected) && !(key in got)) continue;
-      if (JSON.stringify(expected[key]) !== JSON.stringify(got[key])) {
+      if (!sameValue(expected[key], got[key])) {
         return `${key} expected ${JSON.stringify(expected[key])}, got ${JSON.stringify(got[key])}`;
       }
     }
     return null;
+  }
+
+
+  // JSON objects compare by member name. Arrays retain their written order.
+  /** @param {unknown} left @param {unknown} right @returns {boolean} */
+  function sameValue(left, right) {
+    const stack = [[left, right]];
+    while (stack.length) {
+      const [a, b] = /** @type {[unknown, unknown]} */ (stack.pop());
+      if (a === b) continue;
+      if (Array.isArray(a)) {
+        if (!Array.isArray(b) || a.length !== b.length) return false;
+        for (let index = 0; index < a.length; index++) stack.push([a[index], b[index]]);
+      } else if (a !== null && typeof a === "object" && b !== null && typeof b === "object" && !Array.isArray(b)) {
+        const keys = Object.keys(a);
+        if (keys.length !== Object.keys(b).length) return false;
+        for (const key of keys) {
+          if (!Object.hasOwn(b, key)) return false;
+          stack.push([/** @type {Record<string, unknown>} */ (a)[key], /** @type {Record<string, unknown>} */ (b)[key]]);
+        }
+      } else return false;
+    }
+    return true;
   }
 
   // ---- close-families.js
@@ -5680,17 +5771,31 @@
   }
   /** @param {any} rule @param {any} alternative @returns {Map<string,number>[]} */
   function validationCaptures(rule,alternative) {
-    if(!variableCaptures(alternative.expr)) {
-      const caps=new Map([['',-1]]), pending=[alternative.expr];
-      while(pending.length) {
-        const node=pending.pop();
-        if(node.capture!==undefined) caps.set(node.capture,caps.size-1);
-        else if(node.seq) for(let i=node.seq.length-1;i>=0;i--) pending.push(node.seq[i]);
-        else if(node.choice||node.ranked||node.and) pending.push((node.choice??node.ranked??node.and)[0]);
-        else if(node.test) pending.push(node.expr);
+    const branches = [alternative.expr];
+    /** @type {Map<string,number>[]} */ const independent = [];
+    const distinct = new Set();
+    let fixed = true;
+    while (branches.length) {
+      const expr = branches.pop();
+      if (expr.choice || expr.ranked) {
+        const choices = expr.choice ?? expr.ranked;
+        for (let index=choices.length-1;index>=0;index--) branches.push(choices[index]);
+        continue;
       }
-      return [caps];
+      if (expr.test) { branches.push(expr.expr); continue; }
+      if (variableCaptures(expr)) { fixed = false; break; }
+      const caps = new Map([['',-1]]), pending = [expr];
+      while (pending.length) {
+        const node = pending.pop();
+        if (node.capture !== undefined) caps.set(node.capture,caps.size-1);
+        else if (node.seq) for (let i=node.seq.length-1;i>=0;i--) pending.push(node.seq[i]);
+        else if (node.choice || node.ranked || node.and) pending.push((node.choice ?? node.ranked ?? node.and)[0]);
+        else if (node.test) pending.push(node.expr);
+      }
+      const key = JSON.stringify([...caps.keys()]);
+      if (!distinct.has(key)) { distinct.add(key); independent.push(caps); }
     }
+    if (fixed) return independent;
     /** @type {CaptureWitness[]} */ const witnesses=[];
     const ask=(/** @type {Iterable<string>} */ required=[],/** @type {Iterable<string>} */ forbidden=[],/** @type {string[]} */ order=[])=>{
       const found=captureWitness(alternative.expr,new Set(required),new Set(forbidden),order);
@@ -9238,7 +9343,7 @@
           const classifiers = this.classifiers(on);
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         } catch (error) {
-          if (error instanceof GencmuError) error.where.stage = this.stageName;
+          if (error instanceof GencmuError) throw error.withLocation({stage:this.stageName});
           throw error;
         }
         remember(this.lowered, key, lowered);
@@ -13640,6 +13745,8 @@
   const diagnosticUnicode = new UnicodeTable("unicode 15.1.0\n");
   /** @type {WeakMap<Trace, UnicodeTable>} */
   const traceUnicode = new WeakMap();
+  /** @type {WeakMap<StageAudit, UnicodeTable>} */
+  const auditUnicode = new WeakMap();
 
   // ---- Where in the text --------------------------------------------------
 
@@ -14057,7 +14164,7 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${["union", "difference", "intersection", "concat"].some(key => key in term.receiver) ? `(${receiver})` : receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","ends","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
     if ("concat" in term) return {parts: term.concat.map(asTerm), combine: texts => texts.join(" ++ ")};
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);
@@ -14179,8 +14286,10 @@
         if (owner !== report.family && !owns && !edges) report.notes.push({kind:"inert-member", rule:owner});
       }
       if (!report.permitted.length) report.notes.unshift({kind:"empty"});
+      const members = new Set(report.members), namedOutside = new Set();
+      for (const [name, names] of references) if (!members.has(name)) for (const reference of names) namedOutside.add(reference);
       for (const member of report.members) {
-        if (member !== report.family && ![...references].some(([name, names]) => !report.members.includes(name) && names.has(member))) {
+        if (member !== report.family && !namedOutside.has(member)) {
           report.notes.push({kind:"unnamed-member", rule:member});
         }
       }
@@ -14199,15 +14308,6 @@
    *   each entry that adds (`∈`) or removes (`∉`) it, in stitching order, with
    *   its gates as written
    */
-
-  /**
-   * The top-level items of an alternative's expression.
-   * @param {Expr} expr
-   * @returns {Expr[]}
-   */
-  function topItems(expr) {
-    return "seq" in expr ? expr.seq : [expr];
-  }
 
   /**
    * A structural index of captures, without expanding choices or optionals.
@@ -14466,7 +14566,7 @@
         }
         /** @type {Set<string>} */
         const walked = new Set();
-        for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+        referencedRules(alternative.expr, walked);
         for (const part of walked) {
           const list = walkers.get(part);
           if (list) list.push(name);
@@ -14515,7 +14615,7 @@
         const structure = scopesFor(alternative, scopes);
         const items = presentItems(written, (name) => structure.names.has(name), structure.names).map((index) => written[index]);
         if (items.some((item) => item.capture === "")) {
-          topItems(alternative.expr).forEach(reach);
+          reach(alternative.expr);
           continue;
         }
         const emitted = new Set(items.flatMap((item) => (item.capture ? [item.capture] : [])));
@@ -14533,7 +14633,7 @@
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
       for (const alternative of alternativesByRule.get(name) || []) {
         if (alternative.clauses.erased) continue;
-        topItems(alternative.expr).forEach(reach);
+        reach(alternative.expr);
       }
     }
     return inside;
@@ -14617,7 +14717,7 @@
           const reached = new Set();
           for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
             if (hooks.work) countWork(hooks.work, "clauses");
-            for (const part of topItems(sibling.expr)) referencedRules(part, reached);
+            referencedRules(sibling.expr, reached);
           }
           if (!covering.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
             idleErasures.push({ rule: rule.name, document: alternative.document });
@@ -14638,7 +14738,7 @@
           }
         }
       }
-      return {
+      const report = {
         name: stage.name,
         stageChanges: (stage.stageChanges ?? []).slice(),
         resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
@@ -14651,6 +14751,8 @@
         families: auditFamilies(grammar),
         boundaryNotes: auditBoundaries(grammar),
       };
+      auditUnicode.set(report, grammar.unicode);
+      return report;
     });
   }
 
@@ -14662,13 +14764,14 @@
   function formatAudit(stages) {
     const blocks = [];
     for (const stage of stages) {
+      const unicode = auditUnicode.get(stage) ?? diagnosticUnicode;
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
       for (const change of stage.stageChanges) lines.push(`  stage ${change.kind} at ${change.document}:${change.line}:${change.column}`);
-      for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")})${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
+      for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")}) at ${template.document}:${template.line}:${template.column}${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
       for (const instance of stage.instances) {
-        lines.push(`  instance ${instance.name} from ${instance.template}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
+        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), flags ${instance.flags.join(", ") || "none"}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
         if (instance.binding) lines.push(`    binding: ${instance.binding.document}:${instance.binding.line}:${instance.binding.column}`);
-        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, flags ${event.flagsBefore.join(", ")} -> ${event.flagsAfter.join(", ")}`);
+        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, flags ${event.flagsBefore.join(", ") || "none"} -> ${event.flagsAfter.join(", ") || "none"}`);
         for (const note of instance.notes) lines.push(`    ${note.kind}: ${note.instances.join(", ")}`);
       }
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
@@ -14688,7 +14791,7 @@
       }
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
       for (const family of stage.families) {
-        lines.push(`  family ${family.family}, named by ${family.calls.map(call => call.rule).join(", ")}: members ${family.members.join(", ")}`);
+        lines.push(`  family ${family.family}, named by ${family.calls.map(call => `${call.rule} at ${call.document}:${call.line}:${call.column}`).join(", ")}: members ${family.members.join(", ")}`);
         for (const optional of family.permitted) lines.push(`    permits ${optional.terminal} of ${optional.owner} at ${optional.document}:${optional.line}:${optional.column}`);
         for (const note of family.notes) {
           if (note.kind === "empty") lines.push("    empty: queries equal without-elision");
@@ -14761,6 +14864,7 @@
    * @returns {Trace}
    */
   function trace(pipeline, text, options) {
+    if (!Number.isInteger(options.position)) throw new GencmuError("usage", "a trace position must be a finite integer");
     const index = pipeline.stages.findIndex((stage) => stage.name === options.stage);
     if (index < 0) throw new GencmuError("usage", `no stage is named ${options.stage}`);
     // The parse the caller would get up to that stage, so that the traced
@@ -14820,8 +14924,15 @@
   /** @param {any} grammar */
   function auditBoundaries(grammar) {
     const {atoms,queries,text} = grammar.boundaries, notes = [], seen = new Set();
-    for (const query of queries) for (const {rule,alternative,atom} of atoms) {
-      if (!boundaryAtoms(alternative.clauses.conditions).includes(atom) || !query.reached.rules.has(rule)) continue;
+    const byClause = new WeakMap();
+    const conditionAtoms = atoms.filter((/** @type {any} */ entry) => {
+      const {alternative, atom} = entry;
+      let found = byClause.get(alternative.clauses);
+      if (!found) { found = new Set(boundaryAtoms(alternative.clauses.conditions)); byClause.set(alternative.clauses, found); }
+      return found.has(atom);
+    });
+    for (const query of queries) for (const {rule,alternative} of conditionAtoms) {
+      if (!query.reached.rules.has(rule)) continue;
       const key = `${rule}/${query.rule}/${query.alternative.order}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -16789,6 +16900,17 @@
     return node.children[node.production.captures[slot].index];
   }
 
+  /** @param {number[]} values @param {number} target @returns {number} */
+  function lowerBound(values, target) {
+    let first = 0, last = values.length;
+    while (first < last) {
+      const middle = first + Math.floor((last-first)/2);
+      if (values[middle] < target) first = middle+1;
+      else last = middle;
+    }
+    return first;
+  }
+
   class StringWalk {
     /** @param {ParseContext} context @param {(node:DerivationRule)=>Scope} scope */
     constructor(context, scope) {
@@ -16798,8 +16920,12 @@
       this.values = new WeakMap();
       /** @type {WeakMap<Derivation,Set<object|string>>} */
       this.active = new WeakMap();
-      /** @type {{span:Span, intervals:Span[]}[]} */
-      this.claims = [];
+      /** @type {Set<string>} */
+      this.claims = new Set();
+      /** @type {number[] | null} */
+      this.claimPoints = null;
+      /** @type {Set<number>} */
+      this.claimedCells = new Set();
       // Every input source participates, including tokens outside a capture.
       /** @type {Span[]} */
       this.covered = context.tokens.map(token => token.source).filter(([a,b]) => a < b).sort((a,b) => a[0]-b[0]);
@@ -16811,6 +16937,8 @@
         else merged.push([a,b]);
       }
       this.covered = merged;
+      this.coveredStarts = merged.map(span => span[0]);
+      this.coveredEnds = merged.map(span => span[1]);
       /** @type {WeakMap<object,Map<object,object>>} */
       this.itemKeys = new WeakMap();
     }
@@ -16905,36 +17033,34 @@
     verbatim(a,b) {
       if (a === b) return "";
       const {tokens, sources, sourceText} = this.context;
+      const claimPoints = this.claimPoints ??= [...new Set([0, sourceText.length, ...tokens.flatMap(token => token.source)])].sort((a,b) => a-b);
       const [l,r] = sources.of(a,b);
       const p = a > 0 ? tokens[a-1].source[1] : 0;
       const q = b < tokens.length ? tokens[b].source[0] : sourceText.length;
       let left = l, right = r;
       if (p < l) {
-        left = p;
-        for (const [start,end] of this.covered) {
-          if (start >= l) break;
-          if (end > left) left = Math.min(l,end);
-        }
+        const previous = lowerBound(this.coveredStarts, l)-1;
+        left = Math.max(p, previous < 0 ? 0 : Math.min(l,this.covered[previous][1]));
       }
       if (r < q) {
-        right = q;
-        for (const [start,end] of this.covered) {
-          if (end <= r) continue;
-          right = Math.max(r,Math.min(right,start));
-          break;
-        }
+        const following = lowerBound(this.coveredEnds, r+1);
+        right = Math.max(r, following === this.covered.length ? q : Math.min(q,this.covered[following][0]));
       }
       /** @type {Span[]} */
       const intervals = [];
       if (left < l) intervals.push([left,l]);
       if (r < right) intervals.push([r,right]);
-      for (const claim of this.claims) {
-        if (claim.span[0] === a && claim.span[1] === b) continue;
-        for (const [x,y] of intervals) for (const [u,v] of claim.intervals) {
-          if (Math.max(x,u) < Math.min(y,v)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+      const span = `${a}/${b}`;
+      if (!this.claims.has(span)) {
+        for (const [start,end] of intervals) {
+          const limit = lowerBound(claimPoints,end);
+          for (let cell = lowerBound(claimPoints,start); cell < limit; cell++) {
+            if (this.claimedCells.has(cell)) throw new GencmuError("grammar", "different verbatim spans claim the same uncovered source text");
+            this.claimedCells.add(cell);
+          }
         }
+        this.claims.add(span);
       }
-      if (intervals.length) this.claims.push({span:[a,b], intervals});
       return sourceText.slice(left,right).join("");
     }
   }
@@ -16967,7 +17093,6 @@
    * @typedef {object} StageOptions
    * @property {Set<string>} features
    * @property {boolean | null | undefined} elisionOnly
-   * @property {boolean} last whether this is the pipeline's last stage
    */
 
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
@@ -17542,14 +17667,6 @@
       return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
     };
     return [plain(actions[0]), plain(actions[1])];
-  }
-
-  /** @param {Action | null} action @returns {import("./types.js").WitnessAction | null} */
-  function plainAction(action) {
-    if (action === null) return null;
-    if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
-    const { production, origin, end } = action.item;
-    return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
   }
 
   /** @implements {Scope} */
@@ -19273,9 +19390,10 @@
   /**
    * @param {string} markdown
    * @param {string} path
+   * @param {import("./unicode.js").UnicodeTable} unicode
    * @returns {{text: string, positions: import("./types.js").Position[], blocks: number}}
    */
-  function extractGrammarText(markdown, path) {
+  function extractGrammarText(markdown, path, unicode) {
     const lines = splitLines(markdown);
     /** @type {string[]} */
     const chars = [];
@@ -19285,6 +19403,8 @@
     let inside = null;
     let openedAt = 0;
     let blocks = 0;
+    let linesInBlock = 0;
+    let lastEnd = /** @type {import("./types.js").Position} */ ([1, 1]);
     for (let number = 0; number < lines.length; number++) {
       const line = lines[number];
       if (inside === null) {
@@ -19292,39 +19412,44 @@
         // backtick, or the line is not a fence (CommonMark). Only an info
         // string that is exactly `jbogenbau` makes a grammar block.
         const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/s.exec(line);
-        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], trimWhiteSpace(fence[2])] : null;
+        const open = fence && !(fence[1][0] === "`" && fence[2].includes("`")) ? [fence[0], fence[1], trimWhiteSpace(fence[2], unicode)] : null;
         if (open && open[2] === "jbogenbau") {
           inside = open[1];
           openedAt = number + 1;
           if (blocks > 0) {
             chars.push("\n");
-            positions.push([number + 1, 1]);
+            positions.push(lastEnd);
           }
           blocks++;
+          linesInBlock = 0;
         } else if (open) {
           inside = { skip: open[1] };
         }
         continue;
       }
       const fence = typeof inside === "string" ? inside : inside.skip;
-      const close = /^ {0,3}(`{3,}|~{3,})\p{White_Space}*$/u.exec(line);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) {
+      const close = /^ {0,3}(`{3,}|~{3,})(.*)$/su.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length && trimWhiteSpace(close[2], unicode) === "") {
         inside = null;
         continue;
       }
       if (typeof inside !== "string") continue;
+      if (linesInBlock++ > 0) {
+        chars.push("\n");
+        positions.push(lastEnd);
+      }
       let column = 1;
       for (const character of line) {
         chars.push(character);
         positions.push([number + 1, column++]);
       }
-      chars.push("\n");
-      positions.push([number + 1, column]);
+      lastEnd = [number + 1, column];
     }
     if (inside !== null && typeof inside === "string") {
       const column = lines[openedAt - 1].indexOf(inside[0]) + 1;
       throw new GencmuError("grammar", `${path}:${openedAt}:${column}: a jbogenbau block that is never closed`, { document: path, line: openedAt, column });
     }
+    positions.push(lastEnd);
     return { text: chars.join(""), positions, blocks };
   }
 
@@ -19337,12 +19462,13 @@
   }
 
   // Scan only the edges, so a long inner whitespace run costs no backtracking.
-  /** @param {string} text @returns {string} */
-  function trimWhiteSpace(text) {
-    let start = 0, end = text.length;
-    while (start < end && /\p{White_Space}/u.test(text[start])) start++;
-    while (end > start && /\p{White_Space}/u.test(text[end - 1])) end--;
-    return text.slice(start, end);
+  /** @param {string} text @param {import("./unicode.js").UnicodeTable} unicode @returns {string} */
+  function trimWhiteSpace(text, unicode) {
+    const chars = [...text];
+    let start = 0, end = chars.length;
+    while (start < end && unicode.isWhiteSpace(/** @type {number} */ (chars[start].codePointAt(0)))) start++;
+    while (end > start && unicode.isWhiteSpace(/** @type {number} */ (chars[end - 1].codePointAt(0)))) end--;
+    return chars.slice(start, end).join("");
   }
 
   // A path relative to a document, resolved and normalized.
@@ -19929,7 +20055,7 @@
     const frames = [];
     /** @param {string} documentPath @param {string[]} inherited */
     const enter = (documentPath, inherited) => {
-      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath);
+      const { text, positions } = extractGrammarText(/** @type {string} */ (loader.read(documentPath)), documentPath, loader.unicode);
       const index = new Map(positions.map((position, i) => [`${position[0]}:${position[1]}`, i]));
       const dom = loader.documentDom(documentPath, inherited);
       const items = itemsInOrder(dom), chars = [...text];
@@ -20088,7 +20214,7 @@
           try {
             return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
           } catch (error) {
-            if (error instanceof GencmuError) error.where.stage = stage.name;
+            if (error instanceof GencmuError) throw error.withLocation({stage:stage.name});
             throw error;
           }
         }), this, bootstrap.features);
@@ -20096,15 +20222,9 @@
       } catch (error) {
         if (error instanceof GencmuError) {
           const embedded = error.where.document;
-          if (embedded && embedded !== BOOTSTRAP_PATH && !error.message.includes(embedded)) {
-            error.message += ` (embedded document: ${embedded})`;
-          }
-          error.where.document = BOOTSTRAP_PATH;
-          const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
-          if (!error.message.startsWith(`${location}: `)) {
-            const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
-            error.message = `${location}: ${stage}${error.message}`;
-          }
+          const suffix = embedded && embedded !== BOOTSTRAP_PATH
+            ? ` (embedded document: ${embedded})` : "";
+          throw error.withLocation({document:BOOTSTRAP_PATH}, suffix);
         }
         throw error;
       }
@@ -20221,7 +20341,7 @@
      */
     readDocument(markdown, path, deferEmission = false, inherited = []) {
       if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
-      const { text, positions } = extractGrammarText(markdown, path);
+      const { text, positions } = extractGrammarText(markdown, path, this.unicode);
       const names = new NamesScope(key => this.needNames(key), this.unicode, fnv1a64, inherited);
       const strings = new DocumentStrings(path, this.unicode, names,
         offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
@@ -20238,7 +20358,7 @@
         const source = [...(error.source || [0, 0])];
         if (error.stage === "lexical" && [...text][source[0]-1] === "@") source[0]--;
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
-        const ranked = error.stage === "syntax" && rankedSyntaxFailure(/** @type {Token[]} */ (run.stages[0].output),error.token ?? 0);
+        const ranked = error.stage === "syntax" && rankedSyntaxFailure(run.stages.find(stage => stage.name === "syntax")?.input ?? [],error.token ?? 0);
         const message = error.stage === "lexical" && [...text][source[0]] === "@" ? "a parameter requires @ followed directly by an ASCII letter" : ranked ? "Parenthesize the intended ranked choice, with at least two operands and one separator kind." : error.message;
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
@@ -20291,7 +20411,7 @@
         const dom = this.documentDom(document,inherited);
         if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true,inherited));
         else {
-          const {text:body,positions} = extractGrammarText(text,document);
+          const {text:body,positions} = extractGrammarText(text,document,this.unicode);
           const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
           if (lexical.ok) {
             const tokens = /** @type {Token[]} */ (lexical.stages[0].output);
@@ -20322,12 +20442,11 @@
    * and every name the pipeline's `%features` declares, in code point
    * order. A name used both as a gate and as a warning is an error of the
    * pipeline.
-   * @param {string} path
    * @param {Stage[]} stages
    * @param {string[]} declared
    * @returns {Feature[]}
    */
-  function pipelineFeatures(path, stages, declared) {
+  function pipelineFeatures(stages, declared) {
     /** @type {Map<string, "gate" | "warning">} */
     const kinds = new Map();
     for (const stage of stages) {
@@ -20388,7 +20507,7 @@
       this.loader = loader;
       this.declared = declared;
       /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
-      this.features = pipelineFeatures(path, stages, declared);
+      this.features = pipelineFeatures(stages, declared);
       for (const stage of stages) validateEmissionOverlap(stage.grammar.rules);
     }
 
@@ -20418,7 +20537,7 @@
             const range = /** @type {any} */ (token)[field];
             if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger)) throw new GencmuError("usage",`token ${index}: ${field} must be a pair of integers`);
           }
-          for (const field of ["text", "value", "image", "insertedBy"]) {
+          for (const field of ["text", "value", "image"]) {
             const value = /** @type {any} */ (token)[field];
             if (value === undefined && field !== "text") continue;
             if (typeof value !== "string" || loneSurrogate(value) !== null) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
@@ -20435,12 +20554,12 @@
           if (!(0 <= start && start <= end && end <= length)) {
             throw new GencmuError("usage", `token ${index}: the source ${JSON.stringify(token.source)} is not a range within a text of ${length} code points`);
           }
-          if (token.span && !(0 <= token.span[0] && token.span[0] <= token.span[1])) {
+          if (!(0 <= token.span[0] && token.span[0] <= token.span[1])) {
             throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, token.insertedBy, token.image)) };
+          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -20486,7 +20605,6 @@
         const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError} : stage.run(tokens, sourceText, this.loader.unicode, {
           features: options.features,
           elisionOnly: options.elisionOnly,
-          last: index === this.stages.length - 1,
         });
         report.input = tokens;
         stages.push(report);
@@ -20674,7 +20792,7 @@
       if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) {
         line++;
         column = 1;
-      } else if (character !== "\r") {
+      } else {
         column++;
       }
     }
@@ -20696,6 +20814,14 @@
       at++;
     }
     return null;
+  }
+
+  /** @param {Map<string, string>} sources */
+  function checkSourceStrings(sources) {
+    for (const path of [...sources.keys()].sort(compareCodePoints)) {
+      const problem = loneSurrogate(/** @type {string} */ (sources.get(path)));
+      if (problem !== null) throw new GencmuError("usage", "the document is not a sequence of Unicode scalar values", {document:path});
+    }
   }
 
   /** Keep known directive members before grammar walks. @param {GrammarDom} dom */
@@ -20760,7 +20886,8 @@
    * @returns {Loader}
    */
   function loaderFromSources(sources) {
-    const map = sources instanceof Map ? sources : new Map(Object.entries(sources));
+    const map = new Map(sources instanceof Map ? sources : Object.entries(sources));
+    checkSourceStrings(map);
     return new Loader((path) => map.get(path), path => map.has(path));
   }
 
@@ -20804,8 +20931,8 @@
    */
 
   /**
-   * A function from a path relative to the grammars root to that file's text,
-   * or `undefined` when there is no such file.
+   * A function from a resource key or document path to text.
+   * Resource keys are relative to the package root. A missing file gives `undefined`.
    * @typedef {(path: string) => string | undefined} Resources
    */
 
@@ -21021,7 +21148,6 @@
    * @property {string} text
    * @property {string} [value]
    * @property {string} [image]
-   * @property {string} [insertedBy]
    * @property {unknown[]} [before]
    * @property {unknown[]} [after]
    */
@@ -21266,20 +21392,20 @@
    *   of the terminal's identity (engine §4)
    * @property {string} [literal]
    * @property {true} [wildcard]
-   * @property {CharacterClass} [characters] for a range or a property, the
-   *   characters it matches; its name is then its written form (engine §4)
+   * @property {CharacterClass} [characters] the endpoints of a range. Its name
+   *   records the written range (engine §4)
    */
 
   /**
-   * A test of a lowered symbol, with its value: a string for a value test and
-   * a tag set for a tag test, and the test as an expected list writes it
-   * (docs/output.md).
+   * A positive or negated term in a tag-set test.
    * @typedef {object} Requirement
    * @property {boolean} negated
    * @property {Term} value
    */
 
   /**
+   * A test of a lowered symbol, with its string or tag-set operands.
+   * Its written form appears in expected-terminal lists (docs/output.md).
    * @typedef {object} SymbolTest
    * @property {TestOp} op
    * @property {string} [value]
@@ -21290,8 +21416,7 @@
    */
 
   /**
-   * The characters a range or a property matches: a range's first and last
-   * scalar values, or a property's name.
+   * The inclusive scalar endpoints of a written range.
    * @typedef {{from: number, to: number}} CharacterClass
    */
 

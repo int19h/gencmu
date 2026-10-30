@@ -304,8 +304,12 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{description}: {error}");
         assert_eq!(error.document.as_deref(), fixtures.get("document").and_then(Value::str), "{description}: {error}");
         let document = fixtures.get("document").and_then(Value::str).expect("document");
-        assert!(error.message.starts_with(&format!("{document}:")), "{description}: {error}");
-        assert_eq!(error.to_string(), error.message, "{description}");
+        assert!(error.to_string().starts_with(&format!("{document}:")), "{description}: {error}");
+        assert!(!error.message.starts_with(&format!("{document}:")), "{description}: {error}");
+        assert_eq!(error.to_string().matches(&format!("{document}:")).count(), 1);
+        if let Some(stage) = &error.stage {
+            assert!(error.to_string().contains(&format!("stage {stage}: ")));
+        }
         if let Some(context) = item.get("context").and_then(Value::str) {
             assert!(error.message.contains(context), "{description}: {error}");
         }

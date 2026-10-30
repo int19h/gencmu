@@ -1,0 +1,23 @@
+{
+  "description": "Positions use complete line terminators and count CR inside CRLF.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text _ \"x\"\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "\na",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "source": [
+          1,
+          2
+        ],
+        "line": 2,
+        "column": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

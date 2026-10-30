@@ -110,6 +110,20 @@ def elided_tokens() -> tuple[list[gencmu.Token], str]:
 
 
 class Loaders(unittest.TestCase):
+    def test_source_maps_reject_every_non_scalar_resource_before_parsing(self):
+        for path in ("data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+                     "data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json",
+                     "data/preparsed/test.json", "unused.md"):
+            with self.subTest(path=path), self.assertRaises(gencmu.GencmuError) as caught:
+                gencmu.load_pipeline_sources({path: "header\n\ud800"}, "missing.md")
+            self.assertEqual(caught.exception.kind, "usage")
+            self.assertEqual(caught.exception.document, path)
+            self.assertIsNone(caught.exception.line)
+            self.assertIsNone(caught.exception.column)
+        with self.assertRaises(gencmu.GencmuError) as caught:
+            gencmu.load_pipeline_sources({"z": "\ud800", "a": "\ud800"}, "missing.md")
+        self.assertEqual(caught.exception.document, "a")
+
     def test_replacements_record_flag_changes(self) -> None:
         from gencmu._grammar import FlagChange
 
@@ -1019,6 +1033,30 @@ class SharedCaches(unittest.TestCase):
 
 
 class CallerTokens(unittest.TestCase):
+    def test_usage_error_order(self):
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        options = {"features": ["f"], "without_features": ["f"], "until": "missing"}
+        tokens = [gencmu.Token("a", {tag}, (0, 1), (0, 1)) for tag in ("first invalid tag", "second invalid tag")]
+        with self.assertRaisesRegex(gencmu.GencmuError, "the text is not a sequence"):
+            pipeline.parse_tokens(tokens, "\ud800", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "token 0: invalid stored tags"):
+            pipeline.parse_tokens(tokens, "a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "the feature f is named both"):
+            pipeline.parse("a", **options)
+        with self.assertRaisesRegex(gencmu.GencmuError, "has no stage missing"):
+            pipeline.parse("a", until="missing")
+
+    def test_caller_insertion_provenance_is_dropped(self):
+        pipeline, error = load_case_pipeline({"grammar": '%rule text "a"'})
+        assert pipeline is not None, error
+        for inserted_by in ("caller", 17):
+            token = gencmu.Token("a", set(), (0, 1), (0, 1), inserted_by=inserted_by)
+            result = pipeline.parse_tokens([token], "a")
+            self.assertTrue(result.ok)
+            self.assertIsNone(result.stages[0].input[0].inserted_by)
+            self.assertEqual(token.inserted_by, inserted_by)
+
     """A result shares nothing that can change with the caller's tokens
     (docs/api.md)."""
 

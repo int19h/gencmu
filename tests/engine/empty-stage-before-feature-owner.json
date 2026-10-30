@@ -1,0 +1,16 @@
+{
+  "description": "An empty stage precedes a later local feature ownership error.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage one\n%features f\n%stage two\n%features f\n%ambiguity-resolution greedy\n%rule text ε\n```\n"
+  },
+  "pipelineDocument": "p.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "p.md",
+      "line": 2,
+      "column": 1
+    }
+  }
+}

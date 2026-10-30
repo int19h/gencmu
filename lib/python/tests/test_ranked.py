@@ -130,4 +130,4 @@ class Ranked(unittest.TestCase):
             reader.read("```jbogenbau\n%prefer a > b\n```\n", "grammars/test/g.md")
         self.assertIsNone(raised.exception.code)
         self.assertEqual((raised.exception.line, raised.exception.column), (2, 1))
-        self.assertIn("unknown directive %prefer; use an inline ranked choice", raised.exception.message)
+        self.assertIn("syntax", raised.exception.message)

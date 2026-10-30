@@ -317,7 +317,11 @@ A recipe supplies one string channel. `:=` supplies a value and an implied image
 
 The emission walk determines which tokens reach the next stage. A constituent with `%emits` emits its items and stops that walk. `%erased` contributes nothing. Without either directive, the walk enters children.
 
+Emission boundary tests index only their requested rule and terminal identities in the chosen derivation. A stage without these tests needs no boundary index.
+
 The string walk determines a covering token's value and image. It enters child constituents but skips their emission lists. Their alternative and definition recipes still apply. Erased children contribute nothing. Attachment ownership counts surviving input parts independently of either string.
+
+Item recipes and constituent recipes use the same string evaluator. Each request starts with its owning occurrence and either a channel or a recipe.
 
 An item recipe serves its directly emitted token. The following grammar gives `x` for input `a`, but `ab` for input `ab`:
 
@@ -392,6 +396,8 @@ An empty delimited body contributes empty concatenation to the quote value. The 
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
+Each emission indexes evaluated spans and claimed intervals. Source endpoints divide those intervals into cells, whose interiors contain no endpoint. A new span marks each claimed cell once. Repeated requests for that span reuse its claim. Coverage searches use sorted interval boundaries.
+
 In pipelines with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
@@ -415,6 +421,8 @@ Braces state grouping explicitly, independently of how many alternatives feature
 Every kind of braces requires one or more items. ISO 14977 reads braces as zero or more, but jbogenbau writes zero or more as `[{x}]`. An item must read at least one token, so `[{x}]` reads nothing in one way only. No bundled grammar repeats an item that can be empty.
 
 A capture cannot stand inside braces or around them because a repeated part has no single captured occurrence. A grammar that needs a capture names its list or chain as a rule. A capture next to flat braces remains legal, as in `$a:A {B}`.
+
+Independent alternatives with fixed capture lists need one validation witness per list. They do not enumerate unrelated capture-presence combinations.
 
 The engine defines these rules in §3:
 
@@ -838,7 +846,7 @@ The engine splices out only one kind of node, because no author wrote it. That i
 
 An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens.
 
-An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
+An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. This member alone records the operand and whether an equality test exists. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
 
 Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
 
@@ -882,6 +890,8 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 ## Diagnostics and debugging
 
+Audit work counts every expression node that it visits, including a sequence root inspected by an erasure scan.
+
 The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
 
 The product provides these diagnostics and debugging tools:
@@ -891,6 +901,8 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this". A trace uses the parse's features and `elisionOnly` choice. Its declared `elisionOnly` option accepts `true`, `false`, or `null`. An omitted or `null` choice keeps the grammar's own rule.
+
+  The trace position must be a finite integer. The trace clamps it to the stage's token boundaries. Printed conditions preserve method receivers with parentheses around compound terms.
 - The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` covers text that can never emit a token and that no token can cover. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
@@ -915,6 +927,8 @@ Twin instances use the same template. Corresponding arguments must be identical 
 
 Events follow source order and record `scope`, `op`, `document`, `line`, `column`, `flagsBefore`, and `flagsAfter`. Scope is `template` or `instance`. Replaced events remain in the list. `flags` gives the final effective flag list. The printed report shows the same facts and names public bindings without implying wrapper rules.
 
+Printed template and family calls include their source locations. Printed instances include canonical arguments and final flags. An empty flag list prints as `none`. The audit reuses structural indexes across queries and family members.
+
 The audit also reports these boundary notes:
 
 - Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
@@ -934,7 +948,7 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 
 `--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied.
 
-The `test` command reports invalid JSON as a `usage` error with the case file, physical line number, and exit status 2.
+The `test` command reports invalid JSON or case fields as a `usage` error with the file, physical line number, and exit status 2. Each case has a string `text`, an optional bundled `pipeline`, and optional string arrays `features` and `withoutFeatures`. The `parse` standard input and `test` case files use strict UTF-8. Invalid bytes cause a `usage` error before pipeline loading.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
@@ -1052,7 +1066,7 @@ There are three kinds of shared test. Every library runs each case that its API 
 
   `expect` is whether gencmu is meant to accept the text, `words` the tokens of the words stage, and `brackets` the tree. A full result for each case needs hundreds of megabytes. The engine cases pin down the full result, and the corpus pins what a Lojban reader cares about.
 
-A corpus case can include provenance fields, `seeded` and `reason`. The reason states the case's expectation in terms of gencmu's grammars. `tests/README.md` defines these fields.
+Corpus comparison ignores JSON object member order and preserves array order. A corpus case can include provenance fields, `seeded` and `reason`. The reason states the case's expectation in terms of gencmu's grammars. `tests/README.md` defines these fields.
 
 Update a case's expectations in the same commit as the grammar change that affects them. Explain the expectation in the commit message. Changes to `words` or `brackets` need no additional field.
 

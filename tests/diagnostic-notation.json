@@ -75,5 +75,28 @@
       "string": "\""
     },
     "text": "\"‹QMARK›\""
+  },
+  {
+    "description": "Method diagnostics preserve a concatenated receiver.",
+    "grammar": "%rule text A",
+    "term": {
+      "method": "split",
+      "receiver": {
+        "concat": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "args": [
+        {
+          "string": ","
+        }
+      ]
+    },
+    "text": "(\"a\" ++ \"b\").split(\",\")"
   }
 ]

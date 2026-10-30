@@ -55,8 +55,8 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 				bootstrap = replaced
 			}
 			_, err := LoadPipelineSources(map[string]string{
-				"p.md":                    "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-				"g.md":                    "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
+				"p.md":                       "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
+				"g.md":                       "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n```\n",
 				"data/preparsed/gencmu.json": bootstrap,
 			}, "p.md")
 			var e *Error
@@ -66,8 +66,11 @@ func TestBootstrapErrorMetadata(t *testing.T) {
 			if e.Kind != fixtures.Kind || e.Document != fixtures.Document {
 				t.Fatalf("expected %s in %s, got %#v", fixtures.Kind, fixtures.Document, e)
 			}
-			if !strings.HasPrefix(e.Message, fixtures.Document+":") || e.Error() != e.Message {
+			if !strings.HasPrefix(e.Error(), fixtures.Document+":") || strings.Count(e.Error(), fixtures.Document+":") != 1 || strings.HasPrefix(e.Message, fixtures.Document+":") {
 				t.Fatalf("the diagnostic does not name the bootstrap: %s", e)
+			}
+			if e.Stage != "" && !strings.Contains(e.Error(), "stage "+e.Stage+": ") {
+				t.Fatalf("the diagnostic lost its stage: %s", e)
 			}
 			if item.Context != "" && !strings.Contains(e.Message, item.Context) {
 				t.Fatalf("the diagnostic lost its source: %s", e)

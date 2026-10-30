@@ -234,7 +234,6 @@ export type InputToken = {
     text: string;
     value?: string;
     image?: string;
-    insertedBy?: string;
     before?: unknown[];
     after?: unknown[];
 };
@@ -597,8 +596,8 @@ export type GrammarSymbol = {
     literal?: string;
     wildcard?: true;
     /**
-     * for a range or a property, the
-     * characters it matches; its name is then its written form (engine §4)
+     * the endpoints of a range. Its name
+     * records the written range (engine §4)
      */
     characters?: CharacterClass;
 };
@@ -878,8 +877,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {import("./ranked.js").GroupSite[]} [inheritance]
  */
 /**
- * A function from a path relative to the grammars root to that file's text,
- * or `undefined` when there is no such file.
+ * A function from a resource key or document path to text.
+ * Resource keys are relative to the package root. A missing file gives `undefined`.
  * @typedef {(path: string) => string | undefined} Resources
  */
 /**
@@ -1071,7 +1070,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} text
  * @property {string} [value]
  * @property {string} [image]
- * @property {string} [insertedBy]
  * @property {unknown[]} [before]
  * @property {unknown[]} [after]
  */
@@ -1286,18 +1284,18 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   of the terminal's identity (engine §4)
  * @property {string} [literal]
  * @property {true} [wildcard]
- * @property {CharacterClass} [characters] for a range or a property, the
- *   characters it matches; its name is then its written form (engine §4)
+ * @property {CharacterClass} [characters] the endpoints of a range. Its name
+ *   records the written range (engine §4)
  */
 /**
- * A test of a lowered symbol, with its value: a string for a value test and
- * a tag set for a tag test, and the test as an expected list writes it
- * (docs/output.md).
+ * A positive or negated term in a tag-set test.
  * @typedef {object} Requirement
  * @property {boolean} negated
  * @property {Term} value
  */
 /**
+ * A test of a lowered symbol, with its string or tag-set operands.
+ * Its written form appears in expected-terminal lists (docs/output.md).
  * @typedef {object} SymbolTest
  * @property {TestOp} op
  * @property {string} [value]
@@ -1307,8 +1305,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} written
  */
 /**
- * The characters a range or a property matches: a range's first and last
- * scalar values, or a property's name.
+ * The inclusive scalar endpoints of a written range.
  * @typedef {{from: number, to: number}} CharacterClass
  */
 /**

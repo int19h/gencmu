@@ -36,7 +36,7 @@ if (result.error) {
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);
-  // @ts-expect-error the historical cycle field is outside the released result schema
+  // @ts-expect-error a result error has no cycle member
   void result.error.cycle;
   void kind, reason;
 }
@@ -67,3 +67,6 @@ trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:false});
 trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:null});
 // @ts-expect-error elisionOnly accepts a boolean or null
 trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:"off"});
+
+// @ts-expect-error caller tokens do not declare insertion provenance
+pipeline.parse("a", {tokens:[{text:"a", tags:[], span:[0,1], source:[0,1], insertedBy:"caller"}]});

@@ -585,7 +585,7 @@ fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
         } else {
             (&d.image, d.image_at)
         };
-        term.as_ref().map(|term| (term, at.unwrap_or(alternative.at)))
+        term.as_ref().map(|term| (term, at))
     };
     let recipes = [selected(true), selected(false)];
     // An implied image selects the same expression as value. It is one
@@ -625,11 +625,13 @@ fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
                     let at = recipes[owner].expect("a recipe with a dependency").1;
                     let mut steps: Vec<_> = path.iter().map(|&(channel, _)| names[channel]).collect();
                     steps.push(names[dependency]);
-                    return Err(located(
-                        format!("a constituent recipe cycles: {}", steps.join(" -> ")),
-                        &alternative.document,
-                        at,
-                    ));
+                    let mut error = Error::grammar(format!("a constituent recipe cycles: {}", steps.join(" -> ")))
+                        .in_document(&alternative.document)
+                        .recover_location(crate::error::LocationRecovery::Recipe);
+                    if let Some((line, column)) = at {
+                        error = error.at(line, column);
+                    }
+                    return Err(error);
                 }
                 if !finished[dependency] {
                     active[dependency] = true;

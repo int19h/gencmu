@@ -22,7 +22,7 @@ def line_column(text: str, index: int) -> tuple[int, int]:
     """The 1-based line and column of a code point index."""
     line = 1
     start = 0
-    for match in _LINE_BREAK.finditer(text, 0, index):
+    for match in _LINE_BREAK.finditer(text, 0, index + 1):
         if match.end() > index:
             break
         line += 1

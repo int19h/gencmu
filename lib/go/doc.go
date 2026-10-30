@@ -17,9 +17,9 @@
 // document on disk, and LoadPipelineSources documents held in memory. A
 // pipeline that cannot be loaded is a *Error, carrying the document, line
 // and column where known. A document is read through the notation only
-// when the bundled data/preparsed/FAMILY.json has no DOM for its text under the current
-// bootstrap, Unicode table, and DOM format version. A bundled pipeline
-// normally loads from the preparsed cache.
+// when no matching preparsed DOM exists under the document, bootstrap,
+// Unicode table, properties, names dependencies, and DOM format identities.
+// Preparsed data can come from the bundle or a supplied source map.
 //
 // A DOM holds a document's constants, classifiers and implications as the
 // document writes them, never their values. The loader gives each constant
@@ -64,7 +64,8 @@
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
-// Reserved Unicode tags include _L, _Ll, and _White_Space (engine §1).
+// Stored Unicode tags use canonical names such as _General_Category_Letter.
+// Input aliases such as _L and _Ll normalize to those names (engine §1).
 //
 // # Features
 //

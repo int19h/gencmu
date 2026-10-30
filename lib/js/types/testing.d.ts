@@ -1,3 +1,6 @@
+/** @type {(fault: string) => string[]} */
+export declare const sitesOf: (fault: string) => string[];
+export declare const FAULTS: string[];
 /** @type {Set<string>} */
 export declare const faults: Set<string>;
 /**

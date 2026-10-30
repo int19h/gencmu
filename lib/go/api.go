@@ -68,12 +68,6 @@ type domCacheKey struct {
 	format                                     int
 }
 
-// readPreparsed admits an envelope only under the complete loader identity.
-func readPreparsed(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
-	doms, _, _ := readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash)
-	return doms
-}
-
 func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string, implicit ...bool) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`
@@ -261,7 +255,7 @@ func bundledNamesText(p string) (string, bool) {
 	return string(data), err == nil
 }
 func (l *loader) namesText(p string) (string, bool, *Error) {
-	if l.fromDisk && p == "data/unicode/unicode-names-reference.txt" {
+	if l.fromDisk && (p == "data/unicode/unicode-names.txt" || p == "data/unicode/unicode-names-reference.txt") {
 		text, ok := bundledNamesText(p)
 		return text, ok, nil
 	}
@@ -598,6 +592,9 @@ func LoadPipelineFile(file string) (*Pipeline, error) {
 	}
 	l.fromDisk = true
 	l.namesOverride = func(p string) bool {
+		if p == "data/unicode/unicode-names.txt" || p == "data/unicode/unicode-names-reference.txt" {
+			return false
+		}
 		_, err := os.Stat(filepath.FromSlash(p))
 		return !os.IsNotExist(err)
 	}
@@ -615,7 +612,16 @@ func LoadPipelineSources(sources map[string]string, pipeline string) (*Pipeline,
 func loadSources(sources map[string]string, pipeline string, noCache bool) (d *Pipeline, err error) {
 	defer guard(ErrorGrammar, &err)
 	texts := make(map[string]string, len(sources))
-	for p, t := range sources {
+	paths := make([]string, 0, len(sources))
+	for p := range sources {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		t := sources[p]
+		if problem := utf8Problem(t); problem != "" {
+			return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
+		}
 		texts[p] = t
 	}
 	_, customCore := texts["data/unicode/unicode.txt"]
@@ -845,18 +851,6 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 		}
 	}()
 	defer guard(ErrorGrammar, &err)
-	last := len(d.stages) - 1
-	if options.Until != "" {
-		last = -1
-		for i, s := range d.stages {
-			if s.name == options.Until {
-				last = i
-			}
-		}
-		if last < 0 {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
-		}
-	}
 	// The features on are the pipeline's and the caller's, less those the
 	// caller turns off (§13).
 	off := map[string]bool{}
@@ -870,6 +864,19 @@ func (d *Pipeline) parse(text []rune, tokens []Token, options ParseOptions) (res
 		}
 		features[f] = true
 	}
+	last := len(d.stages) - 1
+	if options.Until != "" {
+		last = -1
+		for i, s := range d.stages {
+			if s.name == options.Until {
+				last = i
+			}
+		}
+		if last < 0 {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("the pipeline has no stage %q", options.Until)}
+		}
+	}
+
 	for _, f := range d.declared {
 		if !off[f] {
 			features[f] = true

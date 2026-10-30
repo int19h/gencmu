@@ -284,9 +284,6 @@ func (m *patternMachine) intern(s patternState) int {
 	id := len(m.states)
 	m.states = append(m.states, s)
 	m.stateIDs[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralStates.add("structural states")
-	}
 	return id
 }
 func patternCompose(a, b []*big.Int) []*big.Int {
@@ -319,9 +316,6 @@ func (m *patternMachine) concat(a, b int) int {
 	}
 	id := m.intern(s)
 	m.transitions[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralTransitions.add("structural transitions")
-	}
 	return id
 }
 func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
@@ -409,9 +403,6 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 	}
 	id := m.nodeState(bits, tags == nil && s.count == 0)
 	m.transitions[key] = id
-	if w := work.Load(); w != nil {
-		w.structuralTransitions.add("structural transitions")
-	}
 	return id
 }
 func (m *patternMachine) matches(state int, p *domPattern) bool {

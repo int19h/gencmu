@@ -329,7 +329,6 @@ pub(crate) struct Chart {
     pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
     pub boundary_failures: Vec<crate::boundary::Failure>,
-    boundary_seen: FxSet<u32>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     /// The stage root settles its remaining boundary literals on completion.
     /// Queries settle selected witnesses after recognition instead.
@@ -813,7 +812,8 @@ enum NestedKey {
 /// text, and the memo of nested parses, which `next_stage` clears before a
 /// parse over other tokens or with other rules.
 pub(crate) struct Shared<'a> {
-    pub emission_boundaries: FxMap<(bool, u32), FxSet<String>>,
+    pub emission_boundaries: FxSet<(bool, u32, Sym)>,
+    pub emission_targets: FxMap<String, Sym>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub machine: Option<Rc<RefCell<Machine>>>,
     close_demands: Arc<[crate::restoration::LocalDemand]>,
@@ -849,7 +849,8 @@ impl<'a> Shared<'a> {
     pub(crate) fn new(unicode: &'a Unicode, text: &'a [char]) -> Shared<'a> {
         Shared {
             boundaries: None,
-            emission_boundaries: FxMap::default(),
+            emission_boundaries: FxSet::default(),
+            emission_targets: FxMap::default(),
             machine: None,
             close_demands: Arc::new([]),
             close_prefixes: Arc::new([]),
@@ -894,6 +895,7 @@ impl<'a> Shared<'a> {
         self.machine = None;
         self.boundaries = None;
         self.emission_boundaries.clear();
+        self.emission_targets.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
         self.contents.clear();
@@ -2565,9 +2567,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             }
             item.boundary = record;
-            if chart.boundary_seen.insert(record) {
-                work::count(Work::BoundaryRecords, 1);
-            }
             if !annotations.start.is_empty() || !annotations.end.is_empty() {
                 let target = chart.annotations.entry((set as u32, item)).or_default();
                 chart.sources.merge(target, &annotations);
@@ -3490,10 +3489,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             } else {
                                 let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
                                 let at = if *forward { end } else { start };
-                                self.shared
-                                    .emission_boundaries
-                                    .get(&(*forward, at as u32))
-                                    .is_some_and(|offers| targets.iter().any(|n| offers.contains(n)))
+                                targets.iter().filter_map(|name| self.shared.emission_targets.get(name)).any(|symbol| {
+                                    self.shared.emission_boundaries.contains(&(*forward, at as u32, *symbol))
+                                })
                             };
                             Out::Bool(value)
                         }

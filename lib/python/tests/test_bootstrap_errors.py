@@ -29,8 +29,11 @@ class BootstrapErrors(unittest.TestCase):
                     }, "p.md")
                 self.assertEqual(raised.exception.kind, fixtures["kind"])
                 self.assertEqual(raised.exception.document, fixtures["document"])
-                self.assertTrue(raised.exception.message.startswith(fixtures["document"] + ":"), raised.exception.message)
-                self.assertEqual(str(raised.exception), raised.exception.message)
+                self.assertTrue(str(raised.exception).startswith(fixtures["document"] + ":"), str(raised.exception))
+                self.assertFalse(raised.exception.message.startswith(fixtures["document"] + ":"))
+                self.assertEqual(str(raised.exception).count(fixtures["document"] + ":"), 1)
+                if item["stage"]:
+                    self.assertIn(f"stage {item['stage']}: ", str(raised.exception))
                 if "context" in item:
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:
@@ -63,5 +66,5 @@ class BootstrapErrors(unittest.TestCase):
                         with self.assertRaises(gencmu.GencmuError) as raised:
                             gencmu.load_pipeline_sources({"p.md": "%stage main"}, "p.md")
                     self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
-                    self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
-                    self.assertEqual(str(raised.exception), raised.exception.message)
+                    self.assertTrue(str(raised.exception).startswith("data/preparsed/gencmu.json:"), str(raised.exception))
+                    self.assertFalse(raised.exception.message.startswith("data/preparsed/gencmu.json:"))

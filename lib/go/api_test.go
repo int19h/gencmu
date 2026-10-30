@@ -1442,9 +1442,10 @@ func TestClassifierTablesBounded(t *testing.T) {
 // tested terminator (docs/output.md). No other error has a code.
 func TestMarshalWitnessLost(t *testing.T) {
 	t.Parallel()
+	value := "ta"
 	chosen := &Node{Kind: KindRule, Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}, Children: []*Node{
 		{Kind: KindToken, Terminal: "A", Token: 0, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
-		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, sound: "ta", tested: true},
+		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, Value: &value},
 	}}
 	res := &ParseResult{Stages: []Stage{{Name: "main", Verdict: VerdictResolved}}, Error: &ParseError{
 		Kind: ErrorGrammar, Stage: "main", Code: CodeElisionWitnessLost,
@@ -1459,8 +1460,52 @@ func TestMarshalWitnessLost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1]}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
+	want := `{"format":15,"ok":false,"stages":[{"name":"main","verdict":"resolved"}],"tree":null,"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"A","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"ta"}]},"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
+	}
+}
+
+func TestSourceMapsRejectNonScalarResourcesBeforeParsing(t *testing.T) {
+	for _, path := range []string{"data/unicode/unicode.txt", "data/unicode/unicode-properties.txt", "data/unicode/unicode-names.txt",
+		"data/unicode/unicode-names-reference.txt", "extra-names.txt", "data/preparsed/gencmu.json", "data/preparsed/test.json", "unused.md"} {
+		_, err := LoadPipelineSources(map[string]string{path: "header\n\xed\xa0\x80"}, "missing.md")
+		var e *Error
+		if !errors.As(err, &e) || e.Kind != ErrorUsage || e.Document != path || e.Line != 0 || e.Column != 0 {
+			t.Fatalf("%s: %v", path, err)
+		}
+	}
+	_, err := LoadPipelineSources(map[string]string{"z": "\xff", "a": "\xff"}, "missing.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Document != "a" {
+		t.Fatal(err)
+	}
+}
+
+func TestParseUsageErrorOrder(t *testing.T) {
+	d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text A"), "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := ParseOptions{Features: []string{"f"}, WithoutFeatures: []string{"f"}, Until: "missing"}
+	tokens := []InputToken{
+		{Text: "a", Tags: []string{"first invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+		{Text: "a", Tags: []string{"second invalid tag"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
+	}
+	_, err = d.ParseTokens("\xff", tokens, options)
+	if err == nil || !strings.Contains(err.Error(), "the text is not a sequence") {
+		t.Fatalf("text: %v", err)
+	}
+	_, err = d.ParseTokens("a", tokens, options)
+	if err == nil || !strings.Contains(err.Error(), "token 0: invalid stored tag") {
+		t.Fatalf("tokens: %v", err)
+	}
+	_, err = d.Parse("a", options)
+	if err == nil || !strings.Contains(err.Error(), "the feature f is named both") {
+		t.Fatalf("features: %v", err)
+	}
+	_, err = d.Parse("a", ParseOptions{Until: "missing"})
+	if err == nil || !strings.Contains(err.Error(), "has no stage") {
+		t.Fatalf("until: %v", err)
 	}
 }

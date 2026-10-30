@@ -1378,6 +1378,16 @@
         "line": 3,
         "column": 15
       }
+    },
+    {
+      "description": "The final notation stage reports an emission error on an empty document.",
+      "find": "{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"optional\":{\"repeat\":{\"ref\":\"statement\"}}}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"optional\":{\"repeat\":{\"ref\":\"statement\"}}}}],\"conditions\":[],\"at\":[*],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"if\":{\"op\":\"∈\",\"left\":{\"string\":\"x\"},\"right\":{\"method\":\"split\",\"receiver\":{\"string\":\"x\"},\"args\":[{\"method\":\"value\",\"receiver\":{\"capture\":\"\"},\"args\":[]}]}},\"then\":{\"tag\":\"X\"}}}]}}",
+      "document": "",
+      "inputs": [
+        ""
+      ],
+      "expect": "grammar"
     }
   ]
 }

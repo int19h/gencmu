@@ -57,7 +57,9 @@ In the bundled Unicode table, ASCII digits, `#`, and `*` have Emoji_Component. T
 
 Decomposition is canonical only. It applies no compatibility decomposition and no case mapping, and it never composes. Sources, texts, line and column numbers, `.source-text` and `.verbatim-text` read the original text. One precomposed scalar can give several tokens with one source. Canonical reordering can put sources out of order.
 
-A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
+A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for every source-map string, including Unicode resources and cached JSON.
+
+Source-map loaders inspect supplied strings in code point order of their keys before hashing or parsing any entry.
 
 A library reads a grammar document from disk as strict UTF-8. Bytes that are not valid UTF-8 are a `grammar` error of loading, not a usage error, because the caller supplied no string. The error names the document and says that its bytes do not decode. It has no line and no column. The library finds this before it hashes the document or looks in `data/preparsed/FAMILY.json` (§8). A byte order mark stays in the text as the character U+FEFF.
 
@@ -543,7 +545,9 @@ Tests use a terminal token's own tags and value, or a reference's constituent ta
 
 Identify each ranked expression after final stitching and constant binding. Its identity is the final rule, zero-based alternative index, and expression path. Its options retain source order. Every group requires at least two expressions.
 
-Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists.
+Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists. Recovery retains boundary-atom, ranked-group, and recipe coordinates together. A known source location needs no recovery pass.
+
+A definition's position does not replace a missing recipe-atom position. A matching cache recovers that atom's position from the source.
 
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
 
@@ -1957,11 +1961,11 @@ A caller can switch the check off, or on, for every stage that runs (`docs/api.m
 
 A grammar document is Markdown. Its grammar text is the content of every fenced code block whose info string is `jbogenbau`, in order. A fence is a line of three or more backticks or tildes, indented by up to three spaces, followed by the info string. A backtick fence whose info string holds a backtick is not a fence, as in CommonMark. The reader knows no other Markdown container. So a block can stand under a list item indented by two spaces, as a pipeline's `%include` blocks do, but not deeper.
 
-The info string is `jbogenbau` after the reader removes leading and trailing Unicode White_Space (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only Unicode White_Space follows it.
+The info string is `jbogenbau` after the reader removes leading and trailing White_Space from the configured Unicode table (§1). A block ends at a line that holds only a fence of the same character, at least as long. The fence is indented by up to three spaces, and only White_Space from that table follows it.
 
 An unclosed `jbogenbau` block is a document error. The reader reports it at the column of its opening fence character. Any other unclosed block runs to the end of the document, as in CommonMark.
 
-The reader joins the blocks with a newline between them. Every character of the grammar text keeps its line and column in the document.
+The reader joins each block's lines with `\n` and joins the blocks with one `\n` between them. Every line end inside a block reads as `\n`, whether the document uses LF, CRLF, or CR. Every character of the grammar text keeps its line and column in the document.
 
 The reader parses grammar text with the notation pipeline, `grammars/gencmu/jbogenbau/pipeline.md`. Its preparsed documents ship in `data/preparsed/gencmu.json`. The loader splices their DOMs under §13 to build the notation stages. Bootstrap entries need no source files or text hash comparison. Every required entry must exist and meet the DOM rules. An invalid format, malformed entry, missing include, or splice error is a bootstrap loading error.
 
@@ -1973,6 +1977,8 @@ A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an err
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
+The standard error formatter adds the document, position, and stage from structured fields. Bootstrap errors use this same formatter. Their underlying message appends the embedded document without duplicating the location prefix.
+
 Bootstrap splicing follows the same include order and stage rules as any other pipeline. It consumes `stage`, `include`, `names`, and `features` directives before stitching.
 
 Before the loader stitches any stage, it makes sure that every required bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.
@@ -1982,6 +1988,8 @@ Next, the pipeline validator makes sure that feature roles agree across all stit
 A feature-role conflict names the stage and definition that introduce the conflicting role.
 
 These locations concern embedded definitions, not lines of the bootstrap JSON. The CLI reports the same bootstrap attribution.
+
+The final notation stage emits before its elision-only check, as every other stage does.
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
@@ -2520,7 +2528,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 
    Ordinary escape inspection then visits string and path tokens in source order. It applies the same restricted decoder to every `%names` path, even a misplaced one. It examines each token's original escapes from left to right. The first malformed, nonscalar, or unknown escape fails at its opening `‹`. The step precedes every syntax or reader error. Section 1 defines operand boundaries and preamble order.
 
-3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
+3. Syntax recognition runs next, over the complete token sequence. A syntax error stands at the furthest token reached and precedes every reader error. Unknown directives follow this same rule. The hand-written bootstrap reader follows the same lexical, escape, and syntax steps.
 4. Within a rule, the reader reads the definer, name, flags, and header tag, value, and image clauses before the body. At each construct in an alternative's expression, the reader makes sure that its form meets the rules. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: first the target and test order, at the first test that is not allowed there. A repeated kind or a tag test after a value test is an error at that later test. These checks precede the primary's contents and all test operands. So `{$c:B}="b"` and `[+KU $x:A]="a"` are errors at the test.
    - A capture: first a capture inside braces, then one inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
@@ -3262,7 +3270,7 @@ An `until` before a stage never evaluates that stage's declarations. Each stage 
 
 A stage-local feature is a loading error if a surviving earlier stage tests it, whether or not it also has a global declaration. The loader reports it at the local `%features` declaration, and the message names the earlier stage. The feature's own stage and later stages can test it. Caller configuration cannot bypass this loading rule.
 
-Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
+The loader rejects a pipeline without stages or a stage without rules before it examines local feature ownership. Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
 
 The loader examines rule guards and classifier guards before feature filtering. This includes classifiers that conditions use.
 

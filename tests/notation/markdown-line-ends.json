@@ -1,0 +1,16 @@
+{
+  "description": "Grammar lines and block boundaries each contribute one LF.",
+  "document": "```jbogenbau\r\n%const $X \"a\r\nb\"\r%rule text $X\n```\n",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "X",
+          "value": {
+            "string": "a\nb"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "description": "Distinct zero-source spans claim disjoint intervals within one uncovered gap (engine §11).",
+  "grammar": "%rule text $a:A B $c:A B $e:A B\n%emits $a :- $a.verbatim-text, $c :- $c.verbatim-text, $e :- $e.verbatim-text",
+  "input": "abcdef",
+  "tokens": [
+    {
+      "text": "0",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        0
+      ]
+    },
+    {
+      "text": "1",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        1,
+        1
+      ]
+    },
+    {
+      "text": "2",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        2,
+        2
+      ]
+    },
+    {
+      "text": "3",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        3,
+        3
+      ]
+    },
+    {
+      "text": "4",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        4,
+        4
+      ]
+    },
+    {
+      "text": "5",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        5,
+        5
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "image": "a"
+            },
+            {
+              "image": "bc"
+            },
+            {
+              "image": "de"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use crate::earley::{Cap, Caps, EngineError, Frame, Recognizer, Tok};
 use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::Implication;
-use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
+use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Lowered, Sym};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
 use crate::tags::{SetId, TagId, TagList, Tags};
@@ -349,7 +349,7 @@ enum Work<'g> {
         tags: SetId,
         strings: &'g crate::dom::Channels,
     },
-    /// An inserted token with one tag, at a token index, in a node.
+    /// An inserted token with an optional tag term, at a token index, in a node.
     Insert {
         tag: Option<&'g LTerm>,
         at: u32,
@@ -477,8 +477,8 @@ fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     }
 }
 
-/// The tags an emission item's term gives a token (§11): a term that gives
-/// none is an error of the grammar, since no terminal could read the token.
+/// The tags an emission item's term gives a token (§11). An empty set is
+/// legal, and string terminals and `_` can read the resulting token.
 fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &[Tok]) -> Result<SetId, EngineError> {
     recognizer.tag_term(term, frame, tokens, 0)
 }
@@ -573,24 +573,80 @@ impl Implications {
     }
 }
 
+/// The boundary names that emission tags can test, resolved once per emission.
+fn emission_targets(g: &Lowered) -> FxMap<String, Sym> {
+    let mut terms = Vec::new();
+    for production in &g.prods {
+        match &production.emit {
+            LEmit::This(tags) => terms.extend(tags.iter().flatten()),
+            LEmit::Items(items) => terms.extend(items.iter().filter_map(|item| match item {
+                LEmitItem::Cap(_, tags, _, _) | LEmitItem::Insert(tags, _) => tags.as_ref(),
+            })),
+            _ => {}
+        }
+    }
+    enum Part<'a> {
+        Term(&'a LTerm),
+        Condition(&'a LCond),
+    }
+    let mut pending: Vec<_> = terms.into_iter().map(Part::Term).collect();
+    let mut names = FxSet::default();
+    while let Some(part) = pending.pop() {
+        match part {
+            Part::Term(term) => match term {
+                LTerm::If(condition, value) => pending.extend([Part::Condition(condition), Part::Term(value)]),
+                LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => pending.extend(ts.iter().map(Part::Term)),
+                LTerm::Diff(a, b) | LTerm::Split(a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => pending.push(Part::Term(t)),
+                _ => {}
+            },
+            Part::Condition(condition) => match condition {
+                LCond::Boundary(_, _, targets, _, _) => names.extend(targets.iter().map(String::as_str)),
+                LCond::Not(c) => pending.push(Part::Condition(c)),
+                LCond::All(cs) | LCond::Any(cs) => pending.extend(cs.iter().map(Part::Condition)),
+                LCond::If(a, b) => pending.extend([Part::Condition(a), Part::Condition(b)]),
+                LCond::Cmp(_, a, b) => pending.extend([Part::Term(a), Part::Term(b)]),
+                _ => {}
+            },
+        }
+    }
+    if names.is_empty() {
+        return FxMap::default();
+    }
+    g.rules
+        .iter()
+        .enumerate()
+        .map(|(id, rule)| (rule.name.as_str(), Sym::N(id as u32)))
+        .chain(g.terminals.iter().enumerate().map(|(id, name)| (name.as_str(), Sym::T(id as u32))))
+        .filter(|(name, _)| names.contains(name))
+        .map(|(name, symbol)| (name.to_string(), symbol))
+        .collect()
+}
+
 /// Walks the chosen tree from the left and emits the next stage's tokens
 /// (§11).
 pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
     recognizer.shared.emission_boundaries.clear();
-    for node in &tree.nodes {
-        let (name, start, end) = match &node.kind {
-            IKind::Read { tok, terminal } => (g.terminals[*terminal as usize].as_str(), *tok, *tok + 1),
-            IKind::Close { prod, start, end, .. } => {
-                let r = &g.rules[g.prods[*prod as usize].rule as usize];
-                if r.helper || start == end {
-                    continue;
+    recognizer.shared.emission_targets = emission_targets(g);
+    if !recognizer.shared.emission_targets.is_empty() {
+        let targets: FxSet<_> = recognizer.shared.emission_targets.values().copied().collect();
+        for node in &tree.nodes {
+            let (symbol, start, end) = match &node.kind {
+                IKind::Read { tok, terminal } => (Sym::T(*terminal), *tok, *tok + 1),
+                IKind::Close { prod, start, end, .. } => {
+                    let rule = g.prods[*prod as usize].rule;
+                    if g.rules[rule as usize].helper || start == end {
+                        continue;
+                    }
+                    (Sym::N(rule), *start, *end)
                 }
-                (r.name.as_str(), *start, *end)
+            };
+            if targets.contains(&symbol) {
+                recognizer.shared.emission_boundaries.insert((true, start, symbol));
+                recognizer.shared.emission_boundaries.insert((false, end, symbol));
             }
-        };
-        recognizer.shared.emission_boundaries.entry((true, start)).or_default().insert(name.to_string());
-        recognizer.shared.emission_boundaries.entry((false, end)).or_default().insert(name.to_string());
+        }
     }
     let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).

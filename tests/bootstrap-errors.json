@@ -489,6 +489,14 @@
       "line": null,
       "column": null,
       "stage": null
+    },
+    {
+      "description": "Bootstrap formatting retains a custom stage and position",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"reader\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"../../../embedded.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"embedded.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"tags\":{\"method\":\"classify\",\"receiver\":{\"method\":\"source-text\",\"receiver\":{\"capture\":\"\"},\"args\":[]},\"args\":[{\"classifier\":\"missing\"}]},\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"A\"}}],\"conditions\":[],\"at\":[37,9],\"flags\":[]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "stage": "reader",
+      "line": 37,
+      "column": 9,
+      "context": "embedded.md"
     }
   ]
 }

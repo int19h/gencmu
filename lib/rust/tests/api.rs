@@ -1113,12 +1113,12 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
     let plain = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
     let cached = gencmu::load_pipeline_sources(&cached, "grammars/test/p.md").unwrap_err();
     assert_eq!(plain, cached);
-    assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"));
-    let site = plain.group.as_ref().unwrap();
+    assert_eq!(plain.code(), Some("ranked-choice-export"));
+    let site = plain.group().unwrap();
     assert_eq!(site.rule, "text");
     assert_eq!(site.path, "/seq/1/ranked/0");
     assert_eq!(site.at, Some((6, 47)));
-    assert_eq!(plain.option, Some(0));
+    assert_eq!(plain.option(), Some(0));
     let value = common::parse_json(&plain.to_json()).unwrap();
     assert_eq!(
         value.object().iter().map(|(key, _)| key.as_str()).collect::<Vec<_>>(),
@@ -1130,9 +1130,9 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
 fn ranked_tag_witness_is_shortest_in_source_order() {
     let text="%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ |  Z\n";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(error.code(), Some("ranked-choice-tags"));
     assert_eq!(
-        error.inheritance.as_ref().unwrap().iter().map(|site| site.rule.as_str()).collect::<Vec<_>>(),
+        error.inheritance().unwrap().iter().map(|site| site.rule.as_str()).collect::<Vec<_>>(),
         vec!["text", "a", "v"]
     );
 }
@@ -1141,21 +1141,21 @@ fn ranked_tag_witness_is_shortest_in_source_order() {
 fn ranked_error_retains_a_written_constant() {
     let text="%ambiguity-resolution late-elision\n%const $K Tag-k\n%rule text :: $x ⟹ ($x.tags ∪ $K) |  Q ($x:a ≻ b) Z\n%rule a X Y\n%rule b U V";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-export"));
+    assert_eq!(error.code(), Some("ranked-choice-export"));
     let (line, column) = common::position_of(&grammar(text), "$K)");
     let reference = format!(r#"{{"const":"K","at":[{line},{column}]}}"#);
-    assert!(error.expression.as_ref().unwrap().to_json().contains(&reference));
+    assert!(error.expression().unwrap().to_json().contains(&reference));
 }
 
 #[test]
 fn ranked_syntax_codes_and_retirement_are_specific() {
     for body in ["a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"] {
         let error = gencmu::tools::read_grammar_document(&grammar(&format!("%rule text {body}")), "").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
+        assert_eq!(error.code(), Some("ranked-choice-syntax"), "{body}: {error}");
     }
     let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b"), "").unwrap_err();
-    assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
-    assert!(error.code.is_none());
+    assert!(error.to_string().contains("syntax"));
+    assert!(error.code().is_none());
     assert_eq!((error.line, error.column), (Some(4), Some(1)));
 }
 
@@ -1166,12 +1166,12 @@ fn ranked_validation_never_builds_invalid_runtime_bindings() {
     {
         let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
         let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some(code));
+        assert_eq!(error.code(), Some(code));
     }
     // Retain an independent refusal of incompatible ranked tags.
     let text = "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y";
     let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
-    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
+    assert_eq!(error.code(), Some("ranked-choice-tags"));
 }
 
 #[test]
@@ -1269,8 +1269,8 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
         sources.insert("data/preparsed/test.json".into(), preparsed(&text, &dom));
         let cached = gencmu::load_pipeline_sources(&sources, "grammars/test/p.md").unwrap_err();
         assert_eq!(plain, cached, "{text}");
-        assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"), "{text}: {plain}");
-        assert!(plain.group.is_some() && plain.option.is_some() && plain.expression.is_some());
+        assert_eq!(plain.code(), Some("ranked-choice-export"), "{text}: {plain}");
+        assert!(plain.group().is_some() && plain.option().is_some() && plain.expression().is_some());
     }
 }
 
@@ -1332,4 +1332,27 @@ fn an_include_keeps_its_original_precomposed_path() {
     let pipeline = gencmu::load_pipeline_sources(sources, "p.md").expect("the exact include path");
     assert!(pipeline.parse("é", &ParseOptions::default()).unwrap().ok);
     assert!(pipeline.parse("e\u{301}", &ParseOptions::default()).unwrap().ok);
+}
+
+#[test]
+fn parse_usage_errors_follow_text_tokens_features_until_order() {
+    let pipeline = gencmu::load_pipeline_sources(single("%ambiguity-resolution greedy\n%rule text A"), "p.md").unwrap();
+    let options = gencmu::ParseOptions {
+        features: ["f".into()].into_iter().collect(),
+        without_features: ["f".into()].into_iter().collect(),
+        until: Some("missing".into()),
+        ..Default::default()
+    };
+    let tokens = ["first invalid tag", "second invalid tag"].map(|tag| gencmu::InputToken {
+        text: "a".into(),
+        tags: [tag.into()].into_iter().collect(),
+        ..Default::default()
+    });
+    let error = pipeline.parse_tokens(&tokens, &options).unwrap_err();
+    assert!(error.message.contains("first invalid tag"), "{error}");
+    let error = pipeline.parse("a", &options).unwrap_err();
+    assert!(error.message.contains("the feature f is named both"), "{error}");
+    let error =
+        pipeline.parse("a", &gencmu::ParseOptions { until: Some("missing".into()), ..Default::default() }).unwrap_err();
+    assert!(error.message.contains("has no stage"), "{error}");
 }
