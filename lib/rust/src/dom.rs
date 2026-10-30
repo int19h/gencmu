@@ -18,11 +18,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
             }
         }
     }
-    if crate::parameters::unresolved(dom) {
-        crate::parameters::problem(dom, unicode)
-    } else {
-        schema::problem(dom, unicode)
-    }
+    schema::problem(dom, unicode)
 }
 
 fn known_dom_members(dom: &Json) -> Option<Json> {

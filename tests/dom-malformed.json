@@ -14951,5 +14951,131 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An erased ordinary rule rejects an alternative value recipe.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "erased": true,
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An erased ordinary rule rejects an alternative image recipe.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "image": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "erased": true,
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An erased template rejects an alternative value recipe.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "erased": true,
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X"
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An erased template rejects an alternative image recipe.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "image": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "erased": true,
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X"
+      ]
+    },
+    "malformed": true
   }
 ]

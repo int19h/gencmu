@@ -333,7 +333,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             let expanded = x.substitute(&body, &env, &context, "term")?;
             let mut checked = expanded.clone();
             set(&mut checked, "name", string("expanded"));
-            if let Some(p) = schema::declaration(&checked, "rules", uni) {
+            if let Some(p) = dom::schema::declaration_problem(&checked, "rules", uni) {
                 return Err(context.fail(&expanded, p.into()));
             }
             x.instances[id].definitions.push(Event { rule: expanded, ..context });

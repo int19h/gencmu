@@ -7,7 +7,6 @@ mod audit;
 pub(crate) mod expand;
 pub(crate) mod locations;
 mod print;
-mod schema;
 #[cfg(test)]
 mod tests;
 pub(crate) use expand::expand;
@@ -240,11 +239,7 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         n
     })
 }
-pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
-    schema::problem(value, unicode)
-}
-
-pub(crate) use schema::declaration as declaration_problem;
+pub(crate) use crate::dom::schema::declaration_problem;
 
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];
