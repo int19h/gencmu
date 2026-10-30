@@ -3262,7 +3262,7 @@ An `until` before a stage never evaluates that stage's declarations. Each stage 
 
 A stage-local feature is a loading error if a surviving earlier stage tests it, whether or not it also has a global declaration. The loader reports it at the local `%features` declaration, and the message names the earlier stage. The feature's own stage and later stages can test it. Caller configuration cannot bypass this loading rule.
 
-Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
+The loader rejects a pipeline without stages or a stage without rules before it examines local feature ownership. Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
 
 The loader examines rule guards and classifier guards before feature filtering. This includes classifiers that conditions use.
 
