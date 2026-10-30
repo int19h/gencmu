@@ -365,6 +365,9 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                                 let hex = |at: &mut usize| -> Result<u32, String> {
                                     let digits: String =
                                         chars.get(*at..*at + 4).ok_or("a short escape")?.iter().collect();
+                                    if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                                        return Err("a bad hexadecimal escape".into());
+                                    }
                                     *at += 4;
                                     u32::from_str_radix(&digits, 16).map_err(|e| e.to_string())
                                 };
@@ -406,6 +409,10 @@ fn parse_scalar(chars: &[char], at: &mut usize) -> Result<Value, String> {
                     || chars[*at].is_ascii_digit())
             {
                 *at += 1;
+            }
+            let digits = start + usize::from(chars[start] == '-');
+            if chars.get(digits) == Some(&'0') && chars.get(digits + 1).is_some_and(char::is_ascii_digit) {
+                return Err("a leading zero in a number".into());
             }
             let text: String = chars[start..*at].iter().collect();
             text.parse().map(Value::Number).map_err(|_| format!("a bad number {text}"))

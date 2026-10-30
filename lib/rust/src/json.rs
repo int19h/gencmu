@@ -354,6 +354,9 @@ impl<'a> Reader<'a> {
         if self.at == digits {
             return Err(self.error("expected digits"));
         }
+        if self.at > digits + 1 && self.bytes[digits] == b'0' {
+            return Err(self.error("a leading zero in an integer"));
+        }
         if matches!(self.bytes.get(self.at), Some(b'.' | b'e' | b'E')) {
             return Err(self.error("only integers are supported"));
         }
@@ -362,6 +365,9 @@ impl<'a> Reader<'a> {
 
     fn hex4(&mut self) -> Result<u32, String> {
         let digits = self.text.get(self.at..self.at + 4).ok_or_else(|| self.error("a short \\u escape"))?;
+        if !digits.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(self.error("a bad \\u escape"));
+        }
         let value = u32::from_str_radix(digits, 16).map_err(|_| self.error("a bad \\u escape"))?;
         self.at += 4;
         Ok(value)
@@ -471,6 +477,16 @@ mod tests {
                 "{}",
                 case.get("description").unwrap().as_str().unwrap()
             );
+        }
+    }
+
+    #[test]
+    fn numbers_and_escapes_follow_json_spelling() {
+        for text in ["00", "01", "-01", "040", r#""\u+061""#, r#""\u-061""#, r#""\u00g1""#] {
+            assert!(parse(text).is_err(), "{text}");
+        }
+        for text in ["0", "-0", "1", "-10", r#""\u0061""#, r#""\uD83D\uDE00""#] {
+            assert!(parse(text).is_ok(), "{text}");
         }
     }
 

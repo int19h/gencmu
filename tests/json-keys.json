@@ -263,6 +263,18 @@
       "find": "\"hash\":\"",
       "replace": "\"hash\":\"stale-",
       "loads": true
+    },
+    {
+      "description": "Bootstrap rejects a leading-zero integer.",
+      "find": "\"format\":40",
+      "replace": "\"format\":040",
+      "loads": false
+    },
+    {
+      "description": "Bootstrap rejects a signed hexadecimal escape.",
+      "find": "\"format\":40",
+      "replace": "\"form\\u+061t\":40",
+      "loads": false
     }
   ],
   "preparsed": [
@@ -1871,6 +1883,18 @@
       "sources": {
         "grammars/test": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n"
       }
+    },
+    {
+      "description": "Cache rejects a leading-zero integer.",
+      "find": "\"format\":40",
+      "replace": "\"format\":040",
+      "cached": false
+    },
+    {
+      "description": "Cache rejects a signed hexadecimal escape.",
+      "find": "\"format\":40",
+      "replace": "\"form\\u+061t\":40",
+      "cached": false
     }
   ],
   "grammar": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n",
