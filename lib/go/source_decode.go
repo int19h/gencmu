@@ -68,3 +68,19 @@ func decodeParameter(o jobj) (string, [2]int, error) {
 	at, err := decodePosition(o["at"])
 	return name, at, err
 }
+
+func onlyMembers(o jobj, members ...string) bool {
+	for key := range o {
+		found := false
+		for _, member := range members {
+			if key == member {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}

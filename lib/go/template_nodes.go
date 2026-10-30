@@ -360,3 +360,15 @@ func templatePatternConstants(definitions []templateObject) map[string]bool {
 	return patterns
 }
 func (x *templateExpander) normalize(root any) any { return templateNormalize(root, x.patterns) }
+
+func templateOnly(n templateObject, keys ...string) bool {
+	if templateLen(n) != len(keys) {
+		return false
+	}
+	for _, k := range keys {
+		if _, ok := n[k]; !ok {
+			return false
+		}
+	}
+	return true
+}

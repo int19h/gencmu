@@ -13,6 +13,7 @@ const domFormat = 40
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what data/preparsed/gencmu.json and data/preparsed/FAMILY.json hold.
 type domDoc struct {
+	unresolved        bool
 	namesDependencies map[string]string
 	Rules             []*domRule
 	Directives        []*domDirective
@@ -46,27 +47,24 @@ type domEntry struct {
 // domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
 // whose type is a tag set.
 type domImplication struct {
-	rawTemplate templateObject
-	If, Then    *domTerm
-	At          [2]int
+	If, Then *domTerm
+	At       [2]int
 }
 
 // domConst is a constant's definition (engine §2): %const, "define", or
 // %redefine-const, "redefine", its name without $, and its value, a closed
 // term. The DOM never holds the value the loader gives the constant.
 type domConst struct {
-	rawTemplate templateObject
-	Name        string
-	Op          string
-	Value       *domTerm
-	At          [2]int
+	Name  string
+	Op    string
+	Value *domTerm
+	At    [2]int
 }
 
 type domRule struct {
 	Params           []string
 	Args             []*domArgument
 	Instance         *domSourceCall
-	rawTemplate      templateObject
 	deferredEmission string
 	Name             string
 	Flags            []string
@@ -270,11 +268,10 @@ func (e *domEmit) nothing() bool {
 }
 
 type domDirective struct {
-	rawTemplate templateObject
-	Conditions  []*domCond
-	Name        string
-	Args        []string
-	At          [2]int
+	Conditions []*domCond
+	Name       string
+	Args       []string
+	At         [2]int
 }
 
 // ---- writing
@@ -293,10 +290,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, dir := range d.Directives {
 		if i > 0 {
 			w.raw(",")
-		}
-		if dir.rawTemplate != nil {
-			writeTemplateJSON(w, dir.rawTemplate)
-			continue
 		}
 		w.raw(`{"name":`)
 		w.str(dir.Name)
@@ -326,10 +319,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 	for i, k := range d.Constants {
 		if i > 0 {
 			w.raw(",")
-		}
-		if k.rawTemplate != nil {
-			writeTemplateJSON(w, k.rawTemplate)
-			continue
 		}
 		w.raw(`{"name":`)
 		w.str(k.Name)
@@ -379,10 +368,6 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		if i > 0 {
 			w.raw(",")
 		}
-		if m.rawTemplate != nil {
-			writeTemplateJSON(w, m.rawTemplate)
-			continue
-		}
 		w.raw(`{"if":`)
 		m.If.writeJSON(w)
 		w.raw(`,"then":`)
@@ -414,10 +399,6 @@ func writeGuards(w *jsonWriter, guards []domGuard) {
 }
 
 func (r *domRule) writeJSON(w *jsonWriter) {
-	if r.rawTemplate != nil {
-		writeTemplateJSON(w, r.rawTemplate)
-		return
-	}
 	w.raw(`{"name":`)
 	w.str(r.Name)
 	w.raw(`,"op":`)
@@ -756,9 +737,7 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	return decodeDOMMode(raw, uni, false)
 }
 func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domDoc, error) {
-	var sourceDocument templateObject
 	if node, err := templateFromJSON(raw); err == nil {
-		sourceDocument = node
 		// Unknown directive members carry no grammar nodes.
 		for _, directive := range templateList(templateObj(node)["directives"]) {
 			for key := range templateObj(directive) {
@@ -856,30 +835,6 @@ func decodeDOMMode(raw json.RawMessage, uni *unicodeTable, expanded bool) (*domD
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})
 	}
 	if !expanded {
-		for i, rule := range d.Rules {
-			value := templateObj(templateList(sourceDocument["rules"])[i])
-			if templateUnresolved(value) {
-				rule.rawTemplate = value
-			}
-		}
-		for i, constant := range d.Constants {
-			value := templateObj(templateList(sourceDocument["constants"])[i])
-			if templateUnresolved(value) {
-				constant.rawTemplate = value
-			}
-		}
-		for i, implication := range d.Implications {
-			value := templateObj(templateList(sourceDocument["implications"])[i])
-			if templateUnresolved(value) {
-				implication.rawTemplate = value
-			}
-		}
-		for i, directive := range d.Directives {
-			value := templateObj(templateList(sourceDocument["directives"])[i])
-			if templateUnresolved(value) {
-				directive.rawTemplate = value
-			}
-		}
 		if err := validateDOM(d, uni); err != nil {
 			return nil, err
 		}
@@ -1007,6 +962,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !onlyMembers(o, "name", "params", "args", "instance", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at") {
+		return nil, fmt.Errorf("a malformed rule")
+	}
 	r := &domRule{}
 	if r.Name, err = decodeString(o["name"]); err != nil {
 		return nil, err
@@ -1034,6 +992,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		}
 	}
 	if instance, ok := o["instance"]; ok {
+		if !hasOneForm(o, [][]string{{"name", "op", "flags", "instance", "conditions", "at"}}) {
+			return nil, fmt.Errorf("a malformed instance binding")
+		}
 		call, err := decodeObj(instance)
 		if err != nil {
 			return nil, err
@@ -1056,9 +1017,6 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		}
 	}
 	// A flag: true or absent.
-	if o["opaque"] != nil {
-		return nil, fmt.Errorf("opaque is not a rule member")
-	}
 	if v, ok := o["erased"]; ok {
 		if !isTrue(v) {
 			return nil, fmt.Errorf("a malformed rule")
@@ -1073,6 +1031,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		return nil, err
 	}
 	if c, ok := o["conditions"]; ok {
+		if len(bytes.TrimSpace(c)) == 0 || bytes.TrimSpace(c)[0] != '[' {
+			return nil, fmt.Errorf("a malformed condition list")
+		}
 		if err := unmarshal(c, &conds); err != nil {
 			return nil, err
 		}
@@ -1081,6 +1042,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		ao, err := decodeObj(a)
 		if err != nil {
 			return nil, err
+		}
+		if !onlyMembers(ao, "guards", "expr", "tags", "value", "image") {
+			return nil, fmt.Errorf("a malformed alternative")
 		}
 		alt := &domAlt{}
 		// The guards of an alternative have the members of an entry's
@@ -1191,7 +1155,11 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	}
 	if _, ok := o["call"]; ok {
 		call, err := decodeSourceCall(o, depth)
-		return &domExpr{Kind: exCall, Call: call}, err
+		e := &domExpr{Kind: exCall, Call: call}
+		if call != nil {
+			e.At = call.At
+		}
+		return e, err
 	}
 	if v, ok := o[exRange]; ok {
 		r, err := decodeStringRange(v, depth)
@@ -1351,7 +1319,11 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 	}
 	if _, ok := o["call"]; ok {
 		call, err := decodeSourceCall(o, depth)
-		return &domTerm{Kind: tmSourceCall, Call: call}, err
+		t := &domTerm{Kind: tmSourceCall, Call: call}
+		if call != nil {
+			t.At = call.At
+		}
+		return t, err
 	}
 	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger} {
 		if v, ok := o[k]; ok {

@@ -547,17 +547,13 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			d.Rules = append(d.Rules, b.rule(c))
 		case "constant-definition":
 			constant := b.constant(c)
-			if b.unresolved {
-				constant.rawTemplate = templateObject{"name": constant.Name, "op": constant.Op, "value": templateSourceTerm(constant.Value), "at": templatePosition(constant.At)}
-			}
+
 			d.Constants = append(d.Constants, constant)
 		case "classifier":
 			d.Classifiers = append(d.Classifiers, b.classifier(c))
 		case "implication-declaration":
 			implication := b.implicationDeclaration(c)
-			if b.unresolved {
-				implication.rawTemplate = templateObject{"if": templateSourceTerm(implication.If), "then": templateSourceTerm(implication.Then), "at": templatePosition(implication.At)}
-			}
+
 			d.Implications = append(d.Implications, implication)
 		case "directive":
 			keyword := b.token(c)
@@ -623,12 +619,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				}
 				dir.Conditions = b.featureConditions(keyword, clause)
 			}
-			if b.unresolved {
-				dir.rawTemplate = templateWrittenDirective(dir)
-				for i, condition := range dir.Conditions {
-					templateAnnotateCond(templateObj(templateList(dir.rawTemplate["conditions"])[i]), condition)
-				}
-			}
+
 			d.Directives = append(d.Directives, dir)
 		}
 	}
@@ -794,7 +785,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
 			calls := ofRule(n, "call")
 			r.Instance = b.run(&sourceCallFrame{n: calls[len(calls)-1]}).(*domSourceCall)
-			r.rawTemplate = nativeRuleSource(r)
 			return r
 		}
 	}
@@ -830,7 +820,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	r.Erased = one(n, "erased-clause") != nil
 	flattenGroups(r)
 	if b.unresolved {
-		r.rawTemplate = nativeRuleSource(r)
 		return r
 	}
 	if b.hasBoundary {

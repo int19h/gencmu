@@ -16,18 +16,6 @@ type domArgument struct {
 	Targets      []*domTerm
 }
 
-func nativeRuleSource(r *domRule) templateObject {
-	raw := templateWritten(r)
-	templateNativeRuleSource(raw, r)
-	if r.Args != nil {
-		annotateSourceArguments(templateList(raw["args"]), r.Args)
-	}
-	if r.Instance != nil {
-		annotateSourceCall(templateObj(raw["instance"]), r.Instance)
-	}
-	return raw
-}
-
 func annotateSourceCall(raw templateObject, call *domSourceCall) {
 	templateLocate(raw, call.At)
 	annotateSourceArguments(templateList(raw["args"]), call.Args)
@@ -103,97 +91,179 @@ func annotateSourcePattern(raw templateObject, pattern *domPattern) {
 // Cache errors retain their DOM. A fresh read supplies private positions only.
 func restoreSourceLocations(to, from *domDoc) {
 	type pair struct{ target, source any }
-	copyRaw := func(target, source templateObject) {
-		pending := []pair{{target, source}}
-		for len(pending) > 0 {
-			p := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			if target := templateObj(p.target); target != nil {
-				source := templateObj(p.source)
-				if source == nil {
-					continue
-				}
-				if at := source[templateSourceKey]; at != nil {
-					target[templateSourceKey] = at
-				}
-				for key, value := range target {
-					if key != templateSourceKey {
-						pending = append(pending, pair{value, source[key]})
-					}
-				}
-			} else if target := templateList(p.target); target != nil {
-				source := templateList(p.source)
-				for i, value := range target {
-					if i < len(source) {
-						pending = append(pending, pair{value, source[i]})
-					}
-				}
+	var pending []pair
+	originals := map[[2]int]any{}
+	for _, r := range from.Rules {
+		originals[r.At] = r
+	}
+	for _, r := range from.Constants {
+		originals[r.At] = r
+	}
+	for _, r := range from.Directives {
+		originals[r.At] = r
+	}
+	for _, r := range from.Implications {
+		originals[r.At] = r
+	}
+	for _, r := range to.Rules {
+		pending = append(pending, pair{r, originals[r.At]})
+	}
+	for _, r := range to.Constants {
+		pending = append(pending, pair{r, originals[r.At]})
+	}
+	for _, r := range to.Directives {
+		pending = append(pending, pair{r, originals[r.At]})
+	}
+	for _, r := range to.Implications {
+		pending = append(pending, pair{r, originals[r.At]})
+	}
+	terms := func(a, b []*domTerm) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v, b[i]})
 			}
 		}
 	}
-	constants := map[[2]int]*domConst{}
-	for _, value := range from.Constants {
-		constants[value.At] = value
-	}
-	for _, value := range to.Constants {
-		if original := constants[value.At]; original != nil && value.rawTemplate != nil {
-			copyRaw(value.rawTemplate, original.rawTemplate)
-		}
-	}
-	directives := map[[2]int]*domDirective{}
-	for _, value := range from.Directives {
-		directives[value.At] = value
-	}
-	for _, value := range to.Directives {
-		if original := directives[value.At]; original != nil && value.rawTemplate != nil {
-			copyRaw(value.rawTemplate, original.rawTemplate)
-		}
-	}
-	implications := map[[2]int]*domImplication{}
-	for _, value := range from.Implications {
-		implications[value.At] = value
-	}
-	for _, value := range to.Implications {
-		if original := implications[value.At]; original != nil && value.rawTemplate != nil {
-			copyRaw(value.rawTemplate, original.rawTemplate)
-		}
-	}
-	written := map[[2]int]*domRule{}
-	for _, rule := range from.Rules {
-		written[rule.At] = rule
-	}
-	for _, rule := range to.Rules {
-		source := written[rule.At]
-		if source == nil {
-			continue
-		}
-		if rule.rawTemplate != nil {
-			raw := source.rawTemplate
-			if raw == nil {
-				raw = nativeRuleSource(source)
-			}
-			copyRaw(rule.rawTemplate, raw)
-			continue
-		}
-		type exprPair struct{ target, source *domExpr }
-		var pending []exprPair
-		for i, alt := range rule.Alternatives {
-			if i < len(source.Alternatives) {
-				pending = append(pending, exprPair{alt.Expr, source.Alternatives[i].Expr})
+	exprs := func(a, b []*domExpr) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v, b[i]})
 			}
 		}
-		for len(pending) > 0 {
-			p := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			if p.target == nil || p.source == nil || p.target.Kind != p.source.Kind {
+	}
+	conds := func(a, b []*domCond) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v, b[i]})
+			}
+		}
+	}
+	args := func(a, b []*domArgument) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v, b[i]})
+			}
+		}
+	}
+	patterns := func(a, b []*domPattern) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v, b[i]})
+			}
+		}
+	}
+	requirements := func(a, b []tagRequirement) {
+		for i, v := range a {
+			if i < len(b) {
+				pending = append(pending, pair{v.Value, b[i].Value})
+			}
+		}
+	}
+	for len(pending) > 0 {
+		current := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		switch a := current.target.(type) {
+		case *domRule:
+			b, ok := current.source.(*domRule)
+			if !ok || a == nil || b == nil {
 				continue
 			}
-			p.target.RankedAt = p.source.RankedAt
-			pending = append(pending, exprPair{p.target.Inner, p.source.Inner}, exprPair{p.target.Sep, p.source.Sep})
-			for i, child := range p.target.Items {
-				if i < len(p.source.Items) {
-					pending = append(pending, exprPair{child, p.source.Items[i]})
+			pending = append(pending, pair{a.Tags, b.Tags}, pair{a.Value, b.Value}, pair{a.Image, b.Image}, pair{a.Instance, b.Instance}, pair{a.Emit, b.Emit})
+			args(a.Args, b.Args)
+			conds(a.Conditions, b.Conditions)
+			for i, v := range a.Alternatives {
+				if i < len(b.Alternatives) {
+					pending = append(pending, pair{v, b.Alternatives[i]})
 				}
+			}
+		case *domAlt:
+			b, ok := current.source.(*domAlt)
+			if !ok || a == nil || b == nil {
+				continue
+			}
+			pending = append(pending, pair{a.Expr, b.Expr}, pair{a.Tags, b.Tags}, pair{a.Value, b.Value}, pair{a.Image, b.Image})
+		case *domConst:
+			b, ok := current.source.(*domConst)
+			if ok && a != nil && b != nil {
+				pending = append(pending, pair{a.Value, b.Value})
+			}
+		case *domDirective:
+			b, ok := current.source.(*domDirective)
+			if ok && a != nil && b != nil {
+				conds(a.Conditions, b.Conditions)
+			}
+		case *domImplication:
+			b, ok := current.source.(*domImplication)
+			if ok && a != nil && b != nil {
+				pending = append(pending, pair{a.If, b.If}, pair{a.Then, b.Then})
+			}
+		case *domExpr:
+			b, ok := current.source.(*domExpr)
+			if !ok || a == nil || b == nil || a.Kind != b.Kind {
+				continue
+			}
+			if a.Kind != exParam {
+				a.At = b.At
+			}
+			a.RankedAt = b.RankedAt
+			exprs(a.Items, b.Items)
+			requirements(a.Requirements, b.Requirements)
+			pending = append(pending, pair{a.Inner, b.Inner}, pair{a.Sep, b.Sep}, pair{a.Value, b.Value}, pair{a.Call, b.Call}, pair{a.Ends[0], b.Ends[0]}, pair{a.Ends[1], b.Ends[1]})
+		case *domTerm:
+			b, ok := current.source.(*domTerm)
+			if !ok || a == nil || b == nil || a.Kind != b.Kind {
+				continue
+			}
+			if a.Kind != tmParam && a.Kind != tmConst && a.Kind != tmSourceCall {
+				a.At = b.At
+			}
+			terms(a.Items, b.Items)
+			pending = append(pending, pair{a.Call, b.Call}, pair{a.Cond, b.Cond}, pair{a.Pattern, b.Pattern})
+		case *domCond:
+			b, ok := current.source.(*domCond)
+			if !ok || a == nil || b == nil || a.Kind != b.Kind {
+				continue
+			}
+			a.At = b.At
+			terms(a.Targets, b.Targets)
+			conds(a.Items, b.Items)
+			pending = append(pending, pair{a.Left, b.Left}, pair{a.Right, b.Right}, pair{a.Span, b.Span}, pair{a.Inner, b.Inner})
+		case *domSourceCall:
+			b, ok := current.source.(*domSourceCall)
+			if ok && a != nil && b != nil {
+				args(a.Args, b.Args)
+			}
+		case *domArgument:
+			b, ok := current.source.(*domArgument)
+			if !ok || a == nil || b == nil {
+				continue
+			}
+			pending = append(pending, pair{a.Term, b.Term}, pair{a.Expr, b.Expr})
+			requirements(a.Requirements, b.Requirements)
+			terms(a.Targets, b.Targets)
+		case *domPattern:
+			b, ok := current.source.(*domPattern)
+			if !ok || a == nil || b == nil || a.Kind != b.Kind {
+				continue
+			}
+			patterns(a.Items, b.Items)
+			patterns(a.Attached, b.Attached)
+			requirements(a.Requirements, b.Requirements)
+			pending = append(pending, pair{a.Value, b.Value}, pair{a.Call, b.Call}, pair{a.Ends[0], b.Ends[0]}, pair{a.Ends[1], b.Ends[1]})
+		case *domEmit:
+			b, ok := current.source.(*domEmit)
+			if !ok || a == nil || b == nil {
+				continue
+			}
+			for i, v := range a.Items {
+				if i < len(b.Items) {
+					pending = append(pending, pair{v, b.Items[i]})
+				}
+			}
+		case *domEmitItem:
+			b, ok := current.source.(*domEmitItem)
+			if ok && a != nil && b != nil {
+				pending = append(pending, pair{a.Tags, b.Tags}, pair{a.Value, b.Value}, pair{a.Image, b.Image})
 			}
 		}
 	}

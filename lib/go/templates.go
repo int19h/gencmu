@@ -7,11 +7,12 @@ import (
 )
 
 type templateEvent struct {
-	path     string
-	rule     templateObject
-	index    int
-	origin   templateObject
-	instance string
+	definition *templateEvent // the source definition shared by validation and output
+	path       string
+	rule       templateObject
+	index      int
+	origin     templateObject
+	instance   string
 }
 type ruleTemplate struct {
 	name, path string
@@ -103,18 +104,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	}()
 	unresolved := false
 	for _, d := range docs {
-		for _, r := range d.dom.Rules {
-			unresolved = unresolved || r.rawTemplate != nil
-		}
-		for _, r := range d.dom.Constants {
-			unresolved = unresolved || r.rawTemplate != nil
-		}
-		for _, r := range d.dom.Directives {
-			unresolved = unresolved || r.rawTemplate != nil
-		}
-		for _, r := range d.dom.Implications {
-			unresolved = unresolved || r.rawTemplate != nil
-		}
+		unresolved = unresolved || d.dom.unresolved
 	}
 	if !unresolved {
 		return &templateExpansion{docs: docs}, nil
@@ -281,11 +271,6 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			body["name"] = i.effective()
 			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: i.origin, instance: i.canonical}
 			expanded := x.substitute(body, env, context, "term")
-			checked := templateCopy(templateObj(expanded))
-			checked["name"] = "expanded"
-			if p := checkTemplateDeclaration(checked, "rules", uni); p != nil {
-				x.fail(context, templateObj(expanded), p.message)
-			}
 			copy := *context
 			copy.rule = templateObj(expanded)
 			i.definitions = append(i.definitions, &copy)
@@ -298,6 +283,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	for _, e := range events {
 		if e.rule["params"] == nil && e.rule["args"] == nil && e.rule["instance"] == nil {
 			copy := *e
+			copy.definition = e
 			copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
 			validation = append(validation, &copy)
 		}
@@ -305,6 +291,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	for _, i := range x.queue {
 		for _, e := range i.definitions {
 			copy := *e
+			copy.definition = e
 			body := templateCopy(e.rule)
 			body["name"] = i.effective()
 			copy.rule = templateObj(x.rewrite(body, e, "term"))
@@ -312,36 +299,24 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		}
 	}
 	users := []constUser{}
+	decoded := map[*templateEvent]*domDoc{}
 	for _, e := range validation {
-		shadow := templateObj(templateClone(e.rule))
-		aliases := map[string]string{}
-		for _, n := range templateNodes(shadow) {
-			for _, k := range []string{"name", "rule", "ref"} {
-				s := templateText(n[k])
-				if strings.Contains(s, "(") {
-					if aliases[s] == "" {
-						aliases[s] = fmt.Sprintf("instance-%d", len(aliases))
-					}
-					n[k] = aliases[s]
-				}
-			}
-		}
-		dom, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{shadow})), uni, false)
+		dom, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), uni, true)
 		if decodeErr != nil {
 			x.fail(e, e.rule, decodeErr.Error())
 		}
-		_ = dom
-		written, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), uni, true)
-		if decodeErr != nil {
-			x.fail(e, e.rule, decodeErr.Error())
+		if problem := checkDOMMode(dom, uni, true); problem != nil {
+			x.fail(e, e.rule, problem.message)
 		}
-		restoreTemplateRuleLocations(written.Rules[0], e.rule)
-		users = append(users, constUser{doc: e.path, rule: written.Rules[0]})
+		restoreTemplateRuleLocations(dom.Rules[0], e.rule)
+		decoded[e.definition] = dom
+		users = append(users, constUser{doc: e.path, rule: dom.Rules[0]})
 	}
 	output := []*templateEvent{}
 	for _, name := range slots {
 		for _, e := range ordinary[name] {
 			copy := *e
+			copy.definition = e
 			copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
 			output = append(output, &copy)
 		}
@@ -349,6 +324,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 	for _, i := range x.queue {
 		for _, e := range i.definitions {
 			copy := *e
+			copy.definition = e
 			body := templateCopy(e.rule)
 			body["name"] = i.effective()
 			copy.rule = templateObj(x.rewrite(body, e, "term"))
@@ -383,11 +359,16 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		expandedDocs = append(expandedDocs, docDOM{d.path, written})
 	}
 	for _, e := range output {
-		dom, decodeErr := decodeDOMMode(templateJSON(templateDocument([]any{e.rule})), uni, true)
-		if decodeErr != nil {
-			x.fail(e, e.rule, decodeErr.Error())
+		dom := decoded[e.definition]
+		if dom == nil {
+			panic("an expanded output definition was not validated")
 		}
-		restoreTemplateRuleLocations(dom.Rules[0], e.rule)
+		// The first output definition of a name introduces that runtime rule.
+		if dom.Rules[0].Op != templateText(e.rule["op"]) {
+			rule := *dom.Rules[0]
+			rule.Op = templateText(e.rule["op"])
+			dom = &domDoc{Rules: []*domRule{&rule}}
+		}
 		expandedDocs = append(expandedDocs, docDOM{e.path, dom})
 	}
 	order := []string{}

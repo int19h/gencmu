@@ -184,9 +184,8 @@ func TestParameterSuppliedDOM(t *testing.T) {
 }
 func TestParameterSuppliedBodyNormalizes(t *testing.T) {
 	d := parameterRead(t, "%ambiguity-resolution greedy\n%rule atom(@X) @X\n%rule text atom(\"a\") atom(\"a\")")
-	r := d.Rules[1].rawTemplate
-	second := templateObj(templateList(templateObj(templateObj(templateList(r["alternatives"])[0])["expr"])["seq"])[1])
-	second["args"] = []any{templateObject{"body": templateObject{"literal": templateObject{"string": "a"}}}}
+	call := d.Rules[1].Alternatives[0].Expr.Items[1].Call
+	call.Args = []*domArgument{{Body: true, Expr: &domExpr{Kind: exLiteral, Value: &domTerm{Kind: tmString, Str: "a"}}}}
 	if e := validateDOM(d, bundled.uni); e != nil {
 		t.Fatal(e)
 	}
@@ -221,18 +220,17 @@ func TestParameterOrdinaryEditHistory(t *testing.T) {
 func TestParameterDeepBodies(t *testing.T) {
 	for _, supplied := range []bool{false, true} {
 		d := parameterRead(t, "%rule atom(@X) @X\n%rule text atom(\"a\")")
-		expr := templateObject{"param": "X", "at": templatePosition([2]int{2, 16})}
+		expr := &domExpr{Kind: exParam, Name: "X", At: [2]int{2, 16}}
 		if supplied {
-			expr = templateObject{"literal": templateObject{"string": "a"}}
+			expr = &domExpr{Kind: exLiteral, Value: &domTerm{Kind: tmString, Str: "a"}}
 		}
 		for range 250 {
-			expr = templateObject{"seq": []any{expr, templateObject{"empty": true}}}
+			expr = &domExpr{Kind: exSeq, Items: []*domExpr{expr, {Kind: exEmpty}}}
 		}
 		if supplied {
-			r := d.Rules[1].rawTemplate
-			templateObj(templateObj(templateList(r["alternatives"])[0])["expr"])["args"] = []any{templateObject{"body": expr}}
+			d.Rules[1].Alternatives[0].Expr.Call.Args = []*domArgument{{Body: true, Expr: expr}}
 		} else {
-			templateObj(templateList(d.Rules[0].rawTemplate["alternatives"])[0])["expr"] = expr
+			d.Rules[0].Alternatives[0].Expr = expr
 		}
 		if e := validateDOM(d, bundled.uni); e != nil {
 			t.Fatal(e)
@@ -288,7 +286,7 @@ func TestParameterCacheValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 		if valid {
-			if templateObj(templateObj(templateList(got.Rules[1].rawTemplate["instance"].(map[string]any)["args"])[0])["body"]) == nil {
+			if !got.Rules[1].Instance.Args[0].Body {
 				t.Fatal("valid cached argument was not used")
 			}
 		} else {
@@ -527,14 +525,13 @@ func TestParameterSharedStructure(t *testing.T) {
 
 func TestParameterOverDeepSuppliedTemplate(t *testing.T) {
 	d := parameterRead(t, "%rule use(@X) @X")
-	rule := templateObj(templateClone(d.Rules[0].rawTemplate))
-	expr := templateObject{"param": "X", "at": templatePosition([2]int{1, 1})}
-	for i := 0; i < 20000; i++ {
-		expr = templateObject{"optional": expr}
+	expr := &domExpr{Kind: exParam, Name: "X", At: [2]int{1, 1}}
+	for range 20000 {
+		expr = &domExpr{Kind: exOptional, Inner: expr}
 	}
-	templateObj(templateList(rule["alternatives"])[0])["expr"] = expr
-	p := checkTemplateDeclaration(rule, "rules", bundled.uni)
-	if p == nil || p.message != errTooDeep.Error() {
+	d.Rules[0].Alternatives[0].Expr = expr
+	p := checkDOM(d, bundled.uni)
+	if p == nil || !p.tooDeep {
 		t.Fatalf("got %v", p)
 	}
 }
@@ -571,16 +568,23 @@ func TestTemplatePatternClosedness(t *testing.T) {
 			test["value"] = templateObject{"capture": "x", "call": "atom", "args": []any{templateObject{"string": "a"}}, "at": templatePosition([2]int{3, 12})}
 		}
 		value := templateObject{"pattern": test}
-		if p := templateClosedProblem(value); p != "" {
-			t.Fatalf("closedness entered a pattern: %s", p)
-		}
 		constant := templateObject{"name": "P", "op": "define", "value": value, "at": templatePosition([2]int{3, 1})}
 		implication := templateObject{"if": value, "then": templateObject{"tag": "A"}, "at": templatePosition([2]int{3, 1})}
 		for kind, r := range map[string]templateObject{"constants": constant, "implications": implication} {
-			p := checkTemplateDeclaration(r, kind, bundled.uni)
-			if p == nil || p.message != "a malformed pattern value test" {
-				t.Fatalf("%s missing=%v: %v", kind, missing, p)
+			document := templateDocument(nil)
+			document[kind] = []any{r}
+			_, err := decodeDOM(templateJSON(document), bundled.uni)
+			if err == nil || err.Error() != "a malformed pattern value test" {
+				t.Fatalf("%s missing=%v: %v", kind, missing, err)
 			}
 		}
+	}
+}
+
+func TestParameterErrorsUseEffectiveNames(t *testing.T) {
+	text := "%rule use(@X) @X :: @X\n%rule text use(\"a\")"
+	_, err := casePipeline(&engineCase{Grammar: &text}, false)
+	if err == nil || !strings.Contains(err.Error(), `rule use("a"):`) || strings.Contains(err.Error(), "instance-") {
+		t.Fatalf("effective name missing: %v", err)
 	}
 }

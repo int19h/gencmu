@@ -14853,5 +14853,103 @@
     ]
   },
   "malformed": false
-}
+},
+  {
+    "description": "An ordinary rule rejects an unknown rule member.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "extra": true
+    },
+    "malformed": true
+  },
+  {
+    "description": "An ordinary rule rejects an unknown alternative member.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "extra": true
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A template rejects an unknown rule member.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X"
+      ],
+      "extra": true
+    },
+    "malformed": true
+  },
+  {
+    "description": "A template rejects an unknown alternative member.",
+    "rule": {
+      "name": "unit",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "extra": true
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "params": [
+        "X"
+      ]
+    },
+    "malformed": true
+  }
 ]

@@ -25,11 +25,6 @@ func templateSourceAt(n templateObject) [2]int {
 	}
 	return templateAt(n)
 }
-func templateSourceTerm(t *domTerm) templateObject {
-	n := templateWritten(t)
-	templateAnnotateTerm(n, t)
-	return n
-}
 func templateAnnotateTerm(n templateObject, t *domTerm) {
 	if t == nil || n == nil {
 		return
@@ -112,26 +107,26 @@ func templateAnnotateExpr(n templateObject, e *domExpr) {
 }
 func templateSourceDocument(raw templateObject, d *domDoc) {
 	for i, r := range d.Rules {
-		if r.rawTemplate != nil {
-			templateList(raw["rules"])[i] = r.rawTemplate
-		} else {
-			templateNativeRuleSource(templateObj(templateList(raw["rules"])[i]), r)
+		n := templateObj(templateList(raw["rules"])[i])
+		templateNativeRuleSource(n, r)
+		annotateSourceArguments(templateList(n["args"]), r.Args)
+		if r.Instance != nil {
+			annotateSourceCall(templateObj(n["instance"]), r.Instance)
 		}
 	}
 	for i, r := range d.Constants {
-		if r.rawTemplate != nil {
-			templateList(raw["constants"])[i] = r.rawTemplate
-		}
+		templateAnnotateTerm(templateObj(templateObj(templateList(raw["constants"])[i])["value"]), r.Value)
 	}
 	for i, r := range d.Directives {
-		if r.rawTemplate != nil {
-			templateList(raw["directives"])[i] = r.rawTemplate
+		n := templateObj(templateList(raw["directives"])[i])
+		for j, condition := range r.Conditions {
+			templateAnnotateCond(templateObj(templateList(n["conditions"])[j]), condition)
 		}
 	}
 	for i, r := range d.Implications {
-		if r.rawTemplate != nil {
-			templateList(raw["implications"])[i] = r.rawTemplate
-		}
+		n := templateObj(templateList(raw["implications"])[i])
+		templateAnnotateTerm(templateObj(n["if"]), r.If)
+		templateAnnotateTerm(templateObj(n["then"]), r.Then)
 	}
 }
 func templateNativeRuleSource(raw templateObject, r *domRule) {

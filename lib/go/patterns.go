@@ -78,7 +78,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			}
 			continue
 		}
-		if check != nil && (p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
+		if check != nil && (p.Kind == "param" || p.Kind == "call" || p.Kind == "name" || p.Kind == "literal" || p.Kind == "range" || p.Kind == "wildcard" || p.Kind == "test") {
 			if problem := check(p, e.depth); problem != "" {
 				return problem
 			}
@@ -92,7 +92,7 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 			}
 		case "children":
 			push(p.Items[0], true)
-		case "name", "terminal", "constant", "literal", "range", "wildcard", "any":
+		case "param", "call", "name", "terminal", "constant", "literal", "range", "wildcard", "any":
 		default:
 			return "a malformed pattern"
 		}
