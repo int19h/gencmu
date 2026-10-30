@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
+from ._clauses import attachment_order, definition_problem, duplicate_captures, deferred_emission_problem, item_captures, rule_has_ranked
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
@@ -86,10 +86,14 @@ class DomBuilder:
         # a test's operand, or None (engine §9, §10).
         self.closed_for: str | None = None
         # The notation node of each capture of the alternative being read,
-        # by the identity of its DOM, and how many braces and elidable
-        # optionals the reader is inside, where no capture stands.
+        # by the identity of its DOM; the braces around the construct being
+        # read, innermost last, each as whether it is a chain and how many
+        # ranked groups are open inside it, since a chain and a ranked group
+        # inside flat braces hold no capture; and how many elidable optionals
+        # the reader is inside, where no capture stands either (engine §3.5,
+        # §9).
         self.capture_nodes: dict[int, Node] = {}
-        self.braces = 0
+        self.braces: list[list[Any]] = []
         self.marked = 0
         # The types found of the terms and conditions read, each found once
         # (engine §10).
@@ -480,7 +484,7 @@ class DomBuilder:
     def alternative(self, node: Node) -> Dom:
         guards: list[Dom] = []
         self.capture_nodes = {}
-        self.braces = 0
+        self.braces = []
         self.marked = 0
         guards = [self.guard(guard) for guard in self.rules(node, "guard")]
         expr = run(self._expr(self.only(node, "ranked-choice" if node.rule == "ranked-alternative" else "conjunction"), True))
@@ -492,6 +496,21 @@ class DomBuilder:
             first = min(twice, key=lambda capture: self.first_token(capture) or 0)
             name = self.token_value(self.token(first))[1:]
             raise self.fail(first, f"the capture ${name} is read twice by one production of the alternative")
+        # The name of an item capture stands nowhere else in the alternative
+        # (engine §3.5, §9): the error stands at the later capture in the
+        # text.
+        items = item_captures(expr)
+        if items:
+            seen: dict[str, Node] = {}
+            for capture in all_captures(expr):
+                name = capture["capture"]
+                at = self.capture_nodes[id(capture)]
+                earlier = seen.get(name)
+                if earlier is not None and name in items:
+                    later = at if (self.first_token(earlier) or 0) < (self.first_token(at) or 0) else earlier
+                    raise self.fail(later, f"the item capture ${name} is read again: the name of an item capture stands once in its alternative")
+                if earlier is None:
+                    seen[name] = at
         return {"guards": guards, "expr": expr, **self.clauses(node, "alternative-tags", True)}
 
     def own_tags(self, node: Node) -> Dom:
@@ -536,8 +555,13 @@ class DomBuilder:
             # an item of a sequence or of & of several.
             nested = whole and rule not in ("choice", "ranked-choice") and len(parts) == 1
             items: list[Dom] = []
+            enclosing = self.braces[-1] if rule == "ranked-choice" and self.braces else None
+            if enclosing is not None:
+                enclosing[1] += 1
             for p in parts:
                 items.append((yield self._expr(self.known_of(p, _PRIMARIES) if rule == "sequence" else p, nested)))
+            if enclosing is not None:
+                enclosing[1] -= 1
             if len(items) == 1:
                 return items[0]
             key = {"choice": "choice", "ranked-choice": "ranked", "conjunction": "and", "sequence": "seq"}[rule]
@@ -565,8 +589,11 @@ class DomBuilder:
         if rule == "capture":
             # Its place, its name and its symbol, in that order, before what
             # it wraps (engine §9).
-            if self.braces:
-                raise self.fail(node, "a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that")
+            innermost = self.braces[-1] if self.braces else None
+            if innermost is not None and innermost[0]:
+                raise self.fail(node, "a capture cannot stand inside a chain, whose levels are constituents of its rule: a condition on $ serves each level")
+            if innermost is not None and innermost[1] > 0:
+                raise self.fail(node, "an item capture cannot stand inside a ranked group: name the ranked choice as a rule and capture that rule")
             if self.marked:
                 raise self.fail(node, "a capture cannot stand inside an elidable optional, which elision restores as one unit")
             name = self.token_value(self.token(node))[1:]
@@ -664,11 +691,11 @@ class DomBuilder:
         # lowering of its levels needs (engine §3.3, §9).
         if chain is not None and not whole:
             raise self.fail(node, "a chain is the whole expression of its alternative: name it as a rule to use it here")
-        self.braces += 1
+        self.braces.append([chain is not None, 0])
         result: Dom = {"repeat": (yield self._expr(choices[0]))}
         if len(choices) >= 2:
             result["separator"] = yield self._expr(choices[1])
-        self.braces -= 1
+        self.braces.pop()
         if chain is not None:
             result["chain"] = chain
         return result
@@ -1279,3 +1306,22 @@ def operand_problem(name: str, kinds: list[str]) -> str | None:
     if name == "features":
         return None if kinds and names else "%features takes one or more names"
     return None if names else f"%{name} takes names only"
+
+
+def all_captures(expr: Dom) -> list[Dom]:
+    """The captures of an expression in the order written, braces
+    included."""
+    found: list[Dom] = []
+    stack: list[Any] = [expr]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        if isinstance(node.get("capture"), str) and "expr" in node:
+            found.append(node)
+        children = [node[key] for key in ("optional", "repeat", "separator", "expr") if key in node]
+        for key in ("seq", "choice", "ranked", "and"):
+            if isinstance(node.get(key), list):
+                children = node[key]
+        stack.extend(reversed(children))
+    return found

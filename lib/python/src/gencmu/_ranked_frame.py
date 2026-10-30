@@ -1,7 +1,7 @@
 """Written prefix values and ready conditions across generated helpers."""
 from dataclasses import dataclass, replace
 from ._ranked import reads
-from ._clauses import simplify_condition, simplify_term, captures_in
+from ._clauses import WHOLE, simplify_condition, simplify_term, captures_in, prepare_conditions
 
 
 @dataclass(eq=False)
@@ -34,7 +34,8 @@ def prepare_ranked(lowered):
             lowered.ranked_helpers[p.lhs] = p.ranked
         if p.helper and p.slot is not None:
             lowered.written_helpers[p.lhs] = (p.rule_name, p.slot.source.document, p.slot.source.at, ranked.paths[p.slot.path])
-            p.contextual = id(p.slot.source) in sources
+            p.contextual = p.contextual or id(p.slot.source) in sources
+            lowered.contextual = lowered.contextual or p.contextual
     for p in lowered.productions:
         if p.ranked is None:
             continue
@@ -125,10 +126,35 @@ def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes
     def observation(part):
         return (*part[:4], closes.semantic(part[4])) if closes is not None and len(part) > 4 else part
     captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
-    source = (p.rule_name,p.slot.source.document,p.slot.source.at,lowered.written_helpers.get(p.lhs))
+    source = (p.rule_name, *written_source(p), lowered.written_helpers.get(p.lhs))
     parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
     key = (parent, source, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
     return key + (closes.semantic(close_prefix),) if closes is not None else key
+
+
+def written_source(p):
+    """The document and place of the alternative that wrote a production, for
+    the key of a frame; a production that no alternative wrote stands by its
+    number."""
+    source = p.slot.source if p.slot is not None else p.source
+    return (source.document, source.at) if source is not None else (None, p.id)
+
+
+def item_frame_conditions(p, frame, prepared):
+    """The item conditions of a contextual brace helper, simplified for one
+    of its productions in one frame (engine §3.6, §4), each with the position
+    of the last item capture it reads, or -1 where it reads frame captures
+    alone. A condition drops where the production lacks an item capture it
+    uses, or the frame an outer one. A condition false for the production
+    never holds."""
+    present = {WHOLE} | frame.present | p.captures.keys()
+    for condition in prepared.kept(present):
+        if condition is False:
+            condition = {'any': []}
+        names = captures_in(condition)
+        if not all(name in p.captures or name in frame.captures for name in names):
+            continue
+        yield condition, max((p.captures[name] for name in names if name in p.captures), default=-1)
 
 
 class Frames:
@@ -136,6 +162,9 @@ class Frames:
         self.lowered,self.machine = lowered,machine
         self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
+        # The item conditions of each production, prepared once for all its
+        # frames, by its number.
+        self.prepared_items = {}
 
     def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None):
         own = self.lowered.rule_productions[rule]
@@ -154,7 +183,9 @@ class Frames:
         present = (outer.present if outer else set()) | {n for n in p.captures if not n.startswith('\u0000')}
         root = outer.root if outer else p
         named_origin = outer.origin if outer else origin
-        prefix = self.machine.concat(outer.prefix,prefix) if outer else prefix
+        # Without ranked groups and patterns there is no machine, and the
+        # prefixes are all empty.
+        prefix = self.machine.concat(outer.prefix,prefix) if outer and self.machine is not None else prefix
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
         frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
@@ -199,17 +230,34 @@ class Frames:
         if key in self.productions:
             return self.productions[key]
         q = replace(p,id=len(self.lowered.productions),base_id=p.id,lexical=frame,conds_predict=[],conds_at={},whole_ready=False)
-        source = p.slot.source
-        private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
-        for condition, at, whole in frame_conditions(p, frame, private):
-            q.whole_ready |= whole
-            if at<0:
-                q.conds_predict.append(condition)
-            else:
-                q.conds_at.setdefault(at,[]).append(condition)
-        public = {''} | (frame.present-private)
-        tags = [simplify_term(t,public) for t in (source.tags,source.rule_tags) if t is not None]
-        q.parent_tags = tags[0] if len(tags)==1 else {'union':tags} if tags else {'emptySet':True}
+        if p.slot is not None:
+            source = p.slot.source
+            private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
+            for condition, at, whole in frame_conditions(p, frame, private):
+                q.whole_ready |= whole
+                if at<0:
+                    q.conds_predict.append(condition)
+                else:
+                    q.conds_at.setdefault(at,[]).append(condition)
+            public = {''} | (frame.present-private)
+            tags = [simplify_term(t,public) for t in (source.tags,source.rule_tags) if t is not None]
+            q.parent_tags = tags[0] if len(tags)==1 else {'union':tags} if tags else {'emptySet':True}
+        else:
+            # A helper outside every ranked alternative: a frame gives it the
+            # enclosing item's captures and nothing else.
+            q.parent_tags = {'emptySet': True}
+        if p.items is not None:
+            # The item conditions of the braces' alternative run in the
+            # helper, with the enclosing item's captures from the frame
+            # (engine §4), after the clauses ready at the same boundary.
+            prepared = self.prepared_items.get(p.id)
+            if prepared is None:
+                prepared = self.prepared_items[p.id] = prepare_conditions(list(p.items.conditions))
+            for condition, at in item_frame_conditions(p, frame, prepared):
+                if at<0:
+                    q.conds_predict.append(condition)
+                else:
+                    q.conds_at.setdefault(at,[]).append(condition)
         self.lowered.productions.append(q)
         self.productions[key] = q
         return q

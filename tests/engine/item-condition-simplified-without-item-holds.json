@@ -1,0 +1,35 @@
+{
+  "description": "An item condition is simplified for each helper production. For the A item, which lacks $c, the condition reads only the outer capture $o, whose value x satisfies it (engine §3.6).",
+  "grammar": "%rule text $o:O {A | $c:B}\n%conditions $c ∨ $o.value = \"x\"",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "O"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

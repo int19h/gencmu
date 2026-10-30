@@ -371,7 +371,7 @@ def suffix_reads_end(lowered: Lowered, number: int) -> bool:
         for index in lowered.rule_productions[rule]:
             p = lowered.productions[index]
             pending.extend((child, nested) for child, terminal in zip(p.rhs, p.terminal) if not terminal)
-            clauses = [p.conds_predict, p.conds_at, p.tags_term, p.parent_tags,
+            clauses = [p.conds_predict, p.conds_at, p.tags_term, p.parent_tags, p.items.conditions if p.items else None,
                        p.slot.ranked_conditions if p.slot else None]
             visited = set()
             while clauses:
@@ -1099,7 +1099,11 @@ class Parser:
         lowered = context.lowered
         prefix_table = query_prefixes(lowered) if context.closes is not None else None
         ranked_groups = bool(lowered.ranked_helpers)
-        if ranked_groups or context.closes is not None:
+        # A frame table serves the contextual productions: the helpers of
+        # ranked alternatives, and those of alternatives with item captures
+        # (engine §4). It adds the productions it binds to frames to a copy.
+        framed = ranked_groups or lowered.contextual
+        if framed or context.closes is not None:
             lowered = replace(lowered,productions=list(lowered.productions))
         productions = lowered.productions
         # The stage's tokens, read from base on: a copy of the rest of a long
@@ -1143,7 +1147,7 @@ class Parser:
         def original(position):
             return project[position] if project is not None else base + position
         from ._ranked_frame import Frames
-        frames = Frames(lowered, machine, closes, original) if ranked_groups else None
+        frames = Frames(lowered, machine, closes, original) if framed else None
         def prediction_key(rule, frame=None, requested=False):
             if closes is not None:
                 return rule, frame.id if frame else 0, requested
@@ -1449,7 +1453,8 @@ class Parser:
                     whole = (frame.origin,at,parent_tag)
                 else:
                     whole = (frame.origin,at,tagtab.empty)
-                structure = machine.node(frame.root.rule_name,machine.concat(frame.seal_prefix,machine.sealed()))
+                if machine is not None:
+                    structure = machine.node(frame.root.rule_name,machine.concat(frame.seal_prefix,machine.sealed()))
             return evaluator.bind(production, captured, whole, structure, close_structure)
 
         def constituent_tag(production: Production, captured: Caps) -> int:

@@ -7,9 +7,9 @@ import itertools
 import json
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import AbstractSet, Any, Union
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, rule_has_ranked, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, rule_has_ranked, prepare, prepare_conditions, simplify_term, item_captures, mentioned_in
 from ._errors import ErrorData, GencmuError
 from ._memo import SharedMemo
 from ._recent import Recent
@@ -1016,6 +1016,15 @@ class SlotMetadata:
     ranked_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
 
 
+@dataclass(frozen=True, slots=True)
+class ItemClauses:
+    """The item captures that the productions of a brace helper read, and
+    the item conditions of their alternative (engine §3.5, §3.6)."""
+
+    names: tuple[str, ...]
+    conditions: tuple[Dom, ...]
+
+
 @dataclass
 class Production:
     """A production of the lowered grammar."""
@@ -1062,7 +1071,15 @@ class Production:
     close_requested: bool = field(default=False, repr=False, compare=False)
     observes_closes: bool = field(default=False, repr=False, compare=False)
     option: int = -1
+    # Whether the recognizer predicts the production in a frame (engine §4):
+    # a helper of a ranked alternative, or a helper of an alternative that
+    # has item captures.
     contextual: bool = False
+    # For a helper of flat braces whose productions read item captures, the
+    # item clauses: those names, and the alternative's conditions that use
+    # any of them, which the frame simplifies for each production (engine
+    # §3.6). One field, since each field costs every production a step.
+    items: ItemClauses | None = field(default=None, repr=False, compare=False)
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
@@ -1083,6 +1100,9 @@ class Production:
     def transparent(self) -> bool:
         return self.helper or len(self.logical) == 1
 
+
+_NO_NAMES: frozenset[str] = frozenset()
+"""The item captures of an alternative without braces."""
 
 IMPLICIT = "\u0000"
 """The capture name of the implicit capture of a one-symbol production
@@ -1130,6 +1150,9 @@ class Lowered:
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
+    # Whether some production is contextual, so that the recognizer keeps a
+    # table of frames (engine §4); lowering and the ranked preparation set it.
+    contextual: bool = False
     # The answers of ordinary nested queries, kept across parses (engine
     # §4.3).
     memo: SharedMemo = field(default_factory=SharedMemo, compare=False, repr=False)
@@ -1186,6 +1209,17 @@ class _Lowerer:
         self.helper_sources = {}
         self.helper_options = {}
         self.common_conditions = {}
+        # The item captures of the alternative item_alt, and its conditions
+        # without its item conditions, found when the expansion meets braces
+        # in it, since only an alternative with braces has item captures
+        # (engine §3.5). They serve the alternative being lowered where it is
+        # item_alt, and the others have no item captures.
+        self.item_alt: Alternative | None = None
+        self.item_names: AbstractSet[str] = _NO_NAMES
+        self.alt_conditions: list[Dom] = []
+        # Whether a production is contextual, so that the recognizer keeps a
+        # table of frames (engine §4).
+        self.contextual = False
         if grammar.ranked and grammar.ranked.groups:
             self._expand_plain = self._expand
             self._expand = self._expand_slot
@@ -1369,6 +1403,8 @@ class _Lowerer:
             # separator (engine §3.2).
             if "chain" in expr:
                 raise self.fail(f"a chain in {self.current.name if self.current else '?'} is not the whole of its rule")
+            if self.item_alt is not self.current_alt and self.current_alt is not None:
+                self.item_scope(self.current_alt)
             items = yield self._expand(expr["repeat"])
             self.brace_items.append((items, self.current_alt, self.current))
             separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]
@@ -1399,10 +1435,21 @@ class _Lowerer:
 
     # -- productions
 
+    def item_scope(self, alt: Alternative) -> None:
+        """Find the item captures of an alternative with braces, and its
+        conditions without its item conditions, which attach to the helpers
+        of their braces instead (engine §3.6)."""
+        self.item_alt = alt
+        self.item_names = frozenset(item_captures(alt.expr))
+        self.alt_conditions = [condition for condition in alt.conditions if mentioned_in(condition).isdisjoint(self.item_names)] if self.item_names else alt.conditions
+
     def ranked_common(self, expansion, alt):
+        """The alternative's conditions for a production, without those of
+        the ranked groups the production reads and without its item
+        conditions."""
         ranked = self.grammar.ranked
         if ranked is None or not ranked.groups:
-            return alt.conditions
+            return self.alt_conditions if self.item_alt is alt else alt.conditions
         names, seen = set(), set()
         pending = [sym[1] for sym, _ in expansion if sym[0] == 'n']
         while pending:
@@ -1415,14 +1462,15 @@ class _Lowerer:
             if group is not None:
                 names.update(reads(group.expr))
             pending.extend(sym[1] for body in self.helper_expansions[rule] for sym, _ in body if sym[0] == 'n')
+        conditions = self.alt_conditions if self.item_alt is alt else alt.conditions
         if not names:
-            return alt.conditions
+            return conditions
         key = (id(alt), frozenset(names))
         if key not in self.common_conditions:
-            self.common_conditions[key] = [c for c in alt.conditions if reads(c).isdisjoint(names)]
+            self.common_conditions[key] = [c for c in conditions if reads(c).isdisjoint(names)]
         return self.common_conditions[key]
 
-    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1) -> None:
+    def add(self, lhs: int, expansion: list[_Sym], alt: Alternative | None, elided: tuple[str, SymbolTest | None] | None = None, option: int = -1, items: tuple[str, ...] = ()) -> None:
         rhs = tuple(sym[1] for sym, _ in expansion)
         terminal = tuple(sym[0] == "t" for sym, _ in expansion)
         self.structural.append((lhs, rhs, terminal))
@@ -1461,7 +1509,9 @@ class _Lowerer:
             present = captures.keys() | {WHOLE}
             # The conditions not true for this production, in order, each
             # prepared once for all productions, so that one costs its own
-            # captures and output, not every part of the conditions.
+            # captures and output, not every part of the conditions. An item
+            # condition is not among them: it attaches to the helper of its
+            # braces (engine §3.6).
             for condition in self.prepare(self.ranked_common(expansion, alt), True).kept(present):
                 if condition is False:
                     if self.validation:
@@ -1501,6 +1551,14 @@ class _Lowerer:
             production.value = alt.value if alt.value is not None else alt.rule_value
             production.image = alt.image if alt.image is not None else alt.rule_image
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
+        elif self.item_names and self.item_alt is self.current_alt:
+            # Every helper of an alternative with item captures is
+            # contextual, so that a frame reaches the braces' helper through
+            # the helpers around it, and its item conditions read the
+            # enclosing item's captures from the frame (engine §4).
+            production.contextual = self.contextual = True
+            if items and self.current_alt is not None:
+                production.items = ItemClauses(items, tuple(condition for condition in self.current_alt.conditions if not mentioned_in(condition).isdisjoint(items)))
         production.inherited = inherited(production.logical)
         if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
             captures[IMPLICIT] = production.inherited
@@ -1528,8 +1586,13 @@ class _Lowerer:
             self.emitted_helpers.add(number)
             elided = self.helper_elided.get(number)
             own = self.helper_expansions[number]
+            # The item captures that any production of the helper reads:
+            # every production of the helper then carries the item
+            # conditions, as the productions of a rule carry its conditions
+            # (engine §3.6).
+            items = tuple(sorted({name for expansion in own for _, name in expansion if name is not None and name in self.item_names})) if self.item_names and self.item_alt is self.current_alt else ()
             for index, expansion in enumerate(own):
-                self.add(number, expansion, None, elided=elided if not expansion else None, option=self.helper_options[number][index] if number in self.helper_options else -1)
+                self.add(number, expansion, None, elided=elided if not expansion else None, option=self.helper_options[number][index] if number in self.helper_options else -1, items=items)
             stack.extend(reversed(used(own)))
 
     def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
@@ -1599,6 +1662,7 @@ class _Lowerer:
                     # helper: its base productions first, one for each
                     # expansion of the item, then its recursive ones
                     # (engine §3.3).
+                    self.item_scope(alt)
                     items = self.expand(expr["repeat"])
                     self.brace_items.append((items, alt, rule))
                     separators = self.expand(expr["separator"]) if "separator" in expr else [[]]
@@ -1635,6 +1699,7 @@ class _Lowerer:
             rule_display=self.rule_display,
             lean=self.grammar.lean,
             characters=self.characters,
+            contextual=self.contextual,
         )
         from ._ranked_frame import prepare_ranked
         prepare_ranked(lowered)
@@ -1685,12 +1750,16 @@ class _Lowerer:
 
 
 def _holds_capture(expr: Any, include_ranked: bool = False) -> bool:
-    """Whether an expression holds a capture, at any depth (engine §3.5)."""
+    """Whether an expression holds a capture, at any depth (engine §3.5). An
+    item capture binds to the helper of its braces, not to the enclosing
+    production, so braces hold none here."""
     stack: list[Any] = [expr]
     while stack:
         value = stack.pop()
         if isinstance(value, dict):
             if "ranked" in value and not include_ranked:
+                continue
+            if "repeat" in value:
                 continue
             if isinstance(value.get("capture"), str) and "expr" in value:
                 return True

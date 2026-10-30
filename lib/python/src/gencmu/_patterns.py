@@ -286,8 +286,12 @@ def observation_machine(lowered: Any) -> PatternMachine | None:
     for production in lowered.productions:
         if production.ranked is not None:
             pending.extend(production.slot.source.conditions)
-        if production.contextual:
+        if production.contextual and production.slot is not None:
             pending.extend((production.slot.source.tags,production.slot.source.rule_tags))
+        # An item condition runs in the frames of its braces' helper, which
+        # the recognizer binds after this scan (engine §4).
+        if production.items is not None:
+            pending.append(production.items.conditions)
         pending.extend(production.conds_predict)
         for conditions in production.conds_at.values():
             pending.extend(conditions)

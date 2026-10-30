@@ -207,12 +207,16 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("elidable ε", set_expr({"seq": [CAP_X, marked({"empty": True})]})),
     ("capture of an optional", set_expr({"capture": "x", "expr": {"optional": A}})),
     ("capture of a group", set_expr({"capture": "x", "expr": {"seq": [A, A]}})),
-    # A capture stands anywhere but inside braces or an elidable optional
-    # (engine §3.5).
+    # A capture stands anywhere but inside a chain or an elidable optional
+    # (engine §3.5); inside flat braces it is an item capture.
     ("capture inside an elidable optional", set_expr({"seq": [marked({"seq": [KU, CAP_X]}), A]})),
     ("capture deep inside an elidable optional", set_expr({"seq": [marked({"seq": [KU, {"optional": CAP_X}]}), A]})),
-    ("capture inside a repetition", set_expr({"repeat": CAP_X})),
-    ("capture inside a separator", set_expr({"seq": [A, {"repeat": A, "separator": CAP_X}]})),
+    ("capture inside flat braces inside an elidable optional", set_expr({"seq": [marked({"seq": [KU, {"repeat": CAP_X}]}), A]})),
+    ("capture inside a chain", bare(set_expr({"repeat": CAP_X, "chain": "left"}))),
+    ("capture inside a chain's separator", bare(set_expr({"repeat": A, "separator": CAP_X, "chain": "right"}))),
+    ("capture deep inside a chain", bare(set_expr({"repeat": {"seq": [A, {"optional": CAP_X}]}, "chain": "left"}))),
+    ("item capture inside a ranked group", bare(set_expr({"repeat": {"seq": [A, {"ranked": [CAP_X, KU]}]}}))),
+    ("item capture deep inside a ranked group", bare(set_expr({"repeat": {"ranked": [A, {"seq": [KU, {"optional": CAP_X}]}]}}))),
     ("unknown expression", set_expr({"star": A})),
     ("$ wrapping a symbol", set_expr({"capture": "", "expr": A})),
     ("nested more than 256 deep", set_expr(nested(257))),
@@ -720,6 +724,18 @@ class PreparsedDomRules(unittest.TestCase):
             ("a capture in a choice", bare(set_expr({"choice": [CAP_X, A]}))),
             ("a capture in &", bare(set_expr({"and": [CAP_X, A]}))),
             ("a capture in a nested optional", bare(set_expr({"seq": [A, {"optional": {"seq": [A, {"optional": CAP_X}]}}]}))),
+            # An item capture: a capture inside flat braces, also inside a
+            # chain's item (engine §3.5).
+            ("an item capture", bare(set_expr({"repeat": CAP_X}))),
+            ("an item capture in a separator", bare(set_expr({"seq": [A, {"repeat": A, "separator": CAP_X}]}))),
+            ("an item capture in an optional in braces", bare(set_expr({"repeat": {"seq": [A, {"optional": CAP_X}]}}))),
+            ("an item capture in flat braces inside a chain", bare(set_expr({"repeat": {"repeat": CAP_X}, "chain": "left"}))),
+            ("a capture in a ranked group outside braces", bare(set_expr({"seq": [{"ranked": [CAP_X, KU]}, {"repeat": {"ranked": [A, KU]}}]}))),
+            ("an item capture in flat braces inside a ranked group", bare(set_expr({"ranked": [{"repeat": CAP_X}, KU]}))),
+            (
+                "an item capture read by a condition",
+                bare(lambda dom: (set_expr({"seq": [{"repeat": CAP_X}, A]})(dom), set_condition({"op": "=", "left": TEXT, "right": STR})(dom))),
+            ),
             ("a capture name in two branches", set_expr({"seq": [A, {"choice": [CAP_X, {"capture": "x", "expr": {"ref": "B"}}]}]})),
             ("six captures", set_expr({"seq": [{"capture": name, "expr": A} for name in "xyzvwu"]})),
             (
