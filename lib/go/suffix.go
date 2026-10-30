@@ -12,9 +12,9 @@ type suffixKey struct {
 }
 
 type suffixState struct {
-	answers map[int]bool
-	rec     *recognizer
-	active  bool
+	answers   map[int]bool
+	rec       *recognizer
+	dependent bool
 }
 
 func restoredTerm(term *domTerm) bool {

@@ -61,6 +61,23 @@ def shared_rules(pipeline: gencmu.Pipeline) -> list[str]:
 
 
 class SharedMemo(unittest.TestCase):
+    def test_warm_memo_cannot_hide_suffix_recursion(self) -> None:
+        run = RUNS[-1]
+        pipeline = pipeline_of(run)
+        self.assertTrue(pipeline.parse("paa").ok)
+        result = pipeline.parse("qaa")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.kind, "grammar")
+
+    def test_suffix_cache_hits_preserve_aligned_dependencies(self) -> None:
+        fixture = load_json(SHARED / "engine" / "w2-76-retained-suffix-dependency.json")
+        pipeline = pipeline_of(fixture)
+        self.assertTrue(pipeline.parse(fixture["input"]).ok)
+        rules = shared_rules(pipeline)
+        self.assertIn("plain", rules)
+        self.assertNotIn("driver", rules)
+        self.assertNotIn("wrap", rules)
+
     def references(self, run: dict[str, Any]) -> list[str]:
         cold = pipeline_of(run)
         with patch.object(_testing, "memo_limit", 0):

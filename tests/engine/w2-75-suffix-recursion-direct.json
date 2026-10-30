@@ -1,0 +1,8 @@
+{
+  "description": "Active suffix queries bypass cached answers that can conceal recursion (engine §4.3).",
+  "grammar": "%rule text $x:body\n%conditions $x.matches(r), $x.ends(r)\n%rule body \"a\" \"a\"\n%rule r \"a\" [\"a\"]\n%conditions $.starts-input ∨ $.preceding-tokens.onward.matches(r)",
+  "input": "aa",
+  "expect": {
+    "error": "grammar"
+  }
+}

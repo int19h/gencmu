@@ -328,7 +328,7 @@ class SuffixState:
     answers: dict[int, bool] = field(default_factory=dict)
     parser: Any = None
     walk: Walk | None = None
-    active: bool = False
+    dependent: bool = False
 
     def resume(self, context: StageContext, number: int, start: int, end: int) -> Walk:
         if self.parser is None:
@@ -442,6 +442,7 @@ class StageContext:
     tainted: set[tuple[bool, tuple[Any, ...]]] = field(default_factory=set)
     # How many aligned queries are active now.
     aligned_active: int = 0
+    suffix_active: int = 0
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
@@ -551,12 +552,11 @@ class StageContext:
         read. A walk, which runs the nested parse where its answer is not
         yet known."""
         self.require_inactive(rule, start, end)
-        # Ordinary answers depend on their input, not the caller query stack.
+        # Suffix activity can expose recursion that a cached whole query hides.
         key = self.nested_key(rule, start, end)
-        found = self.memo.get(key)
+        found = self.memo.get(key) if not self.suffix_active else None
         if found is None:
-            yield self.answer(rule, start, end, key, False)
-            found = self.memo[key]
+            return (yield self.answer(rule, start, end, key, False))
         elif self.tainted and (False, key) in self.tainted:
             self.aligned_asked += 1
         return found
@@ -567,12 +567,11 @@ class StageContext:
         eligible proof tree begins at the span's start, in any set (engine
         §4). A walk, as for :meth:`nested`."""
         self.require_inactive(rule, start, end)
-        # Ordinary answers depend on their input, not the caller query stack.
+        # Suffix activity can expose recursion that a cached whole query hides.
         key = self.nested_key(rule, start, end)
-        found = self.begins_memo.get(key)
+        found = self.begins_memo.get(key) if not self.suffix_active else None
         if found is None:
-            yield self.answer(rule, start, end, key, True)
-            found = self.begins_memo[key]
+            return (yield self.answer(rule, start, end, key, True))
         elif self.tainted and (True, key) in self.tainted:
             self.aligned_asked += 1
         return found
@@ -582,20 +581,25 @@ class StageContext:
         self.require_inactive(rule, start, end)
         number = self.lowered.rule_ids[rule]
         key = (number, start, end) if suffix_reads_end(self.lowered, number) else (number, start)
-        state = self.suffixes.get(key)
-        if state is None:
-            state = self.suffixes[key] = SuffixState()
-        if end in state.answers:
-            return state.answers[end]
-        if state.active:
+        if self.suffix_active:
             state = SuffixState()
+        else:
+            state = self.suffixes.get(key)
+            if state is None:
+                state = self.suffixes[key] = SuffixState()
+            if end in state.answers:
+                if state.dependent:
+                    self.aligned_asked += 1
+                return state.answers[end]
         active = rule, start, end
         self.running.add(active)
-        state.active = True
+        self.suffix_active += 1
+        asked = self.aligned_asked
         try:
             return (yield state.resume(self, number, start, end))
         finally:
-            state.active = False
+            state.dependent |= self.aligned_asked != asked
+            self.suffix_active -= 1
             self.running.discard(active)
 
     def require_inactive(self, rule, start, end):
@@ -614,7 +618,7 @@ class StageContext:
         ancestry = frozenset(self.running)
         key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
                closes.semantic(span.observation), span.family, ancestry)
-        found = self.aligned_memo.get(key)
+        found = self.aligned_memo.get(key) if not self.suffix_active else None
         if found is not None:
             return found
         request = rule, span.start, span.context_end
@@ -627,7 +631,7 @@ class StageContext:
             family = None
             if span.family is not None:
                 raw_key += span.family, span.captured_end, closes.semantic(span.observation)
-            qualified = self.qualified_memo.get(raw_key)
+            qualified = self.qualified_memo.get(raw_key) if not self.suffix_active else None
             if qualified is None:
                 number = self.lowered.rule_ids.get(rule)
                 if number is None:
@@ -642,7 +646,8 @@ class StageContext:
                               and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)
                               and forest.lowered.productions[forest.prod[item]].close_requested]
                 qualified = forest, eligible(forest, boundary_witnesses(forest, candidates))
-                self.qualified_memo[raw_key] = qualified
+                if not self.suffix_active:
+                    self.qualified_memo[raw_key] = qualified
             forest, candidates = qualified
             tags = Gathered()
             accepted = False
@@ -664,7 +669,8 @@ class StageContext:
                     accepted = True
                     tags.add(self.tagtab.get(forest.tag[item]))
             found = NestedAnswer(accepted, tags.value())
-            self.aligned_memo[key] = found
+            if not self.suffix_active:
+                self.aligned_memo[key] = found
             return found
         finally:
             self.aligned_active -= 1
@@ -684,9 +690,8 @@ class StageContext:
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         bound = _memo.limit()
-        shared = self.shared_key(rule, start, end, begins) if bound > 0 and end - start <= CONTENT_KEY_LIMIT else None
-        # While an aligned query is active, the shared memo serves nothing
-        # (engine §4.3). It still keeps what the parse computes.
+        shared = self.shared_key(rule, start, end, begins) if bound > 0 and not self.suffix_active and end - start <= CONTENT_KEY_LIMIT else None
+        # Shared answers cannot hide recursive aligned or suffix requests (§4.3).
         found = self.lowered.memo.get(shared, bound) if shared is not None and not self.aligned_active else None
         if found is not None:
             if _testing.memo_hit is not None:
@@ -697,7 +702,7 @@ class StageContext:
             if isinstance(found, NestedAnswer):
                 found = NestedAnswer(found.accepted, frozenset(list(found.tags)))
             (self.begins_memo if begins else self.memo)[key] = found
-            return
+            return found
         asked = self.aligned_asked
         self.running.add(running)
         try:
@@ -705,22 +710,25 @@ class StageContext:
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
-        self.remember(key, number, shared, begins, asked, bound, forest)
+        return self.remember(key, number, shared, begins, asked, bound, forest)
 
     def remember(
         self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest
-    ) -> None:
+    ) -> NestedAnswer | bool:
         """Remembers the answer of a nested parse in the memo of the parse,
         and in the shared memo unless it depends on an aligned query (engine
         §4.3)."""
-        self.settle(key, number, begins, forest)
-        if self.aligned_asked != asked:
-            self.tainted.add((begins, key))
-        elif shared is not None:
-            answer = (self.begins_memo if begins else self.memo)[key]
-            if isinstance(answer, NestedAnswer):
-                answer = NestedAnswer(bool(answer.accepted), frozenset(_plain(tag) for tag in answer.tags))
-            self.lowered.memo.insert(shared, answer, bound)
+        answer = self.settle(number, begins, forest)
+        if not self.suffix_active:
+            (self.begins_memo if begins else self.memo)[key] = answer
+            if self.aligned_asked != asked:
+                self.tainted.add((begins, key))
+            elif shared is not None:
+                stored = answer
+                if isinstance(stored, NestedAnswer):
+                    stored = NestedAnswer(bool(stored.accepted), frozenset(_plain(tag) for tag in stored.tags))
+                self.lowered.memo.insert(shared, stored, bound)
+        return answer
 
     def shared_key(self, rule: str, start: int, end: int, begins: bool) -> tuple[Any, ...]:
         """The key of the shared memo for a short span: the query kind, the
@@ -746,8 +754,8 @@ class StageContext:
             ),
         )
 
-    def settle(self, key: tuple[Any, ...], number: int, begins: bool, forest: Forest) -> None:
-        """Remembers the answer of a nested parse in the memo of the parse."""
+    def settle(self, number: int, begins: bool, forest: Forest) -> NestedAnswer | bool:
+        """Compute the current query answer without retaining it."""
         if not begins:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
@@ -756,8 +764,7 @@ class StageContext:
             gathered = Gathered()
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
-            self.memo[key] = NestedAnswer(bool(found_items), gathered.value())
-            return
+            return NestedAnswer(bool(found_items), gathered.value())
         # A completed item of the rule from the span's start, in any set.
         productions = forest.lowered.productions
         witnesses = [
@@ -766,7 +773,7 @@ class StageContext:
             if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        self.begins_memo[key] = bool(eligible(forest, boundary_witnesses(forest, witnesses)))
+        return bool(eligible(forest, boundary_witnesses(forest, witnesses)))
 
 
 def _plain(text: str) -> str:

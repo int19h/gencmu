@@ -35,6 +35,11 @@ type parseState struct {
 	alignedAsked uint64
 	// alignedActive counts the aligned queries active now.
 	alignedActive int
+	// Nested requests bypass reusable caches while a suffix query is active.
+	suffixActive int
+	// The suspended caller consumes this result once. It is not a cache entry.
+	answerKey     nestedKey
+	answer        *nestedResult
 	queryContext  int
 	queryContexts map[activeQueryParent]int
 	// consts holds the tag set of each constant's value a term has read,

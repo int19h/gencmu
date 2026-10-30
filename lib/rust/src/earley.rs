@@ -837,6 +837,7 @@ pub(crate) struct Shared<'a> {
     running: FxSet<Place>,
     suffix_keys: FxMap<SuffixKey, usize>,
     suffixes: Vec<SuffixState>,
+    suffix_active: usize,
     suffix_deps: FxMap<(usize, u32), bool>,
     /// Empty sets with room, kept from the charts of nested parses that
     /// finished, which later charts reuse.
@@ -864,6 +865,7 @@ impl<'a> Shared<'a> {
             running: FxSet::default(),
             suffix_keys: FxMap::default(),
             suffixes: Vec::new(),
+            suffix_active: 0,
             suffix_deps: FxMap::default(),
             spare: Vec::new(),
             lists: Vec::new(),
@@ -902,6 +904,7 @@ impl<'a> Shared<'a> {
         self.running.clear();
         self.suffix_keys.clear();
         self.suffixes.clear();
+        self.suffix_active = 0;
         self.suffix_deps.clear();
     }
 
@@ -1857,11 +1860,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         self.settle(request, &finished.chart)
                     });
                     let chart = if let Some(id) = suffix {
-                        let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
-                        self.shared.suffixes[id].retained =
-                            Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
-                        self.shared.suffixes[id].active = false;
-                        Chart::default()
+                        self.shared.suffix_active -= 1;
+                        if self.shared.suffixes[id].transient {
+                            debug_assert_eq!(id + 1, self.shared.suffixes.len());
+                            self.shared.suffixes.pop();
+                            finished.chart
+                        } else {
+                            let Run { chart, e, head, entered, scans, scan_index, .. } = finished;
+                            self.shared.suffixes[id].retained =
+                                Some(suffix::Retained { chart, e, head, entered, scans, scan_index });
+                            Chart::default()
+                        }
                     } else {
                         finished.chart
                     };
@@ -1889,9 +1898,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         for run in &runs {
             if let Some(request) = &run.request {
                 self.shared.running.remove(&request.place());
-                if let Some(id) = request.suffix {
-                    let state = &mut self.shared.suffixes[id];
-                    state.active = false;
+                if request.suffix.is_some() {
+                    self.shared.suffix_active -= 1;
                 }
             }
         }
@@ -1905,6 +1913,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// cannot hide a query about a span from inside its own parse (§4).
     fn start_query(&mut self, request: &Request) -> Result<(), EngineError> {
         if self.shared.running.insert(request.place()) {
+            if request.suffix.is_some() {
+                self.shared.suffix_active += 1;
+            }
             return Ok(());
         }
         let text = self.text(request.tokens, request.start, request.end);
@@ -1951,13 +1962,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             for w in witnesses {
                 accepted |= aligned(&w);
             }
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
         let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
         let answer = (!retained.is_empty(), self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
@@ -2023,21 +2038,27 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .collect();
             let context = request.qualification_key();
             let answer = self.aligned_answer(request, &qualified);
-            self.shared.qualified.insert(context, qualified);
+            if self.shared.suffix_active == 0 {
+                self.shared.qualified.insert(context, qualified);
+            }
             return answer;
         }
         let retained: Vec<_> =
             witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
         let accepted = !retained.is_empty();
         if request.begins {
-            self.shared.begins.insert(request.key, accepted);
+            if self.shared.suffix_active == 0 {
+                self.shared.begins.insert(request.key, accepted);
+            }
             return (accepted, 0);
         }
         let tags = &self.shared.tags;
         let list =
             union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
         let answer = (accepted, self.shared.tags.set(list));
-        self.shared.memo.insert(request.key, answer);
+        if self.shared.suffix_active == 0 {
+            self.shared.memo.insert(request.key, answer);
+        }
         answer
     }
 
@@ -3285,14 +3306,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if self.shared.running.contains(&place) {
                 return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
             }
-            let mut id = self.suffix_state(rule, base + start, base + end);
+            let id = if self.shared.suffix_active == 0 {
+                self.suffix_state(rule, base + start, base + end)
+            } else {
+                let id = self.shared.suffixes.len();
+                self.shared.suffixes.push(SuffixState { transient: true, ..SuffixState::default() });
+                id
+            };
             let state = &self.shared.suffixes[id];
             if let Some(&holds) = state.answers.get(&(base + end)) {
                 return Ok(Out::Bool(holds));
-            }
-            if state.active {
-                id = self.shared.suffixes.len();
-                self.shared.suffixes.push(SuffixState::default());
             }
             request.suffix = Some(id);
             eval.tasks.push(Task::Await(query));
@@ -3328,7 +3351,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
             return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
         }
-        let known = if begins {
+        let known = if self.shared.suffix_active > 0 {
+            None
+        } else if begins {
             self.shared.begins.get(&key).map(|&holds| (holds, 0))
         } else {
             self.shared.memo.get(&key).copied()
@@ -3337,7 +3362,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
                 let request = Request { tokens, base, start, end, rule, key, begins, suffix: None, aligned };
-                if aligned.is_some() {
+                if aligned.is_some() && self.shared.suffix_active == 0 {
                     if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
                         let context = request.qualification_key();
                         let answer = self.aligned_answer(request, &qualified);
