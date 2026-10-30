@@ -1,0 +1,16 @@
+{
+  "description": "An item condition that no production of a helper can read, with its outer captures from the frame, applies to no production, which is an error of the document (engine §3.6, §9).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} | {$d:A}\n%conditions $c.value = $d.value\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

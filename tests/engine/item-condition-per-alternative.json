@@ -1,0 +1,35 @@
+{
+  "description": "An item condition is checked in each alternative. In the second alternative both of its item captures stand in one pair of braces, and the first alternative lacks $d, so the condition drops there (engine §3.6).",
+  "grammar": "%rule text {$c:A} | {$c:A $d:B}\n%conditions $c.value = $d.value",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}
