@@ -1,0 +1,8 @@
+{
+  "description": "Feature conditions reject tag sets where membership requires strings (engine §13).",
+  "grammar": "%ambiguity-resolution greedy\n%const $WORDS A\n%features f\n%conditions $.value ∈ $WORDS\n%rule text f? \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar"
+  }
+}

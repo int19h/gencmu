@@ -1233,6 +1233,9 @@ func (rk *ranker) rankOriginal(top []*symNode) *rankResult {
 		cands = append(cands, v.e.cands...)
 	}
 	m := rk.finish(rk.merge(cands))
+	if rk.elisions && (root.least >= 2) != (len(m.tied.ds) > 0) {
+		panic("gencmu: the least count of late-elision disagrees with its forest")
+	}
 	res := &rankResult{profile: root.profile, first: m.d, witnessCounted: rk.marks != nil && counted}
 	switch {
 	case root.total == 1:

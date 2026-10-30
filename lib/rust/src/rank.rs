@@ -165,6 +165,7 @@ struct Admission {
     masks: FxMap<Key, Vec<bool>>,
     maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
     stats: crate::slot_stats::SlotStatistics,
+    reported_splits: Vec<bool>,
 }
 /// The packed chart keeps raw proofs together. Admission separates the
 /// options at a slot edge while retaining every proof of each option.
@@ -284,7 +285,8 @@ impl Admission {
             }
         }
         stats.groups = groups.len();
-        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
+        let reported_splits = vec![false; groups.len()];
+        Self { groups, at, reported_splits, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
     }
 }
 impl Ranker<'_> {
@@ -352,7 +354,8 @@ impl Ranker<'_> {
                     .collect();
                 if retained.iter().any(|proof| viable.iter().any(|higher| higher.option < proof.option)) {
                     let a = self.admission.as_mut().unwrap();
-                    if !a.stats.boundary_splits.iter().any(|s| s.group == choice.group) {
+                    if !a.reported_splits[choice.group] {
+                        a.reported_splits[choice.group] = true;
                         a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {
                             group: choice.group,
                             start: choice.start,

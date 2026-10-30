@@ -141,3 +141,15 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestRankedRecipeOrder(t *testing.T) {
+	t.Parallel()
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) := $x.image %emits"), "p.md")
+	if err == nil {
+		t.Fatal("the private recipe loaded")
+	}
+	fault := err.(*Error)
+	if fault.Code != "ranked-choice-export" || !strings.Contains(string(fault.Expression), `"method":"image"`) {
+		t.Fatalf("got %v, expression %s", fault, fault.Expression)
+	}
+}

@@ -416,9 +416,6 @@ pub(crate) fn stitch(
                     }
                 }
                 constants.substitute_cond(condition);
-                if let Some(fault) = crate::dom::cond_type_fault(condition, &|_| Type::Any) {
-                    return Err(located(fault.problem, document, directive.at));
-                }
             }
         }
     }

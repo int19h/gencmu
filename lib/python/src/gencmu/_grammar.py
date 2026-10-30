@@ -1263,10 +1263,12 @@ class _Lowerer:
 
     def elided_terminal(self, expr: Dom) -> tuple[str, SymbolTest | None]:
         """The terminal of an elidable optional, the first item of its
-        content, and its ``=`` test, if any (engine §3.8, §12)."""
+        content, and its complete symbol predicate (engine §3.8, §12)."""
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
         test: SymbolTest | None = first[RESOLVED] if "test" in first else None
-        symbol = first["expr"] if "test" in first else first
+        symbol = first
+        while "test" in symbol:
+            symbol = symbol["expr"]
         name = symbol.get("ref")
         if not is_terminal_name(name or ""):
             name = None

@@ -207,11 +207,6 @@ func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
 			visit(source.alt.Expr, "", true, nil)
 		}
 	}
-	for _, group := range r.groups {
-		if err := r.validateClauses(g, group, nil); err != nil {
-			r.clauseErrors[group] = err
-		}
-	}
 	return r, nil
 }
 func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, prefixCanRead func([]*domExpr) bool) *Error {
@@ -280,8 +275,8 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 			term *domTerm
 			key  string
 		}{
-			{group.source.ruleValue, "value"}, {group.source.ruleImage, "image"},
 			{group.source.alt.Value, "alternative-value"}, {group.source.alt.Image, "alternative-image"},
+			{group.source.ruleValue, "value"}, {group.source.ruleImage, "image"},
 		} {
 			reads := map[string]bool{}
 			rankedTermReads(recipe.term, reads)

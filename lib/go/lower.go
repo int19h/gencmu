@@ -535,9 +535,11 @@ func holdsCapture(e *domExpr, includeRanked bool) bool {
 }
 
 func symbolsOf(body []slot) []symbol {
-	out := make([]symbol, len(body))
-	for i, s := range body {
-		out[i] = s.sym
+	out := make([]symbol, 0, len(body))
+	for _, s := range body {
+		if s.logicalMark == 0 {
+			out = append(out, s.sym)
+		}
 	}
 	return out
 }
