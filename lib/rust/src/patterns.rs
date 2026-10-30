@@ -47,6 +47,11 @@ fn exact(j: &Json, keys: &[&str]) -> bool {
 }
 /// Convert patterns and child expressions without a recursive call stack.
 impl Pattern {
+    pub(crate) fn empty() -> Self {
+        let all = Self::Node(Box::new(Self::Any), false, Some(Children::Siblings));
+        Self::Difference(Box::new(all.clone()), Box::new(all))
+    }
+
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
         Self::from_layered_json(j)
     }
@@ -556,8 +561,10 @@ impl Machine {
                 match item {
                     PatternItem::Child(p) => n.edges.push((start, end, Some(*p))),
                     PatternItem::Siblings => {
-                        n.edges.push((start, end, None));
-                        n.edges.push((start, start, Some(usize::MAX)));
+                        let gap = state(n);
+                        n.edges.push((start, gap, None));
+                        n.edges.push((gap, gap, Some(usize::MAX)));
+                        n.edges.push((gap, end, None));
                     }
                     PatternItem::Choice(arms) => {
                         for arm in arms {
@@ -567,14 +574,14 @@ impl Machine {
                     PatternItem::Repeat(body, separator) => {
                         let a = state(n);
                         let b = state(n);
-                        build(n, body, start, a);
-                        n.edges.push((a, end, None));
+                        n.edges.push((start, a, None));
+                        build(n, body, a, b);
+                        n.edges.push((b, end, None));
                         if let Some(separator) = separator {
-                            build(n, separator, a, b);
+                            build(n, separator, b, a);
                         } else {
-                            n.edges.push((a, b, None));
+                            n.edges.push((b, a, None));
                         }
-                        build(n, body, b, a);
                     }
                 }
                 start = end;

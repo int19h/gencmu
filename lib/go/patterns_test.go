@@ -11,6 +11,23 @@ func patternChildren(p *domPattern) *domPattern {
 	return &domPattern{Kind: "node", Items: []*domPattern{p}}
 }
 
+func TestPatternDepthSharedValues(t *testing.T) {
+	pattern := &domPattern{Kind: "terminal", Name: "A"}
+	for range 255 {
+		pattern = &domPattern{Kind: tmDifference, Items: []*domPattern{pattern, pattern}}
+	}
+	g := &stageGrammar{name: "main", constants: map[string]*stageConst{
+		"P": {value: &constValue{ty: tyPattern, pattern: pattern}},
+	}}
+	reference := &domTerm{Kind: tmConst, Str: "P", At: [2]int{4, 7}}
+	if err := g.checkPatternDepth("g.md", reference, [2]int{1, 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.checkPatternDepth("g.md", &domTerm{Kind: tmDifference, Items: []*domTerm{reference, reference}}, [2]int{1, 1}); err == nil || err.Line != 4 || err.Column != 7 || err.Stage != "main" {
+		t.Fatalf("the overflowing reference: %v", err)
+	}
+}
+
 // A shared source DOM must resolve independently in each stage, including
 // when a matching cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {
@@ -35,9 +52,9 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 				sources := map[string]string{
 					"p.md": block("%stage before", "%ambiguity-resolution greedy", `%include "before.md"`, `%include "shared.md"`,
 						"%stage after", "%ambiguity-resolution greedy", `%include "after.md"`, `%include "shared.md"`),
-					"before.md":               block("%const $P "+c.before, "%const $GOOD Extra", "%const $BAD Blocked"),
-					"after.md":                block("%const $P "+c.after, "%const $GOOD Extra", "%const $BAD Blocked"),
-					"shared.md":               block("%rule text "+c.body+" :: ("+condition+" ⟹ X)", "%emits $ :: (A Extra) ∪ ("+condition+" ⟹ X)"),
+					"before.md":                  block("%const $P "+c.before, "%const $GOOD Extra", "%const $BAD Blocked"),
+					"after.md":                   block("%const $P "+c.after, "%const $GOOD Extra", "%const $BAD Blocked"),
+					"shared.md":                  block("%rule text "+c.body+" :: ("+condition+" ⟹ X)", "%emits $ :: (A Extra) ∪ ("+condition+" ⟹ X)"),
 					"data/preparsed/gencmu.json": bundled.sources["data/preparsed/gencmu.json"],
 				}
 				fresh := mustLoad(t, sources)
@@ -89,7 +106,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 
 func TestPatternStateGrowth(t *testing.T) {
 	t.Parallel()
-	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
+	p := &domPattern{Kind: "any", Attached: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
 	m := newPatternMachine([]*domPattern{p})
 	leaf := m.node("", m.empty, "A", "a", newInterner().single("A"))
 	prefix := m.empty
@@ -112,7 +129,7 @@ func TestPatternMachineBeyondWordSize(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		children = append(children, patternChildren(&domPattern{Kind: "terminal", Name: "A149"}))
 	}
-	sequence := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "sequence", Items: children}}}
+	sequence := &domPattern{Kind: "any", Attached: children}
 	roots = append(roots, sequence)
 	m := newPatternMachine(roots)
 	leaf := m.node("", m.empty, "A149", "a", newInterner().single("A149"))

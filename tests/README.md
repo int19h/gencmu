@@ -84,7 +84,7 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 
 `expect.message` pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors.
 
-A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
+A result pattern rejects error `message` assertions. Existing unit tests pin the common stitching and classifier messages specified in engine §2. Other wording stays library-specific.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
@@ -108,7 +108,7 @@ A load that fails gives only its error. Its kind is `grammar` for a grammar that
 
 For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded pipeline gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
-An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
+An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The pipeline loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message names the definition at fault. Unit tests cover common messages, and shared cases compare the other result fields.
 
 `expect.where`, when present, is where the error of a grammar that cannot be loaded stands. It is only for an error of kind `grammar`. It names a document of the case and a line and a column in it. For a case with `grammar`, the document is `main.md`. Its fence is line 1, so the rules start on line 3, or on line 2 when they hold their own `%ambiguity-resolution`.
 

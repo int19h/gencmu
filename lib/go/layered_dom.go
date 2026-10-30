@@ -203,13 +203,6 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			}
 			continue
 		}
-		if p.Kind == "children" {
-			clone := *p
-			clone.Kind = "any"
-			clone.Attached = []*domPattern{p.Items[0]}
-			clone.Items = nil
-			p = &clone
-		}
 		w.raw(`{"` + p.Kind + `":`)
 		at := false
 		switch p.Kind {

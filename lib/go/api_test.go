@@ -1509,3 +1509,111 @@ func TestParseUsageErrorOrder(t *testing.T) {
 		t.Fatalf("until: %v", err)
 	}
 }
+
+func TestWarningFeaturesShareALowering(t *testing.T) {
+	t.Parallel()
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a! b! \"x\""))
+	for _, features := range [][]string{nil, {"a"}, {"b"}, {"a", "b"}, nil} {
+		result, err := d.Parse("x", ParseOptions{Features: features})
+		if err != nil || !result.OK || len(result.Warnings) != len(features) {
+			t.Fatalf("%v: %v %+v", features, err, result)
+		}
+	}
+	if n := d.lowered[0].len(); n != 1 {
+		t.Fatalf("%d lowered grammars", n)
+	}
+}
+
+func TestConstantCyclePathAndVersions(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ declarations, path string }{
+		{"%const $A $B\n%const $B $C\n%const $C $B", "$B → $C → $B"},
+		{"%const $A $B\n%const $B $A\n%redefine-const $A $A", "$A [g.md:3:1] → $B [g.md:4:1] → $A [g.md:5:1] → $A [g.md:3:1]"},
+	} {
+		sources := map[string]string{"p.md": block("%stage main", `%include "g.md"`), "g.md": block("%ambiguity-resolution greedy", c.declarations, `%rule text "a"`)}
+		_, err := LoadPipelineSources(sources, "p.md")
+		if err == nil || !strings.HasSuffix(err.Error(), "constant dependency cycle: "+c.path) {
+			t.Fatalf("expected %s, got %v", c.path, err)
+		}
+	}
+}
+
+func TestStitchingMessagesAndCaptureOrder(t *testing.T) {
+	t.Parallel()
+	cases := [][2]string{
+		{"%rule text missing", "missing is not a rule of stage main"},
+		{"%rule other \"a\"", "stage main has no rule text"},
+		{"%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"},
+		{"%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"},
+		{"%extend-rule absent \"a\"\n%rule text \"a\"", "%extend-rule absent extends a rule that is not defined before it"},
+		{"%rule text \"a\"\n%rule text \"b\"", "%rule text is already defined, in g.md; %redefine-rule replaces a rule"},
+		{"%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"},
+		{"%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"},
+		{"%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"},
+		{"%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"},
+	}
+	for _, c := range cases {
+		_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c[0]), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Message != c[1] {
+			t.Errorf("%s: wanted %s, got %v", c[0], c[1], err)
+		}
+	}
+}
+
+func TestClassifierCanonicalKeyMessages(t *testing.T) {
+	t.Parallel()
+	for _, c := range [][2]string{
+		{" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"},
+		{" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%classifier lex\n"+c[0]+"\n%rule text \"a\""))
+		result, err := d.Parse("a", ParseOptions{})
+		want := "the classifier lex: \"a‹SHY›e‹U+0301›\" " + c[1]
+		if err != nil || result.Error == nil || !strings.HasSuffix(result.Error.Message, want) {
+			t.Fatalf("wanted %s, got %+v, %v", want, result.Error, err)
+		}
+	}
+}
+
+func TestMissingResolutionMessage(t *testing.T) {
+	_, err := LoadPipelineSources(oneStage("%rule text \"a\""), "p.md")
+	var fault *Error
+	if !errors.As(err, &fault) || fault.Message != "stage main has no %ambiguity-resolution" {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestStitchingStagesAndReferenceOrder(t *testing.T) {
+	cases := []struct {
+		source, message       string
+		resolution, unlocated bool
+	}{
+		{"%rule other missing", "stage main has no rule text", true, true},
+		{"%rule text A", "stage main has no %ambiguity-resolution", false, true},
+		{"%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)", "nolex is not a classifier of stage main", true, false},
+		{"%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false},
+		{"%const $A $MISSING\n%rule text A", "$MISSING is not defined in stage main; dependency $A → $MISSING", true, false},
+		{"%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false},
+	}
+	for _, c := range cases {
+		source := c.source
+		if c.resolution {
+			source = "%ambiguity-resolution greedy\n" + source
+		}
+		_, err := LoadPipelineSources(oneStage(source), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) {
+			t.Fatalf("expected error, got %v", err)
+		}
+		if fault.Message != c.message || fault.Stage != "main" {
+			t.Errorf("%s: %+v", c.source, fault)
+		}
+		if c.unlocated && (fault.Document != "" || fault.Line != 0 || fault.Column != 0) {
+			t.Errorf("unexpected location: %+v", fault)
+		}
+	}
+}

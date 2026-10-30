@@ -1,0 +1,15 @@
+{
+  "description": "Nested lexical frame descriptions use parent identifiers (engine §6.1).",
+  "grammar": "%rule text :: ∅ | ((((((((((((((((((((((((\"a\" ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\") ≻ \"z\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

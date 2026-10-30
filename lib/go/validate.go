@@ -394,7 +394,7 @@ func literalRangeProblem(ends [2]*domTerm) string {
 	for i, end := range ends {
 		known[i] = end != nil && end.Kind == tmString
 		if known[i] && utf8.RuneCountInString(end.Str) != 1 {
-			return "a range endpoint must be one scalar"
+			return "a range endpoint is one scalar"
 		}
 	}
 	if known[0] && known[1] && ends[0].Str > ends[1].Str {
@@ -545,7 +545,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			for i, end := range e.Ends {
 				v, err := (&stageGrammar{}).evaluateClosed("", end, [2]int{})
 				if err != nil || utf8.RuneCountInString(v.s) != 1 {
-					c.fail("a range endpoint must be one scalar")
+					c.fail("a range endpoint is one scalar")
 					return
 				}
 				ends[i], _ = utf8.DecodeRuneInString(v.s)

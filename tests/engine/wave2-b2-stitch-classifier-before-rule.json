@@ -1,0 +1,12 @@
+{
+  "description": "Stitching selects errors in written declaration order (engine §2).",
+  "grammar": "%classifier lex\n $K ∈ A\n%rule text $R",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 2
+    }
+  }
+}

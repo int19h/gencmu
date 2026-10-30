@@ -1356,3 +1356,105 @@ fn parse_usage_errors_follow_text_tokens_features_until_order() {
         pipeline.parse("a", &gencmu::ParseOptions { until: Some("missing".into()), ..Default::default() }).unwrap_err();
     assert!(error.message.contains("has no stage"), "{error}");
 }
+
+#[test]
+fn stitching_messages_and_capture_order() {
+    let cases = [
+        ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
+        ("%rule text missing", "missing is not a rule of stage main"),
+        ("%rule other \"a\"", "stage main has no rule text"),
+        ("%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"),
+        ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),
+        (
+            "%extend-rule absent \"a\"\n%rule text \"a\"",
+            "%extend-rule absent extends a rule that is not defined before it",
+        ),
+        (
+            "%rule text \"a\"\n%rule text \"b\"",
+            "%rule text is already defined, in g.md; %redefine-rule replaces a rule",
+        ),
+        ("%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"),
+        ("%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"),
+        ("%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"),
+    ];
+    for (source, expected) in cases {
+        let error = gencmu::load_pipeline_sources(single(&format!("%ambiguity-resolution greedy\n{source}")), "p.md")
+            .expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+    }
+}
+
+#[test]
+fn classifier_canonical_key_messages() {
+    for (entries, ending) in [
+        (" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"),
+        (" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"),
+    ] {
+        let source = format!("%ambiguity-resolution greedy\n%classifier lex\n{entries}\n%rule text \"a\"");
+        let pipeline = gencmu::load_pipeline_sources(single(&source), "p.md").expect("a pipeline");
+        let result = pipeline.parse("a", &ParseOptions::default()).expect("a parse");
+        let error = result.error.expect("a classifier error");
+        assert!(
+            error.message.ends_with(&format!("the classifier lex: \"a‹SHY›e‹U+0301›\" {ending}")),
+            "{}",
+            error.message
+        );
+    }
+}
+
+#[test]
+fn missing_resolution_message() {
+    let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
+    assert_eq!(error.message, "stage main has no %ambiguity-resolution");
+}
+
+#[test]
+fn stitching_stages_and_reference_order() {
+    let cases = [
+        ("%rule other missing", "stage main has no rule text", true, true),
+        ("%rule text A", "stage main has no %ambiguity-resolution", false, true),
+        (
+            "%rule text A :: $.value.classify(nolex) ∪ $.tags(norule)",
+            "nolex is not a classifier of stage main",
+            true,
+            false,
+        ),
+        ("%rule text A :: $.tags(norule) ∪ $.value.classify(nolex)", "norule is not a rule of stage main", true, false),
+        (
+            "%const $A $MISSING\n%rule text A",
+            "$MISSING is not defined in stage main; dependency $A → $MISSING",
+            true,
+            false,
+        ),
+        ("%ambiguity-resolution greedy\n%rule text A", "stage main has a second %ambiguity-resolution", true, false),
+    ];
+    for (source, expected, resolution, unlocated) in cases {
+        let prefix = if resolution { "%ambiguity-resolution greedy\n" } else { "" };
+        let error =
+            gencmu::load_pipeline_sources(single(&format!("{prefix}{source}")), "p.md").expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+        assert_eq!(error.stage.as_deref(), Some("main"));
+        if unlocated {
+            assert_eq!((error.document, error.line, error.column), (None, None, None));
+        }
+    }
+}
+
+#[test]
+fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
+    for separator in ["|", "&"] {
+        let text = format!("%ambiguity-resolution greedy\n%rule text (($x:A {separator} $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = \"y\"), ($x ⟹ $.value = \"x\")");
+        let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
+        assert_eq!(error.code(), Some("ranked-choice-continuation"));
+        assert_eq!(error.option(), Some(0));
+        let expression = error.expression().unwrap();
+        assert_eq!(expression.get("if").unwrap().get("captured").unwrap().as_str(), Some("x"));
+    }
+    let text = "%ambiguity-resolution greedy\n%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = \"b\")";
+    let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code(), Some("ranked-choice-continuation"));
+    assert_eq!(error.option(), Some(1));
+}

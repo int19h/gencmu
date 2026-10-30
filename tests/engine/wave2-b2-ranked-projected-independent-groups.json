@@ -1,0 +1,155 @@
+{
+  "description": "Ranked clause projections retain relevant presence, order, and prefixes without unrelated combinations (engine §2.1).",
+  "grammar": "%rule text ($x0:A ≻ B) ($x1:A ≻ B) ($x2:A ≻ B) ($x3:A ≻ B) ($x4:A ≻ B) ($x5:A ≻ B) ($x6:A ≻ B) ($x7:A ≻ B) ($x8:A ≻ B) ($x9:A ≻ B) ($x10:A ≻ B) ($x11:A ≻ B) ($x12:A ≻ B) ($x13:A ≻ B) ($x14:A ≻ B) ($x15:A ≻ B) ($x16:A ≻ B) ($x17:A ≻ B) ($x18:A ≻ B) ($x19:A ≻ B) ($x20:A ≻ B) ($x21:A ≻ B) ($x22:A ≻ B) ($x23:A ≻ B)\n%conditions ($x0 ⟹ $x0.value = \"a\"), ($x1 ⟹ $x1.value = \"a\"), ($x2 ⟹ $x2.value = \"a\"), ($x3 ⟹ $x3.value = \"a\"), ($x4 ⟹ $x4.value = \"a\"), ($x5 ⟹ $x5.value = \"a\"), ($x6 ⟹ $x6.value = \"a\"), ($x7 ⟹ $x7.value = \"a\"), ($x8 ⟹ $x8.value = \"a\"), ($x9 ⟹ $x9.value = \"a\"), ($x10 ⟹ $x10.value = \"a\"), ($x11 ⟹ $x11.value = \"a\"), ($x12 ⟹ $x12.value = \"a\"), ($x13 ⟹ $x13.value = \"a\"), ($x14 ⟹ $x14.value = \"a\"), ($x15 ⟹ $x15.value = \"a\"), ($x16 ⟹ $x16.value = \"a\"), ($x17 ⟹ $x17.value = \"a\"), ($x18 ⟹ $x18.value = \"a\"), ($x19 ⟹ $x19.value = \"a\"), ($x20 ⟹ $x20.value = \"a\"), ($x21 ⟹ $x21.value = \"a\"), ($x22 ⟹ $x22.value = \"a\"), ($x23 ⟹ $x23.value = \"a\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

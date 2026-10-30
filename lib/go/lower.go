@@ -15,10 +15,8 @@ type symbol struct {
 }
 
 type slotMetadata struct {
-	source     *sAlt
-	path       *domExpr
-	tags       []*domTerm
-	tagClauses [2]*domTerm
+	source *sAlt
+	path   *domExpr
 }
 
 type production struct {
@@ -172,7 +170,6 @@ type lowerer struct {
 	helperNodes map[int32]*helperNode
 	rankOptions map[int32][]int
 	commonConds map[*sAlt]map[string][]*domCond
-	validation  bool
 	currentExpr *domExpr
 	g           *stageGrammar
 	l           *lowered
@@ -229,25 +226,21 @@ type helperNode struct {
 
 // lower lowers a stage's grammar for a set of features. The check of
 // elision-only reads the same productions in a mode of its own (§3.8, §7.4).
-func lower(g *stageGrammar, features map[string]bool) *lowered { return lowerMode(g, features, false) }
-func lowerForSlots(g *stageGrammar) *lowered                   { return lowerMode(g, nil, true) }
-func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowered {
+func lower(g *stageGrammar, features map[string]bool) *lowered {
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
 	// lowering does (§2, §3).
-	if !validation {
-		tables := g.classifiers(features)
-		if tables.fault != "" {
-			l.fault = tables.fault
-			location := *tables.faultLocation
-			location.Stage = g.name
-			l.faultLocation = &location
-			return l
-		}
-		l.classifiers = tables.tables
+	tables := g.classifiers(features)
+	if tables.fault != "" {
+		l.fault = tables.fault
+		location := *tables.faultLocation
+		location.Stage = g.name
+		l.faultLocation = &location
+		return l
 	}
-	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
+	l.classifiers = tables.tables
+	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
 		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0 && r.flags[0] == "leftmost-longest", fewest: len(r.flags) > 0 && r.flags[0] == "fewest", name: r.name, owner: r.name, scc: -1})
@@ -312,9 +305,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
-	if !validation {
-		lw.checkBraceItems()
-	}
+	lw.checkBraceItems()
 	if l.fault != "" {
 		return l
 	}
@@ -389,9 +380,6 @@ func (lw *lowerer) newHelper(owner *sAlt, ownerRule string) int32 {
 // guardsHold says whether an alternative's gates all hold; a warning is not
 // a gate and never drops its alternative (§3.1).
 func (lw *lowerer) guardsHold(a *domAlt) bool {
-	if lw.validation {
-		return true
-	}
 	for _, gd := range a.Guards {
 		if gd.Kind != FeatureWarning && lw.features[gd.Feature] == gd.Negated {
 			return false
@@ -410,7 +398,7 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	// A chain is the only alternative of its rule that the gates leave
 	// (§3.3); a %extend-rule can add another.
 	for _, a := range alts {
-		if !lw.validation && isChain(a.alt.Expr) && len(alts) > 1 {
+		if isChain(a.alt.Expr) && len(alts) > 1 {
 			lw.loweringFault(a, "%s is a chain, which is the whole of its rule, but another alternative stands beside it", r.name)
 			return
 		}
@@ -456,21 +444,26 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				lw.addProduction(lhs, x, a)
 			}
 		}
+		numbered := map[int32]bool{}
 		// Then the helpers, in the order their places are written, each
 		// followed at once by those inside it (§3, Numbering).
 		var number func(hs []*helperNode)
 		number = func(hs []*helperNode) {
 			for _, h := range hs {
+				if numbered[h.rule] {
+					continue
+				}
+				numbered[h.rule] = true
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
 					p.sourceAlternative = h.owner
 					p.helperExpression = h.path
 					b, _, _ = logicalBody(b)
-					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
-					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.posOf = map[string]int{}
 						p.nslots = 0
 						for i, s := range b {
@@ -508,8 +501,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 	}
 }
 
-// isChain says whether an expression is a chain, {... x \ s} or
-// {x ... \ s}.
+// isChain says whether an expression is a chain, {... x / s} or
+// {x ... / s}.
 func isChain(e *domExpr) bool {
 	return e.Kind == exRepeat && e.Chain != ""
 }
@@ -535,9 +528,11 @@ func holdsCapture(e *domExpr, includeRanked bool) bool {
 }
 
 func symbolsOf(body []slot) []symbol {
-	out := make([]symbol, len(body))
-	for i, s := range body {
-		out[i] = s.sym
+	out := make([]symbol, 0, len(body))
+	for _, s := range body {
+		if s.logicalMark == 0 {
+			out = append(out, s.sym)
+		}
 	}
 	return out
 }
@@ -630,13 +625,13 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			lw.condsOf[key] = cl
 		}
 		var ok bool
-		if conds, ok = cl.forProduction(names, has); !ok && !lw.validation {
+		if conds, ok = cl.forProduction(names, has); !ok {
 			return
 		}
 	}
 	p := lw.newProduction(lhs, rawBody)
 	p.sourceAlternative = a
-	if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+	if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 		p.slot = &slotMetadata{source: a}
 	}
 	p.nothing = a.erased
@@ -653,7 +648,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	if !ok {
 		for _, gd := range a.alt.Guards {
 			presenceStep()
-			if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
+			if gd.Kind == FeatureWarning {
 				warnings = append(warnings, gd.Feature)
 			}
 		}
@@ -682,16 +677,10 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The union of the alternative's own tag term and its definition's
 	// %tags, where either is written (§3.7).
 	var written []*domTerm
-	var tagClauses [2]*domTerm
-	for index, t := range [2]*domTerm{a.alt.Tags, a.ruleTags} {
-		if t != nil {
-			tagClauses[index] = lw.simplifyTerm(t, names, has)
-			written = append(written, tagClauses[index])
+	for _, term := range []*domTerm{a.alt.Tags, a.ruleTags} {
+		if term != nil {
+			written = append(written, lw.simplifyTerm(term, names, has))
 		}
-	}
-	if lw.validation {
-		p.slot.tags = written
-		p.slot.tagClauses = tagClauses
 	}
 	switch len(written) {
 	case 1:
@@ -913,11 +902,27 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		if !e.Elidable && lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 && holdsCapture(inner, true) {
 			// Preserve tag arity while each helper selects one complete route.
 			// Reachable descendant groups then distinguish absence from future names.
+			outer := lw.into
+			var nested []*helperNode
+			lw.into = &nested
 			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			lw.into = outer
+			roots := map[int32]*helperNode{}
+			for _, child := range nested {
+				roots[child.rule] = child
+			}
 			var out [][]slot
 			for _, body := range bodies {
 				selected := body
 				route := lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+					// The route precedes each helper that its body reaches.
+					for _, slot := range selected {
+						if !slot.sym.term {
+							if child := roots[slot.sym.id]; child != nil {
+								*lw.into = append(*lw.into, child)
+							}
+						}
+					}
 					return [][]slot{selected}
 				})[0]
 				// Each physical helper is one route through the same written optional.
@@ -946,9 +951,6 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// Flat braces are a helper, h → x | h s x, its base productions
 		// first; the places inside the item come before those inside the
 		// separator (§3.2).
-		if isChain(e) {
-			lw.loweringFault(a, "a chain in %s is not the whole of its rule", ruleName)
-		}
 		item, sep := e.Inner, e.Sep
 		return lw.helper(a, ruleName, "", nil, func(h int32) [][]slot {
 			xs := lw.expand(item, a, ruleName)

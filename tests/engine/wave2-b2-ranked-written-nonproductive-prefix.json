@@ -1,0 +1,18 @@
+{
+  "description": "Ranked tag and prefix analysis uses written structure without production products (engine §2.1).",
+  "grammar": "%rule text dead ($x:A ≻ B)\n%conditions ($x ⟹ ¬$.preceded-by(A))\n%rule dead dead",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

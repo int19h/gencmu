@@ -196,11 +196,10 @@ pub(crate) enum Expr {
     Terminal(String),
     Literal(Term),
     ScalarRange(Term, Term),
-    /// A range `'a'..'z'`: its two ends, character tags in their canonical
-    /// spelling, the start not above the end (engine §1).
-    Range(String, String),
-    /// An internal property terminal, by its engine-tag name (engine §1).
-    Property(String),
+    /// A bound range's scalar endpoints, with the start not above the end.
+    Range(char, char),
+    /// The wildcard `_`, which reads any ordinary token.
+    Wildcard,
     Capture(String, Box<Expr>),
     /// A symbol with `=`, `≠`, or signed `tags` requirements (§2, §4).
     /// The closed operand precedes the wrapped symbol in this representation.
@@ -648,7 +647,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
         }
         "ref" => Expr::Ref(string(value, "ref")?),
         "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
-        "wildcard" => Expr::Property("Any".into()),
+        "wildcard" => Expr::Wildcard,
         "range" => match array(value, "range")? {
             [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
             _ => return Err("a range requires two string terms".into()),
@@ -1248,8 +1247,8 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
             write_term(out, end);
             out.push_str("]}");
         }
-        Expr::Range(start, end) => write_range(out, start, end),
-        Expr::Property(_) => out.push_str("{\"wildcard\":true}"),
+        Expr::Range(start, end) => write_range(out, *start, *end),
+        Expr::Wildcard => out.push_str("{\"wildcard\":true}"),
         Expr::Capture(name, inner) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
@@ -1275,11 +1274,11 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     }
 }
 
-fn write_range(out: &mut String, start: &str, end: &str) {
+fn write_range(out: &mut String, start: char, end: char) {
     out.push_str("{\"range\":[");
-    write_str(out, start);
+    write_term(out, &Term::Str(start.to_string()));
     out.push(',');
-    write_str(out, end);
+    write_term(out, &Term::Str(end.to_string()));
     out.push_str("]}");
 }
 
@@ -1624,7 +1623,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Term(a), depth));
                     stack.push((Nested::Term(b), depth));
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
             },
             Nested::Term(term) => match term {
                 Term::Union(items) | Term::Intersection(items) => {
@@ -1777,7 +1776,7 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }
@@ -2154,14 +2153,11 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
         if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
             let mut a_chars = a.chars();
             let mut b_chars = b.chars();
-            if !matches!((a_chars.next(), b_chars.next()), (Some(a), Some(b)) if a <= b)
-                || a_chars.next().is_some()
-                || b_chars.next().is_some()
-            {
-                faults.push(Fault {
-                    problem: "a scalar range requires ordered single-scalar endpoints".into(),
-                    at: None,
-                });
+            let endpoints = (a_chars.next(), b_chars.next());
+            if !matches!(endpoints, (Some(_), Some(_))) || a_chars.next().is_some() || b_chars.next().is_some() {
+                faults.push(Fault { problem: "a range endpoint is one scalar".into(), at: None });
+            } else if matches!(endpoints, (Some(a), Some(b)) if a > b) {
+                faults.push(Fault { problem: "a range starts above its end".into(), at: None });
             }
         }
     }
@@ -2241,7 +2237,7 @@ impl Expr {
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
             | Expr::Range(..)
-            | Expr::Property(_)
+            | Expr::Wildcard
             | Expr::Empty => {}
         }
     }

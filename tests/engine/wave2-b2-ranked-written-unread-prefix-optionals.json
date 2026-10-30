@@ -1,0 +1,17 @@
+{
+  "description": "Ranked tag and prefix analysis uses written structure without production products (engine §2.1).",
+  "grammar": "%rule text [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] (A ≻ B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

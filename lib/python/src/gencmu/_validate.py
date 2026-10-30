@@ -125,7 +125,7 @@ def range_problem(ends: Any) -> str | None:
         return "a range requires two string terms"
     values = [literal_string(end) for end in ends]
     if any(value is not None and len(value) != 1 for value in values):
-        return "a range endpoint requires one scalar"
+        return "a range endpoint is one scalar"
     if all(value is not None for value in values) and values[0] > values[1]:
         return "a range starts above its end"
     return None

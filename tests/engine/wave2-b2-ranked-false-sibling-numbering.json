@@ -1,0 +1,39 @@
+{
+  "description": "Production numbering follows condition pruning and depth-first optional routes (engine \u00a7\u00a73.2, 3.6, 3.9).",
+  "grammar": "%rule text | \"a\" ($x:\"b\" | (\"c\" \u227b $y:\"d\"))\n%conditions $y\n%extend-rule text \"a\" \"d\"",
+  "input": "ad",
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie",
+          "witness": [
+            {
+              "close": {
+                "rule": "text",
+                "production": 0,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "close": {
+                "rule": "text",
+                "production": 3,
+                "span": [
+                  0,
+                  2
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "error": "ambiguous"
+  }
+}

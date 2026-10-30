@@ -8,14 +8,6 @@ import (
 	"testing"
 )
 
-func TestRankedValidationRejectsIncompleteLowering(t *testing.T) {
-	t.Parallel()
-	fault := &Error{Kind: ErrorGrammar, Message: "incomplete lowering", Document: "source.md", Line: 7}
-	got := (&rankedGroups{}).validateTags(&lowered{fault: fault.Message, faultLocation: fault})
-	if got != fault {
-		t.Fatalf("got %v, want the original lowering fault %v", got, fault)
-	}
-}
 func TestRankedLinearForest(t *testing.T) {
 	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"))
@@ -150,5 +142,46 @@ func TestDeferredRecipePrecedesEmptyEmission(t *testing.T) {
 	}
 	if e, ok := err.(*Error); !ok || e.Code != "" {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestRankedRecipeOrder(t *testing.T) {
+	t.Parallel()
+	_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) := $x.image %emits"), "p.md")
+	if err == nil {
+		t.Fatal("the private recipe loaded")
+	}
+	fault := err.(*Error)
+	if fault.Code != "ranked-choice-export" || !strings.Contains(string(fault.Expression), `"method":"image"`) {
+		t.Fatalf("got %v, expression %s", fault, fault.Expression)
+	}
+}
+
+func TestProjectedRankedRoutePriorityAndBindings(t *testing.T) {
+	for _, separator := range []string{"|", "&"} {
+		grammar := "%ambiguity-resolution greedy\n%rule text (($x:A " + separator + " $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = \"y\"), ($x ⟹ $.value = \"x\")"
+		_, failure := LoadPipelineSources(oneStage(grammar), "p.md")
+		if failure == nil {
+			t.Fatal("grammar loaded")
+		}
+		err := failure.(*Error)
+		if err.Code != "ranked-choice-continuation" || err.Option == nil || *err.Option != 0 {
+			t.Fatal(err)
+		}
+		var expression struct{ If struct{ Captured string } }
+		if failure := json.Unmarshal(err.Expression, &expression); failure != nil {
+			t.Fatal(failure)
+		}
+		if expression.If.Captured != "x" {
+			t.Fatalf("wrong condition: %s", err.Expression)
+		}
+	}
+	_, failure := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = \"b\")"), "p.md")
+	if failure == nil {
+		t.Fatal("grammar loaded")
+	}
+	err := failure.(*Error)
+	if err.Code != "ranked-choice-continuation" || err.Option == nil || *err.Option != 1 {
+		t.Fatal(err)
 	}
 }

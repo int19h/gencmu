@@ -1,0 +1,11 @@
+{
+  "description": "Feature conditions use the resolved string-set type of a constant (engine §13).",
+  "grammar": "%ambiguity-resolution greedy\n%const $WORDS \"\".split(\" \")\n%features f\n%conditions $.value ∈ $WORDS\n%rule text f? \"a\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": false
+    },
+    "error": "rejected"
+  }
+}

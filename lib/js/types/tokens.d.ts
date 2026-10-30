@@ -79,8 +79,3 @@ export declare class Sources {
  * @returns {Token[]}
  */
 export declare function characterTokens(text: string, unicode: UnicodeTable): Token[];
-/**
- * @param {string} text
- * @returns {string[]}
- */
-export declare function codePoints(text: string): string[];

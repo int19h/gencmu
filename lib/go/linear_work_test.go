@@ -356,7 +356,7 @@ func TestClassesLinear(t *testing.T) {
 		w := &workCounts{}
 		w.classSteps.most = int64(n) * (4 + int64(bits.Len(uint(n))))
 		var tables *classifierTables
-		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil) })
+		countWorkIn(w, func() { tables = resolveClassifiers([]classifierItem{{classifier: c}}, nil, nil) })
 		if tables.fault != "" || len(tables.tables["c"]["a"].names) != n/2 {
 			t.Fatalf("%d classes: %q", n, tables.fault)
 		}

@@ -269,11 +269,11 @@ impl Unicode {
         if self.is_white_space(code) {
             tags.push("_White_Space".into());
         }
-        for (prop, name) in [
-            (crate::unicode::Property::EmojiPresentation, "_Emoji_Presentation"),
-            (crate::unicode::Property::EmojiComponent, "_Emoji_Component"),
+        for (present, name) in [
+            (self.is_emoji_presentation(code), "_Emoji_Presentation"),
+            (self.is_emoji_component(code), "_Emoji_Component"),
         ] {
-            if self.has(prop, code) {
+            if present {
                 tags.push(name.into());
             }
         }

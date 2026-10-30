@@ -45,11 +45,6 @@ func (t *tagset) find(name string, c *workCount) bool {
 	return i < len(t.names) && t.names[i] == name
 }
 
-// list is the set's members in code point order, as the output lists them.
-func (t *tagset) list() []string {
-	return append([]string{}, t.names...)
-}
-
 type interner struct {
 	byKey       map[string]*tagset
 	all         []*tagset

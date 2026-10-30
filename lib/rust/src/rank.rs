@@ -1,11 +1,10 @@
 //! Choosing a parse (engine §6), computed over the packed forest without
 //! enumerating derivations.
 //!
-//! Under `late-elision`, a first pass gives every node of the forest, in
-//! each of its contexts, a *summary*: the least elision vector of its
-//! derivations, how many derivations attain it, how many there are in all,
-//! and which of its edges attain it. The entries below are then computed
-//! with no lean over only those edges, the forest of the best derivations.
+//! A first pass retains the best rule profile in each context. Under
+//! `late-elision`, it also compares elision vectors. Each summary counts
+//! best and total derivations and records the best edges. The entries pass
+//! compares actions only on those edges.
 //!
 //! Every node of the forest (an item, a completed item, or the constituents
 //! of one rule over one span) gets a short list of *entries*. An entry is a
@@ -155,7 +154,6 @@ struct SlotCandidate {
 #[derive(Default)]
 struct Counts {
     all: u8,
-    w: bool,
 }
 type SlotMaxima = std::collections::BTreeSet<String>;
 struct Admission {
@@ -165,6 +163,7 @@ struct Admission {
     masks: FxMap<Key, Vec<bool>>,
     maxima: FxMap<(usize, u32, Option<u32>), SlotMaxima>,
     stats: crate::slot_stats::SlotStatistics,
+    reported_splits: Vec<bool>,
 }
 /// The packed chart keeps raw proofs together. Admission separates the
 /// options at a slot edge while retaining every proof of each option.
@@ -220,7 +219,7 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
         .zip(chart.caps(item.caps))
         .filter_map(|(name, cap)| name.as_ref().map(|name| (name, cap)))
         .collect();
-    let lexical = chart.lexical_frame(item.lexical).map(|f| &f.key);
+    let lexical = item.lexical;
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(
@@ -256,7 +255,6 @@ impl Admission {
             let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
             let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
             for (edge, (previous, cap, option)) in slot_links(g, chart, end, item).into_iter().enumerate() {
-                let pp = &g.prods[previous.prod as usize];
                 let prefix = written_frame(g, chart, previous, cap.start);
                 let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
                 let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
@@ -280,11 +278,19 @@ impl Admission {
                 groups[group].push(candidate.clone());
                 at.entry(node).or_default().push(candidate);
                 stats.candidate_edges += 1;
-                let _ = pp;
             }
         }
         stats.groups = groups.len();
-        Self { groups, at, counts: FxMap::default(), masks: FxMap::default(), maxima: FxMap::default(), stats }
+        let reported_splits = vec![false; groups.len()];
+        Self {
+            groups,
+            at,
+            reported_splits,
+            counts: FxMap::default(),
+            masks: FxMap::default(),
+            maxima: FxMap::default(),
+            stats,
+        }
     }
 }
 impl Ranker<'_> {
@@ -352,7 +358,8 @@ impl Ranker<'_> {
                     .collect();
                 if retained.iter().any(|proof| viable.iter().any(|higher| higher.option < proof.option)) {
                     let a = self.admission.as_mut().unwrap();
-                    if !a.stats.boundary_splits.iter().any(|s| s.group == choice.group) {
+                    if !a.reported_splits[choice.group] {
+                        a.reported_splits[choice.group] = true;
                         a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {
                             group: choice.group,
                             start: choice.start,
@@ -373,7 +380,6 @@ impl Ranker<'_> {
     }
     fn count(&self, key: Key, deps: &Deps) -> Counts {
         let a = self.admission.as_ref().unwrap();
-        let marks = self.marks;
         match deps {
             Deps::Leaf => {
                 let valid = match self.raw_node(key.0) {
@@ -382,17 +388,12 @@ impl Ranker<'_> {
                     }
                     _ => true,
                 };
-                let w = match self.raw_node(key.0) {
-                    Node::Read { .. } => true,
-                    Node::Item { set, index } => marks.is_some_and(|m| m.items.contains(&(set, index))),
-                    _ => false,
-                };
-                Counts { all: u8::from(valid), w: valid && w }
+                Counts { all: u8::from(valid) }
             }
             Deps::Close(None) => Counts::default(),
             Deps::Close(Some(k)) => {
                 let body = &a.counts[k];
-                Counts { all: body.all, w: body.w }
+                Counts { all: body.all }
             }
             Deps::Group(members) => {
                 let mut result = Counts::default();
@@ -402,12 +403,10 @@ impl Ranker<'_> {
                     }
                     let c = &a.counts[k];
                     result.all = result.all.saturating_add(c.all).min(2);
-                    result.w |= c.all > 0 && c.w;
                 }
                 result
             }
             Deps::Links(links) => {
-                let Node::Item { set, index } = self.raw_node(key.0) else { unreachable!() };
                 let mut result = Counts::default();
                 let mask = a.masks.get(&key);
                 for (i, &(pred, child)) in links.iter().enumerate() {
@@ -419,11 +418,6 @@ impl Ranker<'_> {
                     let ways = (left.all).saturating_mul(right.all).min(2);
                     if mask.map_or(true, |m| m[i]) {
                         result.all = result.all.saturating_add(ways).min(2);
-                        let Node::Item { set: m, .. } = self.raw_node(pred.0) else { unreachable!() };
-                        result.w |= ways > 0
-                            && left.w
-                            && right.w
-                            && marks.is_some_and(|marks| marks.links.contains(&(set, index, m)));
                     }
                 }
                 result
@@ -646,10 +640,9 @@ impl Vectors {
     }
 }
 
-/// Under `late-elision`, the derivations of a node in one context, one
-/// eligibility: the least vector, the number of derivations that attain it
-/// and the number of all of them, both capped at two, and the edges that
-/// attain it (§6). A total of zero means no derivation.
+/// A node's best rule profile and optional elision vector in one context.
+/// Best and total counts cap at two. Retained edges attain that score (§6).
+/// A total of zero means no derivation.
 #[derive(Debug, Clone)]
 struct Least {
     vector: u32,
@@ -668,7 +661,7 @@ impl Least {
 
     /// Adds the derivations of the edge `index`. The total counts every
     /// edge, losing ones included; the least count and the kept edges
-    /// count only those that attain the least vector.
+    /// count only those that attain the best profile and elision score.
     fn add(&mut self, vectors: &Vectors, index: u32, edge: &Least) {
         if edge.total == 0 {
             return;
@@ -722,7 +715,7 @@ impl Summary {
     }
 }
 
-/// What `late-elision` keeps beside the entries.
+/// Profile summaries, with elision vectors when the directive requires them.
 struct Elisions {
     count_elisions: bool,
     vectors: Vectors,
@@ -762,7 +755,7 @@ pub(crate) struct Ranker<'c> {
     results: Vec<NodeResult>,
     fsets: Vec<Vec<u32>>,
     fset_index: FxMap<Vec<u32>, u32>,
-    /// Under `late-elision`, the vectors and the summaries.
+    /// Rule-profile summaries and optional elision vectors.
     elisions: Option<Elisions>,
     /// The runtime witness marks of W(D) (tests/README.md). With them, each
     /// count also says whether it includes a derivation made of marked links
@@ -1549,8 +1542,7 @@ impl<'c> Ranker<'c> {
     }
 
     /// The nodes that `pass` needs before `key`: every dependency, except
-    /// that under late-elision the entries need only those of the edges
-    /// that attain a least vector.
+    /// that profile selection restricts entries to the best edges.
     fn needed(&mut self, pass: Pass, key: &Key, deps: &Deps) -> Vec<Key> {
         if pass == Pass::Admission {
             let mut keys = Self::keys(deps);
@@ -1584,7 +1576,7 @@ impl<'c> Ranker<'c> {
         }
     }
 
-    /// The summary of a node under late-elision, from those of its
+    /// The profile summary of a node, from those of its
     /// dependencies (§6).
     fn summarize(&mut self, key: Key, deps: &Deps) -> Summary {
         let node = self.raw_node(key.0);
@@ -1658,8 +1650,8 @@ impl<'c> Ranker<'c> {
     }
 
     /// Which edges of a node the entries take in, in each eligibility:
-    /// under late-elision, those that attain the least vector (§6), and
-    /// otherwise every edge.
+    /// those that attain the best profile and optional elision vector (§6).
+    /// Without summaries, admission alone selects the edges.
     fn kept(&self, key: &Key) -> Option<Vec<u32>> {
         let masks = self.admission.as_ref().and_then(|a| a.masks.get(key));
         if let Some(summary) = self.elisions.as_ref().map(|e| &e.summaries[key]) {
@@ -1725,7 +1717,7 @@ impl<'c> Ranker<'c> {
                     // in the count or in the entries (tests/README.md).
                     let counted = !self.skips(Fault::LostContext, "links", number, alternatives);
                     let selected = !self.skips(Fault::LostSelect, "links", number, alternatives);
-                    if to_all && counted {
+                    if counted {
                         all.count = all.count.saturating_add(ways).min(2);
                         all.w |= w;
                     }
@@ -1735,9 +1727,7 @@ impl<'c> Ranker<'c> {
                     for first in &left.entries {
                         for second in &right.entries {
                             let entry = self.dag.product(first, second);
-                            if to_all {
-                                self.dag.add_entry(&mut all.entries, entry);
-                            }
+                            self.dag.add_entry(&mut all.entries, entry);
                         }
                     }
                 }
@@ -1819,8 +1809,8 @@ impl<'c> Ranker<'c> {
         if self.admission.is_some() {
             self.traverse(root, Pass::Admission);
         }
-        // Under late-elision, the total and the least count of the root,
-        // before the forest is cut down to the best derivations.
+        // Profile summaries count total and best derivations before the
+        // entries pass reads the selected forest.
         let counts = if self.elisions.is_some() {
             self.traverse(root, Pass::Summaries);
             let root = &self.elisions.as_ref().expect("late-elision").summaries[&root].all;

@@ -25,7 +25,6 @@ type stageGrammar struct {
 	constants         map[string]*stageConst
 	constVersions     []*constVersion
 	constLatest       map[string]int
-	constUsers        []constUser
 	rules             []*sRule
 	byName            map[string]*sRule
 	lean              string // the rule of the ranking: "greedy", "lazy" or "late-elision" (engine §6)
@@ -108,6 +107,14 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
+	grammar, err := stitchStage(stageName, docs, uni)
+	if err != nil {
+		err.Stage = stageName
+	}
+	return grammar, err
+}
+
+func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
 	var pendingTemplates []*Error
 	for _, document := range docs {
 		for _, rule := range document.dom.Rules {
@@ -127,13 +134,8 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	}
 	docs = expanded.docs
 	g := &stageGrammar{templates: expanded.templates, instances: expanded.instances, name: stageName, uni: uni, constants: map[string]*stageConst{}, byName: map[string]*sRule{}}
-	for _, user := range expanded.validation {
-		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) {
-			g.constUsers = append(g.constUsers, user)
-		}
-	}
 	g.classifierSet.names = map[string]bool{}
-	var implications []implicationItem
+	var checks []func() *Error
 	fail := func(doc string, at [2]int, format string, args ...any) *Error {
 		e := grammarError(doc, at, format, args...)
 		e.Stage = stageName
@@ -142,133 +144,158 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	var ambiguity []*domDirective
 	textOrder := 0
 	for _, d := range docs {
-		for _, r := range d.dom.Rules {
-			if r.deferredEmission != nil && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
-				g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
+		type item struct {
+			at          [2]int
+			rule        *domRule
+			directive   *domDirective
+			constant    *domConst
+			classifier  *domClassifier
+			implication *domImplication
+		}
+		var items []item
+		for _, x := range d.dom.Rules {
+			items = append(items, item{at: x.At, rule: x})
+		}
+		for _, x := range d.dom.Directives {
+			items = append(items, item{at: x.At, directive: x})
+		}
+		for _, x := range d.dom.Constants {
+			items = append(items, item{at: x.At, constant: x})
+		}
+		for _, x := range d.dom.Classifiers {
+			items = append(items, item{at: x.At, classifier: x})
+		}
+		for _, x := range d.dom.Implications {
+			items = append(items, item{at: x.At, implication: x})
+		}
+		slices.SortStableFunc(items, func(a, b item) int {
+			if a.at[0] != b.at[0] {
+				return a.at[0] - b.at[0]
 			}
-			if len(constRefs(r)) > 0 || ruleHasPattern(r) {
-				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
-			}
-			var written jobj
-			for _, alternative := range r.Alternatives {
-				if containsRanked(alternative.Expr) {
-					w := &jsonWriter{}
-					r.writeJSON(w)
-					var err error
-					written, err = decodeObj(w.buf)
-					if err != nil {
-						return nil, fail(d.path, r.At, "cannot retain the written rule DOM: %v", err)
+			return a.at[1] - b.at[1]
+		})
+		for _, it := range items {
+			if r := it.rule; r != nil {
+				if r.deferredEmission != nil && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
+					g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
+				}
+				if len(constRefs(r)) > 0 || ruleHasPattern(r) {
+					user := constUser{doc: d.path, rule: r}
+					checks = append(checks, func() *Error { return g.checkConstantRule(user) })
+				}
+				var written jobj
+				for _, alternative := range r.Alternatives {
+					if containsRanked(alternative.Expr) {
+						w := &jsonWriter{}
+						r.writeJSON(w)
+						var err error
+						written, err = decodeObj(w.buf)
+						if err != nil {
+							return nil, fail(d.path, r.At, "cannot retain the written rule DOM: %v", err)
+						}
+						break
 					}
-					break
 				}
+				alts := make([]*sAlt, len(r.Alternatives))
+				for i, a := range r.Alternatives {
+					alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+					textOrder++
+				}
+				for _, a := range alts {
+					a.boundaryOwner = alts[0]
+				}
+				existing := g.byName[r.Name]
+				// Each way of stating a rule says what it expects to be there
+				// already (engine §2).
+				switch r.Op {
+				case "define":
+					if existing != nil {
+						return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
+					}
+					nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
+					g.rules = append(g.rules, nr)
+					g.byName[r.Name] = nr
+				case "redefine":
+					// It replaces the rule of that name any earlier item of the
+					// stage defined, in this document or another (engine §2).
+					if existing == nil {
+						return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule defined before it", r.Name)
+					}
+					// The replacement keeps the place of the rule it replaces.
+					change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
+					if !slices.Equal(existing.flags, r.Flags) {
+						change.flagChange = &flagChange{from: slices.Clone(existing.flags), to: slices.Clone(r.Flags)}
+					}
+					g.changes = append(g.changes, change)
+					existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
+				case "extend":
+					if existing == nil {
+						return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
+					}
+					g.changes = append(g.changes, stitchChange{rule: r.Name, document: d.path, op: "extend"})
+					existing.alts = append(existing.alts, alts...)
+				default:
+					return nil, fail(d.path, r.At, "unknown rule operator %q", r.Op)
+				}
+			} else if dir := it.directive; dir != nil {
+				switch dir.Name {
+				case "features":
+					index := len(g.features)
+					g.features = append(g.features, stageFeature{d.path, dir})
+					checks = append(checks, func() *Error { return g.resolveFeature(index) })
+				case "ambiguity-resolution":
+					ambiguity = append(ambiguity, dir)
+					if len(ambiguity) > 1 {
+						return nil, fail(d.path, dir.At, "stage %s has a second %%ambiguity-resolution", stageName)
+					}
+					// The rule of the ranking, greedy, lazy or late-elision, then
+					// optionally elision-only, in that
+					// order (engine §2).
+					args := dir.Args
+					rest := args
+					if len(rest) > 0 {
+						rest = rest[1:]
+					}
+					elisionOnly := len(rest) > 0 && rest[0] == "elision-only"
+					if elisionOnly {
+						rest = rest[1:]
+					}
+					if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
+						return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only")
+					}
+					g.lean, g.elisionOnly = args[0], elisionOnly
+				default:
+					return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
+				}
+			} else if k := it.constant; k != nil {
+				if err := g.addConstant(d.path, k); err != nil {
+					return nil, err
+				}
+			} else if c := it.classifier; c != nil {
+				index := len(g.classifierSet.items)
+				g.classifierSet.items = append(g.classifierSet.items, classifierItem{doc: d.path, classifier: c})
+				g.classifierSet.names[c.Name] = true
+				checks = append(checks, func() *Error { return g.resolveClassifierKeys(index) })
+			} else {
+				implication := implicationItem{doc: d.path, implication: it.implication}
+				checks = append(checks, func() *Error { return g.addImplications([]implicationItem{implication}) })
 			}
-			alts := make([]*sAlt, len(r.Alternatives))
-			for i, a := range r.Alternatives {
-				alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
-				textOrder++
-			}
-			for _, a := range alts {
-				a.boundaryOwner = alts[0]
-			}
-			existing := g.byName[r.Name]
-			// Each way of stating a rule says what it expects to be there
-			// already (engine §2).
-			switch r.Op {
-			case "define":
-				if existing != nil {
-					return nil, fail(d.path, r.At, "%%rule %s is already defined, in %s; %%redefine-rule replaces a rule", r.Name, existing.doc)
-				}
-				nr := &sRule{flags: r.Flags, name: r.Name, alts: alts, doc: d.path, at: r.At}
-				g.rules = append(g.rules, nr)
-				g.byName[r.Name] = nr
-			case "redefine":
-				// It replaces the rule of that name any earlier item of the
-				// stage defined, in this document or another (engine §2).
-				if existing == nil {
-					return nil, fail(d.path, r.At, "%%redefine-rule %s replaces no rule defined before it", r.Name)
-				}
-				// The replacement keeps the place of the rule it replaces.
-				change := stitchChange{rule: r.Name, document: d.path, op: "replace"}
-				if !slices.Equal(existing.flags, r.Flags) {
-					change.flagChange = &flagChange{from: slices.Clone(existing.flags), to: slices.Clone(r.Flags)}
-				}
-				g.changes = append(g.changes, change)
-				existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
-			case "extend":
-				if existing == nil {
-					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule not defined before it", r.Name)
-				}
-				g.changes = append(g.changes, stitchChange{rule: r.Name, document: d.path, op: "extend"})
-				existing.alts = append(existing.alts, alts...)
-			default:
-				return nil, fail(d.path, r.At, "unknown rule operator %q", r.Op)
-			}
-		}
-		for _, dir := range d.dom.Directives {
-			switch dir.Name {
-			case "features":
-				g.features = append(g.features, stageFeature{d.path, dir})
-			case "ambiguity-resolution":
-				ambiguity = append(ambiguity, dir)
-				if len(ambiguity) > 1 {
-					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
-				}
-				// The rule of the ranking, greedy, lazy or late-elision, then
-				// optionally elision-only, in that
-				// order (engine §2).
-				args := dir.Args
-				rest := args
-				if len(rest) > 0 {
-					rest = rest[1:]
-				}
-				elisionOnly := len(rest) > 0 && rest[0] == "elision-only"
-				if elisionOnly {
-					rest = rest[1:]
-				}
-				if len(args) == 0 || !isRankingRule(args[0]) || len(rest) > 0 {
-					return nil, fail(d.path, dir.At, "%%ambiguity-resolution takes greedy, lazy or late-elision, then optionally elision-only")
-				}
-				g.lean, g.elisionOnly = args[0], elisionOnly
-			default:
-				return nil, fail(d.path, dir.At, "unknown directive %%%s", dir.Name)
-			}
-		}
-		for _, k := range d.dom.Constants {
-			if err := g.addConstant(d.path, k); err != nil {
-				return nil, err
-			}
-		}
-		// Every item of a classifier's name adds to one classifier, in the
-		// stitching order (engine §2).
-		for _, c := range d.dom.Classifiers {
-			g.classifierSet.items = append(g.classifierSet.items, classifierItem{doc: d.path, classifier: c})
-			g.classifierSet.names[c.Name] = true
-		}
-		for _, m := range d.dom.Implications {
-			implications = append(implications, implicationItem{doc: d.path, implication: m})
 		}
 	}
-	if err := g.resolveConstants(); err != nil {
-		return nil, err
+	for _, user := range expanded.validation {
+		if len(constRefs(user.rule)) > 0 || ruleHasPattern(user.rule) {
+			checks = append(checks, func() *Error { return g.checkConstantRule(user) })
+		}
 	}
-	if err := g.resolveClassifierKeys(); err != nil {
-		return nil, err
-	}
-	if err := g.addImplications(implications); err != nil {
+	if err := g.resolveConstants(checks); err != nil {
 		return nil, err
 	}
 	if len(ambiguity) == 0 {
 		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no %ambiguity-resolution"}
-		if len(docs) > 0 {
-			e.Document = docs[0].path
-		}
 		return nil, e
 	}
 	if g.byName["text"] == nil {
-		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " defines no start rule text"}
-		if len(docs) > 0 {
-			e.Document = docs[0].path
-		}
+		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no rule text"}
 		return nil, e
 	}
 	if expanded.order != nil {
@@ -315,9 +342,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return nil, err
 	}
 	if len(g.ranked.groups) > 0 {
-		lowered := lowerForSlots(g)
-
-		if err := g.ranked.validateTags(lowered); err != nil {
+		if err := g.ranked.validateTags(g); err != nil {
 			return nil, err
 		}
 	}
@@ -418,9 +443,6 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		if e.Kind == exRef && !isTerminalName(e.Name) && g.byName[e.Name] == nil {
 			return fail("%s is not a rule of stage %s", e.Name, g.name)
 		}
-		if e.Kind == exAnd && len(e.Items) > maxAnd {
-			return fail("an & joins at most %d items", maxAnd)
-		}
 		for _, it := range e.Items {
 			if err := walk(it); err != nil {
 				return err
@@ -455,7 +477,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		// A classifier that classify names belongs to the stage (§2).
 		if t.Kind == tmClassifier && !g.classifierSet.names[t.Str] {
-			return fail("classify() names %s, which no %%classifier of stage %s names", t.Str, g.name)
+			return fail("%s is not a classifier of stage %s", t.Str, g.name)
 		}
 		if t.Cond != nil {
 			if err := checkCond(t.Cond); err != nil {

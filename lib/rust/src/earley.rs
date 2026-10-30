@@ -363,7 +363,6 @@ pub(crate) struct Chart {
 pub(crate) struct LexicalFrame {
     family: Option<(u32, u32)>,
     pub observes_closes: bool,
-    pub key: String,
     pub captures: std::collections::BTreeMap<String, Cap>,
     pub declared: Vec<String>,
     pub known_private: Vec<String>,
@@ -442,7 +441,7 @@ impl Chart {
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
             "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
-            outer.map(|f| &f.key),
+            before.lexical,
             before.dot,
             before.origin,
             before.prefix,
@@ -519,7 +518,6 @@ impl Chart {
         self.lexical.push(LexicalFrame {
             family: self.family,
             observes_closes,
-            key: key.clone(),
             available: captures.keys().cloned().collect(),
             captures,
             declared: declared.into_iter().collect(),
@@ -911,6 +909,7 @@ impl<'a> Shared<'a> {
     }
 
     /// Match stored tags or values. Only tag terminals read synthetic tokens (§4).
+    /// A range reads one scalar value, and a wildcard reads any ordinary token.
     #[inline]
     pub(crate) fn reads(&self, matcher: Matcher, token: &Tok, synthetic: bool) -> bool {
         if synthetic && !matches!(matcher, Matcher::Tag(_)) {
@@ -919,21 +918,12 @@ impl<'a> Shared<'a> {
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
             Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
-            Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
+            Matcher::Characters(Characters::Any) => true,
             Matcher::Characters(Characters::Range(first, last)) => {
                 let mut chars = token.value.as_str().chars();
-                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
+                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&c))
             }
-            Matcher::Characters(characters) => self.carries(characters, token.tags),
         }
-    }
-
-    /// Whether a tag set holds a character tag of a range or a property.
-    fn carries(&self, characters: Characters, set: SetId) -> bool {
-        self.tags.list(set).iter().filter_map(|&tag| self.tags.code(tag)).any(|code| match characters {
-            Characters::Range(first, last) => (first..=last).contains(&code),
-            Characters::Property(property) => self.unicode.has(property, code),
-        })
     }
 
     /// The original source envelope of a token span.
@@ -2762,7 +2752,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // A production that must first read a terminal the next token lacks
         // gives a dead item, so prediction skips it. The set records it, and
         // the rejection report adds back the terminal it expected.
-        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), lowered.has_conds_at(0), chart.suffix) {
+        let has_conditions = chart.lexical_frame(lexical).map_or_else(
+            || lowered.has_conds_at(0),
+            |frame| {
+                !g.ranked.plans
+                    [&(production, frame.declared.clone(), frame.available.clone(), frame.known_private.clone())]
+                    .conditions[0]
+                    .is_empty()
+            },
+        );
+        if let (Some(Sym::T(terminal)), false, false) = (lowered.syms.first(), has_conditions, chart.suffix) {
             let matcher = self.matchers[*terminal as usize];
             if e >= tokens.len()
                 || !self.shared.reads(matcher, &tokens[e], self.recon.is_some_and(|recon| recon.synthetic[e]))

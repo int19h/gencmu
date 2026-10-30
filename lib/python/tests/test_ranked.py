@@ -58,6 +58,17 @@ class Ranked(unittest.TestCase):
         self.assertIn("$b", raised.exception.message)
         self.assertIsNone(raised.exception.code)
 
+    def test_projected_routes_keep_route_first_errors_and_nested_bindings(self):
+        for separator in ("|", "&"):
+            grammar = f'%rule text (($x:A {separator} $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = "y"), ($x ⟹ $.value = "x")'
+            _, error = load_case_pipeline({"grammar": grammar})
+            self.assertEqual(error.code, "ranked-choice-continuation")
+            self.assertEqual(error.option, 0)
+            self.assertEqual(error.expression["if"]["captured"], "x")
+        _, error = load_case_pipeline({"grammar": '%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = "b")'})
+        self.assertEqual(error.code, "ranked-choice-continuation")
+        self.assertEqual(error.option, 1)
+
     def test_independent_slots_keep_a_linear_forest(self):
         case = {"grammar": "%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
         pipeline, error = load_case_pipeline(case)

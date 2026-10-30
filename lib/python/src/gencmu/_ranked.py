@@ -41,42 +41,87 @@ class Group:
 
 @dataclass
 class Route:
+    """Relevant capture closes and finite prefix observations."""
+
     length: int = 0
     captures: dict = field(default_factory=dict)
     ends: dict = field(default_factory=dict)
-    steps: tuple = ()
+    span: tuple = (True, False)
     bindings: dict = field(default_factory=dict)
+
+
+def join_spans(left, right):
+    productive = left[0] and right[0]
+    return productive, productive and (left[1] or right[1])
 
 
 def join(left, right):
     return Route(left.length + right.length,
-                 left.captures | {name: (node, at + left.length) for name, (node, at) in right.captures.items()},
-                 left.ends | {group: (start + left.length, at + left.length, option) for group, (start, at, option) in right.ends.items()},
-                 left.steps + right.steps, left.bindings | right.bindings)
+                 left.captures | {name: (owner, at + left.length) for name, (owner, at) in right.captures.items()},
+                 left.ends | {group: (at + left.length, option, join_spans(left.span, prefix)) for group, (at, option, prefix) in right.ends.items()},
+                 join_spans(left.span, right.span), left.bindings | right.bindings)
+
+
+def route_key(route):
+    captures = tuple((name, owner.id if owner is not None else -1, at) for name, (owner, at) in sorted(route.captures.items()))
+    ends = tuple((group.id, *end) for group, end in sorted(route.ends.items(), key=lambda item: item[0].id))
+    bindings = tuple((name, group.id) for name, group in sorted(route.bindings.items()))
+    return route.length, route.span, captures, ends, bindings
+
+
+def unique(routes):
+    seen, out = set(), []
+    for route in routes:
+        key = route_key(route)
+        if key not in seen:
+            seen.add(key)
+            out.append(route)
+    return out
 
 
 def product(left, right):
-    return [join(a, b) for a in left for b in right]
+    return unique(join(a, b) for a in left for b in right)
 
 
 class RankedGroups:
     def __init__(self, stage, rules):
         self.stage, self.rules = stage, rules
         self.groups, self.expressions, self.owners, self.paths = [], {}, {}, {}
-        self.source_sites, self.clause_errors = {}, {}
+        self.source_sites = {}
+        self.clause_analyses, self.spans = {}, None
         for rule in rules.values():
             for alternative, source in enumerate(rule.alternatives):
                 self.source_sites[id(source)] = {"document":source.document,"at":list(source.at),"rule":rule.name,"alternative":alternative,"path":""}
                 self.visit(source.expr, '', True, None, rule.name, alternative, source)
 
-    def validate_clauses(self, group, prefix_can_read=lambda steps: False):
-        for route in self.routes(group.source.expr):
+    def validate_clauses(self, group):
+        source = group.source
+        key = id(source)
+        if key not in self.clause_analyses:
+            exports = [source.tags, source.rule_tags, source.value, source.image, source.rule_value, source.rule_image, source.emit]
+            self.clause_analyses[key] = ([reads(condition) for condition in source.conditions], reads(exports), {})
+        conditions, exports, projections = self.clause_analyses[key]
+        names = reads(group.expr)
+        needed = exports & names
+        for condition in conditions:
+            if condition & names:
+                needed |= condition
+        needed.discard('')
+        if not needed:
+            return
+        projection = frozenset(needed)
+        if projection not in projections:
+            if self.spans is None:
+                self.spans = written_spans(self.rules)
+            projections[projection] = run(self._routes(source.expr, needed))
+        routes = projections[projection]
+        for route in routes:
             if group not in route.ends:
                 continue
-            start, end, option = route.ends[group]
+            end, option, prefix = route.ends[group]
             present = {''} | route.captures.keys()
             def private(names):
-                return any(name in route.captures and self.owners.get(route.captures[name][0]) is group for name in names)
+                return any(name in route.captures and route.captures[name][0] is group for name in names)
             for index, condition in enumerate(group.source.conditions):
                 effective = simplify_condition(condition, present)
                 if effective is True or not any(route.bindings.get(name) is group for name in reads(condition)):
@@ -88,7 +133,7 @@ class RankedGroups:
                     self.fail(group, 'ranked-choice-continuation', 'A private capture requires a condition ready when its ranked choice closes.', option=option, expression=condition)
                 from ._boundary import atoms
                 atom = next((atom for atom in atoms(effective) if atom['method'] == 'preceded-by' and atom['receiver']['capture'] == ''), None)
-                if atom is not None and prefix_can_read(route.steps[:start]):
+                if atom is not None and prefix[1]:
                     targets = ' | '.join(arg.get('rule', arg.get('terminal')) for arg in atom['args'])
                     self.fail(group, 'ranked-choice-boundary',
                               f'Condition {index + 1} of {group.rule} combines $.preceded-by({targets}) with a private capture in option {option + 1}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.',
@@ -119,51 +164,60 @@ class RankedGroups:
                 last = not ('seq' in expr or 'and' in expr) or component.endswith(f"/{len(expr.get('seq',expr.get('and',()))) - 1}")
                 pending.append((child, path + component, final and last and 'repeat' not in expr, owner))
 
-    def routes(self, expr):
-        return run(self._routes(expr))
-
-    def _routes(self, expr):
+    def _routes(self, expr, needed):
         if 'empty' in expr:
             return [Route()]
         if 'seq' in expr:
             out = [Route()]
             for child in expr['seq']:
-                out = product(out, (yield self._routes(child)))
+                out = product(out, (yield self._routes(child, needed)))
             return out
         if 'choice' in expr:
             out = []
             for child in expr['choice']:
-                out.extend((yield self._routes(child)))
-            return out
+                out.extend((yield self._routes(child, needed)))
+            return unique(out)
         if 'ranked' in expr:
             out = []
+            group = self.expressions[id(expr)]
+            names = reads(group.expr) & needed
             for option, child in enumerate(expr['ranked']):
-                for route in (yield self._routes(child)):
-                    group = self.expressions[id(expr)]
-                    names = reads(group.expr)
-                    for nested in route.ends:
-                        names -= reads(nested.expr)
-                    route.bindings.update((name, group) for name in names)
-                    route.ends[group] = (0, route.length, option)
+                for route in (yield self._routes(child, needed)):
+                    if names:
+                        for name in names:
+                            route.bindings.setdefault(name, group)
+                        route.ends[group] = (route.length, option, (True, False))
                     out.append(route)
-            return out
+            return unique(out)
         if 'and' in expr:
-            out, expanded = [], []
-            for child in expr['and']:
-                expanded.append((yield self._routes(child)))
-            for mask in range(1, 1 << len(expanded)):
-                route = [Route()]
-                for index, alternatives in enumerate(expanded):
-                    if mask & (1 << index):
-                        route = product(route, alternatives)
-                out.extend(route)
-            return out
+            states = [(0, (), Route())]
+            for bit, child in enumerate(expr['and']):
+                parts = yield self._routes(child, needed)
+                candidates = list(states)
+                for mask, order, route in states:
+                    candidates.extend((mask | (1 << bit), (*order, index), join(route, part)) for index, part in enumerate(parts))
+                candidates.sort(key=lambda state: state[:2])
+                states, seen = [], set()
+                for state in candidates:
+                    key = (state[0] != 0, route_key(state[2]))
+                    if key not in seen:
+                        seen.add(key)
+                        states.append(state)
+            return unique(route for mask, _, route in states if mask)
         if 'optional' in expr:
-            return [Route(), *(yield self._routes(expr['optional']))]
+            return unique([Route(), *(yield self._routes(expr['optional'], needed))])
         if 'repeat' in expr:
-            out = yield self._routes(expr['repeat'])
-            return out + product(out, (yield self._routes(expr['separator']))) if 'separator' in expr else out
-        return [Route(1, {expr['capture']: (id(expr), 1)} if 'capture' in expr else {}, steps=(expr,))]
+            out = yield self._routes(expr['repeat'], needed)
+            return unique([*out, *product(out, (yield self._routes(expr['separator'], needed)))]) if 'separator' in expr else out
+        route = Route()
+        if 'capture' in expr and expr['capture'] in needed:
+            route.length = 1
+            route.captures[expr['capture']] = (self.owners.get(id(expr)), 1)
+        while 'expr' in expr:
+            expr = expr['expr']
+        name = expr.get('ref')
+        route.span = (self.spans[0][name], self.spans[1][name]) if name in self.rules else (True, True)
+        return [route]
 
     def site(self, source, path='', group=False):
         site = dict(self.source_sites[id(source)])
@@ -181,98 +235,197 @@ class RankedGroups:
             fields['expression'] = written(fields['expression'])
         raise GencmuError(f'{code}: {message}', document=group.source.document, line=at[0], column=at[1], code=code, group=site, **fields)
 
-    def tag_failure(self, lowered, group, helper, unsafe):
-        productions = {}
-        for production in lowered.productions:
-            productions.setdefault(production.lhs, []).append(production)
+    def tag_failure(self, graph, group, helper, unsafe):
         queue, seen = [(helper, [self.site(group.source, group.path, True)], None)], {helper}
-        for rule, steps, option in queue:
-            for production in productions.get(rule, ()):
-                selected_option = option if option is not None else production.option if production.ranked is not None else None
-                inheritance = list(steps)
-                if rule != helper:
-                    inheritance.append(self.site(production.slot.source, self.paths.get(production.slot.path, '')))
-                source = production.slot.source
-                terms = production.slot.tags if production.helper else [term for term in (source.tags, source.rule_tags) if term is not None]
-                if any(not literal_empty(term) for term in terms) or not terms and production.inherited is not None and production.terminal[production.inherited]:
-                    self.fail(group, 'ranked-choice-tags', 'A ranked choice must discard its returned tags or return provably empty tags.', option=selected_option, expression=group.expr, inheritance=inheritance)
-                if not terms and production.inherited is not None and not production.terminal[production.inherited]:
-                    child = production.rhs[production.inherited]
-                    if child in unsafe and child not in seen:
-                        seen.add(child)
-                        queue.append((child, inheritance, selected_option))
+        for node, steps, option in queue:
+            for route in graph.nodes[node].routes:
+                selected = option if option is not None else route.option
+                inheritance = steps if node == helper else [*steps, self.site(route.source, self.paths.get(id(route.expr), ''))]
+                if route.unsafe or not route.tagged and None in route.children:
+                    self.fail(group, 'ranked-choice-tags', 'A ranked choice must discard its returned tags or return provably empty tags.', option=selected, expression=group.expr, inheritance=inheritance)
+                if not route.tagged:
+                    for child in route.children:
+                        if child in unsafe and child not in seen:
+                            seen.add(child)
+                            queue.append((child, inheritance, selected))
         self.fail(group, 'ranked-choice-tags', 'A ranked choice must discard its returned tags or return provably empty tags.', expression=group.expr)
 
-    def validate_tags(self, lowered):
-        from collections import deque
-        productive, nonempty, users = set(), set(), {}
-        remaining = []
-        for i, p in enumerate(lowered.productions):
-            remaining.append(sum(not terminal for terminal in p.terminal))
-            if not remaining[-1]: productive.add(p.lhs)
-            for terminal, symbol in zip(p.terminal, p.rhs):
-                if not terminal: users.setdefault(symbol, []).append(i)
-        queue = deque(productive)
-        while queue:
-            for i in users.get(queue.popleft(), ()):
-                remaining[i] -= 1
-                p = lowered.productions[i]
-                if remaining[i] == 0 and p.lhs not in productive:
-                    productive.add(p.lhs)
-                    queue.append(p.lhs)
-        for i, p in enumerate(lowered.productions):
-            if remaining[i] == 0 and any(p.terminal): nonempty.add(p.lhs)
-        queue = deque(nonempty)
-        while queue:
-            for i in users.get(queue.popleft(), ()):
-                p = lowered.productions[i]
-                if remaining[i] == 0 and p.lhs not in nonempty:
-                    nonempty.add(p.lhs)
-                    queue.append(p.lhs)
-        def prefix_can_read(steps):
-            symbols = []
-            for step in steps:
-                while "expr" in step: step = step["expr"]
-                name = step.get("ref")
-                symbols.append(lowered.rule_ids.get(name) if name in lowered.rule_ids else None)
-            return (all(symbol is None or symbol in productive for symbol in symbols)
-                    and any(symbol is None or symbol in nonempty for symbol in symbols))
-        unsafe, users, helpers = set(), {}, {}
-        for production in lowered.productions:
-            slot = production.slot
-            # Query helpers have no written slot and never occur in a rule body.
-            if slot is None:
-                continue
-            if slot.path in self.expressions:
-                helpers[self.expressions[slot.path]] = production.lhs
-            terms = slot.tags if production.helper else [term for term in (slot.source.tags, slot.source.rule_tags) if term is not None]
-            if terms:
-                if any(not literal_empty(term) for term in terms):
-                    unsafe.add(production.lhs)
-            elif production.inherited is not None:
-                if production.terminal[production.inherited]:
-                    unsafe.add(production.lhs)
+    def validate_tags(self):
+        graph = TagGraph(self)
+        unsafe, users = set(), {}
+        for index, node in enumerate(graph.nodes):
+            for route in node.routes:
+                if route.tagged:
+                    if route.unsafe:
+                        unsafe.add(index)
                 else:
-                    users.setdefault(production.rhs[production.inherited], []).append(production)
+                    for child in route.children:
+                        if child is None:
+                            unsafe.add(index)
+                        else:
+                            users.setdefault(child, []).append(index)
         pending = list(unsafe)
-        for rule in pending:
-            for parent in users.get(rule, ()):
-                if parent.lhs not in unsafe:
-                    unsafe.add(parent.lhs)
-                    pending.append(parent.lhs)
+        for child in pending:
+            for parent in users.get(child, ()):
+                if parent not in unsafe:
+                    unsafe.add(parent)
+                    pending.append(parent)
         for group in self.groups:
-            self.validate_clauses(group, prefix_can_read)
-            helper = helpers.get(group)
+            self.validate_clauses(group)
+            helper = graph.groups[group]
             if helper not in unsafe:
                 continue
             outward, seen = [helper], {helper}
             for child in outward:
                 for parent in users.get(child, ()):
-                    if not parent.helper and parent.rule_name == group.rule:
-                        self.tag_failure(lowered, group, helper, unsafe)
-                    if parent.helper and parent.rule_name == group.rule and parent.lhs not in seen:
-                        seen.add(parent.lhs)
-                        outward.append(parent.lhs)
+                    node = graph.nodes[parent]
+                    if not node.helper and node.owner == group.rule:
+                        self.tag_failure(graph, group, helper, unsafe)
+                    if node.helper and node.owner == group.rule and parent not in seen:
+                        seen.add(parent)
+                        outward.append(parent)
+
+
+@dataclass
+class TagRoute:
+    source: object
+    expr: dict
+    children: list
+    option: int | None = None
+    tagged: bool = False
+    unsafe: bool = False
+
+
+@dataclass
+class TagNode:
+    owner: str
+    helper: bool
+    routes: list = field(default_factory=list)
+
+
+class TagGraph:
+    """Logical empty routes and unary inheritance, without products."""
+    def __init__(self, ranked):
+        self.nodes, self.groups = [], {}
+        named = {rule.name: self.node(rule.name, False) for rule in ranked.rules.values()}
+        captured = {}
+        def has_capture(expr):
+            key = id(expr)
+            if key not in captured:
+                captured[key] = 'ranked' not in expr and ('capture' in expr or any(has_capture(child) for child, _ in children(expr)))
+            return captured[key]
+        for rule in ranked.rules.values():
+            for source in rule.alternatives:
+                memo = {}
+                def describe(expr):
+                    key = id(expr)
+                    if key in memo:
+                        return memo[key]
+                    if 'empty' in expr:
+                        result = (True, [])
+                    elif 'seq' in expr:
+                        parts = [describe(child) for child in expr['seq']]
+                        blocking = sum(not zero for zero, _ in parts)
+                        result = (not blocking, [child for zero, candidates in parts if blocking - (not zero) == 0 for child in candidates])
+                    elif 'choice' in expr or 'and' in expr:
+                        parts = [describe(child) for child in expr.get('choice', expr.get('and'))]
+                        result = (any(zero for zero, _ in parts), [child for _, candidates in parts for child in candidates])
+                    elif any(k in expr for k in ('ranked', 'optional', 'repeat')):
+                        if 'optional' in expr and not expr.get('elidable') and has_capture(expr['optional']):
+                            result = (False, describe(expr['optional'])[1])
+                        else:
+                            helper = self.node(rule.name, True)
+                            result = (False, [helper])
+                            memo[key] = result
+                            if 'ranked' in expr:
+                                self.groups[ranked.expressions[key]] = helper
+                                for option, child in enumerate(expr['ranked']):
+                                    self.nodes[helper].routes.append(TagRoute(source, expr, describe(child)[1], option))
+                            else:
+                                self.nodes[helper].routes.append(TagRoute(source, expr, describe(expr.get('optional', expr.get('repeat')))[1]))
+                            # A recursive repetition route can only add a self edge.
+                            if 'separator' in expr:
+                                describe(expr['separator'])
+                    elif 'expr' in expr:
+                        result = describe(expr['expr'])
+                    else:
+                        result = (False, [named.get(expr.get('ref'))])
+                    memo[key] = result
+                    return result
+                expr = source.expr
+                body = describe(expr['repeat'] if expr.get('chain') else expr)
+                if expr.get('chain') and 'separator' in expr:
+                    describe(expr['separator'])
+                terms = [term for term in (source.tags, source.rule_tags) if term is not None]
+                self.nodes[named[rule.name]].routes.append(TagRoute(source, expr, body[1], tagged=bool(terms), unsafe=any(not literal_empty(term) for term in terms)))
+
+    def node(self, owner, helper):
+        self.nodes.append(TagNode(owner, helper))
+        return len(self.nodes) - 1
+
+
+def written_spans(rules):
+    """Finite structural derivations over written branches and concatenations."""
+    named = {name: i + 1 for i, name in enumerate(rules)}
+    count, branches, memo = len(named) + 1, [], {}
+    def expression(expr):
+        nonlocal count
+        key = id(expr)
+        if key in memo:
+            return memo[key]
+        if 'expr' in expr:
+            node = expression(expr['expr'])
+        elif 'ref' in expr:
+            node = named.get(expr['ref'], 0)
+        elif any(k in expr for k in ('literal', 'range', 'wildcard')):
+            node = 0
+        else:
+            node, count = count, count + 1
+            if 'empty' in expr or 'optional' in expr:
+                branches.append((node, []))
+            if 'seq' in expr:
+                branches.append((node, [expression(child) for child in expr['seq']]))
+            for child in expr.get('choice', expr.get('ranked', expr.get('and', ()))):
+                branches.append((node, [expression(child)]))
+            if 'optional' in expr:
+                branches.append((node, [expression(expr['optional'])]))
+            if 'repeat' in expr:
+                item = expression(expr['repeat'])
+                branches.append((node, [item]))
+                if 'separator' in expr:
+                    branches.append((node, [item, expression(expr['separator']), item]))
+        memo[key] = node
+        return node
+    for rule in rules.values():
+        for source in rule.alternatives:
+            branches.append((named[rule.name], [expression(source.expr)]))
+    users = [[] for _ in range(count)]
+    remaining = [len(rhs) for _, rhs in branches]
+    productive, nonempty = {0}, {0}
+    for i, (lhs, rhs) in enumerate(branches):
+        if not rhs:
+            productive.add(lhs)
+        for child in rhs:
+            users[child].append(i)
+    pending = list(productive)
+    for child in pending:
+        for i in users[child]:
+            remaining[i] -= 1
+            lhs = branches[i][0]
+            if not remaining[i] and lhs not in productive:
+                productive.add(lhs)
+                pending.append(lhs)
+    for i, (lhs, rhs) in enumerate(branches):
+        if not remaining[i] and any(child in nonempty for child in rhs):
+            nonempty.add(lhs)
+    pending = list(nonempty)
+    for child in pending:
+        for i in users[child]:
+            lhs = branches[i][0]
+            if not remaining[i] and lhs not in nonempty:
+                nonempty.add(lhs)
+                pending.append(lhs)
+    return ({name: node in productive for name, node in named.items()}, {name: node in nonempty for name, node in named.items()})
 
 
 def literal_empty(term):

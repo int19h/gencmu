@@ -1,0 +1,25 @@
+{
+  "description": "Pattern requirements use the common term printer for canonical instance names (engine §2.3).",
+  "grammar": "%rule test(@P) A\n%conditions $ ≅ @P\n%rule text test(#A<B ¬C>)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "test(#A<B ¬C>)"
+          }
+        ]
+      }
+    }
+  }
+}

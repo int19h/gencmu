@@ -1,0 +1,15 @@
+{
+  "description": "The engine preserves structural and ranked context through lowering (engine §§2.1, 3.3, 3.8, 6.1).",
+  "grammar": "%rule text [+A<A>≠\"a\"]",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

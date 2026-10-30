@@ -252,6 +252,11 @@ impl<'a> Queries<'a> {
             yes: &mut Vec<String>,
             no: &mut Vec<String>,
         ) {
+            if (!yes.is_empty() || !no.is_empty())
+                && query(q.expr, &yes.iter().cloned().collect(), &no.iter().cloned().collect(), &[]).is_none()
+            {
+                return;
+            }
             if let Some((name, rest)) = guards.split_first() {
                 no.push(name.to_string());
                 branch(q, p, carrier, rest, yes, no);

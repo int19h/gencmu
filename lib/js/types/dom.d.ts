@@ -107,16 +107,6 @@ export type PreparedClause = {
      * production without the capture
      */
     absent: any;
-    /**
-     * for a ∨, whether a part true for every
-     * production makes it true
-     */
-    decided: boolean;
-    /**
-     * for a ∨, whether a guarded part is true
-     * where its capture is present
-     */
-    guardedTrue: boolean;
 };
 export type CaptureNames = {
     size: number;

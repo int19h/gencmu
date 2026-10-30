@@ -10,10 +10,3 @@ import type { ResultNode, RuleNode } from "./types.js";
  * @returns {T}
  */
 export declare function foldTree<T>(root: ResultNode, leaf: (node: Exclude<ResultNode, RuleNode>) => T, rule: (node: RuleNode, children: T[]) => T): T;
-/**
- * Whether any node of a tree satisfies a test, visiting nodes top-down.
- * @param {ResultNode} root
- * @param {(node: ResultNode) => boolean} test
- * @returns {boolean}
- */
-export declare function someNode(root: ResultNode, test: (node: ResultNode) => boolean): boolean;

@@ -9,7 +9,6 @@ import (
 // A frame retains written prefix values across generated helper boundaries.
 type rankedFrame struct {
 	id                 int32
-	key                string
 	captures           map[string]capVal
 	present            map[string]bool
 	knownPrivate       map[string]bool
@@ -297,9 +296,9 @@ func (r *recognizer) rankedPrefix(it *item) string {
 			captures = append(captures, fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence))
 		}
 	}
-	lexical := ""
+	lexical := int32(0)
 	if p.lexical != nil {
-		lexical = p.lexical.key
+		lexical = p.lexical.id
 	}
 	path := ""
 	if p.helper {
@@ -313,7 +312,7 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	if r.boundaries != nil && it.boundary != nil {
 		boundary = fmt.Sprintf("/b%d", it.boundary.id)
 	}
-	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
+	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%d/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
 
 func (r *recognizer) closeEntryRoute(it *item) string {
@@ -349,7 +348,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	if old := r.rankedFrames[key]; old != nil {
 		return old
 	}
-	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), key: key, captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
+	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
 	f.closeRoute = r.closeEntryRoute(it)
 	if outer != nil {
 		for n, c := range outer.captures {

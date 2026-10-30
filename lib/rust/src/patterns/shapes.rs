@@ -3,6 +3,7 @@
 use crate::dom;
 use crate::json::Json;
 use crate::tags;
+use std::borrow::Cow;
 
 type NameTest<'a> = Option<&'a dyn Fn(&str) -> bool>;
 type TestProblem<'a> = Option<&'a dyn Fn(&Json) -> Option<String>>;
@@ -63,21 +64,6 @@ fn terminal_atom(n: &Json) -> bool {
 fn set(n: &Json) -> Option<&'static str> {
     ["union", "intersection", "difference"].into_iter().find(|k| has(n, k))
 }
-fn item_parts<'a>(n: &'a Json, pending: &mut Vec<&'a Json>) {
-    if let Some(child) = n.get("child") {
-        pending.push(child);
-    } else if let Some(arms) = n.get("choice").and_then(Json::as_array) {
-        for arm in arms {
-            pending.extend(arm.as_array().unwrap());
-        }
-    } else {
-        for key in [if has(n, "optional") { "optional" } else { "repeat" }, "separator"] {
-            if let Some(items) = n.get(key).and_then(Json::as_array) {
-                pending.extend(items);
-            }
-        }
-    }
-}
 #[derive(Clone, Copy)]
 struct Frame<'a> {
     node: &'a Json,
@@ -109,7 +95,6 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
         string_term(n) && !has(n, "string") || only(n, &["tag"]) && get(n, "tag").as_str().is_some_and(terminal)
     };
     let mut pending = vec![Frame { node: root, item: false, repeated: false, inner: false, depth: inspect.depth }];
-    let mut repeats = Vec::new();
     while let Some(t) = pending.pop() {
         if !inspect.defer_depth && t.depth > 256 {
             return Err("nested too deeply".into());
@@ -138,7 +123,6 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
                 {
                     return Err("a malformed pattern repeat".into());
                 }
-                repeats.push(get(n, "repeat").as_array().unwrap());
             } else if only(n, &["choice"]) {
                 let arms = get(n, "choice").as_array().filter(|a| a.len() >= 2).ok_or("a malformed pattern choice")?;
                 for arm in arms {
@@ -285,20 +269,6 @@ fn inspect_shape(root: &Json, inspect: &Inspection<'_>) -> Result<(), String> {
             return Err("a malformed pattern child list".into());
         }
     }
-    for repeat in repeats {
-        let mut pending = repeat.iter().collect::<Vec<_>>();
-        let mut consumes = false;
-        while let Some(item) = pending.pop() {
-            if has(item, "child") {
-                consumes = true;
-                break;
-            }
-            item_parts(item, &mut pending);
-        }
-        if !consumes {
-            return Err("a pattern repeat cannot match only empty sequences".into());
-        }
-    }
     Ok(())
 }
 
@@ -307,8 +277,7 @@ enum Task<'a> {
     Pattern(&'a Json),
     Items(&'a [Json]),
     Item(&'a Json),
-    Term(&'a Json),
-    Requirements(&'a [Json]),
+    Term(Cow<'a, Json>),
 }
 fn atom(n: &Json) -> bool {
     set(n).is_none() && !has(n, "path")
@@ -329,20 +298,7 @@ pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -
         let mut tasks = Vec::new();
         match task {
             Task::Text(s) => out.push_str(s),
-            Task::Term(n) => out.push_str(&term(n)),
-            Task::Requirements(rs) => {
-                out.push('<');
-                for (i, r) in rs.iter().enumerate() {
-                    if i > 0 {
-                        tasks.push(Task::Text(" "));
-                    }
-                    if get(r, "negated").as_bool() == Some(true) {
-                        tasks.push(Task::Text("¬"));
-                    }
-                    tasks.push(Task::Term(get(r, "value")));
-                }
-                tasks.push(Task::Text(">"));
-            }
+            Task::Term(n) => out.push_str(&term(&n)),
             Task::Items(items) => {
                 for (i, item) in items.iter().enumerate() {
                     if i > 0 {
@@ -424,20 +380,25 @@ pub(crate) fn text(root: &Json, term: &dyn Fn(&Json) -> String, literal: bool) -
                     if let Some(test) = n.get("test").and_then(Json::as_str) {
                         tasks.push(Task::Pattern(get(n, "expr")));
                         if test == "tags" {
-                            tasks.push(Task::Requirements(get(n, "requirements").as_array().unwrap()));
+                            let requirements = Json::Obj(vec![("requirements".into(), get(n, "requirements").clone())]);
+                            tasks.push(Task::Term(Cow::Owned(requirements)));
                         } else {
-                            tasks.extend([Task::Text(test), Task::Term(get(n, "value"))]);
+                            tasks.extend([Task::Text(test), Task::Term(Cow::Borrowed(get(n, "value")))]);
                         }
                     } else if let Some(value) = n.get("literal") {
-                        tasks.push(Task::Term(value));
+                        tasks.push(Task::Term(Cow::Borrowed(value)));
                     } else if let Some(values) = n.get("range").and_then(Json::as_array) {
-                        tasks.extend([Task::Term(&values[0]), Task::Text(".."), Task::Term(&values[1])]);
+                        tasks.extend([
+                            Task::Term(Cow::Borrowed(&values[0])),
+                            Task::Text(".."),
+                            Task::Term(Cow::Borrowed(&values[1])),
+                        ]);
                     } else if has(n, "wildcard") {
                         tasks.push(Task::Text("_"));
                     } else if let Some(name) = n.get("constant").and_then(Json::as_str) {
                         tasks.extend([Task::Text("$"), Task::Text(name)]);
                     } else if !has(n, "any") {
-                        tasks.push(Task::Term(n));
+                        tasks.push(Task::Term(Cow::Borrowed(n)));
                     }
                     if let Some(items) = n.get("children").and_then(Json::as_array) {
                         if items.is_empty() {

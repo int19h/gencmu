@@ -104,6 +104,8 @@ export declare class Grammar {
         path: string;
         directive: import("./types.js").DomDirective;
     }[];
+    /** @type {(() => void)[]} */
+    validationItems: (() => void)[];
     templates: any;
     instances: any;
     /** @type {WeakMap<DomEntry,string[]>} */
@@ -119,9 +121,9 @@ export declare class Grammar {
     /**
      * The classifiers resolved for each set of the classifier gates that is
      * on (engine §2).
-     * @type {Map<string, Map<string, Map<string, TagSet>>>}
+     * @type {Map<string, Map<string, Map<string, TagSet>> | GencmuError>}
      */
-    classifierTables: Map<string, Map<string, Map<string, TagSet>>>;
+    classifierTables: Map<string, Map<string, Map<string, TagSet>> | GencmuError>;
     /**
      * Each test of a body with its value, made once for every lowering.
      * @type {WeakMap<object, SymbolTest>}
@@ -168,9 +170,9 @@ export declare class Grammar {
     gates: string[];
     /**
      * The lowered grammars, keyed by the gates that are on.
-     * @type {Map<string, LoweredGrammar>}
+     * @type {Map<string, LoweredGrammar | GencmuError>}
      */
-    lowered: Map<string, LoweredGrammar>;
+    lowered: Map<string, LoweredGrammar | GencmuError>;
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
@@ -213,8 +215,8 @@ export declare class Grammar {
      */
     documentError(path: string, position: [number, number], message: string): GencmuError;
     /**
-     * Defines or redefines a constant, with the value its term has at this
-     * point of the stage (engine §2).
+     * Records an immutable constant version. Final bindings select the
+     * dependency graph before evaluation (engine §2).
      * @param {string} path
      * @param {DomConstant} constant
      */
@@ -244,12 +246,18 @@ export declare class Grammar {
     evaluateClosed(path: string, term: Term, item: [number, number], lookup?: (name: string) => TermValue, expected?: TermType): TermValue;
     /** @param {any} node @param {string} path @param {[number,number]} at @returns {any} */
     resolvePatterns(node: any, path: string, at: [number, number]): any;
+    /** @param {string} path @param {DomRule} rule */
+    checkConstantRule(path: string, rule: DomRule): void;
+    /** @param {string} path @param {import("./types.js").DomDirective} directive */
+    resolveFeature(path: string, directive: import("./types.js").DomDirective): {
+        path: string;
+        directive: import("./types.js").DomDirective;
+    };
+    /** @param {string} path @param {DomClassifier} classifier */
+    resolveClassifierKeys(path: string, classifier: DomClassifier): void;
     /**
-     * Gives every constant in a rule its final value, once the stage is
-     * stitched, and checks what the reader could not: that each is defined,
-     * that the types agree, and that a constant that split or tag reads
-     * directly is a delimiter that is not empty, or a name (engine §2, §9,
-     * §10).
+     * Substitutes final values in the stitched rules after declaration checks.
+     * Clauses shared by alternatives stay shared (engine §2).
      */
     resolveConstants(): void;
     /**

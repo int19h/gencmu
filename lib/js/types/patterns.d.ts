@@ -3,6 +3,16 @@ export declare function leafTest(test: any, input: string, tags: Set<string>): b
 /** @param {any} node @returns {any[]} */
 export declare function patternParts(node: any): any[];
 /**
+ * Inspect substitution before copying values. The cache records the greatest
+ * depth already visited for each shared node and flattening context.
+ * @param {any} term
+ * @param {(name:string) => any} constant
+ * @returns {{at?:[number,number]}|null}
+ */
+export declare function patternDepthProblem(term: any, constant: (name: string) => any): {
+    at?: [number, number];
+} | null;
+/**
  * @param {any} root
  * @param {(name:string, at:[number,number]) => any} constant
  * @param {(term:any, test:any) => any} value

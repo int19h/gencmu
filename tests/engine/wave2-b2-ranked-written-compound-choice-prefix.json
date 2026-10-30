@@ -1,0 +1,15 @@
+{
+  "description": "Written structural facts retain nested branches before their parent (engine §2.1).",
+  "grammar": "%rule text pre ($x:A ≻ B)\n%conditions ($x ⟹ ¬$.preceded-by(A))\n%rule pre (head Z | ε)\n%rule head ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

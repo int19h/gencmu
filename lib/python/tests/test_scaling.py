@@ -77,10 +77,10 @@ class Linear(unittest.TestCase):
 
 def tag_copies() -> list[Watch]:
     """The tags that the operations on tag sets read, each line counted
-    before it runs, with what it reads: a union of two sets, a set added
+    before it runs, with what it reads: a set added
     to a gathered union, the gathered union frozen, an intersection and a
     difference."""
-    return [steps(target, weight=reads) for target in (_tags.union, _tags.Gathered, _tags.intersection, _tags.difference)]
+    return [steps(target, weight=reads) for target in (_tags.Gathered, _tags.intersection, _tags.difference)]
 
 
 def stage_context(tokens: list[Token]) -> StageContext:
@@ -699,7 +699,9 @@ class Classifiers(Linear):
         # n entries, each giving the one key a class of its own.
         entries = [{"guards": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
         items = [("t.md", {"name": "c", "entries": entries})]
-        return lambda: _grammar._resolve_classifiers(items, frozenset())
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        return lambda: _grammar._resolve_classifiers(items, frozenset(), pipeline.unicode)
 
     @staticmethod
     def watches() -> list[Watch]:

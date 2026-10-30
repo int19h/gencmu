@@ -443,19 +443,16 @@ struct Split<'a, P, T> {
     needs: FxMap<String, Vec<usize>>,
     /// The parts of other shapes, in the order written.
     other: Vec<usize>,
-    /// Whether a fixed part decides the whole for every production.
-    absorbed: bool,
 }
 
 impl<'a, P: Copy, T> Split<'a, P, T> {
     /// Splits `parts`, finding what `know` can find of each before the
     /// productions. A part whose known result is `neutral` drops out of
-    /// the whole, and one that is `absorbing` decides it.
+    /// the whole. Fixed conditions stay open.
     fn new(
         parts: impl IntoIterator<Item = P>,
         know: impl Fn(P) -> Known<'a, T>,
         neutral: impl Fn(&T) -> bool,
-        absorbing: impl Fn(&T) -> bool,
     ) -> Split<'a, P, T> {
         let mut split = Split {
             parts: Vec::new(),
@@ -463,14 +460,12 @@ impl<'a, P: Copy, T> Split<'a, P, T> {
             guarded: FxMap::default(),
             needs: FxMap::default(),
             other: Vec::new(),
-            absorbed: false,
         };
         for part in parts {
             work::count(Work::Walked, 1);
             let index = split.parts.len();
             let result = match know(part) {
                 Known::Fixed(result) => {
-                    split.absorbed |= absorbing(&result);
                     if !neutral(&result) {
                         split.fixed.push(index);
                     }
@@ -617,7 +612,7 @@ impl<'a> TermSplit<'a> {
             }
             known => known,
         };
-        TermSplit(Split::new(union_parts(term), know, Option::is_none, |_| false))
+        TermSplit(Split::new(union_parts(term), know, Option::is_none))
     }
 
     /// The term simplified for a production whose distinct captures are
@@ -652,18 +647,8 @@ impl<'a> CondParts<'a> {
         let fixed = |part: &'a Cond| simplify_cond(part, &no_presence);
         let know = |part| know_cond(part, &fixed);
         match cond {
-            Cond::All(items) => CondParts::All(Split::new(
-                items,
-                know,
-                |simple| *simple == Simple::True,
-                |simple| *simple == Simple::False,
-            )),
-            Cond::Any(items) => CondParts::Any(Split::new(
-                items,
-                know,
-                |simple| *simple == Simple::False,
-                |simple| *simple == Simple::True,
-            )),
+            Cond::All(items) => CondParts::All(Split::new(items, know, |_| false)),
+            Cond::Any(items) => CondParts::Any(Split::new(items, know, |_| false)),
             cond => CondParts::Whole(cond),
         }
     }
@@ -679,9 +664,6 @@ impl<'a> CondParts<'a> {
         // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
         // also true where a guard of it is absent.
         let (stop, rest) = if all { (Simple::False, Simple::True) } else { (Simple::True, Simple::False) };
-        if split.absorbed {
-            return stop;
-        }
         let (chosen, present) = split.select(own);
         if !all && present < split.guarded.len() {
             return Simple::True;
@@ -728,7 +710,7 @@ impl<'a> CondListSplit<'a> {
             },
             known => known,
         };
-        let split = Split::new(conds, know, |simple| *simple == Simple::True, |simple| *simple == Simple::False);
+        let split = Split::new(conds, know, |_| false);
         let parts = split.other.iter().map(|&index| (index, CondParts::new(split.parts[index].0))).collect();
         CondListSplit { split, parts }
     }
@@ -737,9 +719,6 @@ impl<'a> CondListSplit<'a> {
     /// order written, or `None` where one is false, which removes the
     /// production. A condition true for it is left out.
     pub(crate) fn simplify_indexed(&self, own: &[&str], has: &dyn Fn(&str) -> bool) -> Option<Vec<(Cond, usize)>> {
-        if self.split.absorbed {
-            return None;
-        }
         let (chosen, _) = self.split.select(own.iter().copied());
         let mut left = Vec::with_capacity(chosen.len());
         for index in chosen {
@@ -769,7 +748,6 @@ impl<'a> TermCheck<'a> {
             union_parts(term),
             |part| know_term(part, &fixed),
             |shaped| shaped.shape == Outcome::Empty,
-            |_| false,
         ))
     }
 
@@ -788,10 +766,9 @@ impl<'a> TermCheck<'a> {
     }
 }
 
-/// The productions that a condition can apply to: none, every one, or
+/// The productions that a condition can apply to: every one, or
 /// only those with the capture named.
 enum Reach<'a> {
-    Nothing,
     Every,
     Named(&'a str),
 }
@@ -815,18 +792,8 @@ impl<'a> CondCheck<'a> {
             Known::Guarded(name, shaped) => CondCheck::Guarded(name, shaped),
             Known::Needs(..) => unreachable!("a condition of the check needs no capture"),
             Known::Other => match cond {
-                Cond::All(items) => CondCheck::All(Split::new(
-                    items,
-                    know,
-                    |shaped| shaped.shape == Outcome::True,
-                    |shaped| shaped.shape == Outcome::False,
-                )),
-                Cond::Any(items) => CondCheck::Any(Split::new(
-                    items,
-                    know,
-                    |shaped| shaped.shape == Outcome::False,
-                    |shaped| shaped.shape == Outcome::True,
-                )),
+                Cond::All(items) => CondCheck::All(Split::new(items, know, |_| false)),
+                Cond::Any(items) => CondCheck::Any(Split::new(items, know, |_| false)),
                 cond => CondCheck::Whole(cond),
             },
         }
@@ -839,7 +806,6 @@ impl<'a> CondCheck<'a> {
     fn reach(&self) -> Reach<'a> {
         match self {
             CondCheck::Fixed(shaped) => match shaped.shape {
-                Outcome::True => Reach::Nothing,
                 Outcome::Uses(_) => match shaped.uses.iter().copied().filter(|name| !name.is_empty()).min() {
                     Some(name) => Reach::Named(name),
                     None => Reach::Every,
@@ -862,9 +828,6 @@ impl<'a> CondCheck<'a> {
         // A `∧` stops at a false part and a `∨` at a true one. A `∨` is
         // also true where a guard of it is absent.
         let (stop, rest) = if all { (Outcome::False, Outcome::True) } else { (Outcome::True, Outcome::False) };
-        if split.absorbed {
-            return stop;
-        }
         let (chosen, present) = split.select(own);
         if !all && present < split.guarded.len() {
             return Outcome::True;
@@ -1038,7 +1001,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Wildcard
                 | Expr::Empty => done.push(empty()),
             }
             continue;
@@ -1225,7 +1188,7 @@ impl<'e> CaptureSequences<'e> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Wildcard
                 | Expr::Empty => {}
             }
         }
@@ -1264,7 +1227,7 @@ impl<'e> CaptureSequences<'e> {
                     | Expr::Literal(_)
                     | Expr::ScalarRange(..)
                     | Expr::Range(..)
-                    | Expr::Property(_)
+                    | Expr::Wildcard
                     | Expr::Empty => done.push(vec![Vec::new()]),
                 }
                 continue;
@@ -1440,49 +1403,30 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.
     let mut mentioned: Vec<&str> = Vec::new();
-    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref())) {
-        term_captures(term, &mut mentioned);
-        term_presences(term, &mut mentioned);
+    for term in rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image) {
+        walk_captures(Part::Term(term), true, true, &mut mentioned);
     }
-    for cond in &rule.conditions {
-        cond_captures(cond, &mut mentioned);
-        cond_presences(cond, &mut mentioned);
-    }
-    for item in items {
-        match item {
-            EmitItem::Capture(name, tags, attachments) => {
-                // An item mentions its own capture and its attachments.
-                mentioned.push(name);
-                mentioned.extend(attachments.names());
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
-            EmitItem::Insert(tags, _) => {
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
+    for alternative in &rule.alternatives {
+        for term in alternative.tags.iter().chain(&alternative.strings.value).chain(&alternative.strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
         }
     }
-    for recipe in rule
-        .strings
-        .value
-        .iter()
-        .chain(&rule.strings.image)
-        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-    {
-        term_captures(recipe, &mut mentioned);
+    for cond in &rule.conditions {
+        walk_captures(Part::Cond(cond), true, true, &mut mentioned);
     }
     for item in items {
-        let strings = match item {
-            EmitItem::Capture(_, _, attachments) => &attachments.strings,
-            EmitItem::Insert(_, strings) => strings,
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                mentioned.push(name);
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
         };
-        for recipe in strings.value.iter().chain(&strings.image) {
-            term_captures(recipe, &mut mentioned);
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
+        }
+        if let EmitItem::Capture(_, _, attachments) = item {
+            mentioned.extend(attachments.names());
         }
     }
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
@@ -1524,7 +1468,6 @@ fn definition_fault(rule: &RuleDef, defer_issue: &mut impl FnMut(&DefinitionIssu
         let applies = match check.reach() {
             // A mutation of the tests asks every production.
             _ if by_scan => (0..productions.len()).any(applies_to),
-            Reach::Nothing => false,
             Reach::Every => (0..productions.len()).any(applies_to),
             Reach::Named(name) => holders.get(name).into_iter().flatten().any(|&index| applies_to(index)),
         };

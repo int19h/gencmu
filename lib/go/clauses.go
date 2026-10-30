@@ -570,41 +570,42 @@ func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *
 		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.
-	mentioned := map[string]bool{}
-	termMentions(r.Tags, mentioned)
-	termMentions(r.Value, mentioned)
-	termMentions(r.Image, mentioned)
-	for _, c := range r.Conditions {
-		condMentions(c, mentioned)
+	var names []string
+	mention := func(part clausePart) {
+		walkClause(part, func(p clausePart) bool {
+			switch {
+			case p.t != nil && p.t.Kind == tmCapture:
+				names = append(names, p.t.Str)
+			case p.c != nil && p.c.Kind == cdCaptured:
+				names = append(names, p.c.Capture)
+			}
+			return true
+		})
+	}
+	for _, term := range []*domTerm{r.Tags, r.Value, r.Image} {
+		mention(clausePart{t: term})
 	}
 	for _, a := range r.Alternatives {
-		termMentions(a.Tags, mentioned)
-		termMentions(a.Value, mentioned)
-		termMentions(a.Image, mentioned)
-	}
-	// An emission item mentions its own capture and its attachments,
-	// whatever else it says.
-	for _, it := range items {
-		if !it.IsInsert {
-			mentioned[it.Capture] = true
-			for _, name := range it.attachments() {
-				mentioned[name] = true
-			}
+		for _, term := range []*domTerm{a.Tags, a.Value, a.Image} {
+			mention(clausePart{t: term})
 		}
-		termMentions(it.Tags, mentioned)
-		termMentions(it.Value, mentioned)
-		termMentions(it.Image, mentioned)
 	}
-	names := make([]string, 0, len(mentioned))
-	for name := range mentioned {
-		step()
-		names = append(names, name)
+	for _, c := range r.Conditions {
+		mention(clausePart{c: c})
 	}
-	sortStrings(names, readerCount(), "reader steps")
+	for _, item := range items {
+		if !item.IsInsert {
+			names = append(names, item.Capture)
+		}
+		for _, term := range []*domTerm{item.Tags, item.Value, item.Image} {
+			mention(clausePart{t: term})
+		}
+		names = append(names, item.attachments()...)
+	}
 	for _, name := range names {
 		step()
 		if capturedBy[name] == 0 {
-			return immediate(fmt.Sprintf("$%s is captured by no production of %s", name, r.Name))
+			return immediate(fmt.Sprintf("$%s is captured by no alternative of %s", name, r.Name))
 		}
 	}
 	// The clauses are split by the presence of captures once, so that the

@@ -1,0 +1,20 @@
+{
+  "description": "Resolved pattern depth counts substituted constants after normalization (engine §9).",
+  "grammar": "%const $P0 #A\n%const $P1 #a« $P0 »\n%const $P2 #a« $P1 »\n%const $P3 #a« $P2 »\n%const $P4 #a« $P3 »\n%const $P5 #a« $P4 »\n%const $P6 #a« $P5 »\n%const $P7 #a« $P6 »\n%const $P8 #a« $P7 »\n%const $P9 #a« $P8 »\n%const $P10 #a« $P9 »\n%const $P11 #a« $P10 »\n%const $P12 #a« $P11 »\n%const $P13 #a« $P12 »\n%const $P14 #a« $P13 »\n%const $P15 #a« $P14 »\n%const $P16 #a« $P15 »\n%const $P17 #a« $P16 »\n%const $P18 #a« $P17 »\n%const $P19 #a« $P18 »\n%const $P20 #a« $P19 »\n%const $P21 #a« $P20 »\n%const $P22 #a« $P21 »\n%const $P23 #a« $P22 »\n%const $P24 #a« $P23 »\n%const $P25 #a« $P24 »\n%const $P26 #a« $P25 »\n%const $P27 #a« $P26 »\n%const $P28 #a« $P27 »\n%const $P29 #a« $P28 »\n%const $P30 #a« $P29 »\n%const $P31 #a« $P30 »\n%const $P32 #a« $P31 »\n%const $P33 #a« $P32 »\n%const $P34 #a« $P33 »\n%const $P35 #a« $P34 »\n%const $P36 #a« $P35 »\n%const $P37 #a« $P36 »\n%const $P38 #a« $P37 »\n%const $P39 #a« $P38 »\n%const $P40 #a« $P39 »\n%const $P41 #a« $P40 »\n%const $P42 #a« $P41 »\n%const $P43 #a« $P42 »\n%const $P44 #a« $P43 »\n%const $P45 #a« $P44 »\n%const $P46 #a« $P45 »\n%const $P47 #a« $P46 »\n%const $P48 #a« $P47 »\n%const $P49 #a« $P48 »\n%const $P50 #a« $P49 »\n%const $P51 #a« $P50 »\n%const $P52 #a« $P51 »\n%const $P53 #a« $P52 »\n%const $P54 #a« $P53 »\n%const $P55 #a« $P54 »\n%const $P56 #a« $P55 »\n%const $P57 #a« $P56 »\n%const $P58 #a« $P57 »\n%const $P59 #a« $P58 »\n%const $P60 #a« $P59 »\n%const $P61 #a« $P60 »\n%const $P62 #a« $P61 »\n%const $P63 #a« $P62 »\n%const $P64 #a« $P63 »\n%const $P65 #a« $P64 »\n%const $P66 #a« $P65 »\n%const $P67 #a« $P66 »\n%const $P68 #a« $P67 »\n%const $P69 #a« $P68 »\n%const $P70 #a« $P69 »\n%const $P71 #a« $P70 »\n%const $P72 #a« $P71 »\n%const $P73 #a« $P72 »\n%const $P74 #a« $P73 »\n%const $P75 #a« $P74 »\n%const $P76 #a« $P75 »\n%const $P77 #a« $P76 »\n%const $P78 #a« $P77 »\n%const $P79 #a« $P78 »\n%const $P80 #a« $P79 »\n%const $P81 #a« $P80 »\n%const $P82 #a« $P81 »\n%const $P83 #a« $P82 »\n%const $P84 #a« $P83 »\n%const $P85 #a« $P84 »\n%const $P86 #a« $P85 »\n%const $P87 #a« $P86 »\n%const $P88 #a« $P87 »\n%const $P89 #a« $P88 »\n%const $P90 #a« $P89 »\n%const $P91 #a« $P90 »\n%const $P92 #a« $P91 »\n%const $P93 #a« $P92 »\n%const $P94 #a« $P93 »\n%const $P95 #a« $P94 »\n%const $P96 #a« $P95 »\n%const $P97 #a« $P96 »\n%const $P98 #a« $P97 »\n%const $P99 #a« $P98 »\n%const $P100 #a« $P99 »\n%const $P101 #a« $P100 »\n%const $P102 #a« $P101 »\n%const $P103 #a« $P102 »\n%const $P104 #a« $P103 »\n%const $P105 #a« $P104 »\n%const $P106 #a« $P105 »\n%const $P107 #a« $P106 »\n%const $P108 #a« $P107 »\n%const $P109 #a« $P108 »\n%const $P110 #a« $P109 »\n%const $P111 #a« $P110 »\n%const $P112 #a« $P111 »\n%const $P113 #a« $P112 »\n%const $P114 #a« $P113 »\n%const $P115 #a« $P114 »\n%const $P116 #a« $P115 »\n%const $P117 #a« $P116 »\n%const $P118 #a« $P117 »\n%const $P119 #a« $P118 »\n%const $P120 #a« $P119 »\n%const $P121 #a« $P120 »\n%const $P122 #a« $P121 »\n%const $P123 #a« $P122 »\n%const $P124 #a« $P123 »\n%const $P125 #a« $P124 »\n%const $P126 #a« $P125 »\n%const $P127 #a« $P126 »\n%const $P128 #a« $P127 »\n%rule text A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 131,
+      "column": 18
+    }
+  }
+}

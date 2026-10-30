@@ -488,10 +488,9 @@ class Summaries:
 
 class Ranker(Summaries):
     """Ranks a forest's derivations under ``greedy``, ``lazy`` or no lean,
-    or only counts them (up to two). ``best``, when given, is the
-    summaries of ``late-elision``, and the ranker then sees only the edges
-    that attain their least vectors, the forest of the best derivations
-    (engine §6)."""
+    or only counts them up to two. The optional ``best`` summaries retain
+    the best rule profile under every directive. Under ``late-elision``,
+    they also compare elision vectors (engine §6)."""
 
     def __init__(
         self,
@@ -572,9 +571,6 @@ class Ranker(Summaries):
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
         mask = self.admission.mask(key) if self.admission is not None else None
-        best = self.best
-        if best is not None:
-            best_all = best.edges(key)
         total = 0
         kept = []
         marked = marks.get(item) if marks is not None else None
@@ -582,9 +578,8 @@ class Ranker(Summaries):
         w_all = False
         edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            to_all = mask is None or index in mask
-            if best is not None:
-                to_all = to_all and index in best_all
+            if mask is not None and index not in mask:
+                continue
             # Faults of the check skip the first of two or more edges, in the
             # count or in the candidates (tests/README.md). Python's agenda
             # completes the restoring sibling first.
@@ -627,16 +622,14 @@ class Ranker(Summaries):
                     edge_w = witnessed[pred_key]
                 if edge_w and child_key is not None and edge_kind == 2:
                     edge_w = witnessed[child_key]
-                w_all = w_all or (to_all and edge_w)
+                w_all = w_all or edge_w
             if not counted:
                 ways = 0
-            if to_all:
-                total += ways
+            total += ways
             if not selected:
                 produced = []
             for entry in produced:
-                if to_all:
-                    self.keep(kept, entry)
+                self.keep(kept, entry)
         total = min(total, 2)
         value = (kept, total) if self.entries else total
         if marks is not None:

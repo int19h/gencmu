@@ -1,0 +1,20 @@
+{
+  "description": "Ranked clause projections retain relevant presence, order, and prefixes without unrelated combinations (engine §2.1).",
+  "grammar": "%rule text [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] ($x:A ≻ B) ($y:C ≻ D)\n%conditions ($x ∧ $y ⟹ $x.value = $y.value)",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 138
+    }
+  }
+}

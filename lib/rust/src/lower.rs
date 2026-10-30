@@ -9,8 +9,6 @@ use std::sync::Arc;
 use crate::clauses::{simplify_cond, simplify_value, CondListSplit, EmitIndex, Simple, TermSplit};
 use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
-use crate::tags::code_of_character_tag;
-use crate::unicode::Property;
 use crate::work::{self, Mutant, Work};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,12 +17,11 @@ pub(crate) enum Sym {
     N(u32),
 }
 
-/// The characters a range or a property matches (engine §4): a range's
-/// first and last scalar values, or a property.
+/// Character matching uses scalar endpoints or a direct wildcard (engine §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Characters {
-    Range(u32, u32),
-    Property(Property),
+    Range(char, char),
+    Any,
 }
 
 #[derive(Debug, Clone)]
@@ -234,8 +231,6 @@ pub(crate) struct Prod {
     pub syms: Vec<Sym>,
     /// Plain optional boundaries, including routes expanded for captures (§4).
     pub optionals: Vec<OptionalBoundary>,
-    /// The physical symbol supplying logical unary inheritance.
-    pub inherited: Option<usize>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u32>>,
     /// For each position, the id of its symbol's test in the grammar's
@@ -271,10 +266,6 @@ pub(crate) struct SlotMetadata {
     pub source: (usize, usize),
     pub path: Option<usize>,
     pub names: Vec<Option<String>>,
-    pub tags: Vec<Term>,
-    pub tag_clauses: [Option<Term>; 2],
-    pub conditions: Vec<(Cond, usize)>,
-    pub emit: Option<Vec<EmitItem>>,
     pub ranked: Option<(usize, usize)>,
 }
 
@@ -291,8 +282,8 @@ pub(crate) struct LRule {
     /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
     pub elided: Option<String>,
-    /// The id of that terminator's test, if it has one: an `=` test,
-    /// whose string a restored token sounds like (engine §7).
+    /// The complete symbol predicate on the terminator, if present.
+    /// An equality test also supplies its restored value (engine §7).
     pub elided_test: Option<u32>,
     pub elided_owner: Option<u32>,
 }
@@ -335,7 +326,7 @@ impl Prod {
 pub(crate) struct Lowered {
     pub unicode: Arc<crate::unicode::Unicode>,
     pub ranked: RankedRuntime,
-    pub close_families: Vec<FxSet<u32>>,
+    pub close_families: Arc<Vec<FxSet<u32>>>,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -671,9 +662,6 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
-            Expr::Literal(Term::Str(value)) => {
-                vec![Sequence::one((Sym::T(self.terminal(&format!("\"{value}\""), None)), None, None))]
-            }
             Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
             Expr::Seq(items) => {
                 let mut out = vec![Sequence::new()];
@@ -706,9 +694,9 @@ impl<'a> Lowerer<'a> {
             Expr::And(items) => {
                 let expanded: Vec<Vec<Sequence>> = items.iter().map(|item| self.expand(item)).collect();
                 let mut out = Vec::new();
-                // At most MAX_AND items (§3.2), which stitching checks.
+                // At most MAX_AND items (§3.2), which DOM validation checks.
                 debug_assert!(items.len() <= crate::grammar::MAX_AND);
-                for mask in 1u64..(1u64 << items.len().min(crate::grammar::MAX_AND)) {
+                for mask in 1u64..(1u64 << items.len()) {
                     let mut chosen = vec![Sequence::new()];
                     for (bit, options) in expanded.iter().enumerate() {
                         if mask & (1 << bit) != 0 {
@@ -739,12 +727,24 @@ impl<'a> Lowerer<'a> {
             {
                 // Preserve tag arity, but select one complete route per helper.
                 // Only descendant groups reachable on that route stay unknown.
+                self.enter();
                 let mut routes = vec![Sequence::new()];
                 routes.extend(self.expand(inner));
+                let nested = self.places.pop().expect("the optional's nested places");
+                let roots: FxSet<usize> = nested.into_iter().collect();
                 routes
                     .into_iter()
                     .map(|route| {
                         self.enter();
+                        for (sym, ..) in route.iter() {
+                            if let Sym::N(id) = sym {
+                                if let Some(helper) = (*id as usize).checked_sub(self.grammar.rules.len()) {
+                                    if roots.contains(&helper) {
+                                        self.places.last_mut().expect("the route's places").push(helper);
+                                    }
+                                }
+                            }
+                        }
                         let sym = self.helper(vec![route], None, expr);
                         let mut sequence = Sequence::one((sym, None, None));
                         sequence.optional(self.optional_id(expr));
@@ -776,22 +776,18 @@ impl<'a> Lowerer<'a> {
             }
             Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None))],
             Expr::Terminal(name) => vec![Sequence::one((self.symbol(name, false), None, None))],
-            // Private endpoint spellings become one canonical diagnostic name.
-            // The terminal matches by its characters (engine §4).
-            Expr::Range(start, end) => {
-                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
-                let (first, last) = codes.expect("a range of two character tags, which reading checks");
+            // Scalar endpoints also supply the canonical diagnostic name.
+            Expr::Range(first, last) => {
                 let spelling = format!(
                     "{}..{}",
-                    crate::tags::string_name(&char::from_u32(first).unwrap().to_string(), &self.grammar.unicode),
-                    crate::tags::string_name(&char::from_u32(last).unwrap().to_string(), &self.grammar.unicode)
+                    crate::tags::string_name(&first.to_string(), &self.grammar.unicode),
+                    crate::tags::string_name(&last.to_string(), &self.grammar.unicode)
                 );
-                let terminal = self.terminal(&spelling, Some(Characters::Range(first, last)));
+                let terminal = self.terminal(&spelling, Some(Characters::Range(*first, *last)));
                 vec![Sequence::one((Sym::T(terminal), None, None))]
             }
-            Expr::Property(name) => {
-                let property = Property::of(name).expect("a property, which reading checks");
-                let terminal = self.terminal("_", Some(Characters::Property(property)));
+            Expr::Wildcard => {
+                let terminal = self.terminal("_", Some(Characters::Any));
                 vec![Sequence::one((Sym::T(terminal), None, None))]
             }
             // A tested symbol lowers to its symbol with the test, and adds
@@ -842,7 +838,7 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
         | Expr::Literal(_)
         | Expr::ScalarRange(..)
         | Expr::Range(..)
-        | Expr::Property(_)
+        | Expr::Wildcard
         | Expr::Empty => false,
     }
 }
@@ -1063,17 +1059,6 @@ pub(crate) fn lower(
     features: &BTreeSet<String>,
     classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
-    lower_mode(grammar, features, classifiers, false)
-}
-pub(crate) fn lower_for_slots(grammar: &StageGrammar) -> Result<Lowered, LowerError> {
-    lower_mode(grammar, &BTreeSet::new(), Arc::new(ClassifierTables::default()), true)
-}
-fn lower_mode(
-    grammar: &StageGrammar,
-    features: &BTreeSet<String>,
-    classifiers: Arc<ClassifierTables>,
-    validation: bool,
-) -> Result<Lowered, LowerError> {
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut lowerer = Lowerer {
         grammar,
@@ -1103,21 +1088,22 @@ fn lower_mode(
     for (index, rule) in grammar.rules.iter().enumerate() {
         lowerer.owner = index as u32;
         // Only a gate drops an alternative; a warning keeps it (§3.1).
-        let live: Vec<&StitchedAlternative> = rule
+        let live: Vec<(usize, &StitchedAlternative)> = rule
             .alternatives
             .iter()
-            .filter(|alternative| {
-                validation
-                    || alternative.alternative.guards.iter().all(|guard| {
-                        guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
-                    })
+            .enumerate()
+            .filter(|(_, alternative)| {
+                alternative.alternative.guards.iter().all(|guard| {
+                    guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
+                })
             })
             .collect();
         // A chain is the only alternative of its rule that the gates
         // leave (§3.3); a %extend-rule can add another. This is reported
         // before the rule's alternatives are lowered.
-        let chain = live.iter().find(|alternative| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
-        if let Some(chain) = chain.filter(|_| !validation && live.len() > 1) {
+        let chain =
+            live.iter().find(|(_, alternative)| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
+        if let Some((_, chain)) = chain.filter(|_| live.len() > 1) {
             return Err(LowerError::at(
                 &grammar.name,
                 &chain.document,
@@ -1128,13 +1114,13 @@ fn lower_mode(
                 ),
             ));
         }
-        for (number, alternative) in live.iter().enumerate() {
-            lowerer.alternative =
-                rule.alternatives.iter().position(|a| std::ptr::eq(a, *alternative)).expect("a written alternative");
+        for (number, (written, alternative)) in live.iter().enumerate() {
+            lowerer.alternative = *written;
             lowerer.places = vec![Vec::new()];
             lowerer.written = (alternative.document.clone(), alternative.at);
-            let own =
-                |sequence| Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, 0)), option: None });
+            let own = |sequence| {
+                Slot::Own(Pending { rule: index as u32, sequence, source: Some((number, *written)), option: None })
+            };
             let sequences = match &alternative.alternative.expr {
                 // A chain is recursion on the rule itself, with no helper
                 // (§3.3).
@@ -1148,12 +1134,16 @@ fn lower_mode(
             }
             let roots = lowerer.places.pop().expect("the alternative's places");
             let mut stack: Vec<usize> = roots.into_iter().rev().collect();
+            let mut numbered = FxSet::default();
             while let Some(helper) = stack.pop() {
+                if !numbered.insert(helper) {
+                    continue;
+                }
                 slots.push(Slot::Helper(helper));
                 stack.extend(lowerer.helpers[helper].children.iter().rev());
             }
         }
-        alternatives.push(live);
+        alternatives.push(live.into_iter().map(|(_, alternative)| alternative).collect());
     }
 
     let user_count = grammar.rules.len();
@@ -1212,7 +1202,7 @@ fn lower_mode(
         syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
     };
     for item in &lowerer.brace_items {
-        if !validation && item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
+        if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
             let name = &grammar.rules[item.owner as usize].name;
             return Err(LowerError::at(
                 &grammar.name,
@@ -1225,22 +1215,19 @@ fn lower_mode(
 
     let mut private_helpers: FxMap<u32, BTreeSet<String>> = FxMap::default();
     if !grammar.ranked.groups.is_empty() {
+        let mut helper_productions = vec![Vec::new(); lowerer.helpers.len()];
+        for (index, pending) in order.iter().enumerate() {
+            if pending.rule as usize >= user_count {
+                helper_productions[pending.rule as usize - user_count].push(index);
+            }
+        }
         for (i, helper) in lowerer.helpers.iter().enumerate() {
             let mut names = BTreeSet::new();
             if let Some(group) = grammar.ranked.expressions.get(&helper.expr) {
                 names.extend(grammar.ranked.groups[*group].names.iter().cloned());
             }
-            for sequence in &helper.prods {
-                for (symbol, _, _) in sequence.iter() {
-                    if let Sym::N(rule) = symbol {
-                        if let Some(child) = private_helpers.get(rule) {
-                            names.extend(child.iter().cloned());
-                        }
-                    }
-                }
-            }
-            // Helper sequences moved into `order` above. Inspect those sequences too.
-            for pending in order.iter().filter(|p| p.rule == (user_count + i) as u32) {
+            for &index in &helper_productions[i] {
+                let pending = &order[index];
                 for (symbol, _, _) in pending.sequence.iter() {
                     if let Sym::N(rule) = symbol {
                         if let Some(child) = private_helpers.get(rule) {
@@ -1342,7 +1329,6 @@ fn lower_mode(
         let mut production = Prod {
             rule: pending.rule,
             owner,
-            inherited: pending.sequence.inherited,
             optionals: pending.sequence.optionals.clone(),
             visible: !helper && pending.sequence.logical_width != 1,
             syms,
@@ -1368,19 +1354,7 @@ fn lower_mode(
                         let h = &lowerer.helpers[pending.rule as usize - user_count];
                         (owner as usize, h.alternative)
                     } else {
-                        pending
-                            .source
-                            .map(|(n, _)| {
-                                (
-                                    owner as usize,
-                                    grammar.rules[owner as usize]
-                                        .alternatives
-                                        .iter()
-                                        .position(|a| std::ptr::eq(a, alternatives[owner as usize][n]))
-                                        .unwrap(),
-                                )
-                            })
-                            .expect("a written production")
+                        pending.source.map(|(_, written)| (owner as usize, written)).expect("a written production")
                     },
                     path: helper.then(|| lowerer.helpers[pending.rule as usize - user_count].expr),
                     names: pending
@@ -1388,10 +1362,6 @@ fn lower_mode(
                         .iter()
                         .filter_map(|(_, n, _)| n.as_ref().map(|n| Some(n.clone())))
                         .collect(),
-                    tags: Vec::new(),
-                    tag_clauses: [None, None],
-                    conditions: Vec::new(),
-                    emit: None,
                     ranked: pending.option.map(|option| {
                         (grammar.ranked.expressions[&lowerer.helpers[pending.rule as usize - user_count].expr], option)
                     }),
@@ -1460,14 +1430,7 @@ fn lower_mode(
                     split.simplify(own.iter().copied(), &has).unwrap_or(Term::EmptySet)
                 })
             });
-            if validation {
-                let slot = production.slot.as_mut().expect("slot validation");
-                slot.tag_clauses = tag_clauses.clone();
-            }
             let written: Vec<Term> = tag_clauses.into_iter().flatten().collect();
-            if validation {
-                production.slot.as_mut().expect("slot validation").tags = written.clone();
-            }
             let tags = match written.len() {
                 0 => None,
                 1 => written.into_iter().next(),
@@ -1475,13 +1438,8 @@ fn lower_mode(
             };
             // The reader has made sure a tag term uses only captures its
             // alternative has, and so every production of it has (§3.6).
-            // Validation reads the symbolic slot clauses. Private names
-            // are diagnosed in group order before runtime binding (§2.1).
-            production.tags = if validation {
-                None
-            } else {
-                tags.map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")))
-            };
+            production.tags = tags
+                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
             let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
@@ -1500,13 +1458,7 @@ fn lower_mode(
                 for (index, cond) in source_conditions.iter().enumerate() {
                     match simplify_cond(cond, &has) {
                         Simple::True => {}
-                        Simple::False => {
-                            if validation {
-                                left.push((cond.clone(), index));
-                            } else {
-                                continue 'productions;
-                            }
-                        }
+                        Simple::False => continue 'productions,
                         Simple::Cond(simple) => left.push((simple, index)),
                     }
                 }
@@ -1518,7 +1470,6 @@ fn lower_mode(
                 // A condition false for this production removes it.
                 match split.simplify_indexed(&own, &has) {
                     Some(left) => left,
-                    None if validation => source_conditions.iter().cloned().enumerate().map(|(i, c)| (c, i)).collect(),
                     None => continue 'productions,
                 }
             };
@@ -1534,9 +1485,6 @@ fn lower_mode(
                     // (§4).
                     let trigger =
                         if scope.whole { production.syms.len() } else { scope.last.map_or(0, |last| last + 1) };
-                    if validation {
-                        production.slot.as_mut().expect("slot validation").conditions.push((simple.clone(), trigger));
-                    }
                     production.conds.push((lowered, trigger));
                 }
             }
@@ -1562,25 +1510,6 @@ fn lower_mode(
                             emit_indexes.entry(items as *const Vec<EmitItem>).or_insert_with(|| EmitIndex::new(items));
                         index.kept(own.iter().copied()).into_iter().map(|at| &items[at]).collect()
                     };
-                    if validation {
-                        production.slot.as_mut().expect("slot validation").emit = Some(
-                            items
-                                .iter()
-                                .map(|item| match item {
-                                    EmitItem::Capture(n, t, a) => EmitItem::Capture(
-                                        n.clone(),
-                                        t.as_ref().map(|t| simplify_value(t, &has)),
-                                        crate::dom::Attachments {
-                                            strings: Default::default(),
-                                            before: a.before.iter().filter(|n| has(n)).cloned().collect(),
-                                            after: a.after.iter().filter(|n| has(n)).cloned().collect(),
-                                        },
-                                    ),
-                                    _ => (*item).clone(),
-                                })
-                                .collect(),
-                        );
-                    }
                     production.item_strings = items
                         .iter()
                         .map(|item| match item {
@@ -1666,15 +1595,6 @@ fn lower_mode(
                 None => production.tags = Some(LTerm::Empty),
             }
         }
-        // A production with one symbol and no tags has its symbol's tags:
-        // the symbol is captured (§3.7).
-        if production.tags.is_none() && production.syms.len() == 1 && production.cap_at[0].is_none() {
-            production.cap_at[0] = Some(production.cap_pos.len() as u32);
-            production.cap_pos.push(0);
-            if let Some(slot) = &mut production.slot {
-                slot.names.push(None);
-            }
-        }
         // An item finds the conditions of its dot without a scan of all.
         production.conds.sort_by_key(|&(_, trigger)| trigger);
         let mut cond_at = vec![0u32; production.syms.len() + 2];
@@ -1697,7 +1617,6 @@ fn lower_mode(
             owner: rule,
             syms: vec![symbol],
             optionals: Vec::new(),
-            inherited: Some(0),
             cap_at: vec![Some(0)],
             tests: Vec::new(),
             cap_pos: vec![0],
@@ -1723,7 +1642,7 @@ fn lower_mode(
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
         unicode: grammar.unicode.clone(),
-        close_families: close_families(grammar),
+        close_families: grammar.close_families.clone(),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
         elides,
@@ -1738,9 +1657,7 @@ fn lower_mode(
         implications: grammar.implications.clone(),
         prepared: Prepared::default(),
     };
-    if !validation {
-        lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules);
-    }
+    lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules);
     Ok(lowered)
 }
 
@@ -2267,49 +2184,6 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
     cycle
 }
 
-/// Membership reads only written reference paths, before gates or lowering.
-fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
-    fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
-        match expr {
-            Expr::Ref(name) => {
-                if let Some(&rule) = grammar.index.get(name) {
-                    out.push(rule as u32);
-                }
-            }
-            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
-            Expr::Choice(branches) => {
-                for branch in branches {
-                    edges(branch, grammar, out);
-                }
-            }
-            _ => {}
-        }
-    }
-    let links: Vec<_> = grammar
-        .rules
-        .iter()
-        .map(|rule| {
-            let mut out = Vec::new();
-            for alternative in &rule.alternatives {
-                edges(&alternative.alternative.expr, grammar, &mut out);
-            }
-            out
-        })
-        .collect();
-    (0..grammar.rules.len())
-        .map(|root| {
-            let mut members = FxSet::default();
-            let mut pending = vec![root as u32];
-            while let Some(rule) = pending.pop() {
-                if members.insert(rule) {
-                    pending.extend(&links[rule as usize]);
-                }
-            }
-            members
-        })
-        .collect()
-}
-
 fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     enum Part<'a> {
         T(&'a Term),
@@ -2374,6 +2248,26 @@ mod tests {
     use crate::grammar::stitch;
     use crate::unicode::Unicode;
     use crate::work::{assert_linear, assert_mutant_stops, assert_stops, Mutant, Work};
+
+    #[test]
+    fn close_families_compute_only_demanded_roots_and_share_memberships() {
+        let source = "%ambiguity-resolution greedy\n%rule text $x:r\n%conditions $x.without-elision-except(fam).matches(r)\n%rule fam f? r | other\n%rule r A [+T]\n%rule other B\n%rule unused U";
+        let unicode = Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").unwrap()).unwrap();
+        let json = crate::tools::read_grammar_document(&format!("```jbogenbau\n{source}\n```\n"), "g.md").unwrap();
+        let dom = crate::dom::dom_from_json(&crate::json::parse(&json).unwrap(), &unicode).unwrap();
+        let grammar = stitch("main", &[(Arc::from("g.md"), Arc::new(dom))], &unicode).unwrap();
+        let family = grammar.index["fam"];
+        let expected = [family as u32, grammar.index["r"] as u32, grammar.index["other"] as u32];
+        assert_eq!(grammar.close_families[family].len(), expected.len());
+        for member in expected {
+            assert!(grammar.close_families[family].contains(&member));
+        }
+        assert!(grammar.close_families[grammar.index["unused"]].is_empty());
+        let off = lower(&grammar, &BTreeSet::new(), Arc::default()).unwrap();
+        let on = lower(&grammar, &BTreeSet::from(["f".into()]), Arc::default()).unwrap();
+        assert!(Arc::ptr_eq(&off.close_families, &on.close_families));
+        assert!(Arc::ptr_eq(&off.close_families, &grammar.close_families));
+    }
 
     /// A grammar of a chain of n rules, each nullable and reading only
     /// through the next, a chain of n rules nullable only through the

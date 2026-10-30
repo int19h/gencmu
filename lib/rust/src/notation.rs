@@ -1772,7 +1772,7 @@ impl<'a> Reader<'a> {
             }
             "tag" => Ok(Expr::Ref(self.tag_of(self.token(node)?)?)),
             "constant-reference" => Ok(Expr::Literal(self.constant_reference(self.token(node)?)?)),
-            "wildcard" => Ok(Expr::Property("Any".into())),
+            "wildcard" => Ok(Expr::Wildcard),
             "string-terminal" => {
                 let parts = Self::parts(node);
                 let part = parts
@@ -1803,11 +1803,11 @@ impl<'a> Reader<'a> {
                 if matches!(&left, Term::Str(_)) && scalar(&left).is_none()
                     || matches!(&right, Term::Str(_)) && scalar(&right).is_none()
                 {
-                    return Err(self.error(node, "range endpoints must be single scalars"));
+                    return Err(self.error(node, "a range endpoint is one scalar"));
                 }
                 if let (Some(a), Some(b)) = (scalar(&left), scalar(&right)) {
                     if a > b {
-                        return Err(self.error(node, "range starts above its end"));
+                        return Err(self.error(node, "a range starts above its end"));
                     }
                 }
                 Ok(Expr::ScalarRange(left, right))

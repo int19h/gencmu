@@ -651,10 +651,6 @@ export type Production = {
     observesCloses?: boolean;
     baseProduction?: Production;
     writtenTags?: Term[];
-    writtenTagClauses?: {
-        alternative: Term | null;
-        definition: Term | null;
-    };
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
@@ -1339,7 +1335,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} [observesCloses]
  * @property {Production} [baseProduction]
  * @property {Term[]} [writtenTags]
- * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs

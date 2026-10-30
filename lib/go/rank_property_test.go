@@ -754,7 +754,7 @@ func TestRankingProperty(t *testing.T) {
 		// otherwise it has the verdict of the oracle.
 		if lean == lg.lean {
 			ps := newParseState(bundled.uni, []rune(strings.Join(texts, " ")))
-			out := ps.newRun("main", sg, toks).run(lg, false)
+			out := ps.newRun("main", sg, toks).run(lg, false, nil)
 			wantVerdict := ""
 			if want != nil {
 				wantVerdict = want.verdict
