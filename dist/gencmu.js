@@ -1585,7 +1585,7 @@
   const PROPERTY_NAMES = new Set(Object.keys(PROPERTY_CATALOG.tags).map(name => name.slice(1)));
 
 
-  // A sparse interval tree has at most 21 levels over the Unicode code space.
+  // The sparse interval tree has depth at most 21 over the Unicode code space.
   // Uniform nodes collapse after insertion. No insertion moves earlier records.
   /** @template T */
   class ValueRanges {

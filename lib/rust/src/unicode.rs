@@ -68,7 +68,7 @@ pub(crate) struct Unicode {
     pub(crate) profiles: ProfileCache,
 }
 
-// A sparse interval tree has at most 21 levels over the Unicode code space.
+// The sparse interval tree has depth at most 21 over the Unicode code space.
 #[derive(Default)]
 enum ValueRanges<T> {
     #[default]

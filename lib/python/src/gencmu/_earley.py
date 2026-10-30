@@ -1625,12 +1625,12 @@ class Parser:
                 for condition in production.conds_predict:
                     if not (yield boundary_condition(condition, bound, obligations)):
                         return False
-                if boundaries is not None and not production.rhs and production.tags_term is not None:
-                    yield known_tag()
             except InvalidObservation:
                 return False
             if boundaries is not None:
                 prediction_obligations[production.id, j] = obligations
+                if not production.rhs and production.tags_term is not None:
+                    yield known_tag()
             if known_tag is not None:
                 prediction_tags[production.id, j] = known_tag
             return True

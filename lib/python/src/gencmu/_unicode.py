@@ -32,7 +32,7 @@ def _number(field: str, base: int, limit: int) -> int:
 
 
 class _ValueRanges[T]:
-    """A sparse interval tree with at most 21 levels over Unicode code points."""
+    """A sparse interval tree of depth at most 21 over Unicode code points."""
 
     def __init__(self):
         self.value: T | None = None
