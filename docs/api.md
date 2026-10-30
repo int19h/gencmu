@@ -175,7 +175,7 @@ Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string`
 
 For example, a supplied token with `text:"A"`, `value:"a"`, `image:"A"`, and `tags:["Stressed"]` compares as `a` and displays as `A`. A supplied syllable comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_General_Category_Uppercase_Letter` or any other engine tag unless the caller supplies it.
 
-Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
+Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged. Insertion provenance belongs to emitted tokens. A parser drops any caller-supplied insertion provenance when it copies input tokens.
 
 ### Tests
 

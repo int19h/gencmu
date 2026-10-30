@@ -1033,6 +1033,16 @@ class SharedCaches(unittest.TestCase):
 
 
 class CallerTokens(unittest.TestCase):
+    def test_caller_insertion_provenance_is_dropped(self):
+        pipeline, error = load_case_pipeline({"grammar": '%rule text "a"'})
+        assert pipeline is not None, error
+        for inserted_by in ("caller", 17):
+            token = gencmu.Token("a", set(), (0, 1), (0, 1), inserted_by=inserted_by)
+            result = pipeline.parse_tokens([token], "a")
+            self.assertTrue(result.ok)
+            self.assertIsNone(result.stages[0].input[0].inserted_by)
+            self.assertEqual(token.inserted_by, inserted_by)
+
     """A result shares nothing that can change with the caller's tokens
     (docs/api.md)."""
 

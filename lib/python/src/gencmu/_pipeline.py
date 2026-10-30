@@ -804,6 +804,7 @@ class Pipeline:
                 source=(token.source[0], token.source[1]),
                 before=[],
                 after=[],
+                inserted_by=None,
             )
             for token in tokens
         ]

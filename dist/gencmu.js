@@ -20451,7 +20451,7 @@
             const range = /** @type {any} */ (token)[field];
             if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger)) throw new GencmuError("usage",`token ${index}: ${field} must be a pair of integers`);
           }
-          for (const field of ["text", "value", "image", "insertedBy"]) {
+          for (const field of ["text", "value", "image"]) {
             const value = /** @type {any} */ (token)[field];
             if (value === undefined && field !== "text") continue;
             if (typeof value !== "string" || loneSurrogate(value) !== null) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
@@ -20473,7 +20473,7 @@
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, token.insertedBy, token.image)) };
+          new Token(new Set([...token.tags].map(tag => tag.startsWith("_") ? /** @type {string} */ (this.loader.unicode.canonicalTag(tag)) : tag)), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, undefined, token.image)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -21063,7 +21063,6 @@
    * @property {string} text
    * @property {string} [value]
    * @property {string} [image]
-   * @property {string} [insertedBy]
    * @property {unknown[]} [before]
    * @property {unknown[]} [after]
    */

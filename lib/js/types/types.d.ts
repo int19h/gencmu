@@ -234,7 +234,6 @@ export type InputToken = {
     text: string;
     value?: string;
     image?: string;
-    insertedBy?: string;
     before?: unknown[];
     after?: unknown[];
 };
@@ -1071,7 +1070,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} text
  * @property {string} [value]
  * @property {string} [image]
- * @property {string} [insertedBy]
  * @property {unknown[]} [before]
  * @property {unknown[]} [after]
  */

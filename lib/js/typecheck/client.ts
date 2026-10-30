@@ -67,3 +67,6 @@ trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:false});
 trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:null});
 // @ts-expect-error elisionOnly accepts a boolean or null
 trace(pipeline, "", {stage:"syntax", position:0, elisionOnly:"off"});
+
+// @ts-expect-error caller tokens do not declare insertion provenance
+pipeline.parse("a", {tokens:[{text:"a", tags:[], span:[0,1], source:[0,1], insertedBy:"caller"}]});
