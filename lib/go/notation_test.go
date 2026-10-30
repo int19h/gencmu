@@ -306,20 +306,17 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return sameValue(a.Elem(), b.Elem())
 	case reflect.Struct:
-		// Source terms keep diagnostic locations that DOM 27 does not serialize.
-		// Constants retain their serialized reference positions.
-		if a.Type() == reflect.TypeOf(domCond{}) || a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
-			for i := range a.NumField() {
-				if a.Type().Field(i).Name == "At" {
-					continue
-				}
-				if !sameValue(a.Field(i), b.Field(i)) {
-					return false
-				}
-			}
-			return true
-		}
+		// Private reader positions do not belong to cached grammar identity.
+		// Parameter and constant reference positions remain public DOM members.
+		kind := a.Type()
 		for i := 0; i < a.NumField(); i++ {
+			field := kind.Field(i).Name
+			if kind == reflect.TypeOf(domAlt{}) && field == "rankedLocations" ||
+				kind == reflect.TypeOf(domExpr{}) && (field == "RankedAt" || field == "At" && a.FieldByName("Kind").String() != exParam) ||
+				kind == reflect.TypeOf(domCond{}) && field == "At" ||
+				kind == reflect.TypeOf(domTerm{}) && field == "At" && a.FieldByName("Kind").String() != tmConst && a.FieldByName("Kind").String() != tmParam {
+				continue
+			}
 			if !sameValue(a.Field(i), b.Field(i)) {
 				return false
 			}

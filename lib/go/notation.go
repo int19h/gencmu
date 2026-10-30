@@ -719,14 +719,17 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	default:
 		r.Op = "define"
 	}
-	r.Flags = b.ruleFlags(n, r.Op)
 	if name := one(n, "rule-name"); name != nil {
 		r.Name = b.tokenValue(b.token(name))
 		if !classifierName.MatchString(r.Name) && !b.uni.isEmojiName(r.Name) {
 			b.fail(name, "a rule name starts with a lowercase letter or uses one eligible emoji")
 		}
 	} else {
-		head := ofRule(n, "call")[0]
+		heads := ofRule(n, "call")
+		if len(heads) == 0 {
+			b.only(n, "rule-name")
+		}
+		head := heads[0]
 		b.readingHead = true
 		call := b.run(&sourceCallFrame{n: head}).(*domSourceCall)
 		b.readingHead = false
@@ -748,6 +751,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 			r.Args = call.Args
 		}
 	}
+	r.Flags = b.ruleFlags(n, r.Op)
 	for _, p := range parts(n) {
 		if p.Kind == KindToken && b.tokenValue(p) == "=" {
 			calls := ofRule(n, "call")

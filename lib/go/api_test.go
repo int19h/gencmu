@@ -1040,9 +1040,9 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 		{`%rule text $a:W %emits $a :: $.tags(bad)
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
 		{"%rule text $a:x %conditions ¬$a.matches(text)\n%rule x W",
-			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
+			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 		{"%rule text $a:x %conditions ¬$a.onward.begins(text)\n%rule x W",
-			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
+			"a condition asks whether its own span parses as text from inside the parse of that span as text: the grammar defines text in terms of itself over the same text"},
 	} {
 		d, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
 		if err != nil {

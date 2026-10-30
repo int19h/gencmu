@@ -5991,10 +5991,10 @@
     const items = rule.emit ? rule.emit.items : [];
     const clauses = [rule.tags, rule.value, rule.image,
       ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...rule.conditions];
-    for (const item of items) clauses.push(
-      typeof item.capture === "string" ? {capture:item.capture} : undefined,
-      item.tags, item.value, item.image,
-      ...attachmentsOf(item).map((/** @type {string} */ capture) => ({capture})));
+    for (const item of items) {
+      clauses.push(typeof item.capture === "string" ? {capture:item.capture} : undefined, item.tags, item.value, item.image);
+      for (const capture of attachmentsOf(item)) clauses.push({capture});
+    }
     for (const clause of clauses) for (const name of capturesMentioned(clause)) {
       if (!anyHas(name)) yield {kind:"independent", problem:`$${name} is captured by no alternative of ${rule.name}`};
     }
@@ -10103,7 +10103,7 @@
         this.helperBodies.set(helper.name, helper.build(where));
       }
       for (const sequence of sequences) this.addRuleProduction(rule, alternative, sequence);
-      this.flushHelpers(sequences, rule, alternative);
+      if (pending.length) this.flushHelpers(sequences, rule, alternative);
     }
 
     /**
@@ -20889,8 +20889,13 @@
       };
       try { return build(); } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
-        const recipe = recipeFailures.get(error);
-        const boundary = boundaryDocumentErrors.get(error);
+        // Location relabeling keeps the original diagnostic as its cause.
+        let diagnostic = error;
+        while (!recipeFailures.has(diagnostic) && !boundaryDocumentErrors.has(diagnostic) && diagnostic.cause instanceof GencmuError) {
+          diagnostic = diagnostic.cause;
+        }
+        const recipe = recipeFailures.get(diagnostic);
+        const boundary = boundaryDocumentErrors.get(diagnostic);
         const ranked = error.code?.startsWith("ranked-choice-") && error.group?.document && !error.group.at;
         if (!ranked && ((!recipe && !boundary) || error.where.line !== undefined)) throw error;
         // Only a diagnostic needs locations absent from a cached DOM.

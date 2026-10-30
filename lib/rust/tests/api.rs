@@ -1295,9 +1295,9 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
 #[test]
 fn inserted_tag_clauses_validate_rules_and_delimiters() {
     for (rules, message) in [
-        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "rule missing"),
-        ("%rule text A\n%emits ε :: $.tags(missing)", "rule missing"),
-        ("%rule text A\n%emits ε :: $.value.classify(missing)", "classify names missing"),
+        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: $.tags(missing)", "missing is not a rule of stage main"),
+        ("%rule text A\n%emits ε :: $.value.classify(missing)", "missing is not a classifier of stage main"),
         (
             "%const $Z \"\"\n%rule text A\n%emits ε :: ($.value.split($Z) = $.value.split(\"!\") ⟹ X)",
             "split has an empty delimiter",

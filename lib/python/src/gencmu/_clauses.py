@@ -777,7 +777,9 @@ def validation_captures(rule, alternative):
 
     ask()
     items = rule.get('emit', {}).get('items', [])
-    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions'], *items]
+    clauses = [rule.get('tags'), rule.get('value'), rule.get('image'), *rule['conditions']]
+    for item in items:
+        clauses.extend(item.get(channel) for channel in ('tags', 'value', 'image'))
     clauses.extend(a.get(k) for a in rule['alternatives'] for k in ('tags', 'value', 'image'))
     for value in clauses:
         for name in mentioned_in(value):
