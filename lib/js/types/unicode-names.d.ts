@@ -50,6 +50,8 @@ export declare class NamesScope {
     extras: string[];
     /** @type {UnicodeNames[] | null} */
     tables: UnicodeNames[] | null;
+    /** @type {Map<string, number>} */
+    names: Map<string, number>;
     /** @type {Record<string,string> | undefined} */
     dependencies: Record<string, string> | undefined;
     /**
