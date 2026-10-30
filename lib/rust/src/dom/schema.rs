@@ -530,7 +530,8 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                     {
                         return Some("a malformed requirement");
                     }
-                    pending.push((Part::Term, term, next));
+                    // The requirement record adds no depth to its value.
+                    pending.push((Part::Term, term, depth));
                 }
             }
             Part::Expr { whole, sealed } => {
@@ -592,7 +593,7 @@ fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expa
                             pending.push((Part::String, value.get("value").unwrap(), next))
                         }
                         Some("tags") if exact(value, &["test", "requirements", "expr"], &[]) => {
-                            pending.push((Part::Requirements, value.get("requirements").unwrap(), depth));
+                            pending.push((Part::Requirements, value.get("requirements").unwrap(), next));
                         }
                         _ => return Some("a malformed test"),
                     }
