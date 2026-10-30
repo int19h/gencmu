@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { domOfTree, fnv1a64 } from "../lib/js/src/pipeline.js";
+import { domOfTree } from "../lib/js/src/pipeline.js";
 import { GencmuError } from "../lib/js/src/errors.js";
 import { run } from "../lib/js/src/trampoline.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
@@ -1028,7 +1028,7 @@ class Parser {
 export function readSyntaxTree(markdown, path, inherited = []) {
   if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
-  const names = new NamesScope(readResource, unicode, fnv1a64, inherited);
+  const names = new NamesScope(readResource, unicode, inherited);
   const strings = new DocumentStrings(path, unicode, names, offset => positions[offset] || positions[positions.length - 1] || [1, 1]);
   let tokens;
   let tree;

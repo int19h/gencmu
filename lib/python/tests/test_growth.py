@@ -456,10 +456,11 @@ def halting_and_repeating() -> Iterator[None]:
         # A nested parse runs evaluations of its own, from depth 0.
         depth, state["depth"] = state["depth"], 0
         try:
-            yield answer(self, *args)
+            value = yield answer(self, *args)
         finally:
             state["depth"] = depth
         state["answered"] += 1
+        return value
 
     with (
         mock.patch.object(Evaluator, "walk_condition", repeating(walk_condition)),
