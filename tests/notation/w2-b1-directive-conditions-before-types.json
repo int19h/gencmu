@@ -1,0 +1,10 @@
+{
+  "description": "A directive rejects forbidden conditions before their incompatible operand types.",
+  "document": "```jbogenbau\n%stage main %conditions \"a\" = A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

@@ -559,36 +559,11 @@ impl<'a> Reader<'a> {
     /// clause.
     fn constituent_tags(&self, node: &'a Node) -> R<Term> {
         let source = self.one(node, "term")?;
-        if self.own_tags_in(source)? {
-            return Err(self.error(node, "a constituent cannot read the tags it defines"));
-        }
         let term = self.tag_term(source)?;
         if reads_own_tags(&term) {
             return Err(self.error(node, "a constituent's tags cannot be made of its own tags, tags($) or classes($)"));
         }
         Ok(term)
-    }
-
-    fn own_tags_in(&self, root: &'a Node) -> R<bool> {
-        let mut pending = vec![root];
-        while let Some(node) = pending.pop() {
-            if rule_name(node) == "method" {
-                let receiver = self.one(node, "method-receiver")?;
-                let atom = self.one(receiver, "term-atom")?;
-                let part = self.inner(atom, ATOMS)?;
-                let selector = self.some(node, "method-selector", 1)?[0];
-                let name = self.value(self.token(self.one(selector, "method-name")?)?);
-                if rule_name(part) == "capture-reference"
-                    && self.value(self.token(part)?) == "$"
-                    && matches!(name, "tags" | "classes")
-                    && Self::rules(selector, "arguments").next().is_none()
-                {
-                    return Ok(true);
-                }
-            }
-            pending.extend(node.children.iter().rev());
-        }
-        Ok(false)
     }
 
     /// A whole term that must be a tag set: a constituent's or an item's
@@ -2051,7 +2026,6 @@ impl<'a> Reader<'a> {
             )]);
         }
         let mut items = Vec::new();
-        let mut named = FxSet::default();
         for item in nodes {
             let target = self.one(item, "emit-target")?;
             let token = Self::tokens_of(target)
@@ -2071,9 +2045,6 @@ impl<'a> Reader<'a> {
                         if name.is_empty() {
                             return Err(self.error(side, "an attachment requires a named capture"));
                         }
-                        if !named.insert(name.to_string()) {
-                            return Err(self.error(node, "a repeated emission capture"));
-                        }
                         list.push(name.to_string());
                     }
                 }
@@ -2081,11 +2052,6 @@ impl<'a> Reader<'a> {
             let capture = text.strip_prefix('$');
             if (!before.is_empty() || !after.is_empty()) && (capture.is_none() || capture == Some("")) {
                 return Err(self.error(item, "attachments require a named carrier"));
-            }
-            if let Some(name) = capture.filter(|name| !name.is_empty()) {
-                if !named.insert(name.to_string()) {
-                    return Err(self.error(node, "a repeated emission capture"));
-                }
             }
             let tags = Self::rules(item, "emit-tags")
                 .next()
@@ -2096,6 +2062,16 @@ impl<'a> Reader<'a> {
                 Some(name) => EmitItem::Capture(name.into(), tags, Attachments { before, after, strings }),
                 None => EmitItem::Insert(tags, strings),
             });
+        }
+        let mut named = FxSet::default();
+        for item in &items {
+            if let EmitItem::Capture(name, _, attachments) = item {
+                for name in attachments.before.iter().chain(std::iter::once(name)).chain(&attachments.after) {
+                    if !name.is_empty() && !named.insert(name) {
+                        return Err(self.error(node, "a repeated emission capture"));
+                    }
+                }
+            }
         }
         Ok(items)
     }

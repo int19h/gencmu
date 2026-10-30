@@ -1,0 +1,10 @@
+{
+  "description": "An implicit emission reads its tag clause before its recipe.",
+  "document": "```jbogenbau\n%rule text \"a\" %emits :: \"bad\" := $.bad\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 26
+    }
+  }
+}

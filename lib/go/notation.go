@@ -602,7 +602,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 						dir.Args = append(dir.Args, b.tokenValue(t))
 						kinds = append(kinds, operandRange)
 					} else {
-						dir.Args = append(dir.Args, b.tagOf(t))
+						dir.Args = append(dir.Args, b.tokenValue(t))
 						kinds = append(kinds, operandTag)
 					}
 				}
@@ -1013,11 +1013,11 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 	e := &domEmit{Items: []*domEmitItem{}}
 	items := ofRule(n, "emit-item")
 	if len(items) == 0 {
-		value, image := b.recipes(n)
-		it := &domEmitItem{Value: value, Image: image}
+		it := &domEmitItem{}
 		if tags := one(n, "emit-tags"); tags != nil {
 			it.Tags = b.tagTerm(b.only(tags, "term"))
 		}
+		it.Value, it.Image = b.recipes(n)
 		e.Items = append(e.Items, it)
 	}
 	for _, item := range items {
@@ -1033,7 +1033,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		case text == "ε":
 			it.IsInsert = true
 		default:
-			b.fail(item, "an emission target requires a capture or ε")
+			b.fail(target, "an emission target requires a capture or ε")
 		}
 		for _, side := range []struct {
 			name string

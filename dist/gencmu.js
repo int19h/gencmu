@@ -18074,12 +18074,8 @@
         if (problem) fail(problem, item);
         const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return valueOf(token(child));
-            if (ruleOf(child) === "argument-string") {
-              const part = /** @type {import("./types.js").TokenNode} */ (token(child));
-              return decodeString ? decodeString(tokens[part.token], true) : sourceText(part).slice(1, -1);
-            }
-            // A range or a property has no tag; operandProblem has refused it.
-            return tagOf(symbolPart(child));
+            const part = /** @type {import("./types.js").TokenNode} */ (token(child));
+            return decodeString ? decodeString(tokens[part.token], true) : sourceText(part).slice(1, -1);
           });
         if (["stage", "extend-stage", "redefine-stage"].includes(name) && !CLASSIFIER_NAME.test(args[0])) {
           fail(`%${name} takes one lowercase name`, item);
@@ -18091,6 +18087,7 @@
           fail("%ambiguity-resolution takes a ranking name and optionally elision-only", item);
         }
         const clause = one(item, "conditions-clause");
+        if (clause && name !== "features") fail("only %features accepts conditions", item);
         let conditions;
         featureContext = name === "features";
         try {
@@ -18098,11 +18095,12 @@
         } catch (error) {
           if (!featureContext || !(error instanceof GencmuError)) throw error;
           const [line,column] = at(item);
-          throw new GencmuError("grammar",error.message,{document:path,line,column});
+          const prefix = [error.where.document, error.where.line, error.where.column].filter(part => part !== undefined).join(":") + ": ";
+          const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
+          throw new GencmuError("grammar",message,{document:path,line,column});
         } finally {
           featureContext = false;
         }
-        if (conditions && name !== "features") fail("only %features accepts conditions", item);
         directives.push({
           ...(conditions ? { conditions } : {}),
           name,
@@ -18725,7 +18723,7 @@
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem && !featureContext) fail(problem,rightNode);
+          if (problem && !featureContext) fail(problem,inner);
           return {op,left:{capture:valueOf(token(leftNode)).slice(1)},right};
         }
         case "comparison": {
@@ -19206,7 +19204,7 @@
   /**
    * A directive's operand: a bare name, lower case or with a capital, a
    * string, or another recognized term atom.
-   * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
+   * @typedef {"name" | "class" | "string" | "tag"} OperandKind
    */
 
 

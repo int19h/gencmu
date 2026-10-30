@@ -756,10 +756,10 @@ class DomBuilder:
             text = self.token_value(token)
             if text == "ε":
                 entry = {"insert": True}
-            elif text.startswith("$") and (text == "$" or CAPTURE_NAME.fullmatch(text[1:])):
+            elif text.startswith("$"):
                 entry = {"capture": text[1:]}
             else:
-                raise self.fail(item, "an emission target requires a capture or ε")
+                raise self.fail(target, "an emission target requires a capture or ε")
             before = [name for part in self.rules(item, "emit-before") for name in self.attachments(part)]
             after = [name for part in self.rules(item, "emit-after") for name in self.attachments(part)]
             if (before or after) and not entry.get("capture"):
@@ -781,7 +781,7 @@ class DomBuilder:
         names = []
         for part in self.some(node, "capture-reference"):
             name = self.token_value(self.token(part))[1:]
-            if not CAPTURE_NAME.fullmatch(name):
+            if not name:
                 raise self.fail(node, "an attachment requires a named capture")
             names.append(name)
         return names
@@ -1226,7 +1226,7 @@ class DomBuilder:
             return {"const": name, "at": list(self.position(node))}
         if rule == "method":
             result = yield self._method(node)
-            if not argument and term_type(result, memo=self.types)[0] == "predicate":
+            if term_type(result, memo=self.types)[0] == "predicate":
                 raise self.fail(node, "a predicate cannot stand as a value term")
             return result
         raise self.fail(node, f"unexpected {rule} in a term")
