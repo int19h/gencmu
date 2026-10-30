@@ -268,11 +268,6 @@ class NotationReader:
             features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, features)
             if features:
                 lowered = lower(lowered.grammar, features)
-            if name == 'syntax':
-                for token in tokens:
-                    if token.value == '%prefer':
-                        line, column = grammar_text.position(token.source[0])
-                        raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
             runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last, features=features)
             # Each notation stage runs the check of elision-only where its

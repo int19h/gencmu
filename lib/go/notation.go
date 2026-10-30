@@ -140,13 +140,6 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 		features[name] = true
 	}
 	for i, g := range nr.stages {
-		if g.name == "syntax" {
-			for _, token := range toks {
-				if token.Value == "%prefer" {
-					return nil, grammarError(docPath, gt.at(token.Source[0]), "unknown directive %%prefer; use an inline ranked choice (A ≻ B)")
-				}
-			}
-		}
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).

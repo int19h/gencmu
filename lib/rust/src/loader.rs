@@ -374,10 +374,6 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     let options = ParseOptions::default();
     let result = notation.parse_chars_inspected(grammar.chars.clone(), &options, |tokens| strings.inspect(tokens))?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
-    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
-        let (line, column) = grammar.position(token.source.start);
-        return Err(Error::grammar("unknown directive %prefer; use an inline ranked choice (A ≻ B)").at(line, column));
-    }
     if let Some(error) = &result.error {
         // A tie has no single position, so the error names the document
         // alone (engine §8).

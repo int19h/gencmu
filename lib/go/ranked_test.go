@@ -96,7 +96,7 @@ func TestRankedSyntaxAndRetirement(t *testing.T) {
 		}
 	}
 	_, e := bundled.reader.read("```jbogenbau\n%prefer a > b\n```\n", "g.md")
-	if e == nil || e.Code != "" || e.Line != 2 || e.Column != 1 || !strings.Contains(e.Message, "unknown directive %prefer; use an inline ranked choice") {
+	if e == nil || e.Code != "" || e.Line != 2 || e.Column != 1 || strings.Contains(e.Message, "inline ranked choice") {
 		t.Fatal(e)
 	}
 }

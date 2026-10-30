@@ -354,7 +354,6 @@ class Parser {
     while (this.peek()) {
       const kind = this.kindAt();
       if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
-      else if (this.peek().value === "%prefer") this.fail("unknown directive %prefer; use an inline ranked choice (A ≻ B)");
       else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
       else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());

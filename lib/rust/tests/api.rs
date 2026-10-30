@@ -1154,7 +1154,7 @@ fn ranked_syntax_codes_and_retirement_are_specific() {
         assert_eq!(error.code.as_deref(), Some("ranked-choice-syntax"), "{body}: {error}");
     }
     let error = gencmu::tools::read_grammar_document(&grammar("%prefer a > b"), "").unwrap_err();
-    assert!(error.to_string().contains("unknown directive %prefer; use an inline ranked choice"));
+    assert!(error.to_string().contains("syntax"));
     assert!(error.code.is_none());
     assert_eq!((error.line, error.column), (Some(4), Some(1)));
 }
