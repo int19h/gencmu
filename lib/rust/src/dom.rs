@@ -8,6 +8,14 @@ use source::{SourceHead, SourceSymbol};
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
     let cleaned = known_dom_members(dom);
     let dom = cleaned.as_ref().unwrap_or(dom);
+    if let Some(problem) = shape_problem(dom, unicode) {
+        return Some(problem);
+    }
+    let Ok(decoded) = decode_nodes(dom) else { return Some("a malformed DOM node") };
+    schema::decoded_problem(dom, &decoded)
+}
+
+fn shape_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     let roots = ["rules", "directives", "constants", "classifiers", "implications"];
     for part in roots.iter().filter_map(|key| dom.get(key)).flat_map(crate::parameters::nodes) {
         for field in ["ref", "tag", "terminal"] {
@@ -18,7 +26,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
             }
         }
     }
-    schema::problem(dom, unicode)
+    schema::structure_problem(dom, unicode, false)
 }
 
 fn known_dom_members(dom: &Json) -> Option<Json> {
@@ -366,13 +374,40 @@ pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
     let value = cleaned.as_ref().unwrap_or(value);
-    if let Some(problem) = dom_problem(value, unicode) {
+    if let Some(problem) = shape_problem(value, unicode) {
         return Err(problem.to_string());
     }
     decode_checked(value, unicode, defer)
 }
 pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R<Dom> {
-    let mut rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
+    let mut dom = decode_nodes(value)?;
+    if let Some(problem) = schema::decoded_problem(value, &dom) {
+        return Err(problem.into());
+    }
+    // Whole-definition checks use the same nodes as the runtime output.
+    for (rule, raw) in dom.rules.iter_mut().zip(array(value, "rules")?) {
+        if crate::parameters::unresolved(raw) {
+            continue;
+        }
+        if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
+            return Err(problem);
+        }
+        if let Some(problem) = crate::clauses::definition_problem(rule) {
+            if defer
+                && deferred_emission_problem(&problem)
+                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
+            {
+                rule.deferred_emission = Some(problem);
+            } else {
+                return Err(problem);
+            }
+        }
+    }
+    Ok(dom)
+}
+
+fn decode_nodes(value: &Json) -> R<Dom> {
+    let rules = array(value, "rules")?.iter().map(rule_from_json).collect::<R<Vec<_>>>()?;
     let directives = array(value, "directives")?
         .iter()
         .map(|directive| {
@@ -432,25 +467,6 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
             })
         })
         .collect::<R<Vec<_>>>()?;
-    // A definition the reader would refuse (engine §9).
-    for (rule, raw) in rules.iter_mut().zip(array(value, "rules")?) {
-        if crate::parameters::unresolved(raw) {
-            continue;
-        }
-        if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
-            return Err(problem);
-        }
-        if let Some(problem) = crate::clauses::definition_problem(rule) {
-            if defer
-                && deferred_emission_problem(&problem)
-                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-            {
-                rule.deferred_emission = Some(problem);
-            } else {
-                return Err(problem);
-            }
-        }
-    }
     let unresolved = crate::parameters::unresolved(value);
     Ok(Dom { rules, directives, constants, classifiers, implications, unresolved, ..Dom::default() })
 }

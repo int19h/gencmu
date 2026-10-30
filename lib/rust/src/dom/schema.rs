@@ -35,8 +35,10 @@ fn tag(name: &str) -> bool {
     engine_tag(name) || name.starts_with(|c: char| c.is_ascii_uppercase()) && is_name(name)
 }
 
-fn rule(name: &str) -> bool {
-    name.chars().count() == 1 || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+fn rule_name(name: &str, unicode: &Unicode, expanded: bool) -> bool {
+    unicode.is_emoji_name(name)
+        || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+        || expanded && name.contains('(') && name.ends_with(')')
 }
 
 fn feature(name: &str) -> bool {
@@ -113,8 +115,7 @@ pub(crate) fn literal_range(left: &Json, right: &Json) -> bool {
 
 fn base(value: &Json) -> bool {
     source::leaf(value)
-        || exact(value, &["ref"], &[])
-            && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule(name) || tag(name))
+        || exact(value, &["ref"], &[]) && is_str(value.get("ref"))
         || exact(value, &["literal"], &[])
         || exact(value, &["range"], &[])
         || exact(value, &["wildcard"], &[]) && is_true(value.get("wildcard"))
@@ -148,15 +149,14 @@ fn recipe_atom(value: &Json) -> bool {
     }
 }
 
-pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
+pub(crate) fn structure_problem(dom: &Json, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
     if crate::parameters::nodes(dom).any(|node| node.get(crate::parameters::SOURCE).is_some()) {
         return Some("a private source annotation in a supplied DOM");
     }
     if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Some("not a DOM of this format");
     }
-    let rule =
-        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
+    let rule = |name: &str| rule_name(name, unicode, expanded);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
@@ -389,15 +389,15 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    if let Some(problem) = parts_problem(pending, unicode) {
-        return Some(problem);
-    }
-    for item in dom.get("rules").and_then(Json::as_array).unwrap() {
-        let Ok(rule) = rule_from_json(item) else { return Some("a malformed rule") };
+    parts_problem(pending, unicode, expanded)
+}
+
+pub(crate) fn decoded_problem(raw: &Json, dom: &Dom) -> Option<&'static str> {
+    for (item, rule) in raw.get("rules").and_then(Json::as_array).unwrap().iter().zip(&dom.rules) {
         if rule.alternatives.iter().any(|a| !crate::clauses::duplicate_captures(&a.expr).is_empty()) {
             return Some("a production captures a name twice");
         }
-        if !crate::parameters::unresolved(item) && rule_type_problem(&rule).is_some() {
+        if !crate::parameters::unresolved(item) && rule_type_problem(rule).is_some() {
             return Some("a term or a condition whose types do not agree");
         }
         for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alt| alt.tags.as_ref())) {
@@ -415,14 +415,12 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             }
         }
     }
-    for definition in dom.get("constants").and_then(Json::as_array).unwrap() {
-        let Ok(term) = term_from_json(definition.get("value").unwrap()) else {
-            return Some("a malformed constant value");
-        };
-        if !closed(&term)
-            || any_engine_literal(&term)
+    for (definition, constant) in raw.get("constants").and_then(Json::as_array).unwrap().iter().zip(&dom.constants) {
+        let term = &constant.value;
+        if !closed(term)
+            || any_engine_literal(term)
             || !crate::parameters::unresolved(definition)
-                && constant_value_type(&term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
+                && constant_value_type(term, definition.get("op").and_then(Json::as_str) == Some("redefine"), &|_| {
                     Type::Any
                 })
                 .is_err()
@@ -430,34 +428,18 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
             return Some("an invalid closed constant value");
         }
     }
-    for implication in dom.get("implications").and_then(Json::as_array).unwrap() {
-        for key in ["if", "then"] {
-            let Ok(term) = term_from_json(implication.get(key).unwrap()) else {
-                return Some("a malformed implication side");
-            };
-            if !closed(&term)
-                || any_engine_literal(&term)
-                || !crate::parameters::unresolved(implication)
-                    && term_type(&term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
+    for (raw, implication) in raw.get("implications").and_then(Json::as_array).unwrap().iter().zip(&dom.implications) {
+        for term in [&implication.antecedent, &implication.consequent] {
+            if !closed(term)
+                || any_engine_literal(term)
+                || !crate::parameters::unresolved(raw)
+                    && term_type(term).map_or(true, |ty| expected_problem(ty, Type::Tags).is_some())
             {
                 return Some("an invalid implication side");
             }
         }
     }
-    names_problem(dom)
-}
-
-pub(crate) fn declaration_problem(item: &Json, kind: &str, unicode: &Unicode) -> Option<&'static str> {
-    let mut dom = crate::parameters::obj([
-        ("format", Json::Int(DOM_FORMAT)),
-        ("rules", Json::Arr(Vec::new())),
-        ("directives", Json::Arr(Vec::new())),
-        ("constants", Json::Arr(Vec::new())),
-        ("classifiers", Json::Arr(Vec::new())),
-        ("implications", Json::Arr(Vec::new())),
-    ]);
-    crate::parameters::set(&mut dom, kind, Json::Arr(vec![crate::parameters::clean(item)]));
-    problem(&dom, unicode)
+    names_problem(raw)
 }
 
 pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
@@ -477,9 +459,8 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
     None
 }
 
-pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode) -> Option<&'static str> {
-    let rule =
-        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
+fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode, expanded: bool) -> Option<&'static str> {
+    let rule = |name: &str| rule_name(name, unicode, expanded);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
             return Some("nested too deeply");

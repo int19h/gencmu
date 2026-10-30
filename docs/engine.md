@@ -1973,6 +1973,8 @@ Calls, parameters, and patterns use the same reader constructors as ordinary dec
 
 Cached and supplied DOMs use the same node decoder and validity checks for ordinary syntax, calls, parameters, and patterns. Each expanded definition is decoded once. Validation and runtime output use that same decoded definition.
 
+Structural checks precede decoding. Later definition checks use the decoded nodes and their effective rule names.
+
 Decoding retains every declaration and its children as typed nodes, including declarations that still need template expansion.
 
 One validator handles ordinary nodes and source nodes. Calls and parameters retain their scopes, argument categories, and local shape restrictions before expansion.

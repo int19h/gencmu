@@ -71,7 +71,7 @@ pub(crate) struct Expansion {
     pub documents: Documents,
     pub order: Vec<String>,
     pub records: Records,
-    pub validation: Vec<(Arc<str>, dom::RuleDef)>,
+    pub validation: Documents,
 }
 struct Expander<'a> {
     uni: &'a Unicode,
@@ -324,11 +324,6 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             set(&mut body, "name", string(i.effective()));
             let context = Event { origin: Some(i.origin.clone()), instance: i.canonical.clone(), ..e };
             let expanded = x.substitute(&body, &env, &context, "term")?;
-            let mut checked = expanded.clone();
-            set(&mut checked, "name", string("expanded"));
-            if let Some(p) = dom::schema::declaration_problem(&checked, "rules", uni) {
-                return Err(context.fail(&expanded, p.into()));
-            }
             x.instances[id].definitions.push(Event { rule: expanded, ..context });
         }
         for e in retained(&x.instances[id].definitions.clone()) {
@@ -351,9 +346,11 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         }
     }
     let mut users = Vec::new();
+    let mut decoded = BTreeMap::new();
     for e in validation {
-        let mut d = x.decode(&empty(vec![e.rule.clone()]), &e)?;
-        users.push((e.path, d.rules.remove(0)))
+        let d = Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?);
+        decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), d.clone());
+        users.push((e.path, d));
     }
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
@@ -366,12 +363,6 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             let mut r = e.rule.clone();
             set(&mut r, "name", string(i.effective()));
             output.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
-        }
-    }
-    let mut started = BTreeSet::new();
-    for e in &mut output {
-        if started.insert(text(get(&e.rule, "name")).to_string()) {
-            set(&mut e.rule, "op", string("define"))
         }
     }
     let mut expanded = Vec::new();
@@ -395,7 +386,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         expanded.push((path.clone(), Arc::new(x.decode(&raw, &e)?)));
     }
     for e in output {
-        expanded.push((e.path.clone(), Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?)))
+        // Output events are a subset of the checked ordinary and instance definitions.
+        let key = (e.index, text(get(&e.rule, "name")).to_string());
+        expanded.push((e.path, decoded.get(&key).expect("a checked output definition").clone()));
     }
     let mut order: Vec<_> = slots.into_iter().filter(|n| current.contains_key(n) || ordinary.contains_key(n)).collect();
     order.extend(
@@ -904,33 +897,11 @@ impl Expander<'_> {
         Ok(result)
     }
     fn decode(&self, root: &Json, event: &Event) -> R<Dom> {
-        fn shadow(n: &Json, aliases: &mut BTreeMap<String, String>) -> Json {
-            match n {
-                Json::Obj(fs) => Json::Obj(
-                    fs.iter()
-                        .filter(|(k, _)| k != SOURCE)
-                        .map(|(k, v)| {
-                            let value = if ["name", "rule", "ref"].contains(&k.as_str()) && text(v).contains('(') {
-                                let len = aliases.len();
-                                string(
-                                    aliases.entry(text(v).into()).or_insert_with(|| format!("instance-{len}")).clone(),
-                                )
-                            } else {
-                                shadow(v, aliases)
-                            };
-                            (k.clone(), value)
-                        })
-                        .collect(),
-                ),
-                Json::Arr(xs) => Json::Arr(xs.iter().map(|v| shadow(v, aliases)).collect()),
-                _ => n.clone(),
-            }
-        }
-        let checked = shadow(root, &mut BTreeMap::new());
-        if let Some(problem) = dom::schema::problem(&checked, self.uni) {
+        let checked = clean(root);
+        if let Some(problem) = dom::schema::structure_problem(&checked, self.uni, true) {
             return Err(event.fail(&event.rule, problem.into()));
         }
-        let mut d = dom::decode_checked(&clean(root), self.uni, true).map_err(|s| event.fail(&event.rule, s))?;
+        let mut d = dom::decode_checked(&checked, self.uni, true).map_err(|s| event.fail(&event.rule, s))?;
         super::locations::restore_document(&mut d, root);
         Ok(d)
     }

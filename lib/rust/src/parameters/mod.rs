@@ -240,7 +240,6 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         n
     })
 }
-pub(crate) use crate::dom::schema::declaration_problem;
 
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];

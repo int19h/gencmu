@@ -165,6 +165,35 @@ fn ordinary_documents_keep_identity() {
     let docs = vec![(Arc::from("grammars/test/plain.md"), Arc::new(read("%rule text \"a\"\n%extend-rule text \"b\"")))];
     assert!(expand(&docs, &unicode()).unwrap().is_none());
 }
+
+#[test]
+fn expansion_reuses_decoded_definitions() {
+    let document = read("%rule f(@X) @X\n%extend-rule f(@Y) @Y\n%rule text f(\"a\")");
+    let x = expand(&[(Arc::from("shared.md"), Arc::new(document))], &unicode()).unwrap().unwrap();
+    let mut count = 0;
+    for (path, output) in &x.documents {
+        if !output.rules.is_empty() {
+            assert!(x
+                .validation
+                .iter()
+                .any(|(checked_path, checked)| path == checked_path && Arc::ptr_eq(output, checked)));
+            count += 1;
+        }
+    }
+    assert_eq!(count, 3);
+}
+
+#[test]
+fn instance_errors_keep_effective_names() {
+    let document = read("%rule use(@X) @X :: @X\n%rule text use(\"a\")");
+    let error = match expand(&[(Arc::from("names.md"), Arc::new(document))], &unicode()) {
+        Err(error) => error,
+        _ => panic!("an invalid tag clause"),
+    };
+    assert!(error.message.contains("use(\"a\")"), "{error}");
+    assert!(!error.message.contains("expanded"), "{error}");
+    assert!(!error.message.contains("instance-"), "{error}");
+}
 #[test]
 fn ordinary_edit_history() {
     let g = grammar("%rule atom(@X) @X\n%rule text \"a\"\n%extend-rule text \"b\"\n%redefine-rule text \"c\"");
@@ -505,11 +534,9 @@ fn pattern_closedness_leaves_tests_to_schema() {
             obj([("name", string("P")), ("op", string("define")), ("value", value.clone()), ("at", j("[3,1]"))]);
         let implication = obj([("if", value), ("then", obj([("tag", string("A"))])), ("at", j("[3,1]"))]);
         for (kind, r) in [("constants", constant), ("implications", implication)] {
-            assert_eq!(
-                declaration_problem(&r, kind, &unicode()),
-                Some("a malformed pattern"),
-                "{kind}, missing={missing}"
-            );
+            let mut raw = j(&dom::dom_to_json(&Dom::default()));
+            set(&mut raw, kind, Json::Arr(vec![r]));
+            assert_eq!(dom::dom_problem(&raw, &unicode()), Some("a malformed pattern"), "{kind}, missing={missing}");
         }
     }
 }
