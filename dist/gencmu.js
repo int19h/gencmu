@@ -6303,11 +6303,18 @@
         }
         if (expr.range) {
           const ends = expr.range.map((/** @type {any} */ end) => end.const ? end.value : end);
+          let wide = false;
           for (let i=0;i<ends.length;i++) {
-            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) yield {problem:"a range endpoint is one scalar",node:expr.range[i]};
+            if (typeof ends[i]?.string === "string" && [...ends[i].string].length !== 1) {
+              wide = true;
+              yield {problem:"a range endpoint is one scalar",node:expr.range[i]};
+            }
           }
-          const problem = rangeProblem(ends);
-          if (problem) yield {problem,node:expr};
+          // Width faults belong to their endpoint, not the enclosing range.
+          if (!wide) {
+            const problem = rangeProblem(ends);
+            if (problem) yield {problem,node:expr};
+          }
         }
         for (const key of ["seq","choice","ranked","and"]) if (expr[key]) for (let i = expr[key].length - 1; i >= 0; i--) pending.push(expr[key][i]);
         for (const key of ["expr","separator","repeat","optional"]) if (expr[key]) pending.push(expr[key]);
@@ -20066,6 +20073,24 @@
 
 
 
+  /**
+   * Preserve invalid integer spellings until each DOM receives its schema check.
+   * Unknown members retain the schema's ordinary treatment.
+   * @param {string} text
+   * @returns {any}
+   */
+  function parseDomJson(text) {
+    const data = JSON.parse(text);
+    // A reviver recurses through the parsed tree before the DOM depth check.
+    // A fractional sentinel keeps these numbers invalid in integer positions.
+    let changed = false;
+    const integers = text.replace(/"(?:\\.|[^"\\])*"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g, token => {
+      if (token[0] !== '"' && /[.eE]/.test(token)) { changed = true; return "0.5"; }
+      return token;
+    });
+    return changed ? JSON.parse(integers) : data;
+  }
+
   /** @import { Feature, GrammarDom, ParseError, ParseOptions, ParseResult, Resources, ResultNode, StageReport } from "./types.js" */
 
 
@@ -20084,24 +20109,6 @@
    * @property {Token[]} [tokens]
    * @property {(tokens:Token[])=>void} [inspectLexical]
    */
-
-  /**
-   * Preserve invalid integer spellings until each DOM receives its schema check.
-   * Unknown members retain the schema's ordinary treatment.
-   * @param {string} text
-   * @returns {any}
-   */
-  function parseDomJson(text) {
-    const data = JSON.parse(text);
-    // A reviver recurses through the parsed tree before the DOM depth check.
-    // A fractional sentinel keeps these numbers invalid in integer positions.
-    let changed = false;
-    const integers = text.replace(/"(?:\\.|[^"\\])*"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g, token => {
-      if (token[0] !== '"' && /[.eE]/.test(token)) { changed = true; return "0.5"; }
-      return token;
-    });
-    return changed ? JSON.parse(integers) : data;
-  }
 
   // Resources: a function from a path relative to the package root to its
   // text, or undefined. The bundled grammars, a directory on disk and a map
