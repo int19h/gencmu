@@ -2571,7 +2571,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 
    A reader has no other bound on nesting. Parentheses can nest without limit, since they make no node. A reader reads a document of any depth to this check.
 8. The reader examines a document's items in their written order. The first item with an error decides, whatever kind of item it is.
-9. A stage's documents are read in the order in which its pipeline includes them (§13), and the first document with an error of reading decides. Every document is read before the loader stitches the stage. So an error of reading in any document comes before an error of stitching (§2). Errors of stitching come before the errors of lowering, which a parse finds (§3).
+9. A stage's documents are read in the order in which its pipeline includes them (§13), and the first document with an error of reading decides. Every document is read before the loader stitches the stage. Except for the deferred checks below, an error of reading in any document comes before an error of stitching (§2). Errors of stitching come before the errors of lowering, which a parse finds (§3).
 
 Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
 
@@ -2681,7 +2681,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A classifier class must start and end with uppercase ASCII letters and never start with `_`. A mark such as `Indicator` is invalid there.
 - A term or condition with incompatible types is an error (§10). Examples include `"a" ∈ $x.tags`, `$x.value = A`, and the untyped `∅ = ∅`. The reader reports the smallest construct whose parts disagree. This construct is a union with differences, intersection, concatenation, guarded term, method, or comparison. A concatenation error stands at its first operand. Otherwise, the error stands at the whole tag term or constant value.
 
-  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
+  The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree. Across the whole rule, the fault whose first constant comes first in the text wins. This order includes all clauses, alternatives, body operands, and symbol tests.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.ends`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
 - `.matches`, `.begins`, `.ends`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error.
@@ -2726,9 +2726,17 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
 
-A template first undergoes binder and syntax analysis (§2.3). Argument-dependent requirements apply after substitution to every expanded definition.
+Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
+
+A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
 
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
+
+A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
+
+All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Source, cached, supplied, and expanded definitions use the same policy. A ranked definition with only these deferred problems remains valid for cache admission.
+
+Templates retain argument-independent deferred problems even when no call instantiates them. After ranked validation, expanded definitions' deferred problems come first. Remaining template problems follow in document and written order.
 
 Each of the following is an error of the document too, and the reader reports it at the definition:
 
@@ -2767,7 +2775,9 @@ Two of these checks depend on simplification (§3.6). They are the check that a 
 
 Capture validation queries variable capture structure without listing production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Independent choice branches contribute their distinct capture lists directly, without guard assignments for combinations that no branch admits. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
 
-Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
+Deferred emission errors follow ranked-choice validation and precede recipe-cycle and overlap checks.
+
+Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. Each stage completes these checks before the loader stitches the next stage. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 
 The analysis ignores feature gates, conditions, and symbol tests. It therefore covers every feature configuration without proving that a consuming route can succeed. Erasure changes output ownership but never removes a possible input read. Recipes and emissions do not change the analysis.
 
@@ -2798,7 +2808,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - A rule lacks `flags`, or its value is none of `[]`, `["leftmost-longest"]` and `["fewest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is neither a valid name nor a valid emoji scalar.
-- It has a `ranked` value that is not an array of at least two expressions. Report `ranked-choice-syntax`.
+- An expression has only `ranked`, whose value is not an array of at least two expressions. Report `ranked-choice-syntax`.
+- An expression combines `ranked` with another member, or contains a malformed option. Report an ordinary malformed-DOM error.
 - Its `chain` is neither `left` nor `right`, or its chain repeat does not occupy the complete alternative expression.
 - It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
@@ -3158,7 +3169,7 @@ A losing runtime option runs no recipes, although its syntax and effective const
 
 Recipe name analysis includes every receiver. `$` in an item recipe names the enclosing rule occurrence, even when its carrier is a captured child. Unknown names and private ranked captures fail before absent-carrier pruning. After pruning, validate effective constituent recipes on their selected channels and item recipes on retained items. An alternative's explicit recipes can suppress definition recipes separately per channel.
 
-A selected recipe that reads a capture absent from its production is a document error, reported at the definition (§9.3). An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. Optional recipe cases need separate alternatives.
+A selected recipe that reads a capture absent from its production is a document error, reported at the definition (§9.3). The diagnostic names the first absent capture in the recipe's written order. Item recipes use the same order. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. Optional recipe cases need separate alternatives.
 
 Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
 

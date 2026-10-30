@@ -887,11 +887,11 @@ impl<'a> Scope<'a> {
                 let inner = Box::new(self.span(inner)?);
                 match name.as_str() {
                     "without-elision" => Ok(Span::WithoutElision(inner, None)),
-                    "head" => Ok(Span::Head(inner)),
-                    "tail" => Ok(Span::Tail(inner)),
-                    "last" => Ok(Span::Last(inner)),
-                    "from" => Ok(Span::From(inner)),
-                    "after" => Ok(Span::After(inner)),
+                    "first-token" => Ok(Span::Head(inner)),
+                    "tokens-after-first" => Ok(Span::Tail(inner)),
+                    "last-token" => Ok(Span::Last(inner)),
+                    "onward" => Ok(Span::From(inner)),
+                    "following-tokens" => Ok(Span::After(inner)),
                     "preceding-tokens" => Ok(Span::Before(inner)),
                     _ => Err(Missing),
                 }
@@ -920,11 +920,11 @@ impl<'a> Scope<'a> {
             Term::Call(name, _)
                 if matches!(
                     name.as_str(),
-                    "head"
-                        | "tail"
-                        | "last"
-                        | "from"
-                        | "after"
+                    "first-token"
+                        | "tokens-after-first"
+                        | "last-token"
+                        | "onward"
+                        | "following-tokens"
                         | "preceding-tokens"
                         | "without-elision"
                         | "without-elision-except"
@@ -945,7 +945,7 @@ impl<'a> Scope<'a> {
                 ),
                 ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
                 ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
-                ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
+                ("source-text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
                 ("decomposed-source-text", [Arg::Term(span)]) => LTerm::DecomposedText(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
@@ -2539,7 +2539,7 @@ mod tests {
         rule.tags = None;
         rule.conditions = (0..n)
             .map(|index| {
-                let text = Term::Call("text".into(), vec![Arg::Term(Term::Capture(format!("c{index}")))]);
+                let text = Term::Call("source-text".into(), vec![Arg::Term(Term::Capture(format!("c{index}")))]);
                 Cond::Compare("=".into(), text, Term::Str("a".into()))
             })
             .collect();

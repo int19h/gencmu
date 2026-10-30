@@ -175,6 +175,12 @@ impl<'a> Reader<'a> {
                     return Err(Error::grammar("an undeclared or malformed parameter").at(at.0, at.1));
                 }
                 if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
+                    if problem == "a capture name used twice in one production" {
+                        if let Some(capture) = crate::parameters::first_duplicate(&raw) {
+                            let at = crate::parameters::locations::source_at(capture).unwrap_or(self.at(node));
+                            return Err(Error::grammar(problem).at(at.0, at.1));
+                        }
+                    }
                     if problem == "nested too deeply" {
                         crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
                         continue;
@@ -462,16 +468,11 @@ impl<'a> Reader<'a> {
             return Err(Error::grammar(message).at(line, column));
         }
         // The definition is checked as a whole once it is read (§9).
-        if let Some(problem) = crate::clauses::definition_problem(&rule) {
-            if self.defer_emission
-                && crate::dom::deferred_emission_problem(&problem)
-                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-            {
-                rule.deferred_emission = Some(problem);
-            } else {
-                return Err(self.error(definer, problem));
-            }
+        let result = crate::clauses::check_definition(&rule, self.defer_emission);
+        if let Some(issue) = result.problem {
+            return Err(self.error(definer, issue.message));
         }
+        rule.deferred_emission = result.deferred;
         Ok(rule)
     }
 
@@ -1604,8 +1605,7 @@ impl<'a> Reader<'a> {
             if last && frame.condition {
                 return Err(self.error(frame.node, "a condition requires a predicate method"));
             }
-            let alias = crate::dom::method_alias(name);
-            Val::Term(Term::Call(alias.into(), args), call_type(alias))
+            Val::Term(Term::Call(name.into(), args), call_type(name))
         };
         if last {
             return Ok(Step::Done(value));
@@ -1897,7 +1897,7 @@ impl<'a> Reader<'a> {
                             Term::Call(name, args)
                                 if matches!(
                                     name.as_str(),
-                                    "value" | "image" | "text" | "decomposed-source-text" | "verbatim-text"
+                                    "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
                                 ) =>
                             {
                                 matches!(&args[..], [Arg::Term(Term::Capture(_))])

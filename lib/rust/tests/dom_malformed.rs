@@ -35,3 +35,21 @@ fn dom_malformed_cases() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
+
+#[test]
+fn ranked_syntax_codes_follow_the_complete_shape() {
+    for (expr, coded) in [
+        (r#"{"ranked":null}"#, true),
+        (r#"{"ranked":[]}"#, true),
+        (r#"{"ranked":[{"ref":"A"}]}"#, true),
+        (r#"{"ranked":[{"ref":"A"},{"ref":"B"}],"extra":1}"#, false),
+        (r#"{"extra":1,"ranked":[{"ref":"A"},{"ref":"B"}]}"#, false),
+        (r#"{"ranked":[null,{"ref":"B"}]}"#, false),
+    ] {
+        let dom = format!(
+            r#"{{"format":{DOM_FORMAT},"rules":[{{"name":"text","op":"define","flags":[],"alternatives":[{{"guards":[],"expr":{expr}}}],"conditions":[],"at":[1,1]}}],"directives":[],"constants":[],"classifiers":[],"implications":[]}}"#
+        );
+        let problem = check_dom(&dom).expect("the Unicode context").expect("a malformed DOM");
+        assert_eq!(problem.starts_with("ranked-choice-syntax:"), coded, "{expr}: {problem}");
+    }
+}

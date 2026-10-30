@@ -1,0 +1,10 @@
+{
+  "description": "An uncalled source template rejects an independent type error.",
+  "document": "```jbogenbau\n%rule pair(@X) $x:@X %conditions \"a\" ∈ $x.tags\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 34
+    }
+  }
+}

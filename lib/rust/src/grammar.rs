@@ -5,7 +5,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
-use crate::clauses::definition_problem;
+use crate::clauses::check_definition;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, expected_problem, rule_type_fault, term_type_in,
     tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Dom, EmitItem, Expr, Fault, FeatureKind,
@@ -219,6 +219,15 @@ pub(crate) fn stitch(
     documents: &[(Arc<str>, Arc<Dom>)],
     unicode: &Unicode,
 ) -> Result<StageGrammar, Error> {
+    let mut pending_templates = Vec::new();
+    for (document, dom) in documents {
+        for raw in dom.unresolved.values().filter(|raw| raw.get("params").is_some()) {
+            if let Some(issue) = crate::parameters::deferred_definition(raw) {
+                let at = crate::parameters::at(raw).unwrap_or((1, 1));
+                pending_templates.push(located(issue.message, document, at));
+            }
+        }
+    }
     let expansion = crate::parameters::expand(documents, unicode)?;
     let documents = expansion.as_ref().map_or(documents, |x| x.documents.as_slice());
     let mut grammar = StageGrammar {
@@ -248,7 +257,7 @@ pub(crate) fn stitch(
     for (document, dom) in documents {
         for rule in &dom.rules {
             if let Some(problem) = &rule.deferred_emission {
-                deferred.push(located(problem.clone(), document, rule.at));
+                deferred.push(located(problem.message.clone(), document, rule.at));
             }
             if !constants_in_rule(rule).is_empty() {
                 users.push((document, rule));
@@ -462,6 +471,9 @@ pub(crate) fn stitch(
         grammar.ranked.validate_tags(&grammar, &lowered)?;
     }
     if let Some(error) = deferred.into_iter().next() {
+        return Err(error);
+    }
+    if let Some(error) = pending_templates.into_iter().next() {
         return Err(error);
     }
     let mut alternatives: Vec<_> = grammar.rules.iter().flat_map(|rule| &rule.alternatives).collect();
@@ -1268,14 +1280,12 @@ impl Constants<'_> {
             }
             // The checks that simplification decides, which the reader left
             // to the loader, now with the constants' values (§9).
-            if let Some(problem) = definition_problem(&self.substitute_rule(rule)) {
-                if crate::dom::deferred_emission_problem(&problem)
-                    && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-                {
-                    deferred.push(located(problem, document, rule.at));
-                } else {
-                    return Err(located(problem, document, rule.at));
-                }
+            let result = check_definition(&self.substitute_rule(rule), true);
+            if let Some(issue) = result.problem {
+                return Err(located(issue.message, document, rule.at));
+            }
+            if let Some(issue) = result.deferred {
+                deferred.push(located(issue.message, document, rule.at));
             }
             let mut calls = Vec::new();
             calls_in_rule(rule, &mut calls);
@@ -1701,7 +1711,13 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
         Term::Call(name, args)
             if matches!(
                 name.as_str(),
-                "head" | "tail" | "last" | "from" | "after" | "preceding-tokens" | "without-elision"
+                "first-token"
+                    | "tokens-after-first"
+                    | "last-token"
+                    | "onward"
+                    | "following-tokens"
+                    | "preceding-tokens"
+                    | "without-elision"
             ) =>
         {
             match &args[..] {
@@ -1738,7 +1754,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
-            ("value" | "image" | "text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
+            ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
                 check_span(grammar, span)
             }
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
@@ -1771,11 +1787,11 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 }
             }
             (
-                "head"
-                | "tail"
-                | "last"
-                | "from"
-                | "after"
+                "first-token"
+                | "tokens-after-first"
+                | "last-token"
+                | "onward"
+                | "following-tokens"
                 | "preceding-tokens"
                 | "without-elision"
                 | "without-elision-except",
@@ -1783,7 +1799,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             ) => check_span(grammar, term),
             (
                 "value"
-                | "text"
+                | "source-text"
                 | "decomposed-source-text"
                 | "classes"
                 | "tags"
@@ -1793,7 +1809,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "matches"
                 | "begins"
                 | "ends"
-                | "initial",
+                | "starts-input",
                 _,
             ) => Err(format!("{name}() is called with the wrong arguments")),
             _ => Err(format!("an unknown function {name}()")),

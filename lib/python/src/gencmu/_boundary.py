@@ -28,7 +28,7 @@ def problem(rule):
             continue
         atom = found[0]
         allowed.add(id(atom))
-        name = atom['receiver']['capture']
+        name = atom['receiver'].get('capture')
         if name:
             from ._clauses import captures_in
             if captures_in(condition) - {name}:

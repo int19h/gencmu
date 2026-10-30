@@ -13,24 +13,6 @@ export declare const TEST_OPS: Set<string>;
  */
 export declare function isSoundTest(op: string): boolean;
 /**
- * What is wrong with a test's value (engine §9), or null: it must be a
- * closed term, of type string for a value test and tag set for a tag test,
- * with no canonical-value restriction on string literals. The shape
- * of the value must already be checked, and its nesting bounded.
- * @param {string} op
- * @param {any} value
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} [unicode]
- * @returns {{problem: string, node: any} | null}
- */
-export declare function testValueFault(op: string, value: any, unicode?: {
-    isMark(code: number): boolean;
-    changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-}): {
-    problem: string;
-    node: any;
-} | null;
-/**
  * What is wrong with a range (engine §1, §9), or null: visible endpoints
  * must each contain one scalar, with the start not above the end.
  * @param {unknown} range
@@ -38,39 +20,38 @@ export declare function testValueFault(op: string, value: any, unicode?: {
  */
 export declare function rangeProblem(range: unknown): string | null;
 /**
- * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the loader's table: the lowercase mapping that the strings of value
- * tests are checked against, and the marks that decide a character tag's canonical spelling.
+ * Why a value is not a grammar DOM, or null when it is one.
+ * The loader's Unicode table supplies engine-tag and emoji-name identities.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
+    isEmojiName(name: string): boolean;
+    canonicalTag(name: string): string | null;
 }, deferEmission?: boolean): string | null;
 /** @param {any} term @returns {Set<string>} */
 export declare function engineLiterals(term: any): Set<string>;
 /**
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode: {
     isMark(code: number): boolean;
     changesInDocument?(code: number): boolean;
-    isEmojiName?(name: string): boolean;
-    canonicalTag?(name: string): string | null;
+    isEmojiName(name: string): boolean;
+    canonicalTag(name: string): string | null;
 }, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
- * constituent whose tags it may be defining: `$` as a value, `tags($)` or
- * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
+ * constituent whose tags it defines: `$.tags` or `$.classes`.
+ * A string method such as `$.value` reads tokens, not tags.
  * The DOM's shape need not have been checked: anything malformed reads
  * nothing, and the check of its shape refuses it.
  * @param {unknown} node

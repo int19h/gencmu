@@ -497,6 +497,110 @@
       "line": 37,
       "column": 9,
       "context": "embedded.md"
+    },
+    {
+      "description": "Engine-tag literals are forbidden in constants: {\"name\": \"X\", \"op\": \"define\", \"value\": {\"tag\": \"_Alphabetic\"}, \"at\": [9999, 1]}.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"X\",\"op\":\"define\",\"value\":{\"tag\":\"_Alphabetic\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in constants: {\"name\": \"X\", \"op\": \"define\", \"value\": {\"intersection\": [{\"tag\": \"_Alphabetic\"}, {\"tag\": \"A\"}]}, \"at\": [9999, 1]}.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"X\",\"op\":\"define\",\"value\":{\"intersection\":[{\"tag\":\"_Alphabetic\"},{\"tag\":\"A\"}]},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in implications: {\"if\": {\"tag\": \"_Alphabetic\"}, \"then\": {\"tag\": \"A\"}, \"at\": [9999, 1]}.",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[{\"if\":{\"tag\":\"_Alphabetic\"},\"then\":{\"tag\":\"A\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in implications: {\"if\": {\"tag\": \"A\"}, \"then\": {\"tag\": \"_Alphabetic\"}, \"at\": [9999, 1]}.",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[{\"if\":{\"tag\":\"A\"},\"then\":{\"tag\":\"_Alphabetic\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A format member refuses a fraction.",
+      "find": "\"format\":40",
+      "replace": "\"format\":40.0",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A format member refuses an exponent.",
+      "find": "\"format\":40",
+      "replace": "\"format\":4e1",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A position member refuses a fraction.",
+      "find": "\"at\":[30,1]",
+      "replace": "\"at\":[30.0,1]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A position member refuses an exponent.",
+      "find": "\"at\":[30,1]",
+      "replace": "\"at\":[30,1e0]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Malformed bootstrap tags returns a grammar error: {\"method\": \"tags\"}.",
+      "find": "\"name\":\"text\",\"op\":\"define\",\"flags\":[]",
+      "replace": "\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"tags\":{\"method\":\"tags\"}",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Malformed bootstrap tags returns a grammar error: {\"method\": \"tags\", \"args\": []}.",
+      "find": "\"name\":\"text\",\"op\":\"define\",\"flags\":[]",
+      "replace": "\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"tags\":{\"method\":\"tags\",\"args\":[]}",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Malformed bootstrap tags returns a grammar error: {\"union\": 5}.",
+      "find": "\"name\":\"text\",\"op\":\"define\",\"flags\":[]",
+      "replace": "\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"tags\":{\"union\":5}",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Malformed bootstrap value returns a grammar error: {\"concat\": [null]}.",
+      "find": "\"name\":\"text\",\"op\":\"define\",\"flags\":[]",
+      "replace": "\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"value\":{\"concat\":[null]}",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A bootstrap overlap names its stage.",
+      "bootstrap": "{\"format\":40,\"documents\":{\"grammars/gencmu/jbogenbau/pipeline.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[],\"directives\":[{\"name\":\"stage\",\"args\":[\"lexical\"],\"at\":[1,1]},{\"name\":\"include\",\"args\":[\"lexical.md\"],\"at\":[2,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}},\"grammars/gencmu/jbogenbau/lexical.md\":{\"hash\":\"0000000000000000\",\"dom\":{\"format\":40,\"rules\":[{\"name\":\"text\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"literal\":{\"string\":\"a\"}}}],\"emit\":{\"items\":[{\"capture\":\"\"},{\"capture\":\"\"}]},\"conditions\":[],\"at\":[3,1]}],\"directives\":[{\"name\":\"ambiguity-resolution\",\"args\":[\"greedy\"],\"at\":[1,1]}],\"constants\":[],\"classifiers\":[],\"implications\":[]}}}}",
+      "context": "grammars/gencmu/jbogenbau/lexical.md",
+      "line": 3,
+      "column": 1,
+      "stage": "lexical"
     }
   ]
 }

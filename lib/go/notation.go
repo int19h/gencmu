@@ -767,13 +767,11 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		}
 	}
 	// The definition as a whole (§9), reported at the rule.
-	if msg := definitionProblem(r); msg != "" {
-		if b.deferEmission && deferredEmissionProblem(msg) && ruleHasRanked(r) {
-			r.deferredEmission = msg
-		} else {
-			b.fail(definer, "%s", msg)
-		}
+	result := checkDefinition(r, b.deferEmission)
+	if result.problem != nil {
+		b.fail(definer, "%s", result.problem.message)
 	}
+	r.deferredEmission = result.deferred
 	return r
 }
 

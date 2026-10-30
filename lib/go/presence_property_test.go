@@ -55,7 +55,7 @@ func (g presenceGen) cond(depth int, presence bool) *domCond {
 	}
 	switch k {
 	case 0:
-		return &domCond{Kind: cdCaptured, Rule: g.name()}
+		return &domCond{Kind: cdCaptured, Capture: g.name()}
 	case 1:
 		return &domCond{Kind: cdCompare, Op: "=", Left: g.term(depth-1, presence), Right: &domTerm{Kind: tmString, Str: "x"}}
 	case 2:
@@ -75,7 +75,7 @@ func (g presenceGen) cond(depth int, presence bool) *domCond {
 func (g presenceGen) termPart() *domTerm {
 	switch g.r.Intn(3) {
 	case 0:
-		return &domTerm{Kind: tmIf, Cond: &domCond{Kind: cdCaptured, Rule: g.name()}, Items: []*domTerm{g.term(2, false)}}
+		return &domTerm{Kind: tmIf, Cond: &domCond{Kind: cdCaptured, Capture: g.name()}, Items: []*domTerm{g.term(2, false)}}
 	case 1:
 		return g.term(2, false)
 	}
@@ -85,7 +85,7 @@ func (g presenceGen) termPart() *domTerm {
 func (g presenceGen) condPart() *domCond {
 	switch g.r.Intn(4) {
 	case 0:
-		return &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Rule: g.name()}, g.cond(2, false)}}
+		return &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Capture: g.name()}, g.cond(2, false)}}
 	case 1:
 		return g.cond(2, false)
 	case 2:
@@ -95,7 +95,7 @@ func (g presenceGen) condPart() *domCond {
 			var item *domCond
 			switch g.r.Intn(4) {
 			case 0, 1:
-				item = &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Rule: g.name()}, g.cond(2, false)}}
+				item = &domCond{Kind: cdIf, Items: []*domCond{{Kind: cdCaptured, Capture: g.name()}, g.cond(2, false)}}
 			case 2:
 				item = g.cond(2, false)
 			default:
@@ -232,7 +232,7 @@ func TestEmitSplitAsWritten(t *testing.T) {
 		var items []*domEmitItem
 		for range 1 + g.r.Intn(6) {
 			if g.r.Intn(4) == 0 {
-				items = append(items, &domEmitItem{IsInsert: true, Insert: "X"})
+				items = append(items, &domEmitItem{IsInsert: true})
 				continue
 			}
 			it := &domEmitItem{Capture: g.name()}

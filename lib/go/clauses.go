@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"fmt"
-	"strings"
 )
 
 // A rule's clauses against the captures of its alternatives (engine §3.6,
@@ -42,7 +41,7 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 	}
 	switch c.Kind {
 	case cdCaptured:
-		if has(c.Rule) {
+		if has(c.Capture) {
 			return nil, alwaysTrue
 		}
 		return nil, alwaysFalse
@@ -219,7 +218,7 @@ func termMentions(t *domTerm, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -231,7 +230,7 @@ func condMentions(c *domCond, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -416,7 +415,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 			switch p.c.Kind {
 			case cdCaptured:
 				o = outcome{kind: oFalse}
-				if has(p.c.Rule) {
+				if has(p.c.Capture) {
 					o = outcome{kind: oTrue}
 				}
 			case cdNot:
@@ -486,14 +485,43 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 	return done[0]
 }
 
-// definitionProblem is why a definition, a rule's alternatives with the
-// clauses written with them, cannot be read (engine §9), or "". The DOM's
-// shape must already be sound.
-func definitionProblem(r *domRule) string {
+// Definition problem kinds determine which checks wait for ranked validation.
+type definitionKind uint8
+
+const (
+	definitionIndependent definitionKind = iota
+	definitionRecipeCapture
+	definitionEmptyEmission
+)
+
+type definitionIssue struct {
+	kind    definitionKind
+	message string
+}
+type definitionResult struct{ problem, deferred *definitionIssue }
+
+// checkDefinition retains deferred problems and continues all immediate checks.
+func checkDefinition(r *domRule, deferRanked bool) definitionResult {
+	result := definitionResult{}
+	deferRanked = deferRanked && ruleHasRanked(r)
+	result.problem = definitionFault(r, func(kind definitionKind, message string) bool {
+		if !deferRanked || kind != definitionRecipeCapture && kind != definitionEmptyEmission {
+			return false
+		}
+		if result.deferred == nil || result.deferred.kind == definitionEmptyEmission && kind == definitionRecipeCapture {
+			result.deferred = &definitionIssue{kind, message}
+		}
+		return true
+	})
+	return result
+}
+
+func definitionFault(r *domRule, deferIssue func(definitionKind, string) bool) *definitionIssue {
+	immediate := func(message string) *definitionIssue { return &definitionIssue{definitionIndependent, message} }
 	// A definition with no clause has nothing to check about its captures,
 	// and its productions, whose number can be exponential, are not listed.
 	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) && !hasRecipes(r) {
-		return ""
+		return nil
 	}
 	// A constant is its value in simplification (§3.6). A clause that holds
 	// a constant without one waits for the loader, which checks the
@@ -539,7 +567,7 @@ func definitionProblem(r *domRule) string {
 	}
 	// An erased definition cannot carry recipes or emission (engine §9).
 	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
-		return "an erased definition cannot carry recipes or emission"
+		return immediate("an erased definition cannot carry recipes or emission")
 	}
 	// A capture no alternative captures, wherever it is mentioned.
 	mentioned := map[string]bool{}
@@ -576,7 +604,7 @@ func definitionProblem(r *domRule) string {
 	for _, name := range names {
 		step()
 		if capturedBy[name] == 0 {
-			return fmt.Sprintf("$%s is captured by no production of %s", name, r.Name)
+			return immediate(fmt.Sprintf("$%s is captured by no production of %s", name, r.Name))
 		}
 	}
 	// The clauses are split by the presence of captures once, so that the
@@ -600,7 +628,7 @@ func definitionProblem(r *domRule) string {
 		conds.see(namesOf(caps), hasIn(caps))
 	}
 	if conds.left > 0 {
-		return fmt.Sprintf("a condition of %s applies to no production", r.Name)
+		return immediate(fmt.Sprintf("a condition of %s applies to no production", r.Name))
 	}
 	unguarded := func(t *domTerm, has func(string) bool) string {
 		if t == nil || waits(t) {
@@ -643,12 +671,14 @@ func definitionProblem(r *domRule) string {
 		// The tags a production's constituent carries serve it.
 		for _, t := range []*domTerm{r.Tags, a.Tags} {
 			if msg := lacking(t, ns, has); msg != "" {
-				return msg
+				return immediate(msg)
 			}
 		}
 		for _, recipe := range effectiveRecipes(r, a) {
 			if msg := recipeCapturesProblem(recipe, has); msg != "" {
-				return msg
+				if !deferIssue(definitionRecipeCapture, msg) {
+					return &definitionIssue{definitionRecipeCapture, msg}
+				}
 			}
 		}
 		if r.Emit == nil {
@@ -663,7 +693,10 @@ func definitionProblem(r *domRule) string {
 		}
 		// An emission that loses every item is an error (engine §9).
 		if len(present) == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit. A rule that erases its constituent uses %%erased", r.Name)
+			msg := fmt.Sprintf("%%emits of %s leaves a production nothing to emit. A rule that erases its constituent uses %%erased", r.Name)
+			if !deferIssue(definitionEmptyEmission, msg) {
+				return &definitionIssue{definitionEmptyEmission, msg}
+			}
 		}
 		// A production without an item's carrier lacks its attachments too
 		// (engine §9). The first such item in the order written gives the
@@ -675,7 +708,7 @@ func definitionProblem(r *domRule) string {
 				}
 				for _, name := range it.attachments() {
 					if has(name) {
-						return fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture)
+						return immediate(fmt.Sprintf("%%emits of %s attaches $%s in a production without its carrier $%s", r.Name, name, it.Capture))
 					}
 				}
 			}
@@ -694,7 +727,7 @@ func definitionProblem(r *domRule) string {
 					continue
 				}
 				if at < last {
-					return fmt.Sprintf("%%emits of %s lists captures out of the order they stand in", r.Name)
+					return immediate(fmt.Sprintf("%%emits of %s lists captures out of the order they stand in", r.Name))
 				}
 				last = at
 			}
@@ -702,11 +735,13 @@ func definitionProblem(r *domRule) string {
 		for _, it := range present {
 			for _, recipe := range []*domTerm{it.Value, it.Image} {
 				if msg := recipeCapturesProblem(recipe, has); msg != "" {
-					return msg
+					if !deferIssue(definitionRecipeCapture, msg) {
+						return &definitionIssue{definitionRecipeCapture, msg}
+					}
 				}
 			}
 			if msg := lacking(it.Tags, ns, has); msg != "" {
-				return msg
+				return immediate(msg)
 			}
 		}
 	}
@@ -720,10 +755,10 @@ func definitionProblem(r *domRule) string {
 		next := items[following[i]]
 		step()
 		if capturedBy[next.Capture] < len(alts) {
-			return fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture)
+			return immediate(fmt.Sprintf("%%emits of %s inserts a tag before $%s, which a production lacks", r.Name, next.Capture))
 		}
 	}
-	return ""
+	return nil
 }
 
 // nextCaptureItems gives, for each emitted item, the index of the first
@@ -771,13 +806,4 @@ func ruleHasRanked(r *domRule) bool {
 		pending = append(pending, e.Inner, e.Sep)
 	}
 	return false
-}
-
-func deferredEmissionProblem(message string) bool {
-	return strings.Contains(message, "leaves a production nothing to emit") || deferredRecipeProblem(message)
-}
-
-// Recipe absence waits for ranked name analysis, which precedes pruning (§11.4).
-func deferredRecipeProblem(message string) bool {
-	return strings.HasPrefix(message, "a selected recipe reads an absent capture $")
 }

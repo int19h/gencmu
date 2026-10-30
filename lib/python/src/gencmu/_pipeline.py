@@ -189,7 +189,7 @@ class NotationReader:
             # allows is no bootstrap either.
             raise GencmuError(f"the bootstrap is not JSON: {error}", document=where) from error
         entries = data.get("documents") if isinstance(data, dict) else None
-        if not isinstance(data, dict) or data.get("format") != DOM_FORMAT or not isinstance(entries, dict):
+        if not isinstance(data, dict) or type(data.get("format")) is not int or data.get("format") != DOM_FORMAT or not isinstance(entries, dict):
             raise GencmuError("the bootstrap requires a document map of the current format", document=where)
 
         def dom_of(path: str) -> Dom | None:
@@ -299,9 +299,6 @@ class NotationReader:
         try:
             builder = DomBuilder(tokens, grammar_text, path, self.unicode, defer_emission, strings.decode)
             dom = builder.document_dom(tree)
-            if builder.deferred_emissions:
-                from ._dom import DeferredDom
-                dom = DeferredDom(dom,builder.deferred_emissions)
         except GencmuError:
             raise
         except (LookupError, TypeError, ValueError, AttributeError, AssertionError) as error:
@@ -356,7 +353,7 @@ def _reader(bootstrap: str, unicode_text: str, properties: str | None = None) ->
 
 
 def _preparsed_identity(data: Any, bootstrap_hash: str, unicode: UnicodeTable, implicit: bool = False) -> bool:
-    return (isinstance(data, dict) and data.get("format") == DOM_FORMAT
+    return (isinstance(data, dict) and type(data.get("format")) is int and data.get("format") == DOM_FORMAT
             and (implicit or data.get("bootstrap") == bootstrap_hash) and data.get("unicode") == unicode.fingerprint
             and "properties" in data and data["properties"] == unicode.properties_fingerprint)
 

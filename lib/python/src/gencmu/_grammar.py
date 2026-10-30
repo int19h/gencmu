@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, rule_has_ranked, prepare, prepare_conditions, simplify_term
+from ._clauses import WHOLE, Emission, Prepared, captures_in, check_definition, rule_has_ranked, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
 from ._memo import SharedMemo
 from ._recent import Recent
@@ -549,12 +549,11 @@ class _Constants:
                         pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).
-            problem = definition_problem(run(self.with_values(rule)))
-            if problem is not None:
-                if deferred_emission_problem(problem) and rule_has_ranked(rule):
-                    self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
-                else:
-                    raise _error(problem, path, rule["at"], self.stage)
+            result = check_definition(run(self.with_values(rule)), True)
+            if result.problem is not None:
+                raise _error(result.problem.message, path, rule["at"], self.stage)
+            if result.deferred is not None:
+                self.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], self.stage))
             self.check_delimiters(path, rule, rule["at"])
 
     def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
@@ -704,6 +703,13 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
+    pending_templates = []
+    for path, dom in documents:
+        for rule in dom["rules"]:
+            if rule.get("params"):
+                issue = check_definition(rule, True).deferred
+                if issue is not None:
+                    pending_templates.append((path, rule["at"], issue))
     documents, template_order, templates, instances, validation = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
@@ -717,12 +723,17 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     implication_items: list[tuple[str, Dom]] = []
     feature_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
-        for rule,message in getattr(dom,"deferred_emissions",()):
-            if not constants_in(rule) and not _rule_has_pattern(rule):
-                constants.deferred_emissions.append(_error(message,path,rule["at"],stage))
         for rule in dom.get("rules", []):
             if constants_in(rule) or _rule_has_pattern(rule):
                 constants.users.append((path, rule))
+            elif rule_has_ranked(rule):
+                # Readers and DOM admission cover ordinary definitions.
+                # Ranked definitions can retain deferred problems.
+                result = check_definition(rule, True)
+                if result.problem is not None:
+                    raise _error(result.problem.message, path, rule["at"], stage)
+                if result.deferred is not None:
+                    constants.deferred_emissions.append(_error(result.deferred.message, path, rule["at"], stage))
             name = rule["name"]
             at: tuple[int, int] = (int(rule.get("at", (0, 0))[0]), int(rule.get("at", (0, 0))[1]))
             # One list that the alternatives share, as they share the other
@@ -926,6 +937,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         grammar.ranked.validate_tags(lowered)
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
+    if pending_templates:
+        path, at, issue = pending_templates[0]
+        raise _error(issue.message, path, at, stage)
     from ._recipes import cycle
     retained = {id(alternative) for rule in rules.values() for alternative in rule.alternatives}
     for alternative in written_alternatives:

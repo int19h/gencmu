@@ -50,6 +50,14 @@ def require_preparsed_cache(reader, texts):
 
 
 class Ranked(unittest.TestCase):
+    def test_deferred_recipe_precedes_empty_emission(self):
+        grammar = '%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a'
+        with self.assertRaises(GencmuError) as raised:
+            load_pipeline_sources(sources(grammar), "grammars/test/p.md")
+        self.assertIn("recipe", raised.exception.message)
+        self.assertIn("$b", raised.exception.message)
+        self.assertIsNone(raised.exception.code)
+
     def test_independent_slots_keep_a_linear_forest(self):
         case = {"grammar": "%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"}
         pipeline, error = load_case_pipeline(case)

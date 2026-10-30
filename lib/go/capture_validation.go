@@ -389,9 +389,9 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 		var guards []string
 		seen := map[string]bool{}
 		walkClause(p, func(v clausePart) bool {
-			if v.c != nil && v.c.Kind == cdCaptured && v.c.Rule != "" && !seen[v.c.Rule] {
-				seen[v.c.Rule] = true
-				guards = append(guards, v.c.Rule)
+			if v.c != nil && v.c.Kind == cdCaptured && v.c.Capture != "" && !seen[v.c.Capture] {
+				seen[v.c.Capture] = true
+				guards = append(guards, v.c.Capture)
 			}
 			return true
 		})

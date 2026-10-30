@@ -78,7 +78,7 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 }
 func (g *stageGrammar) bindConstants() *Error {
 	for _, v := range g.constVersions {
-		v.references = userConstRefs(v.definition.Value)
+		v.references = constRefs(v.definition.Value)
 		for _, r := range v.references {
 			target, ok := g.constLatest[r.Str]
 			if r.Str == v.definition.Name && v.definition.Op == "redefine" {
@@ -382,11 +382,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}
-		if err := g.validateStringUses(u.doc, u.rule); err != nil {
-			return err
-		}
 		if f := ruleTypeFault(u.rule, types); f != nil {
 			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
+		}
+		if err := g.validateStringUses(u.doc, u.rule); err != nil {
+			return err
 		}
 		var patternErr *Error
 		scan := func(p clausePart) bool {
@@ -411,12 +411,12 @@ func (g *stageGrammar) resolveConstants() *Error {
 
 		// The checks that simplification decides, which the reader left to
 		// the loader, now with the constants' values (§9).
-		if msg := definitionProblem(newResolver(g.constants, g.uni).rule(u.rule)); msg != "" {
-			if deferredEmissionProblem(msg) && ruleHasRanked(u.rule) {
-				g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", msg))
-			} else {
-				return g.constError(u.doc, u.rule.At, "%s", msg)
-			}
+		result := checkDefinition(newResolver(g.constants, g.uni).rule(u.rule), true)
+		if result.problem != nil {
+			return g.constError(u.doc, u.rule.At, "%s", result.problem.message)
+		}
+		if result.deferred != nil {
+			g.deferredEmissions = append(g.deferredEmissions, g.constError(u.doc, u.rule.At, "%s", result.deferred.message))
 		}
 		if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
 			return err

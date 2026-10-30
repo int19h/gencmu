@@ -1626,3 +1626,31 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         assert_eq!(expression_problem(expr).as_deref(), twice, "{expr}");
     }
 }
+
+#[test]
+fn absent_recipe_capture_order() {
+    for recipe in ["$x.value ++ $y.value", "$y.value ++ $x.value"] {
+        for grammar in [
+            format!("%rule text := {recipe} | [$x:A] [$y:B]"),
+            format!("%rule text [$x:A] [$y:B] %emits $ := {recipe}"),
+        ] {
+            let sources = std::collections::BTreeMap::from([
+                ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
+                ("g.md".to_string(), format!("```jbogenbau\n%ambiguity-resolution greedy\n{grammar}\n```\n")),
+            ]);
+            let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("an absent recipe capture");
+            assert!(error.message.contains(&format!("capture {}", &recipe[..2])), "{error}");
+        }
+    }
+}
+
+#[test]
+fn deferred_recipe_precedes_empty_emission() {
+    let sources: std::collections::BTreeMap<String,String> = std::collections::BTreeMap::from([
+        ("p.md".into(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".into()),
+        ("g.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [$a:A] (X ≻ Y) | [$b:B] Z := $b.value %emits $a\n```\n".into()),
+    ]);
+    let error = gencmu::load_pipeline_sources(&sources, "p.md").expect_err("a deferred recipe fault");
+    assert!(error.message.contains("recipe") && error.message.contains("$b"), "{error}");
+    assert!(error.diagnostic.is_none(), "{error}");
+}

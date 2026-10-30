@@ -30,10 +30,9 @@ type domClassifier struct {
 	At      [2]int
 }
 
-// domEntry is an entry of a classifier: its gates, one or more keys, each a
-// canonical sound, ∈ or ∉, and one class whose name starts and ends
-// with an uppercase ASCII letter. At is its first token, where the loader reports an error of the
-// entry.
+// domEntry holds a classifier entry's gates, exact scalar string keys,
+// operator, class, and source position.
+// The class starts and ends with an uppercase ASCII letter.
 type domEntry struct {
 	Guards   []domGuard
 	Keys     []string
@@ -64,7 +63,7 @@ type domConst struct {
 
 type domRule struct {
 	rawTemplate      templateObject
-	deferredEmission string
+	deferredEmission *definitionIssue
 	Name             string
 	Flags            []string
 	Op               string // "define", "redefine" or "extend"
@@ -141,7 +140,7 @@ func isValueTest(op string) bool {
 
 // Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
 // canonical spelling. A span is a term of kind tmCapture, "" for $, the
-// whole constituent, or a tmCall of head, tail, last, from or after; a rule
+// whole constituent, or a tmCall of a span method (§10). A rule
 // argument is tmRule, and the classifier that classify names is
 // tmClassifier. A difference, a ∖ b, has exactly two items. A guarded
 // term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
@@ -210,8 +209,8 @@ type domCond struct {
 	Kind        string
 	Op          string
 	Left, Right *domTerm
-	Span        *domTerm // matches, begins, initial
-	Rule        string   // matches, begins; captured: the capture's name
+	Span        *domTerm // The receiver of a predicate method.
+	Capture     string   // The name in a presence test.
 	Inner       *domCond
 	Items       []*domCond
 }
@@ -221,13 +220,12 @@ type domEmit struct {
 	Items []*domEmitItem
 }
 
-// domEmitItem is a capture, "" for $, with its tags, or an inserted tag.
+// domEmitItem is a capture, "" for $, or an inserted item, with optional clauses.
 // A named capture, the item's carrier, can name attachment captures before
 // it and after it (engine §11).
 type domEmitItem struct {
 	Capture      string
 	IsInsert     bool
-	Insert       string
 	Tags         *domTerm
 	Value, Image *domTerm
 	Before       []string
@@ -246,16 +244,6 @@ func (it *domEmitItem) captures() []string {
 // attachments lists an item's attachment captures, before and after.
 func (it *domEmitItem) attachments() []string {
 	return append(append([]string(nil), it.Before...), it.After...)
-}
-
-// whole says the emission is of $, the whole constituent: every item is $.
-func (e *domEmit) whole() bool {
-	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
-}
-
-// nothing reports whether the emission has no items (engine §11).
-func (e *domEmit) nothing() bool {
-	return len(e.Items) == 0
 }
 
 type domDirective struct {
@@ -613,7 +601,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case cdCaptured:
 		w.raw(`{"captured":`)
-		w.str(c.Rule)
+		w.str(c.Capture)
 		w.raw("}")
 	case cdIf:
 		w.raw(`{"if":`)
@@ -943,6 +931,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !hasOneForm(o, [][]string{{"name", "op", "flags", "tags?", "value?", "image?", "alternatives", "emit?", "conditions", "erased?", "at"}}) {
+		return nil, fmt.Errorf("a malformed rule")
+	}
 	r := &domRule{}
 	if r.Name, err = decodeString(o["name"]); err != nil {
 		return nil, err
@@ -969,10 +960,6 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 			return nil, err
 		}
 	}
-	// A flag: true or absent.
-	if o["opaque"] != nil {
-		return nil, fmt.Errorf("opaque is not a rule member")
-	}
 	if v, ok := o["erased"]; ok {
 		if !isTrue(v) {
 			return nil, fmt.Errorf("a malformed rule")
@@ -995,6 +982,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		ao, err := decodeObj(a)
 		if err != nil {
 			return nil, err
+		}
+		if !hasOneForm(ao, [][]string{{"guards", "expr", "tags?", "value?", "image?"}}) {
+			return nil, fmt.Errorf("a malformed alternative")
 		}
 		alt := &domAlt{}
 		// The guards of an alternative have the members of an entry's
@@ -1094,9 +1084,6 @@ func decodeExprAt(raw json.RawMessage, depth int) (*domExpr, error) {
 func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
-		if _, ranked := o[exRanked]; ranked {
-			return nil, fmt.Errorf("ranked-choice-syntax: A ranked expression has only its ranked array.")
-		}
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	if v, ok := o[exRange]; ok {
@@ -1105,6 +1092,12 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	}
 	for _, k := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if v, ok := o[k]; ok {
+			if k == exRanked {
+				var options []json.RawMessage
+				if unmarshal(v, &options) != nil || len(options) < 2 {
+					return nil, fmt.Errorf("ranked-choice-syntax: a ranked expression requires two options")
+				}
+			}
 			items, err := decodeList(v, func(r json.RawMessage) (*domExpr, error) { return decodeExprAt(r, depth+1) })
 			return &domExpr{Kind: k, Items: items}, err
 		}
@@ -1352,7 +1345,7 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 	}
 	if v, ok := o["captured"]; ok {
 		name, err := decodeString(v)
-		return &domCond{Kind: cdCaptured, Rule: name}, err
+		return &domCond{Kind: cdCaptured, Capture: name}, err
 	}
 	if v, ok := o["if"]; ok {
 		premise, err := decodeCondAt(v, depth+1)
@@ -1385,8 +1378,7 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 			return nil, err
 		}
 		it := &domEmitItem{}
-		// An item is a capture or an inserted tag, and has no other member
-		// than its tags and its attachments.
+		// An item has one target, optional clauses, and optional attachments.
 		for k := range io {
 			if k != "capture" && k != "insert" && k != "tags" && k != "before" && k != "after" && k != "value" && k != "image" {
 				return nil, fmt.Errorf("a malformed emission item")
@@ -1424,15 +1416,13 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		return it, err
 	})
+	if err == nil && len(items) == 0 {
+		err = fmt.Errorf("a malformed emission: items must be nonempty")
+	}
 	return &domEmit{Items: items}, err
 }
 
-func (c *domCond) queryTargets() []*domTerm {
-	if len(c.Targets) > 0 {
-		return c.Targets
-	}
-	return []*domTerm{{Kind: tmRule, Str: c.Rule}}
-}
+func (c *domCond) queryTargets() []*domTerm { return c.Targets }
 func queryName(t *domTerm) string {
 	if t.Kind == tmTerminal {
 		return "\x00query:" + t.Str

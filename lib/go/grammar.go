@@ -108,6 +108,18 @@ func isTerminalName(name string) bool {
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
+	var pendingTemplates []*Error
+	for _, document := range docs {
+		for _, rule := range document.dom.Rules {
+			if rule.rawTemplate != nil && rule.rawTemplate["params"] != nil {
+				if issue := templateDeferredDefinition(rule.rawTemplate); issue != nil {
+					err := grammarError(document.path, rule.At, "%s", issue.message)
+					err.Stage = stageName
+					pendingTemplates = append(pendingTemplates, err)
+				}
+			}
+		}
+	}
 	expanded, expansionError := expandTemplates(docs, uni)
 	if expansionError != nil {
 		expansionError.Stage = stageName
@@ -131,8 +143,8 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	textOrder := 0
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
-			if r.deferredEmission != "" && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
-				g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission))
+			if r.deferredEmission != nil && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
+				g.deferredEmissions = append(g.deferredEmissions, fail(d.path, r.At, "%s", r.deferredEmission.message))
 			}
 			if len(constRefs(r)) > 0 || ruleHasPattern(r) {
 				g.constUsers = append(g.constUsers, constUser{doc: d.path, rule: r})
@@ -309,20 +321,18 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			return nil, err
 		}
 	}
-	// Ranked scope errors precede recipe absence, pruning, and cycle analysis (§11.4).
-	for _, err := range g.deferredEmissions {
-		if deferredRecipeProblem(err.Message) {
-			return nil, err
-		}
+	// Ranked scope errors precede deferred emissions and recipe cycles (§11.4).
+	if len(g.deferredEmissions) > 0 {
+		return nil, g.deferredEmissions[0]
+	}
+	if len(pendingTemplates) > 0 {
+		return nil, pendingTemplates[0]
 	}
 	if err := g.validateRecipeCycles(); err != nil {
 		return nil, err
 	}
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
-	}
-	if len(g.deferredEmissions) > 0 {
-		return nil, g.deferredEmissions[0]
 	}
 	g.prepareBoundarySites()
 	return g, nil

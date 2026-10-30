@@ -129,7 +129,7 @@ func TestBoundaryDeepCaptureValidation(t *testing.T) {
 	if _, problem := boundaryRuleProblem(rule); problem != "" {
 		t.Fatal(problem)
 	}
-	rule.Conditions = []*domCond{{Kind: cdAll, Items: []*domCond{c, {Kind: cdCaptured, Rule: "y"}}}}
+	rule.Conditions = []*domCond{{Kind: cdAll, Items: []*domCond{c, {Kind: cdCaptured, Capture: "y"}}}}
 	if _, problem := boundaryRuleProblem(rule); problem == "" {
 		t.Fatal("mixed capture was accepted")
 	}

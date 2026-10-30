@@ -5,23 +5,6 @@ import "unicode/utf8"
 // These checks use final constants, including declarations in replaced
 // definitions. The cached DOM retains its original unresolved terms.
 func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
-	stringUse := func(t *domTerm) *Error {
-		if ty, f := termTypeIn(t, g.constantTypes()); f != nil {
-			return g.faultError(doc, f.node, r.At, f.problem)
-		} else if ty != tyString {
-			return g.faultError(doc, t, r.At, "a string operand resolves to a non-string constant")
-		}
-		return nil
-	}
-	for _, recipe := range ruleRecipes(r) {
-		for _, atom := range recipe.Items {
-			if stringTermShape(atom) {
-				if err := stringUse(atom); err != nil {
-					return err
-				}
-			}
-		}
-	}
 	for _, a := range r.Alternatives {
 		stack := []*domExpr{a.Expr}
 		for len(stack) > 0 {
@@ -30,17 +13,9 @@ func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
 			if e == nil {
 				continue
 			}
-			if e.Kind == exLiteral {
-				if err := stringUse(e.Value); err != nil {
-					return err
-				}
-			}
 			if e.Kind == exRange {
 				var ends [2]rune
 				for i, t := range e.Ends {
-					if err := stringUse(t); err != nil {
-						return err
-					}
 					v, err := g.evaluateClosed(doc, t, r.At)
 					if err != nil {
 						return err
@@ -58,8 +33,10 @@ func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
 					return g.constError(doc, where, "a range starts above its end")
 				}
 			}
-			stack = append(stack, e.Inner, e.Sep)
-			stack = append(stack, e.Items...)
+			stack = append(stack, e.Sep, e.Inner)
+			for i := len(e.Items) - 1; i >= 0; i-- {
+				stack = append(stack, e.Items[i])
+			}
 		}
 	}
 	return nil

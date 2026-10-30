@@ -1,0 +1,13 @@
+{
+  "description": "An uncalled template retains its independent deferred problem: uncalled-recipe.",
+  "grammar": "%rule unused(@T) [$a:@T] (X ≻ Y) := $a.value\n%rule text X",
+  "input": "x",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

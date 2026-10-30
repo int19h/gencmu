@@ -137,7 +137,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
-    pub deferred_emission: Option<String>,
+    pub deferred_emission: Option<crate::clauses::DefinitionIssue>,
     pub name: String,
     pub op: Op,
     pub flags: Vec<String>,
@@ -189,7 +189,7 @@ pub(crate) enum Expr {
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
-    /// Braces: the item, the separator after `\` if any, and a chain's
+    /// Braces: the item, the separator after `&` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
     Ref(String),
@@ -199,13 +199,11 @@ pub(crate) enum Expr {
     /// A range `'a'..'z'`: its two ends, character tags in their canonical
     /// spelling, the start not above the end (engine §1).
     Range(String, String),
-    /// A property `'\p{Name}'`, by its name (engine §1).
+    /// An internal property terminal, by its engine-tag name (engine §1).
     Property(String),
     Capture(String, Box<Expr>),
-    /// A tested symbol, such as `X="s"`: its comparator, `=`, `≠`, `⊇`,
-    /// `⊉`, `∩=∅` or `∩≠∅`, its value, a closed term, and its symbol, a
-    /// `Ref`, a `Terminal`, a `Range` or a `Property`
-    /// (engine §2, §4).
+    /// A symbol with `=`, `≠`, or signed `tags` requirements (§2, §4).
+    /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
 }
@@ -218,17 +216,16 @@ pub(crate) enum Mark {
     Elidable,
 }
 
-/// The direction of a chain (engine §3.3): `{... x \ s}` nests from the
-/// left, `{x ... \ s}` from the right.
+/// The direction of a chain (engine §3.3): `{... x & s}` nests from the
+/// left, `{x ... & s}` from the right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Chain {
     Left,
     Right,
 }
 
-/// A term, or a span: `{"capture":"x"}` and the calls `head`, `tail`,
-/// `last`, `from` and `after` are spans, and appear only where a span is
-/// expected. The capture named `""` is `$`, the whole constituent.
+/// A term, including captures and span methods where a span is expected.
+/// The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
     Pattern(Box<crate::patterns::Pattern>),
@@ -236,7 +233,7 @@ pub(crate) enum Term {
     Str(String),
     /// A tag literal: the set of one tag, in its canonical spelling.
     Tag(String),
-    /// A range `'a'..'z'`, the set of its character tags (engine §1).
+    /// The empty set, with no fixed element type.
     EmptySet,
     Union(Vec<Term>),
     Intersection(Vec<Term>),
@@ -359,7 +356,7 @@ fn position(value: &Json) -> R<(usize, usize)> {
 }
 
 pub(crate) fn dom_from_json(value: &Json, unicode: &Unicode) -> R<Dom> {
-    dom_from_json_mode(value, unicode, false)
+    dom_from_json_mode(value, unicode, true)
 }
 pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -> R<Dom> {
     let cleaned = known_dom_members(value);
@@ -438,16 +435,11 @@ pub(crate) fn decode_checked(value: &Json, _unicode: &Unicode, defer: bool) -> R
         if let Some((problem, _)) = crate::boundary::definition_problem(rule) {
             return Err(problem);
         }
-        if let Some(problem) = crate::clauses::definition_problem(rule) {
-            if defer
-                && deferred_emission_problem(&problem)
-                && rule.alternatives.iter().any(|a| crate::ranked::contains_ranked(&a.expr))
-            {
-                rule.deferred_emission = Some(problem);
-            } else {
-                return Err(problem);
-            }
+        let result = crate::clauses::check_definition(rule, defer);
+        if let Some(issue) = result.problem {
+            return Err(issue.message);
         }
+        rule.deferred_emission = result.deferred;
     }
     Ok(Dom { rules, directives, constants, classifiers, implications, ..Dom::default() })
 }
@@ -524,34 +516,6 @@ pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
     values.pop().unwrap_or_default()
 }
 
-pub(crate) fn method_alias(name: &str) -> &str {
-    match name {
-        "value" => "value",
-        "source-text" => "text",
-        "first-token" => "head",
-        "tokens-after-first" => "tail",
-        "last-token" => "last",
-        "onward" => "from",
-        "following-tokens" => "after",
-        "starts-input" => "initial",
-        _ => name,
-    }
-}
-
-fn method_spelling(name: &str) -> &str {
-    match name {
-        "value" => "value",
-        "text" => "source-text",
-        "head" => "first-token",
-        "tail" => "tokens-after-first",
-        "last" => "last-token",
-        "from" => "onward",
-        "after" => "following-tokens",
-        "initial" => "starts-input",
-        _ => name,
-    }
-}
-
 fn channels_from_json(value: &Json) -> R<Channels> {
     Ok(Channels {
         value: value.get("value").map(term_from_json).transpose()?,
@@ -572,7 +536,7 @@ fn guard_from_json(guard: &Json) -> R<Guard> {
     })
 }
 
-fn rule_from_json(value: &Json) -> R<RuleDef> {
+pub(crate) fn rule_from_json(value: &Json) -> R<RuleDef> {
     let op = match string(value, "op")?.as_str() {
         "define" => Op::Define,
         "redefine" => Op::Redefine,
@@ -695,7 +659,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     })
 }
 
-/// A range's two ends, from `{"range":[START,END]}`.
+/// Convert a schema-validated term from its DOM representation.
 pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     match read_value(value, false)? {
         ReadValue::Term(term) => Ok(term),
@@ -703,7 +667,7 @@ pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     }
 }
 
-fn cond_from_json(value: &Json) -> R<Cond> {
+pub(crate) fn cond_from_json(value: &Json) -> R<Cond> {
     match read_value(value, true)? {
         ReadValue::Cond(cond) => Ok(cond),
         _ => unreachable!(),
@@ -858,7 +822,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             _ => Arg::Term(operands.next().unwrap().term()),
                         });
                     }
-                    Term::Call(method_alias(&string(value, "method")?).into(), args)
+                    Term::Call(string(value, "method")?, args)
                 }
                 _ => unreachable!(),
             })
@@ -939,7 +903,7 @@ fn is_classifier_arg(value: &Json) -> bool {
 }
 
 /// The comparators of a test in a body (engine §2): the two sound tests
-/// and the four tag tests.
+/// and signed tag requirements.
 pub(crate) const TEST_OPS: [&str; 3] = ["=", "≠", "tags"];
 
 /// Whether a test's comparator is a sound test, whose value is a string,
@@ -1368,7 +1332,7 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
                 write_list(out, name, args, write_argument);
             } else {
                 out.push_str("{\"method\":");
-                write_str(out, method_spelling(name));
+                write_str(out, name);
                 out.push_str(",\"receiver\":");
                 write_argument(out, &args[0]);
                 out.push_str(",\"args\":[");
@@ -1460,7 +1424,7 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             }
             out.push_str("]}");
         }
-        Cond::Initial(span) => write_term(out, &Term::Call("initial".into(), vec![Arg::Term(span.clone())])),
+        Cond::Initial(span) => write_term(out, &Term::Call("starts-input".into(), vec![Arg::Term(span.clone())])),
         Cond::Final(span) => write_term(out, &Term::Call("ends-input".into(), vec![Arg::Term(span.clone())])),
         Cond::Boundary(forward, receiver, targets, _) => {
             out.push_str("{\"method\":");
@@ -1888,7 +1852,7 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
+        "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
@@ -2050,7 +2014,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
                     if let Some(problem) = expected_problem(ty, expected) {
-                        return Err(Fault::in_term(format!(".{}: {problem}", method_spelling(call)), term));
+                        return Err(Fault::in_term(format!(".{}: {problem}", call), term));
                     }
                 }
             }
@@ -2113,91 +2077,95 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
 /// Why a rule's terms and conditions do not agree in type, at the
 /// smallest construct that disagrees, or `None`.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
-    let items = rule.emit.iter().flatten().filter_map(|item| match item {
-        EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
-    });
-    rule.tags
+    let mut faults = Vec::new();
+    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|a| a.tags.as_ref())).chain(
+        rule.emit.iter().flatten().filter_map(|item| match item {
+            EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
+        }),
+    ) {
+        faults.extend(tag_term_fault(term, constants));
+    }
+    for term in rule
+        .strings
+        .value
         .iter()
-        .chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref()))
-        .chain(items)
-        .find_map(|term| tag_term_fault(term, constants))
-        .or_else(|| {
-            rule.strings
-                .value
-                .iter()
-                .chain(&rule.strings.image)
-                .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-                .chain(rule.emit.iter().flatten().flat_map(|item| {
-                    let strings = match item {
-                        EmitItem::Capture(_, _, a) => &a.strings,
-                        EmitItem::Insert(_, s) => s,
-                    };
-                    strings.value.iter().chain(&strings.image)
-                }))
-                .find_map(|term| match term_type_in(term, constants) {
-                    Err(fault) => Some(fault),
-                    Ok(ty) => expected_problem(ty, Type::String).map(|problem| Fault::in_term(problem, term)),
-                })
-        })
-        .or_else(|| rule.conditions.iter().find_map(|cond| cond_type_fault(cond, constants)))
-        .or_else(|| {
-            // A test's value is a string for a sound test and a tag set for
-            // a tag test (engine §9, §10).
-            rule.alternatives.iter().flat_map(|alternative| tests_in(&alternative.expr)).find_map(|(op, value, _)| {
-                match term_type_in(value, constants) {
-                    Err(fault) => Some(fault),
-                    Ok(ty) => test_type_problem(op, ty).map(|problem| Fault::in_term(problem, value)),
+        .chain(&rule.strings.image)
+        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
+        .chain(rule.emit.iter().flatten().flat_map(|item| {
+            let strings = match item {
+                EmitItem::Capture(_, _, a) => &a.strings,
+                EmitItem::Insert(_, s) => s,
+            };
+            strings.value.iter().chain(&strings.image)
+        }))
+    {
+        match term_type_in(term, constants) {
+            Err(fault) => faults.push(fault),
+            Ok(ty) => {
+                if let Some(problem) = expected_problem(ty, Type::String) {
+                    faults.push(Fault::in_term(problem, term));
                 }
-            })
-        })
-        .or_else(|| {
-            let mut pending: Vec<_> = rule.alternatives.iter().map(|a| &a.expr).collect();
-            while let Some(expr) = pending.pop() {
-                let terms: [Option<&Term>; 2] = match expr {
-                    Expr::Literal(t) => [Some(t), None],
-                    Expr::ScalarRange(a, b) => [Some(a), Some(b)],
-                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
-                        pending.extend(items);
-                        continue;
-                    }
-                    Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
-                        pending.push(inner);
-                        continue;
-                    }
-                    Expr::Repeat(item, separator, _) => {
-                        pending.push(item);
-                        pending.extend(separator.as_deref());
-                        continue;
-                    }
-                    _ => continue,
-                };
-                for term in terms.into_iter().flatten() {
-                    match term_type_in(term, constants) {
-                        Err(fault) => return Some(fault),
-                        Ok(ty) => {
-                            if let Some(problem) = expected_problem(ty, Type::String) {
-                                return Some(Fault::in_term(problem, term));
-                            }
-                        }
-                    }
+            }
+        }
+    }
+    for cond in &rule.conditions {
+        faults.extend(cond_type_fault(cond, constants));
+    }
+    for (op, value, _) in rule.alternatives.iter().flat_map(|a| tests_in(&a.expr)) {
+        match term_type_in(value, constants) {
+            Err(fault) => faults.push(fault),
+            Ok(ty) => {
+                if let Some(problem) = test_type_problem(op, ty) {
+                    faults.push(Fault::in_term(problem, value));
                 }
-                if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
-                    let mut a_chars = a.chars();
-                    let mut b_chars = b.chars();
-                    let endpoints = (a_chars.next(), b_chars.next());
-                    if !matches!(endpoints, (Some(a), Some(b)) if a <= b)
-                        || a_chars.next().is_some()
-                        || b_chars.next().is_some()
-                    {
-                        return Some(Fault {
-                            problem: "a scalar range requires ordered single-scalar endpoints".into(),
-                            at: None,
-                        });
+            }
+        }
+    }
+    let mut pending: Vec<_> = rule.alternatives.iter().rev().map(|a| &a.expr).collect();
+    while let Some(expr) = pending.pop() {
+        let terms: [Option<&Term>; 2] = match expr {
+            Expr::Literal(t) => [Some(t), None],
+            Expr::ScalarRange(a, b) => [Some(a), Some(b)],
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                pending.extend(items.iter().rev());
+                continue;
+            }
+            Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+                pending.push(inner);
+                continue;
+            }
+            Expr::Repeat(item, separator, _) => {
+                pending.extend(separator.as_deref());
+                pending.push(item);
+                continue;
+            }
+            _ => continue,
+        };
+        for term in terms.into_iter().flatten() {
+            match term_type_in(term, constants) {
+                Err(fault) => faults.push(fault),
+                Ok(ty) => {
+                    if let Some(problem) = expected_problem(ty, Type::String) {
+                        faults.push(Fault::in_term(problem, term));
                     }
                 }
             }
-            None
-        })
+        }
+        if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
+            let mut a_chars = a.chars();
+            let mut b_chars = b.chars();
+            if !matches!((a_chars.next(), b_chars.next()), (Some(a), Some(b)) if a <= b)
+                || a_chars.next().is_some()
+                || b_chars.next().is_some()
+            {
+                faults.push(Fault {
+                    problem: "a scalar range requires ordered single-scalar endpoints".into(),
+                    at: None,
+                });
+            }
+        }
+    }
+    faults.into_iter().min_by_key(|fault| fault.at.unwrap_or((0, 0)))
 }
 
 /// The type of a constant's value, or why it cannot be one (engine §2,
@@ -2353,14 +2321,6 @@ impl Drop for Cond {
     }
 }
 
-pub(crate) fn deferred_emission_problem(s: &str) -> bool {
-    s.starts_with("%emits of ")
-        || s.starts_with("a selected recipe of ")
-        || s.starts_with("an item recipe of ")
-        || s.starts_with("a tag term of ")
-        || s.starts_with("a condition of ") && s.ends_with("applies to no production")
-}
-
 pub(crate) fn valid_integer(s: &str) -> bool {
     let bytes = s.as_bytes();
     !bytes.is_empty() && (b'1'..=b'9').contains(&bytes[0]) && bytes[1..].iter().all(u8::is_ascii_digit)
@@ -2381,7 +2341,7 @@ pub(crate) fn restored_span(mut term: &Term) -> bool {
             Term::Call(name, _) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
                 return true
             }
-            Term::Call(name, args) if name == "from" => {
+            Term::Call(name, args) if name == "onward" => {
                 let [Arg::Term(inner)] = &args[..] else { return false };
                 term = inner;
             }

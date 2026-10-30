@@ -37,6 +37,19 @@ class DomMalformed(unittest.TestCase):
                 self.assertIn("missing_family is not a rule", raised.exception.message)
                 self.assertEqual((raised.exception.document, raised.exception.line, raised.exception.column), ("case.md", 2, 1))
 
+    def test_ranked_syntax_code_shape(self) -> None:
+        unicode = _unicode_table(_resources().unicode)
+        for expr, coded in [
+            ({"ranked": None}, True), ({"ranked": []}, True), ({"ranked": [{"ref": "A"}]}, True),
+            ({"ranked": [{"ref": "A"}, {"ref": "B"}], "extra": 1}, False),
+            ({"extra": 1, "ranked": [{"ref": "A"}, {"ref": "B"}]}, False),
+            ({"ranked": [None, {"ref": "B"}]}, False),
+        ]:
+            dom = {"format": DOM_FORMAT, "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [1, 1]}], "directives": [], "constants": [], "classifiers": [], "implications": []}
+            problem = dom_problem(dom, unicode)
+            self.assertIsNotNone(problem)
+            self.assertEqual(problem.startswith("ranked-choice-syntax:"), coded, str(expr))
+
     def test_cases(self) -> None:
         cases = load_json(SHARED / "dom-malformed.json")
         self.assertTrue(cases, "no cases found")

@@ -205,8 +205,9 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			}
 		}
 	}
+	checker := templateNodeChecker{deferTypes: kind == "directives"}
 	walk := func(n any, k string, whole bool) *domProblem {
-		if msg := templateNodeProblem(n, k, 0, whole, false, uni); msg != "" {
+		if msg := checker.node(n, k, 0, whole, false, uni); msg != "" {
 			return problem(msg)
 		}
 		return nil
@@ -279,8 +280,16 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(alt["expr"], "expr", true); p != nil {
 				return p
 			}
-			if len(duplicateCaptures(templateCaptureShape(templateObj(alt["expr"])))) > 0 {
-				return problem("a capture name used twice in one production")
+			captures := map[*domExpr]templateObject{}
+			shape := templateCaptureShapeNodes(templateObj(alt["expr"]), captures)
+			if twice := duplicateCaptures(shape); len(twice) > 0 {
+				p := problem("a capture name used twice in one production")
+				for capture := range twice {
+					if at := templateSourceAt(captures[capture]); at != [2]int{} && (p.at == templateAt(r) || before(at, p.at)) {
+						p.at = at
+					}
+				}
+				return p
 			}
 			if r["erased"] == true && (alt["value"] != nil || alt["image"] != nil) {
 				return problem("an erased rule has a recipe")
@@ -362,6 +371,24 @@ func checkTemplateDeclaration(r templateObject, kind string, uni *unicodeTable) 
 			if p := walk(c, "condition", false); p != nil {
 				return p
 			}
+		}
+	}
+	if kind == "rules" && r["instance"] == nil {
+		projected := templateObj(templatePartial(r, "declaration"))
+		delete(projected, "params")
+		delete(projected, "args")
+		native, err := decodeRule(templateJSON(projected))
+		if err != nil {
+			return problem(err.Error())
+		}
+		if f := ruleTypeFault(native, nil); f != nil {
+			return problem(f.problem)
+		}
+		if _, msg := boundaryRuleProblem(native); msg != "" {
+			return problem(msg)
+		}
+		if issue := checkDefinition(native, true).problem; issue != nil {
+			return problem(issue.message)
 		}
 	}
 	return nil
@@ -488,7 +515,15 @@ var templateSourceForms = map[string][]string{
 	"recipe-term": {"string", "tag", "const", "emptySet", "capture", "concat", "union", "intersection", "difference", "if", "pattern", "method"},
 }
 
+type templateNodeChecker struct {
+	deferTypes bool
+}
+
 func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
+	return (&templateNodeChecker{}).node(value, kind, depth, whole, sealed, uni)
+}
+
+func (checker *templateNodeChecker) node(value any, kind string, depth int, whole, sealed bool, uni *unicodeTable) string {
 	if depth > maxDOMDepth {
 		return errTooDeep.Error()
 	}
@@ -496,7 +531,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 	if n == nil {
 		return "a malformed " + kind
 	}
-	walk := func(v any, k string) string { return templateNodeProblem(v, k, depth+1, false, sealed, uni) }
+	walk := func(v any, k string) string { return checker.node(v, k, depth+1, false, sealed, uni) }
 	list := func(key, k string, min int) string {
 		if !templateArray(n, key, min) {
 			return "a malformed " + kind
@@ -513,7 +548,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if problem != "" {
 			return problem
 		}
-		return templateNodeProblem(n, "pattern-part", depth, whole, sealed, uni)
+		return checker.node(n, "pattern-part", depth, whole, sealed, uni)
 	}
 	if kind == "pattern-part" {
 		if n["call"] != nil {
@@ -527,7 +562,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		if n["literal"] != nil {
-			if p := templateNodeProblem(n["literal"], "string", depth, false, sealed, uni); p != "" {
+			if p := checker.node(n["literal"], "string", depth, false, sealed, uni); p != "" {
 				return p
 			}
 		}
@@ -543,7 +578,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			}
 		}
 		for _, end := range templateList(n["range"]) {
-			if p := templateNodeProblem(end, "string", depth, false, sealed, uni); p != "" {
+			if p := checker.node(end, "string", depth, false, sealed, uni); p != "" {
 				return p
 			}
 		}
@@ -637,7 +672,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateOnly(n, "body") {
 				return "a malformed body argument"
 			}
-			return templateNodeProblem(n["body"], "expr", depth, true, false, uni)
+			return checker.node(n["body"], "expr", depth, true, false, uni)
 		}
 		if n["targets"] != nil {
 			if !templateOnly(n, "targets") {
@@ -647,7 +682,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 				return "a malformed target choice"
 			}
 			for _, v := range templateList(n["targets"]) {
-				if p := templateNodeProblem(v, "target", depth, false, sealed, uni); p != "" {
+				if p := checker.node(v, "target", depth, false, sealed, uni); p != "" {
 					return p
 				}
 			}
@@ -701,7 +736,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		return "a malformed source category"
 	}
 	if !templateUnresolved(n) && !(kind == "recipe-term" && n["method"] != nil) {
-		c := &domChecker{uni: uni, deferTypes: true}
+		c := &domChecker{uni: uni, deferTypes: checker.deferTypes}
 		raw := templateJSON(n)
 		var err error
 		switch kind {
@@ -737,6 +772,26 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if c.problem != nil {
 			return c.problem.message
 		}
+		if checker.deferTypes {
+			return ""
+		}
+		switch kind {
+		case "expr":
+			e, _ := decodeExpr(raw)
+			if f := ruleTypeFault(&domRule{Alternatives: []*domAlt{{Expr: e}}}, nil); f != nil {
+				return f.problem
+			}
+		case "condition":
+			e, _ := decodeCond(raw)
+			if f := condTypeFault(e, nil); f != nil {
+				return f.problem
+			}
+		default:
+			e, _ := decodeTerm(raw)
+			if _, f := termTypeIn(e, nil); f != nil {
+				return f.problem
+			}
+		}
 		return ""
 	}
 	if kind == "expr" {
@@ -752,17 +807,17 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			if !templateAllowed(n, "optional", "elidable") || n["elidable"] != nil && (n["elidable"] != true || !templateElidableHead(templateObj(n["optional"]))) {
 				return "a malformed optional"
 			}
-			return templateNodeProblem(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
+			return checker.node(n["optional"], "expr", depth+1, false, sealed || n["elidable"] == true, uni)
 		}
 		if n["repeat"] != nil {
 			if !templateAllowed(n, "repeat", "separator", "chain") || n["chain"] != nil && (!whole || n["chain"] != "left" && n["chain"] != "right") {
 				return "a malformed repetition"
 			}
-			if p := templateNodeProblem(n["repeat"], "expr", depth+1, false, true, uni); p != "" {
+			if p := checker.node(n["repeat"], "expr", depth+1, false, true, uni); p != "" {
 				return p
 			}
 			if n["separator"] != nil {
-				return templateNodeProblem(n["separator"], "expr", depth+1, false, true, uni)
+				return checker.node(n["separator"], "expr", depth+1, false, true, uni)
 			}
 			return ""
 		}
@@ -800,7 +855,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 			return "a malformed range"
 		}
 		for _, v := range templateList(n["range"]) {
-			if p := templateNodeProblem(v, "string", depth, false, false, uni); p != "" {
+			if p := checker.node(v, "string", depth, false, false, uni); p != "" {
 				return p
 			}
 		}
@@ -811,7 +866,7 @@ func templateNodeProblem(value any, kind string, depth int, whole, sealed bool, 
 		if !templateOnly(n, fields...) {
 			return "a malformed literal"
 		}
-		return templateNodeProblem(n["literal"], "string", depth, false, false, uni)
+		return checker.node(n["literal"], "string", depth, false, false, uni)
 	}
 	if kind == "recipe" {
 		if !templateOnly(n, "concat") {
@@ -951,30 +1006,32 @@ func templateElidableHead(n templateObject) bool {
 	}
 	return n["param"] != nil || templateOnly(n, "ref") && constName.MatchString(templateText(n["ref"]))
 }
-func templateCaptureShape(n templateObject) *domExpr {
+func templateCaptureShapeNodes(n templateObject, captures map[*domExpr]templateObject) *domExpr {
 	for _, kind := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if n[kind] != nil {
 			items := []*domExpr{}
 			for _, v := range templateList(n[kind]) {
-				items = append(items, templateCaptureShape(templateObj(v)))
+				items = append(items, templateCaptureShapeNodes(templateObj(v), captures))
 			}
 			return &domExpr{Kind: kind, Items: items}
 		}
 	}
 	for _, kind := range []string{exOptional, exRepeat} {
 		if n[kind] != nil {
-			e := &domExpr{Kind: kind, Inner: templateCaptureShape(templateObj(n[kind]))}
+			e := &domExpr{Kind: kind, Inner: templateCaptureShapeNodes(templateObj(n[kind]), captures)}
 			if n["separator"] != nil {
-				e.Sep = templateCaptureShape(templateObj(n["separator"]))
+				e.Sep = templateCaptureShapeNodes(templateObj(n["separator"]), captures)
 			}
 			return e
 		}
 	}
 	if n["capture"] != nil {
-		return &domExpr{Kind: exCapture, Name: templateText(n["capture"]), Inner: templateCaptureShape(templateObj(n["expr"]))}
+		e := &domExpr{Kind: exCapture, Name: templateText(n["capture"]), Inner: templateCaptureShapeNodes(templateObj(n["expr"]), captures)}
+		captures[e] = n
+		return e
 	}
 	if n["test"] != nil {
-		return templateCaptureShape(templateObj(n["expr"]))
+		return templateCaptureShapeNodes(templateObj(n["expr"]), captures)
 	}
 	return &domExpr{Kind: exWildcard}
 }
@@ -1042,4 +1099,76 @@ func templateLiteralEngineTags(root any) map[string][][2]int {
 		}
 	}
 	return literalEngineTags(result)
+}
+
+// templatePartial retains capture structure and types only the known operands.
+// Unknown constants stand for unresolved terms during this private analysis.
+func templatePartial(value any, kind string) any {
+	if xs, ok := value.([]any); ok {
+		out := make([]any, len(xs))
+		for i, x := range xs {
+			out[i] = templatePartial(x, kind)
+		}
+		return out
+	}
+	n := templateObj(value)
+	if n == nil {
+		return value
+	}
+	if n["param"] != nil || n["call"] != nil {
+		if kind == "expr" {
+			return templateObject{"wildcard": true}
+		}
+		if kind == "pattern" {
+			return templateObject{"constant": "Unresolved", "at": []any{1, 1}}
+		}
+		return templateObject{"const": "Unresolved", "at": []any{1, 1}}
+	}
+	out := templateObject{}
+	for key, child := range n {
+		if key == templateSourceKey {
+			continue
+		}
+		next := kind
+		if key == "expr" || key == "seq" || key == "choice" || key == "ranked" || key == "and" || key == "optional" || key == "repeat" || key == "separator" {
+			if kind != "pattern" {
+				next = "expr"
+			}
+		}
+		if key == "pattern" {
+			next = "pattern"
+		}
+		if key == "literal" || key == "range" || key == "tags" || key == "value" || key == "image" || key == "conditions" || key == "receiver" || key == "args" || key == "requirements" {
+			next = "term"
+		}
+		if key == "args" && templateQuery(templateText(n["method"])) || key == "args" && (n["method"] == "tags" || n["method"] == "without-elision-except") {
+			args := []any{}
+			for _, arg := range templateList(child) {
+				a := templateObj(arg)
+				if a["param"] != nil || a["call"] != nil {
+					args = append(args, templateObject{"rule": "unresolved"})
+				} else {
+					args = append(args, templatePartial(arg, "term"))
+				}
+			}
+			out[key] = args
+		} else if key == "receiver" && (n["method"] == "followed-by" || n["method"] == "preceded-by") && (templateObj(child)["param"] != nil || templateObj(child)["call"] != nil) {
+			out[key] = templateObject{"capture": ""}
+		} else {
+			out[key] = templatePartial(child, next)
+		}
+	}
+	return out
+}
+
+// templateDeferredDefinition retains known faults even without an instance.
+func templateDeferredDefinition(r templateObject) *definitionIssue {
+	projected := templateObj(templatePartial(r, "declaration"))
+	delete(projected, "params")
+	delete(projected, "args")
+	native, err := decodeRule(templateJSON(projected))
+	if err != nil {
+		return nil
+	}
+	return checkDefinition(native, true).deferred
 }

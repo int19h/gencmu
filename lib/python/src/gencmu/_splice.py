@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ._errors import GencmuError
-from ._dom import DeferredDom
 from ._markdown import resolve
 from ._names import selected_names
 
@@ -167,17 +166,11 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None], scoped_dom_o
                     raise fail(f"{what} stands before the first %stage")
                 if run is None or run[0] != document:
                     run_dom = _empty_dom(dom["format"])
-                    if isinstance(dom, DeferredDom):
-                        run_dom = DeferredDom(run_dom, [])
                     run = (document, run_dom)
                     selected.documents.append(run)
                 run[1][_LISTS[kind]].append(item)
                 if name == "features":
                     declarations.append((selected.name, run[1], document, item))
-                if kind == "rule" and isinstance(dom, DeferredDom):
-                    run[1].deferred_emissions.extend(
-                        (rule, problem) for rule, problem in dom.deferred_emissions if rule is item
-                    )
 
     top = get_dom(path, ())
     if top is None:

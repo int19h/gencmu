@@ -12347,7 +12347,7 @@
             ]
           },
           "right": {
-            "string": "a"
+            "tag": "A"
           }
         }
       ],
@@ -12414,7 +12414,7 @@
             ]
           },
           "right": {
-            "string": "a"
+            "tag": "A"
           }
         }
       ],
@@ -14851,6 +14851,1182 @@
         }
       }
     ]
+  },
+  "malformed": false
+},
+{
+  "description": "A capitalized rule name is malformed.",
+  "rule": {
+    "name": "Upper",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "A rule refuses unknown members.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "unexpected": true
+  },
+  "malformed": true
+},
+{
+  "description": "An alternative refuses unknown members.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        },
+        "unexpected": true
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An emission requires at least one item.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": []
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A Boolean cannot name a guard feature: True.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [
+          {
+            "feature": true,
+            "kind": "gate",
+            "negated": false
+          }
+        ],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "A Boolean cannot name a guard feature: False.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [
+          {
+            "feature": false,
+            "kind": "gate",
+            "negated": false
+          }
+        ],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": true, \"capture\": false}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": true,
+          "capture": false
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": false, \"capture\": \"\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": false,
+          "capture": ""
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": true, \"capture\": \"\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": true,
+          "capture": ""
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags"
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\", \"args\": []}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "args": []
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\", \"receiver\": {\"capture\": \"\"}}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "receiver": {
+        "capture": ""
+      }
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"union\": 5}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "union": 5
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A null recipe atom returns a problem.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "value": {
+      "concat": [
+        null
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Feature conditions require lowercase captures: {\"captured\": \"Foo\"}.",
+  "directive": {
+    "name": "features",
+    "args": [
+      "f"
+    ],
+    "conditions": [
+      {
+        "captured": "Foo"
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Feature conditions require lowercase captures: {\"op\": \"=\", \"left\": {\"method\": \"value\", \"receiver\": {\"capture\": \"Foo\"}, \"args\": []}, \"right\": {\"string\": \"a\"}}.",
+  "directive": {
+    "name": "features",
+    "args": [
+      "f"
+    ],
+    "conditions": [
+      {
+        "op": "=",
+        "left": {
+          "method": "value",
+          "receiver": {
+            "capture": "Foo"
+          },
+          "args": []
+        },
+        "right": {
+          "string": "a"
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": null}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": null
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": 1}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": 1
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": []}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": []
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [{\"ref\": \"A\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "ref": "A"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [{\"ref\": \"A\"}, {\"ref\": \"B\"}], \"extra\": 1}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "ref": "A"
+            },
+            {
+              "ref": "B"
+            }
+          ],
+          "extra": 1
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"extra\": 1, \"ranked\": [{\"ref\": \"A\"}, {\"ref\": \"B\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "extra": 1,
+          "ranked": [
+            {
+              "ref": "A"
+            },
+            {
+              "ref": "B"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [null, {\"ref\": \"A\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            null,
+            {
+              "ref": "A"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects an independent comparison type error.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "method": "tags",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects an independent empty delimiter.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "method": "split",
+          "receiver": {
+            "method": "value",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": []
+          },
+          "args": [
+            {
+              "string": ""
+            }
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects duplicate captures.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "seq": [
+            {
+              "capture": "x",
+              "expr": {
+                "param": "X",
+                "at": [
+                  1,
+                  15
+                ]
+              }
+            },
+            {
+              "capture": "x",
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects known string tags beside an unresolved operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "union": [
+        {
+          "string": "a"
+        },
+        {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects an absent capture beside an unresolved operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "=",
+        "left": {
+          "method": "value",
+          "receiver": {
+            "capture": "missing"
+          },
+          "args": []
+        },
+        "right": {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template rejects a fixed empty emission route.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "optional": {
+            "capture": "x",
+            "expr": {
+              "param": "X",
+              "at": [
+                1,
+                15
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "x"
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "An uncalled template defers its unresolved tag type.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "param": "X",
+      "at": [
+        1,
+        15
+      ]
+    }
+  },
+  "malformed": false
+},
+{
+  "description": "An uncalled template defers its unresolved comparison operand.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "op": "∈",
+        "left": {
+          "string": "a"
+        },
+        "right": {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": false
+},
+{
+  "description": "An uncalled template accepts a known method with an unresolved rule argument.",
+  "rule": {
+    "name": "pair",
+    "params": [
+      "X"
+    ],
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "capture": "x",
+          "expr": {
+            "param": "X",
+            "at": [
+              1,
+              15
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": [
+        {
+          "param": "X",
+          "at": [
+            1,
+            15
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": false
+},
+{
+  "description": "An immediate stray attachment is not hidden by a deferred empty emission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "capture": "d",
+              "expr": {
+                "ref": "D"
+              }
+            },
+            {
+              "seq": [
+                {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "C"
+                  }
+                },
+                {
+                  "capture": "d",
+                  "expr": {
+                    "ref": "D"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "c",
+          "after": [
+            "d"
+          ]
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A ranked rule defers an empty emission during DOM admission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "seq": [
+            {
+              "optional": {
+                "capture": "a",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            },
+            {
+              "ranked": [
+                {
+                  "ref": "X"
+                },
+                {
+                  "ref": "Y"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "capture": "a"
+        }
+      ]
+    }
+  },
+  "malformed": false
+},
+{
+  "description": "A ranked rule defers recipe capture absence during DOM admission.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "capture": "d",
+              "expr": {
+                "ref": "D"
+              }
+            },
+            {
+              "seq": [
+                {
+                  "capture": "c",
+                  "expr": {
+                    "ref": "C"
+                  }
+                },
+                {
+                  "capture": "d",
+                  "expr": {
+                    "ref": "D"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "value": {
+      "concat": [
+        {
+          "method": "value",
+          "receiver": {
+            "capture": "c"
+          },
+          "args": []
+        }
+      ]
+    }
   },
   "malformed": false
 }

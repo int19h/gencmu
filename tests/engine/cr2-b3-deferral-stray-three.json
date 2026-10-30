@@ -1,0 +1,13 @@
+{
+  "description": "An immediate definition fault precedes ranked validation: stray-three.",
+  "grammar": "%rule text A ≻ $d:D ≻ $c:C $d:D %emits $c ($d)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

@@ -8,7 +8,7 @@ from ._types import _METHODS
 import re
 from typing import Any, Protocol
 
-from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
+from ._clauses import check_definition, duplicate_captures
 from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
@@ -120,7 +120,7 @@ def term_reads_own_tags(root: Any) -> bool:
     return False
 
 
-def range_problem(ends: Any, unicode: Marks) -> str | None:
+def range_problem(ends: Any) -> str | None:
     if not _items(ends, 2, 2):
         return "a range requires two string terms"
     values = [literal_string(end) for end in ends]
@@ -153,7 +153,7 @@ def known_dom_members(dom):
     return dom
 
 
-def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
+def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = True) -> str | None:
     try:
         dom = known_dom_members(dom)
         problem = _dom_problem(dom, unicode, defer_emission)
@@ -368,15 +368,20 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     if problem:
         return problem
     for r in dom["rules"]:
-        if has_unresolved(r):
+        if "instance" in r:
             continue
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
                 return "a capture name used twice in one production"
         from ._boundary import problem as boundary_problem
         boundary = boundary_problem(r)
-        problem = (boundary[0] if boundary else None) or definition_problem(r) or rule_type_problem(r)
-        if problem and not (defer_emission and deferred_emission_problem(problem) and rule_has_ranked(r)):
+        if boundary:
+            return boundary[0]
+        issue = check_definition(r, defer_emission).problem
+        if issue:
+            return issue.message
+        problem = rule_type_problem(r)
+        if problem:
             return problem
     for c in dom["constants"]:
         problem = constant_value_problem(c["value"], c["op"] == "redefine")
@@ -404,7 +409,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if 'literal' in node:
                 pending.append(('string', node['literal'], depth, False, False))
             if 'range' in node:
-                problem = range_problem(node['range'], unicode)
+                problem = range_problem(node['range'])
                 if problem:
                     return problem
                 pending.extend(('string', end, depth, False, False) for end in node['range'])
@@ -474,7 +479,9 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
         if kind == "expr":
             if any(k in node for k in ("seq", "choice", "ranked", "and")):
                 key = next(k for k in ("seq", "choice", "ranked", "and") if k in node)
-                if keys != {key} or not _items(node[key], 2, 16 if key == "and" else float("inf")):
+                if keys != {key}:
+                    return "a malformed expression"
+                if not _items(node[key], 2, 16 if key == "and" else float("inf")):
                     return "ranked-choice-syntax: malformed ranked choice" if key == "ranked" else "a malformed expression"
                 pending.extend(("expr", x, below, False, sealed) for x in node[key])
             elif "optional" in node:
@@ -517,7 +524,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                     pending.append(("string", node["value"], below, False, False))
             # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
-                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"], unicode):
+                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"]):
                     return "a malformed range"
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
             elif "literal" in node:

@@ -82,7 +82,7 @@ func shapeOf(p clausePart) (partShape, string) {
 		premise, then = p.c.Items[0], clausePart{c: p.c.Items[1]}
 	}
 	if premise != nil && premise.Kind == cdCaptured && !readsPresence(then) {
-		return partGuarded, premise.Rule
+		return partGuarded, premise.Capture
 	}
 	if !readsPresence(p) {
 		return partFixed, ""
@@ -753,7 +753,7 @@ func newJunction(c *domCond) *junction {
 			body = guardedBody(p)
 			j.changed = true
 			j.guarded = append(j.guarded, i)
-			if g := p.c.Items[0].Rule; !seenGuard[g] {
+			if g := p.c.Items[0].Capture; !seenGuard[g] {
 				seenGuard[g] = true
 				j.guards = append(j.guards, g)
 			}

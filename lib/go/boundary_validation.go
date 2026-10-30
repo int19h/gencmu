@@ -16,7 +16,7 @@ func boundaryRuleProblem(r *domRule) (*domCond, string) {
 				if p.t != nil && p.t.Kind == tmCapture && p.t.Str != receiver {
 					mixed = true
 				}
-				if p.c != nil && p.c.Kind == cdCaptured && p.c.Rule != receiver {
+				if p.c != nil && p.c.Kind == cdCaptured && p.c.Capture != receiver {
 					mixed = true
 				}
 				return !mixed

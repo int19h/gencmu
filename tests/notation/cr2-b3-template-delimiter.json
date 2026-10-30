@@ -1,0 +1,10 @@
+{
+  "description": "An uncalled source template rejects an independent delimiter error.",
+  "document": "```jbogenbau\n%rule pair(@X) $x:@X %conditions \"a\" ∈ $x.value.split(\"\")\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 40
+    }
+  }
+}

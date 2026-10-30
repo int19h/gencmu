@@ -157,7 +157,7 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 		return
 	}
 	if cond.Kind == cdCaptured {
-		out[cond.Rule] = true
+		out[cond.Capture] = true
 	}
 	rankedTermReads(cond.Left, out)
 	rankedTermReads(cond.Right, out)

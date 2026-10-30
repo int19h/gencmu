@@ -8,7 +8,7 @@ JSON member names are case-sensitive. Names that differ in case are distinct mem
 
 ## Canonical JSON
 
-Canonical JSON is UTF-8 JSON with integers only. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
+Canonical JSON is UTF-8 JSON with integers only. An integer member has no fraction or exponent in its JSON spelling. A library leaves out an optional member that is absent. It never writes `null` for it, unless this document says otherwise. Every library writes canonical JSON with its own code, because the Rust standard library has no JSON writer.
 
 Single-guillemet escapes belong to notation strings printed in names and diagnostics. JSON serialization still preserves the actual member values with ordinary JSON quoting. A notation string inside a JSON member therefore has both its notation spelling and the surrounding JSON string encoding.
 
@@ -208,6 +208,8 @@ A rule has this form, in canonical member order:
 
 `flags` is `[]`, `["leftmost-longest"]` or `["fewest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
+Rules have no members beyond the forms shown here, including the template and instance forms below.
+
 `alternatives` is nonempty on body definitions. A rule name is lowercase or one valid emoji scalar (engine §9.1).
 
 A template body definition adds `"params":["Left","Right"]` immediately after `name`. The names exclude `@` and obey engine §2.3. A template has at least one distinct parameter. Its other fields follow the ordinary rule schema.
@@ -268,6 +270,10 @@ A requirement-list argument splices only into an unnegated requirement placehold
 These forms remain unresolved in document caches. Supplied, cached, and source DOMs undergo the same binder, argument, expansion, and ordinary validation. Calls add one depth level before their arguments. Category wrappers add no depth, and parameters are leaves. Expanded definitions also obey the depth limit.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is present even when empty. A guard is `{"feature":"cbm","kind":"gate","negated":false}` or `{"feature":"y-cmavo","kind":"warning","negated":false}`. A gate can have `negated:true`. A warning cannot.
+
+Pattern tag requirements must resolve to tag sets, as ordinary symbol requirements do.
+
+Alternatives have no members beyond `guards`, `expr`, `tags`, `value`, and `image`.
 
 A guard's feature is a feature name as engine §9.1 defines it, and a guard has no member but these three. The first guard spells `cbm?`, and its negated form spells `¬cbm?`. The second spells `y-cmavo!`.
 

@@ -1,0 +1,13 @@
+{
+  "description": "The first constant decides the rule type fault: tags-image.",
+  "grammar": "%const $S \"s\"\n%const $T T\n%const $U U\n%rule text $x:_ :: $S :- $T",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 6,
+      "column": 20
+    }
+  }
+}

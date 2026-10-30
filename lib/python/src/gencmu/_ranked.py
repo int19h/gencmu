@@ -356,8 +356,7 @@ def restore_locations(dom, tokens, position):
         return restore_template_locations(dom, tokens, position)
     separators = [position(token.source[0]) for token in tokens if token.value == '≻']
     index = 0
-    from ._dom import DeferredDom
-    copy = DeferredDom(dom, getattr(dom, 'deferred_emissions', ()))
+    copy = dict(dom)
     copy['rules'] = [LocatedRule(rule) for rule in dom['rules']]
     for rule in copy['rules']:
         for alternative, alt in enumerate(rule['alternatives']):

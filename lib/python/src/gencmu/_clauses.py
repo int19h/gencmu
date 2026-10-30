@@ -44,6 +44,19 @@ def captures_in(dom: Any) -> set[str]:
     return found
 
 
+def first_absent_recipe_capture(recipe: Dom, present: AbstractSet[str]) -> str | None:
+    """Find the first absent capture in the recipe's written order."""
+    for atom in recipe["concat"]:
+        receiver = atom.get("receiver")
+        while isinstance(receiver, dict) and "method" in receiver:
+            receiver = receiver.get("receiver")
+        if isinstance(receiver, dict):
+            name = receiver.get("capture")
+            if isinstance(name, str) and name not in present:
+                return name
+    return None
+
+
 def mentioned_in(dom: Any) -> set[str]:
     """The capture names a clause mentions, presence tests included."""
     found = captures_in(dom)
@@ -505,6 +518,9 @@ def waits(clause: Any) -> bool:
     its value in simplification (engine §3.6), so the checks that
     simplification decides wait for the loader, which checks the definition
     again once the constants have their values (engine §9)."""
+    from ._template_nodes import has_unresolved
+    if has_unresolved(clause):
+        return True
     stack = [clause]
     while stack:
         value = stack.pop()
@@ -841,18 +857,48 @@ def validation_captures(rule, alternative):
     return out
 
 
+class DefinitionIssue:
+    """A definition problem whose kind controls its validation phase."""
+    def __init__(self, kind: str, message: str):
+        self.kind, self.message = kind, message
+
+
+class DefinitionCheck:
+    def __init__(self):
+        self.problem: DefinitionIssue | None = None
+        self.deferred: DefinitionIssue | None = None
+
+
+def check_definition(rule: Dom, defer_ranked: bool = False) -> DefinitionCheck:
+    result = DefinitionCheck()
+    ranked: bool | None = None
+    for issue in _definition_issues(rule):
+        deferred_kind = defer_ranked and issue.kind in ("recipe-capture", "empty-emission")
+        if deferred_kind and ranked is None:
+            ranked = rule_has_ranked(rule)
+        if deferred_kind and ranked:
+            if result.deferred is None or result.deferred.kind == "empty-emission" and issue.kind == "recipe-capture":
+                result.deferred = issue
+        else:
+            result.problem = issue
+            break
+    return result
+
+
 def definition_problem(rule: Dom) -> str | None:
-    """Why a definition, a well-formed rule of a DOM with its clauses, is an
-    error of its document as a whole (engine §9), or None. The checks that
-    simplification decides skip a clause that holds a constant without its
-    value."""
+    issue = check_definition(rule).problem
+    return issue.message if issue is not None else None
+
+
+def _definition_issues(rule: Dom):
+    """Yield definition faults in their established validation order."""
     if rule.get("erased") and ("emit" in rule or any(channel in owner for owner in [rule, *rule["alternatives"]] for channel in ("value", "image"))):
-        return "an erased definition cannot carry a recipe or emission"
+        yield DefinitionIssue("independent", "an erased definition cannot carry a recipe or emission")
     alternatives = rule["alternatives"]
     # A definition with no clause has nothing to check about its captures,
     # and its productions, whose number can be exponential, are not listed.
     if not any(k in rule for k in ("tags", "value", "image", "emit")) and not rule["conditions"] and all(not any(k in alternative for k in ("tags", "value", "image")) for alternative in alternatives):
-        return None
+        return
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.
@@ -869,7 +915,7 @@ def definition_problem(rule: Dom) -> str | None:
     attached = {name for item in items if "capture" in item for name in attachments_of(item)}
     unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
     if unknown:
-        return f"${unknown[0]} is captured by no alternative of {rule['name']}"
+        yield DefinitionIssue("independent", f"${unknown[0]} is captured by no alternative of {rule['name']}")
     # The rule-level clauses depend only on a production's captures, which
     # many alternatives share, so each is checked once for each sequence of
     # captures and not once for each production.
@@ -904,7 +950,7 @@ def definition_problem(rule: Dom) -> str | None:
             if used:
                 candidates = iter(capturing.get(min(used), ()))
         if all(applies_prepared(prepared, present) is None for present in candidates):
-            return f"a condition of {rule['name']} applies to none of its productions"
+            yield DefinitionIssue("independent", f"a condition of {rule['name']} applies to none of its productions")
 
     # Each term is prepared, and looked at for constants, once, though the
     # checks below ask again for each production.
@@ -919,21 +965,24 @@ def definition_problem(rule: Dom) -> str | None:
     rule_lacks: dict[tuple[str, ...], bool] = {}
     for (alternative, _), names, present in zip(productions, captured, presents):
         if "tags" in alternative and lacks(alternative["tags"], present):
-            return "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹"
+            yield DefinitionIssue("independent", "an alternative's tags use a capture that one of its productions lacks; guard the use with ⟹")
         if "tags" in rule:
             key = tuple(names)
             if key not in rule_lacks:
                 rule_lacks[key] = lacks(rule["tags"], present)
             if rule_lacks[key]:
-                return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
+                yield DefinitionIssue("independent", f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹")
     for (alternative, _), present in zip(productions, presents):
         value = alternative.get("value", rule.get("value"))
         image = alternative.get("image", rule.get("image", value))
         for recipe in (value, image):
             if recipe is None:
                 continue
-            if not captures_in(recipe) <= present:
-                return "a selected recipe uses a capture that its production lacks"
+            missing = first_absent_recipe_capture(recipe, present)
+            if missing is not None:
+                yield DefinitionIssue("recipe-capture", f"a selected recipe reads an absent capture ${missing}")
+    if not items:
+        return
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
     anchors: list[str | None] = [None] * len(items)
@@ -946,32 +995,33 @@ def definition_problem(rule: Dom) -> str | None:
     for names, present in distinct.values():
         kept = [items[index] for index in emission.kept(present)]
         if items and not kept:
-            return f"%emits of {rule['name']} leaves a production nothing to emit"
+            yield DefinitionIssue("empty-emission", f"%emits of {rule['name']} leaves a production nothing to emit")
         for item in kept:
             for channel in ("value", "image"):
                 if channel not in item:
                     continue
-                if not captures_in(item[channel]) <= present:
-                    return "an item recipe uses a capture that its production lacks"
+                missing = first_absent_recipe_capture(item[channel], present)
+                if missing is not None:
+                    yield DefinitionIssue("recipe-capture", f"an item recipe reads an absent capture ${missing}")
             if "tags" in item and lacks(item["tags"], present):
-                return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
+                yield DefinitionIssue("independent", "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹")
         # A production without an item's carrier lacks its attachments too
         # (engine §9).
         stray = emission.stray(present)
         if stray is not None:
-            return f"%emits of {rule['name']} attaches ${stray[1]} in a production without its carrier ${items[stray[0]]['capture']}"
+            yield DefinitionIssue("independent", f"%emits of {rule['name']} attaches ${stray[1]} in a production without its carrier ${items[stray[0]]['capture']}")
         # The written order of the captures, attachments included, is the
         # order they stand in (engine §9).
         written = [name for item in kept if item.get("capture") for name in attachment_order(item)]
         place = {name: index for index, name in enumerate(names)}
         order = [place[name] for name in written if name in place]
         if order != sorted(order):
-            return f"%emits of {rule['name']} lists captures out of the order they stand in the text"
+            yield DefinitionIssue("independent", f"%emits of {rule['name']} lists captures out of the order they stand in the text")
         for index in emission.inserts:
             anchor = anchors[index]
             if anchor is not None and anchor not in present:
-                return f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks"
-    return None
+                yield DefinitionIssue("independent", f"an inserted tag of {rule['name']} stands before ${anchor}, which a production lacks")
+    return
 
 
 def rule_has_ranked(rule: Dom) -> bool:
@@ -985,11 +1035,3 @@ def rule_has_ranked(rule: Dom) -> bool:
         elif isinstance(value,list):
             pending.extend(value)
     return False
-
-
-def deferred_emission_problem(message):
-    return any(part in message for part in (
-        "leaves a production nothing to emit",
-        "a selected recipe uses a capture that its production lacks",
-        "an item recipe uses a capture that its production lacks",
-    ))

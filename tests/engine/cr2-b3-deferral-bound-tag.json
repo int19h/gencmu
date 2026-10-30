@@ -1,0 +1,13 @@
+{
+  "description": "Definition deferral keeps the required phase: bound-tag.",
+  "grammar": "%const $K K\n%rule text [$a:A] (C ≻ $d:D) :: $K ∪ $a.tags := $d.value %emits $a",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}
