@@ -7451,10 +7451,41 @@
       if(position==='pattern') for(const key of ['union','intersection']) if(result[key]) result[key]=result[key].flatMap((/** @type {any} */ part)=>part[key]??[part]);
       return result;
     };
+    /** @type {{path:string,term:any,at:[number,number],tags:boolean}[]} */
+    const argumentsToCheck=[];
+    /** @type {any[]} */
+    const argumentDefinitions=[];
+    /** @param {any} argument @param {any} event */
+    const inspectArgument=(argument,event)=>{
+      const parts=templateNodes(argument),references=parts.filter(n=>n.const || n.constant);
+      if(!references.length) return;
+      const add=(/** @type {any} */ term,tags=false)=>argumentsToCheck.push({path:event.path,term:rewrite(term,event),at:event.rule.at,tags});
+      if(parts.some(n=>n.param)) {
+        for(const reference of references) add({const:reference.const??reference.constant,at:reference.at});
+        return;
+      }
+      const arg=normalize(argument);
+      if(arg.body || arg.test || arg.range || arg.wildcard) {
+        const rule={name:extraIndexes.has(event.index)?'text':event.rule.name,op:'define',flags:[],conditions:[],alternatives:[{guards:[],expr:rewrite(arg.body??arg,event,'expr')}],at:event.rule.at};
+        argumentDefinitions.push({...event,rule});
+      } else if(arg.requirements) {
+        for(const requirement of arg.requirements) add(requirement.value,true);
+      } else if(!arg.call && !arg.rule && !arg.targets) add(arg);
+    };
+    /** @param {any} event */
+    const inspectArguments=event=>{
+      for(const node of templateNodes(event.rule)) if(node.call || node.name && node.args && node.op) {
+        for(const argument of node.args) inspectArgument(argument,event);
+      }
+    };
+    for(const event of sourceEvents) inspectArguments(event);
+    for(const instance of queue) for(const event of instance.definitions) inspectArguments(event);
+    for(const event of validationDefinitions) inspectArguments(event);
     const validation=[];
     for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const instance of queue) for(const event of instance.definitions) validation.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
     for(const event of validationDefinitions) validation.push({...event,rule:rewrite(event.rule,event)});
+    for(const event of argumentDefinitions) validation.push(event);
     for(const event of validation) {
       const problem=domProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
       if(problem) fail(event,event.rule,problem);
@@ -7464,7 +7495,7 @@
     for(const instance of queue) for(const event of instance.definitions) output.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
     const expandedDocs=documents.map((/** @type {any} */ d)=>({...d,dom:{...d.dom,rules:[],...Object.fromEntries(['constants','directives','classifiers','implications'].map(key=>[key,d.dom[key].map((/** @type {any} */ item)=>rewrite(item,{path:d.path,rule:item}))]))}}));
     for(const event of output) expandedDocs.push({path:event.path,dom:{format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]}});
-    return {documents:expandedDocs,validation,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
+    return {documents:expandedDocs,validation,argumentsToCheck,order:[...slots.filter((/** @type {any} */ n)=>current.has(n)||ordinary.has(n)),...queue.filter((/** @type {any} */ x)=>!x.name).map(effective)],templates:[...templates.values()],instances:queue};
   }
 
   /** @param {any} grammar @returns {{templates:any[],instances:any[]}} */
@@ -8624,7 +8655,7 @@
       if (expansion.order) this.rules = new Map(expansion.order.map((/** @type {string} */ name) => /** @type {[string,StitchedRule]} */ ([name,this.rules.get(name)])));
       for (const event of expansion.validation ?? []) if (constantsIn(event.rule).length || hasPattern(event.rule)) this.constantUsers.push({path:event.path,rule:event.rule});
       this.bindConstants();
-      this.resolveConstants();
+      this.resolveConstants(expansion.argumentsToCheck);
       this.featureItems = this.featureItems.map(({path,directive}) => {
         try {
           if (!directive.conditions) return {path,directive};
@@ -9130,9 +9161,19 @@
      * directly is a delimiter that is not empty, or a name (engine §2, §9,
      * §10).
      */
-    resolveConstants() {
+    /** @param {{path:string,term:any,at:[number,number],tags:boolean}[]} [argumentsToCheck] */
+    resolveConstants(argumentsToCheck = []) {
       /** @type {(name: string) => TermType} */
       const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
+      for (const {path,term,at,tags} of argumentsToCheck) {
+        for (const reference of constantsIn(term)) if (!this.constants.has(reference.const)) {
+          throw this.documentError(path,reference.at,`$${reference.const} is not defined in stage ${this.stageName}`);
+        }
+        const found=termType(term,types);
+        if ("problem" in found) throw this.faultError(path,found.node,at,found.problem);
+        const problem=tags ? expectedProblem(found.type,"tags") : null;
+        if (problem) throw this.faultError(path,term,at,problem);
+      }
       for (const { path, rule } of this.constantUsers) {
         for (const reference of constantsIn(rule)) {
           if (!this.constants.has(reference.const)) {

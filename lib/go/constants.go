@@ -24,6 +24,14 @@ type constUser struct {
 	rule *domRule
 }
 
+// constArgument retains an unused argument term until the stage binds constants.
+type constArgument struct {
+	doc  string
+	term *domTerm
+	at   [2]int
+	tags bool
+}
+
 // constantTypes gives the type of each constant of the stage now.
 func (g *stageGrammar) constantTypes() constTypes {
 	return func(name string) termType {
@@ -344,7 +352,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 // the types agree, and that a constant that split or tag reads directly is
 // a delimiter that is not empty, or a name (engine §2, §9, §10). Then it
 // gives every reference its final value.
-func (g *stageGrammar) resolveConstants() *Error {
+func (g *stageGrammar) resolveConstants(arguments []constArgument) *Error {
 	if err := g.bindConstants(); err != nil {
 		return err
 	}
@@ -375,6 +383,22 @@ func (g *stageGrammar) resolveConstants() *Error {
 		copied := *directive
 		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
 		g.features[index].directive = &copied
+	}
+	for _, argument := range arguments {
+		for _, ref := range constRefs(argument.term) {
+			if g.constants[ref.Str] == nil {
+				return g.constError(argument.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		ty, fault := termTypeIn(argument.term, types)
+		if fault != nil {
+			return g.faultError(argument.doc, fault.node, argument.at, fault.problem)
+		}
+		if argument.tags {
+			if problem := expectedProblem(ty, tyTags); problem != "" {
+				return g.faultError(argument.doc, argument.term, argument.at, problem)
+			}
+		}
 	}
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {

@@ -58,12 +58,19 @@ impl Instance {
         self.name.as_deref().unwrap_or(&self.canonical)
     }
 }
+pub(crate) struct ArgumentUse {
+    pub path: Arc<str>,
+    pub term: dom::Term,
+    pub at: (usize, usize),
+    pub tags: bool,
+}
 pub(crate) struct Expansion {
     pub documents: Documents,
     pub order: Vec<String>,
     #[cfg(test)]
     pub instance_names: Vec<String>,
     pub validation: Documents,
+    pub arguments: Vec<ArgumentUse>,
 }
 struct Expander<'a> {
     uni: &'a Unicode,
@@ -268,7 +275,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         let template = &x.templates[x.template_names[text(get(&instance.call, "call"))]];
         remember_retained(template.events.iter().chain(&instance.locals), &mut retained_indexes);
     }
-    for e in source_events {
+    for &e in &source_events {
         let r = &e.rule;
         let name = text(get(r, "name"));
         if extra_indexes.contains(&e.index) {
@@ -363,8 +370,18 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             validation.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
         }
     }
-    for e in validation_definitions {
-        validation.push(Event { rule: x.rewrite(&e.rule, &e, "term")?, ..e });
+    for e in &validation_definitions {
+        validation.push(Event { rule: x.rewrite(&e.rule, e, "term")?, ..e.clone() });
+    }
+    let mut arguments = Vec::new();
+    let mut argument_definitions = Vec::new();
+    for e in source_events
+        .iter()
+        .copied()
+        .chain(x.queue.iter().flat_map(|id| x.instances[*id].definitions.iter()))
+        .chain(&validation_definitions)
+    {
+        x.inspect_arguments(e, extra_indexes.contains(&e.index), &mut arguments, &mut argument_definitions)?;
     }
     let mut users = Vec::new();
     let mut decoded = BTreeMap::new();
@@ -372,6 +389,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         let d = Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?);
         decoded.insert((e.index, text(get(&e.rule, "name")).to_string()), d.clone());
         users.push((e.path, d));
+    }
+    for e in argument_definitions {
+        users.push((e.path.clone(), Arc::new(x.decode(&empty(vec![e.rule.clone()]), &e)?)));
     }
     let mut ordinary_events: Vec<_> = ordinary.values().flatten().collect();
     ordinary_events.sort_by_key(|e| e.index);
@@ -426,6 +446,7 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
         #[cfg(test)]
         instance_names,
         validation: users,
+        arguments,
     }))
 }
 impl Expander<'_> {
@@ -681,6 +702,67 @@ impl Expander<'_> {
             }
             Ok(())
         })
+    }
+    fn inspect_arguments(
+        &self,
+        event: &Event,
+        extra: bool,
+        arguments: &mut Vec<ArgumentUse>,
+        definitions: &mut Vec<Event>,
+    ) -> R<()> {
+        for call in nodes(&event.rule).filter(|n| has(n, "call") || has(n, "name") && has(n, "args") && has(n, "op")) {
+            for argument in list(get(call, "args")) {
+                let parts: Vec<_> = nodes(argument).collect();
+                let references: Vec<_> = parts.iter().filter(|n| has(n, "const") || has(n, "constant")).collect();
+                if references.is_empty() {
+                    continue;
+                }
+                let mut add = |term: &Json, tags| -> R<()> {
+                    let term = self.rewrite(term, event, "term")?;
+                    let decoded = dom::term_from_json(&term).map_err(|p| event.fail(&term, p))?;
+                    arguments.push(ArgumentUse {
+                        path: event.path.clone(),
+                        term: decoded,
+                        at: at(&event.rule).unwrap(),
+                        tags,
+                    });
+                    Ok(())
+                };
+                if parts.iter().any(|n| has(n, "param")) {
+                    for reference in references {
+                        let name = reference.get("const").unwrap_or_else(|| get(reference, "constant"));
+                        add(&obj([("const", name.clone()), ("at", get(reference, "at").clone())]), false)?;
+                    }
+                    continue;
+                }
+                let arg = self.normalize(argument);
+                if ["body", "test", "range", "wildcard"].iter().any(|k| has(&arg, k)) {
+                    let body = arg.get("body").unwrap_or(&arg);
+                    let rule = obj([
+                        ("name", if extra { string("text") } else { get(&event.rule, "name").clone() }),
+                        ("op", string("define")),
+                        ("flags", Json::Arr(Vec::new())),
+                        ("conditions", Json::Arr(Vec::new())),
+                        (
+                            "alternatives",
+                            Json::Arr(vec![obj([
+                                ("guards", Json::Arr(Vec::new())),
+                                ("expr", self.rewrite(body, event, "expr")?),
+                            ])]),
+                        ),
+                        ("at", get(&event.rule, "at").clone()),
+                    ]);
+                    definitions.push(Event { rule, ..event.clone() });
+                } else if has(&arg, "requirements") {
+                    for requirement in list(get(&arg, "requirements")) {
+                        add(get(requirement, "value"), true)?;
+                    }
+                } else if !["call", "rule", "targets"].iter().any(|k| has(&arg, k)) {
+                    add(&arg, false)?;
+                }
+            }
+        }
+        Ok(())
     }
     fn convert(&self, arg: &Json, position: &str, event: &Event, use_: &Json) -> R<Json> {
         let arg = self.normalize(arg);

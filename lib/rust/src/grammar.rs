@@ -427,7 +427,12 @@ pub(crate) fn stitch(
         grammar.rules.sort_by_key(|r| positions.get(r.name.as_str()).copied().unwrap_or(usize::MAX));
         grammar.index = grammar.rules.iter().enumerate().map(|(i, r)| (r.name.clone(), i)).collect();
     }
-    constants.resolve(&mut grammar, &users, &mut deferred)?;
+    constants.resolve(
+        &mut grammar,
+        &users,
+        expansion.as_ref().map_or(&[], |x| x.arguments.as_slice()),
+        &mut deferred,
+    )?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications
         .into_iter()
@@ -1194,8 +1199,29 @@ impl Constants<'_> {
         &self,
         grammar: &mut StageGrammar,
         users: &[(&Arc<str>, &RuleDef)],
+        arguments: &[crate::parameters::expand::ArgumentUse],
         deferred: &mut Vec<Error>,
     ) -> Result<(), Error> {
+        for argument in arguments {
+            let mut references = Vec::new();
+            constants_in_term(&argument.term, &mut references);
+            for (name, at) in references {
+                if !self.values.contains_key(name) {
+                    return Err(located(format!("${name} is not defined in stage {}", self.stage), &argument.path, at));
+                }
+            }
+            let ty = term_type_in(&argument.term, &|name| self.ty(name))
+                .map_err(|f| fault_error(f, &argument.path, argument.at))?;
+            if argument.tags {
+                if let Some(problem) = expected_problem(ty, Type::Tags) {
+                    return Err(located(
+                        problem,
+                        &argument.path,
+                        first_constant(&argument.term).unwrap_or(argument.at),
+                    ));
+                }
+            }
+        }
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
                 if !self.values.contains_key(name) {

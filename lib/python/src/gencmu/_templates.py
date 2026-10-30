@@ -163,7 +163,7 @@ def _print_body(n, unicode, parent=''):
 def expand_templates(documents, unicode):
     from ._validate import dom_problem
     if not any(has_unresolved(dom) for _, dom in documents):
-        return documents, None, [], []
+        return documents, None, [], [], []
     patterns = pattern_constant_names(c for _, dom in documents for c in dom["constants"])
     normalize = lambda value: normalize_argument(value, patterns)
     templates, names, instances = {}, {}, {}
@@ -578,9 +578,49 @@ def expand_templates(documents, unicode):
                     result[key] = [part for value in result[key] for part in value.get(key, [value])]
         return result
 
+    arguments_to_check, argument_definitions = [], []
+
+    def inspect_argument(argument, event):
+        parts = list(nodes(argument))
+        references = [n for n in parts if 'const' in n or 'constant' in n]
+        if not references:
+            return
+
+        def add(term, tags=False):
+            arguments_to_check.append(dict(path=event['path'], term=rewrite(term, event), at=event['rule']['at'], tags=tags))
+
+        if any('param' in n for n in parts):
+            for reference in references:
+                add(dict(const=reference.get('const', reference.get('constant')), at=reference['at']))
+            return
+        arg = normalize(argument)
+        if any(k in arg for k in ('body', 'test', 'range', 'wildcard')):
+            rule = dict(name='text' if event['index'] in extra_indexes else event['rule']['name'], op='define', flags=[], conditions=[],
+                        alternatives=[dict(guards=[], expr=rewrite(arg.get('body', arg), event, 'expr'))], at=event['rule']['at'])
+            argument_definitions.append({**event, 'rule': rule})
+        elif 'requirements' in arg:
+            for requirement in arg['requirements']:
+                add(requirement['value'], True)
+        elif not any(k in arg for k in ('call', 'rule', 'targets')):
+            add(arg)
+
+    def inspect_arguments(event):
+        for node in nodes(event['rule']):
+            if 'call' in node or 'name' in node and 'args' in node and 'op' in node:
+                for argument in node['args']:
+                    inspect_argument(argument, event)
+
+    for event in source_events:
+        inspect_arguments(event)
+    for instance in queue:
+        for event in instance['definitions']:
+            inspect_arguments(event)
+    for event in validation_definitions:
+        inspect_arguments(event)
     validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
     validation.extend({**e, 'rule': rewrite(e['rule'], e)} for e in validation_definitions)
+    validation.extend(argument_definitions)
     for event in validation:
         problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
         if problem:
@@ -591,7 +631,7 @@ def expand_templates(documents, unicode):
     expanded_docs.extend((e['path'], empty_dom(documents[0][1]['format'], [e['rule']])) for e in output)
     order = [n for n in slots if n in current or n in ordinary] + [effective(i) for i in queue if not i['name']]
     instance_names = {effective(i) for i in queue}
-    return expanded_docs, order, [name for name in order if name in instance_names], validation
+    return expanded_docs, order, [name for name in order if name in instance_names], validation, arguments_to_check
 
 
 def effective(instance):

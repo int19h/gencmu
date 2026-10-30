@@ -1,0 +1,13 @@
+{
+  "description": "Unused arguments retain constant binding and operand type inspection.",
+  "grammar": "%rule g(@X) \"a\"\n%rule f(@X) g(@X ∩ $MISSING)\n%rule text \"a\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 20
+    }
+  }
+}

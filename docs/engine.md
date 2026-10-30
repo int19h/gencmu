@@ -505,6 +505,8 @@ A predecessor remains an expression, not a snapshot of earlier values. Its other
 
 After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
+This inspection includes template arguments that no parameter uses. The loader retains their terms and expression fragments until constant inspection finishes. Constants inside open arguments still require a definition. Kind-dependent argument requirements wait for substitution. These requirements also apply to replaced definitions and calls in patterns, bindings, and edit heads.
+
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
 Constant type propagation revisits dependent declarations in ascending declaration order. This order also decides which dependent type error the loader reports first.

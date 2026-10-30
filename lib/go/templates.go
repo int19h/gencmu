@@ -38,6 +38,7 @@ type templateExpansion struct {
 	order         []string
 	instanceNames []string
 	validation    []constUser
+	arguments     []constArgument
 }
 type templateExpander struct {
 	uni           *unicodeTable
@@ -355,6 +356,80 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 		copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
 		validation = append(validation, &copy)
 	}
+	arguments := []constArgument{}
+	inspectArgument := func(argument templateObject, event *templateEvent) {
+		parts := templateNodes(argument)
+		references := []templateObject{}
+		open := false
+		for _, part := range parts {
+			open = open || part["param"] != nil
+			if part["const"] != nil || part["constant"] != nil {
+				references = append(references, part)
+			}
+		}
+		if len(references) == 0 {
+			return
+		}
+		add := func(raw templateObject, tags bool) {
+			term, err := decodeTerm(templateJSON(x.rewrite(raw, event, "term")))
+			if err != nil {
+				x.fail(event, raw, err.Error())
+			}
+			arguments = append(arguments, constArgument{event.path, term, templateAt(event.rule), tags})
+		}
+		if open {
+			for _, reference := range references {
+				name := reference["const"]
+				if name == nil {
+					name = reference["constant"]
+				}
+				add(templateObject{"const": name, "at": reference["at"]}, false)
+			}
+			return
+		}
+		arg := templateObj(x.normalize(argument))
+		if arg["body"] != nil || arg["test"] != nil || arg["range"] != nil || arg["wildcard"] != nil {
+			body := arg["body"]
+			if body == nil {
+				body = arg
+			}
+			name := event.rule["name"]
+			if extraIndexes[event.index] {
+				name = "text"
+			}
+			rule := templateObject{"name": name, "op": "define", "flags": []any{}, "conditions": []any{}, "alternatives": []any{templateObject{"guards": []any{}, "expr": x.rewrite(body, event, "expr")}}, "at": event.rule["at"]}
+			copy := *event
+			copy.definition = nil
+			copy.rule = rule
+			validation = append(validation, &copy)
+		} else if arg["requirements"] != nil {
+			for _, requirement := range templateList(arg["requirements"]) {
+				add(templateObj(templateObj(requirement)["value"]), true)
+			}
+		} else if arg["call"] == nil && arg["rule"] == nil && arg["targets"] == nil {
+			add(arg, false)
+		}
+	}
+	inspectArguments := func(event *templateEvent) {
+		for _, node := range templateNodes(event.rule) {
+			if node["call"] != nil || node["name"] != nil && node["args"] != nil && node["op"] != nil {
+				for _, argument := range templateList(node["args"]) {
+					inspectArgument(templateObj(argument), event)
+				}
+			}
+		}
+	}
+	for _, event := range sourceEvents {
+		inspectArguments(event)
+	}
+	for _, instance := range x.queue {
+		for _, event := range instance.definitions {
+			inspectArguments(event)
+		}
+	}
+	for _, event := range validationDefinitions {
+		inspectArguments(event)
+	}
 	users := []constUser{}
 	decoded := map[*templateEvent]*domDoc{}
 	for _, e := range validation {
@@ -366,7 +441,9 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			x.fail(e, e.rule, problem.message)
 		}
 		restoreTemplateRuleLocations(dom.Rules[0], e.rule)
-		decoded[e.definition] = dom
+		if e.definition != nil {
+			decoded[e.definition] = dom
+		}
 		users = append(users, constUser{doc: e.path, rule: dom.Rules[0]})
 	}
 	output := []*templateEvent{}
@@ -434,7 +511,7 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			instanceNames = append(instanceNames, name)
 		}
 	}
-	return &templateExpansion{docs: expandedDocs, order: order, instanceNames: instanceNames, validation: users}, nil
+	return &templateExpansion{docs: expandedDocs, order: order, instanceNames: instanceNames, validation: users, arguments: arguments}, nil
 }
 func templateClone(v any) any {
 	switch n := v.(type) {

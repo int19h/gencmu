@@ -516,11 +516,23 @@ class _Constants:
             sides.append(_set(run(self._closed(path, side, implication["at"]))))
         return sides[0], sides[1]
 
-    def check(self) -> None:
+    def check(self, arguments_to_check=()) -> None:
         """Checks what the reader could not in each rule that uses a
         constant: that each is defined, that the types agree, and that a
         constant that split reads directly is a delimiter that is
         not empty (engine §2, §9, §10)."""
+        for argument in arguments_to_check:
+            path, term, at = argument['path'], argument['term'], argument['at']
+            for reference in constants_in(term):
+                if reference['const'] not in self.values:
+                    raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference['at'], self.stage)
+            kind, fault = term_type_fault(term, self.type_of)
+            if fault is None and argument['tags']:
+                problem = expected_problem(kind, 'tags')
+                if problem is not None:
+                    fault = problem, term
+            if fault is not None:
+                raise self.fault_error(path, fault[1], at, fault[0])
         for path, rule in self.users:
             for reference in constants_in(rule):
                 if reference["const"] not in self.values:
@@ -702,7 +714,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     controls canonical terminal spellings in diagnostics."""
     from ._templates import expand_templates
     from ._ranked import expression_locations
-    documents, template_order, _, validation = expand_templates(documents, unicode)
+    documents, template_order, _, validation, arguments_to_check = expand_templates(documents, unicode)
     rules: dict[str, Rule] = {}
     written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
@@ -791,7 +803,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     if template_order is not None:
         rules = {name: rules[name] for name in template_order}
     constants.bind()
-    constants.check()
+    constants.check(arguments_to_check)
     constants.resolve(rules)
     from ._validate import input_conditions_problem
     from ._types import condition_type_fault

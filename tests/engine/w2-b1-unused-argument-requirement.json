@@ -1,0 +1,13 @@
+{
+  "description": "Unused arguments retain constant binding and operand type inspection.",
+  "grammar": "%const $S \"x\"\n%rule f(@X) \"a\"\n%rule text f(<$S>)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 15
+    }
+  }
+}

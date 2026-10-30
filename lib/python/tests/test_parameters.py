@@ -218,7 +218,7 @@ class ParameterStructure(unittest.TestCase):
                 self.assertIsNone(dom_problem(dom, unicode))
                 if 'argument' in case:
                     self.assertEqual(dom['rules'][-1]['alternatives'][0]['expr']['args'][0], case['argument'])
-                _, order, instances, _ = expand_templates([('review.md', dom)], unicode)
+                _, order, instances, _, _ = expand_templates([('review.md', dom)], unicode)
                 if 'order' in case:
                     self.assertEqual(order, case['order'])
                 if 'instances' in case:

@@ -234,7 +234,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			implications = append(implications, implicationItem{doc: d.path, implication: m})
 		}
 	}
-	if err := g.resolveConstants(); err != nil {
+	if err := g.resolveConstants(expanded.arguments); err != nil {
 		return nil, err
 	}
 	if err := g.resolveClassifierKeys(); err != nil {
