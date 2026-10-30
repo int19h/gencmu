@@ -182,17 +182,6 @@ fn notation_pipeline(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Pipeline,
             }
         }
         error.document = Some("data/preparsed/gencmu.json".to_string());
-        let mut location = "data/preparsed/gencmu.json".to_string();
-        if let Some(line) = error.line {
-            location.push_str(&format!(":{line}"));
-            if let Some(column) = error.column {
-                location.push_str(&format!(":{column}"));
-            }
-        }
-        if !error.message.starts_with(&format!("{location}: ")) {
-            let stage = error.stage.as_ref().map(|name| format!("stage {name}: ")).unwrap_or_default();
-            error.message = format!("{location}: {stage}{}", error.message);
-        }
         error
     })
 }

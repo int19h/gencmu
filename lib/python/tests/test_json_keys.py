@@ -26,7 +26,7 @@ class JsonKeys(unittest.TestCase):
                         gencmu.load_pipeline_sources({**sources, "data/preparsed/gencmu.json": bootstrap}, "p.md")
                     error = caught.exception
                     self.assertEqual((error.kind, error.document, error.stage, error.line, error.column), ("grammar", "data/preparsed/gencmu.json", None, None, None))
-                    self.assertTrue(error.message.startswith("data/preparsed/gencmu.json:"))
+                    self.assertTrue(str(error).startswith("data/preparsed/gencmu.json:"))
         for item in fixtures["preparsed"]:
             with self.subTest(case=item["description"]):
                 self.assertIn(item["find"], fixtures["cache"])

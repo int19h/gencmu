@@ -207,11 +207,6 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.document.as_deref() == Some("data/preparsed/gencmu.json")
-            && self.message.starts_with("data/preparsed/gencmu.json:")
-        {
-            return write!(f, "{}", self.message);
-        }
         if let Some(document) = &self.document {
             write!(f, "{document}")?;
             if let Some(line) = self.line {

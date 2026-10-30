@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -27,20 +26,7 @@ func newNotationReader(bootstrap string, uni *unicodeTable) (reader *notationRea
 				e.Message += " (embedded document: " + embedded + ")"
 			}
 			e.Document = "data/preparsed/gencmu.json"
-			location := e.Document
-			if e.Line != 0 {
-				location += ":" + strconv.Itoa(e.Line)
-				if e.Column != 0 {
-					location += ":" + strconv.Itoa(e.Column)
-				}
-			}
-			if !strings.HasPrefix(e.Message, location+": ") {
-				stage := ""
-				if e.Stage != "" {
-					stage = "stage " + e.Stage + ": "
-				}
-				e.Message = location + ": " + stage + e.Message
-			}
+
 		}
 	}()
 	var b struct {

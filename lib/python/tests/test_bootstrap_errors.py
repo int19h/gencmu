@@ -29,8 +29,11 @@ class BootstrapErrors(unittest.TestCase):
                     }, "p.md")
                 self.assertEqual(raised.exception.kind, fixtures["kind"])
                 self.assertEqual(raised.exception.document, fixtures["document"])
-                self.assertTrue(raised.exception.message.startswith(fixtures["document"] + ":"), raised.exception.message)
-                self.assertEqual(str(raised.exception), raised.exception.message)
+                self.assertTrue(str(raised.exception).startswith(fixtures["document"] + ":"), str(raised.exception))
+                self.assertFalse(raised.exception.message.startswith(fixtures["document"] + ":"))
+                self.assertEqual(str(raised.exception).count(fixtures["document"] + ":"), 1)
+                if item["stage"]:
+                    self.assertIn(f"stage {item['stage']}: ", str(raised.exception))
                 if "context" in item:
                     self.assertIn(item["context"], raised.exception.message)
                 if "message" in item:

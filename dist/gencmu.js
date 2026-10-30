@@ -457,6 +457,8 @@
   // run. A text that does not parse is not an error but a result.
 
   class GencmuError extends Error {
+    /** @type {string} */
+    #description;
     /**
      * @param {"grammar" | "usage"} kind a grammar that cannot be loaded or
      *   run, or a caller's mistake such as an unknown stage name
@@ -472,9 +474,10 @@
         for (const prefix of prefixes) {
           if (prefix && message.startsWith(`${prefix}: `)) { message = message.slice(prefix.length + 2); break; }
         }
-        message = `${location}: ${message}`;
       }
-      super(message, options);
+      const stage = where?.stage ? `stage ${where.stage}: ` : "";
+      super(`${location ? `${location}: ` : ""}${stage}${message}`, options);
+      this.#description = message;
       this.name = "GencmuError";
       this.kind = kind;
       this.where = where || {};
@@ -483,6 +486,16 @@
       this.option = this.where.option;
       this.expression = this.where.expression;
       this.inheritance = this.where.inheritance;
+    }
+
+    /**
+     * Copies the diagnostic with a new location and an optional explanation.
+     * @param {import("./types.js").ErrorLocation} where
+     * @param {string} [suffix]
+     * @returns {GencmuError}
+     */
+    withLocation(where, suffix = "") {
+      return new GencmuError(this.kind, this.#description + suffix, {...this.where, ...where}, {cause:this});
     }
 
     // Loading diagnostics have their own canonical schema.
@@ -20125,15 +20138,9 @@
       } catch (error) {
         if (error instanceof GencmuError) {
           const embedded = error.where.document;
-          if (embedded && embedded !== BOOTSTRAP_PATH && !error.message.includes(embedded)) {
-            error.message += ` (embedded document: ${embedded})`;
-          }
-          error.where.document = BOOTSTRAP_PATH;
-          const location = [error.where.document, error.where.line, error.where.column].filter((part) => part !== undefined).join(":");
-          if (!error.message.startsWith(`${location}: `)) {
-            const stage = error.where.stage ? `stage ${error.where.stage}: ` : "";
-            error.message = `${location}: ${stage}${error.message}`;
-          }
+          const suffix = embedded && embedded !== BOOTSTRAP_PATH
+            ? ` (embedded document: ${embedded})` : "";
+          throw error.withLocation({document:BOOTSTRAP_PATH}, suffix);
         }
         throw error;
       }

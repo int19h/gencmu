@@ -50,7 +50,7 @@ fn shared_json_keys() {
                 "{}: {e}",
                 text(case, "description")
             );
-            assert!(e.message.starts_with("data/preparsed/gencmu.json:"));
+            assert!(e.to_string().starts_with("data/preparsed/gencmu.json:"));
         }
     }
     for case in fixtures.get("preparsed").unwrap().array() {

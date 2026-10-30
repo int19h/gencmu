@@ -72,10 +72,6 @@ def _bootstrap_error(error: GencmuError) -> GencmuError:
     if embedded and embedded != "data/preparsed/gencmu.json" and embedded not in error.message:
         error.message += f" (embedded document: {embedded})"
     error.document = "data/preparsed/gencmu.json"
-    location = error.where
-    if not error.message.startswith(f"{location}: "):
-        stage = f"stage {error.stage}: " if error.stage else ""
-        error.message = f"{location}: {stage}{error.message}"
     error.args = (error.message,)
     return error
 

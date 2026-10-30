@@ -1975,6 +1975,8 @@ A tie in either stage of the notation pipeline, `lexical` or `syntax`, is an err
 
 Every bootstrap failure names `data/preparsed/gencmu.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
 
+The standard error formatter adds the document, position, and stage from structured fields. Bootstrap errors use this same formatter. Their underlying message appends the embedded document without duplicating the location prefix.
+
 Bootstrap splicing follows the same include order and stage rules as any other pipeline. It consumes `stage`, `include`, `names`, and `features` directives before stitching.
 
 Before the loader stitches any stage, it makes sure that every required bootstrap DOM meets the DOM rules. Each stage must contain at least one rule. The loader then stitches every stage in order with the normal stage validator.

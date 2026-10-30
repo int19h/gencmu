@@ -30,9 +30,6 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	if e.Document == "data/preparsed/gencmu.json" && strings.HasPrefix(e.Message, "data/preparsed/gencmu.json:") {
-		return e.Message
-	}
 	var b strings.Builder
 	if e.Document != "" {
 		b.WriteString(e.Document)
