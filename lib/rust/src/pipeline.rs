@@ -58,7 +58,7 @@ pub struct Feature {
 pub struct InputToken {
     /// The token's text.
     pub text: String,
-    /// Its tags, each in its canonical spelling (engine §1).
+    /// Its tags. Property aliases are accepted and normalized (engine §1).
     pub tags: Tags,
     /// What it sounds like, if anything (engine §5).
     pub value: Option<String>,

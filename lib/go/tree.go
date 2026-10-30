@@ -141,9 +141,9 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 			f.node.Children = append(f.node.Children, &Node{Kind: KindToken, Terminal: g.terminals[n.term], Token: i, Span: [2]int{i, i + 1}, Source: run.toks[i].Source})
 		case n.prod.helper && n.a == nil && n.prod.elided != "":
 			p := base + int(n.start)
-			node := &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p), sound: elidedValue(n.prod.elidedTest), tested: elidedTested(n.prod.elidedTest)}
-			if node.tested {
-				value := node.sound
+			node := &Node{Kind: KindElided, Terminal: n.prod.elided, Span: [2]int{p, p}, Source: run.emptySource(p)}
+			if elidedTested(n.prod.elidedTest) {
+				value := elidedValue(n.prod.elidedTest)
 				node.Value = &value
 			}
 			f.node.Children = append(f.node.Children, node)

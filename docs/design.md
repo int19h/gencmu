@@ -838,7 +838,7 @@ The engine splices out only one kind of node, because no author wrote it. That i
 
 An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens.
 
-An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
+An equality-tested elided node saves its restoration operand as `value`, including an explicit empty string. This member alone records the operand and whether an equality test exists. Other nodes omit this member. Omitted pattern leaves still observe empty strings.
 
 Canonical JSON includes saved `value` for equality-tested elisions. This distinguishes their restoration data without changing what a pattern observes.
 
