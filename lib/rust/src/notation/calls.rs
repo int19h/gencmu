@@ -83,8 +83,7 @@ impl<'a> Reader<'a> {
     ) -> R<Step<'a>> {
         match input {
             Some(Val::Expr(expr)) => return Ok(Step::Done(Val::SourceArgument(SourceArgument::Body(expr)))),
-            Some(Val::Term(mut term, _)) => {
-                flatten_term(&mut term);
+            Some(Val::Term(term, _)) => {
                 return Ok(Step::Done(Val::SourceArgument(SourceArgument::Term(term))));
             }
             Some(Val::SourceCall(call)) => frame.values.push(SourceTarget::Symbol(SourceSymbol::Call(call))),

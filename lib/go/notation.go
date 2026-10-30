@@ -623,6 +623,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			d.Directives = append(d.Directives, dir)
 		}
 	}
+	flattenGroups(d)
 	return d
 }
 
@@ -818,7 +819,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		r.Emit = b.emission(p)
 	}
 	r.Erased = one(n, "erased-clause") != nil
-	flattenGroups(r)
 	if b.unresolved {
 		return r
 	}
@@ -1126,75 +1126,6 @@ func operandProblem(name string, kinds []string) string {
 		}
 	}
 	return ""
-}
-
-// flattenGroups folds each any that stands directly in an any, and each
-// all in an all, into the one around it, in place: a group in parentheses
-// of the same connective is part of the one around it (§9). One walk, with
-// an explicit stack, that gathers each folded list once.
-func flattenGroups(r *domRule) {
-	var conds []*domCond
-	var terms []*domTerm
-	push := func(t *domTerm) {
-		if t != nil {
-			terms = append(terms, t)
-		}
-	}
-	conds = append(conds, r.Conditions...)
-	push(r.Tags)
-	for _, a := range r.Alternatives {
-		push(a.Tags)
-	}
-	if r.Emit != nil {
-		for _, it := range r.Emit.Items {
-			push(it.Tags)
-		}
-	}
-	for len(conds) > 0 || len(terms) > 0 {
-		if w := work.Load(); w != nil {
-			w.readerSteps.add("reader steps")
-		}
-		if len(terms) > 0 {
-			t := terms[len(terms)-1]
-			terms = terms[:len(terms)-1]
-			terms = append(terms, t.Items...)
-			if t.Cond != nil {
-				conds = append(conds, t.Cond)
-			}
-			continue
-		}
-		c := conds[len(conds)-1]
-		conds = conds[:len(conds)-1]
-		if c.Kind == cdAny || c.Kind == cdAll {
-			var joined []*domCond
-			pending := make([]*domCond, 0, len(c.Items))
-			for i := len(c.Items) - 1; i >= 0; i-- {
-				pending = append(pending, c.Items[i])
-			}
-			for len(pending) > 0 {
-				if w := work.Load(); w != nil {
-					w.readerSteps.add("reader steps")
-				}
-				it := pending[len(pending)-1]
-				pending = pending[:len(pending)-1]
-				if it.Kind == c.Kind {
-					for i := len(it.Items) - 1; i >= 0; i-- {
-						pending = append(pending, it.Items[i])
-					}
-				} else {
-					joined = append(joined, it)
-				}
-			}
-			c.Items = joined
-		}
-		conds = append(conds, c.Items...)
-		if c.Inner != nil {
-			conds = append(conds, c.Inner)
-		}
-		for _, t := range []*domTerm{c.Left, c.Right, c.Span} {
-			push(t)
-		}
-	}
 }
 
 // Feature-condition diagnostics identify the directive that owns them.

@@ -12,6 +12,7 @@ use crate::work::{self, Work};
 mod calls;
 use crate::dom::source::{SourceArgument, SourceCall, SourceSymbol};
 use calls::{CallFrame, SourceArgumentFrame};
+mod normalize;
 mod patterns;
 
 pub(crate) struct Reader<'a> {
@@ -182,6 +183,7 @@ impl<'a> Reader<'a> {
             dom.classifiers.extend(item.classifiers);
             dom.implications.extend(item.implications);
         }
+        normalize::document(&mut dom);
         Ok(dom)
     }
 
@@ -477,7 +479,6 @@ impl<'a> Reader<'a> {
             erased: Self::rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };
-        flatten_groups(&mut rule);
         if rule.erased
             && (rule.emit.is_some()
                 || rule.strings.value.is_some()
@@ -658,15 +659,11 @@ impl<'a> Reader<'a> {
     /// type of a part is found once, when the part is read (§10).
     /// `argument` is whether a span may stand here.
     fn term(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
-        let (mut term, ty) = self.typed(Frame::Term(TermFrame::new(node, argument)))?;
-        flatten_term(&mut term);
-        Ok((term, ty))
+        self.typed(Frame::Term(TermFrame::new(node, argument)))
     }
 
     fn union(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
-        let (mut term, ty) = self.typed(Frame::Union(Joined::new(node, argument)))?;
-        flatten_term(&mut term);
-        Ok((term, ty))
+        self.typed(Frame::Union(Joined::new(node, argument)))
     }
 
     fn typed(&self, frame: Frame<'a>) -> R<(Term, Type)> {
@@ -1782,7 +1779,7 @@ impl<'a> Reader<'a> {
     /// Conditions joined by `∨`, of its all-ofs, or by `∧`, of its
     /// conditions: `any` or `all` of them, or the one itself. A group in
     /// parentheses of the same connective is folded into this one once the
-    /// rule is read (`flatten_groups`), in one walk, since folding it here
+    /// document is read (`normalize::document`), in one walk, since folding it here
     /// would move a list at each depth (§9).
     fn resume_connective(&self, frame: &mut Conditions<'a>, input: Option<Val>, part: &'static str) -> R<Step<'a>> {
         if frame.parts.is_none() {
@@ -2627,117 +2624,6 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
 enum Part<'t> {
     Term(&'t Term),
     Cond(&'t Cond),
-}
-
-/// A part of a clause that a walk changes.
-enum PartMut<'t> {
-    Term(&'t mut Term),
-    Cond(&'t mut Cond),
-}
-
-/// Folds each `any` that stands directly in an `any`, and each `all` in an
-/// `all`, into the one around it: a group in parentheses of the same
-/// connective is part of the one around it (§9). One walk, with an explicit
-/// stack, that gathers each folded list once.
-fn flatten_term(root: &mut Term) {
-    let mut pending = vec![root];
-    while let Some(term) = pending.pop() {
-        match term {
-            Term::Union(items) => {
-                let mut stack: Vec<_> = std::mem::take(items).into_iter().rev().collect();
-                while let Some(mut term) = stack.pop() {
-                    match &mut term {
-                        Term::Union(inner) => stack.extend(std::mem::take(inner).into_iter().rev()),
-                        _ => items.push(term),
-                    }
-                }
-                pending.extend(items.iter_mut());
-            }
-            Term::Intersection(items) => pending.extend(items.iter_mut()),
-            Term::Difference(left, right) => {
-                pending.push(right);
-                pending.push(left);
-            }
-            Term::If(_, then) => pending.push(then),
-            Term::Call(_, args) => {
-                pending
-                    .extend(args.iter_mut().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }))
-            }
-            _ => {}
-        }
-    }
-}
-
-fn flatten_groups(rule: &mut RuleDef) {
-    let mut stack: Vec<PartMut> = Vec::new();
-    stack.extend(rule.conditions.iter_mut().map(PartMut::Cond));
-    stack.extend(rule.tags.iter_mut().map(PartMut::Term));
-    stack.extend(rule.alternatives.iter_mut().filter_map(|alternative| alternative.tags.as_mut()).map(PartMut::Term));
-    for item in rule.emit.iter_mut().flatten() {
-        if let EmitItem::Capture(_, Some(tags), _) = item {
-            stack.push(PartMut::Term(tags));
-        }
-    }
-    while let Some(part) = stack.pop() {
-        work::count(Work::Walked, 1);
-        match part {
-            PartMut::Term(term) => match term {
-                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter_mut().map(PartMut::Term)),
-                Term::Difference(left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
-                Term::If(cond, then) => stack.extend([PartMut::Cond(cond), PartMut::Term(then)]),
-                Term::Call(_, args) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
-                    Arg::Term(term) => Some(PartMut::Term(term)),
-                    _ => None,
-                })),
-                _ => {}
-            },
-            PartMut::Cond(cond) => match cond {
-                Cond::SourceQuery(_, args, _) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
-                    Arg::Term(term) => Some(PartMut::Term(term)),
-                    _ => None,
-                })),
-                Cond::Any(items) => {
-                    fold(items, |cond| if let Cond::Any(inner) = cond { Some(std::mem::take(inner)) } else { None });
-                    stack.extend(items.iter_mut().map(PartMut::Cond));
-                }
-                Cond::All(items) => {
-                    fold(items, |cond| if let Cond::All(inner) = cond { Some(std::mem::take(inner)) } else { None });
-                    stack.extend(items.iter_mut().map(PartMut::Cond));
-                }
-                Cond::Compare(_, left, right) => stack.extend([PartMut::Term(left), PartMut::Term(right)]),
-                Cond::Not(inner) => stack.push(PartMut::Cond(inner)),
-                Cond::If(antecedent, consequent) => {
-                    stack.extend([PartMut::Cond(antecedent), PartMut::Cond(consequent)])
-                }
-                Cond::Matches(span, _)
-                | Cond::Begins(span, _)
-                | Cond::Ends(span, _)
-                | Cond::Initial(span)
-                | Cond::Final(span)
-                | Cond::Boundary(_, span, _, _) => stack.push(PartMut::Term(span)),
-                Cond::Captured(_) => {}
-            },
-        }
-    }
-}
-
-/// Replaces each item of a list that `inner` opens, a group of the list's
-/// own connective, with that group's items, at any depth, in order.
-fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
-    let mut joined = Vec::with_capacity(items.len());
-    let mut pending: Vec<Cond> = std::mem::take(items);
-    pending.reverse();
-    while let Some(mut item) = pending.pop() {
-        work::count(Work::Walked, 1);
-        match inner(&mut item) {
-            Some(mut parts) => {
-                parts.reverse();
-                pending.append(&mut parts);
-            }
-            None => joined.push(item),
-        }
-    }
-    *items = joined;
 }
 
 /// Cached DOMs omit source annotations. Recover recipe positions only for a failed load.
