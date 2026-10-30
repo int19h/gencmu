@@ -94,6 +94,8 @@ An overlap between category ranges with different values is a grammar error. Com
 
 These errors name `data/unicode/unicode.txt` and the line of the later record. A category record with the value `Cs` is a grammar error at that record.
 
+Core errors keep the resource path and line separate from their reason. Conflicting category ranges use `conflicting category ranges`. Conflicting combining ranges use `conflicting combining ranges`. A repeated decomposition uses `a second decompose record`. A `Cs` category uses `category Cs is not allowed`.
+
 An `abbreviation` record has one scalar and one alias matching `[A-Z][A-Z0-9]*`. A scalar can have several aliases. Repeated records or an alias assigned to different scalars are grammar loading errors. These records supply neither tags nor property memberships.
 
 The core loader inspects every abbreviation against an embedded catalog of pinned one-word names and aliases. These spellings match `[A-Z][A-Z0-9]*`. A record cannot bind one of those spellings to another scalar. Correct same-scalar bindings remain valid. This restriction applies even when no grammar uses a name escape. The error names `data/unicode/unicode.txt`.

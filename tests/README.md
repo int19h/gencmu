@@ -82,6 +82,8 @@ A pattern describes required result fields. `expect.result` is a pattern matched
 - An array matches when it has the same length and each element matches.
 - Anything else matches when it is equal.
 
+`expect.message` pins an agreed error reason, without a resource path, location prefix, or stage suffix. It applies to loading and runtime grammar errors.
+
 A pattern never pins the `message` of an error. Its wording is each library's own (`docs/output.md`), so the JavaScript runner refuses a case whose pattern holds one.
 
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
