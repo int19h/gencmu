@@ -14853,5 +14853,611 @@
     ]
   },
   "malformed": false
+},
+{
+  "description": "A capitalized rule name is malformed.",
+  "rule": {
+    "name": "Upper",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "A rule refuses unknown members.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "unexpected": true
+  },
+  "malformed": true
+},
+{
+  "description": "An alternative refuses unknown members.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        },
+        "unexpected": true
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "An emission requires at least one item.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": []
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A Boolean cannot name a guard feature: True.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [
+          {
+            "feature": true,
+            "kind": "gate",
+            "negated": false
+          }
+        ],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "A Boolean cannot name a guard feature: False.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [
+          {
+            "feature": false,
+            "kind": "gate",
+            "negated": false
+          }
+        ],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": true, \"capture\": false}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": true,
+          "capture": false
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": false, \"capture\": \"\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": false,
+          "capture": ""
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Emission targets are exclusive: {\"insert\": true, \"capture\": \"\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "emit": {
+      "items": [
+        {
+          "insert": true,
+          "capture": ""
+        },
+        {
+          "capture": ""
+        }
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\"}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags"
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\", \"args\": []}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "args": []
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"method\": \"tags\", \"receiver\": {\"capture\": \"\"}}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "method": "tags",
+      "receiver": {
+        "capture": ""
+      }
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed tags return a problem: {\"union\": 5}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "tags": {
+      "union": 5
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "A null recipe atom returns a problem.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ],
+    "value": {
+      "concat": [
+        null
+      ]
+    }
+  },
+  "malformed": true
+},
+{
+  "description": "Feature conditions require lowercase captures: {\"captured\": \"Foo\"}.",
+  "directive": {
+    "name": "features",
+    "args": [
+      "f"
+    ],
+    "conditions": [
+      {
+        "captured": "Foo"
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Feature conditions require lowercase captures: {\"op\": \"=\", \"left\": {\"method\": \"value\", \"receiver\": {\"capture\": \"Foo\"}, \"args\": []}, \"right\": {\"string\": \"a\"}}.",
+  "directive": {
+    "name": "features",
+    "args": [
+      "f"
+    ],
+    "conditions": [
+      {
+        "op": "=",
+        "left": {
+          "method": "value",
+          "receiver": {
+            "capture": "Foo"
+          },
+          "args": []
+        },
+        "right": {
+          "string": "a"
+        }
+      }
+    ],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": null}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": null
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": 1}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": 1
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": []}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": []
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [{\"ref\": \"A\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "ref": "A"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [{\"ref\": \"A\"}, {\"ref\": \"B\"}], \"extra\": 1}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            {
+              "ref": "A"
+            },
+            {
+              "ref": "B"
+            }
+          ],
+          "extra": 1
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"extra\": 1, \"ranked\": [{\"ref\": \"A\"}, {\"ref\": \"B\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "extra": 1,
+          "ranked": [
+            {
+              "ref": "A"
+            },
+            {
+              "ref": "B"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
+},
+{
+  "description": "Malformed ranked shape: {\"ranked\": [null, {\"ref\": \"A\"}]}.",
+  "rule": {
+    "name": "text",
+    "op": "define",
+    "flags": [],
+    "alternatives": [
+      {
+        "guards": [],
+        "expr": {
+          "ranked": [
+            null,
+            {
+              "ref": "A"
+            }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "at": [
+      1,
+      1
+    ]
+  },
+  "malformed": true
 }
 ]

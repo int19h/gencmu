@@ -1,0 +1,13 @@
+{
+  "description": "A deferred empty emission precedes overlap in another rule.",
+  "grammar": "%rule text [$b:B] (A ≻ C) %emits $b\n%rule other $x:\"a\" %emits $, $x",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

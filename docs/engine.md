@@ -2729,7 +2729,9 @@ Two of these checks depend on simplification (§3.6). They are the check that a 
 
 Capture validation queries the expression without listing capture sequences or production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
 
-Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
+Deferred emission errors follow ranked-choice validation and precede recipe-cycle and overlap checks.
+
+Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. Each stage completes these checks before the loader stitches the next stage. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 
 The analysis ignores feature gates, conditions, and symbol tests. It therefore covers every feature configuration without proving that a consuming route can succeed. Erasure changes output ownership but never removes a possible input read. Recipes and emissions do not change the analysis.
 
@@ -2760,7 +2762,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - A rule lacks `flags`, or its value is none of `[]`, `["leftmost-longest"]` and `["fewest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is neither a valid name nor a valid emoji scalar.
-- It has a `ranked` value that is not an array of at least two expressions. Report `ranked-choice-syntax`.
+- An expression has only `ranked`, whose value is not an array of at least two expressions. Report `ranked-choice-syntax`.
+- An expression combines `ranked` with another member, or contains a malformed option. Report an ordinary malformed-DOM error.
 - Its `chain` is neither `left` nor `right`, or its chain repeat does not occupy the complete alternative expression.
 - It has an `optional` with an `elidable` member whose value is not `true`. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.

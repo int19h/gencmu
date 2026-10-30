@@ -943,6 +943,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !hasOneForm(o, [][]string{{"name", "op", "flags", "tags?", "value?", "image?", "alternatives", "emit?", "conditions", "erased?", "at"}}) {
+		return nil, fmt.Errorf("a malformed rule")
+	}
 	r := &domRule{}
 	if r.Name, err = decodeString(o["name"]); err != nil {
 		return nil, err
@@ -969,10 +972,6 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 			return nil, err
 		}
 	}
-	// A flag: true or absent.
-	if o["opaque"] != nil {
-		return nil, fmt.Errorf("opaque is not a rule member")
-	}
 	if v, ok := o["erased"]; ok {
 		if !isTrue(v) {
 			return nil, fmt.Errorf("a malformed rule")
@@ -995,6 +994,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		ao, err := decodeObj(a)
 		if err != nil {
 			return nil, err
+		}
+		if !hasOneForm(ao, [][]string{{"guards", "expr", "tags?", "value?", "image?"}}) {
+			return nil, fmt.Errorf("a malformed alternative")
 		}
 		alt := &domAlt{}
 		// The guards of an alternative have the members of an entry's
@@ -1094,9 +1096,6 @@ func decodeExprAt(raw json.RawMessage, depth int) (*domExpr, error) {
 func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	// An expression has exactly the members of one form (docs/output.md).
 	if !hasOneForm(o, exprForms) {
-		if _, ranked := o[exRanked]; ranked {
-			return nil, fmt.Errorf("ranked-choice-syntax: A ranked expression has only its ranked array.")
-		}
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	if v, ok := o[exRange]; ok {
@@ -1105,6 +1104,12 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 	}
 	for _, k := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if v, ok := o[k]; ok {
+			if k == exRanked {
+				var options []json.RawMessage
+				if unmarshal(v, &options) != nil || len(options) < 2 {
+					return nil, fmt.Errorf("ranked-choice-syntax: a ranked expression requires two options")
+				}
+			}
 			items, err := decodeList(v, func(r json.RawMessage) (*domExpr, error) { return decodeExprAt(r, depth+1) })
 			return &domExpr{Kind: k, Items: items}, err
 		}
@@ -1424,6 +1429,9 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		return it, err
 	})
+	if err == nil && len(items) == 0 {
+		err = fmt.Errorf("a malformed emission: items must be nonempty")
+	}
 	return &domEmit{Items: items}, err
 }
 

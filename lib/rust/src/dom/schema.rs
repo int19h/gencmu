@@ -505,16 +505,20 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     else {
                         return Some("a malformed expression");
                     };
+                    if !exact(value, &[key], &[]) {
+                        return Some("a malformed expression");
+                    }
                     let Some(items) = value
                         .get(key)
                         .and_then(Json::as_array)
                         .filter(|items| items.len() >= 2 && (key != "and" || items.len() <= 16))
                     else {
-                        return Some("a malformed expression list");
+                        return Some(if key == "ranked" {
+                            "ranked-choice-syntax: a ranked expression requires two options"
+                        } else {
+                            "a malformed expression list"
+                        });
                     };
-                    if !exact(value, &[key], &[]) {
-                        return Some("a malformed expression");
-                    }
                     pending.extend(items.iter().map(|item| expression(item, sealed)));
                 }
             }

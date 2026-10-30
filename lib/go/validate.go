@@ -161,7 +161,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			}
 			continue
 		}
-		if r == nil || !(domName.MatchString(r.Name) || uni.isEmojiName(r.Name)) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
+		if r == nil || !isRuleName(r.Name, uni) || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
 		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
@@ -245,6 +245,9 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The walks below recurse, so they run only once the nesting is
 		// bounded.
+		if hasEngineLiteral(k.Value) {
+			return &domProblem{message: "a constant contains an engine-tag literal", constant: k}
+		}
 		if openPart(k.Value) != nil {
 			return &domProblem{message: fmt.Sprintf("constant $%s: a constant's value is not a closed term", k.Name), constant: k}
 		}
@@ -273,6 +276,9 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return c.problem
 		}
 		for _, side := range []*domTerm{m.If, m.Then} {
+			if hasEngineLiteral(side) {
+				return &domProblem{message: "an implication contains an engine-tag literal", implication: m}
+			}
 			if msg := implicationSideProblem(side, nil); msg != "" {
 				return &domProblem{message: "an implication: " + msg, implication: m}
 			}
@@ -815,7 +821,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		if !utf8.ValidString(t.Str) {
 			c.fail("a string is not valid UTF-8")
 		}
-	case tmCapture, tmEmptySet:
+	case tmCapture:
+		if t.Str != "" && !captureName.MatchString(t.Str) {
+			c.fail("a malformed capture name")
+		}
+	case tmEmptySet:
 	case tmConcat:
 		if len(t.Items) < 2 {
 			c.fail("a concatenation requires two operands")
@@ -1045,7 +1055,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 	case cdCaptured:
 		// A presence test, of a capture or of $.
-		if d.Rule != "" && !domName.MatchString(d.Rule) {
+		if d.Rule != "" && !captureName.MatchString(d.Rule) {
 			c.fail("a presence test of %q", d.Rule)
 		}
 	default:
@@ -1466,6 +1476,19 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 					return
 				}
 			}
+			if p.Kind == "test" && p.Op == "tags" {
+				for _, requirement := range p.Requirements {
+					ty, f := termTypeMemo(requirement.Value, ct, memo)
+					if f != nil {
+						fault = f
+						return
+					}
+					if problem := expectedProblem(ty, tyTags); problem != "" {
+						fault = &typeFault{problem, requirement.Value}
+						return
+					}
+				}
+			}
 			if p.Kind == "test" && p.Op != "tags" {
 				ty, f := termTypeMemo(p.Value, ct, memo)
 				if f != nil {
@@ -1875,4 +1898,21 @@ func inputConditionsProblem(conditions []*domCond) string {
 		}
 	}
 	return ""
+}
+
+// hasEngineLiteral finds engine-tag literals outside pattern literals.
+func hasEngineLiteral(root *domTerm) bool {
+	found := false
+	walkClause(clausePart{t: root}, func(p clausePart) bool {
+		if p.t != nil {
+			if p.t.Kind == tmPattern {
+				return false
+			}
+			if p.t.Kind == tmTag && engineTag(p.t.Str) {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }

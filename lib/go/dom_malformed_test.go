@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -50,6 +51,30 @@ func TestDOMMalformed(t *testing.T) {
 		_, err := decodeDOM(json.RawMessage(dom), table)
 		if (err != nil) != c.Malformed {
 			t.Errorf("%s\n%s: refused %v", c.Description, c.Directive, err)
+		}
+	}
+}
+
+func TestRankedSyntaxCodeShape(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		expr  string
+		coded bool
+	}{
+		{`{"ranked":null}`, true}, {`{"ranked":[]}`, true}, {`{"ranked":[{"ref":"A"}]}`, true},
+		{`{"ranked":[{"ref":"A"},{"ref":"B"}],"extra":1}`, false},
+		{`{"extra":1,"ranked":[{"ref":"A"},{"ref":"B"}]}`, false},
+		{`{"ranked":[null,{"ref":"B"}]}`, false},
+	} {
+		raw := `{"format":40,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + c.expr + `}],"conditions":[],"at":[1,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
+		_, err := decodeDOM(json.RawMessage(raw), bundled.uni)
+		if err == nil {
+			t.Fatal("malformed ranked DOM accepted")
+		}
+		if strings.Contains(err.Error(), "ranked-choice-syntax:") != c.coded {
+			t.Fatalf("%s: %v", c.expr, err)
 		}
 	}
 }

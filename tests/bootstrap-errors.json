@@ -489,6 +489,70 @@
       "line": null,
       "column": null,
       "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in constants: {\"name\": \"X\", \"op\": \"define\", \"value\": {\"tag\": \"_Alphabetic\"}, \"at\": [9999, 1]}.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"X\",\"op\":\"define\",\"value\":{\"tag\":\"_Alphabetic\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in constants: {\"name\": \"X\", \"op\": \"define\", \"value\": {\"intersection\": [{\"tag\": \"_Alphabetic\"}, {\"tag\": \"A\"}]}, \"at\": [9999, 1]}.",
+      "find": "\"constants\":[]",
+      "replace": "\"constants\":[{\"name\":\"X\",\"op\":\"define\",\"value\":{\"intersection\":[{\"tag\":\"_Alphabetic\"},{\"tag\":\"A\"}]},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in implications: {\"if\": {\"tag\": \"_Alphabetic\"}, \"then\": {\"tag\": \"A\"}, \"at\": [9999, 1]}.",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[{\"if\":{\"tag\":\"_Alphabetic\"},\"then\":{\"tag\":\"A\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "Engine-tag literals are forbidden in implications: {\"if\": {\"tag\": \"A\"}, \"then\": {\"tag\": \"_Alphabetic\"}, \"at\": [9999, 1]}.",
+      "find": "\"implications\":[]",
+      "replace": "\"implications\":[{\"if\":{\"tag\":\"A\"},\"then\":{\"tag\":\"_Alphabetic\"},\"at\":[9999,1]}]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A format member refuses a fraction.",
+      "find": "\"format\":40",
+      "replace": "\"format\":40.0",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A format member refuses an exponent.",
+      "find": "\"format\":40",
+      "replace": "\"format\":4e1",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A position member refuses a fraction.",
+      "find": "\"at\":[30,1]",
+      "replace": "\"at\":[30.0,1]",
+      "line": null,
+      "column": null,
+      "stage": null
+    },
+    {
+      "description": "A position member refuses an exponent.",
+      "find": "\"at\":[30,1]",
+      "replace": "\"at\":[30,1e0]",
+      "line": null,
+      "column": null,
+      "stage": null
     }
   ]
 }

@@ -1,0 +1,13 @@
+{
+  "description": "Pattern tag tests require tag-set constants.",
+  "grammar": "%const $S \"s\"\n%rule text $x:A %conditions $x ≅ #A<$S>",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 37
+    }
+  }
+}

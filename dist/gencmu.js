@@ -4568,9 +4568,10 @@
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
-    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && (guard.kind === "gate" || guard.kind === "warning" && !guard.negated));
+    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && (guard.kind === "gate" || guard.kind === "warning" && !guard.negated));
     /** @type {any[]} */
     const pending = [];
+    const tagClauses = [];
     let activeParams = new Set();
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
@@ -4741,8 +4742,9 @@
           if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr))) return "a malformed capture";
           child("expr", value.expr, { sealed: task.sealed });
         } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
+          if (fields.length !== 1) return "a malformed expression";
           const key = fields[0];
-          if (fields.length !== 1 || !Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
+          if (!Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
           for (const item of value[key]) child("expr", item, { sealed: task.sealed });
         } else if ("optional" in value) {
           if (!exact(value, ["optional", "elidable"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
@@ -4759,14 +4761,13 @@
         } else if ("ref" in value) { if (fields.length !== 1 || !(ruleName(value.ref) || tag(value.ref))) return "a malformed reference"; }
         else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
       } else if (kind === "tags") {
-        if (task.constituent && readsOwnTags(value)) return "a constituent reads its own tags";
-        if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
+        tagClauses.push({value, constituent: task.constituent});
         push("term", value, depth);
       } else if (kind === "emission") {
         if (fields.length !== 1 || !Array.isArray(value.items) || !value.items.length) return "a malformed emission";
         const names = [];
         for (const item of value.items) {
-          if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || (typeof item.capture === "string") === (item.insert === true) || "insert" in item && item.insert !== true || typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return "a malformed emission item";
+          if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || ("capture" in item) === ("insert" in item) || "capture" in item && typeof item.capture !== "string" || "insert" in item && item.insert !== true || typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return "a malformed emission item";
           if (item.capture) names.push(item.capture);
           for (const side of ["before", "after"]) if (side in item) {
             if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every(name => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed attachment";
@@ -4779,6 +4780,7 @@
       } else if (kind === "recipe") {
         if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
         for (const atom of value.concat) {
+          if (!object(atom)) return "a malformed recipe atom";
           if (!stringAtom(atom) && !atom.param) {
             if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
             const receiver = atom.receiver;
@@ -4830,6 +4832,10 @@
           for (const item of items) child("term", item);
         }
       }
+    }
+    for (const {value, constituent} of tagClauses) {
+      if (constituent && readsOwnTags(value)) return "a constituent reads its own tags";
+      if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
     }
     for (const rule of dom.rules) {
       if (hasUnresolved(rule)) continue;
@@ -4913,10 +4919,10 @@
       const current = stack.pop();
       if (!isDomObject(current)) continue;
       if (typeof current.method === "string") {
-        if ((current.method === "tags" || current.method === "classes") && /** @type {any} */ (current).args.length === 0 && /** @type {any} */ (current).receiver.capture === "") return true;
+        if ((current.method === "tags" || current.method === "classes") && /** @type {any} */ (current).args?.length === 0 && /** @type {any} */ (current).receiver?.capture === "") return true;
         if (current.method === "tags" || QUERY_METHODS.has(current.method)) continue;
         stack.push(/** @type {any} */ (current).receiver);
-        for (const arg of /** @type {any} */ (current).args) stack.push(arg);
+        for (const arg of /** @type {any} */ (Array.isArray(current.args) ? current.args : [])) stack.push(arg);
         continue;
       }
       if (current.op === "≅" || current.op === "≇") continue;
@@ -8222,6 +8228,59 @@
     return witnesses.filter((witness) => eligible[at(witness)]);
   }
 
+  // ---- emission-overlap.js
+  // Conservative input coverage of final stitched emissions (engine §9.3).
+
+
+  /** @import { Expr } from "./types.js" */
+
+  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
+  function consuming(expr,rules) {
+    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
+    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
+    if ("empty" in expr) return false;
+    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
+    if ("optional" in expr) return consuming(expr.optional,rules);
+    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
+    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
+  }
+
+  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
+  function validateEmissionOverlap(definitions) {
+    const marked = new Set();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
+        marked.add(rule.name);
+        changed = true;
+      }
+    }
+    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
+      const emission = alternative.clauses.emit;
+      if (!emission || emission.items.length < 2) continue;
+      const captures = new Map();
+      const pending = [alternative.expr];
+      while (pending.length) {
+        const expr = /** @type {Expr} */ (pending.pop());
+        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
+        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
+        for (const key of ["expr","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
+      }
+      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
+        const a=emission.items[left], b=emission.items[right];
+        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
+        const other = a.capture === "" ? b : a;
+        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
+          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
+        if (overlap) {
+          const at = alternative.at;
+          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
+        }
+      }
+    }
+  }
+
   // ---- ranked-frame.js
 
   // Lexical entry state for transparent helpers in a ranked alternative.
@@ -8428,6 +8487,7 @@
   function rankedConditionVariables(condition) {return [...rankedCaptureReads(condition)];}
 
   // ---- grammar.js
+
 
 
 
@@ -8698,6 +8758,7 @@
       for (const alternative of recipeAlternatives) {
         validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
       }
+      validateEmissionOverlap(this.rules);
       /**
        * The features that gate an alternative or an entry of a classifier.
        * Only these change a lowered grammar. A warning keeps its alternative
@@ -14842,59 +14903,6 @@
     return notes;
   }
 
-  // ---- emission-overlap.js
-  // Conservative input coverage of final stitched emissions (engine §9.3).
-
-
-  /** @import { Expr } from "./types.js" */
-
-  /** @param {Expr} expr @param {Set<string>} rules @returns {boolean} */
-  function consuming(expr,rules) {
-    if ("literal" in expr || "range" in expr || "wildcard" in expr) return true;
-    if ("ref" in expr) return /^[A-Z_]/.test(expr.ref) || rules.has(expr.ref);
-    if ("empty" in expr) return false;
-    if ("test" in expr || "capture" in expr) return consuming(expr.expr,rules);
-    if ("optional" in expr) return consuming(expr.optional,rules);
-    if ("repeat" in expr) return consuming(expr.repeat,rules) || expr.separator !== undefined && consuming(expr.separator,rules);
-    return (/** @type {any} */ (expr).seq ?? /** @type {any} */ (expr).choice ?? /** @type {any} */ (expr).ranked ?? /** @type {any} */ (expr).and).some((/** @type {Expr} */ child) => consuming(child,rules));
-  }
-
-  /** @param {Map<string,import("./grammar.js").StitchedRule>} definitions */
-  function validateEmissionOverlap(definitions) {
-    const marked = new Set();
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const rule of definitions.values()) if (!marked.has(rule.name) && rule.alternatives.some(alternative => consuming(alternative.expr,marked))) {
-        marked.add(rule.name);
-        changed = true;
-      }
-    }
-    for (const rule of definitions.values()) for (const alternative of rule.alternatives) {
-      const emission = alternative.clauses.emit;
-      if (!emission || emission.items.length < 2) continue;
-      const captures = new Map();
-      const pending = [alternative.expr];
-      while (pending.length) {
-        const expr = /** @type {Expr} */ (pending.pop());
-        if ("capture" in expr) captures.set(expr.capture, captures.get(expr.capture) || consuming(expr.expr,marked));
-        for (const key of ["seq","choice","ranked","and"]) for (const child of (/** @type {any} */ (expr)[key] ?? [])) pending.push(child);
-        for (const key of ["expr","optional","repeat","separator"]) if (/** @type {any} */ (expr)[key]) pending.push(/** @type {any} */ (expr)[key]);
-      }
-      for (let left=0;left<emission.items.length;left++) for (let right=left+1;right<emission.items.length;right++) {
-        const a=emission.items[left], b=emission.items[right];
-        if (a.insert || b.insert || a.capture !== "" && b.capture !== "") continue;
-        const other = a.capture === "" ? b : a;
-        const overlap = other.capture === "" ? consuming(alternative.expr,marked)
-          : [...(other.before ?? []),other.capture,...(other.after ?? [])].some(name=>captures.get(name));
-        if (overlap) {
-          const at = alternative.at;
-          throw new GencmuError("grammar",`${at.document}:${at.line}:${at.column}: the emission of ${rule.name} overlaps input positions`,at);
-        }
-      }
-    }
-  }
-
   // ---- hash.js
   // FNV-1a over the text's UTF-8 bytes, 64 bits, as 16 hexadecimal digits:
   // the hash that keys the preparsed DOMs in every library.
@@ -20022,7 +20030,6 @@
 
 
 
-
   // Pipelines: loading pipeline documents and their grammars, reading grammar
   // documents with the notation pipeline (engine §8), and running a text
   // through the stages (engine §13).
@@ -20063,6 +20070,16 @@
    * @property {Token[]} [tokens]
    * @property {(tokens:Token[])=>void} [inspectLexical]
    */
+
+  /**
+   * Preserve invalid integer spellings until each DOM receives its schema check.
+   * Unknown members retain the schema's ordinary treatment.
+   * @param {string} text
+   * @returns {any}
+   */
+  function parseDomJson(text) {
+    return JSON.parse(text, (_key, value, context = {source:""}) => typeof value === "number" && !/^-?(0|[1-9][0-9]*)$/.test(context.source) ? NaN : value);
+  }
 
   // Resources: a function from a path relative to the package root to its
   // text, or undefined. The bundled grammars, a directory on disk and a map
@@ -20120,7 +20137,7 @@
       this.namesDependencies = new WeakMap();
       /** @type {Map<string,string[]>} */
       this.inheritedNames = new Map();
-      const metadata = JSON.parse(this.bootstrapText);
+      const metadata = parseDomJson(this.bootstrapText);
       if (metadata.unicode === this.unicodeHash && Object.hasOwn(metadata,"properties") && metadata.properties === this.propertiesHash) {
         this.bundledNames = namesRegistry(metadata.bundledNames);
       }
@@ -20150,7 +20167,7 @@
       try {
         const text = file === BOOTSTRAP_PATH ? this.bootstrapText : this.read(file);
         if (text === undefined) return;
-        const data = JSON.parse(text);
+        const data = parseDomJson(text);
         if (file === BOOTSTRAP_PATH && data && typeof data === "object") data.bootstrap = this.bootstrapHash;
         if (data && typeof data.documents === "object" && data.documents !== null) {
           data.documents = Object.fromEntries(Object.entries(data.documents).filter(([path]) => preparsedPath(path) === file));
@@ -20389,7 +20406,6 @@
       this.declared = declared;
       /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
       this.features = pipelineFeatures(path, stages, declared);
-      for (const stage of stages) validateEmissionOverlap(stage.grammar.rules);
     }
 
     /**
@@ -20636,7 +20652,7 @@
   function readBootstrap(text, unicode) {
     let data;
     try {
-      data = JSON.parse(text);
+      data = parseDomJson(text);
     } catch (error) {
       throw new GencmuError("grammar", `data/preparsed/gencmu.json is not JSON: ${/** @type {Error} */ (error).message}`, { document: BOOTSTRAP_PATH });
     }

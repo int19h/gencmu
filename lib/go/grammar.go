@@ -309,20 +309,15 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			return nil, err
 		}
 	}
-	// Ranked scope errors precede recipe absence, pruning, and cycle analysis (§11.4).
-	for _, err := range g.deferredEmissions {
-		if deferredRecipeProblem(err.Message) {
-			return nil, err
-		}
+	// Ranked scope errors precede deferred emissions and recipe cycles (§11.4).
+	if len(g.deferredEmissions) > 0 {
+		return nil, g.deferredEmissions[0]
 	}
 	if err := g.validateRecipeCycles(); err != nil {
 		return nil, err
 	}
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
-	}
-	if len(g.deferredEmissions) > 0 {
-		return nil, g.deferredEmissions[0]
 	}
 	g.prepareBoundarySites()
 	return g, nil

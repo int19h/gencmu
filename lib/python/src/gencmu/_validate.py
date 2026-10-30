@@ -474,7 +474,9 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
         if kind == "expr":
             if any(k in node for k in ("seq", "choice", "ranked", "and")):
                 key = next(k for k in ("seq", "choice", "ranked", "and") if k in node)
-                if keys != {key} or not _items(node[key], 2, 16 if key == "and" else float("inf")):
+                if keys != {key}:
+                    return "a malformed expression"
+                if not _items(node[key], 2, 16 if key == "and" else float("inf")):
                     return "ranked-choice-syntax: malformed ranked choice" if key == "ranked" else "a malformed expression"
                 pending.extend(("expr", x, below, False, sealed) for x in node[key])
             elif "optional" in node:
