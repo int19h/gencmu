@@ -2690,13 +2690,15 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
 - A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` and `%names` take one path each, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
 
+Feature conditions receive syntax and DOM-shape analysis before stitching. Their semantic analysis applies only to surviving stage declarations (§13).
+
 A template first undergoes binder and syntax analysis (§2.3). Every source, cached, or supplied template receives all checks that do not depend on an argument. Uncalled templates receive the same checks. Unresolved symbols introduce no caller-visible captures. Unresolved terms have an unknown type during these checks. Argument-dependent requirements apply after substitution to every expanded definition.
 
 Once the reader reads an ordinary definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
 A definition that contains a ranked choice defers two problem kinds until ranked validation completes: recipe-capture absence and empty emission. Recipe-capture absence means a production lacks a recipe's capture. A selected rule, alternative, or item recipe can report this problem. Empty emission means a production retains no items. These checks use explicit problem kinds, never message text.
 
-All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Source, cached, supplied, and expanded definitions use the same policy.
+All other definition checks remain immediate, including capture guards, condition applicability, stray attachments, capture order, and insertion anchors. A deferred problem never hides a later immediate problem. After ranked validation, recipe-capture absence precedes empty emission. Within each kind, the definition checks' established order decides the first deferred problem. Source, cached, supplied, and expanded definitions use the same policy. A ranked definition with only these deferred problems remains valid for cache admission.
 
 Templates retain argument-independent deferred problems even when no call instantiates them. After ranked validation, expanded definitions' deferred problems come first. Remaining template problems follow in document and written order.
 
