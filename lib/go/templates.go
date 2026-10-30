@@ -521,14 +521,18 @@ func (x *templateExpander) flow(events []*templateEvent) {
 				x.fail(e, n, fmt.Sprintf("template %s expects %d arguments", t.name, t.arity))
 			}
 			for j, arg := range templateList(n["args"]) {
+				var normalized templateObject
 				for _, part := range templateNodes(arg) {
 					if part["capture"] != nil || part["captured"] != nil {
 						x.fail(e, part, "an argument cannot read or declare captures")
 					}
 					for k, p := range params {
 						if p == part["param"] {
+							if normalized == nil {
+								normalized = templateObj(x.normalize(arg))
+							}
 							source := templateFlowPoint{templateText(e.rule["name"]), k}
-							edges[source] = append(edges[source], templateFlowEdge{to: templateFlowPoint{t.name, j}, growing: templateObj(x.normalize(arg))["param"] != part["param"], event: e, node: n, argument: templateObj(arg)})
+							edges[source] = append(edges[source], templateFlowEdge{to: templateFlowPoint{t.name, j}, growing: normalized["param"] != part["param"], event: e, node: n, argument: templateObj(arg)})
 						}
 					}
 				}
@@ -547,24 +551,38 @@ func (x *templateExpander) flow(events []*templateEvent) {
 			if !edge.growing {
 				continue
 			}
+			type trail struct {
+				from     templateFlowPoint
+				edge     templateFlowEdge
+				previous *trail
+			}
 			type step struct {
 				point templateFlowPoint
-				trail string
+				trace *trail
 			}
-			pending := []step{{edge.to, fmt.Sprintf("%s:%d → %s:%d at %s:%d:%d", source.name, source.index, edge.to.name, edge.to.index, edge.event.path, templateAt(edge.node)[0], templateAt(edge.node)[1])}}
+			pending := []step{{edge.to, &trail{source, edge, nil}}}
 			seen := map[templateFlowPoint]bool{}
 			for len(pending) > 0 {
 				last := pending[len(pending)-1]
 				pending = pending[:len(pending)-1]
 				if last.point == source {
-					x.fail(edge.event, edge.node, "unbounded-instantiation: "+last.trail+", growing argument "+templateCanonical(edge.argument, x.uni))
+					var path []*trail
+					for cursor := last.trace; cursor != nil; cursor = cursor.previous {
+						path = append(path, cursor)
+					}
+					parts := make([]string, len(path))
+					for i, p := range path {
+						a := templateAt(p.edge.node)
+						parts[len(path)-i-1] = fmt.Sprintf("%s:%d → %s:%d at %s:%d:%d", p.from.name, p.from.index, p.edge.to.name, p.edge.to.index, p.edge.event.path, a[0], a[1])
+					}
+					x.fail(edge.event, edge.node, "unbounded-instantiation: "+strings.Join(parts, " then ")+", growing argument "+templateCanonical(edge.argument, x.uni))
 				}
 				if seen[last.point] {
 					continue
 				}
 				seen[last.point] = true
 				for _, next := range edges[last.point] {
-					pending = append(pending, step{next.to, last.trail + fmt.Sprintf(" then %s:%d → %s:%d at %s:%d:%d", last.point.name, last.point.index, next.to.name, next.to.index, next.event.path, templateAt(next.node)[0], templateAt(next.node)[1])})
+					pending = append(pending, step{next.to, &trail{last.point, next, last.trace}})
 				}
 			}
 		}

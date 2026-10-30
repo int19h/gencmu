@@ -224,27 +224,35 @@ def expand_templates(documents, unicode):
             if len(n['args']) != target['arity']:
                 fail(event, n, f"template {n['call']} expects {target['arity']} arguments")
             for i, arg in enumerate(n['args']):
+                normalized = None
                 for part in nodes(arg):
                     if 'capture' in part or 'captured' in part:
                         fail(event, part, 'an argument cannot read or declare captures')
                     if part.get('param') in params:
-                        edge = dict(to=(n['call'], i), growing=normalize(arg).get('param') != part['param'], event=event, node=n, argument=arg)
+                        if normalized is None:
+                            normalized = normalize(arg)
+                        edge = dict(to=(n['call'], i), growing=normalized.get('param') != part['param'], event=event, node=n, argument=arg)
                         edges[(rule['name'], params.index(part['param']))].append(edge)
     for source, outgoing in edges.items():
         for edge in outgoing:
             if not edge['growing']:
                 continue
-            pending, seen = [(edge['to'], [])], set()
+            pending, seen = [(edge['to'], None)], set()
             while pending:
-                target, steps = pending.pop()
+                target, previous = pending.pop()
                 if target == source:
+                    steps = []
+                    while previous is not None:
+                        point, step, previous = previous
+                        steps.append((point, step))
+                    steps.reverse()
                     cycle = [(source, edge)] + steps
                     trail = ' then '.join(f"{a[0]}:{a[1]} → {b['to'][0]}:{b['to'][1]} at {b['event']['path']}:{b['node']['at'][0]}:{b['node']['at'][1]}" for a, b in cycle)
                     fail(edge['event'], edge['node'], 'unbounded-instantiation: ' + trail + ', growing argument ' + canonical_argument(edge['argument'], unicode))
                 if target in seen:
                     continue
                 seen.add(target)
-                pending.extend((e['to'], steps + [(target, e)]) for e in edges.get(target, []))
+                pending.extend((e['to'], (target, e, previous)) for e in edges.get(target, []))
 
     def intern(call, event, discover=False):
         signature = templates.get(call['call'])

@@ -403,15 +403,16 @@ impl Expander<'_> {
         normalize_patterns(root, &self.patterns)
     }
     fn flow(&self, events: &[Event]) -> R<()> {
-        #[derive(Clone)]
-        struct Edge {
-            to: (String, usize),
+        struct Edge<'a> {
+            from: (&'a str, usize),
+            to: (&'a str, usize),
             growing: bool,
-            event: Event,
-            node: Json,
-            arg: Json,
+            event: &'a Event,
+            node: &'a Json,
+            arg: &'a Json,
         }
-        let mut edges: BTreeMap<(String, usize), Vec<Edge>> = BTreeMap::new();
+        let mut edges = Vec::new();
+        let mut outgoing = BTreeMap::<_, Vec<usize>>::new();
         for e in events {
             let params = list(get(&e.rule, "params"));
             for n in nodes(&e.rule) {
@@ -431,52 +432,78 @@ impl Expander<'_> {
                     return Err(e.fail(n, format!("template {name} expects {} arguments", t.arity)));
                 }
                 for (i, arg) in list(get(n, "args")).iter().enumerate() {
+                    let mut normalized = None;
                     for part in nodes(arg) {
                         if has(part, "capture") || has(part, "captured") {
                             return Err(e.fail(part, "an argument cannot read or declare captures".into()));
                         }
                         if let Some(p) = params.iter().position(|p| p == get(part, "param")) {
-                            edges.entry((text(get(&e.rule, "name")).into(), p)).or_default().push(Edge {
-                                to: (name.into(), i),
-                                growing: get(&self.normalize(arg), "param") != get(part, "param"),
-                                event: e.clone(),
-                                node: n.clone(),
-                                arg: arg.clone(),
-                            })
+                            let from = (text(get(&e.rule, "name")), p);
+                            outgoing.entry(from).or_default().push(edges.len());
+                            edges.push(Edge {
+                                from,
+                                to: (name, i),
+                                growing: get(normalized.get_or_insert_with(|| self.normalize(arg)), "param")
+                                    != get(part, "param"),
+                                event: e,
+                                node: n,
+                                arg,
+                            });
                         }
                     }
                 }
             }
         }
-        for (source, outgoing) in &edges {
-            for edge in outgoing.iter().filter(|e| e.growing) {
-                let mut pending = vec![(edge.to.clone(), vec![(source.clone(), edge.clone())])];
-                let mut seen = BTreeSet::new();
-                while let Some((target, steps)) = pending.pop() {
-                    if &target == source {
-                        let trail = steps
-                            .iter()
-                            .map(|(s, e)| {
-                                let a = at(&e.node).unwrap();
-                                format!("{}:{} → {}:{} at {}:{}:{}", s.0, s.1, e.to.0, e.to.1, e.event.path, a.0, a.1)
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" then ");
-                        return Err(edge.event.fail(
-                            &edge.node,
-                            format!(
-                                "unbounded-instantiation: {trail}, growing argument {}",
-                                canonical(&edge.arg, self.uni)
-                            ),
-                        ));
-                    }
-                    if !seen.insert(target.clone()) {
+        for template in &self.templates {
+            for parameter in 0..template.arity {
+                let source = (template.name.as_str(), parameter);
+                for &first in outgoing.get(&source).into_iter().flatten() {
+                    let edge = &edges[first];
+                    if !edge.growing {
                         continue;
                     }
-                    for e in edges.get(&target).into_iter().flatten() {
-                        let mut path = steps.clone();
-                        path.push((target.clone(), e.clone()));
-                        pending.push((e.to.clone(), path))
+                    // Each trace entry names one edge and its predecessor.
+                    let mut traces = vec![(first, None)];
+                    let mut pending = vec![(edge.to, 0)];
+                    let mut seen = BTreeSet::new();
+                    while let Some((target, trace)) = pending.pop() {
+                        if target == source {
+                            let mut path = Vec::new();
+                            let mut cursor = Some(trace);
+                            while let Some(index) = cursor {
+                                let (edge, previous) = traces[index];
+                                path.push(edge);
+                                cursor = previous;
+                            }
+                            path.reverse();
+                            let trail = path
+                                .into_iter()
+                                .map(|index| {
+                                    let e = &edges[index];
+                                    let a = at(e.node).unwrap();
+                                    format!(
+                                        "{}:{} → {}:{} at {}:{}:{}",
+                                        e.from.0, e.from.1, e.to.0, e.to.1, e.event.path, a.0, a.1
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" then ");
+                            return Err(edge.event.fail(
+                                edge.node,
+                                format!(
+                                    "unbounded-instantiation: {trail}, growing argument {}",
+                                    canonical(edge.arg, self.uni)
+                                ),
+                            ));
+                        }
+                        if !seen.insert(target) {
+                            continue;
+                        }
+                        for &next in outgoing.get(&target).into_iter().flatten() {
+                            let index = traces.len();
+                            traces.push((next, Some(trace)));
+                            pending.push((edges[next].to, index));
+                        }
                     }
                 }
             }

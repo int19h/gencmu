@@ -241,7 +241,7 @@ fn uncalled_source_validation() {
         ("%rule unused(@X) @X %emits $x :: @X, $x", "a repeated emission capture"),
         ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "a repeated emission capture"),
         ("%rule unused(@X) @X :: _L ∪ @X", "engine tag"),
-        ("%rule unused(@X) @X :: $.tags ∪ @X", "tags it defines"),
+        ("%rule unused(@X) @X :: $.tags ∪ @X", "$.tags or $.classes"),
         ("%rule unused(@X) @X := @X %erased", "erased"),
         ("%rule unused(@X) [+| @X]", "without | or &"),
         (

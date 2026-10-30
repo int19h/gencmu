@@ -823,6 +823,8 @@ The loader constructs a directed parameter-flow graph before expansion. A node i
 
 An edge is unchanged when that argument is exactly the source parameter. Otherwise the edge grows. Nested calls, expressions, and lists count as wrapping forms. A parenthesized single parameter stays unchanged and adds no growth. Arguments with no parameter references create no edge. The loader includes calls at every depth and every definition, including replaced definitions and uncalled templates.
 
+The search visits templates in declaration order, then parameter positions from left to right. Edges retain references to their source definition, call, and argument. Cycle search retains predecessor links and constructs the diagnostic trail only for an error.
+
 A directed cycle with a growing edge causes `unbounded-instantiation`. The error names the cycle, growing wrapping form, and source locations. Unchanged recursive calls, permutations, and passing a nominal rule name remain valid. An arbitrary expansion-depth limit cannot replace this analysis.
 
 ```jbogenbau

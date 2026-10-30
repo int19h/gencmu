@@ -7140,27 +7140,31 @@
         if(!target) fail(event,n,`unknown template ${n.call}`);
         if(n.args.length!==target.arity) fail(event,n,`template ${n.call} expects ${target.arity} arguments`);
         n.args.forEach((/** @type {any} */ arg,/** @type {number} */ i)=>{
+          let normalized;
           for(const part of templateNodes(arg)) {
             if(part.capture!==undefined || part.captured!==undefined) fail(event,part,'an argument cannot read or declare captures');
-            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:normalize(arg).param!==part.param,event,node:n,argument:arg});
+            if(part.param && params.includes(part.param)) edges.get(rule.name+':'+params.indexOf(part.param))?.push({to:n.call+':'+i,growing:(normalized??=normalize(arg)).param!==part.param,event,node:n,argument:arg});
           }
         });
       }
     }
     // Every growing edge must lack a return path. Unchanged cycles are finite.
     for(const [from,list] of edges) for(const edge of list) if(edge.growing) {
-      const pending=[{to:edge.to,steps:/** @type {any[]} */ ([]) }],seen=new Set();
+      const pending=[{to:edge.to,previous:/** @type {any} */ (null)}],seen=new Set();
       while(pending.length) {
         const state=pending.pop();
         if(!state) break;
         if(state.to===from) {
-          const cycle=[{from,...edge},...state.steps];
-          const trail=cycle.map(step=>`${step.from} → ${step.to} at ${step.event.path}:${step.node.at[0]}:${step.node.at[1]}`).join(' then ');
+          const steps=[];
+          for(let step=state.previous;step;step=step.previous) steps.push(step);
+          steps.reverse();
+          const cycle=[{from,edge},...steps];
+          const trail=cycle.map(({from,edge})=>`${from} → ${edge.to} at ${edge.event.path}:${edge.node.at[0]}:${edge.node.at[1]}`).join(' then ');
           fail(edge.event,edge.node,`unbounded-instantiation: ${trail}, growing argument ${canonicalArgument(edge.argument,unicode)}`);
         }
         if(seen.has(state.to)) continue;
         seen.add(state.to);
-        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,steps:[...state.steps,{from:state.to,...next}]});
+        for(const next of edges.get(state.to)??[]) pending.push({to:next.to,previous:{from:state.to,edge:next,previous:state.previous}});
       }
     }
     /** @type {(call:any,event:any,discover?:boolean)=>any} */
