@@ -157,7 +157,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool, sel
 		if len(features) > 0 {
 			lowered = lower(g, features)
 		}
-		out = run.run(lowered, g.elisionOnly)
+		out = run.run(lowered, g.elisionOnly, features)
 		if out.err != nil && out.err.Kind == ErrorAmbiguous {
 			// A tie has no single position, so the error names the document
 			// alone, with no line or column (engine §8).

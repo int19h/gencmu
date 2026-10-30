@@ -62,7 +62,7 @@ func guardNames(guards []domGuard) []string {
 	seen := map[string]bool{}
 	var names []string
 	for _, gd := range guards {
-		if !seen[gd.Feature] {
+		if gd.Kind != FeatureWarning && !seen[gd.Feature] {
 			seen[gd.Feature] = true
 			names = append(names, gd.Feature)
 		}

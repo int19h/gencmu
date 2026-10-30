@@ -119,9 +119,9 @@ export declare class Grammar {
     /**
      * The classifiers resolved for each set of the classifier gates that is
      * on (engine §2).
-     * @type {Map<string, Map<string, Map<string, TagSet>>>}
+     * @type {Map<string, Map<string, Map<string, TagSet>> | GencmuError>}
      */
-    classifierTables: Map<string, Map<string, Map<string, TagSet>>>;
+    classifierTables: Map<string, Map<string, Map<string, TagSet>> | GencmuError>;
     /**
      * Each test of a body with its value, made once for every lowering.
      * @type {WeakMap<object, SymbolTest>}
@@ -168,9 +168,9 @@ export declare class Grammar {
     gates: string[];
     /**
      * The lowered grammars, keyed by the gates that are on.
-     * @type {Map<string, LoweredGrammar>}
+     * @type {Map<string, LoweredGrammar | GencmuError>}
      */
-    lowered: Map<string, LoweredGrammar>;
+    lowered: Map<string, LoweredGrammar | GencmuError>;
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents

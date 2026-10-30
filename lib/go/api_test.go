@@ -1464,3 +1464,17 @@ func TestMarshalWitnessLost(t *testing.T) {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
 }
+
+func TestWarningFeaturesShareALowering(t *testing.T) {
+	t.Parallel()
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a! b! \"x\""))
+	for _, features := range [][]string{nil, {"a"}, {"b"}, {"a", "b"}, nil} {
+		result, err := d.Parse("x", ParseOptions{Features: features})
+		if err != nil || !result.OK || len(result.Warnings) != len(features) {
+			t.Fatalf("%v: %v %+v", features, err, result)
+		}
+	}
+	if n := d.lowered[0].len(); n != 1 {
+		t.Fatalf("%d lowered grammars", n)
+	}
+}

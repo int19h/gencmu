@@ -921,7 +921,7 @@ func (d *Pipeline) runStages(ps *parseState, features map[string]bool, options P
 		if failure := run.activateFeatures(g.features, features, options.WithoutFeatures); failure != nil {
 			o = stageOutcome{stage: Stage{Name: g.name, Input: tokens}, err: failure}
 		} else {
-			o = run.run(d.lower(i, features), elision)
+			o = run.run(d.lower(i, features), elision, features)
 		}
 		out = append(out, o)
 		if o.err != nil {

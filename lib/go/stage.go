@@ -285,7 +285,7 @@ func (run *stageRun) actions(rec *recognizer, w [2]action) []Action {
 }
 
 // run runs one stage over its input (engine §4-§7, §11, §12).
-func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
+func (run *stageRun) run(g *lowered, elisionOnly bool, features map[string]bool) (out stageOutcome) {
 	out.stage = Stage{Name: run.name, Input: run.toks}
 	defer func() {
 		if x := recover(); x != nil {
@@ -335,7 +335,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	// Only the chosen tree gives warnings: not the check of elision-only
 	// (§12).
 	if g.warns {
-		out.warnings = run.warnings(rec, res.first)
+		out.warnings = run.warnings(rec, res.first, features)
 	}
 	// The stage emits its tokens before the check of §7. An error found
 	// while emitting ends the stage before the check (§6).

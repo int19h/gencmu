@@ -620,7 +620,7 @@ func (nr *notationReader) restoreLocations(text string, dom *domDoc) {
 		return
 	}
 	run := ps.newRun(nr.stages[0].name, nr.stages[0], ps.characterTokens())
-	out := run.run(nr.lowered[0], nr.stages[0].elisionOnly)
+	out := run.run(nr.lowered[0], nr.stages[0].elisionOnly, nil)
 	if out.err == nil {
 		restoreRankedLocations(dom, out.stage.Output, gt.at)
 	}

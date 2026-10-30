@@ -8585,7 +8585,7 @@
       /**
        * The classifiers resolved for each set of the classifier gates that is
        * on (engine §2).
-       * @type {Map<string, Map<string, Map<string, TagSet>>>}
+       * @type {Map<string, Map<string, Map<string, TagSet>> | GencmuError>}
        */
       this.classifierTables = new Map();
       /**
@@ -8660,7 +8660,7 @@
       ]);
       /**
        * The lowered grammars, keyed by the gates that are on.
-       * @type {Map<string, LoweredGrammar>}
+       * @type {Map<string, LoweredGrammar | GencmuError>}
        */
       this.lowered = new Map();
     }
@@ -8774,6 +8774,7 @@
     classifiers(features) {
       const key = JSON.stringify(this.classifierGates.filter((name) => features.has(name)));
       let tables = recall(this.classifierTables, key);
+      if (tables instanceof GencmuError) throw tables;
       if (tables) return tables;
       tables = new Map();
       for (const { path, classifier } of this.classifierItems) {
@@ -8787,7 +8788,9 @@
             if ((entry.op === "∈") === classes.has(entry.class)) {
               const [line, column] = entry.at;
               const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
-              throw new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
+              const error = new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
+              remember(this.classifierTables, key, error);
+              throw error;
             }
             // Each table's sets are its own, so an entry changes one in place:
             // a copy for each entry would cost the square of a key's entries.
@@ -9181,6 +9184,7 @@
       const on = new Set(this.gates.filter((name) => features.has(name)));
       const key = JSON.stringify([...on]);
       let lowered = recall(this.lowered, key);
+      if (lowered instanceof GencmuError) throw lowered;
       if (!lowered) {
         // The stage resolves its classifiers for the same features, before it
         // lowers its rules (engine §2, §3).
@@ -9188,7 +9192,10 @@
           const classifiers = this.classifiers(on);
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         } catch (error) {
-          if (error instanceof GencmuError) error.where.stage = this.stageName;
+          if (error instanceof GencmuError) {
+            error.where.stage = this.stageName;
+            remember(this.lowered, key, error);
+          }
           throw error;
         }
         remember(this.lowered, key, lowered);

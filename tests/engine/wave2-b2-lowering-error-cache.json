@@ -1,0 +1,57 @@
+{
+  "description": "Repeated lowering errors stay specific to their gate set (engine §3).",
+  "grammar": "%rule text f? {[\"a\"]} | ¬f? \"a\"",
+  "input": "a",
+  "parses": [
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "grammar"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "grammar"
+      }
+    },
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "grammar"
+      }
+    },
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        }
+      }
+    }
+  ]
+}

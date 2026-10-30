@@ -875,6 +875,8 @@ Every production of a named rule records the stitched rule's flags. Productions 
 
 A stage lowers its grammar when a parse gives it the enabled features. So a pipeline whose documents read and stitch loads, whatever errors lowering finds for some features. An error that lowering finds is an error of the grammar for the features of that parse. It ends the stage as the stage's result, as other parsing errors do. The stage has no verdict, no tree and no output, and no later stage runs.
 
+The stage remembers classifier and lowering errors under the same gate key as successful results. Repeated parses reuse that error until its cache entry expires. Internal exceptions do not enter this cache.
+
 Loading an ordinary pipeline does not expand production combinations. Bootstrap validation still lowers the notation stages (§8).
 
 The error has the kind `grammar` and the stage's name, and no position member, since its position is not one of the stage's input (`docs/output.md`). Its message begins with the document, the line and the column of the definition that wrote the alternative at fault, as `case/a.md:3:1:`. That definition is the `%rule`, `%redefine-rule` or `%extend-rule` that holds the alternative. It is not the place of the braces in it, and not another definition that makes an item of the braces empty. The stage reports classifier errors in the same way, at their entries (§2).
@@ -888,6 +890,8 @@ Lowering reports a chain beside another alternative before an empty brace item, 
 ### 3.1 Feature gates
 
 Lowering drops an alternative whose gates do not all hold. A gate `f?` holds when the feature `f` is on, and `¬f?` when it is off. A warning `f!` is not a gate and never drops its alternative (§12).
+
+Lowered productions retain every written warning name. Warning collection selects enabled names from the chosen tree. Changing warning features alone reuses the same lowered grammar.
 
 ### 3.2 Expression expansion
 

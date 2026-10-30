@@ -162,7 +162,7 @@ func (run *stageRun) buildTree(rec *recognizer, d *dn) *Node {
 // node of its tree gives one for each warning of its production, in the
 // order a walk meets the nodes, parent before children and children left to
 // right. Helpers give their children in their place, as in buildTree.
-func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
+func (run *stageRun) warnings(rec *recognizer, d *dn, features map[string]bool) []Warning {
 	var out []Warning
 	pending := []*dn{d}
 	for len(pending) > 0 {
@@ -174,6 +174,9 @@ func (run *stageRun) warnings(rec *recognizer, d *dn) []Warning {
 		if !n.prod.helper {
 			a, b := rec.base+int(n.start), rec.base+int(n.end)
 			for _, f := range n.prod.warnings {
+				if !features[f] {
+					continue
+				}
 				out = append(out, Warning{Stage: run.name, Feature: f, Rule: n.prod.ruleName, Span: [2]int{a, b}, Source: run.spanSource(a, b)})
 			}
 		}

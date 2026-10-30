@@ -655,7 +655,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	if !ok {
 		for _, gd := range a.alt.Guards {
 			presenceStep()
-			if gd.Kind == FeatureWarning && lw.features[gd.Feature] {
+			if gd.Kind == FeatureWarning {
 				warnings = append(warnings, gd.Feature)
 			}
 		}
