@@ -157,7 +157,7 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 }
 
 type item struct {
-	boundaryTags        *tagset
+	knownTags           *tagset
 	boundaryAnnotations *boundaryAnnotations
 	itemKey
 	set   int32
@@ -234,7 +234,8 @@ type recognizer struct {
 	scanIndex                             int
 	boundarySeen                          map[*boundaryRecord]bool
 	boundaryTagActive, boundaryTagInvalid bool
-	nextBoundaryTags                      *tagset
+	nextTags                              *tagset
+	predictTags                           *lazyTags
 	boundaries                            *boundaryMachine
 	startRule                             int32
 	obligations                           []boundaryObligation
@@ -621,7 +622,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 			key := itemKey{prod: p, origin: int32(k)}
 			r.finishCloses(&key, int32(k))
 			r.finishStructure(&key)
-			if q := r.finishBoundaryTags(p, &key, int32(k)); q != nil {
+			if q := r.finishTags(p, &key, int32(k), r.predictTags); q != nil {
 				return q
 			}
 			if r.boundaryTagInvalid {
@@ -709,6 +710,7 @@ func (r *recognizer) reads(k int, term int32) bool {
 func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 	if !r.pending {
 		r.obligations = nil
+		r.predictTags = nil
 		if len(p.predictConds) == 0 {
 			return true, nil
 		}
@@ -721,6 +723,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			// The tag term runs only where a condition reads $'s tags (§4).
 			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure, key.closes)
 		}
+		r.predictTags = tags
 		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes))
 		r.pending, r.condAt = true, 0
 		countCondition()
@@ -777,7 +780,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	}
 	it := s.index[key]
 	if it == nil {
-		it = &item{boundaryTags: r.nextBoundaryTags, boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}
+		it = &item{knownTags: r.nextTags, boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}
 		if w := work.Load(); w != nil {
 			w.items.add("items")
 		}
@@ -785,6 +788,9 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 		s.items = append(s.items, it)
 		s.queue = append(s.queue, it)
 	} else {
+		if it.knownTags == nil {
+			it.knownTags = r.nextTags
+		}
 		if r.boundaries != nil {
 			it.boundaryAnnotations.merge(r.nextBoundaryAnnotations)
 		}
@@ -921,8 +927,8 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	in := r.run.ps.in
 	var ts *tagset
 	switch {
-	case it.boundaryTags != nil:
-		ts = it.boundaryTags
+	case it.knownTags != nil:
+		ts = it.knownTags
 	case it.restores:
 		// A restoration has the tags of the empty production, none (§7.4).
 		ts = in.empty()
@@ -1085,7 +1091,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		}
 	}
 
-	if q := r.finishBoundaryTags(p, &key, int32(k)); q != nil {
+	if q := r.finishTags(p, &key, int32(k), whole); q != nil {
 		r.adv = advancing{active: true, key: key, i: hi, whole: whole}
 		return q
 	}
@@ -1094,6 +1100,35 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		return nil
 	}
 	r.add(k, key, l, true, strict)
+	return nil
+}
+
+// finishTags reuses ready-condition tags before boundary processing or completion.
+func (r *recognizer) finishTags(p *production, key *itemKey, end int32, known *lazyTags) *nestedQuery {
+	r.nextTags = nil
+	if int(key.dot) != len(p.rhs) {
+		return nil
+	}
+	if known != nil && !known.parent && known.tags != nil {
+		r.nextTags = known.tags
+		return nil
+	}
+	if r.boundaries == nil || p.tags == nil {
+		return nil
+	}
+	if !r.boundaryTagActive {
+		r.boundaryTagActive = true
+		r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(key), key.origin, end, nil, key.structure, key.closes)), p.tags)
+	}
+	if q := r.w.resume(); q != nil {
+		return q
+	}
+	r.boundaryTagActive = false
+	if r.w.invalidObservation {
+		r.boundaryTagInvalid = true
+		return nil
+	}
+	r.nextTags = toSet(r.w.v)
 	return nil
 }
 
@@ -1142,9 +1177,8 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			state = r.machine.node(lexical.root.ruleName, r.machine.concat(lexical.sealPrefix, r.machine.sealed()), "", "", nil)
 		}
 		if whole != nil {
-			copy := *whole
-			copy.parent = true
-			whole = &copy
+			// This lazy value belongs to the enclosing frame's $.
+			whole.parent = true
 		}
 		if r.observesCloses(lexical.root) {
 			a, b := r.observed(parentOrigin, end)

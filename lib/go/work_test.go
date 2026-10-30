@@ -47,3 +47,45 @@ func stopsAtFirst(t *testing.T, w *workCounts, c *workCount, name string, f func
 	}
 	return true
 }
+
+// Asking for the constituent's tags adds only the condition's observation.
+// It never repeats the term, including at prediction and boundary processing.
+func TestReadyConditionsKeepComputedTags(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		for _, boundary := range []bool{false, true} {
+			body, input := `"a"`, "ab"
+			if empty {
+				body, input = "ε", "b"
+			}
+			var visits [2]int64
+			for index, observed := range []bool{false, true} {
+				condition := `X ⊆ X`
+				if observed {
+					condition = `X ⊆ $.tags`
+				}
+				if boundary {
+					condition += ", $.followed-by(tail)"
+				}
+				grammar := fmt.Sprintf(`%%ambiguity-resolution greedy
+%%rule text body tail
+%%rule body %s :: X ∪ Y %%conditions %s
+%%rule tail "b"`, body, condition)
+				d := mustLoad(t, oneStage(grammar))
+				w := &workCounts{}
+				countWorkIn(w, func() {
+					result, err := d.Parse(input, ParseOptions{})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !result.OK {
+						t.Fatalf("empty=%v boundary=%v: %v", empty, boundary, result.Error)
+					}
+				})
+				visits[index] = w.visits.Load()
+			}
+			if delta := visits[1] - visits[0]; delta > 2 {
+				t.Errorf("empty=%v boundary=%v: observing tags added %d visits", empty, boundary, delta)
+			}
+		}
+	}
+}

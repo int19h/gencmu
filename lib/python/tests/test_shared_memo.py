@@ -61,6 +61,36 @@ def shared_rules(pipeline: gencmu.Pipeline) -> list[str]:
 
 
 class SharedMemo(unittest.TestCase):
+    def test_ready_conditions_keep_computed_tags(self):
+        from gencmu._earley import Evaluator
+
+        walk_value = Evaluator.walk_value
+        for empty in (False, True):
+            for boundary in (False, True):
+                for query in (False, True):
+                    body = "ε" if empty else '\"a\"'
+                    term = "$.tags(probe)" if query else "X ∪ Y"
+                    condition = "X ⊆ $.tags"
+                    if boundary:
+                        condition += ", $.followed-by(tail)"
+                    grammar = (f'%rule text body tail\n%rule body {body} :: {term} %conditions {condition}\n'
+                               f'%rule probe {body} :: X\n%rule tail "b"')
+                    pipeline, error = load_case_pipeline({"grammar": grammar})
+                    self.assertIsNone(error)
+                    evaluations = []
+
+                    def counted(evaluator, dom, bound):
+                        is_term = dom.get("method") == "tags" and dom.get("args") if query else "union" in dom
+                        if is_term:
+                            evaluations.append(dom)
+                        return (yield from walk_value(evaluator, dom, bound))
+
+                    with self.subTest(empty=empty, boundary=boundary, query=query):
+                        with patch.object(Evaluator, "walk_value", counted):
+                            result = pipeline.parse("b" if empty else "ab")
+                        self.assertTrue(result.ok, result.error)
+                        self.assertEqual(len(evaluations), 1)
+
     def test_warm_memo_cannot_hide_suffix_recursion(self) -> None:
         run = RUNS[-1]
         pipeline = pipeline_of(run)

@@ -1113,6 +1113,7 @@ class Parser:
 
         boundaries = context.boundary_machine
         records, annotations, failures, prediction_obligations = [], [], [], {}
+        item_tags, prediction_tags = {}, {}
         boundary_seen = set()
         has_slots = bool(ranked_groups)
         prod: list[int] = []
@@ -1326,7 +1327,9 @@ class Parser:
                         return None
             return record, notes
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None) -> None:
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None, known_tag=None) -> None:
+            if position == 0 and not productions[production].rhs:
+                known_tag = prediction_tags.pop((production, at), known_tag)
             bounded = None
             if boundaries is not None:
                 obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
@@ -1347,6 +1350,8 @@ class Parser:
             if bounded is not None:
                 key += (bounded[0].id,)
             found = sets[at].get(key)
+            if found is not None and known_tag is not None and found not in tag:
+                item_tags.setdefault(found, known_tag)
             if found is not None and bounded is not None:
                 annotations[found].merge(bounded[1])
             if found is None:
@@ -1359,6 +1364,8 @@ class Parser:
                         _testing.count("boundary_records")
                     records.append(bounded[0])
                     annotations.append(bounded[1])
+                if known_tag is not None:
+                    item_tags[found] = known_tag
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1572,10 +1579,14 @@ class Parser:
             and then the item, if they all hold. Once the constituent is
             complete, $ has its tags, and the tag term runs only where a
             condition reads them (engine §4)."""
-            if production.whole_ready and position + 1 == len(production.rhs):
+            known_tag = None
+            complete = position + 1 == len(production.rhs)
+            if complete and (production.whole_ready or boundaries is not None and production.tags_term is not None):
                 structure = completed_structure(production, position + 1, prefix)
                 close_structure = completed_closes(production, position + 1, start, at, close_prefix)
-                bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure, close_structure)), structure, close_structure)
+                known_tag = lazy_tag(production, captured, start, at, structure, close_structure)
+            if production.whole_ready and complete:
+                bound = bound_for(production, captured, (start, at, known_tag), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
             obligations = []
@@ -1584,10 +1595,10 @@ class Parser:
                     if not (yield boundary_condition(condition, bound, obligations)):
                         return
                 if boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
-                    yield term_tag(production, captured, start, at, completed_structure(production, position + 1, prefix), completed_closes(production, position + 1, start, at, close_prefix))
+                    yield known_tag()
             except InvalidObservation:
                 return
-            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations)
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations, known_tag)
 
         # Prediction conditions run before lookahead. Other terminal-first
         # productions use the terminal indexes to avoid prediction work.
@@ -1606,19 +1617,22 @@ class Parser:
             # §4).
             structure = completed_structure(production, 0, 0)
             close_structure = completed_closes(production, 0, j, j, 0)
-            whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure, close_structure)) if not production.rhs else None
+            known_tag = lazy_tag(production, NO_CAPS, j, j, structure, close_structure) if not production.rhs else None
+            whole = (j, j, known_tag) if known_tag is not None else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
             obligations = []
             try:
                 for condition in production.conds_predict:
                     if not (yield boundary_condition(condition, bound, obligations)):
                         return False
+                if boundaries is not None and not production.rhs and production.tags_term is not None:
+                    yield known_tag()
             except InvalidObservation:
                 return False
             if boundaries is not None:
                 prediction_obligations[production.id, j] = obligations
-                if not production.rhs and production.tags_term is not None:
-                    yield term_tag(production, NO_CAPS, j, j, structure, close_structure)
+            if known_tag is not None:
+                prediction_tags[production.id, j] = known_tag
             return True
 
         def restore(number: int, j: int) -> None:
@@ -1784,7 +1798,13 @@ class Parser:
                     continue
                 # A completed item: its tag set, then the items waiting for it.
                 start = origin[item]
-                if production.tags_term is None:
+                known_tag = item_tags.pop(item, None)
+                if known_tag is not None:
+                    try:
+                        tag[item] = yield known_tag()
+                    except InvalidObservation:
+                        continue
+                elif production.tags_term is None:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
                     try:
