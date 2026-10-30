@@ -262,11 +262,18 @@ pub(crate) fn restore_locations(to: &mut Dom, from: &Dom) {
                 | (SourceArgument::Requirements(to), SourceArgument::Requirements(from)) => {
                     pending.push(Pair::Term(to, from))
                 }
-                (SourceArgument::Body(to), SourceArgument::Body(from)) => pending.push(Pair::Expr(to, from)),
-                (SourceArgument::Body(Expr::Source(to)), SourceArgument::Term(Term::Source(from)))
-                | (SourceArgument::Term(Term::Source(to)), SourceArgument::Body(Expr::Source(from))) => {
-                    pending.push(Pair::Symbol(to, from))
-                }
+                (
+                    SourceArgument::Body(to) | SourceArgument::WrappedBody(to),
+                    SourceArgument::Body(from) | SourceArgument::WrappedBody(from),
+                ) => pending.push(Pair::Expr(to, from)),
+                (
+                    SourceArgument::Body(Expr::Source(to)) | SourceArgument::WrappedBody(Expr::Source(to)),
+                    SourceArgument::Term(Term::Source(from)),
+                )
+                | (
+                    SourceArgument::Term(Term::Source(to)),
+                    SourceArgument::Body(Expr::Source(from)) | SourceArgument::WrappedBody(Expr::Source(from)),
+                ) => pending.push(Pair::Symbol(to, from)),
                 (SourceArgument::Targets(to), SourceArgument::Targets(from)) => {
                     for (to, from) in to.iter_mut().zip(from) {
                         if let (SourceTarget::Symbol(to), SourceTarget::Symbol(from)) = (to, from) {

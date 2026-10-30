@@ -132,7 +132,7 @@ pub(super) fn document(dom: &mut Dom) {
             Part::Call(call) => stack.extend(call.args.iter_mut().map(Part::Argument)),
             Part::Argument(arg) => match arg {
                 SourceArgument::Term(t) | SourceArgument::Requirements(t) => stack.push(Part::Term(t)),
-                SourceArgument::Body(e) => stack.push(Part::Expr(e)),
+                SourceArgument::Body(e) | SourceArgument::WrappedBody(e) => stack.push(Part::Expr(e)),
                 SourceArgument::Targets(xs) => stack.extend(xs.iter_mut().filter_map(|t| {
                     if let SourceTarget::Symbol(s) = t {
                         Some(Part::Symbol(s))

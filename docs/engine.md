@@ -639,6 +639,8 @@ The argument reader tries these forms in order:
 
 A parenthesized expression that cannot parse as a body follows ordinary term syntax. A parenthesized argument with one symbol reads as that symbol. This includes a parameter, a tested symbol, and a literal.
 
+Native cache decoding preserves an explicitly supplied body wrapper until argument conversion. This wrapper does not change the instance key.
+
 Other bodies retain their argument category. Parentheses alone add no node. An unparenthesized run of body symbols is not one argument.
 
 Bare tag runs retain their ordinary tag-set meaning.
@@ -859,7 +861,7 @@ For each instance, the loader replays applicable events and substitutes argument
 
 Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
-Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names.
+Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names. Capture and test bases use the same effective-name predicate as other rule references.
 
 An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
 
@@ -2373,6 +2375,8 @@ A set beside other child items requires grouping parentheses. `« a (b ∪ c) »
 A pattern argument is one term that the pattern grammar consumes. The argument reader balances guillemet tokens, not characters in raw text. A guillemet inside a string or comment is not a delimiter. Inner `|`, `/`, and commas belong to that term and do not separate outer call arguments. Thus `f(#« "»" a »)` retains the complete child list as its argument.
 
 ### 9.3 Conversion and validation
+
+A known non-string operand fails concatenation even if it contains a parameter. This local failure uses the concatenation's position.
 
 Readers use common diagnostic text for unclosed grammar fences, classifier warnings, capture restrictions, method signatures, and directive operands. A method with an invalid receiver or arguments reports `a method has the wrong receiver or arguments`. Advice for restored spans and bare captures keeps its specific text. A diagnostic position remains separate from its text. A library can prefix the text with that position.
 

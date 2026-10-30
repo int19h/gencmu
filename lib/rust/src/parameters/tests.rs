@@ -289,7 +289,9 @@ fn cached_location_recovery_preserves_public_source_members() {
         panic!("a source call");
     };
     call.at = (90, 91);
-    let dom::source::SourceArgument::Body(dom::Expr::Ranked(options, _)) = &mut call.args[0] else {
+    let (dom::source::SourceArgument::Body(dom::Expr::Ranked(options, _))
+    | dom::source::SourceArgument::WrappedBody(dom::Expr::Ranked(options, _))) = &mut call.args[0]
+    else {
         panic!("a ranked body");
     };
     options[0] = dom::Expr::Literal(dom::Term::Const("Cached".into(), (92, 93)));
@@ -299,7 +301,9 @@ fn cached_location_recovery_preserves_public_source_members() {
     let dom::Expr::Source(dom::source::SourceSymbol::Call(call)) = &cached.rules[1].alternatives[0].expr else {
         panic!("a source call");
     };
-    let dom::source::SourceArgument::Body(dom::Expr::Ranked(_, at)) = &call.args[0] else {
+    let (dom::source::SourceArgument::Body(dom::Expr::Ranked(_, at))
+    | dom::source::SourceArgument::WrappedBody(dom::Expr::Ranked(_, at))) = &call.args[0]
+    else {
         panic!("a ranked body");
     };
     assert_eq!(*at, Some((3, 18)));

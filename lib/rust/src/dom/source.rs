@@ -28,7 +28,7 @@ pub(crate) fn arguments_from_json(value: &Json) -> R<Vec<SourceArgument>> {
         .iter()
         .map(|arg| {
             Ok(if let Some(body) = arg.get("body") {
-                SourceArgument::Body(expr_from_json(body)?)
+                SourceArgument::WrappedBody(expr_from_json(body)?)
             } else if arg.get("requirements").is_some() && arg.get("test").is_none() {
                 SourceArgument::Requirements(requirements_from_json(arg)?)
             } else if arg.get("targets").is_some() {
@@ -92,6 +92,7 @@ pub(crate) struct SourceCall {
 pub(crate) enum SourceArgument {
     Term(Term),
     Body(Expr),
+    WrappedBody(Expr),
     Requirements(Term),
     Targets(Vec<SourceTarget>),
 }
@@ -153,6 +154,11 @@ pub(crate) fn write_arguments(out: &mut String, args: &[SourceArgument]) {
         }
         match arg {
             SourceArgument::Term(term) => write_term(out, term),
+            SourceArgument::WrappedBody(expr) => {
+                out.push_str("{\"body\":");
+                write_expr(out, expr);
+                out.push('}');
+            }
             SourceArgument::Body(expr) => match expr {
                 Expr::Ref(name) | Expr::Terminal(name) => {
                     let rule =

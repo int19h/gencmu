@@ -1710,7 +1710,7 @@ fn argument_children(args: &[source::SourceArgument]) -> Vec<Nested<'_>> {
     args.iter()
         .flat_map(|arg| match arg {
             source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => vec![Nested::Term(term)],
-            source::SourceArgument::Body(expr) => vec![Nested::Expr(expr)],
+            source::SourceArgument::Body(expr) | source::SourceArgument::WrappedBody(expr) => vec![Nested::Expr(expr)],
             source::SourceArgument::Targets(targets) => targets
                 .iter()
                 .filter_map(|target| match target {
@@ -2426,7 +2426,9 @@ impl SourceSymbol {
                     source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => {
                         stack.push(Dropping::Term(term));
                     }
-                    source::SourceArgument::Body(expr) => stack.push(Dropping::Expr(expr)),
+                    source::SourceArgument::Body(expr) | source::SourceArgument::WrappedBody(expr) => {
+                        stack.push(Dropping::Expr(expr))
+                    }
                     source::SourceArgument::Targets(targets) => {
                         stack.extend(targets.into_iter().filter_map(|target| match target {
                             source::SourceTarget::Symbol(symbol) => Some(Dropping::Source(symbol)),

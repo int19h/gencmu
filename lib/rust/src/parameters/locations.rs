@@ -156,7 +156,7 @@ fn annotate_arguments(args: &[dom::source::SourceArgument], n: &mut Json) {
     if let Some(Json::Arr(values)) = slot(n, "args") {
         for (arg, n) in args.iter().zip(values) {
             match arg {
-                SourceArgument::Body(expr) => {
+                SourceArgument::Body(expr) | SourceArgument::WrappedBody(expr) => {
                     if has(n, "body") {
                         annotate_expr(expr, slot(n, "body").unwrap());
                     } else {
