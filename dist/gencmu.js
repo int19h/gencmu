@@ -13663,6 +13663,8 @@
   const diagnosticUnicode = new UnicodeTable("unicode 15.1.0\n");
   /** @type {WeakMap<Trace, UnicodeTable>} */
   const traceUnicode = new WeakMap();
+  /** @type {WeakMap<StageAudit, UnicodeTable>} */
+  const auditUnicode = new WeakMap();
 
   // ---- Where in the text --------------------------------------------------
 
@@ -14202,8 +14204,10 @@
         if (owner !== report.family && !owns && !edges) report.notes.push({kind:"inert-member", rule:owner});
       }
       if (!report.permitted.length) report.notes.unshift({kind:"empty"});
+      const members = new Set(report.members), namedOutside = new Set();
+      for (const [name, names] of references) if (!members.has(name)) for (const reference of names) namedOutside.add(reference);
       for (const member of report.members) {
-        if (member !== report.family && ![...references].some(([name, names]) => !report.members.includes(name) && names.has(member))) {
+        if (member !== report.family && !namedOutside.has(member)) {
           report.notes.push({kind:"unnamed-member", rule:member});
         }
       }
@@ -14222,15 +14226,6 @@
    *   each entry that adds (`∈`) or removes (`∉`) it, in stitching order, with
    *   its gates as written
    */
-
-  /**
-   * The top-level items of an alternative's expression.
-   * @param {Expr} expr
-   * @returns {Expr[]}
-   */
-  function topItems(expr) {
-    return "seq" in expr ? expr.seq : [expr];
-  }
 
   /**
    * A structural index of captures, without expanding choices or optionals.
@@ -14489,7 +14484,7 @@
         }
         /** @type {Set<string>} */
         const walked = new Set();
-        for (const part of topItems(alternative.expr)) referencedRules(part, walked);
+        referencedRules(alternative.expr, walked);
         for (const part of walked) {
           const list = walkers.get(part);
           if (list) list.push(name);
@@ -14538,7 +14533,7 @@
         const structure = scopesFor(alternative, scopes);
         const items = presentItems(written, (name) => structure.names.has(name), structure.names).map((index) => written[index]);
         if (items.some((item) => item.capture === "")) {
-          topItems(alternative.expr).forEach(reach);
+          reach(alternative.expr);
           continue;
         }
         const emitted = new Set(items.flatMap((item) => (item.capture ? [item.capture] : [])));
@@ -14556,7 +14551,7 @@
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
       for (const alternative of alternativesByRule.get(name) || []) {
         if (alternative.clauses.erased) continue;
-        topItems(alternative.expr).forEach(reach);
+        reach(alternative.expr);
       }
     }
     return inside;
@@ -14640,7 +14635,7 @@
           const reached = new Set();
           for (const sibling of /** @type {StitchedAlternative[]} */ (siblings.get(alternative.clauses))) {
             if (hooks.work) countWork(hooks.work, "clauses");
-            for (const part of topItems(sibling.expr)) referencedRules(part, reached);
+            referencedRules(sibling.expr, reached);
           }
           if (!covering.has(rule.name) && ![...reached].some((name) => emitting.has(name))) {
             idleErasures.push({ rule: rule.name, document: alternative.document });
@@ -14661,7 +14656,7 @@
           }
         }
       }
-      return {
+      const report = {
         name: stage.name,
         stageChanges: (stage.stageChanges ?? []).slice(),
         resolution: resolution ? `${resolution.lean}${resolution.elisionOnly ? " elision-only" : ""}` : "none",
@@ -14674,6 +14669,8 @@
         families: auditFamilies(grammar),
         boundaryNotes: auditBoundaries(grammar),
       };
+      auditUnicode.set(report, pipeline.loader.unicode);
+      return report;
     });
   }
 
@@ -14685,13 +14682,14 @@
   function formatAudit(stages) {
     const blocks = [];
     for (const stage of stages) {
+      const unicode = auditUnicode.get(stage) ?? diagnosticUnicode;
       const lines = [`${stage.name}: ${stage.rules} rules, ${stage.resolution}`];
       for (const change of stage.stageChanges) lines.push(`  stage ${change.kind} at ${change.document}:${change.line}:${change.column}`);
-      for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")})${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
+      for (const template of stage.templates) lines.push(`  template ${template.template}(${template.parameters.map((/** @type {string} */ parameter) => "@"+parameter).join(", ")}) at ${template.document}:${template.line}:${template.column}${template.notes.length ? ": "+template.notes.map((/** @type {any} */ note) => note.kind+(note.parameter ? " "+note.parameter : "")).join(", ") : ""}`);
       for (const instance of stage.instances) {
-        lines.push(`  instance ${instance.name} from ${instance.template}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
+        lines.push(`  instance ${instance.name} from ${instance.template}(${instance.arguments.map((/** @type {any} */ argument) => canonicalArgument(argument, unicode)).join(", ")}), flags ${instance.flags.join(", ") || "none"}, first call ${instance.firstCall.document}:${instance.firstCall.line}:${instance.firstCall.column}`);
         if (instance.binding) lines.push(`    binding: ${instance.binding.document}:${instance.binding.line}:${instance.binding.column}`);
-        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, flags ${event.flagsBefore.join(", ")} -> ${event.flagsAfter.join(", ")}`);
+        for (const event of instance.events) lines.push(`    ${event.scope} ${event.op}: ${event.document}:${event.line}:${event.column}, flags ${event.flagsBefore.join(", ") || "none"} -> ${event.flagsAfter.join(", ") || "none"}`);
         for (const note of instance.notes) lines.push(`    ${note.kind}: ${note.instances.join(", ")}`);
       }
       if (stage.unreachable.length) lines.push(`  unreachable from text: ${stage.unreachable.join(", ")}`);
@@ -14711,7 +14709,7 @@
       }
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
       for (const family of stage.families) {
-        lines.push(`  family ${family.family}, named by ${family.calls.map(call => call.rule).join(", ")}: members ${family.members.join(", ")}`);
+        lines.push(`  family ${family.family}, named by ${family.calls.map(call => `${call.rule} at ${call.document}:${call.line}:${call.column}`).join(", ")}: members ${family.members.join(", ")}`);
         for (const optional of family.permitted) lines.push(`    permits ${optional.terminal} of ${optional.owner} at ${optional.document}:${optional.line}:${optional.column}`);
         for (const note of family.notes) {
           if (note.kind === "empty") lines.push("    empty: queries equal without-elision");
@@ -14844,8 +14842,15 @@
   /** @param {any} grammar */
   function auditBoundaries(grammar) {
     const {atoms,queries,text} = grammar.boundaries, notes = [], seen = new Set();
-    for (const query of queries) for (const {rule,alternative,atom} of atoms) {
-      if (!boundaryAtoms(alternative.clauses.conditions).includes(atom) || !query.reached.rules.has(rule)) continue;
+    const byClause = new WeakMap();
+    const conditionAtoms = atoms.filter((/** @type {any} */ entry) => {
+      const {alternative, atom} = entry;
+      let found = byClause.get(alternative.clauses);
+      if (!found) { found = new Set(boundaryAtoms(alternative.clauses.conditions)); byClause.set(alternative.clauses, found); }
+      return found.has(atom);
+    });
+    for (const query of queries) for (const {rule,alternative} of conditionAtoms) {
+      if (!query.reached.rules.has(rule)) continue;
       const key = `${rule}/${query.rule}/${query.alternative.order}`;
       if (seen.has(key)) continue;
       seen.add(key);
