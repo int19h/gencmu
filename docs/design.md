@@ -936,7 +936,7 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 
 `--pipeline NAME` selects a bundled full name and defaults to `lojban/cll`. `--pipeline-file FILE` loads a local pipeline document instead. The file selector takes precedence when both selectors are supplied.
 
-The `test` command reports invalid JSON as a `usage` error with the case file, physical line number, and exit status 2.
+The `test` command reports invalid JSON or case fields as a `usage` error with the file, physical line number, and exit status 2. Each case has a string `text`, an optional bundled `pipeline`, and optional string arrays `features` and `withoutFeatures`. The `parse` standard input and `test` case files use strict UTF-8. Invalid bytes cause a `usage` error before pipeline loading.
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
 
