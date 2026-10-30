@@ -210,10 +210,16 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			clone.Items = nil
 			p = &clone
 		}
-		w.raw(`{"` + p.Kind + `":`)
+		if p.Kind == "call" {
+			head := &jsonWriter{}
+			p.Call.writeJSON(head)
+			w.raw(string(head.buf[:len(head.buf)-1]))
+		} else {
+			w.raw(`{"` + p.Kind + `":`)
+		}
 		at := false
 		switch p.Kind {
-		case "name", "terminal", "constant":
+		case "name", "terminal", "constant", "param":
 			w.str(p.Name)
 			at = true
 		case "any", "wildcard":
@@ -244,6 +250,7 @@ func writeLayeredPattern(w *jsonWriter, root *domPattern) {
 			w.raw(`,"pattern":`)
 		case tmUnion, tmIntersection, tmDifference:
 			w.raw("[")
+		case "call":
 		default:
 			panic("a resolved pattern constructor is required")
 		}

@@ -1436,6 +1436,8 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		w.readerSteps.add("reader steps")
 	}
 	switch t.Kind {
+	case tmParam, tmSourceCall:
+		return tyAny, nil
 	case tmPattern:
 		var fault *typeFault
 		walkPattern(t.Pattern, func(p *domPattern) {

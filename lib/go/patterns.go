@@ -11,6 +11,7 @@ import (
 // domPattern holds either a node predicate or a children expression.
 // Its shape distinguishes the two sorts in the grammar DOM.
 type domPattern struct {
+	Call         *domSourceCall
 	Kind, Name   string
 	At           [2]int
 	Items        []*domPattern

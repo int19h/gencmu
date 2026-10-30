@@ -63,6 +63,9 @@ type domConst struct {
 }
 
 type domRule struct {
+	Params           []string
+	Args             []*domArgument
+	Instance         *domSourceCall
 	rawTemplate      templateObject
 	deferredEmission string
 	Name             string
@@ -108,12 +111,17 @@ const (
 	exRange    = "range"
 	exLiteral  = "literal"
 	exWildcard = "wildcard"
+	exParam    = "param"
+	exCall     = "call"
 )
 
 type domExpr struct {
-	Kind  string
-	Items []*domExpr // seq, choice, and
-	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
+	At       [2]int
+	RankedAt [2]int
+	Call     *domSourceCall
+	Kind     string
+	Items    []*domExpr // seq, choice, and
+	Inner    *domExpr   // optional, repeat (its item), capture, test (its symbol)
 	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
 	// a chain, "" for flat braces (engine §3.2, §3.3).
 	Sep          *domExpr
@@ -164,9 +172,12 @@ const (
 	tmConst        = "const"
 	tmPattern      = "pattern"
 	tmConcat       = "concat"
+	tmParam        = "param"
+	tmSourceCall   = "source-call"
 )
 
 type domTerm struct {
+	Call  *domSourceCall
 	Kind  string
 	Str   string     // string, tag, call (the function), capture, rule, classifier
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
@@ -419,6 +430,28 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		w.str(flag)
 	}
 	w.raw("]")
+	if r.Params != nil {
+		w.raw(`,"params":[`)
+		for i, name := range r.Params {
+			if i > 0 {
+				w.raw(",")
+			}
+			w.str(name)
+		}
+		w.raw("]")
+	}
+	if r.Args != nil {
+		w.raw(`,"args":`)
+		writeSourceArguments(w, r.Args)
+	}
+	if r.Instance != nil {
+		w.raw(`,"instance":`)
+		r.Instance.writeJSON(w)
+		w.raw(`,"conditions":[],"at":`)
+		w.pair(r.At)
+		w.raw("}")
+		return
+	}
 	if r.Tags != nil {
 		w.raw(`,"tags":`)
 		r.Tags.writeJSON(w)
@@ -463,6 +496,10 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 
 func (e *domExpr) writeJSON(w *jsonWriter) {
 	switch e.Kind {
+	case exParam:
+		writeParameter(w, e.Name, e.At)
+	case exCall:
+		e.Call.writeJSON(w)
 	case exSeq, exChoice, exRanked, exAnd:
 		w.raw("{")
 		w.str(e.Kind)
@@ -533,6 +570,10 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
 	switch t.Kind {
+	case tmParam:
+		writeParameter(w, t.Str, t.At)
+	case tmSourceCall:
+		t.Call.writeJSON(w)
 	case tmPattern:
 		w.raw(`{"pattern":`)
 		w.pattern(t.Pattern)
