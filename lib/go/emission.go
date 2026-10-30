@@ -1,7 +1,5 @@
 package gencmu
 
-import "strings"
-
 // occurrence distinguishes uses of a shared derivation node. Recipes use
 // occurrence identity, not production numbers or spans (engine §11.3).
 type occurrence struct {
@@ -57,9 +55,9 @@ func (em *stringEmitter) capture(o *occurrence, name string) *occurrence {
 	panic(&parseFailure{message: "a recipe reads an absent capture $" + name})
 }
 
-// channel runs the string walk without executing emission items. Its
+// strings runs one channel or recipe without executing emission items. Its
 // frames preserve left-to-right dependency evaluation without recursion.
-func (em *stringEmitter) channel(root *occurrence, channel int) string {
+func (em *stringEmitter) strings(root *occurrence, channel int, recipe *domTerm) string {
 	type frame struct {
 		o       *occurrence
 		channel int
@@ -68,7 +66,7 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 		next    int
 		pieces  []*stringParts
 	}
-	stack := []*frame{{o: root, channel: channel}}
+	stack := []*frame{{o: root, channel: channel, recipe: recipe}}
 	var result *stringParts
 	pushChannel := func(o *occurrence, c int) { stack = append(stack, &frame{o: o, channel: c}) }
 	pushRecipe := func(o *occurrence, t *domTerm) { stack = append(stack, &frame{o: o, recipe: t}) }
@@ -186,43 +184,12 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 	return partsText(result)
 }
 
+func (em *stringEmitter) channel(root *occurrence, channel int) string {
+	return em.strings(root, channel, nil)
+}
+
 func (em *stringEmitter) recipe(o *occurrence, recipe *domTerm) string {
-	var result strings.Builder
-	for _, atom := range recipe.Items {
-		if stringTermShape(atom) {
-			v, err := em.rec.g.stage.evaluateClosed("", atom, [2]int{})
-			if err != nil {
-				panic(&parseFailure{message: err.Message})
-			}
-			result.WriteString(v.s)
-			continue
-		}
-		r := atom.Items[0]
-		if r.Kind == tmCall {
-			c := 0
-			if atom.Str == "image" {
-				c = 1
-			}
-			result.WriteString(em.channel(em.capture(o, r.Items[0].Str), c))
-			continue
-		}
-		part := em.capture(o, r.Str)
-		a, b, _ := em.span(part)
-		s := spanVal{a: a, b: b}
-		switch atom.Str {
-		case "value":
-			result.WriteString(em.run.spanValue(s))
-		case "image":
-			result.WriteString(em.run.spanImage(s))
-		case "source-text":
-			result.WriteString(em.run.spanText(s))
-		case "decomposed-source-text":
-			result.WriteString(em.run.ps.uni.decompose(em.run.spanText(s)))
-		case "verbatim-text":
-			result.WriteString(em.verbatim(a, b))
-		}
-	}
-	return result.String()
+	return em.strings(o, 0, recipe)
 }
 
 func (em *stringEmitter) verbatim(a, b int) string {

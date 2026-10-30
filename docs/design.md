@@ -319,6 +319,8 @@ The emission walk determines which tokens reach the next stage. A constituent wi
 
 The string walk determines a covering token's value and image. It enters child constituents but skips their emission lists. Their alternative and definition recipes still apply. Erased children contribute nothing. Attachment ownership counts surviving input parts independently of either string.
 
+Item recipes and constituent recipes use the same string evaluator. Each request starts with its owning occurrence and either a channel or a recipe.
+
 An item recipe serves its directly emitted token. The following grammar gives `x` for input `a`, but `ab` for input `ab`:
 
 ```jbogenbau
