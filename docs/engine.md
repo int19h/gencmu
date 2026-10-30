@@ -547,6 +547,8 @@ Identify each ranked expression after final stitching and constant binding. Its 
 
 Visit rules in expanded order (§2.3), then groups in alternative and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists. Recovery retains boundary-atom, ranked-group, and recipe coordinates together. A known source location needs no recovery pass.
 
+A definition's position does not replace a missing recipe-atom position. A matching cache recovers that atom's position from the source.
+
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
 
 Each selected option binds captures declared within its group, whether present or absent. An active nested group binds its own captures. When a selection skips that group, the enclosing group binds its absent captures. Loading and runtime use the same bindings. Determine these bindings before capture-presence simplification.
