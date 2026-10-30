@@ -149,7 +149,7 @@ For example, `text → [[X]]` on the empty input ties, and both readings are `{"
 
 A mistake of the caller is not a result. It is an error of kind `usage` (engine §13).
 
-`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`.
+`line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`. A position at the LF of a CRLF remains on the line that the pair ends. Its column counts the preceding CR.
 
 At the end of a stage's input, a rejection has `token` equal to the number of input tokens. Its `source` is `[S,S]`. `S` is the source end of the last stage-input token, or 0 if there are no input tokens. Its `line` and `column` locate `S` in the original text. The original text can continue after `S` (engine §4, §12).
 

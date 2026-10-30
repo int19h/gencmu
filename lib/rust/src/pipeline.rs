@@ -245,10 +245,8 @@ pub(crate) fn line_column(text: &[char], offset: usize) -> (usize, usize) {
                 line += 1;
                 column = 1;
             }
+            '\r' if text.get(index + 1) == Some(&'\n') => column += 1,
             '\r' => {
-                if text.get(index + 1) == Some(&'\n') && index + 1 < offset {
-                    index += 1;
-                }
                 line += 1;
                 column = 1;
             }

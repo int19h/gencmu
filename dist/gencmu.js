@@ -20684,7 +20684,7 @@
       if (character === "\n" || (character === "\r" && characters[index + 1] !== "\n")) {
         line++;
         column = 1;
-      } else if (character !== "\r") {
+      } else {
         column++;
       }
     }
