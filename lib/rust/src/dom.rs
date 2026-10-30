@@ -189,7 +189,7 @@ pub(crate) enum Expr {
     And(Vec<Expr>),
     /// An optional `[x]`, or an elidable optional `[+T x]` (§3.8).
     Optional(Box<Expr>, Mark),
-    /// Braces: the item, the separator after `\` if any, and a chain's
+    /// Braces: the item, the separator after `&` if any, and a chain's
     /// direction, from its marker `...` (engine §3.2, §3.3).
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
     Ref(String),
@@ -199,13 +199,11 @@ pub(crate) enum Expr {
     /// A range `'a'..'z'`: its two ends, character tags in their canonical
     /// spelling, the start not above the end (engine §1).
     Range(String, String),
-    /// A property `'\p{Name}'`, by its name (engine §1).
+    /// An internal property terminal, by its engine-tag name (engine §1).
     Property(String),
     Capture(String, Box<Expr>),
-    /// A tested symbol, such as `X="s"`: its comparator, `=`, `≠`, `⊇`,
-    /// `⊉`, `∩=∅` or `∩≠∅`, its value, a closed term, and its symbol, a
-    /// `Ref`, a `Terminal`, a `Range` or a `Property`
-    /// (engine §2, §4).
+    /// A symbol with `=`, `≠`, or signed `tags` requirements (§2, §4).
+    /// The closed operand precedes the wrapped symbol in this representation.
     Tested(String, Term, Box<Expr>),
     Empty,
 }
@@ -218,17 +216,16 @@ pub(crate) enum Mark {
     Elidable,
 }
 
-/// The direction of a chain (engine §3.3): `{... x \ s}` nests from the
-/// left, `{x ... \ s}` from the right.
+/// The direction of a chain (engine §3.3): `{... x & s}` nests from the
+/// left, `{x ... & s}` from the right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Chain {
     Left,
     Right,
 }
 
-/// A term, or a span: `{"capture":"x"}` and the calls `head`, `tail`,
-/// `last`, `from` and `after` are spans, and appear only where a span is
-/// expected. The capture named `""` is `$`, the whole constituent.
+/// A term, including captures and span methods where a span is expected.
+/// The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
     Pattern(Box<crate::patterns::Pattern>),
@@ -236,7 +233,7 @@ pub(crate) enum Term {
     Str(String),
     /// A tag literal: the set of one tag, in its canonical spelling.
     Tag(String),
-    /// A range `'a'..'z'`, the set of its character tags (engine §1).
+    /// The empty set, with no fixed element type.
     EmptySet,
     Union(Vec<Term>),
     Intersection(Vec<Term>),
@@ -524,34 +521,6 @@ pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
     values.pop().unwrap_or_default()
 }
 
-pub(crate) fn method_alias(name: &str) -> &str {
-    match name {
-        "value" => "value",
-        "source-text" => "text",
-        "first-token" => "head",
-        "tokens-after-first" => "tail",
-        "last-token" => "last",
-        "onward" => "from",
-        "following-tokens" => "after",
-        "starts-input" => "initial",
-        _ => name,
-    }
-}
-
-fn method_spelling(name: &str) -> &str {
-    match name {
-        "value" => "value",
-        "text" => "source-text",
-        "head" => "first-token",
-        "tail" => "tokens-after-first",
-        "last" => "last-token",
-        "from" => "onward",
-        "after" => "following-tokens",
-        "initial" => "starts-input",
-        _ => name,
-    }
-}
-
 fn channels_from_json(value: &Json) -> R<Channels> {
     Ok(Channels {
         value: value.get("value").map(term_from_json).transpose()?,
@@ -695,7 +664,7 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     })
 }
 
-/// A range's two ends, from `{"range":[START,END]}`.
+/// Convert a schema-validated term from its DOM representation.
 pub(crate) fn term_from_json(value: &Json) -> R<Term> {
     match read_value(value, false)? {
         ReadValue::Term(term) => Ok(term),
@@ -858,7 +827,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                             _ => Arg::Term(operands.next().unwrap().term()),
                         });
                     }
-                    Term::Call(method_alias(&string(value, "method")?).into(), args)
+                    Term::Call(string(value, "method")?, args)
                 }
                 _ => unreachable!(),
             })
@@ -939,7 +908,7 @@ fn is_classifier_arg(value: &Json) -> bool {
 }
 
 /// The comparators of a test in a body (engine §2): the two sound tests
-/// and the four tag tests.
+/// and signed tag requirements.
 pub(crate) const TEST_OPS: [&str; 3] = ["=", "≠", "tags"];
 
 /// Whether a test's comparator is a sound test, whose value is a string,
@@ -1368,7 +1337,7 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
                 write_list(out, name, args, write_argument);
             } else {
                 out.push_str("{\"method\":");
-                write_str(out, method_spelling(name));
+                write_str(out, name);
                 out.push_str(",\"receiver\":");
                 write_argument(out, &args[0]);
                 out.push_str(",\"args\":[");
@@ -1460,7 +1429,7 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             }
             out.push_str("]}");
         }
-        Cond::Initial(span) => write_term(out, &Term::Call("initial".into(), vec![Arg::Term(span.clone())])),
+        Cond::Initial(span) => write_term(out, &Term::Call("starts-input".into(), vec![Arg::Term(span.clone())])),
         Cond::Final(span) => write_term(out, &Term::Call("ends-input".into(), vec![Arg::Term(span.clone())])),
         Cond::Boundary(forward, receiver, targets, _) => {
             out.push_str("{\"method\":");
@@ -1888,7 +1857,7 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
+        "value" | "source-text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
@@ -2050,7 +2019,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                         return Err(Fault::in_term("++ requires string operands".into(), term));
                     }
                     if let Some(problem) = expected_problem(ty, expected) {
-                        return Err(Fault::in_term(format!(".{}: {problem}", method_spelling(call)), term));
+                        return Err(Fault::in_term(format!(".{}: {problem}", call), term));
                     }
                 }
             }
@@ -2381,7 +2350,7 @@ pub(crate) fn restored_span(mut term: &Term) -> bool {
             Term::Call(name, _) if matches!(name.as_str(), "without-elision" | "without-elision-except") => {
                 return true
             }
-            Term::Call(name, args) if name == "from" => {
+            Term::Call(name, args) if name == "onward" => {
                 let [Arg::Term(inner)] = &args[..] else { return false };
                 term = inner;
             }

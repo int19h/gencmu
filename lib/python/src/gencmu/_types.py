@@ -144,10 +144,8 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name in ("matches", "begins", "ends"):
         valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
-    elif name in _PREDICATES:
-        valid, result, arity = receiver in spans, "predicate", 0 if name in ("starts-input", "ends-input") else 1
-        if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
-            valid = False
+    elif name in ("starts-input", "ends-input"):
+        valid, result, arity = receiver in spans, "predicate", 0
     elif name == "ngrams":
         valid = receiver in spans | {"string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
         result, arity = "strings", 1
@@ -210,7 +208,7 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
             return None
         if left == "string" and right == "string":
             # = and ≠ compare two values of one type.
-            return None if left == right else f"{op} compares two values of one type, not {_NAMES[left]} and {_NAMES[right]}"
+            return None
     kind, problem = joined_type([left, right], op)
     if problem is not None:
         return problem

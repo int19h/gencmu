@@ -148,8 +148,6 @@ func isClass(name string) bool {
 	return isCapital(name) && name[len(name)-1] >= 'A' && name[len(name)-1] <= 'Z'
 }
 
-func userConstRefs(nodes ...any) []*domTerm { return constRefs(nodes...) }
-
 func stringTermShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
 }

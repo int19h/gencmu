@@ -700,7 +700,7 @@ class DomBuilder:
         if len(parts) < 2:
             raise self.lacks(node, "two string operands")
         ends = [self.value(end) for end in parts[:2]]
-        problem = range_problem(ends, self.unicode)
+        problem = range_problem(ends)
         if problem and not has_unresolved(ends):
             raise self.fail(node, problem)
         return ends

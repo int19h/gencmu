@@ -42,7 +42,7 @@ func simplifyCond(c *domCond, has func(string) bool) (*domCond, truth) {
 	}
 	switch c.Kind {
 	case cdCaptured:
-		if has(c.Rule) {
+		if has(c.Capture) {
 			return nil, alwaysTrue
 		}
 		return nil, alwaysFalse
@@ -219,7 +219,7 @@ func termMentions(t *domTerm, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -231,7 +231,7 @@ func condMentions(c *domCond, into map[string]bool) {
 		case p.t != nil && p.t.Kind == tmCapture:
 			into[p.t.Str] = true
 		case p.c != nil && p.c.Kind == cdCaptured:
-			into[p.c.Rule] = true
+			into[p.c.Capture] = true
 		}
 		return true
 	})
@@ -416,7 +416,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 			switch p.c.Kind {
 			case cdCaptured:
 				o = outcome{kind: oFalse}
-				if has(p.c.Rule) {
+				if has(p.c.Capture) {
 					o = outcome{kind: oTrue}
 				}
 			case cdNot:

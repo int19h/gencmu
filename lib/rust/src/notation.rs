@@ -1604,8 +1604,7 @@ impl<'a> Reader<'a> {
             if last && frame.condition {
                 return Err(self.error(frame.node, "a condition requires a predicate method"));
             }
-            let alias = crate::dom::method_alias(name);
-            Val::Term(Term::Call(alias.into(), args), call_type(alias))
+            Val::Term(Term::Call(name.into(), args), call_type(name))
         };
         if last {
             return Ok(Step::Done(value));
@@ -1897,7 +1896,7 @@ impl<'a> Reader<'a> {
                             Term::Call(name, args)
                                 if matches!(
                                     name.as_str(),
-                                    "value" | "image" | "text" | "decomposed-source-text" | "verbatim-text"
+                                    "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
                                 ) =>
                             {
                                 matches!(&args[..], [Arg::Term(Term::Capture(_))])

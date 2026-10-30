@@ -13,7 +13,7 @@ The users of gencmu want to read a grammar, change it, and see at once what the 
 gencmu ships these parts:
 
 - There are four libraries, in JavaScript, Python, Go and Rust. A clean-room implementation uses the specification alone. Each library implements one engine specification without using another library's code. No library has dependencies beyond the standard library of its language.
-- All four libraries share the grammar documents and pipelines.
+- All four libraries share the grammar documents and pipelines. Internal method names match the method names in the engine specification.
 - There is one command-line tool (CLI) and one web playground, both in JavaScript. Both run from a clone with no install step.
 - All four libraries share one test corpus. Its expectations are what gencmu itself is meant to produce.
 

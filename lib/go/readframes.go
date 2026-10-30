@@ -670,7 +670,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&valueFrame{n: ps[0]})
 		case "negation", "method", "implication":
 		case "presence":
-			return give(&domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
+			return give(&domCond{Kind: cdCaptured, Capture: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
 		default:
 			b.fail(n, "unexpected %s in a condition", n.Rule)
 		}

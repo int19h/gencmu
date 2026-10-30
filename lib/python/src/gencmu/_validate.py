@@ -120,7 +120,7 @@ def term_reads_own_tags(root: Any) -> bool:
     return False
 
 
-def range_problem(ends: Any, unicode: Marks) -> str | None:
+def range_problem(ends: Any) -> str | None:
     if not _items(ends, 2, 2):
         return "a range requires two string terms"
     values = [literal_string(end) for end in ends]
@@ -404,7 +404,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if 'literal' in node:
                 pending.append(('string', node['literal'], depth, False, False))
             if 'range' in node:
-                problem = range_problem(node['range'], unicode)
+                problem = range_problem(node['range'])
                 if problem:
                     return problem
                 pending.extend(('string', end, depth, False, False) for end in node['range'])
@@ -519,7 +519,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                     pending.append(("string", node["value"], below, False, False))
             # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
-                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"], unicode):
+                if keys != {"range"} or not _items(node["range"], 2, 2) or not dependent and range_problem(node["range"]):
                     return "a malformed range"
                 pending.extend(("string", x, depth, False, False) for x in node["range"])
             elif "literal" in node:

@@ -78,7 +78,7 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 }
 func (g *stageGrammar) bindConstants() *Error {
 	for _, v := range g.constVersions {
-		v.references = userConstRefs(v.definition.Value)
+		v.references = constRefs(v.definition.Value)
 		for _, r := range v.references {
 			target, ok := g.constLatest[r.Str]
 			if r.Str == v.definition.Name && v.definition.Op == "redefine" {

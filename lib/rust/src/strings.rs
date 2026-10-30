@@ -223,7 +223,7 @@ impl<'a> Strings<'a> {
                         values.push(match name.as_str() {
                             "value" => self.input(target, Channel::Value),
                             "image" => self.input(target, Channel::Image),
-                            "text" | "decomposed-source-text" => {
+                            "source-text" | "decomposed-source-text" => {
                                 let (start, end) = self.span(target);
                                 if start == end {
                                     String::new()

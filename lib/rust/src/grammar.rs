@@ -1699,7 +1699,13 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
         Term::Call(name, args)
             if matches!(
                 name.as_str(),
-                "head" | "tail" | "last" | "from" | "after" | "preceding-tokens" | "without-elision"
+                "first-token"
+                    | "tokens-after-first"
+                    | "last-token"
+                    | "onward"
+                    | "following-tokens"
+                    | "preceding-tokens"
+                    | "without-elision"
             ) =>
         {
             match &args[..] {
@@ -1736,7 +1742,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
-            ("value" | "image" | "text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
+            ("value" | "image" | "source-text" | "decomposed-source-text" | "classes" | "tags", [Arg::Term(span)]) => {
                 check_span(grammar, span)
             }
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
@@ -1769,11 +1775,11 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 }
             }
             (
-                "head"
-                | "tail"
-                | "last"
-                | "from"
-                | "after"
+                "first-token"
+                | "tokens-after-first"
+                | "last-token"
+                | "onward"
+                | "following-tokens"
                 | "preceding-tokens"
                 | "without-elision"
                 | "without-elision-except",
@@ -1781,7 +1787,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             ) => check_span(grammar, term),
             (
                 "value"
-                | "text"
+                | "source-text"
                 | "decomposed-source-text"
                 | "classes"
                 | "tags"
@@ -1791,7 +1797,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "matches"
                 | "begins"
                 | "ends"
-                | "initial",
+                | "starts-input",
                 _,
             ) => Err(format!("{name}() is called with the wrong arguments")),
             _ => Err(format!("an unknown function {name}()")),

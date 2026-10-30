@@ -615,7 +615,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 	case cdCaptured:
 		// Simplification decides every presence test (§3.6); one left here
 		// asks the production.
-		_, ok := ev.capture(c.Rule)
+		_, ok := ev.capture(c.Capture)
 		w.endCond(ok)
 		return nil
 	case cdIf:

@@ -4414,11 +4414,7 @@
   // ---- dom.js
 
 
-  // Checks that a grammar DOM that did not come from reading a document, the
-  // bootstrap's or a preparsed one from data/preparsed/FAMILY.json, has the shape the
-  // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
-  // or hand-made one is refused rather than failing somewhere inside a parse.
-
+  // Validate source, cached, supplied, and expanded grammar DOMs before use.
 
 
 
@@ -4450,7 +4446,7 @@
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
   // The comparators of a test in a body (engine §2): the two value tests and
-  // the four tag tests.
+  // signed tag requirements.
   const TEST_OPS = new Set(["=", "≠", "tags"]);
 
   /**
@@ -4461,26 +4457,6 @@
    */
   function isSoundTest(op) {
     return op === "=" || op === "≠";
-  }
-
-  /**
-   * What is wrong with a test's value (engine §9), or null: it must be a
-   * closed term, of type string for a value test and tag set for a tag test,
-   * with no canonical-value restriction on string literals. The shape
-   * of the value must already be checked, and its nesting bounded.
-   * @param {string} op
-   * @param {any} value
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean}} [unicode]
-   * @returns {{problem: string, node: any} | null}
-   */
-  function testValueFault(op, value, unicode) {
-    const open = openPart(value);
-    if (open) return { problem: "a test's operand is a closed term, and reads no capture or span", node: open };
-    const found = termType(value);
-    if ("problem" in found) return found;
-    const problem = expectedProblem(found.type, isSoundTest(op) ? "string" : "tags");
-    if (problem) return { problem: `${op} tests ${isSoundTest(op) ? "a string" : "a tag set"}: ${problem}`, node: value };
-    return null;
   }
 
   /**
@@ -4523,10 +4499,6 @@
 
 
   /**
-   * The forms of an expression, a term and a condition, each as its members
-   * (docs/output.md). The first member names the form.
-   */
-  /**
    * Whether a node has exactly the members of one of its forms, and no
    * other. So a node that joins two forms, such as {"tag":…,"string":…}, is
    * refused before it is read, and no library reads it one way where
@@ -4543,11 +4515,10 @@
   }
 
   /**
-   * Why a value is not a grammar DOM, or null when it is one. `unicode` is
-   * the loader's table: the lowercase mapping that the strings of value
-   * tests are checked against, and the marks that decide a character tag's canonical spelling.
+   * Why a value is not a grammar DOM, or null when it is one.
+   * The loader's Unicode table supplies engine-tag and emoji-name identities.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {string | null}
    */
@@ -4564,7 +4535,7 @@
     /** @type {(value: any) => boolean} */
     const stringTerm = value => stringAtom(value) || object(value) && "param" in value;
     /** @type {(value: any) => boolean} */
-    const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && (unicode.canonicalTag ? unicode.canonicalTag(value) === value : PROPERTY_NAMES.has(value.slice(1)))));
+    const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && unicode.canonicalTag(value) === value));
     /** @type {(value: any) => boolean} */
     const constant = value => typeof value === "string" && CONSTANT_NAME.test(value);
     /** @type {(values: any) => boolean} */
@@ -4575,7 +4546,7 @@
     let activeParams = new Set();
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
-    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name));
+    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || unicode.isEmojiName(name));
     const positions = new Set();
     for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
       if (!object(item) || !position(item.at)) return "a malformed declaration position";
@@ -4734,7 +4705,7 @@
           if (value.test === "tags") {
             if (!Array.isArray(value.requirements)) return "a malformed tag test";
             for (const requirement of value.requirements) {
-              if (!exact(requirement, ["negated", "value"]) || fields.length === 0 || typeof requirement.negated !== "boolean" || !object(requirement.value) || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return "a malformed requirement";
+              if (!exact(requirement, ["negated", "value"]) || typeof requirement.negated !== "boolean" || !object(requirement.value) || !("tag" in requirement.value || "const" in requirement.value || "param" in requirement.value)) return "a malformed requirement";
               child("term", requirement.value);
             }
           } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
@@ -4893,7 +4864,7 @@
   /**
    * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName(name:string):boolean, canonicalTag(name:string):string|null}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {dom is GrammarDom}
    */
@@ -4903,8 +4874,8 @@
 
   /**
    * Whether a term, or a condition inside one, reads the tags of `$`, the
-   * constituent whose tags it may be defining: `$` as a value, `tags($)` or
-   * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
+   * constituent whose tags it defines: `$.tags` or `$.classes`.
+   * A string method such as `$.value` reads tokens, not tags.
    * The DOM's shape need not have been checked: anything malformed reads
    * nothing, and the check of its shape refuses it.
    * @param {unknown} node
@@ -20078,7 +20049,15 @@
    * @returns {any}
    */
   function parseDomJson(text) {
-    return JSON.parse(text, (_key, value, context = {source:""}) => typeof value === "number" && !/^-?(0|[1-9][0-9]*)$/.test(context.source) ? NaN : value);
+    const data = JSON.parse(text);
+    // A reviver recurses through the parsed tree before the DOM depth check.
+    // A fractional sentinel keeps these numbers invalid in integer positions.
+    let changed = false;
+    const integers = text.replace(/"(?:\\.|[^"\\])*"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g, token => {
+      if (token[0] !== '"' && /[.eE]/.test(token)) { changed = true; return "0.5"; }
+      return token;
+    });
+    return changed ? JSON.parse(integers) : data;
   }
 
   // Resources: a function from a path relative to the package root to its

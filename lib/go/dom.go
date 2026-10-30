@@ -31,7 +31,7 @@ type domClassifier struct {
 }
 
 // domEntry is an entry of a classifier: its gates, one or more keys, each a
-// canonical sound, ∈ or ∉, and one class whose name starts and ends
+// exact scalar string, ∈ or ∉, and one class whose name starts and ends
 // with an uppercase ASCII letter. At is its first token, where the loader reports an error of the
 // entry.
 type domEntry struct {
@@ -141,7 +141,7 @@ func isValueTest(op string) bool {
 
 // Term kinds. A string is tmString, and a tag literal tmTag, the tag in its
 // canonical spelling. A span is a term of kind tmCapture, "" for $, the
-// whole constituent, or a tmCall of head, tail, last, from or after; a rule
+// whole constituent, or a tmCall of a span method (§10). A rule
 // argument is tmRule, and the classifier that classify names is
 // tmClassifier. A difference, a ∖ b, has exactly two items. A guarded
 // term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
@@ -210,8 +210,8 @@ type domCond struct {
 	Kind        string
 	Op          string
 	Left, Right *domTerm
-	Span        *domTerm // matches, begins, initial
-	Rule        string   // matches, begins; captured: the capture's name
+	Span        *domTerm // The receiver of a predicate method.
+	Capture     string   // The name in a presence test.
 	Inner       *domCond
 	Items       []*domCond
 }
@@ -221,13 +221,12 @@ type domEmit struct {
 	Items []*domEmitItem
 }
 
-// domEmitItem is a capture, "" for $, with its tags, or an inserted tag.
+// domEmitItem is a capture, "" for $, or an inserted item, with optional clauses.
 // A named capture, the item's carrier, can name attachment captures before
 // it and after it (engine §11).
 type domEmitItem struct {
 	Capture      string
 	IsInsert     bool
-	Insert       string
 	Tags         *domTerm
 	Value, Image *domTerm
 	Before       []string
@@ -246,16 +245,6 @@ func (it *domEmitItem) captures() []string {
 // attachments lists an item's attachment captures, before and after.
 func (it *domEmitItem) attachments() []string {
 	return append(append([]string(nil), it.Before...), it.After...)
-}
-
-// whole says the emission is of $, the whole constituent: every item is $.
-func (e *domEmit) whole() bool {
-	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
-}
-
-// nothing reports whether the emission has no items (engine §11).
-func (e *domEmit) nothing() bool {
-	return len(e.Items) == 0
 }
 
 type domDirective struct {
@@ -613,7 +602,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case cdCaptured:
 		w.raw(`{"captured":`)
-		w.str(c.Rule)
+		w.str(c.Capture)
 		w.raw("}")
 	case cdIf:
 		w.raw(`{"if":`)
@@ -1357,7 +1346,7 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 	}
 	if v, ok := o["captured"]; ok {
 		name, err := decodeString(v)
-		return &domCond{Kind: cdCaptured, Rule: name}, err
+		return &domCond{Kind: cdCaptured, Capture: name}, err
 	}
 	if v, ok := o["if"]; ok {
 		premise, err := decodeCondAt(v, depth+1)
@@ -1390,8 +1379,7 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 			return nil, err
 		}
 		it := &domEmitItem{}
-		// An item is a capture or an inserted tag, and has no other member
-		// than its tags and its attachments.
+		// An item has one target, optional clauses, and optional attachments.
 		for k := range io {
 			if k != "capture" && k != "insert" && k != "tags" && k != "before" && k != "after" && k != "value" && k != "image" {
 				return nil, fmt.Errorf("a malformed emission item")
@@ -1435,12 +1423,7 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 	return &domEmit{Items: items}, err
 }
 
-func (c *domCond) queryTargets() []*domTerm {
-	if len(c.Targets) > 0 {
-		return c.Targets
-	}
-	return []*domTerm{{Kind: tmRule, Str: c.Rule}}
-}
+func (c *domCond) queryTargets() []*domTerm { return c.Targets }
 func queryName(t *domTerm) string {
 	if t.Kind == tmTerminal {
 		return "\x00query:" + t.Str

@@ -15,11 +15,11 @@ pub(crate) fn problem(conditions: &[Cond]) -> Result<(), String> {
                         | "classes"
                         | "value"
                         | "image"
-                        | "text"
+                        | "source-text"
                         | "decomposed-source-text"
-                        | "head"
-                        | "tail"
-                        | "last"
+                        | "first-token"
+                        | "tokens-after-first"
+                        | "last-token"
                         | "split"
                         | "ngrams"
                         | "concat"
@@ -119,9 +119,9 @@ impl Input<'_> {
             Term::Call(name, args) => {
                 let (start, end) = self.span(self.argument(args, 0));
                 match name.as_str() {
-                    "head" => (start, (start + 1).min(end)),
-                    "tail" => ((start + 1).min(end), end),
-                    "last" => (end.saturating_sub(1).max(start), end),
+                    "first-token" => (start, (start + 1).min(end)),
+                    "tokens-after-first" => ((start + 1).min(end), end),
+                    "last-token" => (end.saturating_sub(1).max(start), end),
                     _ => unreachable!("validated span method"),
                 }
             }
@@ -210,7 +210,7 @@ impl Input<'_> {
                         let (start, end) = self.span(receiver);
                         Value::Str(self.tokens[start..end].iter().map(|token| token.image.as_str()).collect())
                     }
-                    "text" | "decomposed-source-text" => {
+                    "source-text" | "decomposed-source-text" => {
                         let (start, end) = self.span(receiver);
                         let chars = if start == end {
                             &[][..]
@@ -226,7 +226,7 @@ impl Input<'_> {
                             chars.iter().collect()
                         })
                     }
-                    "head" | "tail" | "last" => Value::Str(self.values(term)),
+                    "first-token" | "tokens-after-first" | "last-token" => Value::Str(self.values(term)),
                     _ => unreachable!("validated token method"),
                 }
             }

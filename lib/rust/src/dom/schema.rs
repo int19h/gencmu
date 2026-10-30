@@ -30,8 +30,8 @@ fn tag(name: &str) -> bool {
     engine_tag(name) || name.starts_with(|c: char| c.is_ascii_uppercase()) && is_name(name)
 }
 
-fn rule(name: &str) -> bool {
-    name.chars().count() == 1 || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
+fn rule_name(name: &str, unicode: &Unicode) -> bool {
+    unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name)
 }
 
 fn feature(name: &str) -> bool {
@@ -103,20 +103,22 @@ pub(crate) fn literal_range(left: &Json, right: &Json) -> bool {
         }
 }
 
-fn base(value: &Json) -> bool {
-    exact(value, &["ref"], &[]) && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule(name) || tag(name))
+fn base(value: &Json, unicode: &Unicode) -> bool {
+    exact(value, &["ref"], &[])
+        && value.get("ref").and_then(Json::as_str).is_some_and(|name| rule_name(name, unicode) || tag(name))
         || exact(value, &["literal"], &[])
         || exact(value, &["range"], &[])
         || exact(value, &["wildcard"], &[]) && is_true(value.get("wildcard"))
 }
 
-fn tested_base(value: &Json) -> bool {
-    base(value)
+fn tested_base(value: &Json, unicode: &Unicode) -> bool {
+    base(value, unicode)
         || value.get("test").and_then(Json::as_str).is_some_and(|op| match (op, value.get("expr")) {
-            ("tags", Some(inner)) => base(inner),
+            ("tags", Some(inner)) => base(inner, unicode),
             ("=" | "≠", Some(inner)) => {
-                base(inner)
-                    || inner.get("test").and_then(Json::as_str) == Some("tags") && inner.get("expr").is_some_and(base)
+                base(inner, unicode)
+                    || inner.get("test").and_then(Json::as_str) == Some("tags")
+                        && inner.get("expr").is_some_and(|value| base(value, unicode))
             }
             _ => false,
         })
@@ -142,8 +144,7 @@ pub(crate) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT) {
         return Some("not a DOM of this format");
     }
-    let rule =
-        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
+    let rule = |name: &str| rule_name(name, unicode);
     let mut pending = Vec::new();
     let mut positions = FxSet::default();
     for name in ["rules", "directives", "constants", "classifiers", "implications"] {
@@ -417,8 +418,7 @@ pub(crate) fn names_problem(dom: &Json) -> Option<&'static str> {
 }
 
 pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Unicode) -> Option<&'static str> {
-    let rule =
-        |name: &str| unicode.is_emoji_name(name) || name.starts_with(|c: char| c.is_ascii_lowercase()) && is_name(name);
+    let rule = |name: &str| rule_name(name, unicode);
     while let Some((kind, value, depth)) = pending.pop() {
         if depth > DOM_MAX_DEPTH {
             return Some("nested too deeply");
@@ -427,7 +427,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
         match kind {
             Part::Expr { whole, sealed } => {
                 let expression = |value, sealed| (Part::Expr { whole: false, sealed }, value, next);
-                if base(value) {
+                if base(value, unicode) {
                     if value.get("ref").and_then(Json::as_str).is_some_and(|name| !rule(name) && !tag(name)) {
                         return Some("a malformed reference");
                     }
@@ -447,7 +447,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                     if sealed
                         || !exact(value, &["capture", "expr"], &[])
                         || !inner.as_str().is_some_and(is_capture_name)
-                        || !value.get("expr").is_some_and(tested_base)
+                        || !value.get("expr").is_some_and(|value| tested_base(value, unicode))
                     {
                         return Some("a malformed capture");
                     }
@@ -475,7 +475,7 @@ pub(crate) fn parts_problem(mut pending: Vec<(Part, &Json, usize)>, unicode: &Un
                         pending.push(expression(separator, true));
                     }
                 } else if value.get("test").is_some() {
-                    if !tested_base(value) {
+                    if !tested_base(value, unicode) {
                         return Some("a malformed test target or order");
                     }
                     pending.push(expression(value.get("expr").unwrap(), sealed));
