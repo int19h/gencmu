@@ -420,10 +420,9 @@ mod tests {
 
     /// Written-terminator priority (engine §4): a nested query over a long
     /// text with many omissions and no written terminator takes work in
-    /// proportion to the text, through a whole parse. The searches for a
-    /// blocking path once looked at every later set of the chart for each
-    /// omission, which took quadratic work: some 100 million entries at
-    /// 8000 tokens, under a second, where the count fails.
+    /// proportion to the text, through a whole parse. Each search for a
+    /// blocking path counts the chart entries that it examines. A mutation
+    /// scans later chart sets for every omission and must exceed the budget.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
         let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";

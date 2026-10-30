@@ -12,9 +12,7 @@ import (
 // alike (tests/growth.json), and the searches of eligibility.
 // A test can give a count a budget that stops excess work at once.
 //
-// The other counts are the steps of work that once grew faster than its
-// input, each counted where the fixed code does it, so that the old code
-// would count its square:
+// The other counts measure individual steps of parsing and loading:
 //   - captureSteps: the steps through an item's interned captures that
 //     reading a captured part takes, each as it is taken.
 //   - capEntries: the interned capture entries that the recognizer
@@ -64,16 +62,14 @@ type workCounts struct {
 	spliceSteps, visits, capEntries, keySteps                    workCount
 
 	// storePrefixes is a mutation for the tests of the budgets: each
-	// capture entry stored stores its prefix again, as the code did before
-	// entries shared their prefixes. A budget must stop it at once.
+	// stored capture entry copies its prefix. A budget must stop the extra work.
 	storePrefixes bool
 	// scanConds is a mutation for the tests of the budgets: an advance
 	// examines every condition of its production, as a selection by scan
 	// would, and not only those its dot makes ready.
 	scanConds bool
 	// checkOthers is a mutation for the tests of the budgets: finding the
-	// unit edges of a production checks every other symbol for each, as
-	// the code did before it counted the symbols that are not nullable.
+	// unit edges of a production checks every other symbol for each edge.
 	checkOthers bool
 	// copyGrowing is a mutation for the tests of the budgets: gathering
 	// the members of a set copies those gathered so far again for each.

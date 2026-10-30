@@ -1112,7 +1112,7 @@ func nullableRules(rules, prods int, prod func(i int) (int32, []symbol)) []bool 
 }
 
 // othersNullable is the quadratic check of unit edges that the test-only
-// switch checkOthers restores: whether every symbol of rhs but the one at
+// checkOthers mutation evaluates: whether every symbol of rhs but the one at
 // j is a nullable rule, each symbol counted before it is checked.
 func othersNullable(w *workCounts, rhs []symbol, j int, nullable []bool) bool {
 	for o, x := range rhs {
