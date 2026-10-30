@@ -24,93 +24,133 @@ pub(crate) struct RankedGroups {
     pub owners: FxMap<usize, usize>,
     pub paths: FxMap<usize, String>,
 }
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct Span {
+    productive: bool,
+    nonempty: bool,
+}
+impl Default for Span {
+    fn default() -> Self {
+        Self { productive: true, nonempty: false }
+    }
+}
+impl Span {
+    fn then(self, right: Self) -> Self {
+        let productive = self.productive && right.productive;
+        Self { productive, nonempty: productive && (self.nonempty || right.nonempty) }
+    }
+}
+// Positions count relevant capture closes, independently of other symbols.
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
 struct Route {
     length: usize,
-    captures: BTreeMap<String, (usize, usize)>,
-    ends: BTreeMap<usize, (usize, usize)>,
-    starts: BTreeMap<usize, usize>,
+    captures: BTreeMap<String, (Option<usize>, usize)>,
+    ends: BTreeMap<usize, (usize, usize, Span)>,
     bindings: BTreeMap<String, usize>,
-    steps: Vec<Expr>,
+    span: Span,
+}
+struct ClauseAnalysis {
+    conditions: Vec<BTreeSet<String>>,
+    exports: BTreeSet<String>,
+    projections: FxMap<BTreeSet<String>, Vec<Route>>,
 }
 fn join(mut left: Route, right: &Route) -> Route {
     let offset = left.length;
-    for (name, &(node, at)) in &right.captures {
-        left.captures.insert(name.clone(), (node, at + offset));
+    for (name, &(owner, at)) in &right.captures {
+        left.captures.insert(name.clone(), (owner, at + offset));
     }
-    for (&group, &(at, option)) in &right.ends {
-        left.ends.insert(group, (at + offset, option));
-    }
-    for (&group, &start) in &right.starts {
-        left.starts.insert(group, start + offset);
+    for (&group, &(at, option, prefix)) in &right.ends {
+        left.ends.insert(group, (at + offset, option, left.span.then(prefix)));
     }
     left.bindings.extend(right.bindings.clone());
-    left.steps.extend(right.steps.clone());
+    left.span = left.span.then(right.span);
     left.length += right.length;
     left
 }
-fn product(left: Vec<Route>, right: Vec<Route>) -> Vec<Route> {
-    left.into_iter().flat_map(|left| right.iter().map(move |right| join(left.clone(), right))).collect()
+fn unique(routes: impl IntoIterator<Item = Route>) -> Vec<Route> {
+    let mut seen = FxSet::default();
+    routes.into_iter().filter(|route| seen.insert(route.clone())).collect()
 }
-fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
+fn product(left: Vec<Route>, right: Vec<Route>) -> Vec<Route> {
+    unique(left.into_iter().flat_map(|left| right.iter().map(move |right| join(left.clone(), right))))
+}
+fn routes(
+    expr: &Expr,
+    groups: &RankedGroups,
+    needed: &BTreeSet<String>,
+    spans: &SymbolSpans,
+    grammar: &StageGrammar,
+) -> Vec<Route> {
+    let visit = |child: &Expr| routes(child, groups, needed, spans, grammar);
     match expr {
         Expr::Empty => vec![Route::default()],
-        Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, item| product(left, routes(item, groups))),
-        Expr::Choice(items) => items.iter().flat_map(|item| routes(item, groups)).collect(),
+        Expr::Seq(items) => items.iter().fold(vec![Route::default()], |left, child| product(left, visit(child))),
+        Expr::Choice(items) => unique(items.iter().flat_map(visit)),
         Expr::Ranked(items) => {
             let group = groups.expressions[&(expr as *const Expr as usize)];
-            items
-                .iter()
-                .enumerate()
-                .flat_map(|(option, item)| {
-                    routes(item, groups).into_iter().map(move |mut route| {
-                        let mut names = groups.groups[group].names.clone();
-                        for child in route.ends.keys() {
-                            for name in &groups.groups[*child].names {
-                                names.remove(name);
-                            }
-                        }
+            let names: Vec<_> = groups.groups[group].names.intersection(needed).collect();
+            unique(items.iter().enumerate().flat_map(|(option, child)| {
+                let names = &names;
+                visit(child).into_iter().map(move |mut route| {
+                    if !names.is_empty() {
                         for name in names {
-                            route.bindings.insert(name, group);
+                            route.bindings.entry((*name).clone()).or_insert(group);
                         }
-                        route.starts.insert(group, 0);
-                        route.ends.insert(group, (route.length, option));
-                        route
-                    })
+                        route.ends.insert(group, (route.length, option, Span::default()));
+                    }
+                    route
                 })
-                .collect()
+            }))
         }
         Expr::And(items) => {
-            let mut out = Vec::new();
-            for mask in 1usize..1usize << items.len() {
-                let mut selected = vec![Route::default()];
-                for (index, item) in items.iter().enumerate() {
-                    if mask & (1usize << index) != 0 {
-                        selected = product(selected, routes(item, groups));
+            struct Selected {
+                mask: usize,
+                order: Vec<usize>,
+                route: Route,
+            }
+            let mut states = vec![Selected { mask: 0, order: vec![], route: Route::default() }];
+            for (bit, child) in items.iter().enumerate() {
+                let parts = visit(child);
+                let mut candidates = Vec::new();
+                for state in &states {
+                    for (index, part) in parts.iter().enumerate() {
+                        let mut order = state.order.clone();
+                        order.push(index);
+                        candidates.push(Selected {
+                            mask: state.mask | (1 << bit),
+                            order,
+                            route: join(state.route.clone(), part),
+                        });
                     }
                 }
-                out.extend(selected);
+                candidates.extend(states);
+                candidates.sort_by(|a, b| a.mask.cmp(&b.mask).then(a.order.cmp(&b.order)));
+                let mut seen = FxSet::default();
+                states = candidates
+                    .into_iter()
+                    .filter(|state| seen.insert((state.mask != 0, state.route.clone())))
+                    .collect();
             }
-            out
+            unique(states.into_iter().filter(|state| state.mask != 0).map(|state| state.route))
         }
-        Expr::Optional(inner, _) => {
-            let mut out = vec![Route::default()];
-            out.extend(routes(inner, groups));
-            out
-        }
-        Expr::Repeat(inner, separator, _) => match separator {
-            Some(separator) => {
-                let items = routes(inner, groups);
-                let mut out = items.clone();
-                out.extend(product(items, routes(separator, groups)));
-                out
+        Expr::Optional(inner, _) => unique(std::iter::once(Route::default()).chain(visit(inner))),
+        Expr::Repeat(inner, separator, _) => {
+            let items = visit(inner);
+            if let Some(separator) = separator {
+                unique(items.clone().into_iter().chain(product(items, visit(separator))))
+            } else {
+                items
             }
-            None => routes(inner, groups),
-        },
+        }
         _ => {
-            let mut route = Route { length: 1, steps: vec![expr.clone()], ..Route::default() };
+            let mut route = Route { span: spans.atom(expr, grammar), ..Route::default() };
             if let Expr::Capture(name, _) = expr {
-                route.captures.insert(name.clone(), (expr as *const Expr as usize, 1));
+                if needed.contains(name) {
+                    route.length = 1;
+                    route
+                        .captures
+                        .insert(name.clone(), (groups.owners.get(&(expr as *const Expr as usize)).copied(), 1));
+                }
             }
             vec![route]
         }
@@ -179,20 +219,49 @@ impl RankedGroups {
         grammar: &StageGrammar,
         group: &Group,
         spans: &mut Option<SymbolSpans>,
+        analyses: &mut FxMap<(usize, usize), ClauseAnalysis>,
     ) -> Result<(), Error> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
-        if clause_reads(source).is_disjoint(&group.names) {
+        let analysis = analyses.entry(group.source).or_insert_with(|| ClauseAnalysis {
+            conditions: source
+                .clauses
+                .conditions
+                .iter()
+                .map(|condition| {
+                    let mut names = BTreeSet::new();
+                    cond_reads(condition, &mut names);
+                    names
+                })
+                .collect(),
+            exports: export_reads(source),
+            projections: FxMap::default(),
+        });
+        let mut needed: BTreeSet<String> = analysis.exports.intersection(&group.names).cloned().collect();
+        for names in &analysis.conditions {
+            if !names.is_disjoint(&group.names) {
+                needed.extend(names.iter().cloned());
+            }
+        }
+        needed.remove("");
+        if needed.is_empty() {
             return Ok(());
         }
-        for route in routes(&source.alternative.expr, self) {
-            let Some(&(end, option)) = route.ends.get(&group.id) else {
+        let paths = analysis.projections.entry(needed.clone()).or_insert_with(|| {
+            routes(
+                &source.alternative.expr,
+                self,
+                &needed,
+                spans.get_or_insert_with(|| SymbolSpans::new(grammar)),
+                grammar,
+            )
+        });
+        for route in paths.iter() {
+            let Some(&(end, option, prefix)) = route.ends.get(&group.id) else {
                 continue;
             };
             let has = |name: &str| name.is_empty() || route.captures.contains_key(name);
             let private = |reads: &BTreeSet<String>| {
-                reads.iter().any(|name| {
-                    route.captures.get(name).is_some_and(|&(node, _)| self.owners.get(&node) == Some(&group.id))
-                })
+                reads.iter().any(|name| route.captures.get(name).is_some_and(|&(owner, _)| owner == Some(group.id)))
             };
             for (condition_index, condition) in source.clauses.conditions.iter().enumerate() {
                 let mut original = BTreeSet::new();
@@ -235,10 +304,7 @@ impl RankedGroups {
                         .into_iter()
                         .find(|c| matches!(c,Cond::Boundary(false,Term::Capture(n),_,_) if n.is_empty()))
                 {
-                    let prefix = &route.steps[..route.starts[&group.id]];
-                    if !prefix.is_empty()
-                        && spans.get_or_insert_with(|| SymbolSpans::new(grammar)).prefix(prefix, grammar)
-                    {
+                    if prefix.nonempty {
                         let test = format!("$.preceded-by({})", targets.join(" | "));
                         let message=format!("Condition {} of {} combines {test} with a private capture in option {}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.",condition_index+1,grammar.rules[group.source.0].name,option+1);
                         return Err(self.fail(grammar, group, "ranked-choice-boundary", &message).ranked_detail(
@@ -501,8 +567,9 @@ impl RankedGroups {
             at += 1;
         }
         let mut spans = None;
+        let mut analyses = FxMap::default();
         for group in &self.groups {
-            self.validate_clauses(grammar, group, &mut spans)?;
+            self.validate_clauses(grammar, group, &mut spans, &mut analyses)?;
             let helper = graph.groups[&group.id];
             if !unsafe_tags[helper] {
                 continue;
@@ -664,11 +731,8 @@ pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool
     levels.last().copied().unwrap_or(false)
 }
 
-fn clause_reads(source: &crate::grammar::StitchedAlternative) -> BTreeSet<String> {
+fn export_reads(source: &crate::grammar::StitchedAlternative) -> BTreeSet<String> {
     let mut reads = BTreeSet::new();
-    for condition in &source.clauses.conditions {
-        cond_reads(condition, &mut reads);
-    }
     for term in source
         .alternative
         .tags
@@ -978,23 +1042,15 @@ impl SymbolSpans {
             nonempty: nonempty[1..=grammar.rules.len()].to_vec(),
         }
     }
-    fn prefix(&self, steps: &[Expr], grammar: &StageGrammar) -> bool {
-        let mut any = false;
-        for mut step in steps {
-            while let Expr::Capture(_, inner) | Expr::Tested(_, _, inner) = step {
-                step = inner;
-            }
-            if let Expr::Ref(name) = step {
-                if let Some(&id) = grammar.index.get(name) {
-                    if !self.productive[id] {
-                        return false;
-                    }
-                    any |= self.nonempty[id];
-                    continue;
-                }
-            }
-            any = true;
+    fn atom(&self, mut expr: &Expr, grammar: &StageGrammar) -> Span {
+        while let Expr::Capture(_, inner) | Expr::Tested(_, _, inner) = expr {
+            expr = inner;
         }
-        any
+        if let Expr::Ref(name) = expr {
+            if let Some(&id) = grammar.index.get(name) {
+                return Span { productive: self.productive[id], nonempty: self.nonempty[id] };
+            }
+        }
+        Span { productive: true, nonempty: true }
     }
 }

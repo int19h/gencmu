@@ -1,0 +1,18 @@
+{
+  "description": "Ranked clause projections retain relevant presence, order, and prefixes without unrelated combinations (engine §2.1).",
+  "grammar": "%rule text dead [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] [Z] ($x:A ≻ B)\n%conditions ($x ⟹ ¬$.preceded-by(A))\n%rule dead dead",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

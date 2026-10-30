@@ -1419,3 +1419,19 @@ fn stitching_stages_and_reference_order() {
         }
     }
 }
+
+#[test]
+fn projected_ranked_routes_keep_route_first_errors_and_nested_bindings() {
+    for separator in ["|", "&"] {
+        let text = format!("%ambiguity-resolution greedy\n%rule text (($x:A {separator} $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = \"y\"), ($x ⟹ $.value = \"x\")");
+        let error = gencmu::load_pipeline_sources(&single(&text), "p.md").unwrap_err();
+        assert_eq!(error.code.as_deref(), Some("ranked-choice-continuation"));
+        assert_eq!(error.option, Some(0));
+        let expression = error.expression.as_ref().unwrap();
+        assert_eq!(expression.get("if").unwrap().get("captured").unwrap().as_str(), Some("x"));
+    }
+    let text = "%ambiguity-resolution greedy\n%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = \"b\")";
+    let error = gencmu::load_pipeline_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("ranked-choice-continuation"));
+    assert_eq!(error.option, Some(1));
+}

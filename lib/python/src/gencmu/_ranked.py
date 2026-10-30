@@ -41,22 +41,46 @@ class Group:
 
 @dataclass
 class Route:
+    """Relevant capture closes and finite prefix observations."""
+
     length: int = 0
     captures: dict = field(default_factory=dict)
     ends: dict = field(default_factory=dict)
-    steps: tuple = ()
+    span: tuple = (True, False)
     bindings: dict = field(default_factory=dict)
+
+
+def join_spans(left, right):
+    productive = left[0] and right[0]
+    return productive, productive and (left[1] or right[1])
 
 
 def join(left, right):
     return Route(left.length + right.length,
-                 left.captures | {name: (node, at + left.length) for name, (node, at) in right.captures.items()},
-                 left.ends | {group: (start + left.length, at + left.length, option) for group, (start, at, option) in right.ends.items()},
-                 left.steps + right.steps, left.bindings | right.bindings)
+                 left.captures | {name: (owner, at + left.length) for name, (owner, at) in right.captures.items()},
+                 left.ends | {group: (at + left.length, option, join_spans(left.span, prefix)) for group, (at, option, prefix) in right.ends.items()},
+                 join_spans(left.span, right.span), left.bindings | right.bindings)
+
+
+def route_key(route):
+    captures = tuple((name, owner.id if owner is not None else -1, at) for name, (owner, at) in sorted(route.captures.items()))
+    ends = tuple((group.id, *end) for group, end in sorted(route.ends.items(), key=lambda item: item[0].id))
+    bindings = tuple((name, group.id) for name, group in sorted(route.bindings.items()))
+    return route.length, route.span, captures, ends, bindings
+
+
+def unique(routes):
+    seen, out = set(), []
+    for route in routes:
+        key = route_key(route)
+        if key not in seen:
+            seen.add(key)
+            out.append(route)
+    return out
 
 
 def product(left, right):
-    return [join(a, b) for a in left for b in right]
+    return unique(join(a, b) for a in left for b in right)
 
 
 class RankedGroups:
@@ -64,23 +88,40 @@ class RankedGroups:
         self.stage, self.rules = stage, rules
         self.groups, self.expressions, self.owners, self.paths = [], {}, {}, {}
         self.source_sites = {}
+        self.clause_analyses, self.spans = {}, None
         for rule in rules.values():
             for alternative, source in enumerate(rule.alternatives):
                 self.source_sites[id(source)] = {"document":source.document,"at":list(source.at),"rule":rule.name,"alternative":alternative,"path":""}
                 self.visit(source.expr, '', True, None, rule.name, alternative, source)
 
-    def validate_clauses(self, group, prefix_can_read=lambda steps: False):
+    def validate_clauses(self, group):
         source = group.source
-        clauses = [source.conditions, source.tags, source.rule_tags, source.value, source.image, source.rule_value, source.rule_image, source.emit]
-        if not reads(clauses) & reads(group.expr):
+        key = id(source)
+        if key not in self.clause_analyses:
+            exports = [source.tags, source.rule_tags, source.value, source.image, source.rule_value, source.rule_image, source.emit]
+            self.clause_analyses[key] = ([reads(condition) for condition in source.conditions], reads(exports), {})
+        conditions, exports, projections = self.clause_analyses[key]
+        names = reads(group.expr)
+        needed = exports & names
+        for condition in conditions:
+            if condition & names:
+                needed |= condition
+        needed.discard('')
+        if not needed:
             return
-        for route in self.routes(group.source.expr):
+        projection = frozenset(needed)
+        if projection not in projections:
+            if self.spans is None:
+                self.spans = written_spans(self.rules)
+            projections[projection] = run(self._routes(source.expr, needed))
+        routes = projections[projection]
+        for route in routes:
             if group not in route.ends:
                 continue
-            start, end, option = route.ends[group]
+            end, option, prefix = route.ends[group]
             present = {''} | route.captures.keys()
             def private(names):
-                return any(name in route.captures and self.owners.get(route.captures[name][0]) is group for name in names)
+                return any(name in route.captures and route.captures[name][0] is group for name in names)
             for index, condition in enumerate(group.source.conditions):
                 effective = simplify_condition(condition, present)
                 if effective is True or not any(route.bindings.get(name) is group for name in reads(condition)):
@@ -92,7 +133,7 @@ class RankedGroups:
                     self.fail(group, 'ranked-choice-continuation', 'A private capture requires a condition ready when its ranked choice closes.', option=option, expression=condition)
                 from ._boundary import atoms
                 atom = next((atom for atom in atoms(effective) if atom['method'] == 'preceded-by' and atom['receiver']['capture'] == ''), None)
-                if atom is not None and prefix_can_read(route.steps[:start]):
+                if atom is not None and prefix[1]:
                     targets = ' | '.join(arg.get('rule', arg.get('terminal')) for arg in atom['args'])
                     self.fail(group, 'ranked-choice-boundary',
                               f'Condition {index + 1} of {group.rule} combines $.preceded-by({targets}) with a private capture in option {option + 1}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.',
@@ -123,51 +164,60 @@ class RankedGroups:
                 last = not ('seq' in expr or 'and' in expr) or component.endswith(f"/{len(expr.get('seq',expr.get('and',()))) - 1}")
                 pending.append((child, path + component, final and last and 'repeat' not in expr, owner))
 
-    def routes(self, expr):
-        return run(self._routes(expr))
-
-    def _routes(self, expr):
+    def _routes(self, expr, needed):
         if 'empty' in expr:
             return [Route()]
         if 'seq' in expr:
             out = [Route()]
             for child in expr['seq']:
-                out = product(out, (yield self._routes(child)))
+                out = product(out, (yield self._routes(child, needed)))
             return out
         if 'choice' in expr:
             out = []
             for child in expr['choice']:
-                out.extend((yield self._routes(child)))
-            return out
+                out.extend((yield self._routes(child, needed)))
+            return unique(out)
         if 'ranked' in expr:
             out = []
+            group = self.expressions[id(expr)]
+            names = reads(group.expr) & needed
             for option, child in enumerate(expr['ranked']):
-                for route in (yield self._routes(child)):
-                    group = self.expressions[id(expr)]
-                    names = reads(group.expr)
-                    for nested in route.ends:
-                        names -= reads(nested.expr)
-                    route.bindings.update((name, group) for name in names)
-                    route.ends[group] = (0, route.length, option)
+                for route in (yield self._routes(child, needed)):
+                    if names:
+                        for name in names:
+                            route.bindings.setdefault(name, group)
+                        route.ends[group] = (route.length, option, (True, False))
                     out.append(route)
-            return out
+            return unique(out)
         if 'and' in expr:
-            out, expanded = [], []
-            for child in expr['and']:
-                expanded.append((yield self._routes(child)))
-            for mask in range(1, 1 << len(expanded)):
-                route = [Route()]
-                for index, alternatives in enumerate(expanded):
-                    if mask & (1 << index):
-                        route = product(route, alternatives)
-                out.extend(route)
-            return out
+            states = [(0, (), Route())]
+            for bit, child in enumerate(expr['and']):
+                parts = yield self._routes(child, needed)
+                candidates = list(states)
+                for mask, order, route in states:
+                    candidates.extend((mask | (1 << bit), (*order, index), join(route, part)) for index, part in enumerate(parts))
+                candidates.sort(key=lambda state: state[:2])
+                states, seen = [], set()
+                for state in candidates:
+                    key = (state[0] != 0, route_key(state[2]))
+                    if key not in seen:
+                        seen.add(key)
+                        states.append(state)
+            return unique(route for mask, _, route in states if mask)
         if 'optional' in expr:
-            return [Route(), *(yield self._routes(expr['optional']))]
+            return unique([Route(), *(yield self._routes(expr['optional'], needed))])
         if 'repeat' in expr:
-            out = yield self._routes(expr['repeat'])
-            return out + product(out, (yield self._routes(expr['separator']))) if 'separator' in expr else out
-        return [Route(1, {expr['capture']: (id(expr), 1)} if 'capture' in expr else {}, steps=(expr,))]
+            out = yield self._routes(expr['repeat'], needed)
+            return unique([*out, *product(out, (yield self._routes(expr['separator'], needed)))]) if 'separator' in expr else out
+        route = Route()
+        if 'capture' in expr and expr['capture'] in needed:
+            route.length = 1
+            route.captures[expr['capture']] = (self.owners.get(id(expr)), 1)
+        while 'expr' in expr:
+            expr = expr['expr']
+        name = expr.get('ref')
+        route.span = (self.spans[0][name], self.spans[1][name]) if name in self.rules else (True, True)
+        return [route]
 
     def site(self, source, path='', group=False):
         site = dict(self.source_sites[id(source)])
@@ -202,23 +252,6 @@ class RankedGroups:
 
     def validate_tags(self):
         graph = TagGraph(self)
-        spans = None
-        def prefix_can_read(steps):
-            nonlocal spans
-            if spans is None:
-                spans = written_spans(self.rules)
-            nonempty = False
-            for step in steps:
-                while "expr" in step:
-                    step = step["expr"]
-                name = step.get("ref")
-                if name in self.rules:
-                    if not spans[0].get(name):
-                        return False
-                    nonempty |= spans[1].get(name, False)
-                else:
-                    nonempty = True
-            return nonempty
         unsafe, users = set(), {}
         for index, node in enumerate(graph.nodes):
             for route in node.routes:
@@ -238,7 +271,7 @@ class RankedGroups:
                     unsafe.add(parent)
                     pending.append(parent)
         for group in self.groups:
-            self.validate_clauses(group, prefix_can_read)
+            self.validate_clauses(group)
             helper = graph.groups[group]
             if helper not in unsafe:
                 continue

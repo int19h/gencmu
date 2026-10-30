@@ -578,6 +578,10 @@ Within a group, inspect alternative recipes before rule recipes. Within each pai
 
 The loader skips clause routes for a group when no written clause reads a name that the group can bind.
 
+For each group, the loader projects routes onto names read by conditions that can bind to that group. Written export checks retain only names that the group can bind. A projected route retains capture presence, ownership, and relative order, plus active binding groups and their option and completion positions. Prefix summaries retain finite productivity and possible token consumption. Unread captures and intervening symbol counts create no distinct states.
+
+The loader merges equivalent summaries at each expression join and keeps their first route in ordinary expansion order. Conjunction summaries retain nonempty operand selections and their original subset order. Each alternative caches projections by their retained names and shares matching projections across groups. These summaries preserve route-first clause diagnostics within each group.
+
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
 
 Each selected option binds captures declared within its group, whether present or absent. An active nested group binds its own captures. When a selection skips that group, the enclosing group binds its absent captures. Loading and runtime use the same bindings. Determine these bindings before capture-presence simplification.

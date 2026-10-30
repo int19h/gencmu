@@ -145,3 +145,32 @@ func TestRankedRecipeOrder(t *testing.T) {
 		t.Fatalf("got %v, expression %s", fault, fault.Expression)
 	}
 }
+
+func TestProjectedRankedRoutePriorityAndBindings(t *testing.T) {
+	for _, separator := range []string{"|", "&"} {
+		grammar := "%ambiguity-resolution greedy\n%rule text (($x:A " + separator + " $y:B) ≻ C) Z\n%conditions ($y ⟹ $.value = \"y\"), ($x ⟹ $.value = \"x\")"
+		_, failure := LoadPipelineSources(oneStage(grammar), "p.md")
+		if failure == nil {
+			t.Fatal("grammar loaded")
+		}
+		err := failure.(*Error)
+		if err.Code != "ranked-choice-continuation" || err.Option == nil || *err.Option != 0 {
+			t.Fatal(err)
+		}
+		var expression struct{ If struct{ Captured string } }
+		if failure := json.Unmarshal(err.Expression, &expression); failure != nil {
+			t.Fatal(failure)
+		}
+		if expression.If.Captured != "x" {
+			t.Fatalf("wrong condition: %s", err.Expression)
+		}
+	}
+	_, failure := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n%rule text (($x:A ≻ B) ≻ C) Z\n%conditions (¬$x ∧ $.value = \"b\")"), "p.md")
+	if failure == nil {
+		t.Fatal("grammar loaded")
+	}
+	err := failure.(*Error)
+	if err.Code != "ranked-choice-continuation" || err.Option == nil || *err.Option != 1 {
+		t.Fatal(err)
+	}
+}

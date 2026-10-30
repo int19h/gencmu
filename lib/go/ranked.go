@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -16,19 +17,37 @@ type rankedGroup struct {
 	final           bool
 }
 type rankedGroups struct {
-	groups      []*rankedGroup
-	expressions map[*domExpr]*rankedGroup
-	owners      map[*domExpr]*rankedGroup
-	paths       map[*domExpr]string
-	sourceSites map[*sAlt]GroupSite
+	groups               []*rankedGroup
+	expressions          map[*domExpr]*rankedGroup
+	owners               map[*domExpr]*rankedGroup
+	paths                map[*domExpr]string
+	sourceSites          map[*sAlt]GroupSite
+	analyses             map[*sAlt]*rankedClauseAnalysis
+	productive, nonempty map[string]bool
 }
+type rankedClauseAnalysis struct {
+	conditions  []map[string]bool
+	exports     map[string]bool
+	projections map[string][]rankedRoute
+}
+type rankedSpan struct{ productive, nonempty bool }
+
+func rankedJoinSpans(a, b rankedSpan) rankedSpan {
+	productive := a.productive && b.productive
+	return rankedSpan{productive, productive && (a.nonempty || b.nonempty)}
+}
+
 type rankedCapture struct {
-	node *domExpr
-	at   int
+	owner *rankedGroup
+	at    int
 }
-type rankedEnd struct{ at, option, start int }
+type rankedEnd struct {
+	at, option int
+	start      rankedSpan
+}
+// Route positions count relevant capture closes, independently of other symbols.
 type rankedRoute struct {
-	steps    []*domExpr
+	span     rankedSpan
 	bindings map[string]*rankedGroup
 	length   int
 	captures map[string]rankedCapture
@@ -36,12 +55,11 @@ type rankedRoute struct {
 }
 
 func rankedEmptyRoute() rankedRoute {
-	return rankedRoute{bindings: map[string]*rankedGroup{}, captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
+	return rankedRoute{span: rankedSpan{productive: true}, bindings: map[string]*rankedGroup{}, captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
 }
 func rankedJoin(left, right rankedRoute) rankedRoute {
 	out := rankedEmptyRoute()
-	out.length = left.length + right.length
-	out.steps = append(append([]*domExpr{}, left.steps...), right.steps...)
+	out.length, out.span = left.length+right.length, rankedJoinSpans(left.span, right.span)
 	for name, group := range left.bindings {
 		out.bindings[name] = group
 	}
@@ -60,81 +78,175 @@ func rankedJoin(left, right rankedRoute) rankedRoute {
 	}
 	for group, end := range right.ends {
 		end.at += left.length
-		end.start += left.length
+		end.start = rankedJoinSpans(left.span, end.start)
 		out.ends[group] = end
 	}
 	return out
 }
-func rankedProduct(left, right []rankedRoute) []rankedRoute {
-	out := []rankedRoute{}
-	for _, a := range left {
-		for _, b := range right {
-			out = append(out, rankedJoin(a, b))
+func rankedRouteKey(route rankedRoute) string {
+	var key strings.Builder
+	fmt.Fprintf(&key, "%d:%t:%t;", route.length, route.span.productive, route.span.nonempty)
+	names := []string{}
+	for name := range route.captures {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		capture := route.captures[name]
+		owner := -1
+		if capture.owner != nil {
+			owner = capture.owner.id
+		}
+		fmt.Fprintf(&key, "c%s:%d:%d;", name, owner, capture.at)
+	}
+	groups := []*rankedGroup{}
+	for group := range route.ends {
+		groups = append(groups, group)
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].id < groups[j].id })
+	for _, group := range groups {
+		end := route.ends[group]
+		fmt.Fprintf(&key, "g%d:%d:%d:%t:%t;", group.id, end.at, end.option, end.start.productive, end.start.nonempty)
+	}
+	names = names[:0]
+	for name := range route.bindings {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(&key, "b%s:%d;", name, route.bindings[name].id)
+	}
+	return key.String()
+}
+func rankedUnique(routes []rankedRoute) []rankedRoute {
+	seen, out := map[string]bool{}, []rankedRoute{}
+	for _, route := range routes {
+		key := rankedRouteKey(route)
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, route)
 		}
 	}
 	return out
 }
-func (r *rankedGroups) routes(expr *domExpr) []rankedRoute {
+func rankedProduct(left, right []rankedRoute) []rankedRoute {
+	seen, out := map[string]bool{}, []rankedRoute{}
+	for _, a := range left {
+		for _, b := range right {
+			route := rankedJoin(a, b)
+			key := rankedRouteKey(route)
+			if !seen[key] {
+				seen[key] = true
+				out = append(out, route)
+			}
+		}
+	}
+	return out
+}
+func (r *rankedGroups) routes(g *stageGrammar, expr *domExpr, needed map[string]bool) []rankedRoute {
+	visit := func(child *domExpr) []rankedRoute { return r.routes(g, child, needed) }
 	switch expr.Kind {
 	case exEmpty:
 		return []rankedRoute{rankedEmptyRoute()}
 	case exSeq:
 		out := []rankedRoute{rankedEmptyRoute()}
 		for _, child := range expr.Items {
-			out = rankedProduct(out, r.routes(child))
+			out = rankedProduct(out, visit(child))
 		}
 		return out
 	case exChoice:
 		out := []rankedRoute{}
 		for _, child := range expr.Items {
-			out = append(out, r.routes(child)...)
+			out = append(out, visit(child)...)
 		}
-		return out
+		return rankedUnique(out)
 	case exRanked:
-		out := []rankedRoute{}
+		out, group := []rankedRoute{}, r.expressions[expr]
+		names := rankedPrivateNames(expr)
+		for name := range names {
+			if !needed[name] {
+				delete(names, name)
+			}
+		}
 		for option, child := range expr.Items {
-			for _, route := range r.routes(child) {
-				group := r.expressions[expr]
-				names := rankedPrivateNames(expr)
-				for nested := range route.ends {
-					for name := range rankedPrivateNames(nested.expr) {
-						delete(names, name)
+			for _, route := range visit(child) {
+				if len(names) > 0 {
+					for name := range names {
+						if route.bindings[name] == nil {
+							route.bindings[name] = group
+						}
 					}
+					route.ends[group] = rankedEnd{at: route.length, option: option, start: rankedSpan{productive: true}}
 				}
-				for name := range names {
-					route.bindings[name] = group
-				}
-				route.ends[group] = rankedEnd{route.length, option, 0}
 				out = append(out, route)
 			}
 		}
-		return out
+		return rankedUnique(out)
 	case exAnd:
-		out := []rankedRoute{}
-		for mask := 1; mask < 1<<len(expr.Items); mask++ {
-			route := []rankedRoute{rankedEmptyRoute()}
-			for index, child := range expr.Items {
-				if mask&(1<<index) != 0 {
-					route = rankedProduct(route, r.routes(child))
+		type selected struct {
+			mask  int
+			order []int
+			route rankedRoute
+		}
+		states := []selected{{route: rankedEmptyRoute()}}
+		for bit, child := range expr.Items {
+			parts, candidates := visit(child), append([]selected{}, states...)
+			for _, state := range states {
+				for index, part := range parts {
+					order := append(append([]int{}, state.order...), index)
+					candidates = append(candidates, selected{state.mask | (1 << bit), order, rankedJoin(state.route, part)})
 				}
 			}
-			out = append(out, route...)
+			sort.SliceStable(candidates, func(i, j int) bool {
+				a, b := candidates[i], candidates[j]
+				if a.mask != b.mask {
+					return a.mask < b.mask
+				}
+				for k := 0; k < len(a.order) && k < len(b.order); k++ {
+					if a.order[k] != b.order[k] {
+						return a.order[k] < b.order[k]
+					}
+				}
+				return len(a.order) < len(b.order)
+			})
+			states = nil
+			seen := map[string]bool{}
+			for _, state := range candidates {
+				key := fmt.Sprint(state.mask != 0) + rankedRouteKey(state.route)
+				if !seen[key] {
+					seen[key] = true
+					states = append(states, state)
+				}
+			}
 		}
-		return out
+		out := []rankedRoute{}
+		for _, state := range states {
+			if state.mask != 0 {
+				out = append(out, state.route)
+			}
+		}
+		return rankedUnique(out)
 	case exOptional:
-		return append([]rankedRoute{rankedEmptyRoute()}, r.routes(expr.Inner)...)
+		return rankedUnique(append([]rankedRoute{rankedEmptyRoute()}, visit(expr.Inner)...))
 	case exRepeat:
-		out := r.routes(expr.Inner)
+		items := visit(expr.Inner)
 		if expr.Sep != nil {
-			out = append(out, rankedProduct(out, r.routes(expr.Sep))...)
+			return rankedUnique(append(items, rankedProduct(items, visit(expr.Sep))...))
 		}
-		return out
+		return items
 	default:
 		route := rankedEmptyRoute()
-		route.length = 1
-		route.steps = []*domExpr{expr}
-		if expr.Kind == exCapture {
-			route.captures[expr.Name] = rankedCapture{expr, 1}
+		if expr.Kind == exCapture && needed[expr.Name] {
+			route.length = 1
+			route.captures[expr.Name] = rankedCapture{r.owners[expr], 1}
+		}
+		for expr.Kind == exCapture || expr.Kind == exTest {
+			expr = expr.Inner
+		}
+		if expr.Kind == exRef && g.byName[expr.Name] != nil {
+			route.span = rankedSpan{r.productive[expr.Name], r.nonempty[expr.Name]}
+		} else {
+			route.span = rankedSpan{true, true}
 		}
 		return []rankedRoute{route}
 	}
@@ -167,7 +279,7 @@ func rankedCondReads(cond *domCond, out map[string]bool) {
 	}
 }
 func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
-	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, sourceSites: map[*sAlt]GroupSite{}}
+	r := &rankedGroups{expressions: map[*domExpr]*rankedGroup{}, owners: map[*domExpr]*rankedGroup{}, paths: map[*domExpr]string{}, sourceSites: map[*sAlt]GroupSite{}, analyses: map[*sAlt]*rankedClauseAnalysis{}}
 	for _, rule := range g.rules {
 		for alternative, source := range rule.alts {
 			at := source.at
@@ -208,11 +320,50 @@ func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
 	}
 	return r, nil
 }
-func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, prefixCanRead func([]*domExpr) bool) *Error {
-	if !overlaps(rankedClauseReads(group.source), rankedPrivateNames(group.expr)) {
+func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Error {
+	analysis := r.analyses[group.source]
+	if analysis == nil {
+		analysis = &rankedClauseAnalysis{exports: rankedExportReads(group.source), projections: map[string][]rankedRoute{}}
+		for _, condition := range group.source.conds {
+			names := map[string]bool{}
+			rankedCondReads(condition, names)
+			analysis.conditions = append(analysis.conditions, names)
+		}
+		r.analyses[group.source] = analysis
+	}
+	private := rankedPrivateNames(group.expr)
+	needed := map[string]bool{}
+	for name := range analysis.exports {
+		if private[name] {
+			needed[name] = true
+		}
+	}
+	for _, names := range analysis.conditions {
+		if overlaps(names, private) {
+			for name := range names {
+				needed[name] = true
+			}
+		}
+	}
+	delete(needed, "")
+	if len(needed) == 0 {
 		return nil
 	}
-	for _, route := range r.routes(group.source.alt.Expr) {
+	names := []string{}
+	for name := range needed {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	key := strings.Join(names, ",")
+	paths := analysis.projections[key]
+	if paths == nil {
+		if r.productive == nil {
+			r.productive, r.nonempty = rankedWrittenSpans(g)
+		}
+		paths = r.routes(g, group.source.alt.Expr, needed)
+		analysis.projections[key] = paths
+	}
+	for _, route := range paths {
 		end, present := route.ends[group]
 		if !present {
 			continue
@@ -220,7 +371,7 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 		has := func(name string) bool { _, present := route.captures[name]; return name == "" || present }
 		private := func(reads map[string]bool) bool {
 			for name := range reads {
-				if capture, present := route.captures[name]; present && r.owners[capture.node] == group {
+				if capture, present := route.captures[name]; present && capture.owner == group {
 					return true
 				}
 			}
@@ -257,7 +408,7 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, pref
 				}
 			}
 			atom := firstBoundaryAtom(effective)
-			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && prefixCanRead != nil && prefixCanRead(route.steps[:end.start]) {
+			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && end.start.nonempty {
 				message := fmt.Sprintf("Condition %d of %s combines %s with a private capture in option %d. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.", conditionIndex+1, group.parent, boundaryAtomText(atom), end.option+1)
 				return r.fail(g, group, "ranked-choice-boundary", message).rankedDetail(end.option, rankedWrittenClause(group.source, "conditions", conditionIndex))
 			}
@@ -369,12 +520,9 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	return err
 }
 
-// rankedClauseReads includes written carriers before absent ones disappear.
-func rankedClauseReads(source *sAlt) map[string]bool {
+// rankedExportReads includes written carriers before absent ones disappear.
+func rankedExportReads(source *sAlt) map[string]bool {
 	reads := map[string]bool{}
-	for _, condition := range source.conds {
-		rankedCondReads(condition, reads)
-	}
 	for _, term := range []*domTerm{source.alt.Tags, source.ruleTags, source.alt.Value, source.alt.Image, source.ruleValue, source.ruleImage} {
 		rankedTermReads(term, reads)
 	}
@@ -395,27 +543,6 @@ func rankedClauseReads(source *sAlt) map[string]bool {
 
 func (r *rankedGroups) validateTags(g *stageGrammar) *Error {
 	graph := newRankedTagGraph(g, r)
-	var productive, nonempty map[string]bool
-	prefixCanRead := func(steps []*domExpr) bool {
-		if productive == nil {
-			productive, nonempty = rankedWrittenSpans(g)
-		}
-		reads := false
-		for _, step := range steps {
-			for step.Kind == exCapture || step.Kind == exTest {
-				step = step.Inner
-			}
-			if step.Kind == exRef && g.byName[step.Name] != nil {
-				if !productive[step.Name] {
-					return false
-				}
-				reads = reads || nonempty[step.Name]
-			} else {
-				reads = true
-			}
-		}
-		return reads
-	}
 	unsafe := make([]bool, len(graph.nodes))
 	users := make([][]int, len(graph.nodes))
 	for index, node := range graph.nodes {
@@ -448,7 +575,7 @@ func (r *rankedGroups) validateTags(g *stageGrammar) *Error {
 		}
 	}
 	for _, group := range r.groups {
-		if err := r.validateClauses(g, group, prefixCanRead); err != nil {
+		if err := r.validateClauses(g, group); err != nil {
 			return err
 		}
 		helper := graph.groups[group]
