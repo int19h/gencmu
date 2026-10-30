@@ -169,7 +169,7 @@ class Parameters(unittest.TestCase):
         dom = reader.read('```jbogenbau\n%rule choice(@X) @X :: ∅\n%rule text choice(("a" ≻ "b"))\n```', 'locations.md')
         located = restore_locations(dom, [Token(text='≻', tags=set(), span=(0, 1), value='≻', source=(0, 1))], lambda _: (3, 29))
         expanded = expand_templates([('locations.md', located)], reader.unicode)
-        definition = expanded[3][0]['definitions'][0]['rule']
+        definition = next(dom['rules'][0] for _, dom in expanded[0] if dom['rules'] and dom['rules'][0]['name'].startswith('choice('))
         self.assertEqual(expression_locations(definition['alternatives'][0]['expr']), {'': (3, 29)})
 
 

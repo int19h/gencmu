@@ -65,13 +65,13 @@ def _guard(value: Any, gate: bool = False) -> bool:
     )
 
 
-def _base(expr: Any) -> bool:
+def _base(expr: Any, rule_name=_ref) -> bool:
     return (
         isinstance(expr, dict)
         and ("param" in expr or "call" in expr or len(expr) == 1)
         and (
             "param" in expr or "call" in expr or "ref" in expr
-            and _ref(expr["ref"])
+            and (_ref(expr["ref"]) or rule_name(expr["ref"]))
             or "literal" in expr
             or "range" in expr
             or expr.get("wildcard") is True
@@ -79,17 +79,17 @@ def _base(expr: Any) -> bool:
     )
 
 
-def _target(expr: Any) -> bool:
-    if _base(expr):
+def _target(expr: Any, rule_name=_ref) -> bool:
+    if _base(expr, rule_name):
         return True
     if not isinstance(expr, dict):
         return False
     if expr.get("test") == "tags":
-        return set(expr) == {"test", "requirements", "expr"} and _base(expr["expr"])
+        return set(expr) == {"test", "requirements", "expr"} and _base(expr["expr"], rule_name)
     if expr.get("test") in ("=", "≠"):
         inner = expr.get("expr")
         return set(expr) == {"test", "value", "expr"} and (
-            _base(inner) or isinstance(inner, dict) and inner.get("test") == "tags" and _target(inner)
+            _base(inner, rule_name) or isinstance(inner, dict) and inner.get("test") == "tags" and _target(inner, rule_name)
         )
     return False
 
@@ -500,11 +500,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name) -> str |
                 if "separator" in node:
                     pending.append(("expr", node["separator"], below, False, True))
             elif "capture" in node:
-                if keys != {"capture", "expr"} or sealed or not _capture(node["capture"], False) or not _target(node["expr"]):
+                if keys != {"capture", "expr"} or sealed or not _capture(node["capture"], False) or not _target(node["expr"], rule_name):
                     return "a malformed capture"
                 pending.append(("expr", node["expr"], below, False, sealed))
             elif "test" in node:
-                if not _target(node):
+                if not _target(node, rule_name):
                     return "a malformed test"
                 pending.append(("expr", node["expr"], below, False, sealed))
                 if node["test"] == "tags":
