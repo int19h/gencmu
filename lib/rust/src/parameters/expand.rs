@@ -2,7 +2,7 @@
 use super::print::canonical;
 use super::*;
 use crate::error::Error;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 type R<T> = Result<T, Error>;
 type Documents = Vec<(Arc<str>, Arc<Dom>)>;
@@ -316,6 +316,38 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             x.discover(&e.rule, e)?
         }
     }
+    let mut validation_keys: BTreeSet<_> = x.keys.keys().cloned().collect();
+    let mut validation_queue = VecDeque::new();
+    let mut validation_definitions = Vec::new();
+    for e in &events {
+        if !["params", "args", "instance"].iter().any(|k| has(&e.rule, k)) {
+            x.validation_calls(&e.rule, e, &mut validation_keys, &mut validation_queue)?;
+        }
+    }
+    for id in &x.queue {
+        for e in &x.instances[*id].definitions {
+            x.validation_calls(&e.rule, e, &mut validation_keys, &mut validation_queue)?;
+        }
+    }
+    while let Some((call, origin)) = validation_queue.pop_front() {
+        let name = canonical(&call, uni);
+        let t = &x.templates[x.template_names[text(get(&call, "call"))]];
+        for e in &t.events {
+            let env = list(get(&e.rule, "params"))
+                .iter()
+                .zip(list(get(&call, "args")))
+                .map(|(k, v)| (text(k).to_string(), v.clone()))
+                .collect();
+            let mut body = e.rule.clone();
+            remove(&mut body, "params");
+            set(&mut body, "name", string(&name));
+            let context = Event { origin: Some(origin.clone()), instance: name.clone(), ..e.clone() };
+            let rule = x.substitute(&body, &env, &context, "term")?;
+            let definition = Event { rule, ..context };
+            x.validation_calls(&definition.rule, &definition, &mut validation_keys, &mut validation_queue)?;
+            validation_definitions.push(definition);
+        }
+    }
     let mut validation = Vec::new();
     let mut output = Vec::new();
     for e in &events {
@@ -330,6 +362,9 @@ pub(crate) fn expand(documents: &[(Arc<str>, Arc<Dom>)], uni: &Unicode) -> R<Opt
             set(&mut r, "name", string(i.effective()));
             validation.push(Event { rule: x.rewrite(&r, e, "term")?, ..e.clone() })
         }
+    }
+    for e in validation_definitions {
+        validation.push(Event { rule: x.rewrite(&e.rule, &e, "term")?, ..e });
     }
     let mut users = Vec::new();
     let mut decoded = BTreeMap::new();
@@ -541,31 +576,37 @@ impl Expander<'_> {
         Ok(i)
     }
     fn discover(&mut self, root: &Json, event: &Event) -> R<()> {
+        Self::visit_calls(root, &mut |call| {
+            self.intern(call, event, true)?;
+            Ok(())
+        })
+    }
+    fn visit_calls(root: &Json, visit: &mut impl FnMut(&Json) -> R<()>) -> R<()> {
         match root {
             Json::Arr(xs) => {
                 for x in xs {
-                    self.discover(x, event)?
+                    Self::visit_calls(x, visit)?
                 }
             }
             Json::Obj(fs) => {
                 if has(root, "alternatives") {
                     for (i, alt) in list(get(root, "alternatives")).iter().enumerate() {
                         for k in ["expr", "tags", "value", "image"] {
-                            self.discover(get(alt, k), event)?
+                            Self::visit_calls(get(alt, k), visit)?
                         }
                         if i == 0 {
                             for k in ["tags", "value", "image", "conditions", "emit"] {
-                                self.discover(get(root, k), event)?
+                                Self::visit_calls(get(root, k), visit)?
                             }
                         }
                     }
                     return Ok(());
                 }
                 if has(root, "method") {
-                    self.discover(get(root, "receiver"), event)?;
-                    self.discover(get(root, "args"), event)?
+                    Self::visit_calls(get(root, "receiver"), visit)?;
+                    Self::visit_calls(get(root, "args"), visit)?
                 } else if has(root, "call") {
-                    self.discover(get(root, "args"), event)?
+                    Self::visit_calls(get(root, "args"), visit)?
                 } else {
                     const ORDER: &[&str] = &[
                         "if",
@@ -605,19 +646,41 @@ impl Expander<'_> {
                     let mut fields: Vec<_> = fs.iter().filter(|(k, _)| k != "at" && k != SOURCE).collect();
                     fields.sort_by_key(|(k, _)| (ORDER.iter().position(|v| *v == k).unwrap_or(ORDER.len()), k));
                     for (_, v) in fields {
-                        self.discover(v, event)?;
+                        Self::visit_calls(v, visit)?;
                     }
                 }
                 if has(root, "call") && !nodes(get(root, "args")).any(|n| has(n, "param")) {
-                    self.intern(root, event, true)?;
+                    visit(root)?;
                 }
                 if has(root, "call") && has(root, "children") {
-                    self.discover(get(root, "children"), event)?;
+                    Self::visit_calls(get(root, "children"), visit)?;
                 }
             }
             _ => (),
         }
         Ok(())
+    }
+    fn validation_calls(
+        &self,
+        root: &Json,
+        event: &Event,
+        keys: &mut BTreeSet<String>,
+        queue: &mut VecDeque<(Json, Json)>,
+    ) -> R<()> {
+        Self::visit_calls(root, &mut |call| {
+            let normalized = obj([
+                ("call", get(call, "call").clone()),
+                ("args", self.normalize(get(call, "args"))),
+                ("at", get(call, "at").clone()),
+            ]);
+            if keys.insert(key(&normalized)) {
+                queue.push_back((
+                    normalized,
+                    obj([("document", string(&*event.path)), ("at", get(call, "at").clone())]),
+                ));
+            }
+            Ok(())
+        })
     }
     fn convert(&self, arg: &Json, position: &str, event: &Event, use_: &Json) -> R<Json> {
         let arg = self.normalize(arg);

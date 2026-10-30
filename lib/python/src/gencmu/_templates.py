@@ -270,7 +270,7 @@ def expand_templates(documents, unicode):
             queue.append(instance)
         return instance
 
-    def discover(root, event):
+    def discover(root, event, record=intern):
         pending = [(root, False)]
         while pending:
             node, ready = pending.pop()
@@ -279,7 +279,7 @@ def expand_templates(documents, unicode):
             elif isinstance(node, dict):
                 if ready:
                     if 'call' in node and not any('param' in n for n in nodes(node['args'])):
-                        intern(node, event, True)
+                        record(node, event, True)
                     if 'call' in node and 'children' in node:
                         pending.append((node['children'], False))
                     continue
@@ -500,6 +500,40 @@ def expand_templates(documents, unicode):
         for event in retained(instance['definitions']):
             discover(event['rule'], event)
 
+    validation_keys = set(instances)
+    validation_queue, validation_definitions = [], []
+
+    def validate_call(call, event, _discover=True):
+        normalized = dict(call=call['call'], args=normalize(call['args']), at=call['at'])
+        key = key_of(normalized)
+        if key not in validation_keys:
+            validation_keys.add(key)
+            validation_queue.append((normalized, dict(document=event['path'], at=call['at'])))
+
+    for event in events:
+        if not any(k in event['rule'] for k in ('params', 'args', 'instance')):
+            discover(event['rule'], event, validate_call)
+    for instance in queue:
+        for event in instance['definitions']:
+            discover(event['rule'], event, validate_call)
+    cursor = 0
+    while cursor < len(validation_queue):
+        call, origin = validation_queue[cursor]
+        cursor += 1
+        name = canonical_argument(call, unicode)
+        for event in templates[call['call']]['events']:
+            env = dict(zip(event['rule']['params'], call['args']))
+            body = {**event['rule'], 'name': name}
+            del body['params']
+            context = {**event, 'origin': origin, 'instance': name}
+            expanded = substitute(body, env, context)
+            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True)
+            if problem:
+                fail(context, expanded, problem)
+            definition = {**context, 'rule': expanded}
+            validation_definitions.append(definition)
+            discover(expanded, definition, validate_call)
+
     def rewrite(root, event, position='term'):
         return run(rewrite_walk(root, event, position))
 
@@ -546,6 +580,7 @@ def expand_templates(documents, unicode):
 
     validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
+    validation.extend({**e, 'rule': rewrite(e['rule'], e)} for e in validation_definitions)
     for event in validation:
         problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
         if problem:

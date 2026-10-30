@@ -285,6 +285,52 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			x.discover(e.rule, e)
 		}
 	}
+	validationKeys := map[string]bool{}
+	for key := range x.instances {
+		validationKeys[key] = true
+	}
+	type validationCall struct{ call, origin templateObject }
+	validationQueue := []validationCall{}
+	validationDefinitions := []*templateEvent{}
+	collect := func(root any, event *templateEvent) {
+		templateCalls(root, func(call templateObject) {
+			normalized := templateObject{"call": call["call"], "args": x.normalize(call["args"]), "at": call["at"]}
+			key := templateKey(normalized)
+			if !validationKeys[key] {
+				validationKeys[key] = true
+				validationQueue = append(validationQueue, validationCall{normalized, templateObject{"document": event.path, "at": call["at"]}})
+			}
+		})
+	}
+	for _, e := range events {
+		if e.rule["params"] == nil && e.rule["args"] == nil && e.rule["instance"] == nil {
+			collect(e.rule, e)
+		}
+	}
+	for _, i := range x.queue {
+		for _, e := range i.definitions {
+			collect(e.rule, e)
+		}
+	}
+	for cursor := 0; cursor < len(validationQueue); cursor++ {
+		call, origin := validationQueue[cursor].call, validationQueue[cursor].origin
+		name := templateCanonical(call, uni)
+		for _, e := range x.templates[templateText(call["call"])].events {
+			env := map[string]templateObject{}
+			for k, p := range templateList(e.rule["params"]) {
+				env[templateText(p)] = templateObj(templateList(call["args"])[k])
+			}
+			body := templateCopy(e.rule)
+			delete(body, "params")
+			body["name"] = name
+			context := &templateEvent{path: e.path, rule: e.rule, index: e.index, origin: origin, instance: name}
+			definition := *context
+			definition.rule = templateObj(x.substitute(body, env, context, "term"))
+			definition.definition = &definition
+			validationDefinitions = append(validationDefinitions, &definition)
+			collect(definition.rule, &definition)
+		}
+	}
 	validation := []*templateEvent{}
 	for _, e := range events {
 		if e.rule["params"] == nil && e.rule["args"] == nil && e.rule["instance"] == nil {
@@ -303,6 +349,11 @@ func expandTemplates(docs []docDOM, uni *unicodeTable) (result *templateExpansio
 			copy.rule = templateObj(x.rewrite(body, e, "term"))
 			validation = append(validation, &copy)
 		}
+	}
+	for _, e := range validationDefinitions {
+		copy := *e
+		copy.rule = templateObj(x.rewrite(e.rule, e, "term"))
+		validation = append(validation, &copy)
 	}
 	users := []constUser{}
 	decoded := map[*templateEvent]*domDoc{}
@@ -423,35 +474,38 @@ func (x *templateExpander) intern(call templateObject, e *templateEvent, discove
 	return i
 }
 func (x *templateExpander) discover(root any, e *templateEvent) {
+	templateCalls(root, func(call templateObject) { x.intern(call, e, true) })
+}
+func templateCalls(root any, visit func(templateObject)) {
 	switch n := root.(type) {
 	case []any:
 		for _, v := range n {
-			x.discover(v, e)
+			templateCalls(v, visit)
 		}
 	case map[string]any:
 		if n["alternatives"] != nil {
 			for i, a := range templateList(n["alternatives"]) {
 				alt := templateObj(a)
 				for _, k := range []string{"expr", "tags", "value", "image"} {
-					x.discover(alt[k], e)
+					templateCalls(alt[k], visit)
 				}
 				if i == 0 {
 					for _, k := range []string{"tags", "value", "image", "conditions", "emit"} {
-						x.discover(n[k], e)
+						templateCalls(n[k], visit)
 					}
 				}
 			}
 			return
 		}
 		if n["method"] != nil {
-			x.discover(n["receiver"], e)
-			x.discover(n["args"], e)
+			templateCalls(n["receiver"], visit)
+			templateCalls(n["args"], visit)
 		} else if n["call"] != nil {
-			x.discover(n["args"], e)
+			templateCalls(n["args"], visit)
 		} else {
 			for _, k := range templateOrderedKeys(n) {
 				if k != "at" {
-					x.discover(n[k], e)
+					templateCalls(n[k], visit)
 				}
 			}
 		}
@@ -461,11 +515,11 @@ func (x *templateExpander) discover(root any, e *templateEvent) {
 				closed = closed && part["param"] == nil
 			}
 			if closed {
-				x.intern(n, e, true)
+				visit(n)
 			}
 		}
 		if n["call"] != nil && n["children"] != nil {
-			x.discover(n["children"], e)
+			templateCalls(n["children"], visit)
 		}
 	}
 }

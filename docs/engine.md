@@ -853,7 +853,7 @@ The source pass finishes before the loader reads the discovery queue. Each new i
 
 Every output event stream starts with its existing defining event. Expansion does not promote an edit into a definition.
 
-For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
+For each instance, the loader replays applicable events and substitutes arguments using each event's parameter names. Replaced bodies and clauses receive per-instance document validation, but their calls create no live instance. Validation-only expansion uses separate keys and contributes no entry to the discovery queue or audit. It follows closed calls from every replaced ordinary definition and every substituted instance definition. It validates every applicable template event and follows nested calls until its queue is empty. Repeated validation keys add nothing, including unchanged recursive calls. A key already expanded as a live instance needs no second expansion. A binding or exact-instance edit head still identifies its subject independently of its body's lifetime.
 
 Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
