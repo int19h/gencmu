@@ -415,7 +415,7 @@ impl Expander<'_> {
         let mut outgoing = BTreeMap::<_, Vec<usize>>::new();
         for e in events {
             let params = list(get(&e.rule, "params"));
-            for n in nodes(&e.rule) {
+            for n in source_nodes(&e.rule) {
                 if has(n, "param") && !params.contains(get(n, "param")) {
                     return Err(e.fail(n, format!("undeclared parameter @{}", text(get(n, "param")))));
                 }
@@ -433,7 +433,7 @@ impl Expander<'_> {
                 }
                 for (i, arg) in list(get(n, "args")).iter().enumerate() {
                     let mut normalized = None;
-                    for part in nodes(arg) {
+                    for part in source_nodes(arg) {
                         if has(part, "capture") || has(part, "captured") {
                             return Err(e.fail(part, "an argument cannot read or declare captures".into()));
                         }
@@ -735,7 +735,7 @@ impl Expander<'_> {
             return Ok(converted);
         }
         let mut result = root.clone();
-        for (k, v) in fields {
+        for (k, v) in source_fields(root) {
             if k == "at" || k == SOURCE {
                 continue;
             }

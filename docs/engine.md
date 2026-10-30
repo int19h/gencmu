@@ -839,6 +839,8 @@ The second declaration fails even when nothing calls it. The first declaration h
 
 The loader first records declaration order, bindings, template signatures, and edits. It then resolves names, constants, and parameter binders and performs the flow analysis. It records only closed calls during instance discovery.
 
+Flow inspection and substitution report the first error in source order. They visit declarations by source position. Within a rule, they visit header tags, value, and image before alternatives. Each alternative contributes its expression, tags, value, and image, in that order. Conditions follow all alternatives, then emission items. An exact-instance edit visits its head arguments before its clauses.
+
 The source pass visits declarations in source order. Every binding visits its instance call, including a binding that a later rebinding replaces. An exact-instance edit visits its head call before its body. A template head declares parameters and creates no instance.
 
 Within each retained definition, the pass uses the reference traversal of §2.2. It visits a call's arguments from left to right and finishes each argument before recording the enclosing call. Inner closed calls therefore precede outer closed calls.

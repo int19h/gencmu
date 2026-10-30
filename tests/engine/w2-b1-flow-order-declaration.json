@@ -1,0 +1,13 @@
+{
+  "description": "Flow inspection and substitution follow declaration and clause order.",
+  "grammar": "%const $P #nosuch1(\"a\")\n%rule t(@X)\n  @X\n%rule text\n  nosuch2(\"b\")",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 12
+    }
+  }
+}

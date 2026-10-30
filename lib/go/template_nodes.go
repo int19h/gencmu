@@ -36,7 +36,7 @@ func templateNodes(root any) []templateObject {
 		switch n := n.(type) {
 		case map[string]any:
 			found = append(found, n)
-			keys := templateKeys(n)
+			keys := templateSourceKeys(n)
 			for i := len(keys) - 1; i >= 0; i-- {
 				if keys[i] != "at" && keys[i] != templateSourceKey {
 					pending = append(pending, n[keys[i]])
@@ -49,6 +49,33 @@ func templateNodes(root any) []templateObject {
 		}
 	}
 	return found
+}
+
+func templateSourceKeys(n templateObject) []string {
+	var prefix []string
+	switch {
+	case n["name"] != nil && n["op"] != nil:
+		prefix = []string{"instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"}
+	case n["expr"] != nil && n["test"] == nil:
+		prefix = []string{"expr", "tags", "value", "image"}
+	case n["capture"] != nil || n["insert"] != nil:
+		prefix = []string{"tags", "value", "image"}
+	}
+	order := append(prefix, "if", "then", "left", "right", "not", "any", "all", "receiver", "args", "expr", "body", "targets", "requirements", "negated", "tags", "value", "image", "pattern", "child", "children", "repeat", "separator", "optional", "seq", "choice", "ranked", "and", "union", "intersection", "difference", "concat", "items", "before", "after")
+	var keys []string
+	seen := map[string]bool{}
+	for _, key := range order {
+		if _, ok := n[key]; ok && !seen[key] {
+			keys = append(keys, key)
+			seen[key] = true
+		}
+	}
+	for _, key := range templateKeys(n) {
+		if !seen[key] {
+			keys = append(keys, key)
+		}
+	}
+	return keys
 }
 func templateKeys(n templateObject) []string {
 	keys := make([]string, 0, len(n))

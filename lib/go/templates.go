@@ -689,7 +689,7 @@ func (x *templateExpander) substitute(root any, env map[string]templateObject, e
 			return result
 		}
 		r := templateCopy(n)
-		for _, k := range templateOrderedKeys(n) {
+		for _, k := range templateSourceKeys(n) {
 			v := n[k]
 			if k == "at" {
 				continue

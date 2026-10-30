@@ -56,25 +56,106 @@ pub(crate) fn at(n: &Json) -> Option<(usize, usize)> {
         _ => None,
     }
 }
+pub(crate) fn source_fields(root: &Json) -> Vec<(&str, &Json)> {
+    let prefix: &[&str] = if has(root, "name") && has(root, "op") {
+        &["instance", "args", "tags", "value", "image", "alternatives", "conditions", "emit"]
+    } else if has(root, "expr") && !has(root, "test") {
+        &["expr", "tags", "value", "image"]
+    } else if has(root, "capture") || has(root, "insert") {
+        &["tags", "value", "image"]
+    } else {
+        &[]
+    };
+    const ORDER: &[&str] = &[
+        "if",
+        "then",
+        "left",
+        "right",
+        "not",
+        "any",
+        "all",
+        "receiver",
+        "args",
+        "expr",
+        "body",
+        "targets",
+        "requirements",
+        "negated",
+        "tags",
+        "value",
+        "image",
+        "pattern",
+        "child",
+        "children",
+        "repeat",
+        "separator",
+        "optional",
+        "seq",
+        "choice",
+        "ranked",
+        "and",
+        "union",
+        "intersection",
+        "difference",
+        "concat",
+        "items",
+        "before",
+        "after",
+    ];
+    let mut fields: Vec<_> = root
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(key, _)| key != "at" && key != SOURCE)
+        .map(|(key, value)| (key.as_str(), value))
+        .collect();
+    fields.sort_by_key(|&(key, _)| {
+        let rank = prefix
+            .iter()
+            .position(|name| *name == key)
+            .unwrap_or_else(|| prefix.len() + ORDER.iter().position(|name| *name == key).unwrap_or(ORDER.len()));
+        (rank, key)
+    });
+    fields
+}
 pub(crate) fn nodes(root: &Json) -> impl Iterator<Item = &Json> {
-    struct Nodes<'a>(Vec<&'a Json>);
+    walk_nodes(root, false)
+}
+pub(crate) fn source_nodes(root: &Json) -> impl Iterator<Item = &Json> {
+    walk_nodes(root, true)
+}
+fn walk_nodes(root: &Json, source: bool) -> impl Iterator<Item = &Json> {
+    struct Nodes<'a> {
+        pending: Vec<&'a Json>,
+        source: bool,
+    }
     impl<'a> Iterator for Nodes<'a> {
         type Item = &'a Json;
         fn next(&mut self) -> Option<Self::Item> {
-            while let Some(n) = self.0.pop() {
+            while let Some(n) = self.pending.pop() {
                 match n {
                     Json::Obj(fields) => {
-                        self.0.extend(fields.iter().rev().filter(|(k, _)| k != "at" && k != SOURCE).map(|(_, v)| v));
+                        if self.source {
+                            self.pending.extend(source_fields(n).into_iter().rev().map(|(_, value)| value));
+                        } else {
+                            self.pending.extend(
+                                fields
+                                    .iter()
+                                    .rev()
+                                    .filter(|(key, _)| key != "at" && key != SOURCE)
+                                    .map(|(_, value)| value),
+                            );
+                        }
                         return Some(n);
                     }
-                    Json::Arr(items) => self.0.extend(items.iter().rev()),
+                    Json::Arr(items) => self.pending.extend(items.iter().rev()),
                     _ => (),
                 }
             }
             None
         }
     }
-    Nodes(vec![root])
+    Nodes { pending: vec![root], source }
 }
 pub(crate) fn unresolved(root: &Json) -> bool {
     nodes(root).any(|n| {

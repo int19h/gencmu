@@ -1,0 +1,13 @@
+{
+  "description": "Flow inspection and substitution follow declaration and clause order.",
+  "grammar": "%rule t(@X)\n  $c:A\n%conditions $c.matches(nosuch2(@X))\n%emits $c :: nosuch3(@X)\n%rule text\n  t(A)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 24
+    }
+  }
+}

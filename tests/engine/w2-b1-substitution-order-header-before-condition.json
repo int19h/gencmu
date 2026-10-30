@@ -1,0 +1,13 @@
+{
+  "description": "Flow inspection and substitution follow declaration and clause order.",
+  "grammar": "%rule t(@X) :: @X\n  | $c:A\n%conditions $c.value = @X\n%emits $c :: @X\n%rule text\n  t(<A>)",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 16
+    }
+  }
+}

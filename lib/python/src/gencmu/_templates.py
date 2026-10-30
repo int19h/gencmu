@@ -9,7 +9,7 @@ from ._errors import GencmuError
 from ._trampoline import run
 from ._pattern_shapes import _print_layered
 from ._strings import spelling
-from ._template_nodes import argument_of_expression, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
+from ._template_nodes import argument_of_expression, source_keys, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
 
 
 def key_of(value):
@@ -211,9 +211,9 @@ def expand_templates(documents, unicode):
                         fail(event, rule, f'{name} requires an earlier definition')
                     names[name].append(event)
     edges = {(t['name'], i): [] for t in templates.values() for i in range(t['arity'])}
-    for event in events + extra:
+    for event in sorted(events + extra, key=lambda event: event['index']):
         rule, params = event['rule'], event['rule'].get('params', [])
-        for n in nodes(rule):
+        for n in nodes(rule, source=True):
             if 'param' in n and n['param'] not in params:
                 fail(event, n, 'undeclared parameter @' + n['param'])
             if 'call' not in n:
@@ -225,7 +225,7 @@ def expand_templates(documents, unicode):
                 fail(event, n, f"template {n['call']} expects {target['arity']} arguments")
             for i, arg in enumerate(n['args']):
                 normalized = None
-                for part in nodes(arg):
+                for part in nodes(arg, source=True):
                     if 'capture' in part or 'captured' in part:
                         fail(event, part, 'an argument cannot read or declare captures')
                     if part.get('param') in params:
@@ -413,7 +413,8 @@ def expand_templates(documents, unicode):
                 result['children'] = yield substitute_walk(root['children'], env, event, 'pattern-item')
             return result
         result = copy(root)
-        for key, value in root.items():
+        for key in source_keys(root):
+            value = root[key]
             if key == 'at':
                 continue
             if key == 'args' and 'call' in root:
