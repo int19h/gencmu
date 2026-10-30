@@ -4552,9 +4552,10 @@
    * @param {unknown} dom
    * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean, isEmojiName?(name:string):boolean, canonicalTag?(name:string):string|null}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
+   * @param {boolean} [expanded] internal definitions can use canonical instance names
    * @returns {string | null}
    */
-  function domProblem(dom, unicode, deferEmission = false) {
+  function domProblem(dom, unicode, deferEmission = false, expanded = false) {
     /** @type {(value: unknown) => value is Record<string, any>} */
     const object = isDomObject;
     if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
@@ -4577,7 +4578,7 @@
     let activeParams = new Set();
     /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
     const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, params:activeParams, ...context });
-    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name));
+    const ruleName = (/** @type {string} */ name) => typeof name === "string" && (CLASSIFIER_NAME.test(name) || !!unicode.isEmojiName?.(name) || expanded && name.includes("(") && name.endsWith(")"));
     const positions = new Set();
     for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
       if (!object(item) || !position(item.at)) return "a malformed declaration position";
@@ -7364,7 +7365,7 @@
         const body={...event.rule};delete body.params;delete body.args;delete body.instance;
         body.name=instance.name??instance.canonical;
         const expanded=substitute(body,env,{...event,origin:instance.origin,instance:instance.canonical});
-        const problem=domProblem({format:documents[0].dom.format,rules:[{...expanded,name:'expanded'}],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+        const problem=domProblem({format:documents[0].dom.format,rules:[expanded],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
         if(problem) fail({...event,origin:instance.origin,instance:instance.canonical},expanded,problem);
         instance.definitions.push({...event,origin:instance.origin,instance:instance.canonical,rule:expanded});
       }
@@ -7406,15 +7407,7 @@
     for(const event of events) if(!event.rule.params && !event.rule.args && !event.rule.instance) validation.push({...event,rule:rewrite(event.rule,event)});
     for(const instance of queue) for(const event of instance.definitions) validation.push({...event,rule:rewrite({...event.rule,name:effective(instance)},event)});
     for(const event of validation) {
-      const aliases=new Map();
-      const shadow=structuredClone(event.rule);
-      for(const node of templateNodes(shadow)) for(const key of ["name","rule","ref"]) {
-        if(typeof node[key] === "string" && node[key].includes("(")) {
-          if(!aliases.has(node[key])) aliases.set(node[key],"instance-"+aliases.size);
-          node[key]=aliases.get(node[key]);
-        }
-      }
-      const problem=domProblem({format:documents[0].dom.format,rules:[shadow],directives:[],constants:[],classifiers:[],implications:[]},unicode,true);
+      const problem=domProblem({format:documents[0].dom.format,rules:[event.rule],directives:[],constants:[],classifiers:[],implications:[]},unicode,true,true);
       if(problem) fail(event,event.rule,problem);
     }
     const output=[];

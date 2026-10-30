@@ -853,6 +853,8 @@ For each instance, the loader replays applicable events and substitutes argument
 
 Ordinary document rules apply to every expanded definition. Structural analysis, ranked safety, capture analysis, depth limits, and lowering then use ordinary rules. Unused parameters and uncalled templates are audit notes, not errors.
 
+Expanded-definition diagnostics use the effective rule name, including its canonical instance spelling or public binding. Internal validation does not substitute placeholder names.
+
 An error at a parameter use names the template definition and the originating call and argument. An argument error names that argument. Source locations stay separate from the position-free key. A wrong arity, unknown template, duplicate parameter, or undeclared parameter is a load error. Binder and flow errors also apply to uncalled templates. Kind-dependent errors require an instance.
 
 The audit determines each event's scope from the template's recorded event indexes.

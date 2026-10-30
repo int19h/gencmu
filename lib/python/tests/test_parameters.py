@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import unittest
+from gencmu import GencmuError
 
 from gencmu._pipeline import read_document
 from gencmu._templates import canonical_argument, expand_templates, template_audit
@@ -22,6 +23,15 @@ def grammar_of(text):
 
 
 class Parameters(unittest.TestCase):
+    def test_instance_errors_retain_effective_names(self):
+        for effective, tail in [('use("a")', '%rule text use("a")'), ('named', '%rule named = use("a")\n%rule text named')]:
+            with self.subTest(effective=effective), self.assertRaises(GencmuError) as caught:
+                grammar_of('%rule use(@X) @X %conditions $q = @X\n' + tail)
+            message = caught.exception.message
+            self.assertIn(effective, message)
+            self.assertNotIn('expanded', message)
+            self.assertNotIn('instance-', message)
+
     def test_rule_order_and_rebinding(self):
         grammar = grammar_of('%rule atom(@X) @X\n%rule text atom("a") named\n%rule named = atom("b")\n%redefine-rule named = atom("c")')
         self.assertEqual(list(grammar.rules), ['text', 'named', 'atom("a")', 'atom("b")'])

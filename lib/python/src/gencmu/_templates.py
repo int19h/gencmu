@@ -9,7 +9,7 @@ from ._errors import GencmuError
 from ._trampoline import run
 from ._pattern_shapes import _print_layered
 from ._strings import spelling
-from ._template_nodes import argument_of_expression, clone_nodes, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
+from ._template_nodes import argument_of_expression, has_unresolved, identity, nodes, normalize_argument, pattern_term, pattern_constant_names
 
 
 def key_of(value):
@@ -482,7 +482,7 @@ def expand_templates(documents, unicode):
             body['name'] = effective(instance)
             context = {**event, 'origin': instance['origin'], 'instance': instance['canonical']}
             expanded = substitute(body, env, context)
-            problem = dom_problem(empty_dom(documents[0][1]['format'], [{**expanded, 'name': 'expanded'}]), unicode, True)
+            problem = dom_problem(empty_dom(documents[0][1]['format'], [expanded]), unicode, True, True)
             if problem:
                 fail(context, expanded, problem)
             instance['definitions'].append({**context, 'rule': expanded})
@@ -536,13 +536,7 @@ def expand_templates(documents, unicode):
     validation = [{**e, 'rule': rewrite(e['rule'], e)} for e in events if not any(k in e['rule'] for k in ('params', 'args', 'instance'))]
     validation.extend({**e, 'rule': rewrite({**e['rule'], 'name': effective(i)}, e)} for i in queue for e in i['definitions'])
     for event in validation:
-        aliases, shadow = {}, clone_nodes(event['rule'])
-        for node in nodes(shadow):
-            for key in ('name', 'rule', 'ref'):
-                if isinstance(node.get(key), str) and '(' in node[key]:
-                    aliases.setdefault(node[key], 'instance-' + str(len(aliases)))
-                    node[key] = aliases[node[key]]
-        problem = dom_problem(empty_dom(documents[0][1]['format'], [shadow]), unicode, True)
+        problem = dom_problem(empty_dom(documents[0][1]['format'], [event['rule']]), unicode, True, True)
         if problem:
             fail(event, event['rule'], problem)
     output = [{**e, 'rule': rewrite(e['rule'], e)} for items in ordinary.values() for e in items]
