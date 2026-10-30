@@ -231,8 +231,6 @@ pub(crate) struct Prod {
     pub syms: Vec<Sym>,
     /// Plain optional boundaries, including routes expanded for captures (§4).
     pub optionals: Vec<OptionalBoundary>,
-    /// The physical symbol supplying logical unary inheritance.
-    pub inherited: Option<usize>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u32>>,
     /// For each position, the id of its symbol's test in the grammar's
@@ -268,10 +266,6 @@ pub(crate) struct SlotMetadata {
     pub source: (usize, usize),
     pub path: Option<usize>,
     pub names: Vec<Option<String>>,
-    pub tags: Vec<Term>,
-    pub tag_clauses: [Option<Term>; 2],
-    pub conditions: Vec<(Cond, usize)>,
-    pub emit: Option<Vec<EmitItem>>,
     pub ranked: Option<(usize, usize)>,
 }
 
@@ -1065,17 +1059,6 @@ pub(crate) fn lower(
     features: &BTreeSet<String>,
     classifiers: Arc<ClassifierTables>,
 ) -> Result<Lowered, LowerError> {
-    lower_mode(grammar, features, classifiers, false)
-}
-pub(crate) fn lower_for_slots(grammar: &StageGrammar) -> Result<Lowered, LowerError> {
-    lower_mode(grammar, &BTreeSet::new(), Arc::new(ClassifierTables::default()), true)
-}
-fn lower_mode(
-    grammar: &StageGrammar,
-    features: &BTreeSet<String>,
-    classifiers: Arc<ClassifierTables>,
-    validation: bool,
-) -> Result<Lowered, LowerError> {
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut lowerer = Lowerer {
         grammar,
@@ -1110,10 +1093,9 @@ fn lower_mode(
             .iter()
             .enumerate()
             .filter(|(_, alternative)| {
-                validation
-                    || alternative.alternative.guards.iter().all(|guard| {
-                        guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
-                    })
+                alternative.alternative.guards.iter().all(|guard| {
+                    guard.kind == FeatureKind::Warning || features.contains(&guard.feature) != guard.negated
+                })
             })
             .collect();
         // A chain is the only alternative of its rule that the gates
@@ -1121,7 +1103,7 @@ fn lower_mode(
         // before the rule's alternatives are lowered.
         let chain =
             live.iter().find(|(_, alternative)| matches!(alternative.alternative.expr, Expr::Repeat(_, _, Some(_))));
-        if let Some((_, chain)) = chain.filter(|_| !validation && live.len() > 1) {
+        if let Some((_, chain)) = chain.filter(|_| live.len() > 1) {
             return Err(LowerError::at(
                 &grammar.name,
                 &chain.document,
@@ -1220,7 +1202,7 @@ fn lower_mode(
         syms.iter().all(|sym| matches!(sym, Sym::N(rule) if nullable[*rule as usize]))
     };
     for item in &lowerer.brace_items {
-        if !validation && item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
+        if item.expansions.iter().any(|expansion| empty(&nullable, expansion)) {
             let name = &grammar.rules[item.owner as usize].name;
             return Err(LowerError::at(
                 &grammar.name,
@@ -1347,7 +1329,6 @@ fn lower_mode(
         let mut production = Prod {
             rule: pending.rule,
             owner,
-            inherited: pending.sequence.inherited,
             optionals: pending.sequence.optionals.clone(),
             visible: !helper && pending.sequence.logical_width != 1,
             syms,
@@ -1381,10 +1362,6 @@ fn lower_mode(
                         .iter()
                         .filter_map(|(_, n, _)| n.as_ref().map(|n| Some(n.clone())))
                         .collect(),
-                    tags: Vec::new(),
-                    tag_clauses: [None, None],
-                    conditions: Vec::new(),
-                    emit: None,
                     ranked: pending.option.map(|option| {
                         (grammar.ranked.expressions[&lowerer.helpers[pending.rule as usize - user_count].expr], option)
                     }),
@@ -1453,14 +1430,7 @@ fn lower_mode(
                     split.simplify(own.iter().copied(), &has).unwrap_or(Term::EmptySet)
                 })
             });
-            if validation {
-                let slot = production.slot.as_mut().expect("slot validation");
-                slot.tag_clauses = tag_clauses.clone();
-            }
             let written: Vec<Term> = tag_clauses.into_iter().flatten().collect();
-            if validation {
-                production.slot.as_mut().expect("slot validation").tags = written.clone();
-            }
             let tags = match written.len() {
                 0 => None,
                 1 => written.into_iter().next(),
@@ -1468,13 +1438,8 @@ fn lower_mode(
             };
             // The reader has made sure a tag term uses only captures its
             // alternative has, and so every production of it has (§3.6).
-            // Validation reads the symbolic slot clauses. Private names
-            // are diagnosed in group order before runtime binding (§2.1).
-            production.tags = if validation {
-                None
-            } else {
-                tags.map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")))
-            };
+            production.tags = tags
+                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
             let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
@@ -1493,13 +1458,7 @@ fn lower_mode(
                 for (index, cond) in source_conditions.iter().enumerate() {
                     match simplify_cond(cond, &has) {
                         Simple::True => {}
-                        Simple::False => {
-                            if validation {
-                                left.push((cond.clone(), index));
-                            } else {
-                                continue 'productions;
-                            }
-                        }
+                        Simple::False => continue 'productions,
                         Simple::Cond(simple) => left.push((simple, index)),
                     }
                 }
@@ -1511,7 +1470,6 @@ fn lower_mode(
                 // A condition false for this production removes it.
                 match split.simplify_indexed(&own, &has) {
                     Some(left) => left,
-                    None if validation => source_conditions.iter().cloned().enumerate().map(|(i, c)| (c, i)).collect(),
                     None => continue 'productions,
                 }
             };
@@ -1527,9 +1485,6 @@ fn lower_mode(
                     // (§4).
                     let trigger =
                         if scope.whole { production.syms.len() } else { scope.last.map_or(0, |last| last + 1) };
-                    if validation {
-                        production.slot.as_mut().expect("slot validation").conditions.push((simple.clone(), trigger));
-                    }
                     production.conds.push((lowered, trigger));
                 }
             }
@@ -1555,25 +1510,6 @@ fn lower_mode(
                             emit_indexes.entry(items as *const Vec<EmitItem>).or_insert_with(|| EmitIndex::new(items));
                         index.kept(own.iter().copied()).into_iter().map(|at| &items[at]).collect()
                     };
-                    if validation {
-                        production.slot.as_mut().expect("slot validation").emit = Some(
-                            items
-                                .iter()
-                                .map(|item| match item {
-                                    EmitItem::Capture(n, t, a) => EmitItem::Capture(
-                                        n.clone(),
-                                        t.as_ref().map(|t| simplify_value(t, &has)),
-                                        crate::dom::Attachments {
-                                            strings: Default::default(),
-                                            before: a.before.iter().filter(|n| has(n)).cloned().collect(),
-                                            after: a.after.iter().filter(|n| has(n)).cloned().collect(),
-                                        },
-                                    ),
-                                    _ => (*item).clone(),
-                                })
-                                .collect(),
-                        );
-                    }
                     production.item_strings = items
                         .iter()
                         .map(|item| match item {
@@ -1681,7 +1617,6 @@ fn lower_mode(
             owner: rule,
             syms: vec![symbol],
             optionals: Vec::new(),
-            inherited: Some(0),
             cap_at: vec![Some(0)],
             tests: Vec::new(),
             cap_pos: vec![0],
@@ -1722,9 +1657,7 @@ fn lower_mode(
         implications: grammar.implications.clone(),
         prepared: Prepared::default(),
     };
-    if !validation {
-        lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules);
-    }
+    lowered.ranked = ranked_runtime(grammar, &lowered, &query_rules);
     Ok(lowered)
 }
 

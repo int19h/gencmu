@@ -46,6 +46,7 @@ export declare function rankedSyntaxFailure(tokens: {
 export declare class RankedGroups {
     /** @type {RankedGroup[]} */
     groups: RankedGroup[];
+    rules: Map<string, import("./grammar.js").StitchedRule>;
     /** @type {WeakMap<object,RankedGroup>} */
     byExpression: WeakMap<object, RankedGroup>;
     /** @type {WeakMap<object,RankedGroup>} */
@@ -59,8 +60,7 @@ export declare class RankedGroups {
     fail(group: RankedGroup, code: string, message: string, fields?: any): never;
     /** @param {RankedGroup} group @param {(steps:any[])=>boolean} prefixCanRead */
     validateClauses(group: RankedGroup, prefixCanRead: (steps: any[]) => boolean): void;
-    /** @param {import("./types.js").Production[]} productions */
-    validate(productions: import("./types.js").Production[]): void;
+    validate(): void;
 }
 /** @param {any} value @returns {Set<string>} */
 export declare function rankedCaptureReads(value: any): Set<string>;

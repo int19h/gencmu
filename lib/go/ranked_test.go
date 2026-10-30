@@ -8,14 +8,6 @@ import (
 	"testing"
 )
 
-func TestRankedValidationRejectsIncompleteLowering(t *testing.T) {
-	t.Parallel()
-	fault := &Error{Kind: ErrorGrammar, Message: "incomplete lowering", Document: "source.md", Line: 7}
-	got := (&rankedGroups{}).validateTags(&lowered{fault: fault.Message, faultLocation: fault})
-	if got != fault {
-		t.Fatalf("got %v, want the original lowering fault %v", got, fault)
-	}
-}
 func TestRankedLinearForest(t *testing.T) {
 	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"))

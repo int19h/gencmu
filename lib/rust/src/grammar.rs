@@ -484,9 +484,7 @@ fn stitch_stage(stage: &str, documents: &[(Arc<str>, Arc<Dom>)], unicode: &Unico
     grammar.close_families = Arc::new(close_families(&grammar));
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
-        let lowered =
-            crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
-        grammar.ranked.validate_tags(&grammar, &lowered)?;
+        grammar.ranked.validate_tags(&grammar)?;
     }
     if let Some(error) = deferred.into_iter().next() {
         return Err(error);

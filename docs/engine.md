@@ -576,6 +576,8 @@ Visit rules in expanded order (§2.3), then groups in alternative and expression
 
 Within a group, inspect alternative recipes before rule recipes. Within each pair, inspect the value before the image. Run the clause checks once, with the structural facts that their boundary checks require.
 
+The loader skips clause routes for a group when no written clause reads a name that the group can bind.
+
 A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
 
 Each selected option binds captures declared within its group, whether present or absent. An active nested group binds its own captures. When a selection skips that group, the enclosing group binds its absent captures. Loading and runtime use the same bindings. Determine these bindings before capture-presence simplification.
@@ -593,6 +595,10 @@ A ranked choice supplies a seal, an opaque leaf (§4.1). Private conditions keep
 The ranked helper uses the logical tag constructors of §3.7. An untagged unary production inherits its child's tags. Untagged zero-symbol and multi-symbol productions return empty tags. Explicit tag terms replace inheritance.
 
 Compute provable emptiness over all logical alternatives and helpers, including disabled features. Mark a rule or helper unsafe when an explicit tag term differs from literal `∅` after constant expansion. Without explicit terms, mark it unsafe when its only logical symbol is a terminal.
+
+The loader derives these facts from written expressions and shared logical helpers. It records empty logical routes and possible unary inheritance without enumerating their combinations. A capturing plain optional retains one logical slot, including its absent route. Its unary content supplies inheritance without an extra helper site. Other optionals and flat repetitions retain their written helper sites. A chain uses its named rule instead of a repetition helper.
+
+Structural productivity and nonempty facts use a separate graph of written branches and concatenations. Each written branch occurs once in this graph. Both graphs include disabled alternatives and ignore conditions and symbol tests. Neither graph invokes production lowering.
 
 Add an inheritance edge from every other untagged unary production to its child rule or helper. Propagate unsafe marks backward until no mark changes. Every unmarked rule or helper is provably empty. Explicit `∅` blocks inheritance. Zero-symbol and multi-symbol productions introduce no unsafe mark or edge.
 

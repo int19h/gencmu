@@ -135,7 +135,6 @@
   function productionClauses(production) {
     return [production.conditions, production.tags, production.emit,
       production.rankedDeferred, production.parentTags,
-      production.writtenTagClauses?.alternative, production.writtenTagClauses?.definition,
       production.source?.clauses];
   }
 
@@ -6463,53 +6462,7 @@
     return null;
   }
 
-  // ---- logical.js
-  // Logical helper boundaries beside physical capture expansions (engine §3.2).
-  /** @import { GrammarSymbol } from "./types.js" */
-  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:LogicalSymbol[],written?:object}} LogicalSymbol */
-  /** @type {WeakMap<object,LogicalSymbol[]>} */
-  const structures = new WeakMap();
-
-  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {LogicalSymbol[]} */
-  function logicalOf(sequence) {
-    let logical = structures.get(sequence);
-    if (!logical) structures.set(sequence, logical = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
-    return logical;
-  }
-
-  /** @param {LogicalSymbol} node @param {number} offset @returns {LogicalSymbol} */
-  function shifted(node,offset) {
-    return {...node,from:node.from+offset,to:node.to+offset,
-      ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
-  }
-
-  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
-  function joinedLogical(sequence,left,right,offset,owned=false) {
-    const suffix = right.map(node => shifted(node,offset));
-    const logical = owned ? left : [...left];
-    for (const node of suffix) logical.push(node);
-    structures.set(sequence,logical);
-  }
-
-  /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
-  function optionalLogical(sequence,written) {
-    const children = logicalOf(sequence);
-    structures.set(sequence,[{from:0,to:sequence.length,children,written}]);
-  }
-
-  /** @param {LogicalSymbol[]} logical @returns {number|null} */
-  function inheritedIndex(logical) {
-    let children = logical;
-    while (children.length === 1) {
-      const node = children[0];
-      if (node.symbol) return node.from;
-      children = node.children ?? [];
-    }
-    return null;
-  }
-
   // ---- ranked.js
-
 
 
   // Written ranked groups and their local loading rules.
@@ -6589,6 +6542,7 @@
     constructor(rules) {
       /** @type {RankedGroup[]} */
       this.groups = [];
+      this.rules = rules;
       /** @type {WeakMap<object,RankedGroup>} */
       this.byExpression = new WeakMap();
       /** @type {WeakMap<object,RankedGroup>} */
@@ -6636,6 +6590,8 @@
     /** @param {RankedGroup} group @param {(steps:any[])=>boolean} prefixCanRead */
     validateClauses(group, prefixCanRead) {
         const source = group.source;
+        const clauses = [source.clauses.conditions,source.tags,source.clauses.tags,source.value,source.image,source.clauses.value,source.clauses.image,source.clauses.emit];
+        if (![...rankedCaptureReads(clauses)].some(name => group.captures.has(name))) return;
         const paths = rankedVirtualPaths(source.expr, this.byExpression);
         for (const path of paths) {
           const end = path.ends.get(group);
@@ -6681,72 +6637,68 @@
         }
     }
 
-    /** @param {import("./types.js").Production[]} productions */
-    validate(productions) {
-      /** @type {{productive:Set<string>,nonempty:Set<string>}|undefined} */
+    validate() {
+      const graph = rankedTagGraph(this.rules,this);
+      /** @type {ReturnType<typeof rankedWrittenSpans>|undefined} */
       let spans;
       /** @param {any[]} steps */
       const prefixCanRead = steps => {
-        if (!steps.length) return false;
-        const facts = spans ??= rankedSymbolSpans(productions);
-        const symbols = steps.map(step => {
+        const facts = spans ??= rankedWrittenSpans(this.rules);
+        let nonempty = false;
+        for (let step of steps) {
           while (step.expr) step = step.expr;
-          return step.ref;
-        });
-        return symbols.every(name => name === undefined || facts.productive.has(name)) &&
-          symbols.some(name => name === undefined || facts.nonempty.has(name));
+          if (step.ref && this.rules.has(step.ref)) {
+            if (!facts.productive.has(step.ref)) return false;
+            nonempty ||= facts.nonempty.has(step.ref);
+          } else nonempty = true;
+        }
+        return nonempty;
       };
-      const unsafe = new Set(), users = new Map(), byLhs = new Map();
-      const written = new Map();
-      for (const p of productions) {
-        const siblings = byLhs.get(p.lhs) ?? [];
-        siblings.push(p); byLhs.set(p.lhs, siblings);
-        const terms = p.helper ? p.writtenTags ?? [] : [p.source?.tags,p.source?.clauses.tags].filter(term => term !== undefined);
-        written.set(p,terms);
-        if (terms.length) {
-          if (terms.some(term => !rankedLiteralEmpty(term))) unsafe.add(p.lhs);
-        } else if (p.logical ? inheritedIndex(p.logical) !== null : p.rhs.length === 1) {
-          const child = p.rhs[p.logical ? /** @type {number} */ (inheritedIndex(p.logical)) : 0];
-          if (child.terminal) unsafe.add(p.lhs);
-          else { const parents = users.get(child.name) ?? []; parents.push(p); users.set(child.name,parents); }
+      const unsafe = new Set(), users = new Map();
+      for (const node of graph.nodes) for (const route of node.routes) {
+        if (route.tagged) {
+          if (route.unsafe) unsafe.add(node);
+        } else for (const child of route.children) {
+          if (child === null) unsafe.add(node);
+          else {
+            const parents = users.get(child) ?? [];
+            parents.push(node); users.set(child,parents);
+          }
         }
       }
       const pending = [...unsafe];
-      for (let index = 0; index < pending.length; index++) for (const parent of users.get(pending[index]) ?? []) {
-        if (!unsafe.has(parent.lhs)) {unsafe.add(parent.lhs);pending.push(parent.lhs);}
+      for (let i=0;i<pending.length;i++) for (const parent of users.get(pending[i]) ?? []) {
+        if (!unsafe.has(parent)) { unsafe.add(parent); pending.push(parent); }
       }
       for (const group of this.groups) {
         this.validateClauses(group,prefixCanRead);
-        if (!unsafe.has(group.helper)) continue;
-        const outward = [group.helper], seen = new Set(outward);
+        const helper = graph.groups.get(group);
+        if (!unsafe.has(helper)) continue;
+        const outward = [helper], seen = new Set(outward);
         let escapes = false;
-        for (let index = 0; index < outward.length && !escapes; index++) for (const parent of users.get(outward[index]) ?? []) {
-          if (parent.lhs === group.parent) {escapes = true;break;}
-          if (parent.helper && parent.owner === group.parent && !seen.has(parent.lhs)) {seen.add(parent.lhs);outward.push(parent.lhs);}
+        for (let i=0;i<outward.length && !escapes;i++) for (const parent of users.get(outward[i]) ?? []) {
+          if (!parent.helper && parent.owner === group.parent) { escapes = true; break; }
+          if (parent.helper && parent.owner === group.parent && !seen.has(parent)) { seen.add(parent); outward.push(parent); }
         }
         if (!escapes) continue;
-        const queue = [{name:group.helper,inheritance:[group.site],option:undefined}], visited = new Set([group.helper]);
-        /** @type {any} */
-        let witness;
-        for (let index = 0; index < queue.length && !witness; index++) {
-          const current = queue[index];
-          for (const p of byLhs.get(current.name) ?? []) {
-            const option = current.option ?? p.rankedOption;
-            const inherited = p.lhs === group.helper ? current.inheritance : current.inheritance.concat({
-              ...this.sourceSites.get(p.source),path:this.paths.get(p.writtenExpression) ?? "",
+        const queue = [{node:helper,inheritance:[group.site],option:undefined}], visited = new Set([helper]);
+        /** @type {any} */ let witness;
+        for (let i=0;i<queue.length && !witness;i++) {
+          const current = queue[i];
+          for (const route of current.node.routes) {
+            const option = current.option ?? route.option;
+            const inheritance = current.node === helper ? current.inheritance : current.inheritance.concat({
+              ...this.sourceSites.get(route.source),path:this.paths.get(route.expr) ?? "",
             });
-            const terms = written.get(p);
-            const inheritedAt = p.logical ? inheritedIndex(p.logical) : p.rhs.length === 1 ? 0 : null;
-            if (terms.some((/** @type {any} */ term) => !rankedLiteralEmpty(term)) || !terms.length && inheritedAt !== null && p.rhs[inheritedAt].terminal) {
-              witness = {inheritance:inherited,...(option === undefined ? {} : {option})};break;
+            if (route.unsafe || !route.tagged && route.children.includes(null)) {
+              witness = {inheritance,...(option === undefined ? {} : {option})}; break;
             }
-            if (!terms.length && inheritedAt !== null && !p.rhs[inheritedAt].terminal) {
-              const child = p.rhs[/** @type {number} */ (inheritedAt)].name;
-              if (unsafe.has(child) && !visited.has(child)) {visited.add(child);queue.push({name:child,inheritance:inherited,option});}
+            if (!route.tagged) for (const child of route.children) if (unsafe.has(child) && !visited.has(child)) {
+              visited.add(child); queue.push({node:child,inheritance,option});
             }
           }
         }
-        this.fail(group, "ranked-choice-tags", "A ranked choice must discard its returned tags or return provably empty tags.", {expression:group.expr,...witness});
+        this.fail(group,"ranked-choice-tags","A ranked choice must discard its returned tags or return provably empty tags.",{expression:group.expr,...witness});
       }
     }
   }
@@ -6856,34 +6808,107 @@
     return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
   }
 
-  /** Finite structural derivations, with and without a token (engine §2.1).
-   * @param {import("./types.js").Production[]} productions
+  /** Logical empty routes and unary inheritance, without products.
+   * @param {Map<string,import("./grammar.js").StitchedRule>} rules
+   * @param {RankedGroups} ranked
    */
-  function rankedSymbolSpans(productions) {
-    const productive = new Set(), nonempty = new Set();
-    /** @type {Map<string,number[]>} */
-    const users = new Map();
-    const remaining = productions.map(production => production.rhs.length);
-    for (const [index,production] of productions.entries()) {
-      if (!production.rhs.length) productive.add(production.lhs);
-      for (const symbol of production.rhs) {
-        const parents = users.get(symbol.name) ?? [];
-        parents.push(index); users.set(symbol.name,parents);
-        if (symbol.terminal) {productive.add(symbol.name); nonempty.add(symbol.name);}
+  function rankedTagGraph(rules,ranked) {
+    /** @type {any[]} */ const nodes = [];
+    const named = new Map(), groups = new Map();
+    /** @param {string} owner @param {boolean} helper */
+    const node = (owner,helper) => { const n = {owner,helper,routes:/** @type {any[]} */([])}; nodes.push(n); return n; };
+    for (const rule of rules.values()) named.set(rule.name,node(rule.name,false));
+    /** @type {WeakMap<object,boolean>} */ const captures = new WeakMap();
+    /** @param {any} expr @returns {boolean} */
+    const captured = expr => {
+      if (captures.has(expr)) return /** @type {boolean} */(captures.get(expr));
+      const has = !expr.ranked && (typeof expr.capture === "string" || rankedExpressionChildren(expr).some(([child]) => captured(child)));
+      captures.set(expr,has); return has;
+    };
+    for (const rule of rules.values()) for (const source of rule.alternatives) {
+      /** @type {WeakMap<object,{zero:boolean,children:any[]}>} */ const memo = new WeakMap();
+      /** @param {any} expr @returns {{zero:boolean,children:any[]}} */
+      const describe = expr => {
+        const known = memo.get(expr); if (known) return known;
+        let result;
+        if (expr.empty) result = {zero:true,children:[]};
+        else if (expr.seq) {
+          const parts = expr.seq.map(describe), blocking = parts.filter((/** @type {any} */ p)=>!p.zero).length;
+          result = {zero:blocking===0,children:parts.flatMap((/** @type {any} */ p)=>blocking-(p.zero?0:1)===0?p.children:[])};
+        } else if (expr.choice || expr.and) {
+          const parts = (expr.choice ?? expr.and).map(describe);
+          result = {zero:parts.some((/** @type {any} */ p)=>p.zero),children:parts.flatMap((/** @type {any} */ p)=>p.children)};
+        } else if (expr.ranked || expr.optional || expr.repeat) {
+          if (expr.optional && !expr.elidable && captured(expr.optional)) {
+            result = {zero:false,children:describe(expr.optional).children};
+          } else {
+            const helper = node(rule.name,true);
+            result = {zero:false,children:[helper]};
+            memo.set(expr,result);
+            if (expr.ranked) {
+              groups.set(ranked.byExpression.get(expr),helper);
+              expr.ranked.forEach((/** @type {any} */ child,/** @type {number} */ option) => helper.routes.push({source,expr,option,tagged:false,unsafe:false,children:describe(child).children}));
+            } else helper.routes.push({source,expr,tagged:false,unsafe:false,children:describe(expr.optional ?? expr.repeat).children});
+            // The recursive repetition route can only add a self edge.
+            if (expr.separator) describe(expr.separator);
+          }
+        } else if (expr.expr) result = describe(expr.expr);
+        else result = {zero:false,children:[expr.ref && named.has(expr.ref)?named.get(expr.ref):null]};
+        memo.set(expr,result); return result;
+      };
+      const expr = /** @type {any} */ (source.expr);
+      const body = expr.chain ? describe(expr.repeat) : describe(expr);
+      if (expr.chain && expr.separator) describe(expr.separator);
+      const terms = [source.tags,source.clauses.tags].filter(t=>t!==undefined);
+      named.get(rule.name).routes.push({source,expr:source.expr,tagged:terms.length>0,unsafe:terms.some(t=>!rankedLiteralEmpty(t)),children:body.children});
+    }
+    return {nodes,groups};
+  }
+
+  /** Finite structural derivations over a compact graph of written branches.
+   * @param {Map<string,import("./grammar.js").StitchedRule>} rules
+   */
+  function rankedWrittenSpans(rules) {
+    const named = new Map(), memo = new WeakMap();
+    /** @type {{lhs:number,rhs:number[]}[]} */ const branches = [];
+    let count = 0;
+    const terminal = count++;
+    for (const rule of rules.values()) named.set(rule.name,count++);
+    /** @param {any} expr @returns {number} */
+    const expression = expr => {
+      const known = memo.get(expr); if (known !== undefined) return known;
+      let id;
+      if (expr.expr) id = expression(expr.expr);
+      else if (expr.ref) id = named.get(expr.ref) ?? terminal;
+      else if (expr.literal || expr.range || expr.wildcard) id = terminal;
+      else {
+        id = count++;
+        if (expr.empty || expr.optional) branches.push({lhs:id,rhs:[]});
+        if (expr.seq) branches.push({lhs:id,rhs:expr.seq.map(expression)});
+        for (const child of expr.choice ?? expr.ranked ?? expr.and ?? []) branches.push({lhs:id,rhs:[expression(child)]});
+        if (expr.optional) branches.push({lhs:id,rhs:[expression(expr.optional)]});
+        if (expr.repeat) {
+          const item = expression(expr.repeat);
+          branches.push({lhs:id,rhs:[item]});
+          if (expr.separator) branches.push({lhs:id,rhs:[item,expression(expr.separator),item]});
+        }
       }
-    }
+      memo.set(expr,id); return id;
+    };
+    for (const rule of rules.values()) for (const source of rule.alternatives) branches.push({lhs:named.get(rule.name),rhs:[expression(source.expr)]});
+    /** @type {number[][]} */ const users = Array.from({length:count},()=>[]);
+    const remaining = branches.map(b=>b.rhs.length), productive = new Set([terminal]), nonempty = new Set([terminal]);
+    branches.forEach((b,i)=> { if (!b.rhs.length) productive.add(b.lhs); for(const child of b.rhs) users[child].push(i); });
     const pending = [...productive];
-    for (let index = 0; index < pending.length; index++) for (const parent of users.get(pending[index]) ?? []) {
-      if (--remaining[parent] !== 0) continue;
-      const name = productions[parent].lhs;
-      if (!productive.has(name)) {productive.add(name); pending.push(name);}
+    for (let i=0;i<pending.length;i++) for (const branch of users[pending[i]]) if (--remaining[branch]===0 && !productive.has(branches[branch].lhs)) {
+      productive.add(branches[branch].lhs); pending.push(branches[branch].lhs);
     }
+    branches.forEach((b,i)=> { if (!remaining[i] && b.rhs.some(child=>nonempty.has(child))) nonempty.add(b.lhs); });
     const reading = [...nonempty];
-    for (let index = 0; index < reading.length; index++) for (const parent of users.get(reading[index]) ?? []) {
-      const name = productions[parent].lhs;
-      if (remaining[parent] === 0 && !nonempty.has(name)) {nonempty.add(name); reading.push(name);}
+    for (let i=0;i<reading.length;i++) for (const branch of users[reading[i]]) if (!remaining[branch] && !nonempty.has(branches[branch].lhs)) {
+      nonempty.add(branches[branch].lhs); reading.push(branches[branch].lhs);
     }
-    return {productive,nonempty};
+    return {productive:new Set([...named].filter(([,id])=>productive.has(id)).map(([name])=>name)),nonempty:new Set([...named].filter(([,id])=>nonempty.has(id)).map(([name])=>name))};
   }
 
   // ---- recipes.js
@@ -8221,6 +8246,51 @@
     return witnesses.filter((witness) => eligible[at(witness)]);
   }
 
+  // ---- logical.js
+  // Logical helper boundaries beside physical capture expansions (engine §3.2).
+  /** @import { GrammarSymbol } from "./types.js" */
+  /** @typedef {{from:number,to:number,symbol?:GrammarSymbol,children?:LogicalSymbol[],written?:object}} LogicalSymbol */
+  /** @type {WeakMap<object,LogicalSymbol[]>} */
+  const structures = new WeakMap();
+
+  /** @param {{symbol:GrammarSymbol}[]} sequence @returns {LogicalSymbol[]} */
+  function logicalOf(sequence) {
+    let logical = structures.get(sequence);
+    if (!logical) structures.set(sequence, logical = sequence.map((item,index) => ({from:index,to:index+1,symbol:item.symbol})));
+    return logical;
+  }
+
+  /** @param {LogicalSymbol} node @param {number} offset @returns {LogicalSymbol} */
+  function shifted(node,offset) {
+    return {...node,from:node.from+offset,to:node.to+offset,
+      ...(node.children ? {children:node.children.map(child => shifted(child,offset))} : {})};
+  }
+
+  /** @param {object} sequence @param {LogicalSymbol[]} left @param {LogicalSymbol[]} right @param {number} offset @param {boolean} [owned] */
+  function joinedLogical(sequence,left,right,offset,owned=false) {
+    const suffix = right.map(node => shifted(node,offset));
+    const logical = owned ? left : [...left];
+    for (const node of suffix) logical.push(node);
+    structures.set(sequence,logical);
+  }
+
+  /** @param {{symbol:GrammarSymbol}[]} sequence @param {object} written */
+  function optionalLogical(sequence,written) {
+    const children = logicalOf(sequence);
+    structures.set(sequence,[{from:0,to:sequence.length,children,written}]);
+  }
+
+  /** @param {LogicalSymbol[]} logical @returns {number|null} */
+  function inheritedIndex(logical) {
+    let children = logical;
+    while (children.length === 1) {
+      const node = children[0];
+      if (node.symbol) return node.from;
+      children = node.children ?? [];
+    }
+    return null;
+  }
+
   // ---- ranked-frame.js
 
   // Lexical entry state for transparent helpers in a ranked alternative.
@@ -8643,13 +8713,7 @@
         this.checkReferences();
         this.families = closeFamilies(this.rules);
         this.ranked = new RankedGroups(this.rules);
-        if (this.ranked.groups.length) {
-          // Validate every surviving variant without enumerating feature assignments.
-          const validation = new Lowering(this, new Set());
-          validation.validation = true;
-          for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
-          this.ranked.validate(validation.productions);
-        }
+        if (this.ranked.groups.length) this.ranked.validate();
         // Slot emission checks inspect written carriers before absent ones disappear.
         for (const { path, rule } of this.emissionUsers) {
           const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
@@ -9430,7 +9494,6 @@
       /** @type {Map<string, Production[]>} */
       this.byLhs = new Map();
       this.helperCount = 0;
-      this.validation = false;
       this.helperExpressions = new Map();
       /** @type {Map<string, SequenceItem[][]>} */
       this.helperBodies = new Map();
@@ -9781,7 +9844,7 @@
       }
       for (const condition of partsFor(prepareConditions(commonConditions), has, names)) {
         // A condition false for this production removes it.
-        if (condition === DOM_FALSE && !this.validation) return;
+        if (condition === DOM_FALSE) return;
         const variables = conditionVariables(condition);
         if (!variables.every((name) => names.has(name))) continue;
         // A condition is ready once its last capture is read, and one that
@@ -9826,7 +9889,6 @@
         conditions,
         tags,
         writtenTags: written,
-        ...(this.validation ? { writtenTagClauses: { alternative: alternativeTags, definition: definitionTags } } : {}),
         emit,
         erased: clauses.erased,
         value: alternative.value ?? clauses.value,
@@ -21371,7 +21433,6 @@
    * @property {boolean} [observesCloses]
    * @property {Production} [baseProduction]
    * @property {Term[]} [writtenTags]
-   * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
    * @property {number} id
    * @property {string} lhs
    * @property {GrammarSymbol[]} rhs

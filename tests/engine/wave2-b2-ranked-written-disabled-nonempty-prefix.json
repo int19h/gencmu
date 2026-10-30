@@ -1,0 +1,15 @@
+{
+  "description": "Ranked tag and prefix analysis uses written structure without production products (engine §2.1).",
+  "grammar": "%rule text pre ($x:A ≻ B)\n%conditions ($x ⟹ ¬$.preceded-by(A))\n%rule pre off? A | ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

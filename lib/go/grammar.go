@@ -330,9 +330,7 @@ func stitchStage(stageName string, docs []docDOM, uni *unicodeTable) (*stageGram
 		return nil, err
 	}
 	if len(g.ranked.groups) > 0 {
-		lowered := lowerForSlots(g)
-
-		if err := g.ranked.validateTags(lowered); err != nil {
+		if err := g.ranked.validateTags(g); err != nil {
 			return nil, err
 		}
 	}

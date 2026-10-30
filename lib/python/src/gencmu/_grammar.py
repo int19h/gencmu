@@ -954,8 +954,7 @@ def _stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gra
 
     grammar.ranked = RankedGroups(stage, rules)
     if grammar.ranked.groups:
-        lowered = _Lowerer(grammar,frozenset(),True).lower()
-        grammar.ranked.validate_tags(lowered)
+        grammar.ranked.validate_tags()
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
     from ._recipes import cycle
@@ -1049,8 +1048,6 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
 class SlotMetadata:
     source: Alternative
     path: int | None = None
-    tags: list[Dom] = field(default_factory=list)
-    tag_clauses: tuple[Dom | None, Dom | None] = (None, None)
     ranked_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
 
 
@@ -1217,10 +1214,9 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 
 
 class _Lowerer:
-    def __init__(self, grammar: Grammar, features: frozenset[str], validation: bool = False) -> None:
+    def __init__(self, grammar: Grammar, features: frozenset[str]) -> None:
         self.grammar = grammar
         self.unicode = grammar.unicode
-        self.validation = validation
         self.current_expr = None
         self.helper_sources = {}
         self.helper_options = {}
@@ -1493,8 +1489,6 @@ class _Lowerer:
             # captures and output, not every part of the conditions.
             for condition in self.prepare(self.ranked_common(expansion, alt), True).kept(present):
                 if condition is False:
-                    if self.validation:
-                        continue
                     return
                 names = captures_in(condition)
                 if not names <= present:
@@ -1516,13 +1510,7 @@ class _Lowerer:
             # The union of the alternative's own tags and the definition's
             # (engine §3.7); the reader has made sure neither uses a capture
             # the alternative lacks.
-            if self.validation:
-                tag_clauses = tuple(None if clause is None else self.prepare(clause, False).simplified(present) for clause in (alt.tags, alt.rule_tags))
-                terms = [term for term in tag_clauses if term is not None]
-                production.slot.tags = terms
-                production.slot.tag_clauses = tag_clauses
-            else:
-                terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
+            terms = [self.prepare(term, False).simplified(present) for term in (alt.tags, alt.rule_tags) if term is not None]
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
@@ -1618,7 +1606,7 @@ class _Lowerer:
             # A chain is the only alternative of its rule that the gates
             # leave (engine §3.3); a %extend-rule can add another.
             chain = next((alt for alt in alternatives if "repeat" in alt.expr and "chain" in alt.expr), None)
-            if not self.validation and chain is not None and len(alternatives) > 1:
+            if chain is not None and len(alternatives) > 1:
                 raise self.fail(f"{name} is a chain, which is the whole of its rule, but another alternative stands beside it", chain)
             for alt in alternatives:
                 self.current_alt = alt
@@ -1650,8 +1638,7 @@ class _Lowerer:
             self.rule_display.append(name)
             self.rule_ids[name] = lhs
             self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(0,), logical=(("symbol", 0),), inherited=0))
-        if not self.validation:
-            self.check_brace_items()
+        self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]
         for production in self.productions:
             rule_productions[production.lhs].append(production.id)
@@ -1704,8 +1691,6 @@ class _Lowerer:
                 raise self.fail(f"an item of braces in {rule.name if rule else '?'} can match no tokens", alt, rule)
 
     def holds(self, guards: list[Dom]) -> bool:
-        if self.validation:
-            return True
         # Only gates drop an alternative; a warning keeps it (engine §3.1).
         return all(
             guard.get("kind") == "warning" or (guard["feature"] in self.features) != bool(guard.get("negated"))

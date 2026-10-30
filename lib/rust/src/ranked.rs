@@ -6,7 +6,6 @@ use crate::error::{Error, GroupSite};
 use crate::fxhash::{FxMap, FxSet};
 use crate::grammar::StageGrammar;
 use crate::json::Json;
-use crate::lower::{Lowered, Sym};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone)]
@@ -179,10 +178,12 @@ impl RankedGroups {
         &self,
         grammar: &StageGrammar,
         group: &Group,
-        lowered: &Lowered,
         spans: &mut Option<SymbolSpans>,
     ) -> Result<(), Error> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
+        if clause_reads(source).is_disjoint(&group.names) {
+            return Ok(());
+        }
         for route in routes(&source.alternative.expr, self) {
             let Some(&(end, option)) = route.ends.get(&group.id) else {
                 continue;
@@ -236,7 +237,7 @@ impl RankedGroups {
                 {
                     let prefix = &route.steps[..route.starts[&group.id]];
                     if !prefix.is_empty()
-                        && spans.get_or_insert_with(|| SymbolSpans::new(lowered)).prefix(prefix, grammar)
+                        && spans.get_or_insert_with(|| SymbolSpans::new(grammar)).prefix(prefix, grammar)
                     {
                         let test = format!("$.preceded-by({})", targets.join(" | "));
                         let message=format!("Condition {} of {} combines {test} with a private capture in option {}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.",condition_index+1,grammar.rules[group.source.0].name,option+1);
@@ -422,10 +423,10 @@ impl RankedGroups {
     fn tag_failure(
         &self,
         grammar: &StageGrammar,
-        lowered: &Lowered,
+        graph: &TagGraph,
         group: &Group,
-        helper: u32,
-        unsafe_tags: &FxSet<u32>,
+        helper: usize,
+        unsafe_tags: &[bool],
     ) -> Error {
         let mut error = self.fail(
             grammar,
@@ -439,41 +440,28 @@ impl RankedGroups {
         seen.insert(helper);
         let mut at = 0;
         while at < queue.len() {
-            let (rule, steps, option) = queue[at].clone();
+            let (node, steps, option) = queue[at].clone();
             at += 1;
-            for &id in &lowered.rules[rule as usize].prods {
-                let production = &lowered.prods[id as usize];
-                let slot = production.slot.as_ref().unwrap();
-                let option = option.or(slot.ranked.map(|(_, option)| option));
+            for route in &graph.nodes[node].routes {
+                let option = option.or(route.option);
                 let mut steps = steps.clone();
-                if rule != helper {
+                if node != helper {
                     steps.push(self.site(
                         grammar,
-                        slot.source,
-                        slot.path.and_then(|p| self.paths.get(&p)).cloned().unwrap_or_default(),
+                        route.source,
+                        self.paths.get(&route.expression).cloned().unwrap_or_default(),
                         false,
                     ));
                 }
-                let terms: Vec<_> = if lowered.rules[rule as usize].helper {
-                    slot.tags.iter().collect()
-                } else {
-                    let source = &grammar.rules[slot.source.0].alternatives[slot.source.1];
-                    source.alternative.tags.iter().chain(source.clauses.tags.iter()).collect()
-                };
-                if terms.iter().any(|term| !matches!(term, Term::EmptySet))
-                    || terms.is_empty()
-                        && production.inherited.is_some_and(|position| matches!(production.syms[position], Sym::T(_)))
-                {
+                if route.unsafe_tags || !route.tagged && route.children.contains(&None) {
                     error.option = option;
                     error.inheritance = Some(steps);
                     return error;
                 }
-                if terms.is_empty() {
-                    if let Some(position) = production.inherited {
-                        if let Sym::N(child) = production.syms[position] {
-                            if unsafe_tags.contains(&child) && seen.insert(child) {
-                                queue.push((child, steps, option));
-                            }
+                if !route.tagged {
+                    for &child in route.children.iter().flatten() {
+                        if unsafe_tags[child] && seen.insert(child) {
+                            queue.push((child, steps.clone(), option));
                         }
                     }
                 }
@@ -481,75 +469,59 @@ impl RankedGroups {
         }
         error
     }
-    pub fn validate_tags(&self, grammar: &StageGrammar, lowered: &Lowered) -> Result<(), Error> {
-        let mut unsafe_tags = FxSet::default();
-        let mut users: FxMap<u32, Vec<u32>> = FxMap::default();
-        let mut helpers = FxMap::default();
-        for production in &lowered.prods {
-            let helper = lowered.rules[production.rule as usize].helper;
-            // Query helpers have no written slot and never occur in a rule body.
-            let Some(slot) = &production.slot else { continue };
-            if let Some(path) = slot.path {
-                if let Some(group) = self.expressions.get(&path) {
-                    helpers.insert(*group, production.rule);
-                }
-            }
-            let terms: Vec<&Term> = if helper {
-                slot.tags.iter().collect()
-            } else {
-                let source = &grammar.rules[slot.source.0].alternatives[slot.source.1];
-                source.alternative.tags.iter().chain(source.clauses.tags.iter()).collect()
-            };
-            if !terms.is_empty() {
-                if terms.iter().any(|term| !matches!(term, Term::EmptySet)) {
-                    unsafe_tags.insert(production.rule);
-                }
-            } else if let Some(position) = production.inherited {
-                match &production.syms[position] {
-                    Sym::T(_) => {
-                        unsafe_tags.insert(production.rule);
+    pub fn validate_tags(&self, grammar: &StageGrammar) -> Result<(), Error> {
+        let graph = TagGraph::new(grammar, self);
+        let mut unsafe_tags = vec![false; graph.nodes.len()];
+        let mut users = vec![vec![]; graph.nodes.len()];
+        for (index, node) in graph.nodes.iter().enumerate() {
+            for route in &node.routes {
+                if route.tagged {
+                    unsafe_tags[index] |= route.unsafe_tags;
+                } else {
+                    for child in &route.children {
+                        if let Some(child) = child {
+                            users[*child].push(index);
+                        } else {
+                            unsafe_tags[index] = true;
+                        }
                     }
-                    Sym::N(child) => users.entry(*child).or_default().push(production.rule),
                 }
             }
         }
-        let mut pending: Vec<_> = unsafe_tags.iter().copied().collect();
+        let mut pending: Vec<_> =
+            unsafe_tags.iter().enumerate().filter_map(|(i, &marked)| marked.then_some(i)).collect();
         let mut at = 0;
         while at < pending.len() {
-            for parent in users.get(&pending[at]).into_iter().flatten() {
-                if unsafe_tags.insert(*parent) {
-                    pending.push(*parent);
+            for &parent in &users[pending[at]] {
+                if !unsafe_tags[parent] {
+                    unsafe_tags[parent] = true;
+                    pending.push(parent);
                 }
             }
             at += 1;
         }
         let mut spans = None;
         for group in &self.groups {
-            self.validate_clauses(grammar, group, lowered, &mut spans)?;
-            let Some(&helper) = helpers.get(&group.id) else {
-                continue;
-            };
-            if !unsafe_tags.contains(&helper) {
+            self.validate_clauses(grammar, group, &mut spans)?;
+            let helper = graph.groups[&group.id];
+            if !unsafe_tags[helper] {
                 continue;
             }
             let mut outward = vec![helper];
             let mut seen = FxSet::default();
             seen.insert(helper);
-            let mut index = 0;
-            while index < outward.len() {
-                for &parent in users.get(&outward[index]).into_iter().flatten() {
-                    if parent as usize == group.source.0 {
-                        return Err(self.tag_failure(grammar, lowered, group, helper, &unsafe_tags));
+            let mut at = 0;
+            while at < outward.len() {
+                for &parent in &users[outward[at]] {
+                    let node = &graph.nodes[parent];
+                    if !node.helper && node.owner == group.source.0 {
+                        return Err(self.tag_failure(grammar, &graph, group, helper, &unsafe_tags));
                     }
-                    if lowered.rules[parent as usize].helper
-                        && lowered.prods[lowered.rules[parent as usize].prods[0] as usize].owner as usize
-                            == group.source.0
-                        && seen.insert(parent)
-                    {
+                    if node.helper && node.owner == group.source.0 && seen.insert(parent) {
                         outward.push(parent);
                     }
                 }
-                index += 1;
+                at += 1;
             }
         }
         Ok(())
@@ -692,70 +664,328 @@ pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool
     levels.last().copied().unwrap_or(false)
 }
 
-/// Least structural productivity and nonempty facts, independent of tests and gates.
+fn clause_reads(source: &crate::grammar::StitchedAlternative) -> BTreeSet<String> {
+    let mut reads = BTreeSet::new();
+    for condition in &source.clauses.conditions {
+        cond_reads(condition, &mut reads);
+    }
+    for term in source
+        .alternative
+        .tags
+        .iter()
+        .chain(&source.clauses.tags)
+        .chain(&source.alternative.strings.value)
+        .chain(&source.alternative.strings.image)
+        .chain(&source.clauses.strings.value)
+        .chain(&source.clauses.strings.image)
+    {
+        term_reads(term, &mut reads);
+    }
+    for item in source.clauses.emit.iter().flatten() {
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                reads.insert(name.clone());
+                reads.extend(attachments.before.iter().chain(&attachments.after).cloned());
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
+        };
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            term_reads(term, &mut reads);
+        }
+    }
+    reads
+}
+
+struct TagRoute {
+    source: (usize, usize),
+    expression: usize,
+    option: Option<usize>,
+    tagged: bool,
+    unsafe_tags: bool,
+    children: Vec<Option<usize>>,
+}
+struct TagNode {
+    owner: usize,
+    helper: bool,
+    routes: Vec<TagRoute>,
+}
+struct TagGraph {
+    nodes: Vec<TagNode>,
+    groups: FxMap<usize, usize>,
+}
+#[derive(Clone, Default)]
+struct Unary {
+    zero: bool,
+    children: Vec<Option<usize>>,
+}
+impl TagGraph {
+    fn node(&mut self, owner: usize, helper: bool) -> usize {
+        let id = self.nodes.len();
+        self.nodes.push(TagNode { owner, helper, routes: vec![] });
+        id
+    }
+    fn new(grammar: &StageGrammar, ranked: &RankedGroups) -> Self {
+        let mut graph = Self { nodes: vec![], groups: FxMap::default() };
+        for owner in 0..grammar.rules.len() {
+            graph.node(owner, false);
+        }
+        let mut captured = FxMap::default();
+        for (rule, definition) in grammar.rules.iter().enumerate() {
+            for (alternative, source) in definition.alternatives.iter().enumerate() {
+                let mut memo = FxMap::default();
+                let expr = &source.alternative.expr;
+                let body = if let Expr::Repeat(inner, separator, Some(_)) = expr {
+                    let body = graph.describe(grammar, ranked, (rule, alternative), inner, &mut memo, &mut captured);
+                    if let Some(separator) = separator {
+                        graph.describe(grammar, ranked, (rule, alternative), separator, &mut memo, &mut captured);
+                    }
+                    body
+                } else {
+                    graph.describe(grammar, ranked, (rule, alternative), expr, &mut memo, &mut captured)
+                };
+                let terms: Vec<_> = source.alternative.tags.iter().chain(&source.clauses.tags).collect();
+                graph.nodes[rule].routes.push(TagRoute {
+                    source: (rule, alternative),
+                    expression: expr as *const Expr as usize,
+                    option: None,
+                    tagged: !terms.is_empty(),
+                    unsafe_tags: terms.iter().any(|t| !matches!(t, Term::EmptySet)),
+                    children: body.children,
+                });
+            }
+        }
+        graph
+    }
+    fn describe(
+        &mut self,
+        grammar: &StageGrammar,
+        ranked: &RankedGroups,
+        source: (usize, usize),
+        expr: &Expr,
+        memo: &mut FxMap<usize, Unary>,
+        captured: &mut FxMap<usize, bool>,
+    ) -> Unary {
+        let key = expr as *const Expr as usize;
+        if let Some(known) = memo.get(&key) {
+            return known.clone();
+        }
+        let result = match expr {
+            Expr::Empty => Unary { zero: true, children: vec![] },
+            Expr::Seq(items) => {
+                let parts: Vec<_> =
+                    items.iter().map(|child| self.describe(grammar, ranked, source, child, memo, captured)).collect();
+                let blocking = parts.iter().filter(|p| !p.zero).count();
+                Unary {
+                    zero: blocking == 0,
+                    children: parts
+                        .into_iter()
+                        .filter(|p| blocking - usize::from(!p.zero) == 0)
+                        .flat_map(|p| p.children)
+                        .collect(),
+                }
+            }
+            Expr::Choice(items) | Expr::And(items) => {
+                let mut result = Unary::default();
+                for child in items {
+                    let part = self.describe(grammar, ranked, source, child, memo, captured);
+                    result.zero |= part.zero;
+                    result.children.extend(part.children);
+                }
+                result
+            }
+            Expr::Optional(inner, crate::dom::Mark::Plain) if common_capture(inner, captured) => {
+                Unary { zero: false, children: self.describe(grammar, ranked, source, inner, memo, captured).children }
+            }
+            Expr::Ranked(_) | Expr::Optional(..) | Expr::Repeat(..) => {
+                let helper = self.node(source.0, true);
+                let result = Unary { zero: false, children: vec![Some(helper)] };
+                memo.insert(key, result.clone());
+                let mut route = |this: &mut Self, child: &Expr, option| {
+                    let children = this.describe(grammar, ranked, source, child, memo, captured).children;
+                    this.nodes[helper].routes.push(TagRoute {
+                        source,
+                        expression: key,
+                        option,
+                        tagged: false,
+                        unsafe_tags: false,
+                        children,
+                    });
+                };
+                match expr {
+                    Expr::Ranked(items) => {
+                        self.groups.insert(ranked.expressions[&key], helper);
+                        for (option, child) in items.iter().enumerate() {
+                            route(self, child, Some(option));
+                        }
+                    }
+                    Expr::Optional(inner, _) => route(self, inner, None),
+                    Expr::Repeat(inner, separator, _) => {
+                        route(self, inner, None);
+                        // Recursive repetition only adds a self edge.
+                        if let Some(separator) = separator {
+                            self.describe(grammar, ranked, source, separator, memo, captured);
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+                result
+            }
+            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+                self.describe(grammar, ranked, source, inner, memo, captured)
+            }
+            Expr::Ref(name) => Unary { zero: false, children: vec![grammar.index.get(name).copied()] },
+            _ => Unary { zero: false, children: vec![None] },
+        };
+        memo.insert(key, result.clone());
+        result
+    }
+}
+fn common_capture(expr: &Expr, memo: &mut FxMap<usize, bool>) -> bool {
+    let key = expr as *const Expr as usize;
+    if let Some(&known) = memo.get(&key) {
+        return known;
+    }
+    let value = match expr {
+        Expr::Ranked(_) => false,
+        Expr::Capture(..) => true,
+        Expr::Seq(items) | Expr::Choice(items) | Expr::And(items) => {
+            items.iter().any(|child| common_capture(child, memo))
+        }
+        Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => common_capture(inner, memo),
+        Expr::Repeat(inner, separator, _) => {
+            common_capture(inner, memo) || separator.as_deref().is_some_and(|s| common_capture(s, memo))
+        }
+        _ => false,
+    };
+    memo.insert(key, value);
+    value
+}
+
+/// Each written branch and concatenation occurs once in the structural graph.
+struct WrittenSpans {
+    count: usize,
+    branches: Vec<(usize, Vec<usize>)>,
+    memo: FxMap<usize, usize>,
+}
+impl WrittenSpans {
+    fn expression(&mut self, expr: &Expr, grammar: &StageGrammar) -> usize {
+        let key = expr as *const Expr as usize;
+        if let Some(&id) = self.memo.get(&key) {
+            return id;
+        }
+        let id = match expr {
+            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => self.expression(inner, grammar),
+            Expr::Ref(name) => grammar.index.get(name).map_or(0, |i| i + 1),
+            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => 0,
+            _ => {
+                let id = self.count;
+                self.count += 1;
+                match expr {
+                    Expr::Empty => self.branches.push((id, vec![])),
+                    Expr::Seq(items) => {
+                        let rhs = items.iter().map(|child| self.expression(child, grammar)).collect();
+                        self.branches.push((id, rhs));
+                    }
+                    Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                        for child in items {
+                            let child = self.expression(child, grammar);
+                            self.branches.push((id, vec![child]));
+                        }
+                    }
+                    Expr::Optional(inner, _) => {
+                        let child = self.expression(inner, grammar);
+                        self.branches.extend([(id, vec![]), (id, vec![child])]);
+                    }
+                    Expr::Repeat(inner, separator, _) => {
+                        let item = self.expression(inner, grammar);
+                        self.branches.push((id, vec![item]));
+                        if let Some(separator) = separator {
+                            let separator = self.expression(separator, grammar);
+                            self.branches.push((id, vec![item, separator, item]));
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+                id
+            }
+        };
+        self.memo.insert(key, id);
+        id
+    }
+}
 struct SymbolSpans {
     productive: Vec<bool>,
     nonempty: Vec<bool>,
 }
 impl SymbolSpans {
-    fn new(g: &Lowered) -> Self {
-        let mut users = vec![vec![]; g.rules.len()];
-        let mut remaining = vec![0usize; g.prods.len()];
-        let mut productive = vec![false; g.rules.len()];
-        let mut nonempty = vec![false; g.rules.len()];
-        let mut pending = vec![];
-        for (index, p) in g.prods.iter().enumerate() {
-            for s in &p.syms {
-                if let Sym::N(rule) = s {
-                    remaining[index] += 1;
-                    users[*rule as usize].push(index);
-                }
+    fn new(grammar: &StageGrammar) -> Self {
+        let mut graph = WrittenSpans { count: grammar.rules.len() + 1, branches: vec![], memo: FxMap::default() };
+        for (i, rule) in grammar.rules.iter().enumerate() {
+            for source in &rule.alternatives {
+                let rhs = graph.expression(&source.alternative.expr, grammar);
+                graph.branches.push((i + 1, vec![rhs]));
             }
-            if remaining[index] == 0 && !productive[p.rule as usize] {
-                productive[p.rule as usize] = true;
-                pending.push(p.rule);
+        }
+        let mut users = vec![vec![]; graph.count];
+        let mut remaining: Vec<_> = graph.branches.iter().map(|(_, rhs)| rhs.len()).collect();
+        let mut productive = vec![false; graph.count];
+        let mut nonempty = vec![false; graph.count];
+        productive[0] = true;
+        nonempty[0] = true;
+        let mut pending = vec![0];
+        for (i, (lhs, rhs)) in graph.branches.iter().enumerate() {
+            if rhs.is_empty() && !productive[*lhs] {
+                productive[*lhs] = true;
+                pending.push(*lhs);
+            }
+            for &child in rhs {
+                users[child].push(i);
             }
         }
         let mut at = 0;
         while at < pending.len() {
-            for &index in &users[pending[at] as usize] {
-                remaining[index] -= 1;
-                let rule = g.prods[index].rule;
-                if remaining[index] == 0 && !productive[rule as usize] {
-                    productive[rule as usize] = true;
-                    pending.push(rule);
+            for &i in &users[pending[at]] {
+                remaining[i] -= 1;
+                let lhs = graph.branches[i].0;
+                if remaining[i] == 0 && !productive[lhs] {
+                    productive[lhs] = true;
+                    pending.push(lhs);
                 }
             }
             at += 1;
         }
-        pending.clear();
-        for (index, p) in g.prods.iter().enumerate() {
-            if remaining[index] == 0 && p.syms.iter().any(|s| matches!(s, Sym::T(_))) && !nonempty[p.rule as usize] {
-                nonempty[p.rule as usize] = true;
-                pending.push(p.rule);
+        pending = vec![0];
+        for (i, (lhs, rhs)) in graph.branches.iter().enumerate() {
+            if remaining[i] == 0 && rhs.iter().any(|&child| nonempty[child]) && !nonempty[*lhs] {
+                nonempty[*lhs] = true;
+                pending.push(*lhs);
             }
         }
         at = 0;
         while at < pending.len() {
-            for &index in &users[pending[at] as usize] {
-                let rule = g.prods[index].rule;
-                if remaining[index] == 0 && !nonempty[rule as usize] {
-                    nonempty[rule as usize] = true;
-                    pending.push(rule);
+            for &i in &users[pending[at]] {
+                let lhs = graph.branches[i].0;
+                if remaining[i] == 0 && !nonempty[lhs] {
+                    nonempty[lhs] = true;
+                    pending.push(lhs);
                 }
             }
             at += 1;
         }
-        Self { productive, nonempty }
+        Self {
+            productive: productive[1..=grammar.rules.len()].to_vec(),
+            nonempty: nonempty[1..=grammar.rules.len()].to_vec(),
+        }
     }
-    fn prefix(&self, steps: &[Expr], g: &StageGrammar) -> bool {
+    fn prefix(&self, steps: &[Expr], grammar: &StageGrammar) -> bool {
         let mut any = false;
         for mut step in steps {
-            while let Expr::Capture(_, e) | Expr::Tested(_, _, e) = step {
-                step = e;
+            while let Expr::Capture(_, inner) | Expr::Tested(_, _, inner) = step {
+                step = inner;
             }
             if let Expr::Ref(name) = step {
-                if let Some(&id) = g.index.get(name) {
+                if let Some(&id) = grammar.index.get(name) {
                     if !self.productive[id] {
                         return false;
                     }

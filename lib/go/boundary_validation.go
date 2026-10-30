@@ -191,64 +191,6 @@ func restoreBoundaryLocations(to, from *domDoc) {
 	}
 }
 
-// structuralSpans uses written productions, including disabled alternatives.
-func structuralSpans(g *lowered) (productive, nonempty []bool) {
-	productive = make([]bool, len(g.rules))
-	nonempty = make([]bool, len(g.rules))
-	remaining := make([]int, len(g.prods))
-	users := make([][]int, len(g.rules))
-	var queue []int32
-	settle := func(id int32) {
-		if !productive[id] {
-			productive[id] = true
-			queue = append(queue, id)
-		}
-	}
-	for i, p := range g.prods {
-		for _, s := range p.rhs {
-			if !s.term {
-				remaining[i]++
-				users[s.id] = append(users[s.id], i)
-			}
-		}
-		if remaining[i] == 0 {
-			settle(p.lhs)
-		}
-	}
-	for at := 0; at < len(queue); at++ {
-		for _, i := range users[queue[at]] {
-			remaining[i]--
-			if remaining[i] == 0 {
-				settle(g.prods[i].lhs)
-			}
-		}
-	}
-	queue = nil
-	mark := func(id int32) {
-		if !nonempty[id] {
-			nonempty[id] = true
-			queue = append(queue, id)
-		}
-	}
-	for i, p := range g.prods {
-		if remaining[i] == 0 {
-			for _, s := range p.rhs {
-				if s.term {
-					mark(p.lhs)
-					break
-				}
-			}
-		}
-	}
-	for at := 0; at < len(queue); at++ {
-		for _, i := range users[queue[at]] {
-			if remaining[i] == 0 {
-				mark(g.prods[i].lhs)
-			}
-		}
-	}
-	return
-}
 func boundaryAtomText(a *domCond) string {
 	targets := ""
 	for i, t := range a.Targets {
