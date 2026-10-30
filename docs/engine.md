@@ -86,7 +86,7 @@ Code point fields contain hexadecimal digits and range from U+0000 to U+10FFFF. 
 
 Any number of leading zeros is allowed in a number field. After these zeros, a code point has at most six hexadecimal digits. A combining class has at most three decimal digits. The value bounds above still apply.
 
-The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
+The records can stand in any order in a file. Each library indexes them while it reads the file, then writes sorted lookup ranges once. Inserting a record never shifts every earlier record. Record order never changes a valid table's answers.
 
 Overlapping or touching category ranges with the same value merge. Combining ranges with the same class follow this rule. White-space ranges form their union.
 
