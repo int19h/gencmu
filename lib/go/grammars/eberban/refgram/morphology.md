@@ -29,7 +29,7 @@ The text is a sequence of items. An item is a space, a bracket, a digit, a hesit
   [{item}]
 
 %rule item
-  | space | open-bracket | close-bracket | close-candidate | digit-word
+  | space | open-bracket | close-bracket | digit-word
   | hesitation | eraser-run | borrowing | freeform-variable | word-run | spelling-quote | junk-run
 
 %rule letter-or-hyphen
@@ -62,9 +62,7 @@ The text is a sequence of items. An item is a space, a bracket, a digit, a hesit
   $ :: Open
 
 %rule close-bracket
-  $b:Close
-%conditions
-  ¬$.onward.begins(close-candidate)
+  Close
 %emits
   $ :: Close
 ```
@@ -637,35 +635,6 @@ A `ce` particle that no `cei` closes is an ordinary word. The syntax stage has n
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/consonant-unit.svg" alt="Railroad diagram of the rule consonant-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/vowel-unit.svg" alt="Railroad diagram of the rule vowel-unit"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/morphology/unit-letters.svg" alt="Railroad diagram of the rule unit-letters"></p>
-</details>
-
-## Closing marks for foreign quotes
-
-A delimited foreign quote, `co` with a delimiter word, ends at the first `]` followed by that word. The words stage compares each such bracket-and-word with the delimiter. This stage marks every `]` directly followed by a word at the start of a run. The word ends where a word can end, before a non-sonorant consonant or at the end of the run. It emits the bracket with two control characters after it, then the word, then an empty token that ends the mark. The constants name the characters. The words stage splits the quote body at `$SEP` and finds the delimiter as the piece after `$MARK`. Outside a quote, the words stage reads the marked bracket and the end mark as spaces.
-
-```jbogenbau
-%const $SEP "‹U+001E›"
-%const $MARK "‹U+001F›"
-
-%rule close-candidate
-  $b:Close $w:closer-word
-%conditions
-  $w.following-tokens.begins(ns-consonant) ∨ ¬$w.following-tokens.begins(letter-or-hyphen)
-%emits
-  $b :: Close ∪ Candidate := "]" ++ $SEP ++ $MARK, $w, ε :: Closer-End := $SEP
-
-%rule closer-word
-  | $p:consonant-particle :: Word ∪ Particle ∪ $p.tags
-  | root-form :: Word ∪ Root
-  | $v:vowel-particle :: Word ∪ Particle ∪ $v.tags
-  | $n:ni-particle :: Word ∪ Particle ∪ $n.tags
-%conditions
-  ¬$p.onward.begins(spelling-quote)
-```
-
-<details><summary>Railroad diagrams of <code>close-candidate</code> and <code>closer-word</code></summary>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/close-candidate.svg" alt="Railroad diagram of the rule close-candidate"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/morphology/closer-word.svg" alt="Railroad diagram of the rule closer-word"></p>
 </details>
 
 ## Runs that form no word

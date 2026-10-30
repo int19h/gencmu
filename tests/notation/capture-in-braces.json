@@ -1,10 +1,45 @@
 {
-  "description": "A capture inside braces is an error at the capture: a repeated part has no single span (engine §9).",
+  "description": "A capture inside flat braces is an item capture, which the DOM keeps in the repeat's item like any capture (engine §3.5, §9).",
   "document": "```jbogenbau\n%rule a B { $c:A}\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 13
+    "dom": {
+      "format": 40,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "B"
+                  },
+                  {
+                    "repeat": {
+                      "capture": "c",
+                      "expr": {
+                        "ref": "A"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

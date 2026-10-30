@@ -1,0 +1,16 @@
+{
+  "description": "An item condition cannot read item captures of two pairs of braces (engine §3.6, §9).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {$c:A} {$d:B}\n%conditions $c.value = $d.value\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

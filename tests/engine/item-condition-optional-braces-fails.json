@@ -1,0 +1,35 @@
+{
+  "description": "An item condition applies to the items of an optional list too (engine §3.2, §3.5).",
+  "grammar": "%rule text B [{$c:A}]\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

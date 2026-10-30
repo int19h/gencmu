@@ -1,0 +1,30 @@
+{
+  "description": "An item condition with a query holds where no B follows an item (engine §3.6, §4).",
+  "grammar": "%rule text {$c:A} [B]\n%conditions ¬$c.following-tokens.begins(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a a)"
+  }
+}

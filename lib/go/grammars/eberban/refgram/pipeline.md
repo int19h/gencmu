@@ -36,7 +36,7 @@ The stage reads the characters of the text. It hands the forms stage one token p
   %include "morphology.md"
   ```
 
-The stage divides the letters into words and tags each word with its family. It keeps spaces and brackets, drops hesitation, and marks the bracket-and-word sequences that can close a delimited foreign quote.
+The stage divides the letters into words and tags each word with its family. It keeps spaces and brackets and drops hesitation.
 
 ## Stage 3: words
 

@@ -1,0 +1,36 @@
+{
+  "description": "The frame reaches the braces through the helpers around them, and the reading completes where the condition holds (engine §4).",
+  "grammar": "%rule text $o:B [({$c:A} C)]\n%conditions $c.value ≠ $o.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(b a c)"
+  }
+}

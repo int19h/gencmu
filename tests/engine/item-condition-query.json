@@ -1,0 +1,35 @@
+{
+  "description": "An item condition can look past its item with a query: the first A is followed by B, so the reading fails (engine §3.6, §4).",
+  "grammar": "%rule text {$c:A} [B]\n%conditions ¬$c.following-tokens.begins(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0
+      }
+    },
+    "error": "rejected"
+  }
+}

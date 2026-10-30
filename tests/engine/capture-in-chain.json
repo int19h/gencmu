@@ -1,0 +1,16 @@
+{
+  "description": "A capture inside a chain is an error at the capture: each level is a constituent of the rule, and a condition on $ serves it (engine §3.3, §3.5, §9).",
+  "documents": {
+    "main.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text {... $c:A / B}\n```\n"
+  },
+  "pipelineDocument": "main.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 17
+    }
+  }
+}

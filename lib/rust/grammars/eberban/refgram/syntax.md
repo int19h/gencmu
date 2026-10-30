@@ -232,7 +232,7 @@ A step is a verb with its binds, then the rest of the chain. The verb can take a
 
 The `fewest` flag states that preference. A step that takes no resumption, but stands right before one, is a step that the resumption passed over. The parse with the fewest such steps attaches the resumption as deep as the matching verb allows. The two conditions with `followed-by` tell the two kinds of step apart, so every step is exactly one of them.
 
-A step takes up to three resumptions in a row. The conditions compare each repeated verb with the verb of the step. The repeated verb can carry its own binds and continue the chain.
+A step takes any number of resumptions in a row. The condition compares each repeated verb with the verb of the step. The repeated verb can carry its own binds and continue the chain.
 
 ```jbogenbau
 %rule step
@@ -249,12 +249,9 @@ A step takes up to three resumptions in a row. The conditions compare each repea
   $.followed-by(resume-head)
 
 %rule resumed-step
-  [si-free] $v:verb step-tail
-    resume-head $e1:verb step-tail [resume-head $e2:verb step-tail [resume-head $e3:verb step-tail]]
+  [si-free] $v:verb step-tail {resume-head $e:verb step-tail}
 %conditions
-  $v.value = $e1.value,
-  $v.value = $e2.value,
-  $v.value = $e3.value
+  $v.value = $e.value
 
 %rule step-tail
   [{postfix}] [{bind-group}] [chain-inner]
@@ -452,8 +449,6 @@ The [annotations chapter](https://eberban.github.io/eberban/grammar/annotations.
 </details>
 
 ## Differences from the reference grammar and the PEG
-
-The PEG lets a step take any number of resumptions. This grammar takes three, and a fourth has no parse. [Issue 262](https://github.com/int19h/gencmu/issues/262) proposes a condition on each item of a repetition, which would lift the limit.
 
 The PEG compares the repeated verb of a resumption with the earlier verb as a whole, free suffixes included. This grammar compares the verb with its `ZI` modifiers and leaves the annotations free, because an annotation has no logical effect.
 

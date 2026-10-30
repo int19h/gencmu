@@ -1,5 +1,5 @@
 {
-  "description": "Repetitions and their separators cannot contain captures, including captures inside ranked groups (engine §3.5 and §9.3).",
+  "description": "An item capture cannot stand inside a ranked group, so a capture inside a ranked group inside braces is a grammar error (engine §3.5 and §9.3).",
   "grammar": "%rule text ( X { U / [ ( $x:Y≻ V ) ] } ≻ Z W )\n%conditions $x",
   "tokens": [
     {

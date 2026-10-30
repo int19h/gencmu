@@ -15,7 +15,7 @@ The stream is a sequence of units with gaps between them. A gap is one or more s
   [gap] [{unit [gap]}]
 
 %rule gap
-  {Space | Open | Close | Closer-End}
+  {Space | Open | Close}
 %erased
 
 %rule unit
@@ -106,34 +106,27 @@ A compound emits one token tagged `Word` and `Compound`. Its value is its prefix
 
 The [quotes chapter](https://eberban.github.io/eberban/grammar/quotes.html) gives `co` two forms. With `[` after it, the quote holds everything up to the next `]`. With a delimiter word before the `[`, the quote holds everything up to the first `]` followed by that word. The delimiter is a particle or root form. Any spaces can stand between `co` and the bracket, but the delimiter stands directly before its bracket.
 
-The forms stage marks each `]` followed by a word with the control characters `$SEP` and `$MARK`, and closes the mark with an empty token. So the quote body, split at `$SEP`, holds the piece `$MARK` and the word for every bracket-and-word inside it. The condition requires that no such piece is the delimiter. The quote therefore ends at the first bracket-and-word that repeats the delimiter, as the chapter says.
+The quote body is a repetition of tokens. A condition on each `]` inside the body requires that the word after it differs from the delimiter. The quote therefore ends at the first bracket-and-word that repeats the delimiter, as the chapter says.
 
 The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image is the written text, brackets included.
 
 ```jbogenbau
-%const $SEP "‹U+001E›"
-%const $MARK "‹U+001F›"
-
 %rule foreign-quote :: Word ∪ Particle ∪ CO ∪ Quote :- $.source-text
   | CO [gap] Open [{_<¬Close>}] Close
-  | CO [Space] $open:delimiter Open $body:quote-body $c:Close<Candidate> $close:delimiter Closer-End
+  | CO [Space] $open:delimiter Open [{_<¬Close> | $c:Close}] Close $close:delimiter
 %conditions
   $open.value = $close.value,
-  $MARK ++ $open.value ∉ $body.value.split($SEP)
+  $c.following-tokens.first-token.value ≠ $open.value
 %emits
   $
 
 %rule delimiter
   Word<Particle ¬Quote ¬Digit-Symbol> | Word<Root>
-
-%rule quote-body
-  [{_}]
 ```
 
-<details><summary>Railroad diagrams of <code>foreign-quote</code>, <code>delimiter</code> and <code>quote-body</code></summary>
+<details><summary>Railroad diagrams of <code>foreign-quote</code> and <code>delimiter</code></summary>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/foreign-quote.svg" alt="Railroad diagram of the rule foreign-quote"></p>
 <p><img src="../../../docs/diagrams/eberban/refgram/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
-<p><img src="../../../docs/diagrams/eberban/refgram/stream/quote-body.svg" alt="Railroad diagram of the rule quote-body"></p>
 </details>
 
 ## Differences from the reference grammar and the PEG
@@ -141,5 +134,3 @@ The quote emits one token tagged `Word`, `Particle`, `CO` and `Quote`. Its image
 The PEG reads a foreign quote only where the syntax expects a verb. When the sentence around it is ungrammatical, the PEG reads its characters again as erasable text. So a `ra` inside a closed quote erases an ungrammatical sentence, and the text after the `ra` leaks out of the quote. The chapter on sentences describes this as a hazard and advises closing quotes properly. This stage reads every quote as a quote, so a `ra` inside one is quoted text. An ungrammatical sentence with a `ra` inside its quote and none after it has no parse here.
 
 The PEG records the inner prefix of an attached nested compound as `i`, as the text writes it. This stage writes every prefix as `e`, `en` or `er` in the compound's value, as the dictionary does.
-
-The marks of the forms stage and the split in `foreign-quote` state the closing rule in the notation as it is. [Issue 262](https://github.com/int19h/gencmu/issues/262) proposes a condition on each item of a repetition, which would let the quote body exclude the closer directly.

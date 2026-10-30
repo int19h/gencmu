@@ -1,10 +1,10 @@
 {
-  "description": "A test after a capture inside braces is an error at the test: the reader checks a tested primary before the capture that it tests, and before the capture's place inside braces (engine §9).",
-  "document": "```jbogenbau\n%rule a { $c:B= \"b\" [ + KU = \"k\" ] }\n```\n",
+  "description": "A capture inside a chain is an error at the capture, after the reader reads the tested primary that the capture wraps (engine §9).",
+  "document": "```jbogenbau\n%rule a {... $c:B= \"b\" [ + KU = \"k\" ] }\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 14
     }
   }
 }

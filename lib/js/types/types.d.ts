@@ -641,6 +641,18 @@ export type Production = {
     rankedOption?: number;
     sourcePrivate?: Set<string>;
     contextual?: boolean;
+    /**
+     * the alternative whose braces this helper production lowers, when it has item captures
+     */
+    itemAlternative?: import("./grammar.js").StitchedAlternative;
+    /**
+     * the item captures of the helper (engine §3.5)
+     */
+    itemNames?: string[];
+    /**
+     * the item conditions of the helper, which frames attach (engine §3.6, §4)
+     */
+    itemConditions?: Condition[];
     rankedDeferred?: Condition[];
     /**
      * effective conditions across static ranked entry contexts
@@ -721,6 +733,10 @@ export type LoweredGrammar = {
     byLhs: Map<string, Production[]>;
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
+    /**
+     * whether a production is contextual, so that recognition keeps frames (engine §4)
+     */
+    contextual?: boolean;
     /**
      * static members from written rules
      */
@@ -1334,6 +1350,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} [rankedOption]
  * @property {Set<string>} [sourcePrivate]
  * @property {boolean} [contextual]
+ * @property {import("./grammar.js").StitchedAlternative} [itemAlternative] the alternative whose braces this helper production lowers, when it has item captures
+ * @property {string[]} [itemNames] the item captures of the helper (engine §3.5)
+ * @property {Condition[]} [itemConditions] the item conditions of the helper, which frames attach (engine §3.6, §4)
  * @property {Condition[]} [rankedDeferred]
  * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
  * @property {Term} [parentTags]
@@ -1383,6 +1402,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
+ * @property {boolean} [contextual] whether a production is contextual, so that recognition keeps frames (engine §4)
  * @property {Map<string,Set<string>>} families static members from written rules
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine

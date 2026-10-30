@@ -1,0 +1,41 @@
+{
+  "description": "The frame reaches the braces through the helpers around them: the braces inside an optional group read $o from the item of the rule (engine §4).",
+  "grammar": "%rule text $o:B [({$c:A} C)]\n%conditions $c.value ≠ $o.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1
+      }
+    },
+    "error": "rejected"
+  }
+}

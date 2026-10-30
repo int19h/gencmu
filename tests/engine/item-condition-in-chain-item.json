@@ -1,0 +1,53 @@
+{
+  "description": "Flat braces inside the item of a chain hold item captures, whose conditions hold of each item in each level (engine §3.3, §3.5).",
+  "grammar": "%rule text {... ({$c:A} B) / S}\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 3
+      }
+    },
+    "error": "rejected"
+  }
+}

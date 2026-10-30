@@ -1,0 +1,48 @@
+{
+  "description": "Flat braces inside the item of a chain complete where every item satisfies the condition (engine §3.3, §3.5).",
+  "grammar": "%rule text {... ({$c:A} B) / S}\n%conditions $c.value ≠ \"x\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "s",
+      "tags": [
+        "S"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "([a b] s a b)"
+  }
+}

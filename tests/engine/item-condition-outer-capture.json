@@ -1,0 +1,41 @@
+{
+  "description": "An item condition reads a capture bound before the braces through the frame of the enclosing item: the second A repeats the value of $o, so the list cannot hold it (engine §3.6, §4).",
+  "grammar": "%rule text $o:B {$c:A}\n%conditions $c.value ≠ $o.value",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2
+      }
+    },
+    "error": "rejected"
+  }
+}

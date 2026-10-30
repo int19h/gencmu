@@ -1,0 +1,36 @@
+{
+  "description": "Two readings of the enclosing rule bind $o to different spans, and each gives the list its own frame: only the reading where w reads two tokens leaves items that differ from $o (engine §4).",
+  "grammar": "%rule text $o:w {$c:A}\n%conditions $c.value ≠ $o.value\n%rule w A | A A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "([a a] b)"
+  }
+}

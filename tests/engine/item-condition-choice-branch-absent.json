@@ -1,0 +1,36 @@
+{
+  "description": "An item condition drops from the item expansion that lacks its capture, so the A items are free and only B items must satisfy it (engine §3.6).",
+  "grammar": "%rule text {A | $c:B}\n%conditions $c.value = \"b\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    },
+    "brackets": "(a b a)"
+  }
+}
