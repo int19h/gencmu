@@ -261,10 +261,34 @@ func variableCaptureExpr(root *domExpr) bool {
 	}
 	return done[0].variable
 }
-func validationCaptures(r *domRule, a *domAlt) []map[string]int {
-	if !variableCaptureExpr(a.Expr) {
+
+// Independent top-level choices have one fixed capture list per branch.
+// This visits written branches without enumerating their guard assignments.
+func independentCaptureChoices(expr *domExpr) ([]map[string]int, bool) {
+	branches := []*domExpr{expr}
+	var lists []map[string]int
+	seen := map[string]bool{}
+	for len(branches) > 0 {
+		expr = branches[len(branches)-1]
+		branches = branches[:len(branches)-1]
+		if expr != nil {
+			if expr.Kind == exChoice || expr.Kind == exRanked {
+				for i := len(expr.Items) - 1; i >= 0; i-- {
+					branches = append(branches, expr.Items[i])
+				}
+				continue
+			}
+			if expr.Kind == exTest {
+				branches = append(branches, expr.Inner)
+				continue
+			}
+		}
+		if variableCaptureExpr(expr) {
+			return nil, false
+		}
 		caps := map[string]int{"": -1}
-		pending := []*domExpr{a.Expr}
+		var names []string
+		pending := []*domExpr{expr}
 		for len(pending) > 0 {
 			e := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
@@ -274,6 +298,7 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 			switch e.Kind {
 			case exCapture:
 				caps[e.Name] = len(caps) - 1
+				names = append(names, e.Name)
 			case exSeq:
 				for i := len(e.Items) - 1; i >= 0; i-- {
 					pending = append(pending, e.Items[i])
@@ -284,7 +309,18 @@ func validationCaptures(r *domRule, a *domAlt) []map[string]int {
 				pending = append(pending, e.Inner)
 			}
 		}
-		return []map[string]int{caps}
+		key := strings.Join(names, "\x00")
+		if !seen[key] {
+			seen[key] = true
+			lists = append(lists, caps)
+		}
+	}
+	return lists, true
+}
+
+func validationCaptures(r *domRule, a *domAlt) []map[string]int {
+	if lists, ok := independentCaptureChoices(a.Expr); ok {
+		return lists
 	}
 	var witnesses []*captureWitness
 	ask := func(required, forbidden, order []string) {

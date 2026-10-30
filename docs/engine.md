@@ -1210,7 +1210,7 @@ The active-query identity remains the requested rule and projected context inter
 
 Answer keys distinguish constraints, while active keys detect self-definition.
 
-Aligned requests share qualification by rule, start, context end, and active query context. Family requests also retain the family, candidate end, and candidate observation in that key. Each request filters the qualified witnesses for its endpoint and alignment constraints.
+Aligned requests share qualification by rule, start, context end, and active query context. Family requests also retain the family, candidate end, and candidate observation in that key. Each request filters the qualified witnesses for its endpoint and alignment constraints. Reusable qualification stores completed observations and tags, without retaining the recognition chart or its proof edges.
 
 An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
@@ -2757,7 +2757,7 @@ The error stands at the first atom of the recipe whose dependency reaches a chan
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
-Capture validation queries the expression without listing capture sequences or production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
+Capture validation queries variable capture structure without listing production products. A query requires captures, forbids captures, and can require one capture before another. Each fixed query walks the expression once and retains its first matching expansion. Independent choice branches contribute their distinct capture lists directly, without guard assignments for combinations that no branch admits. Clause analysis branches only on presence tests written in that clause. Unrelated optional captures add no clause states. The validator compares failing witnesses in expansion order, so error priority and definition positions remain unchanged.
 
 Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
 
