@@ -55,13 +55,6 @@ impl<'a> Strings<'a> {
                 depth > 0
             })
             .collect();
-        let mut claim_points: Vec<_> = [0, text.len()]
-            .into_iter()
-            .chain(tokens.iter().flat_map(|token| [token.source.0, token.source.1]))
-            .collect();
-        claim_points.sort_unstable();
-        claim_points.dedup();
-        let claimed_cells = vec![false; claim_points.len() - 1];
         Self {
             grammar,
             tree,
@@ -71,8 +64,8 @@ impl<'a> Strings<'a> {
             unicode,
             covered,
             claims: FxSet::default(),
-            claim_points,
-            claimed_cells,
+            claim_points: Vec::new(),
+            claimed_cells: Vec::new(),
             saved: vec![[None, None]; tree.nodes.len()],
             active: vec![[false; 2]; tree.nodes.len()],
         }
@@ -105,6 +98,13 @@ impl<'a> Strings<'a> {
         let span = self.span(node);
         if span.0 == span.1 {
             return Ok(String::new());
+        }
+        if self.claim_points.is_empty() {
+            self.claim_points.extend([0, self.text.len()]);
+            self.claim_points.extend(self.tokens.iter().flat_map(|token| [token.source.0, token.source.1]));
+            self.claim_points.sort_unstable();
+            self.claim_points.dedup();
+            self.claimed_cells.resize(self.claim_points.len() - 1, false);
         }
         let (left, right) = self.sources.of(span.0, span.1);
         let previous = span.0.checked_sub(1).map_or(0, |i| self.tokens[i].source.1);

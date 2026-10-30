@@ -250,7 +250,7 @@ class Emitter:
         self.recipes = {}
         self.active = set()
         self.claims = set()
-        self.claim_points = sorted({0, len(context.text)} | {point for token in self.tokens for point in token.source})
+        self.claim_points = None
         self.claimed_cells = set()
         self.inherited = set()
         self.forwards = any(token.before or token.after for token in self.tokens)
@@ -290,6 +290,8 @@ class Emitter:
         span = part.start, part.end
         if part.start == part.end:
             return ""
+        if self.claim_points is None:
+            self.claim_points = sorted({0, len(self.context.text)} | {point for token in self.tokens for point in token.source})
         left, right = self.part_source(part)
         before = self.tokens[part.start - 1].source[1] if part.start else 0
         after = self.tokens[part.end].source[0] if part.end < len(self.tokens) else len(self.context.text)

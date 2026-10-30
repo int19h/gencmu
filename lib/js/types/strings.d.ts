@@ -24,7 +24,8 @@ export declare class StringWalk {
     active: WeakMap<Derivation, Set<object | string>>;
     /** @type {Set<string>} */
     claims: Set<string>;
-    claimPoints: number[];
+    /** @type {number[] | null} */
+    claimPoints: number[] | null;
     /** @type {Set<number>} */
     claimedCells: Set<number>;
     /** @type {Span[]} */
