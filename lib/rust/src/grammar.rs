@@ -14,7 +14,6 @@ use crate::dom::{
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
 use crate::patterns::Pattern;
-use crate::tags::character_tag;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
@@ -582,7 +581,7 @@ fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
     while let Some(expr) = pending.pop() {
         match expr {
             Expr::Ref(name) if is_terminal_name(name) || rules.contains(name) => return true,
-            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Property(_) => {
+            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Wildcard => {
                 return true
             }
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
@@ -1549,9 +1548,9 @@ impl Constants<'_> {
                         }
                         Expr::ScalarRange(left, right) => {
                             let (a, b) = self.scalar_endpoints(left, right, &alternative.document, alternative.at)?;
-                            *expr = Expr::Range(character_tag(a, self.unicode), character_tag(b, self.unicode));
+                            *expr = Expr::Range(a, b);
                         }
-                        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Wildcard | Expr::Empty => {}
                     }
                 }
             }
@@ -1784,7 +1783,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
         | Expr::Literal(_)
         | Expr::ScalarRange(..)
         | Expr::Range(..)
-        | Expr::Property(_)
+        | Expr::Wildcard
         | Expr::Empty => Ok(()),
         // The reader, or the check of a DOM, has made sure that a capture
         // wraps one symbol (§9).

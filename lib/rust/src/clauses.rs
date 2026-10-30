@@ -1038,7 +1038,7 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Wildcard
                 | Expr::Empty => done.push(empty()),
             }
             continue;
@@ -1225,7 +1225,7 @@ impl<'e> CaptureSequences<'e> {
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
                 | Expr::Range(..)
-                | Expr::Property(_)
+                | Expr::Wildcard
                 | Expr::Empty => {}
             }
         }
@@ -1264,7 +1264,7 @@ impl<'e> CaptureSequences<'e> {
                     | Expr::Literal(_)
                     | Expr::ScalarRange(..)
                     | Expr::Range(..)
-                    | Expr::Property(_)
+                    | Expr::Wildcard
                     | Expr::Empty => done.push(vec![Vec::new()]),
                 }
                 continue;

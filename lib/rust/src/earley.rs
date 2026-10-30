@@ -903,28 +903,19 @@ impl<'a> Shared<'a> {
         self.suffix_deps.clear();
     }
 
-    /// Whether a terminal matches a token whose tags are `set` (§4). A
-    /// range or a property matches once, however many of its tags qualify.
+    /// Terminals read stored tag membership or exact token values (§4).
+    /// A range reads one scalar value, and a wildcard reads any ordinary token.
     #[inline]
     pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
             Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
-            Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
+            Matcher::Characters(Characters::Any) => true,
             Matcher::Characters(Characters::Range(first, last)) => {
                 let mut chars = token.value.as_str().chars();
-                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
+                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&c))
             }
-            Matcher::Characters(characters) => self.carries(characters, token.tags),
         }
-    }
-
-    /// Whether a tag set holds a character tag of a range or a property.
-    fn carries(&self, characters: Characters, set: SetId) -> bool {
-        self.tags.list(set).iter().filter_map(|&tag| self.tags.code(tag)).any(|code| match characters {
-            Characters::Range(first, last) => (first..=last).contains(&code),
-            Characters::Property(property) => self.unicode.has(property, code),
-        })
     }
 
     /// The original source envelope of a token span.

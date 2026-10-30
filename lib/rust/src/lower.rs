@@ -9,8 +9,6 @@ use std::sync::Arc;
 use crate::clauses::{simplify_cond, simplify_value, CondListSplit, EmitIndex, Simple, TermSplit};
 use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
-use crate::tags::code_of_character_tag;
-use crate::unicode::Property;
 use crate::work::{self, Mutant, Work};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,12 +17,11 @@ pub(crate) enum Sym {
     N(u32),
 }
 
-/// The characters a range or a property matches (engine §4): a range's
-/// first and last scalar values, or a property.
+/// Character matching uses scalar endpoints or a direct wildcard (engine §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Characters {
-    Range(u32, u32),
-    Property(Property),
+    Range(char, char),
+    Any,
 }
 
 #[derive(Debug, Clone)]
@@ -776,22 +773,18 @@ impl<'a> Lowerer<'a> {
             }
             Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None))],
             Expr::Terminal(name) => vec![Sequence::one((self.symbol(name, false), None, None))],
-            // Private endpoint spellings become one canonical diagnostic name.
-            // The terminal matches by its characters (engine §4).
-            Expr::Range(start, end) => {
-                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
-                let (first, last) = codes.expect("a range of two character tags, which reading checks");
+            // Scalar endpoints also supply the canonical diagnostic name.
+            Expr::Range(first, last) => {
                 let spelling = format!(
                     "{}..{}",
-                    crate::tags::string_name(&char::from_u32(first).unwrap().to_string(), &self.grammar.unicode),
-                    crate::tags::string_name(&char::from_u32(last).unwrap().to_string(), &self.grammar.unicode)
+                    crate::tags::string_name(&first.to_string(), &self.grammar.unicode),
+                    crate::tags::string_name(&last.to_string(), &self.grammar.unicode)
                 );
-                let terminal = self.terminal(&spelling, Some(Characters::Range(first, last)));
+                let terminal = self.terminal(&spelling, Some(Characters::Range(*first, *last)));
                 vec![Sequence::one((Sym::T(terminal), None, None))]
             }
-            Expr::Property(name) => {
-                let property = Property::of(name).expect("a property, which reading checks");
-                let terminal = self.terminal("_", Some(Characters::Property(property)));
+            Expr::Wildcard => {
+                let terminal = self.terminal("_", Some(Characters::Any));
                 vec![Sequence::one((Sym::T(terminal), None, None))]
             }
             // A tested symbol lowers to its symbol with the test, and adds
@@ -842,7 +835,7 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
         | Expr::Literal(_)
         | Expr::ScalarRange(..)
         | Expr::Range(..)
-        | Expr::Property(_)
+        | Expr::Wildcard
         | Expr::Empty => false,
     }
 }

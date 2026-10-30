@@ -18,8 +18,6 @@ pub(crate) type TagList = Vec<TagId>;
 #[derive(Debug, Default)]
 pub(crate) struct Tags {
     names: Vec<String>,
-    /// For each tag, the scalar value of a character tag, or `u32::MAX`.
-    codes: Vec<u32>,
     index: FxMap<String, TagId>,
     /// The sets, each shared, so that a term can read one without a copy.
     sets: Vec<Arc<TagList>>,
@@ -40,15 +38,8 @@ impl Tags {
         }
         let id = self.names.len() as TagId;
         self.names.push(name.to_string());
-        self.codes.push(code_of_character_tag(name).unwrap_or(u32::MAX));
         self.index.insert(name.to_string(), id);
         id
-    }
-
-    /// The scalar value of a character tag, or `None` for another tag.
-    #[inline]
-    pub(crate) fn code(&self, id: TagId) -> Option<u32> {
-        Some(self.codes[id as usize]).filter(|&code| code != u32::MAX)
     }
 
     pub(crate) fn lookup(&self, name: &str) -> Option<TagId> {
@@ -185,37 +176,6 @@ pub(crate) fn is_name(tag: &str) -> bool {
     let mut chars = tag.chars();
     chars.next().is_some_and(|c| c.is_ascii_alphabetic())
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
-
-/// Whether the private range-endpoint spelling escapes a scalar: controls,
-/// nonspacing marks, private-use scalars, apostrophes, and backslashes.
-fn escaped_in_tag(code: u32, unicode: &Unicode) -> bool {
-    matches!(code, 0..=0x1F | 0x7F..=0x9F | 0x27 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x10_0000..=0x10_FFFD)
-        || unicode.is_mark(code)
-}
-
-/// The private range-endpoint spelling that `code_of_character_tag` reads.
-/// `string_name` supplies the canonical diagnostic spelling (engine §1).
-pub(crate) fn character_tag(c: char, unicode: &Unicode) -> String {
-    let code = c as u32;
-    if escaped_in_tag(code, unicode) {
-        format!("'\\u{{{code:X}}}'")
-    } else {
-        format!("'{c}'")
-    }
-}
-
-/// Read a private range-endpoint spelling, or return `None` for other tags.
-pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
-    let inner = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\''))?;
-    if let Some(digits) = inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {
-        return u32::from_str_radix(digits, 16).ok();
-    }
-    let mut chars = inner.chars();
-    match (chars.next(), chars.next()) {
-        (Some(c), None) => Some(c as u32),
-        _ => None,
-    }
 }
 
 /// Canonical diagnostic spelling of a string terminal (engine §9.1).

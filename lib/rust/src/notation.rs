@@ -1772,7 +1772,7 @@ impl<'a> Reader<'a> {
             }
             "tag" => Ok(Expr::Ref(self.tag_of(self.token(node)?)?)),
             "constant-reference" => Ok(Expr::Literal(self.constant_reference(self.token(node)?)?)),
-            "wildcard" => Ok(Expr::Property("Any".into())),
+            "wildcard" => Ok(Expr::Wildcard),
             "string-terminal" => {
                 let parts = Self::parts(node);
                 let part = parts

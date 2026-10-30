@@ -10,40 +10,6 @@ pub(crate) const CATEGORIES: [&str; 30] = [
     "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
 ];
 
-/// Resolve a core property name for tests of stored scalar tags (engine §1).
-#[cfg(test)]
-pub(crate) fn is_property_name(name: &str) -> bool {
-    Property::of(name).is_some()
-}
-
-/// A core scalar predicate (engine §1). Stored tags use qualified long names.
-/// Production recognition uses `Any` for `_`, which requires no stored tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Property {
-    Any,
-    WhiteSpace,
-    EmojiPresentation,
-    EmojiComponent,
-    /// A one-letter group of General_Category values, by its letter.
-    Group(u8),
-    /// One General_Category value, in its short form.
-    Category(&'static str),
-}
-
-impl Property {
-    /// The property of a name, or `None` for a name that is not one.
-    pub(crate) fn of(name: &str) -> Option<Property> {
-        match name {
-            "Any" => Some(Property::Any),
-            "White_Space" => Some(Property::WhiteSpace),
-            "Emoji_Presentation" => Some(Property::EmojiPresentation),
-            "Emoji_Component" => Some(Property::EmojiComponent),
-            "L" | "M" | "N" | "P" | "S" | "Z" | "C" => Some(Property::Group(name.as_bytes()[0])),
-            _ => CATEGORIES.iter().find(|&&category| category == name).map(|&category| Property::Category(category)),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct Unicode {
     /// The category ranges, sorted by their first code point: first, last
@@ -328,13 +294,12 @@ impl Unicode {
         chars.next().is_some_and(|c| {
             chars.next().is_none()
                 && !matches!(c, '#' | '@')
-                && self.has(Property::EmojiPresentation, c as u32)
-                && !self.has(Property::EmojiComponent, c as u32)
+                && self.is_emoji_presentation(c as u32)
+                && !self.is_emoji_component(c as u32)
         })
     }
 
-    /// Whether a code point is a nonspacing mark, of General_Category `Mn`,
-    /// which a character tag writes escaped (engine §1).
+    /// Whether a code point is a nonspacing mark, of General_Category `Mn`.
     pub(crate) fn is_mark(&self, code: u32) -> bool {
         self.category(code) == "Mn"
     }
@@ -345,16 +310,12 @@ impl Unicode {
         index > 0 && self.white_space[index - 1].1 >= code
     }
 
-    /// Whether a scalar value has a property (engine §1).
-    pub(crate) fn has(&self, property: Property, code: u32) -> bool {
-        match property {
-            Property::Any => true,
-            Property::WhiteSpace => self.is_white_space(code),
-            Property::EmojiPresentation => Self::in_ranges(&self.emoji_presentation, code),
-            Property::EmojiComponent => Self::in_ranges(&self.emoji_component, code),
-            Property::Group(letter) => self.category(code).as_bytes()[0] == letter,
-            Property::Category(category) => self.category(code) == category,
-        }
+    pub(crate) fn is_emoji_presentation(&self, code: u32) -> bool {
+        Self::in_ranges(&self.emoji_presentation, code)
+    }
+
+    pub(crate) fn is_emoji_component(&self, code: u32) -> bool {
+        Self::in_ranges(&self.emoji_component, code)
     }
 }
 
@@ -420,15 +381,12 @@ mod tests {
     #[test]
     fn an_omitted_scalar_value_is_cn_without_white_space_or_lowercase() {
         let table = Unicode::parse("unicode 0.0.0\ncategory Lu 0041 005A\n").expect("a partial table");
-        let has = |name: &str, code: u32| table.has(Property::of(name).expect("a property"), code);
         assert_eq!(table.category('A' as u32), "Lu");
         assert_eq!(table.category('a' as u32), "Cn");
         assert_eq!(table.category(0x10FFFF), "Cn");
         assert_eq!(table.category(0), "Cn");
         assert_eq!(table.category(0xD800), "Cs");
-        assert!(has("Cn", 'a' as u32) && has("C", 'a' as u32));
-        assert!(!has("L", 'a' as u32) && !has("Cs", 'a' as u32));
-        assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9) && !has("White_Space", 0x20));
+        assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9));
         // The engine no longer accepts a comparison normalization table (engine §1).
         assert!(Unicode::parse("unicode 0.0.0\nlower 0041 0061\n").is_err());
         assert!(!table.is_mark(0x301));
@@ -437,15 +395,13 @@ mod tests {
     #[test]
     fn properties() {
         let unicode = table();
-        let has = |name: &str, code: u32| unicode.has(Property::of(name).expect("a property"), code);
-        assert!(has("L", 'a' as u32));
-        assert!(has("Ll", 'a' as u32));
-        assert!(!has("Lu", 'a' as u32));
-        assert!(has("White_Space", 0x3000));
-        assert!(!has("White_Space", 0x200B));
-        assert!(has("Any", 0x10FFFF));
-        assert!(is_property_name("Nd") && is_property_name("Z") && !is_property_name("lu"));
-        assert!(!is_property_name("Letter") && !is_property_name("L&"));
+        assert_eq!(unicode.category('a' as u32), "Ll");
+        assert!(unicode.category('a' as u32).starts_with('L'));
+        assert_ne!(unicode.category('a' as u32), "Lu");
+        assert!(unicode.is_white_space(0x3000));
+        assert!(!unicode.is_white_space(0x200B));
+        assert!(unicode.is_emoji_presentation(0x1F600));
+        assert!(unicode.is_emoji_component(0x1F3FB));
     }
     #[test]
     fn normalization_conformance() {

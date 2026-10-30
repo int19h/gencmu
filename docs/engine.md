@@ -537,6 +537,8 @@ No directive names elidable terminators. A rule marks each elidable optional in 
 
 A lowercase name is a rule reference and must be defined in the stage. `🆓` is an ordinary rule name. A capital name or engine tag is a tag terminal. A string literal or string constant is a value terminal. A range matches one scalar value, and `_` matches any ordinary token. Section 9 specifies lexical forms and terminal identity.
 
+Binding retains each range endpoint as a scalar value. A wildcard has its own terminal form. Neither matcher derives character values from stored tag names. Unicode property terminals read stored membership directly.
+
 A rule reference, call, terminal, or parameter accepts one tag test and one value test, in that order. A tested parameter must receive one symbol. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or tag-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
 
 Tests use a terminal token's own tags and value, or a reference's constituent tags and input value. Both test kinds can occur, with the tag test first. Both must hold. Tests do not alter terminal identity.
