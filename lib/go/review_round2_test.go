@@ -182,7 +182,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	}
 	// A valid cached recipe needs no source reader for location recovery.
 	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["data/preparsed/gencmu.json"])
-	cache := readPreparsed(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))
+	cache, _, _ := readPreparsedCache(reviewCache(t, valid), bundled.reader.hash, bundled.uni.hash, fnv1a64(bundled.sources["data/unicode/unicode-properties.txt"]))
 	configured, loadErr := bundledLoader()
 	if loadErr != nil {
 		t.Fatal(loadErr)

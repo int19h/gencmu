@@ -210,10 +210,6 @@ def elided_nodes(tree: Node) -> list[Node]:
     return found
 
 
-def emits_nothing(production: Production) -> bool:
-    return production.erased
-
-
 def implied(tags: Tags, lowered: Lowered) -> Tags:
     """A token's explicit tags with the tags of the stage's implications,
     added until no tag changes (engine §11). Each tag gained is looked up

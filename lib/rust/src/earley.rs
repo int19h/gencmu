@@ -329,7 +329,6 @@ pub(crate) struct Chart {
     pub completed_annotations: FxMap<(u32, Cap, u32), crate::boundary::Annotations>,
     pub sources: crate::boundary::Sources,
     pub boundary_failures: Vec<crate::boundary::Failure>,
-    boundary_seen: FxSet<u32>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     /// The stage root settles its remaining boundary literals on completion.
     /// Queries settle selected witnesses after recognition instead.
@@ -2565,9 +2564,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
             }
             item.boundary = record;
-            if chart.boundary_seen.insert(record) {
-                work::count(Work::BoundaryRecords, 1);
-            }
             if !annotations.start.is_empty() || !annotations.end.is_empty() {
                 let target = chart.annotations.entry((set as u32, item)).or_default();
                 chart.sources.merge(target, &annotations);

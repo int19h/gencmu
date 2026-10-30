@@ -1124,7 +1124,6 @@ class Parser:
 
         boundaries = context.boundary_machine
         records, annotations, failures, prediction_obligations = [], [], [], {}
-        boundary_seen = set()
         has_slots = bool(ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
@@ -1365,9 +1364,6 @@ class Parser:
                 found = len(prod)
                 sets[at][key] = found
                 if bounded is not None:
-                    if bounded[0].id not in boundary_seen:
-                        boundary_seen.add(bounded[0].id)
-                        _testing.count("boundary_records")
                     records.append(bounded[0])
                     annotations.append(bounded[1])
                 prod.append(production)

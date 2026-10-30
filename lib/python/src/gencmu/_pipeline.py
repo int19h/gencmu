@@ -219,7 +219,7 @@ class NotationReader:
             except GencmuError as error:
                 error.stage = name
                 raise
-        _pipeline_features(where, stages, pipeline.features)
+        _pipeline_features(stages, pipeline.features)
         lowered = []
         for grammar in stages:
             try:
@@ -630,7 +630,7 @@ def load_pipeline_sources(sources: Mapping[str, str], pipeline: str, *, use_cach
     return _Loader(documents.get, _resources(documents), use_cache, names_override=documents.__contains__).load(pipeline)
 
 
-def _pipeline_features(path: str, grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
+def _pipeline_features(grammars: list[Grammar], declared: frozenset[str]) -> tuple[Feature, ...]:
     """A pipeline's features (engine §13): every name a guard of a stage's
     stitched rules or a gate of its classifiers' entries uses, and every
     name the pipeline's ``%features`` declares, in code point order. Each is
@@ -676,7 +676,7 @@ class Pipeline:
         self.path = path
         # The features the pipeline turns on, and every feature with its kind.
         self.declared = pipeline.features
-        self.features = _pipeline_features(path, stages, pipeline.features)
+        self.features = _pipeline_features(stages, pipeline.features)
         self.grammars = stages
         self.unicode = unicode
         # Each stage's lowered grammars, keyed by the gates that are on, or
@@ -800,7 +800,7 @@ class Pipeline:
             replace(
                 token,
                 tags=frozenset(self.unicode.canonical_tag(tag) if tag.startswith("_") else tag for tag in token.tags),
-                span=None if token.span is None else (token.span[0], token.span[1]),
+                span=(token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
                 before=[],
                 after=[],

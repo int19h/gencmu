@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from . import _testing
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant
 
 Dom = dict[str, Any]
@@ -186,7 +185,6 @@ class PatternMachine:
         index = len(self.states)
         self.states.append(state)
         self.state_ids[state] = index
-        _testing.count("structural_states")
         return index
 
     @staticmethod
@@ -210,7 +208,6 @@ class PatternMachine:
         state = (min(2, a[0] + b[0]), a[1] if a[0] else b[1], b[2] if b[0] else a[2], a[3] | b[3], tuple(self.compose(x, y) for x, y in zip(a[4], b[4])), None, False)
         result = self.intern(state)
         self.transitions[key] = result
-        _testing.count("structural_transitions")
         return result
 
     def node_state(self, bits: int, empty: bool) -> int:
@@ -264,7 +261,6 @@ class PatternMachine:
                 bits |= bit
         result = self.node_state(bits, leaf is None and state[0] == 0)
         self.transitions[key] = result
-        _testing.count("structural_transitions")
         return result
 
     def matches(self, state: int, pattern: Dom) -> bool:

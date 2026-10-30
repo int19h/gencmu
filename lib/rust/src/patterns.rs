@@ -606,7 +606,6 @@ impl Machine {
         if let Some(&id) = self.state_ids.get(&s) {
             return id;
         }
-        crate::work::count(crate::work::Work::StructuralStates, 1);
         let id = self.states.len() as u32;
         self.state_ids.insert(s.clone(), id);
         self.states.push(s);
@@ -656,7 +655,6 @@ impl Machine {
             bits: Some(bits),
             empty: false,
         });
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }
@@ -696,7 +694,6 @@ impl Machine {
             empty: false,
         };
         let id = self.intern(s);
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }
@@ -777,7 +774,6 @@ impl Machine {
             empty,
         };
         let id = self.intern(state);
-        crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
     }

@@ -61,7 +61,7 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 					t.Fatal(err)
 				}
 				l.preparsedRead = nil
-				l.preparsed = readPreparsed(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
+				l.preparsed, _, _ = readPreparsedCache(string(envelope), l.bootstrapHash, l.uni.hash, l.uni.propertiesHash)
 				if mode == "matching" && len(l.preparsed) != 1 {
 					t.Fatal("matching cache not admitted")
 				}

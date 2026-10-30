@@ -16996,7 +16996,6 @@
    * @typedef {object} StageOptions
    * @property {Set<string>} features
    * @property {boolean | null | undefined} elisionOnly
-   * @property {boolean} last whether this is the pipeline's last stage
    */
 
   /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
@@ -17571,14 +17570,6 @@
       return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
     };
     return [plain(actions[0]), plain(actions[1])];
-  }
-
-  /** @param {Action | null} action @returns {import("./types.js").WitnessAction | null} */
-  function plainAction(action) {
-    if (action === null) return null;
-    if (action.kind === "read") return { kind: "read", token: action.token, terminal: action.terminal };
-    const { production, origin, end } = action.item;
-    return { kind: "close", rule: production.owner, production: production.id, helper: production.helper, span: [origin, end] };
   }
 
   /** @implements {Scope} */
@@ -20360,12 +20351,11 @@
    * and every name the pipeline's `%features` declares, in code point
    * order. A name used both as a gate and as a warning is an error of the
    * pipeline.
-   * @param {string} path
    * @param {Stage[]} stages
    * @param {string[]} declared
    * @returns {Feature[]}
    */
-  function pipelineFeatures(path, stages, declared) {
+  function pipelineFeatures(stages, declared) {
     /** @type {Map<string, "gate" | "warning">} */
     const kinds = new Map();
     for (const stage of stages) {
@@ -20426,7 +20416,7 @@
       this.loader = loader;
       this.declared = declared;
       /** @type {Feature[]} the pipeline's features, with their kinds and defaults */
-      this.features = pipelineFeatures(path, stages, declared);
+      this.features = pipelineFeatures(stages, declared);
       for (const stage of stages) validateEmissionOverlap(stage.grammar.rules);
     }
 
@@ -20473,7 +20463,7 @@
           if (!(0 <= start && start <= end && end <= length)) {
             throw new GencmuError("usage", `token ${index}: the source ${JSON.stringify(token.source)} is not a range within a text of ${length} code points`);
           }
-          if (token.span && !(0 <= token.span[0] && token.span[0] <= token.span[1])) {
+          if (!(0 <= token.span[0] && token.span[0] <= token.span[1])) {
             throw new GencmuError("usage", `token ${index}: the span ${JSON.stringify(token.span)} is not a range of tokens: it starts below 0 or ends before it starts`);
           }
         });
@@ -20524,7 +20514,6 @@
         const report = featureError ? {name:stage.name,verdict:null,witness:null,tree:null,output:null,error:featureError} : stage.run(tokens, sourceText, this.loader.unicode, {
           features: options.features,
           elisionOnly: options.elisionOnly,
-          last: index === this.stages.length - 1,
         });
         report.input = tokens;
         stages.push(report);

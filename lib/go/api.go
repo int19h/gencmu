@@ -68,12 +68,6 @@ type domCacheKey struct {
 	format                                     int
 }
 
-// readPreparsed admits an envelope only under the complete loader identity.
-func readPreparsed(text, bootstrapHash, unicodeHash, propertiesHash string) map[domCacheKey]json.RawMessage {
-	doms, _, _ := readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash)
-	return doms
-}
-
 func readPreparsedCache(text, bootstrapHash, unicodeHash, propertiesHash string, implicit ...bool) (map[domCacheKey]json.RawMessage, map[domCacheKey]json.RawMessage, map[string]string) {
 	var c struct {
 		Format       int             `json:"format"`

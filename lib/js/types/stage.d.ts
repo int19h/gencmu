@@ -7,10 +7,6 @@ import type { UnicodeTable } from "./unicode.js";
 export type StageOptions = {
     features: Set<string>;
     elisionOnly: boolean | null | undefined;
-    /**
-     * whether this is the pipeline's last stage
-     */
-    last: boolean;
 };
 export declare class Stage {
     name: string;

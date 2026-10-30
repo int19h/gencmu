@@ -11,12 +11,6 @@ use std::cell::RefCell;
 /// What a counter counts.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Work {
-    /// Distinct boundary records stored in each recognition.
-    BoundaryRecords,
-    /// Interned finite structural observations.
-    StructuralStates,
-    /// Computed structural transitions, excluding cached transitions.
-    StructuralTransitions,
     /// Distinct packed recognition edges.
     PackedEdges,
     /// Stored ranking summaries.

@@ -297,7 +297,7 @@ func BenchmarkReadPreparsedJSON(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readPreparsed(text, hash, unicodeHash, propertiesHash)) == 0 {
+		if got, _, _ := readPreparsedCache(text, hash, unicodeHash, propertiesHash); len(got) == 0 {
 			b.Fatal("cache miss")
 		}
 	}
