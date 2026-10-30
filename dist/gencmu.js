@@ -5363,13 +5363,19 @@
    * @returns {string[]}
    */
   function capturesMentioned(node) {
-    const names = capturesUsed(node);
-    const stack = [node];
+    const names = [], stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
-      if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
-      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
+      if (isDomObject(current)) {
+        if (typeof current.capture === "string") names.push(current.capture);
+        if (typeof current.captured === "string") names.push(current.captured);
+      }
+      const children = clauseChildren(current);
+      for (let index = children.length - 1; index >= 0; index--) {
+        const value = children[index];
+        if (value && typeof value === "object") stack.push(value);
+      }
     }
     return names;
   }
@@ -5730,11 +5736,13 @@
     }
     const anyHas = (/** @type {string} */ name) => capturing.has(name);
     const items = rule.emit ? rule.emit.items : [];
-    const clauses = [rule.tags, rule.value, rule.image, ...rule.conditions, ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...items];
-    // An emission item mentions its own capture and its attachments,
-    // whatever else it says.
-    const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
-    for (const name of [...named, ...clauses.flatMap(capturesMentioned)]) {
+    const clauses = [rule.tags, rule.value, rule.image,
+      ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...rule.conditions];
+    for (const item of items) clauses.push(
+      typeof item.capture === "string" ? {capture:item.capture} : undefined,
+      item.tags, item.value, item.image,
+      ...attachmentsOf(item).map((/** @type {string} */ capture) => ({capture})));
+    for (const clause of clauses) for (const name of capturesMentioned(clause)) {
       if (!anyHas(name)) return `$${name} is captured by no alternative of ${rule.name}`;
     }
     for (const condition of rule.conditions) {
@@ -8773,7 +8781,7 @@
             if (!classes) table.set(word, (classes = tagSet()));
             if ((entry.op === "∈") === classes.has(entry.class)) {
               const [line, column] = entry.at;
-              const message = entry.op === "∈" ? `${JSON.stringify(word)} is already in ${entry.class}` : `${JSON.stringify(word)} is not in ${entry.class}, so ∉ has nothing to remove`;
+              const message = entry.op === "∈" ? `${stringName(word, this.unicode)} is already in ${entry.class}` : `${stringName(word, this.unicode)} is not in ${entry.class}, so ∉ has nothing to remove`;
               const error = new GencmuError("grammar", `${path}:${line}:${column}: the classifier ${classifier.name}: ${message}`, { document: path, line, column });
               remember(this.classifierTables, key, error);
               throw error;
@@ -9125,7 +9133,7 @@
       /** @type {(name: string, rule: StitchedRule, alternative: StitchedAlternative) => void} */
       const check = (name, rule, alternative) => {
         if (!this.rules.has(name)) {
-          throw new GencmuError("grammar", `${rule.name} refers to ${name}, which is not defined`, alternative.at);
+          throw new GencmuError("grammar", `${name} is not a rule of stage ${this.stageName}`, alternative.at);
         }
       };
       /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
@@ -9155,7 +9163,7 @@
           for (const name of clauseClassifiers(clauses)) {
             if (hooks.work) countWork(hooks.work, "clauses");
             if (!classifierNames.has(name)) {
-              throw new GencmuError("grammar", `${rule.name} classifies with ${name}, which no %classifier of stage ${this.stageName} names`, alternative.at);
+              throw new GencmuError("grammar", `${name} is not a classifier of stage ${this.stageName}`, alternative.at);
             }
           }
         }

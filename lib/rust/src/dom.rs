@@ -2184,14 +2184,12 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                     let mut a_chars = a.chars();
                     let mut b_chars = b.chars();
                     let endpoints = (a_chars.next(), b_chars.next());
-                    if !matches!(endpoints, (Some(a), Some(b)) if a <= b)
-                        || a_chars.next().is_some()
-                        || b_chars.next().is_some()
+                    if !matches!(endpoints, (Some(_), Some(_))) || a_chars.next().is_some() || b_chars.next().is_some()
                     {
-                        return Some(Fault {
-                            problem: "a scalar range requires ordered single-scalar endpoints".into(),
-                            at: None,
-                        });
+                        return Some(Fault { problem: "a range endpoint is one scalar".into(), at: None });
+                    }
+                    if matches!(endpoints, (Some(a), Some(b)) if a > b) {
+                        return Some(Fault { problem: "a range starts above its end".into(), at: None });
                     }
                 }
             }

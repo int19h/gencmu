@@ -2,7 +2,6 @@ package gencmu
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 )
 
@@ -117,13 +116,13 @@ func (g *stageGrammar) classifiers(features map[string]bool) *classifierTables {
 	c.mu.Unlock()
 	// The first parse that needs them resolves them, outside the lock. So
 	// it does not hold up the parses that need other ones.
-	e.once.Do(func() { e.tables = resolveClassifiers(c.items, on) })
+	e.once.Do(func() { e.tables = resolveClassifiers(c.items, on, g.uni) })
 	return e.tables
 }
 
 // resolveClassifiers applies the entries of the items in order, for a set
 // of features.
-func resolveClassifiers(items []classifierItem, features map[string]bool) *classifierTables {
+func resolveClassifiers(items []classifierItem, features map[string]bool, uni *unicodeTable) *classifierTables {
 	// The classes of each key, each once, in the order added. They are
 	// sorted at the end. Inserting into a sorted list would copy or shift it at each
 	// entry, so a key of K classes would cost K squared.
@@ -150,9 +149,9 @@ func resolveClassifiers(items []classifierItem, features map[string]bool) *class
 				}
 				at := held.find(e.Class)
 				if (e.Op == "∈") == (at >= 0) {
-					message := fmt.Sprintf("%s is already in %s", strconv.Quote(word), e.Class)
+					message := fmt.Sprintf("%s is already in %s", stringTerminal(word, uni), e.Class)
 					if e.Op == "∉" {
-						message = fmt.Sprintf("%s is not in %s, so ∉ has nothing to remove", strconv.Quote(word), e.Class)
+						message = fmt.Sprintf("%s is not in %s, so ∉ has nothing to remove", stringTerminal(word, uni), e.Class)
 					}
 					fault := fmt.Sprintf("%s:%d:%d: the classifier %s: %s", it.doc, e.At[0], e.At[1], c.Name, message)
 					return &classifierTables{fault: fault, faultLocation: &Error{Kind: ErrorGrammar, Document: it.doc, Line: e.At[0], Column: e.At[1], Message: fault}}

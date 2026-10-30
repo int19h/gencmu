@@ -184,7 +184,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 				existing.alts, existing.doc, existing.at, existing.flags = alts, d.path, r.At, r.Flags
 			case "extend":
 				if existing == nil {
-					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule not defined before it", r.Name)
+					return nil, fail(d.path, r.At, "%%extend-rule %s extends a rule that is not defined before it", r.Name)
 				}
 				g.changes = append(g.changes, stitchChange{rule: r.Name, document: d.path, op: "extend"})
 				existing.alts = append(existing.alts, alts...)
@@ -199,7 +199,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			case "ambiguity-resolution":
 				ambiguity = append(ambiguity, dir)
 				if len(ambiguity) > 1 {
-					return nil, fail(d.path, dir.At, "stage %s has more than one %%ambiguity-resolution", stageName)
+					return nil, fail(d.path, dir.At, "stage %s has a second %%ambiguity-resolution", stageName)
 				}
 				// The rule of the ranking, greedy, lazy or late-elision, then
 				// optionally elision-only, in that
@@ -253,7 +253,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return nil, e
 	}
 	if g.byName["text"] == nil {
-		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " defines no start rule text"}
+		e := &Error{Kind: "grammar", Stage: stageName, Message: "stage " + stageName + " has no rule text"}
 		if len(docs) > 0 {
 			e.Document = docs[0].path
 		}
@@ -442,7 +442,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		// A classifier that classify names belongs to the stage (§2).
 		if t.Kind == tmClassifier && !g.classifierSet.names[t.Str] {
-			return fail("classify() names %s, which no %%classifier of stage %s names", t.Str, g.name)
+			return fail("%s is not a classifier of stage %s", t.Str, g.name)
 		}
 		if t.Cond != nil {
 			if err := checkCond(t.Cond); err != nil {

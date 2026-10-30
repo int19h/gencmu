@@ -168,9 +168,17 @@ impl StageGrammar {
                         }
                         (adds, _) => {
                             let problem = if adds {
-                                format!("{key:?} is already in {}", entry.class)
+                                format!(
+                                    "{} is already in {}",
+                                    crate::tags::string_name(key, &self.unicode),
+                                    entry.class
+                                )
                             } else {
-                                format!("{key:?} is not in {}, so ∉ has nothing to remove", entry.class)
+                                format!(
+                                    "{} is not in {}, so ∉ has nothing to remove",
+                                    crate::tags::string_name(key, &self.unicode),
+                                    entry.class
+                                )
                             };
                             let (line, column) = entry.at;
                             return Err(Error::grammar(format!(
@@ -302,8 +310,8 @@ pub(crate) fn stitch(
                 Op::Define => {
                     if grammar.index.contains_key(&rule.name) {
                         return error(format!(
-                            "%rule {} is already defined; %redefine-rule replaces a rule",
-                            rule.name
+                            "%rule {} is already defined, in {}; %redefine-rule replaces a rule",
+                            rule.name, grammar.rules[grammar.index[&rule.name]].document
                         ));
                     }
                     grammar.index.insert(rule.name.clone(), grammar.rules.len());
@@ -353,7 +361,7 @@ pub(crate) fn stitch(
                 "features" => grammar.features.push((document.clone(), directive.clone())),
                 "ambiguity-resolution" => {
                     if resolution.is_some() {
-                        return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
+                        return Err(here(format!("stage {stage} has a second %ambiguity-resolution")));
                     }
                     let refused = || {
                         here(
@@ -435,10 +443,10 @@ pub(crate) fn stitch(
         .collect::<Result<Vec<_>, _>>()?
         .into();
     if resolution.is_none() {
-        return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution directive")).in_stage(stage));
+        return Err(Error::grammar(format!("stage {stage} has no %ambiguity-resolution")).in_stage(stage));
     }
     if !grammar.index.contains_key("text") {
-        return Err(Error::grammar(format!("stage {stage} does not define its start rule text")).in_stage(stage));
+        return Err(Error::grammar(format!("stage {stage} has no rule text")).in_stage(stage));
     }
     // Shared clauses are checked once, with the first alternative that
     // holds them.
@@ -446,9 +454,8 @@ pub(crate) fn stitch(
     for rule in &grammar.rules {
         for alternative in &rule.alternatives {
             let first = checked.insert(Arc::as_ptr(&alternative.clauses));
-            check_alternative(&grammar, alternative, first).map_err(|message| {
-                located(format!("in {}: {message}", rule.name), &alternative.document, alternative.at)
-            })?;
+            check_alternative(&grammar, alternative, first)
+                .map_err(|message| located(message, &alternative.document, alternative.at))?;
         }
     }
     crate::boundary::reachable(&grammar)?;
@@ -870,7 +877,14 @@ impl Constants<'_> {
                     self.latest.get(name).copied()
                 };
                 let target = target.ok_or_else(|| {
-                    located(format!("${name} is not defined in stage {}", self.stage), &version.document, at)
+                    located(
+                        format!(
+                            "${name} is not defined in stage {}; dependency ${} → ${name}",
+                            self.stage, version.definition.name
+                        ),
+                        &version.document,
+                        at,
+                    )
                 })?;
                 next.push((target, at));
             }
@@ -1136,7 +1150,7 @@ impl Constants<'_> {
                         };
                         if op == "endpoint" && value.chars().count() != 1 {
                             return Err(located(
-                                "a range endpoint must be one scalar".into(),
+                                "a range endpoint is one scalar".into(),
                                 document,
                                 first_constant(v).unwrap_or(item),
                             ));
@@ -1481,18 +1495,16 @@ impl Constants<'_> {
             let mut chars = value.chars();
             match (chars.next(), chars.next()) {
                 (Some(c), None) => Ok(c),
-                _ => Err(located(
-                    "a range endpoint must be one scalar".into(),
-                    document,
-                    first_constant(term).unwrap_or(at),
-                )),
+                _ => {
+                    Err(located("a range endpoint is one scalar".into(), document, first_constant(term).unwrap_or(at)))
+                }
             }
         };
         let a = scalar(left)?;
         let b = scalar(right)?;
         if a > b {
             return Err(located(
-                "range starts above its end".into(),
+                "a range starts above its end".into(),
                 document,
                 first_constant(left).or_else(|| first_constant(right)).unwrap_or(at),
             ));
@@ -1752,7 +1764,7 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
     if grammar.index.contains_key(name) {
         Ok(())
     } else {
-        Err(format!("the rule {name} is not defined in stage {}", grammar.name))
+        Err(format!("{name} is not a rule of stage {}", grammar.name))
     }
 }
 
@@ -1864,7 +1876,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 if grammar.classifiers.iter().any(|(_, item)| item.name == *classifier) {
                     Ok(())
                 } else {
-                    Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
+                    Err(format!("{classifier} is not a classifier of stage {}", grammar.name))
                 }
             }
             (

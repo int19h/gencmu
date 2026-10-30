@@ -4,7 +4,6 @@ productions (engine §3)."""
 from __future__ import annotations
 
 import itertools
-import json
 import threading
 from dataclasses import dataclass, field
 from typing import Any, Union
@@ -186,7 +185,7 @@ class Grammar:
             found = self._classifier_tables.get(key)
         if found is None:
             try:
-                found = _resolve_classifiers(self.classifier_items, key)
+                found = _resolve_classifiers(self.classifier_items, key, self.unicode)
             except GencmuError as error:
                 error.stage = self.stage
                 found = ErrorData.of(error)
@@ -212,7 +211,7 @@ Classifiers = dict[str, dict[str, frozenset[str]]]
 each key's classes."""
 
 
-def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str]) -> Classifiers:
+def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str], unicode: Any) -> Classifiers:
     # Each key's classes grow in one mutable set, frozen at the end, since
     # a frozen set copied at each entry costs a key of C classes C².
     building: dict[str, dict[str, set[str]]] = {}
@@ -229,7 +228,7 @@ def _resolve_classifiers(items: list[tuple[str, Dom]], features: frozenset[str])
                     classes = table[key] = set()
                 if adds == (name in classes):
                     line, column = int(entry["at"][0]), int(entry["at"][1])
-                    word = json.dumps(key, ensure_ascii=False)
+                    word = spelling(key, unicode)
                     message = f"{word} is already in {name}" if adds else f"{word} is not in {name}, so ∉ has nothing to remove"
                     # A lowering error is a result's, whose message alone
                     # names the entry (engine §2).
@@ -438,9 +437,9 @@ class _Constants:
                     ends.append((yield self._closed(path, end, at)))
                 for i, end in enumerate(ends):
                     if not isinstance(end, str) or len(end) != 1:
-                        raise self.fault_error(path, root["range"][i], at, "invalid pattern range endpoint")
+                        raise self.fault_error(path, root["range"][i], at, "a range endpoint is one scalar")
                 if ends[0] > ends[1]:
-                    raise self.fault_error(path, root["range"], at, "invalid pattern range")
+                    raise self.fault_error(path, root["range"], at, "a range starts above its end")
                 terminal = "..".join(spelling(end, self.unicode) for end in ends)
             else:
                 terminal = "_"
@@ -550,9 +549,9 @@ class _Constants:
                             ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
                             for i, end in enumerate(ends):
                                 if len(end) != 1:
-                                    raise self.fault_error(path, node["range"][i], rule["at"], "invalid scalar range endpoint")
+                                    raise self.fault_error(path, node["range"][i], rule["at"], "a range endpoint is one scalar")
                             if ends[0] > ends[1]:
-                                raise self.fault_error(path, node["range"], rule["at"], "invalid scalar range")
+                                raise self.fault_error(path, node["range"], rule["at"], "a range starts above its end")
                         pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).
@@ -840,7 +839,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         raise GencmuError(f"stage {stage} has no %ambiguity-resolution", stage=stage)
     if len(resolutions) > 1:
         args, path, at = resolutions[1]
-        raise _error(f"stage {stage} has more than one %ambiguity-resolution", path, at, stage)
+        raise _error(f"stage {stage} has a second %ambiguity-resolution", path, at, stage)
     args, path, at = resolutions[0]
     # The rule of the ranking (engine §6), then optionally elision-only,
     # each optional, in that order (engine §2).
@@ -856,7 +855,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             stage,
         )
     if "text" not in rules:
-        raise GencmuError(f"stage {stage} has no rule text, its start rule", stage=stage)
+        raise GencmuError(f"stage {stage} has no rule text", stage=stage)
     classifier_names = {classifier["name"] for _, classifier in classifier_items}
     # The clauses of a rule that its alternatives share, by identity, once
     # checked: an error in one would have stopped the first check, at the
@@ -891,7 +890,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                     named = value.get("classifier")
                     if isinstance(named, str) and named not in classifier_names:
                         raise _error(
-                            f"{rule.name} classifies with {named}, which no %classifier of stage {stage} names",
+                            f"{named} is not a classifier of stage {stage}",
                             alt.document,
                             alt.at,
                             stage,

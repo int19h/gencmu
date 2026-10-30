@@ -46,7 +46,7 @@ func (g *stageGrammar) validateStringUses(doc string, r *domRule) *Error {
 						return err
 					}
 					if utf8.RuneCountInString(v.s) != 1 {
-						return g.faultError(doc, t, r.At, "a range endpoint resolves to more or fewer than one scalar")
+						return g.faultError(doc, t, r.At, "a range endpoint is one scalar")
 					}
 					ends[i], _ = utf8.DecodeRuneInString(v.s)
 				}

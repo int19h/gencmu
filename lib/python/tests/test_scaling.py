@@ -699,7 +699,9 @@ class Classifiers(Linear):
         # n entries, each giving the one key a class of its own.
         entries = [{"guards": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
         items = [("t.md", {"name": "c", "entries": entries})]
-        return lambda: _grammar._resolve_classifiers(items, frozenset())
+        pipeline, error = load_case_pipeline({"grammar": "%rule text A"})
+        assert pipeline is not None, error
+        return lambda: _grammar._resolve_classifiers(items, frozenset(), pipeline.unicode)
 
     @staticmethod
     def watches() -> list[Watch]:

@@ -44,19 +44,37 @@ def captures_in(dom: Any) -> set[str]:
     return found
 
 
-def mentioned_in(dom: Any) -> set[str]:
-    """The capture names a clause mentions, presence tests included."""
-    found = captures_in(dom)
+def mentions_in_order(dom: Any):
+    """Capture mentions in written operand order, including presence tests."""
     stack = [dom]
     while stack:
-        value = stack.pop()
-        if isinstance(value, dict):
-            if isinstance(value.get("captured"), str):
-                found.add(value["captured"])
-            stack.extend(value.values())
-        elif isinstance(value, list):
-            stack.extend(value)
-    return found
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(reversed(node))
+            continue
+        if not isinstance(node, dict):
+            continue
+        for key in ("capture", "captured"):
+            if isinstance(node.get(key), str):
+                yield node[key]
+        if "pattern" in node:
+            continue
+        if "method" in node:
+            children = [node["receiver"], *node["args"]]
+        elif "op" in node:
+            children = [node["left"], node["right"]]
+        elif "if" in node:
+            children = [node["if"], node["then"]]
+        elif "not" in node:
+            children = [node["not"]]
+        else:
+            children = next((node[key] for key in ("any", "all", "union", "intersection", "difference", "concat") if key in node), [])
+        stack.extend(reversed(children))
+
+
+def mentioned_in(dom: Any) -> set[str]:
+    """The capture names a clause mentions, presence tests included."""
+    return set(mentions_in_order(dom))
 
 
 def duplicate_captures(expr: Any) -> list[Dom]:
@@ -821,14 +839,17 @@ def definition_problem(rule: Dom) -> str | None:
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
-    clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
-    clauses.extend(alternative.get("tags") for alternative in alternatives)
-    clauses.extend(owner.get(channel) for owner in [rule, *alternatives] for channel in ("value", "image"))
-    # An emission item mentions its attachments too.
-    attached = {name for item in items if "capture" in item for name in attachments_of(item)}
-    unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
-    if unknown:
-        return f"${unknown[0]} is captured by no alternative of {rule['name']}"
+    clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image")]
+    clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))
+    clauses.extend(rule["conditions"])
+    for item in items:
+        clauses.extend([{"capture": item["capture"]} if "capture" in item else None,
+                        item.get("tags"), item.get("value"), item.get("image")])
+        clauses.extend({"capture": name} for name in attachments_of(item))
+    for clause in clauses:
+        for name in mentions_in_order(clause):
+            if name not in known:
+                return f"${name} is captured by no alternative of {rule['name']}"
     # The rule-level clauses depend only on a production's captures, which
     # many alternatives share, so each is checked once for each sequence of
     # captures and not once for each production.

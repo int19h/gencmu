@@ -1365,49 +1365,30 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     // A capture mentioned anywhere, presence tests included, that no
     // alternative captures.
     let mut mentioned: Vec<&str> = Vec::new();
-    for term in rule.tags.iter().chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref())) {
-        term_captures(term, &mut mentioned);
-        term_presences(term, &mut mentioned);
+    for term in rule.tags.iter().chain(&rule.strings.value).chain(&rule.strings.image) {
+        walk_captures(Part::Term(term), true, true, &mut mentioned);
     }
-    for cond in &rule.conditions {
-        cond_captures(cond, &mut mentioned);
-        cond_presences(cond, &mut mentioned);
-    }
-    for item in items {
-        match item {
-            EmitItem::Capture(name, tags, attachments) => {
-                // An item mentions its own capture and its attachments.
-                mentioned.push(name);
-                mentioned.extend(attachments.names());
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
-            EmitItem::Insert(tags, _) => {
-                if let Some(term) = tags {
-                    term_captures(term, &mut mentioned);
-                    term_presences(term, &mut mentioned);
-                }
-            }
+    for alternative in &rule.alternatives {
+        for term in alternative.tags.iter().chain(&alternative.strings.value).chain(&alternative.strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
         }
     }
-    for recipe in rule
-        .strings
-        .value
-        .iter()
-        .chain(&rule.strings.image)
-        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
-    {
-        term_captures(recipe, &mut mentioned);
+    for cond in &rule.conditions {
+        walk_captures(Part::Cond(cond), true, true, &mut mentioned);
     }
     for item in items {
-        let strings = match item {
-            EmitItem::Capture(_, _, attachments) => &attachments.strings,
-            EmitItem::Insert(_, strings) => strings,
+        let (tags, strings) = match item {
+            EmitItem::Capture(name, tags, attachments) => {
+                mentioned.push(name);
+                (tags, &attachments.strings)
+            }
+            EmitItem::Insert(tags, strings) => (tags, strings),
         };
-        for recipe in strings.value.iter().chain(&strings.image) {
-            term_captures(recipe, &mut mentioned);
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            walk_captures(Part::Term(term), true, true, &mut mentioned);
+        }
+        if let EmitItem::Capture(_, _, attachments) = item {
+            mentioned.extend(attachments.names());
         }
     }
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {

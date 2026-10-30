@@ -471,6 +471,25 @@ The caller can supply engine tags to represent earlier stages. Each supplied pro
 
 ## 2. Grammars
 
+Corresponding stitching errors use common wording across libraries. A located message begins with `document:line:column: `. The message has no additional enclosing-rule prefix.
+
+| Error | Message after any location prefix |
+| --- | --- |
+| Undefined rule | `NAME is not a rule of stage STAGE` |
+| Missing start rule | `stage STAGE has no rule text` |
+| Missing resolution | `stage STAGE has no %ambiguity-resolution` |
+| Duplicate resolution | `stage STAGE has a second %ambiguity-resolution` |
+| Unknown classifier | `NAME is not a classifier of stage STAGE` |
+| Invalid range endpoint | `a range endpoint is one scalar` |
+| Reversed range | `a range starts above its end` |
+| Undefined capture | `$NAME is captured by no alternative of RULE` |
+
+A duplicate rule names its earlier document as `%rule NAME is already defined, in DOCUMENT; %redefine-rule replaces a rule`. An invalid extension says `%extend-rule NAME extends a rule that is not defined before it`. An undefined constant dependency adds `; dependency $FROM → $MISSING` after its undefined-constant message.
+
+An undefined capture diagnostic chooses the first name that no alternative captures, in written clause order. The order is header tags and recipes, alternative tags and recipes, conditions, then emission items. Each emission visits its carrier, tags, recipes, then attachments. Within each clause, receivers, operands, guards, and branches keep their written order. Presence tests and value reads share that order.
+
+Classifier membership errors print keys with the canonical string spelling of §9.1. They say `the classifier NAME: KEY is already in CLASS` or `the classifier NAME: KEY is not in CLASS, so ∉ has nothing to remove`. Their messages begin with the entry's location.
+
 A grammar is the stitching of the items of one stage of a pipeline (§13) into a set of rules, directives, constants, classifiers and implications. An item is a rule, a directive, a constant definition, a classifier or an implication, read from a document (§8, §9). A rule has a name and alternatives, and optionally rule-level tags, recipes, conditions, and an output directive. An alternative has guards, an expression, and optionally tags and recipes. The grammar DOM (document object model), in `docs/output.md`, is the exact data.
 
 To stitch a stage's items, the loader reads them in order, whatever documents they come from. Each rule is stated one of three ways, and each is an error in the case given:

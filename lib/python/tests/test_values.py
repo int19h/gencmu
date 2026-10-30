@@ -9,6 +9,46 @@ from .shared import run_case
 
 
 class Values(unittest.TestCase):
+    def test_stitching_diagnostics_use_common_messages_and_written_capture_order(self) -> None:
+        cases = [
+            ('%rule text missing', 'missing is not a rule of stage main'),
+            ('%rule other "a"', 'stage main has no rule text'),
+            ('%ambiguity-resolution greedy\n%rule text "a"', 'stage main has a second %ambiguity-resolution'),
+            ('%rule text $x:A :: $x.value.classify(unknown)', 'unknown is not a classifier of stage main'),
+            ('%extend-rule absent "a"\n%rule text "a"', '%extend-rule absent extends a rule that is not defined before it'),
+            ('%rule text "a"\n%rule text "b"', '%rule text is already defined, in g.md; %redefine-rule replaces a rule'),
+            ('%const $P $Q\n%rule text "a"', '$Q is not defined in stage main; dependency $P → $Q'),
+            ('%const $S "ab"\n%rule text $S.."z"', 'a range endpoint is one scalar'),
+            ('%const $S "z"\n%rule text $S.."a"', 'a range starts above its end'),
+            ('%rule text "a"\n%conditions $zz ∧ $bb', '$zz is captured by no alternative of text'),
+            ('%rule text "a"\n%conditions $zz ∧ $.value = $bb.value', '$zz is captured by no alternative of text'),
+            ('%rule text "a" :: ($zz ⟹ $bb.tags)', '$zz is captured by no alternative of text'),
+            ('%rule text := $zz.value | "a" :: $bb.tags', '$zz is captured by no alternative of text'),
+        ]
+        for grammar, expected in cases:
+            with self.subTest(grammar=grammar):
+                _, _, error, _ = run_case({"grammar": "%ambiguity-resolution greedy\n" + grammar, "input": "a"})
+                self.assertIsNotNone(error)
+                self.assertEqual(error.message, expected.replace("g.md", "main.md"))
+
+    def test_missing_resolution_message(self) -> None:
+        import gencmu
+        sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```',
+                   "g.md": '```jbogenbau\n%rule text "a"\n```'}
+        with self.assertRaises(gencmu.GencmuError) as found:
+            gencmu.load_pipeline_sources(sources, "p.md")
+        self.assertEqual(found.exception.message, "stage main has no %ambiguity-resolution")
+
+    def test_classifier_diagnostics_print_canonical_keys(self) -> None:
+        for entries, ending in [
+            (' "a‹U+00AD›é" ∈ A\n "a‹U+00AD›é" ∈ A', 'is already in A'),
+            (' "a‹U+00AD›é" ∉ A', 'is not in A, so ∉ has nothing to remove'),
+        ]:
+            value, _, error, _ = run_case({"grammar": '%classifier lex\n' + entries + '\n%rule text "a"', "input": "a"})
+            self.assertIsNone(error)
+            self.assertEqual(re.sub(r'^main\.md:\d+:\d+: ', '', value["error"]["message"]),
+                             'the classifier lex: "a‹SHY›e‹U+0301›" ' + ending)
+
     def test_constant_cycles_exclude_entry_paths_and_identify_versions(self) -> None:
         cases = [
             ('%const $A $B\n%const $B $C\n%const $C $B', r'constant dependency cycle: \$B → \$C → \$B$'),

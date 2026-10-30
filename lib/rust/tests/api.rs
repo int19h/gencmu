@@ -1333,3 +1333,57 @@ fn an_include_keeps_its_original_precomposed_path() {
     assert!(pipeline.parse("é", &ParseOptions::default()).unwrap().ok);
     assert!(pipeline.parse("e\u{301}", &ParseOptions::default()).unwrap().ok);
 }
+
+#[test]
+fn stitching_messages_and_capture_order() {
+    let cases = [
+        ("%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"),
+        ("%rule text missing", "missing is not a rule of stage main"),
+        ("%rule other \"a\"", "stage main has no rule text"),
+        ("%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"),
+        ("%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"),
+        (
+            "%extend-rule absent \"a\"\n%rule text \"a\"",
+            "%extend-rule absent extends a rule that is not defined before it",
+        ),
+        (
+            "%rule text \"a\"\n%rule text \"b\"",
+            "%rule text is already defined, in g.md; %redefine-rule replaces a rule",
+        ),
+        ("%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"),
+        ("%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"),
+        ("%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"),
+        ("%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"),
+    ];
+    for (source, expected) in cases {
+        let error = gencmu::load_pipeline_sources(single(&format!("%ambiguity-resolution greedy\n{source}")), "p.md")
+            .expect_err("a stitching error");
+        assert_eq!(error.message, expected, "{source}");
+    }
+}
+
+#[test]
+fn classifier_canonical_key_messages() {
+    for (entries, ending) in [
+        (" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"),
+        (" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"),
+    ] {
+        let source = format!("%ambiguity-resolution greedy\n%classifier lex\n{entries}\n%rule text \"a\"");
+        let pipeline = gencmu::load_pipeline_sources(single(&source), "p.md").expect("a pipeline");
+        let result = pipeline.parse("a", &ParseOptions::default()).expect("a parse");
+        let error = result.error.expect("a classifier error");
+        assert!(
+            error.message.ends_with(&format!("the classifier lex: \"a‹SHY›e‹U+0301›\" {ending}")),
+            "{}",
+            error.message
+        );
+    }
+}
+
+#[test]
+fn missing_resolution_message() {
+    let error = gencmu::load_pipeline_sources(single("%rule text \"a\""), "p.md").expect_err("a missing resolution");
+    assert_eq!(error.message, "stage main has no %ambiguity-resolution");
+}

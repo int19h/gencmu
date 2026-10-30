@@ -239,7 +239,7 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 		}
 		cs := []rune(end.Str)
 		if len(cs) != 1 {
-			b.fail(n, "a range endpoint requires one scalar")
+			b.fail(n, "a range endpoint is one scalar")
 		}
 		scalars[i] = cs[0]
 	}

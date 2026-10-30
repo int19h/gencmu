@@ -1492,3 +1492,52 @@ func TestConstantCyclePathAndVersions(t *testing.T) {
 		}
 	}
 }
+
+func TestStitchingMessagesAndCaptureOrder(t *testing.T) {
+	t.Parallel()
+	cases := [][2]string{
+		{"%rule text missing", "missing is not a rule of stage main"},
+		{"%rule other \"a\"", "stage main has no rule text"},
+		{"%ambiguity-resolution greedy\n%rule text \"a\"", "stage main has a second %ambiguity-resolution"},
+		{"%rule text $x:A :: $x.value.classify(unknown)", "unknown is not a classifier of stage main"},
+		{"%extend-rule absent \"a\"\n%rule text \"a\"", "%extend-rule absent extends a rule that is not defined before it"},
+		{"%rule text \"a\"\n%rule text \"b\"", "%rule text is already defined, in g.md; %redefine-rule replaces a rule"},
+		{"%const $P $Q\n%rule text \"a\"", "$Q is not defined in stage main; dependency $P → $Q"},
+		{"%const $S \"ab\"\n%rule text $S..\"z\"", "a range endpoint is one scalar"},
+		{"%const $S \"z\"\n%rule text $S..\"a\"", "a range starts above its end"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $bb", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\"\n%conditions $zz ∧ $.value = $bb.value", "$zz is captured by no alternative of text"},
+		{"%rule text \"a\" :: ($zz ⟹ $bb.tags)", "$zz is captured by no alternative of text"},
+		{"%rule text := $zz.value | \"a\" :: $bb.tags", "$zz is captured by no alternative of text"},
+	}
+	for _, c := range cases {
+		_, err := LoadPipelineSources(oneStage("%ambiguity-resolution greedy\n"+c[0]), "p.md")
+		var fault *Error
+		if !errors.As(err, &fault) || fault.Message != c[1] {
+			t.Errorf("%s: wanted %s, got %v", c[0], c[1], err)
+		}
+	}
+}
+
+func TestClassifierCanonicalKeyMessages(t *testing.T) {
+	t.Parallel()
+	for _, c := range [][2]string{
+		{" \"a‹U+00AD›é\" ∈ A\n \"a‹U+00AD›é\" ∈ A", "is already in A"},
+		{" \"a‹U+00AD›é\" ∉ A", "is not in A, so ∉ has nothing to remove"},
+	} {
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%classifier lex\n"+c[0]+"\n%rule text \"a\""))
+		result, err := d.Parse("a", ParseOptions{})
+		want := "the classifier lex: \"a‹SHY›e‹U+0301›\" " + c[1]
+		if err != nil || result.Error == nil || !strings.HasSuffix(result.Error.Message, want) {
+			t.Fatalf("wanted %s, got %+v, %v", want, result.Error, err)
+		}
+	}
+}
+
+func TestMissingResolutionMessage(t *testing.T) {
+	_, err := LoadPipelineSources(oneStage("%rule text \"a\""), "p.md")
+	var fault *Error
+	if !errors.As(err, &fault) || fault.Message != "stage main has no %ambiguity-resolution" {
+		t.Fatalf("got %v", err)
+	}
+}
