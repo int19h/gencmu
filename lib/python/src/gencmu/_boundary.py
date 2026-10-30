@@ -67,7 +67,7 @@ class Records:
         self.empty = self.intern(True, 0, 0, 0, 0)
         seen = set()
         for p in productions:
-            conditions = p.conds_predict + [c for cs in p.conds_at.values() for c in cs]
+            conditions = p.conds_predict + [c for cs in p.conds_at.values() for c in cs] + (list(p.items.conditions) if p.items else [])
             if p.slot is not None:
                 conditions += p.slot.ranked_conditions
             for condition in conditions:

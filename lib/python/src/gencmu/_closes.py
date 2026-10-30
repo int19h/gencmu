@@ -283,7 +283,7 @@ def needed(lowered: Any) -> frozenset[int]:
         for number in lowered.rule_productions[rule]:
             production = lowered.productions[number]
             rules.extend(symbol for symbol,terminal in zip(production.rhs,production.terminal) if not terminal)
-            pending = [production.tags_term,production.emit,production.parent_tags,production.conds_predict]
+            pending = [production.tags_term,production.emit,production.parent_tags,production.conds_predict,production.items.conditions if production.items else None]
             pending.extend(production.conds_at.values())
             if production.slot is not None:
                 source = production.slot.source
@@ -332,7 +332,7 @@ def needed(lowered: Any) -> frozenset[int]:
 def local_demand(production):
     """Find observations consumed here, rather than by another caller."""
     whole, positions, queries = False, set(), {}
-    stack = [production.conds_predict, production.conds_at,
+    stack = [production.conds_predict, production.conds_at, production.items.conditions if production.items else None,
              production.tags_term, production.emit, production.parent_tags]
     if production.slot is not None:
         # Deferred option gates can consume earlier public captures.

@@ -166,6 +166,382 @@ def duplicate_captures(expr: Any) -> list[Dom]:
         stack[-1][2].append(joined)
 
 
+class _Sequence:
+    """One sequence of captures as capture_sequences builds it, with the
+    set of its names and its key of names, so that extending it by a few
+    captures costs those captures and not the whole sequence again."""
+
+    __slots__ = ("captures", "names", "cached")
+
+    def __init__(self, captures: list[Dom], names: set[str]) -> None:
+        self.captures = captures
+        self.names = names
+        self.cached: tuple[str, ...] | None = None
+
+    def key(self) -> tuple[str, ...]:
+        if self.cached is None:
+            self.cached = tuple(capture["capture"] for capture in self.captures)
+        return self.cached
+
+    def extend(self, captures: list[Dom]) -> None:
+        if captures:
+            self.captures.extend(captures)
+            self.names.update(capture["capture"] for capture in captures)
+            self.cached = None
+
+    def copy(self) -> _Sequence:
+        return _Sequence(list(self.captures), set(self.names))
+
+
+def capture_sequences(expr: Any, braced: list[Any] | None = None) -> tuple[list[list[Dom]], list[Dom]]:
+    """The distinct sequences of captures that the productions of an
+    expression read, each in the order read (engine §3.2, §3.5): a choice
+    gives each branch's, an ``&`` each subsequence's, a plain optional none
+    or its content's, and braces and an elidable optional none. Productions
+    that read the same names in the same order are one sequence. The second
+    list holds the capture nodes that some production reads after one of
+    the same name, in no particular order. Gates do not matter, since they
+    drop whole alternatives. An expression that holds braces, which can
+    hold item captures (engine §3.5), is added to ``braced`` where a list is
+    given."""
+    duplicates: dict[int, Dom] = {}
+
+    def distinct(sequences: list[_Sequence]) -> list[_Sequence]:
+        seen: set[tuple[str, ...]] = set()
+        result: list[_Sequence] = []
+        for sequence in sequences:
+            key = sequence.key()
+            if key not in seen:
+                seen.add(key)
+                result.append(sequence)
+        return result
+
+    def product(left: list[_Sequence], right: list[_Sequence], owned: bool) -> list[_Sequence]:
+        """Each sequence of the left followed by each of the right. Where the
+        right has one sequence, distinct lefts stay distinct, and a left that
+        this product's caller ``owned`` is extended in place, since a copy of
+        each would cost the sequence's whole length at every step."""
+        for first in left:
+            for second in right:
+                for capture in second.captures:
+                    if capture["capture"] in first.names:
+                        duplicates[id(capture)] = capture
+        if len(right) == 1:
+            result = left if owned else [first.copy() for first in left]
+            for first in result:
+                first.extend(right[0].captures)
+            return result
+        joined: list[_Sequence] = []
+        for first in left:
+            for second in right:
+                sequence = first.copy()
+                sequence.extend(second.captures)
+                joined.append(sequence)
+        return distinct(joined)
+
+    def visit(node: Any) -> Walk:
+        if not isinstance(node, dict):
+            return [_Sequence([], set())]
+        if isinstance(node.get("capture"), str) and "expr" in node:
+            return [_Sequence([node], {node["capture"]})]
+        if isinstance(node.get("seq"), list):
+            # The sequences built here are this loop's own, so the product
+            # may extend them in place.
+            sequences: list[_Sequence] = [_Sequence([], set())]
+            for item in node["seq"]:
+                sequences = product(sequences, (yield visit(item)), True)
+            return sequences
+        if isinstance(node.get("choice", node.get("ranked")), list):
+            branches: list[_Sequence] = []
+            for item in node.get("choice", node.get("ranked", [])):
+                branches.extend((yield visit(item)))
+            return distinct(branches)
+        if isinstance(node.get("and"), list):
+            parts = []
+            for item in node["and"]:
+                parts.append((yield visit(item)))
+            result: list[_Sequence] = []
+            for mask in range(1, 1 << len(parts)):
+                chosen: list[_Sequence] = [_Sequence([], set())]
+                for index, part in enumerate(parts):
+                    if mask >> index & 1:
+                        chosen = product(chosen, part, True)
+                result.extend(chosen)
+            return distinct(result)
+        if "optional" in node:
+            if node.get("elidable") is True:
+                return [_Sequence([], set())]
+            return distinct([_Sequence([], set()), *(yield visit(node["optional"]))])
+        if "repeat" in node and braced is not None and (not braced or braced[-1] is not expr):
+            braced.append(expr)
+        return [_Sequence([], set())]
+
+    sequences: list[_Sequence] = run(visit(expr))
+    return [sequence.captures for sequence in sequences], list(duplicates.values())
+
+
+def _expression_children(node: Dom) -> list[Any]:
+    """The expressions directly inside an expression node."""
+    for key in ("seq", "choice", "ranked", "and"):
+        if isinstance(node.get(key), list):
+            return node[key]
+    found = [node[key] for key in ("optional", "repeat", "separator", "expr") if key in node]
+    return found
+
+
+class ItemCapture:
+    """Where an item capture stands (engine §3.5): the innermost flat braces
+    around it, which the check of two pairs of braces compares, and the
+    outermost flat braces around it, which the productions of the
+    alternative read in its place. Each is the braces' DOM node, compared by
+    identity."""
+
+    __slots__ = ("braces", "outer")
+
+    def __init__(self, braces: Dom, outer: Dom) -> None:
+        self.braces = braces
+        self.outer = outer
+
+
+def item_captures(expr: Any) -> dict[str, ItemCapture]:
+    """The item captures of an expression, each by its name: the captures
+    inside flat braces, with the innermost and the outermost flat braces
+    around each (engine §3.5). A chain holds no capture, which the reader
+    makes sure of, so a capture inside a chain's own braces is not listed,
+    while one inside flat braces inside a chain is. The first capture of a
+    name in the order written decides where the name stands."""
+    found: dict[str, ItemCapture] = {}
+    # Each entry: a node, and the place of the flat braces around it.
+    stack: list[tuple[Any, ItemCapture | None]] = [(expr, None)]
+    while stack:
+        node, place = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        if isinstance(node.get("capture"), str) and "expr" in node:
+            if place is not None and node["capture"] not in found:
+                found[node["capture"]] = place
+            stack.append((node["expr"], place))
+            continue
+        if "repeat" in node:
+            inner = place if "chain" in node else ItemCapture(node, place.outer if place is not None else node)
+            if "separator" in node:
+                stack.append((node["separator"], inner))
+            stack.append((node["repeat"], inner))
+            continue
+        stack.extend((child, place) for child in reversed(_expression_children(node)))
+    return found
+
+
+def repeats_item_capture(expr: Any) -> bool:
+    """Whether the name of an item capture stands more than once in an
+    expression, inside its braces or outside them (engine §3.5, §9)."""
+    items = item_captures(expr)
+    if not items:
+        return False
+    seen: set[str] = set()
+    stack: list[Any] = [expr]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        name = node.get("capture")
+        if isinstance(name, str) and "expr" in node and name in items:
+            if name in seen:
+                return True
+            seen.add(name)
+        stack.extend(_expression_children(node))
+    return False
+
+
+def braces_sequences(expr: Any) -> list[list[Any]]:
+    """The sequences of captures that the productions of an expression
+    read, as :func:`capture_sequences` lists them, with each pair of flat
+    braces that a production reads standing as its DOM node. A chain gives
+    the sequences of its item, and of its separator followed by its item. The item
+    captures inside the braces stay out, as in every production. The check
+    of item conditions compares the place of the braces with the places of
+    the captures a condition reads (engine §3.6)."""
+
+    def visit(node: Any) -> Walk:
+        if not isinstance(node, dict):
+            return [[]]
+        if isinstance(node.get("capture"), str) and "expr" in node:
+            return [[node["capture"]]]
+        if "repeat" in node:
+            if "chain" not in node:
+                return [[node]]
+            # A chain holds no capture, but flat braces inside its item can
+            # hold item captures. Its productions read an item, or a
+            # separator and an item, beside the rule itself (engine §3.3).
+            items = yield visit(node["repeat"])
+            if "separator" not in node:
+                return items
+            separators = yield visit(node["separator"])
+            return [*items, *(left + right for left in separators for right in items)]
+        if isinstance(node.get("seq"), list):
+            sequences: list[list[Any]] = [[]]
+            for item in node["seq"]:
+                following = yield visit(item)
+                sequences = [left + right for left in sequences for right in following]
+            return sequences
+        if isinstance(node.get("choice", node.get("ranked")), list):
+            branches: list[list[Any]] = []
+            for item in node.get("choice", node.get("ranked", [])):
+                branches.extend((yield visit(item)))
+            return branches
+        if isinstance(node.get("and"), list):
+            parts = []
+            for item in node["and"]:
+                parts.append((yield visit(item)))
+            result: list[list[Any]] = []
+            for mask in range(1, 1 << len(parts)):
+                chosen: list[list[Any]] = [[]]
+                for index, part in enumerate(parts):
+                    if mask >> index & 1:
+                        chosen = [left + right for left in chosen for right in part]
+                result.extend(chosen)
+            return result
+        if "optional" in node:
+            if node.get("elidable") is True:
+                return [[]]
+            return [[], *(yield visit(node["optional"]))]
+        return [[]]
+
+    return run(visit(expr))  # type: ignore[no-any-return]
+
+
+def _index(sequence: list[Any], wanted: Any) -> int:
+    """The place of a capture name, or of a braces node by identity, in a
+    sequence of :func:`braces_sequences`, or -1."""
+    for index, part in enumerate(sequence):
+        if part is wanted if isinstance(wanted, dict) else part == wanted:
+            return index
+    return -1
+
+
+def _pattern_comparison_names(condition: Any) -> set[str]:
+    """The captures that the pattern comparisons of a condition name, ``≅``
+    and ``≇`` with their own operands (engine §3.6)."""
+    names: set[str] = set()
+    stack = [condition]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, dict):
+            if value.get("op") in ("≅", "≇"):
+                names |= mentioned_in(value)
+                continue
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
+    return names
+
+
+def _brace_helper_sequences(braces: Dom) -> list[set[str]]:
+    """The captures of each production of the helper of flat braces: each
+    item, and each separator followed by an item (engine §3.2). The item
+    captures of braces nested inside stay out, as in every production."""
+    items, _ = capture_sequences(braces["repeat"])
+    names = [{capture["capture"] for capture in sequence} for sequence in items]
+    if "separator" not in braces:
+        return names
+    separators, _ = capture_sequences(braces["separator"])
+    return names + [{capture["capture"] for capture in left} | right for left in separators for right in names]
+
+
+def _item_capture_problem(rule: Dom, places: dict[int, dict[str, ItemCapture]], productions: list[tuple[Dom, set[str]]]) -> str | None:
+    """Why the item captures of a definition cannot be read (engine §3.6,
+    §9), or None. ``places`` gives the item captures of each alternative
+    with braces, by the identity of its expression, and ``productions`` each
+    production of each alternative with the captures it has, ``$`` among
+    them. Only a condition reads
+    an item capture. In each alternative whose item captures it reads, such
+    a condition reads the item captures of one pair of braces, no ``$``, and
+    no capture that a production binds after those braces. In the others it
+    is an ordinary condition. Like any condition, it applies to some
+    production."""
+    alternatives = rule["alternatives"]
+    item_names: set[str] = set().union(*places.values())
+    emit = rule.get("emit")
+    emitted: list[Dom] = emit["items"] if emit is not None else []
+    named = [name for item in emitted if "capture" in item for name in attachment_order(item)]
+    others: list[tuple[str, Any]] = [("a clause", rule.get(key)) for key in ("tags", "value", "image")]
+    others.extend(("a clause", alternative.get(key)) for alternative in alternatives for key in ("tags", "value", "image"))
+    others.extend(("%emits", item) for item in emitted)
+    for kind, clause in others:
+        if clause is None:
+            continue
+        mentioned = [*(named if kind == "%emits" else []), *sorted(mentioned_in(clause))]
+        item = next((name for name in mentioned if name in item_names), None)
+        if item is not None:
+            return f"{kind} of {rule['name']} names ${item}, an item capture, which only a condition reads"
+    sequences: dict[int, list[list[Any]]] = {}
+    helpers: dict[int, list[set[str]]] = {}
+    for condition in rule["conditions"]:
+        mentioned = sorted(mentioned_in(condition))
+        inside = [name for name in mentioned if name in item_names]
+        if not inside:
+            continue
+        if WHOLE in mentioned:
+            return f"a condition of {rule['name']} reads ${inside[0]}, an item capture, together with $, which is not complete at each item"
+        pattern = next((name for name in sorted(_pattern_comparison_names(condition)) if name in item_names), None)
+        if pattern is not None:
+            return f"a condition of {rule['name']} compares ${pattern}, an item capture, with a pattern"
+        # A condition that holds a constant without its value waits for the
+        # loader, which checks the definition again (engine §9).
+        prepared = None if waits(condition) else prepare(condition, True)
+        applies = prepared is None
+        for alternative in alternatives:
+            place = places.get(id(alternative["expr"]), {})
+            here = [name for name in inside if name in place]
+            if not here:
+                # The condition reads no item capture of this alternative,
+                # so here it is an ordinary condition of its productions.
+                if not applies:
+                    applies = any(applies_prepared(prepared, present) is not None for owner, present in productions if owner is alternative)
+                continue
+            first = place[here[0]]
+            other = next((name for name in here if place[name].braces is not first.braces), None)
+            if other is not None:
+                return f"a condition of {rule['name']} reads ${here[0]} and ${other}, item captures of two pairs of braces"
+            outer = [name for name in mentioned if name not in place]
+            listed = sequences.get(id(alternative))
+            if listed is None:
+                listed = sequences[id(alternative)] = braces_sequences(alternative["expr"])
+            helper = helpers.get(id(first.braces))
+            if helper is None:
+                helper = helpers[id(first.braces)] = _brace_helper_sequences(first.braces)
+            # The productions read the outermost braces in place of the item
+            # capture, so a capture they read later is bound after the
+            # braces.
+            for sequence in listed:
+                at = _index(sequence, first.outer)
+                if at < 0:
+                    continue
+                late = next((name for name in outer if _index(sequence, name) > at), None)
+                if late is not None:
+                    return f"a condition of {rule['name']} reads ${late} with the item capture ${here[0]}, but a production binds ${late} after the braces"
+                if applies:
+                    continue
+                # A helper production applies the condition with the
+                # captures that the frame holds, those bound before the
+                # braces (engine §4).
+                before = {WHOLE, *(name for name in sequence[:at] if isinstance(name, str))}
+                applies = any(applies_prepared(prepared, before | items) is not None for items in helper)
+        if not applies:
+            return f"a condition of {rule['name']} applies to no production"
+    return None
+
+
+def alternative_captures(alternative: Dom, braced: list[Dom] | None = None) -> list[dict[str, int]]:
+    """The captures of each production of an alternative, each name with its
+    place in the order that the production reads them, and ``$`` at -1
+    (engine §3.5). Productions that read the same captures in the same order
+    are one. The expression of an alternative that holds braces is added to
+    ``braced``, where a list is given."""
+    sequences, _ = capture_sequences(alternative["expr"], braced)
+    return [{WHOLE: -1, **{capture["capture"]: index for index, capture in enumerate(sequence)}} for sequence in sequences]
+
+
 def simplify_condition(condition: Dom, present: AbstractSet[str], absent: AbstractSet[str] | None = None) -> Simplified:
     """A condition simplified for a production that has the captures
     ``present`` (engine §3.6). If ``absent`` is supplied, other names
@@ -974,12 +1350,15 @@ def _definition_issues(rule: Dom):
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
     # order are one.
+    braced = [a["expr"] for a in alternatives]
     productions = [(alternative, captures) for alternative in alternatives for captures in validation_captures(rule, alternative)]
     captured = [[name for name, _ in sorted(captures.items(), key=lambda pair: pair[1]) if name != WHOLE] for _, captures in productions]
     presents = [set(captures) for _, captures in productions]
     known = set().union(*presents)
     emit = rule.get("emit")
     items: list[Dom] = emit["items"] if emit is not None else []
+    places = {id(expr): found for expr in braced if (found := item_captures(expr))}
+    item_places: set[str] = set().union(*places.values())
     clauses: list[Any] = [rule.get("tags"), rule.get("value"), rule.get("image")]
     clauses.extend(alternative.get(channel) for alternative in alternatives for channel in ("tags", "value", "image"))
     clauses.extend(rule["conditions"])
@@ -989,8 +1368,12 @@ def _definition_issues(rule: Dom):
         clauses.extend({"capture": name} for name in attachments_of(item))
     for clause in clauses:
         for name in mentions_in_order(clause):
-            if name not in known:
+            if name not in known and name not in item_places:
                 yield DefinitionIssue("independent", f"${name} is captured by no alternative of {rule['name']}")
+    if places:
+        problem = _item_capture_problem(rule, places, [(alternative, present) for (alternative, _), present in zip(productions, presents)])
+        if problem is not None:
+            yield DefinitionIssue("independent", problem)
     # The rule-level clauses depend only on a production's captures, which
     # many alternatives share, so each is checked once for each sequence of
     # captures and not once for each production.
@@ -1005,6 +1388,11 @@ def _definition_issues(rule: Dom):
             capturing.setdefault(name, []).append(present)
     for condition in rule["conditions"]:
         if waits(condition):
+            continue
+        # An item condition applies to the productions of its braces'
+        # helper (engine §3.6), which are not listed here: the check of
+        # item captures has made sure that it applies to some production.
+        if item_places and not mentioned_in(condition).isdisjoint(item_places):
             continue
         prepared = prepare(condition, True)
         candidates: Any = (present for _, present in distinct.values())

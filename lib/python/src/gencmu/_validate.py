@@ -8,7 +8,7 @@ from ._types import _METHODS
 import re
 from typing import Any, Protocol
 
-from ._clauses import check_definition, duplicate_captures
+from ._clauses import check_definition, duplicate_captures, repeats_item_capture
 from ._patterns import walk_pattern
 from ._pattern_shapes import layered_pattern_problem, MAX_POSITION
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
@@ -348,7 +348,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
                 or not all(_guard(g) for g in a["guards"])
             ):
                 return "a malformed alternative"
-            pending.append(("expr", a.get("expr"), 0, True, False))
+            pending.append(("expr", a.get("expr"), 0, True, 0))
             if "tags" in a:
                 tag_clauses.append((r, a["tags"], True))
                 pending.append(("tags", a["tags"], 0, False, False))
@@ -402,7 +402,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False, expande
             if "instance" in r:
                 continue
             for a in r["alternatives"]:
-                if duplicate_captures(a["expr"]):
+                if duplicate_captures(a["expr"]) or repeats_item_capture(a["expr"]):
                     return "a capture name used twice in one production"
             from ._boundary import problem as boundary_problem
             boundary = boundary_problem(r)
@@ -441,6 +441,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                 decided.add(order)
 
     while pending:
+        # For an expression, ``sealed`` says where no capture stands (engine
+        # §3.5): bit 1 inside an elidable optional, at any depth, bit 2
+        # where the innermost braces around it are a chain, and bits 4 and
+        # 8 inside flat braces and inside a ranked group, which hold no
+        # capture together.
         kind, node, depth, whole, sealed = pending.pop()
         if depth > MAX_DEPTH:
             return TOO_DEEP
@@ -530,7 +535,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     return "a malformed expression"
                 if not _items(node[key], 2, 16 if key == "and" else float("inf")):
                     return "ranked-choice-syntax: malformed ranked choice" if key == "ranked" else "a malformed expression"
-                pending.extend(("expr", x, below, False, sealed) for x in node[key])
+                pending.extend(("expr", x, below, False, sealed | (8 if key == "ranked" else 0)) for x in node[key])
             elif "optional" in node:
                 if (
                     not keys <= {"optional", "elidable"}
@@ -538,7 +543,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     and (node["elidable"] is not True or elidable_head(node["optional"]) is None)
                 ):
                     return "a malformed optional"
-                pending.append(("expr", node["optional"], below, False, sealed or "elidable" in node))
+                pending.append(("expr", node["optional"], below, False, sealed | (1 if "elidable" in node else 0)))
             elif "repeat" in node:
                 if (
                     not keys <= {"repeat", "separator", "chain"}
@@ -546,11 +551,15 @@ def _walk(pending: list, unicode: Marks, deferred: set[int], rule_name, roots: l
                     and (not whole or node["chain"] not in ("left", "right"))
                 ):
                     return "a malformed repetition"
-                pending.append(("expr", node["repeat"], below, False, True))
+                # A chain holds no capture, and flat braces hold item
+                # captures, also inside a chain, but not inside a ranked
+                # group (engine §3.5).
+                inside = (sealed & 1) | (2 if "chain" in node else 4)
+                pending.append(("expr", node["repeat"], below, False, inside))
                 if "separator" in node:
-                    pending.append(("expr", node["separator"], below, False, True))
+                    pending.append(("expr", node["separator"], below, False, inside))
             elif "capture" in node:
-                if keys != {"capture", "expr"} or sealed or not _capture(node["capture"], False) or not _target(node["expr"], rule_name):
+                if keys != {"capture", "expr"} or sealed & 3 or sealed & 12 == 12 or not _capture(node["capture"], False) or not _target(node["expr"], rule_name):
                     return "a malformed capture"
                 pending.append(("expr", node["expr"], below, False, sealed))
             elif "test" in node:
