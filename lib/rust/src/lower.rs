@@ -671,6 +671,7 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
+            Expr::Source(_) => unreachable!("source symbols expand before lowering"),
             Expr::Literal(Term::Str(value)) => {
                 vec![Sequence::one((Sym::T(self.terminal(&format!("\"{value}\""), None)), None, None))]
             }
@@ -837,7 +838,8 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
             holds_capture(item, include_ranked)
                 || separator.as_deref().is_some_and(|expr| holds_capture(expr, include_ranked))
         }
-        Expr::Ref(_)
+        Expr::Source(_)
+        | Expr::Ref(_)
         | Expr::Terminal(_)
         | Expr::Literal(_)
         | Expr::ScalarRange(..)
@@ -909,6 +911,7 @@ impl<'a> Scope<'a> {
             items.iter().map(|item| scope.term(item)).collect::<Result<Vec<_>, _>>()
         };
         Ok(match term {
+            Term::Source(_) => unreachable!("source symbols expand before lowering"),
             Term::Str(text) => LTerm::Str(text.clone()),
             Term::Tag(tag) => LTerm::Tag(tag.clone()),
             Term::EmptySet => LTerm::Empty,
@@ -974,6 +977,7 @@ impl<'a> Scope<'a> {
 
     fn cond(&mut self, cond: &Cond) -> Result<LCond, Missing> {
         Ok(match cond {
+            Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, Term::Pattern(p)) if matches!(op.as_str(), "≅" | "≇") => {
                 LCond::Tree(self.span(left)?, op == "≅", (**p).clone())
             }
@@ -2271,6 +2275,7 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
 fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
     fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
         match expr {
+            Expr::Source(_) => unreachable!("source symbols expand before lowering"),
             Expr::Ref(name) => {
                 if let Some(&rule) = grammar.index.get(name) {
                     out.push(rule as u32);
@@ -2396,6 +2401,7 @@ mod tests {
             Unicode::parse(crate::loader::bundled("data/unicode/unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name,
@@ -2485,6 +2491,7 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            source: Default::default(),
             strings: Default::default(),
             deferred_emission: None,
             name: "text".into(),

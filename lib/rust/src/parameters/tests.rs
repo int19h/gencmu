@@ -189,14 +189,14 @@ fn elidable_owner() {
 #[test]
 fn uncalled_source_validation() {
     for (source, message) in [
-        ("%rule unused(@X) $x:A $x:@X", "capture name used twice"),
-        ("%rule unused(@X) $x:(A @X)", "malformed capture"),
-        ("%rule unused(@X) @X %emits $x :: @X, $x", "lists a capture twice"),
-        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "lists a capture twice"),
+        ("%rule unused(@X) $x:A $x:@X", "the capture $x is read twice by one production"),
+        ("%rule unused(@X) $x:(A @X)", "a capture must wrap a single symbol"),
+        ("%rule unused(@X) @X %emits $x :: @X, $x", "a repeated emission capture"),
+        ("%rule unused(@X) @X %emits ($y) $x ($y) :: @X", "a repeated emission capture"),
         ("%rule unused(@X) @X :: _L ∪ @X", "engine tag"),
-        ("%rule unused(@X) @X :: $.tags ∪ @X", "own tags"),
+        ("%rule unused(@X) @X :: $.tags ∪ @X", "tags it defines"),
         ("%rule unused(@X) @X := @X %erased", "erased"),
-        ("%rule unused(@X) [+| @X]", "one sequence"),
+        ("%rule unused(@X) [+| @X]", "without | or &"),
         (
             "%rule unused(@X) @X %conditions $.without-elision.ends(text)",
             "ends requires an ordinary span, not a restored span",
@@ -301,6 +301,11 @@ fn deep_source_constructors_report_the_dom_limit() {
             let cases = [
                 format!("%rule atom(@X) {}@X{}", "[".repeat(2000), "]".repeat(2000)),
                 format!("%rule atom(@X) @X\n%rule text {}\"a\"{}", "atom(".repeat(2000), ")".repeat(2000)),
+                format!(
+                    "%rule atom(@X) @X\n%rule text A %conditions $ ≅ #{}a{}",
+                    "atom(#".repeat(400),
+                    ")".repeat(400)
+                ),
             ];
             for text in cases {
                 let source = format!("```jbogenbau\n{text}\n```\n");

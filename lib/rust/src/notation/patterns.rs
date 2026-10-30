@@ -2,12 +2,12 @@
 use super::*;
 use crate::patterns::{Children, Pattern};
 
-enum Value {
+pub(super) enum Value {
     Pattern(Pattern),
     Items(Vec<Children>),
 }
 impl Value {
-    fn pattern(mut self) -> Pattern {
+    pub(super) fn pattern(mut self) -> Pattern {
         let Self::Pattern(value) = &mut self else { unreachable!("a predicate") };
         std::mem::replace(value, Pattern::Any)
     }
@@ -28,57 +28,68 @@ impl Drop for Value {
         }
     }
 }
-struct PatternFrame<'a> {
+pub(super) struct PatternFrame<'a> {
     node: &'a Node,
+    initialized: bool,
     parts: Vec<&'a Node>,
     values: Vec<Value>,
     atom: Option<Pattern>,
-    early: Option<Value>,
 }
 
 impl<'a> Reader<'a> {
-    fn pattern_frame(&self, node: &'a Node) -> R<PatternFrame<'a>> {
-        let mut frame = PatternFrame {
-            node,
-            parts: Self::parts(node).into_iter().filter(|part| part.kind == NodeKind::Rule).collect(),
-            values: Vec::new(),
-            atom: None,
-            early: None,
-        };
-        if matches!(rule_name(node), "pattern-node" | "pattern-bare") {
-            let atom = if rule_name(node) == "pattern-node" {
-                self.pattern_atom(self.one(node, "pattern-atom")?)?
-            } else {
-                Pattern::Any
-            };
-            frame.parts = Self::rules(node, "pattern-children").collect();
-            if !frame.parts.is_empty() && !matches!(atom, Pattern::Name(..) | Pattern::Any) {
-                return Err(self.error(frame.parts[0], "a child list requires a rule test"));
-            }
-            frame.atom = Some(atom);
-        }
-        if rule_name(node) == "child-item" && Self::tokens_of(node).any(|token| self.value(token) == "⋯") {
-            frame.parts.clear();
-            frame.early = Some(Value::Items(vec![Children::Siblings]));
-        }
-        Ok(frame)
+    pub(super) fn pattern_frame(&self, node: &'a Node) -> PatternFrame<'a> {
+        PatternFrame { node, initialized: false, parts: Vec::new(), values: Vec::new(), atom: None }
     }
 
-    pub(super) fn pattern(&self, node: &'a Node) -> R<Pattern> {
-        let mut frames = vec![self.pattern_frame(node)?];
-        loop {
-            let frame = frames.last_mut().expect("the current pattern constructor");
-            if let Some(&part) = frame.parts.get(frame.values.len()) {
-                frames.push(self.pattern_frame(part)?);
-                continue;
+    pub(super) fn resume_pattern(&self, frame: &mut PatternFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if !frame.initialized {
+            frame.initialized = true;
+            frame.parts = Self::parts(frame.node).into_iter().filter(|part| part.kind == NodeKind::Rule).collect();
+            if matches!(rule_name(frame.node), "pattern-node" | "pattern-bare") {
+                frame.parts = Self::rules(frame.node, "pattern-children").collect();
+                if rule_name(frame.node) == "pattern-node" {
+                    return Ok(Step::Call(Frame::PatternAtom(self.one(frame.node, "pattern-atom")?)));
+                }
+                frame.atom = Some(Pattern::Any);
             }
-            let value = self.pattern_value(frames.pop().unwrap())?;
-            if let Some(parent) = frames.last_mut() {
-                parent.values.push(value);
-            } else {
-                return Ok(value.pattern());
+            if rule_name(frame.node) == "child-item"
+                && Self::tokens_of(frame.node).any(|token| self.value(token) == "⋯")
+            {
+                return Ok(Step::Done(Val::Pattern(Value::Items(vec![Children::Siblings]))));
             }
         }
+        if let Some(Val::Pattern(value)) = input {
+            if rule_name(frame.node) == "pattern-node" && frame.atom.is_none() {
+                let atom = value.pattern();
+                if !frame.parts.is_empty() && !matches!(atom, Pattern::Name(..) | Pattern::Source(_) | Pattern::Any) {
+                    return Err(self.error(frame.parts[0], "a child list requires a rule test"));
+                }
+                frame.atom = Some(atom);
+            } else {
+                frame.values.push(value);
+            }
+        }
+        if let Some(&part) = frame.parts.get(frame.values.len()) {
+            return Ok(Step::Call(Frame::Pattern(self.pattern_frame(part))));
+        }
+        let finished = std::mem::replace(frame, self.pattern_frame(frame.node));
+        Ok(Step::Done(Val::Pattern(self.pattern_value(finished)?)))
+    }
+
+    pub(super) fn resume_pattern_atom(&self, node: &'a Node, input: Option<Val>) -> R<Step<'a>> {
+        let call = match input {
+            Some(Val::SourceCall(call)) => Some(call),
+            None => {
+                let base = self.pattern_atom_base(node)?;
+                if rule_name(base) == "call" {
+                    self.pattern_test_nodes(node, false)?;
+                    return Ok(Step::Call(Frame::SourceCall(CallFrame::new(base))));
+                }
+                None
+            }
+            _ => unreachable!("a pattern atom reads a source call"),
+        };
+        Ok(Step::Done(Val::Pattern(Value::Pattern(self.pattern_atom(node, call)?))))
     }
 
     fn pattern_child(&self, value: Value, node: &Node) -> R<Pattern> {
@@ -94,9 +105,6 @@ impl<'a> Reader<'a> {
     }
 
     fn pattern_value(&self, frame: PatternFrame<'a>) -> R<Value> {
-        if let Some(value) = frame.early {
-            return Ok(value);
-        }
         let node = frame.node;
         let kind = rule_name(node);
         let mut values = frame.values;
@@ -226,4 +234,76 @@ impl<'a> Reader<'a> {
             _ => Err(self.error(node, format!("unexpected {kind} in a pattern"))),
         }
     }
+}
+
+/// Inspect child repetition after the local constructors succeed.
+pub(super) fn source_pattern_problem(root: &Pattern) -> Option<&'static str> {
+    enum Part<'p> {
+        Pattern(&'p Pattern),
+        Children(&'p Children, bool),
+    }
+    let mut pending = vec![Part::Pattern(root)];
+    let mut repeats = Vec::new();
+    while let Some(part) = pending.pop() {
+        match part {
+            Part::Pattern(pattern) => match pattern {
+                Pattern::Node(inner, _, children) => {
+                    pending.push(Part::Pattern(inner));
+                    pending.extend(children.as_ref().map(|children| Part::Children(children, false)));
+                }
+                Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                Pattern::Union(items) | Pattern::Intersection(items) => {
+                    pending.extend(items.iter().map(Part::Pattern));
+                }
+                Pattern::Difference(a, b) => pending.extend([Part::Pattern(a), Part::Pattern(b)]),
+                _ => {}
+            },
+            Part::Children(children, repeated) => match children {
+                Children::Siblings if repeated => {
+                    return Some("a sibling ellipsis cannot be a repeat item or separator")
+                }
+                Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
+                Children::Sequence(items) | Children::Choice(items) => {
+                    pending.extend(items.iter().map(|item| Part::Children(item, repeated)));
+                }
+                Children::Optional(inner) => pending.push(Part::Children(inner, repeated)),
+                Children::Repeat(item, separator) => {
+                    repeats.push(item.as_ref());
+                    pending.push(Part::Children(item, true));
+                    pending.extend(separator.as_deref().map(|separator| Part::Children(separator, true)));
+                }
+                Children::Siblings => {}
+            },
+        }
+    }
+    let mut known = crate::fxhash::FxMap::<*const Children, bool>::default();
+    for root in repeats {
+        let mut stack = vec![(root, false)];
+        while let Some((children, ready)) = stack.pop() {
+            let key = children as *const Children;
+            if known.contains_key(&key) {
+                continue;
+            }
+            let parts: Vec<_> = match children {
+                Children::Sequence(items) | Children::Choice(items) => items.iter().collect(),
+                Children::Optional(inner) => vec![inner.as_ref()],
+                Children::Repeat(item, separator) => {
+                    std::iter::once(item.as_ref()).chain(separator.as_deref()).collect()
+                }
+                _ => Vec::new(),
+            };
+            if !ready && !parts.is_empty() {
+                stack.push((children, true));
+                stack.extend(parts.into_iter().map(|child| (child, false)));
+            } else {
+                let consumes = matches!(children, Children::Node(_))
+                    || parts.iter().any(|child| known[&(*child as *const Children)]);
+                known.insert(key, consumes);
+            }
+        }
+        if !known[&(root as *const Children)] {
+            return Some("a pattern repeat cannot match only empty sequences");
+        }
+    }
+    None
 }

@@ -140,6 +140,7 @@ fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
                 _ => {}
             },
             ReadPart::Condition(cond) => match cond {
+                Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                 Cond::Captured(name) => {
                     out.insert(name.clone());
                 }

@@ -3,6 +3,8 @@
 //! stitching and lowering read.
 
 pub(crate) mod schema;
+pub(crate) mod source;
+use source::{SourceHead, SourceSymbol};
 pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
     let cleaned = known_dom_members(dom);
     let dom = cleaned.as_ref().unwrap_or(dom);
@@ -137,6 +139,7 @@ pub(crate) enum Op {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RuleDef {
+    pub source: SourceHead,
     pub deferred_emission: Option<String>,
     pub name: String,
     pub op: Op,
@@ -183,6 +186,7 @@ pub(crate) struct Alternative {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Expr {
+    Source(SourceSymbol),
     Seq(Vec<Expr>),
     Choice(Vec<Expr>),
     Ranked(Vec<Expr>),
@@ -231,6 +235,7 @@ pub(crate) enum Chain {
 /// expected. The capture named `""` is `$`, the whole constituent.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Term {
+    Source(SourceSymbol),
     Pattern(Box<crate::patterns::Pattern>),
     /// A string, decoded.
     Str(String),
@@ -269,6 +274,7 @@ pub(crate) struct BoundaryLocation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
+    SourceQuery(String, Vec<Arg>, BoundaryLocation),
     Compare(String, Term, Term),
     Matches(Term, Vec<String>),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
@@ -580,6 +586,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
         other => return Err(format!("an unknown rule op {other:?}")),
     };
     Ok(RuleDef {
+        source: Default::default(),
         deferred_emission: None,
         name: string(value, "name")?,
         op,
@@ -1108,6 +1115,20 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
 pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
     out.push_str("{\"name\":");
     write_str(out, &rule.name);
+    if let Some(params) = &rule.source.params {
+        out.push_str(",\"params\":[");
+        for (index, name) in params.iter().enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write_str(out, name);
+        }
+        out.push(']');
+    }
+    if let Some(args) = &rule.source.args {
+        out.push_str(",\"args\":");
+        source::write_arguments(out, args);
+    }
     out.push_str(match rule.op {
         Op::Define => ",\"op\":\"define\"",
         Op::Redefine => ",\"op\":\"redefine\"",
@@ -1126,6 +1147,12 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         write_term(out, tags);
     }
     write_channels(out, &rule.strings);
+    if let Some(instance) = &rule.source.instance {
+        out.push_str(",\"instance\":");
+        instance.write(out);
+        out.push_str(&format!(",\"conditions\":[],\"at\":[{},{}]}}", rule.at.0, rule.at.1));
+        return;
+    }
     out.push_str(",\"alternatives\":[");
     for (index, alternative) in rule.alternatives.iter().enumerate() {
         if index > 0 {
@@ -1237,6 +1264,7 @@ fn write_list<T>(out: &mut String, key: &str, items: &[T], write: fn(&mut String
 
 pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
     match expr {
+        Expr::Source(symbol) => symbol.write(out),
         Expr::Seq(items) => write_list(out, "seq", items, write_expr),
         Expr::Choice(items) => write_list(out, "choice", items, write_expr),
         Expr::Ranked(items) => write_list(out, "ranked", items, write_expr),
@@ -1321,6 +1349,7 @@ fn write_range(out: &mut String, start: &str, end: &str) {
 
 pub(crate) fn write_term(out: &mut String, term: &Term) {
     match term {
+        Term::Source(symbol) => symbol.write(out),
         Term::Pattern(p) => {
             out.push_str("{\"pattern\":");
             p.write(out);
@@ -1424,6 +1453,26 @@ pub(crate) fn write_requirements(out: &mut String, term: &Term) {
 
 pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
     match cond {
+        Cond::SourceQuery(name, args, _) => {
+            out.push_str("{\"method\":");
+            write_str(out, name);
+            out.push_str(",\"receiver\":");
+            write_argument(out, &args[0]);
+            out.push_str(",\"args\":[");
+            for (index, arg) in args[1..].iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                if let Arg::Term(Term::Tag(tag)) = arg {
+                    out.push_str("{\"terminal\":");
+                    write_str(out, tag);
+                    out.push('}');
+                } else {
+                    write_argument(out, arg);
+                }
+            }
+            out.push_str("]}");
+        }
         Cond::Compare(op, left, right) => {
             out.push_str("{\"op\":");
             write_str(out, op);
@@ -1574,7 +1623,9 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
     while let Some(part) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
         match part {
+            Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().rev()),
             Nested::Term(term) => match term {
+                Term::Source(symbol) => stack.push(Nested::Source(symbol)),
                 Term::Pattern(p) => {
                     if engine {
                         p.references(out)
@@ -1594,6 +1645,10 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().rev().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Nested::Term(term)),
+                    _ => None,
+                })),
                 Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
@@ -1619,11 +1674,33 @@ const MAX_NESTING: usize = DOM_MAX_DEPTH;
 /// A node of a DOM that the check of nesting walks.
 #[derive(Clone, Copy)]
 enum Nested<'d> {
+    Source(&'d SourceSymbol),
     Expr(&'d Expr),
     Term(&'d Term),
     Cond(&'d Cond),
     Pattern(&'d crate::patterns::Pattern),
     PatternItems(&'d crate::patterns::Children),
+}
+
+fn source_children(symbol: &SourceSymbol) -> Vec<Nested<'_>> {
+    let SourceSymbol::Call(call) = symbol else { return Vec::new() };
+    argument_children(&call.args)
+}
+
+fn argument_children(args: &[source::SourceArgument]) -> Vec<Nested<'_>> {
+    args.iter()
+        .flat_map(|arg| match arg {
+            source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => vec![Nested::Term(term)],
+            source::SourceArgument::Body(expr) => vec![Nested::Expr(expr)],
+            source::SourceArgument::Targets(targets) => targets
+                .iter()
+                .filter_map(|target| match target {
+                    source::SourceTarget::Symbol(symbol) => Some(Nested::Source(symbol)),
+                    _ => None,
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 /// Whether any DOM node exceeds the depth bound of engine §9.
@@ -1642,7 +1719,9 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
         }
         let below = depth + 1;
         match node {
+            Nested::Source(symbol) => stack.extend(source_children(symbol).into_iter().map(|part| (part, below))),
             Nested::Expr(expr) => match expr {
+                Expr::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Expr(item), below)))
                 }
@@ -1663,6 +1742,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
             },
             Nested::Term(term) => match term {
+                Term::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                 Term::Union(items) | Term::Intersection(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Term(item), below)))
                 }
@@ -1689,6 +1769,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
             Nested::Pattern(pattern) => {
                 use crate::patterns::Pattern;
                 match pattern {
+                    Pattern::Source(symbol) => stack.push((Nested::Source(symbol), depth)),
                     Pattern::Literal(term, _) => stack.push((Nested::Term(term), depth)),
                     Pattern::Range(a, b, _) => {
                         stack.push((Nested::Term(a), depth));
@@ -1731,6 +1812,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 }
             }
             Nested::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some((Nested::Term(term), below)),
+                    _ => None,
+                })),
                 Cond::Any(items) | Cond::All(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Cond(item), below)))
                 }
@@ -1759,6 +1844,10 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
 /// Whether a rule holds a node below more than 256 compound nodes.
 pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
     let mut roots: Vec<Nested> = Vec::new();
+    roots.extend(rule.source.args.iter().flat_map(|args| argument_children(args)));
+    if let Some(call) = &rule.source.instance {
+        roots.extend(argument_children(&call.args));
+    }
     roots.extend(rule.tags.iter().map(Nested::Term));
     roots.extend(rule.strings.value.iter().chain(&rule.strings.image).map(Nested::Term));
     for alternative in &rule.alternatives {
@@ -1808,7 +1897,8 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
                 found.push((op.as_str(), value, inner.as_ref()));
                 stack.push(inner);
             }
-            Expr::Ref(_)
+            Expr::Source(_)
+            | Expr::Ref(_)
             | Expr::Terminal(_)
             | Expr::Literal(_)
             | Expr::ScalarRange(..)
@@ -2022,6 +2112,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
         Term::Const(name, _) => Ok(constants(name)),
+        Term::Source(_) => Ok(Type::Any),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
@@ -2066,6 +2157,10 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
 /// that disagrees, or `None` (engine §10).
 pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<Fault> {
     match cond {
+        Cond::SourceQuery(_, args, _) => args.iter().find_map(|arg| match arg {
+            Arg::Term(term) => term_type_in(term, constants).err(),
+            _ => None,
+        }),
         Cond::Any(items) | Cond::All(items) => items.iter().find_map(|item| cond_type_fault(item, constants)),
         Cond::Not(inner) => cond_type_fault(inner, constants),
         Cond::If(antecedent, consequent) => {
@@ -2224,6 +2319,9 @@ pub(crate) fn constant_type_problem(ty: Type, redefine: bool) -> Option<String> 
 
 /// A part of a DOM being dropped.
 enum Dropping {
+    Pattern(crate::patterns::Pattern),
+    Children(crate::patterns::Children),
+    Source(SourceSymbol),
     Expr(Expr),
     Term(Term),
     Cond(Cond),
@@ -2233,6 +2331,9 @@ impl Dropping {
     /// Moves the parts of a node out onto `stack`, leaving it shallow.
     fn take(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Dropping::Pattern(pattern) => pattern.take_parts(stack),
+            Dropping::Children(children) => children.take_parts(stack),
+            Dropping::Source(symbol) => symbol.take_parts(stack),
             Dropping::Expr(expr) => expr.take_parts(stack),
             Dropping::Term(term) => term.take_parts(stack),
             Dropping::Cond(cond) => cond.take_parts(stack),
@@ -2249,9 +2350,86 @@ fn drop_parts(mut stack: Vec<Dropping>) {
     }
 }
 
+pub(crate) fn drop_pattern(pattern: crate::patterns::Pattern) {
+    drop_parts(vec![Dropping::Pattern(pattern)]);
+}
+
+pub(crate) fn drop_pattern_children(children: crate::patterns::Children) {
+    drop_parts(vec![Dropping::Children(children)]);
+}
+
+impl crate::patterns::Pattern {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        use crate::patterns::Pattern as P;
+        let take = |pattern: &mut P| Dropping::Pattern(std::mem::replace(pattern, P::Any));
+        let term = |term: &mut Term| Dropping::Term(std::mem::replace(term, Term::EmptySet));
+        match self {
+            P::Source(symbol) => symbol.take_parts(stack),
+            P::Literal(value, _) => stack.push(term(value)),
+            P::Range(a, b, _) => stack.extend([term(a), term(b)]),
+            P::Test(_, value, inner) => stack.extend([term(value), take(inner)]),
+            P::Path(_, inner) => stack.push(take(inner)),
+            P::Node(inner, _, children) => {
+                stack.push(take(inner));
+                stack.extend(children.take().map(Dropping::Children));
+            }
+            P::Union(items) | P::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Pattern)),
+            P::Difference(a, b) => stack.extend([take(a), take(b)]),
+            _ => {}
+        }
+    }
+}
+
+impl crate::patterns::Children {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        use crate::patterns::{Children as C, Pattern as P};
+        let take = |children: &mut C| Dropping::Children(std::mem::replace(children, C::Siblings));
+        match self {
+            C::Node(pattern) => stack.push(Dropping::Pattern(std::mem::replace(&mut **pattern, P::Any))),
+            C::Sequence(items) | C::Choice(items) => stack.extend(items.drain(..).map(Dropping::Children)),
+            C::Optional(inner) => stack.push(take(inner)),
+            C::Repeat(inner, separator) => {
+                stack.push(take(inner));
+                stack.extend(separator.take().map(|inner| Dropping::Children(*inner)));
+            }
+            C::Siblings => {}
+        }
+    }
+}
+
+impl SourceSymbol {
+    fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
+        if let Self::Call(call) = self {
+            for arg in call.args.drain(..) {
+                match arg {
+                    source::SourceArgument::Term(term) | source::SourceArgument::Requirements(term) => {
+                        stack.push(Dropping::Term(term));
+                    }
+                    source::SourceArgument::Body(expr) => stack.push(Dropping::Expr(expr)),
+                    source::SourceArgument::Targets(targets) => {
+                        stack.extend(targets.into_iter().filter_map(|target| match target {
+                            source::SourceTarget::Symbol(symbol) => Some(Dropping::Source(symbol)),
+                            _ => None,
+                        }));
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Drop for SourceSymbol {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        self.take_parts(&mut stack);
+        drop_parts(stack);
+    }
+}
+
 impl Expr {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Self::Source(symbol) => symbol.take_parts(stack),
             Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                 stack.extend(items.drain(..).map(Dropping::Expr))
             }
@@ -2268,13 +2446,12 @@ impl Expr {
                 stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet)));
                 stack.push(Dropping::Expr(std::mem::replace(&mut **symbol, Expr::Empty)));
             }
-            Expr::Ref(_)
-            | Expr::Terminal(_)
-            | Expr::Literal(_)
-            | Expr::ScalarRange(..)
-            | Expr::Range(..)
-            | Expr::Property(_)
-            | Expr::Empty => {}
+            Expr::Literal(value) => stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet))),
+            Expr::ScalarRange(a, b) => {
+                stack.push(Dropping::Term(std::mem::replace(a, Term::EmptySet)));
+                stack.push(Dropping::Term(std::mem::replace(b, Term::EmptySet)));
+            }
+            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
         }
     }
 }
@@ -2282,6 +2459,7 @@ impl Expr {
 impl Term {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Self::Source(symbol) => symbol.take_parts(stack),
             Term::Union(items) | Term::Intersection(items) => stack.extend(items.drain(..).map(Dropping::Term)),
             Term::Difference(left, right) => {
                 stack.push(Dropping::Term(std::mem::replace(&mut **left, Term::EmptySet)));
@@ -2298,7 +2476,9 @@ impl Term {
                 stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
                 stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
             }
-            Term::Pattern(pattern) => pattern.clear(),
+            Term::Pattern(pattern) => {
+                stack.push(Dropping::Pattern(std::mem::replace(&mut **pattern, crate::patterns::Pattern::Any)))
+            }
             Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
         }
     }
@@ -2307,6 +2487,12 @@ impl Term {
 impl Cond {
     fn take_parts(&mut self, stack: &mut Vec<Dropping>) {
         match self {
+            Cond::SourceQuery(_, args, _) => {
+                stack.extend(args.drain(..).filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Dropping::Term(term)),
+                    _ => None,
+                }));
+            }
             Cond::Compare(_, left, right) => {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));

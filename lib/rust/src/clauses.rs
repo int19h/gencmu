@@ -27,6 +27,7 @@ pub(crate) enum Simple {
 pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
     work::count(Work::Walked, 1);
     match cond {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before clause checks"),
         Cond::Captured(name) => {
             if has(name) {
                 Simple::True
@@ -171,9 +172,14 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
+                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
+                }
             },
             Part::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Part::Term(term)),
+                    _ => None,
+                })),
                 Cond::Captured(name) => {
                     if presences {
                         out.push(name);
@@ -320,6 +326,7 @@ impl<'a> Shaped<'a> {
                     }
                 },
                 Part::Cond(cond) => match cond {
+                    Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
                     Cond::Captured(name) => {
                         if has(name) {
                             Outcome::True
@@ -1033,7 +1040,8 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     }
                     done.push(empty());
                 }
-                Expr::Ref(_)
+                Expr::Source(_)
+                | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
@@ -1220,7 +1228,8 @@ impl<'e> CaptureSequences<'e> {
                     stack.extend(separator.as_deref());
                     stack.push(item);
                 }
-                Expr::Ref(_)
+                Expr::Source(_)
+                | Expr::Ref(_)
                 | Expr::Terminal(_)
                 | Expr::Literal(_)
                 | Expr::ScalarRange(..)
@@ -1259,6 +1268,7 @@ impl<'e> CaptureSequences<'e> {
                         done.push(vec![Vec::new()]);
                     }
                     Expr::Tested(..)
+                    | Expr::Source(_)
                     | Expr::Ref(_)
                     | Expr::Terminal(_)
                     | Expr::Literal(_)
@@ -1801,6 +1811,7 @@ mod tests {
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "r".into(),

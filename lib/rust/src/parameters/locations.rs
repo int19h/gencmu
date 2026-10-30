@@ -297,6 +297,22 @@ fn annotate_term(t: &dom::Term, n: &mut Json) {
 pub(crate) fn annotate_condition(c: &dom::Cond, n: &mut Json) {
     use dom::Cond;
     match c {
+        Cond::SourceQuery(_, args, location) => {
+            locate(n, location.at);
+            if let Some(dom::Arg::Term(receiver)) = args.first() {
+                if let Some(v) = slot(n, "receiver") {
+                    annotate_term(receiver, v);
+                }
+            }
+            if let Some(Json::Arr(xs)) = slot(n, "args") {
+                for ((arg, n), a) in args.iter().skip(1).zip(xs).zip(&location.targets) {
+                    locate(n, Some(*a));
+                    if let dom::Arg::Term(term) = arg {
+                        annotate_term(term, n);
+                    }
+                }
+            }
+        }
         Cond::Boundary(_, receiver, _, location) => {
             locate(n, location.at);
             if let Some(v) = slot(n, "receiver") {

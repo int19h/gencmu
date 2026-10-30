@@ -421,7 +421,9 @@ fn read_document_named(notation: &Pipeline, text: &str, defer: bool, names: &Nam
     // and the DOM with explicit stacks, so a document of any depth reads
     // on the caller's thread (engine §9).
     let reader = Reader {
-        parameter_state: Default::default(),
+        parameters: Default::default(),
+        reading_head: Default::default(),
+        unresolved: Default::default(),
         unicode: &notation.unicode,
         defer_emission: defer,
         feature_context: Default::default(),

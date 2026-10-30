@@ -9,11 +9,15 @@ use crate::error::Error;
 use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
 use crate::work::{self, Work};
-mod parameters;
+mod calls;
+use crate::dom::source::{SourceArgument, SourceCall, SourceSymbol};
+use calls::{CallFrame, SourceArgumentFrame};
 mod patterns;
 
 pub(crate) struct Reader<'a> {
-    pub parameter_state: std::cell::RefCell<parameters::State<'a>>,
+    pub parameters: std::cell::RefCell<FxSet<String>>,
+    pub reading_head: std::cell::Cell<bool>,
+    pub unresolved: std::cell::Cell<bool>,
     pub unicode: &'a crate::unicode::Unicode,
     pub defer_emission: bool,
     pub feature_context: std::cell::Cell<bool>,
@@ -159,8 +163,34 @@ impl<'a> Reader<'a> {
                 return Err(self.error(node, "%names must precede every other statement"));
             }
             statement_seen |= !names;
-            if parameters::syntax(node) {
-                let raw = self.parameter_document(node)?;
+            self.unresolved.set(false);
+            self.parameters.borrow_mut().clear();
+            let mut item = Dom::default();
+            match rule_name(node) {
+                "rule" => item.rules.push(self.rule(node)?),
+                "directive" => item.directives.push(self.directive(node)?),
+
+                "constant-definition" => item.constants.push(self.constant(node)?),
+                "classifier" => item.classifiers.push(self.classifier(node)?),
+                "implication-declaration" => item.implications.push(self.implication_declaration(node)?),
+                other => return Err(self.error(node, format!("the notation gives a {other} where an item stands"))),
+            }
+            if self.unresolved.get() {
+                if item.rules.iter().any(crate::dom::rule_too_deep)
+                    || item.constants.iter().any(|constant| crate::dom::term_too_deep(&constant.value))
+                    || item.implications.iter().any(|implication| {
+                        crate::dom::term_too_deep(&implication.antecedent)
+                            || crate::dom::term_too_deep(&implication.consequent)
+                    })
+                    || item
+                        .directives
+                        .iter()
+                        .any(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
+                {
+                    return Err(self.error(node, "an expression, term or condition is nested more than 256 deep"));
+                }
+                let mut raw = crate::json::parse(&crate::dom::dom_to_json(&item)).expect("a DOM writer produces JSON");
+                crate::parameters::locations::annotate_document(&mut raw, &item);
                 let kind = match rule_name(node) {
                     "rule" => "rules",
                     "directive" => "directives",
@@ -168,33 +198,19 @@ impl<'a> Reader<'a> {
                     "implication-declaration" => "implications",
                     _ => "classifiers",
                 };
-                let scope = crate::parameters::list(crate::parameters::get(&raw, "params"));
-                if let Some(parameter) =
-                    crate::parameters::nodes(&raw).find(|n| n.get("param").is_some_and(|p| !scope.contains(p)))
-                {
-                    let at = crate::parameters::at(parameter).unwrap_or(self.at(node));
-                    return Err(Error::grammar("an undeclared or malformed parameter").at(at.0, at.1));
-                }
+                let raw = crate::parameters::list(crate::parameters::get(&raw, kind))[0].clone();
                 if let Some(problem) = crate::parameters::declaration_problem(&raw, kind, self.unicode) {
-                    if problem == "nested too deeply" {
-                        crate::parameters::append(&mut dom, kind, raw).map_err(|e| self.error(node, e))?;
-                        continue;
+                    if problem != "nested too deeply" {
+                        return Err(self.error(node, problem));
                     }
-                    return Err(self.error(node, problem));
                 }
-                crate::parameters::append_source(&mut dom, kind, raw, self.unicode, self.defer_emission)
-                    .map_err(|e| self.error(node, e))?;
-                continue;
+                dom.unresolved.insert(self.first(node), raw);
             }
-            match rule_name(node) {
-                "rule" => dom.rules.push(self.rule(node)?),
-                "directive" => dom.directives.push(self.directive(node)?),
-
-                "constant-definition" => dom.constants.push(self.constant(node)?),
-                "classifier" => dom.classifiers.push(self.classifier(node)?),
-                "implication-declaration" => dom.implications.push(self.implication_declaration(node)?),
-                other => return Err(self.error(node, format!("the notation gives a {other} where an item stands"))),
-            }
+            dom.rules.extend(item.rules);
+            dom.directives.extend(item.directives);
+            dom.constants.extend(item.constants);
+            dom.classifiers.extend(item.classifiers);
+            dom.implications.extend(item.implications);
         }
         Ok(dom)
     }
@@ -392,10 +408,34 @@ impl<'a> Reader<'a> {
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
         let definer = self.token(self.one(node, "definer")?)?;
-        let name_token = self.token(self.one(node, "rule-name")?)?;
-        if !self.unicode.is_emoji_name(self.value(name_token))
-            && !self.value(name_token).starts_with(|c: char| c.is_ascii_lowercase())
-        {
+        let mut source = crate::dom::source::SourceHead::default();
+        let (name, name_token) = if let Some(name) = Self::rules(node, "rule-name").next() {
+            let token = self.token(name)?;
+            (self.value(token).to_string(), token)
+        } else {
+            let head = self.one(node, "call")?;
+            self.reading_head.set(true);
+            let call = self.source_call(head);
+            self.reading_head.set(false);
+            let call = call?;
+            let params: Option<Vec<_>> = call
+                .args
+                .iter()
+                .map(|arg| match arg {
+                    SourceArgument::Term(Term::Source(SourceSymbol::Parameter(name, _)))
+                    | SourceArgument::Body(Expr::Source(SourceSymbol::Parameter(name, _))) => Some(name.clone()),
+                    _ => None,
+                })
+                .collect();
+            if let Some(params) = params {
+                self.parameters.borrow_mut().extend(params.iter().cloned());
+                source.params = Some(params);
+            } else {
+                source.args = Some(call.args);
+            }
+            (call.name, self.token(head)?)
+        };
+        if !self.unicode.is_emoji_name(&name) && !name.starts_with(|c: char| c.is_ascii_lowercase()) {
             return Err(self.error(name_token, "a rule name starts with a lowercase letter or uses one eligible emoji"));
         }
         let op = match self.value(definer) {
@@ -405,6 +445,23 @@ impl<'a> Reader<'a> {
             _ => return Err(self.error(definer, "unknown rule definer")),
         };
         let flags = self.rule_flags(node, op)?;
+        if Self::tokens_of(node).any(|token| self.value(token) == "=") {
+            source.instance = Some(self.source_call(self.one(node, "call")?)?);
+            return Ok(RuleDef {
+                source,
+                deferred_emission: None,
+                name,
+                op,
+                flags,
+                tags: None,
+                strings: Default::default(),
+                alternatives: Vec::new(),
+                conditions: Vec::new(),
+                emit: None,
+                erased: false,
+                at: self.at(definer),
+            });
+        }
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
@@ -437,8 +494,9 @@ impl<'a> Reader<'a> {
             None => None,
         };
         let mut rule = RuleDef {
+            source,
             deferred_emission: None,
-            name: self.value(name_token).to_string(),
+            name,
             op,
             flags,
             tags,
@@ -457,6 +515,9 @@ impl<'a> Reader<'a> {
                 || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
         {
             return Err(self.error(definer, "an erased definition cannot have an emission or recipe"));
+        }
+        if self.unresolved.get() {
+            return Ok(rule);
         }
         if let Some((message, at)) = crate::boundary::definition_problem(&rule) {
             let (line, column) = at.unwrap_or(rule.at);
@@ -681,6 +742,10 @@ impl<'a> Reader<'a> {
     /// if it asked for one, to its next request or its value.
     fn resume(&self, frame: &mut Frame<'a>, input: Option<Val>) -> R<Step<'a>> {
         match frame {
+            Frame::Pattern(pattern) => self.resume_pattern(pattern, input),
+            Frame::PatternAtom(node) => self.resume_pattern_atom(node, input),
+            Frame::SourceCall(call) => self.resume_source_call(call, input),
+            Frame::SourceArgument(argument) => self.resume_source_argument(argument, input),
             Frame::Conjunction(conjunction) => self.resume_conjunction(conjunction, input),
             Frame::Choice(choice) => self.resume_choice(choice, input),
             Frame::Primary(primary) => self.resume_primary(primary, input),
@@ -763,18 +828,24 @@ impl<'a> Reader<'a> {
         if let Some(value) = input {
             // The construct it holds, read: a capture wraps it, and a group,
             // an optional, braces and a tested symbol are it.
+            let value = match value {
+                Val::SourceCall(call) => Val::Expr(Expr::Source(SourceSymbol::Call(call))),
+                value => value,
+            };
             return Ok(Step::Done(match (frame.capture.take(), value) {
                 (Some(name), Val::Expr(expr)) => Val::Expr(Expr::Capture(name, Box::new(expr))),
                 (_, value) => value,
             }));
         }
         let node = frame.node;
-        let inner = self.inner(node, PRIMARIES)?;
+        let inner = if PRIMARIES.contains(&rule_name(node)) { node } else { self.inner(node, PRIMARIES)? };
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
             "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
                 Step::Done(Val::Expr(self.symbol(inner)?))
             }
+            "parameter" => Step::Done(Val::Expr(Expr::Source(self.source_parameter(inner)?))),
+            "call" => Step::Call(Frame::SourceCall(CallFrame::new(inner))),
             "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
             "capture" => {
                 // A capture stands anywhere but in braces or an elidable
@@ -813,7 +884,14 @@ impl<'a> Reader<'a> {
                     if base.is_some_and(|base| {
                         !matches!(
                             rule_name(base),
-                            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range"
+                            "reference"
+                                | "tag"
+                                | "string-terminal"
+                                | "constant-reference"
+                                | "wildcard"
+                                | "range"
+                                | "call"
+                                | "parameter"
                         )
                     }) {
                         return Err(self.error(capture, "a capture must wrap a single symbol"));
@@ -821,7 +899,15 @@ impl<'a> Reader<'a> {
                 }
                 if !matches!(
                     rule_name(wrapped),
-                    "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" | "tested"
+                    "reference"
+                        | "tag"
+                        | "string-terminal"
+                        | "constant-reference"
+                        | "wildcard"
+                        | "range"
+                        | "call"
+                        | "parameter"
+                        | "tested"
                 ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
@@ -883,8 +969,9 @@ impl<'a> Reader<'a> {
         };
         let head = self.inner(primary, PRIMARIES)?;
         let is_terminal = |symbol: &Node| {
-            rule_name(symbol) == "tag"
-                && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token)))
+            rule_name(symbol) == "parameter"
+                || rule_name(symbol) == "tag"
+                    && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token)))
                 || (rule_name(symbol) == "reference"
                     && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.value(token))))
         };
@@ -960,41 +1047,56 @@ impl<'a> Reader<'a> {
     /// A reference, terminal, range or property, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
-    fn resume_tested(&self, frame: &mut Tested<'a>, _: Option<Val>) -> R<Step<'a>> {
+    fn resume_tested(&self, frame: &mut Tested<'a>, input: Option<Val>) -> R<Step<'a>> {
         let node = frame.node;
-        let parts = Self::parts(node);
-        let tests: Vec<_> =
-            parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
-        if tests.is_empty() {
-            return Err(self.shape_error(node, "test"));
-        }
-        let base = if let Some(primary) = Self::rules(node, "primary").next() {
-            self.inner(primary, PRIMARIES)?
+        let (mut expr, tests) = if let Some(Val::SourceCall(call)) = input {
+            (Expr::Source(SourceSymbol::Call(call)), frame.tests.take().unwrap())
         } else {
-            parts
-                .iter()
-                .copied()
-                .find(|part| PRIMARIES.contains(&rule_name(part)))
-                .ok_or_else(|| self.shape_error(node, "primary"))?
-        };
-        let valid = matches!(
-            rule_name(base),
-            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range"
-        );
-        let mut tags = false;
-        let mut value = false;
-        for test in &tests {
-            let tag = rule_name(test) == "tag-test";
-            if !valid || value || tag && tags {
-                return Err(self.error(test, "invalid test target or order"));
+            let parts = Self::parts(node);
+            let tests: Vec<_> =
+                parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+            if tests.is_empty() {
+                return Err(self.shape_error(node, "test"));
             }
-            if tag {
-                tags = true;
+            let base = if let Some(primary) = Self::rules(node, "primary").next() {
+                self.inner(primary, PRIMARIES)?
             } else {
-                value = true;
+                parts
+                    .iter()
+                    .copied()
+                    .find(|part| PRIMARIES.contains(&rule_name(part)))
+                    .ok_or_else(|| self.shape_error(node, "primary"))?
+            };
+            let valid = matches!(
+                rule_name(base),
+                "reference"
+                    | "tag"
+                    | "string-terminal"
+                    | "constant-reference"
+                    | "wildcard"
+                    | "range"
+                    | "call"
+                    | "parameter"
+            );
+            let mut tags = false;
+            let mut value = false;
+            for test in &tests {
+                let tag = rule_name(test) == "tag-test";
+                if !valid || value || tag && tags {
+                    return Err(self.error(test, "invalid test target or order"));
+                }
+                if tag {
+                    tags = true;
+                } else {
+                    value = true;
+                }
             }
-        }
-        let mut expr = self.symbol(base)?;
+            if rule_name(base) == "call" {
+                frame.tests = Some(tests);
+                return Ok(Step::Call(Frame::SourceCall(CallFrame::new(base))));
+            }
+            (self.symbol(base)?, tests)
+        };
         for test in tests {
             let (op, operand) = if rule_name(test) == "tag-test" {
                 let mut requirements = Vec::new();
@@ -1004,6 +1106,7 @@ impl<'a> Reader<'a> {
                     let value = match rule_name(part) {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
                         "constant-reference" => self.constant_reference(self.token(part)?)?,
+                        "parameter" => Term::Source(self.source_parameter(part)?),
                         _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
                     };
                     let negated = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
@@ -1233,7 +1336,19 @@ impl<'a> Reader<'a> {
         if let Some(value) = input {
             // A call, which is no span where a value is due, or a term in
             // parentheses, which is its term.
-            return Ok(Step::Done(value));
+            return Ok(Step::Done(match value {
+                Val::Pattern(value) => {
+                    self.closed_for.set(frame.pattern_closed.take().unwrap());
+                    let mut pattern = value.pattern();
+                    if let Some(problem) = patterns::source_pattern_problem(&pattern) {
+                        pattern.clear();
+                        return Err(self.error(frame.node, problem));
+                    }
+                    Val::Term(Term::Pattern(Box::new(pattern)), Type::Pattern)
+                }
+                Val::SourceCall(call) => Val::Term(Term::Source(SourceSymbol::Call(call)), Type::Any),
+                value => value,
+            }));
         }
         let node = frame.node;
         let inner = self.inner(node, ATOMS)?;
@@ -1242,6 +1357,8 @@ impl<'a> Reader<'a> {
         match rule_name(inner) {
             // A span may stand in parentheses where a span is due.
             "term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
+            "parameter" => typed(Term::Source(self.source_parameter(inner)?), Type::Any),
+            "call" => Ok(Step::Call(Frame::SourceCall(CallFrame::new(inner)))),
             "string" => typed(self.string_term(token()?)?, Type::String),
             "tag" => {
                 let token = token()?;
@@ -1294,10 +1411,8 @@ impl<'a> Reader<'a> {
             }
             "method" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
             "pattern-literal" => {
-                let before = self.closed_for.replace(None);
-                let result = self.one(inner, "pattern-primary").and_then(|primary| self.pattern(primary));
-                self.closed_for.set(before);
-                typed(Term::Pattern(Box::new(result?)), Type::Pattern)
+                frame.pattern_closed = Some(self.closed_for.replace(None));
+                Ok(Step::Call(Frame::Pattern(self.pattern_frame(self.one(inner, "pattern-primary")?))))
             }
             other => Err(self.unknown(node, other)),
         }
@@ -1323,6 +1438,8 @@ impl<'a> Reader<'a> {
                         | "wildcard"
                         | "range"
                         | "constant-reference"
+                        | "parameter"
+                        | "call"
                 ) || part.kind == NodeKind::Token
                     && (matches!(part.terminal.as_deref(), Some("Emoji-Name" | "Lowercase-Name"))
                         || self.unicode.is_emoji_name(self.value(part))
@@ -1332,7 +1449,7 @@ impl<'a> Reader<'a> {
             .ok_or_else(|| self.shape_error(node, "pattern atom"))
     }
 
-    fn pattern_atom(&self, node: &'a Node) -> R<crate::patterns::Pattern> {
+    fn pattern_atom(&self, node: &'a Node, call: Option<SourceCall>) -> R<crate::patterns::Pattern> {
         use crate::patterns::Pattern as P;
         let first = self.pattern_atom_base(node)?;
         let name = if matches!(rule_name(first), "name" | "reference") {
@@ -1345,10 +1462,12 @@ impl<'a> Reader<'a> {
         let testable = !Self::pattern_rule_name(first)
             && (matches!(
                 rule_name(first),
-                "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
+                "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference" | "parameter"
             ) || name.is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_')));
         self.pattern_test_nodes(node, testable)?;
         let (pattern, tested) = match rule_name(first) {
+            "parameter" => (P::Source(self.source_parameter(first)?), true),
+            "call" => (P::Source(SourceSymbol::Call(call.expect("a pattern call reads its arguments first"))), false),
             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
             "string-terminal" => {
@@ -1426,6 +1545,7 @@ impl<'a> Reader<'a> {
                     let term = match rule_name(part) {
                         "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
                         "constant-reference" => self.constant_reference(self.token(part)?)?,
+                        "parameter" => Term::Source(self.source_parameter(part)?),
                         _ => return Err(self.error(operand, "invalid tag requirement")),
                     };
                     let negative = Self::tokens_of(requirement).any(|token| self.value(token) == "¬");
@@ -1483,9 +1603,10 @@ impl<'a> Reader<'a> {
             }
         }
         let (receiver, ty) = frame.receiver.take().unwrap();
-        let span = self.feature_context.get() || ty == Type::Span;
+        let unresolved = matches!(&receiver, Term::Source(_));
+        let span = self.feature_context.get() || unresolved || ty == Type::Span;
         let string = self.feature_context.get() || matches!(ty, Type::Span | Type::String | Type::Any);
-        let bare = self.feature_context.get() || matches!(&receiver, Term::Capture(_));
+        let bare = self.feature_context.get() || matches!(&receiver, Term::Capture(_) | Term::Source(_));
         let arguments = &frame.args[..];
         let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
         let valid = if emitted_receiver {
@@ -1510,20 +1631,22 @@ impl<'a> Reader<'a> {
                     [],
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
-                ("tags", [Arg::Rule(_)]) => span,
+                ("tags", [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => span,
                 ("matches" | "begins" | "ends", args) => {
                     span && (name != "ends" || !crate::dom::restored_span(&receiver))
                         && !args.is_empty()
-                        && args
-                            .iter()
-                            .all(|a| matches!(a, Arg::Rule(_)) || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n)))
+                        && args.iter().all(|a| {
+                            matches!(a, Arg::Rule(_) | Arg::Term(Term::Source(_)))
+                                || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n))
+                        })
                 }
                 ("ngrams", [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
-                ("without-elision-except", [Arg::Rule(_)]) => bare,
+                ("without-elision-except", [Arg::Rule(_) | Arg::Term(Term::Source(_))]) => bare,
                 ("followed-by" | "preceded-by", args) => {
                     bare && !args.is_empty()
                         && args.iter().all(|arg| {
-                            matches!(arg, Arg::Rule(_)) || matches!(arg, Arg::Term(Term::Tag(name)) if is_capital(name))
+                            matches!(arg, Arg::Rule(_) | Arg::Term(Term::Source(_)))
+                                || matches!(arg, Arg::Term(Term::Tag(name)) if is_capital(name))
                         })
                 }
                 ("split", [Arg::Term(_)]) => {
@@ -1532,6 +1655,7 @@ impl<'a> Reader<'a> {
                             || matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any))))
                 }
                 ("classify", [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
+                ("classify", [Arg::Term(Term::Source(_))]) => string,
                 _ => false,
             }
         };
@@ -1572,6 +1696,16 @@ impl<'a> Reader<'a> {
         ) {
             if !frame.condition || !last {
                 return Err(self.error(frame.node, "a predicate method cannot supply a value"));
+            }
+            if args.iter().any(|arg| matches!(arg, Arg::Term(Term::Source(_)))) {
+                return Ok(Step::Done(Val::Cond(Cond::SourceQuery(
+                    name.into(),
+                    args,
+                    crate::dom::BoundaryLocation {
+                        at: Some(self.first(frame.node)),
+                        targets: frame.arguments.as_ref().unwrap().iter().map(|n| self.first(n)).collect(),
+                    },
+                ))));
             }
             let mut args = args.into_iter();
             let Some(Arg::Term(receiver)) = args.next() else { unreachable!() };
@@ -1769,6 +1903,7 @@ impl<'a> Reader<'a> {
     /// A reference, literal string, scalar range, wildcard, or engine tag.
     fn symbol(&self, node: &'a Node) -> R<Expr> {
         match rule_name(node) {
+            "parameter" => Ok(Expr::Source(self.source_parameter(node)?)),
             "reference" => {
                 let token = self.token(node)?;
                 let name = self.value(token);
@@ -1784,14 +1919,14 @@ impl<'a> Reader<'a> {
                 let parts = Self::parts(node);
                 let part = parts
                     .iter()
-                    .find(|p| matches!(rule_name(p), "string" | "constant-reference"))
+                    .find(|p| matches!(rule_name(p), "string" | "constant-reference" | "parameter"))
                     .ok_or_else(|| self.shape_error(node, "string operand"))?;
                 Ok(Expr::Literal(self.string_operand(part)?))
             }
             "range" => {
                 let parts: Vec<_> = Self::parts(node)
                     .into_iter()
-                    .filter(|p| matches!(rule_name(p), "string" | "constant-reference"))
+                    .filter(|p| matches!(rule_name(p), "string" | "constant-reference" | "parameter"))
                     .collect();
                 if parts.len() < 2 {
                     return Err(self.shape_error(node, "two string operands"));
@@ -1825,7 +1960,7 @@ impl<'a> Reader<'a> {
 
     fn value_test_operand(&self, operand: &'a Node) -> R<Term> {
         let part = self.inner(operand, ATOMS)?;
-        if !matches!(rule_name(part), "string" | "constant-reference") {
+        if !matches!(rule_name(part), "string" | "constant-reference" | "parameter") {
             return Err(self.error(operand, "a value test requires a string literal or constant"));
         }
         self.string_operand(part)
@@ -1836,6 +1971,7 @@ impl<'a> Reader<'a> {
         match rule_name(node) {
             "string" => self.string_term(token),
             "constant-reference" => self.constant_reference(token),
+            "parameter" => Ok(Term::Source(self.source_parameter(node)?)),
             _ => Err(self.error(node, "a string literal or constant is required")),
         }
     }
@@ -1896,7 +2032,7 @@ impl<'a> Reader<'a> {
                     for arg in terms {
                         let Arg::Term(term) = arg else { unreachable!("string operand") };
                         let valid = match &term {
-                            Term::Str(_) | Term::Const(..) => true,
+                            Term::Str(_) | Term::Const(..) | Term::Source(SourceSymbol::Parameter(..)) => true,
                             Term::Union(_) => {
                                 return Err(self
                                     .error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms"))
@@ -2036,6 +2172,9 @@ impl<'a> Reader<'a> {
 /// with its type, a condition, or a function's argument with its type if it
 /// is a term.
 enum Val {
+    Pattern(patterns::Value),
+    SourceCall(SourceCall),
+    SourceArgument(SourceArgument),
     Expr(Expr),
     Term(Term, Type),
     Cond(Cond),
@@ -2051,6 +2190,10 @@ enum Step<'a> {
 
 /// The reading of one construct, with what it has read so far.
 enum Frame<'a> {
+    Pattern(patterns::PatternFrame<'a>),
+    PatternAtom(&'a Node),
+    SourceCall(CallFrame<'a>),
+    SourceArgument(SourceArgumentFrame<'a>),
     Conjunction(Conjunction<'a>),
     Choice(Choice<'a>),
     Primary(PrimaryFrame<'a>),
@@ -2148,11 +2291,12 @@ impl<'a> Repetition<'a> {
 
 struct Tested<'a> {
     node: &'a Node,
+    tests: Option<Vec<&'a Node>>,
 }
 
 impl<'a> Tested<'a> {
     fn new(node: &'a Node) -> Self {
-        Tested { node }
+        Tested { node, tests: None }
     }
 }
 
@@ -2194,11 +2338,12 @@ impl<'a> Joined<'a> {
 struct Atom<'a> {
     node: &'a Node,
     argument: bool,
+    pattern_closed: Option<Option<&'static str>>,
 }
 
 impl<'a> Atom<'a> {
     fn new(node: &'a Node, argument: bool) -> Self {
-        Atom { node, argument }
+        Atom { node, argument, pattern_closed: None }
     }
 }
 
@@ -2477,9 +2622,14 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
                 Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
                 Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
+                Term::Source(_) | Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {
+                }
             },
             Part::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(Part::Term(term)),
+                    _ => None,
+                })),
                 Cond::Compare(op, left, right) => {
                     if !matches!(op.as_str(), "≅" | "≇") {
                         stack.extend([Part::Term(left), Part::Term(right)]);
@@ -2570,6 +2720,10 @@ fn flatten_groups(rule: &mut RuleDef) {
                 _ => {}
             },
             PartMut::Cond(cond) => match cond {
+                Cond::SourceQuery(_, args, _) => stack.extend(args.iter_mut().filter_map(|arg| match arg {
+                    Arg::Term(term) => Some(PartMut::Term(term)),
+                    _ => None,
+                })),
                 Cond::Any(items) => {
                     fold(items, |cond| if let Cond::Any(inner) = cond { Some(std::mem::take(inner)) } else { None });
                     stack.extend(items.iter_mut().map(PartMut::Cond));

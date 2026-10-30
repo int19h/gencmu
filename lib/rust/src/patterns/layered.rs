@@ -199,6 +199,10 @@ fn write(out: &mut String, root: Write<'_>) {
             Write::Atom(atom, exact, children) => {
                 out.push('{');
                 let at = match atom {
+                    Pattern::Source(symbol) => {
+                        symbol.write_fields(out);
+                        None
+                    }
                     Pattern::Name(name, at) | Pattern::Terminal(name, at) | Pattern::Constant(name, at) => {
                         write_str(
                             out,

@@ -1089,6 +1089,7 @@ impl Constants<'_> {
             }
             let mut operands = values.split_off(values.len() - children.len()).into_iter();
             let value = match term {
+                Term::Source(_) => unreachable!("source symbols expand before constant binding"),
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
@@ -1448,7 +1449,12 @@ impl Constants<'_> {
                             let (a, b) = self.scalar_endpoints(left, right, &alternative.document, alternative.at)?;
                             *expr = Expr::Range(character_tag(a, self.unicode), character_tag(b, self.unicode));
                         }
-                        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                        Expr::Source(_)
+                        | Expr::Ref(_)
+                        | Expr::Terminal(_)
+                        | Expr::Range(..)
+                        | Expr::Property(_)
+                        | Expr::Empty => {}
                     }
                 }
             }
@@ -1479,6 +1485,7 @@ impl Constants<'_> {
             return;
         }
         match term {
+            Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
             Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
@@ -1505,6 +1512,7 @@ impl Constants<'_> {
     fn substitute_cond(&self, cond: &mut Cond) {
         work::count(Work::Stitched, 1);
         match cond {
+            Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
             Cond::Compare(op, left, right) => {
                 if matches!(op.as_str(), "≅" | "≇") {
                     *right =
@@ -1548,6 +1556,7 @@ fn closed_string(term: &Term) -> bool {
     let mut pending = vec![term];
     while let Some(term) = pending.pop() {
         match term {
+            Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
             Term::Str(_) | Term::Const(..) => {}
             Term::Call(name, args) if name == "concat" => {
                 for arg in args {
@@ -1563,6 +1572,7 @@ fn closed_string(term: &Term) -> bool {
 
 fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Term::Call(name, args) => {
             out.push((name, args));
             for arg in args {
@@ -1586,6 +1596,7 @@ fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
 
 fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
     match condition {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(_, left, right) => {
             calls_in_term(left, out);
             calls_in_term(right, out);
@@ -1656,6 +1667,7 @@ fn check_rule(grammar: &StageGrammar, name: &str) -> Result<(), String> {
 
 fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     match expr {
+        Expr::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Expr::And(items) if items.len() > MAX_AND => {
             Err(format!("an & of {} items; at most {MAX_AND} are allowed", items.len()))
         }
@@ -1691,6 +1703,7 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
 
 fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         Term::Capture(_) => Ok(()),
         Term::Call(name, args) if name == "without-elision-except" => match &args[..] {
             [Arg::Term(Term::Capture(_)), Arg::Rule(rule)] => check_rule(grammar, rule),
@@ -1718,6 +1731,7 @@ fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
+        Term::Source(_) => unreachable!("source symbols expand before grammar checks"),
         // Stitching has checked every constant (engine §2).
         Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
@@ -1802,6 +1816,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
 fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
     work::count(Work::Stitched, 1);
     match cond {
+        Cond::SourceQuery(..) => unreachable!("source queries expand before grammar checks"),
         Cond::Compare(op, left, right) => {
             if !matches!(op.as_str(), "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇") {
                 return Err(format!("an unknown comparison {op}"));
@@ -1857,6 +1872,7 @@ mod tests {
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),

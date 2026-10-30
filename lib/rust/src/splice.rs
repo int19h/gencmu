@@ -397,6 +397,7 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                source: Default::default(),
                 strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),

@@ -141,22 +141,6 @@ pub(crate) fn argument(expr: Json) -> Json {
     }
     obj([("body", expr)])
 }
-pub(crate) fn joined(key: &str, items: Vec<Json>) -> Json {
-    let mut values = Vec::new();
-    for mut item in items {
-        if ["union", "concat", "any", "all"].contains(&key) && has(&item, key) {
-            if let Json::Obj(ref mut fields) = item {
-                let i = fields.iter().position(|(k, _)| k == key).unwrap();
-                if let Json::Arr(xs) = &mut fields.remove(i).1 {
-                    values.append(xs);
-                }
-            }
-        } else {
-            values.push(item)
-        }
-    }
-    obj([(key, Json::Arr(values))])
-}
 pub(crate) fn normalize(root: &Json) -> Json {
     normalize_patterns(root, &std::collections::BTreeSet::new())
 }
@@ -256,34 +240,11 @@ pub(crate) fn canonical_source(root: &Json) -> Json {
         n
     })
 }
-pub(crate) fn append_source(
-    dom: &mut Dom,
-    kind: &str,
-    raw: Json,
-    unicode: &Unicode,
-    defer: bool,
-) -> Result<(), String> {
-    if unresolved(&raw) {
-        return append(dom, kind, raw);
-    }
-    // Closed declarations use the same typed representation on cache hits and source reads.
-    let mut document = obj([]);
-    for key in KINDS {
-        set(&mut document, key, Json::Arr(if key == kind { vec![raw.clone()] } else { Vec::new() }));
-    }
-    let mut closed = dom::decode_checked(&clean(&document), unicode, defer)?;
-    locations::restore_document(&mut closed, &document);
-    dom.rules.extend(closed.rules);
-    dom.constants.extend(closed.constants);
-    dom.directives.extend(closed.directives);
-    dom.classifiers.extend(closed.classifiers);
-    dom.implications.extend(closed.implications);
-    Ok(())
-}
 pub(crate) fn append(dom: &mut Dom, kind: &str, r: Json) -> Result<(), String> {
     let at = at(&r).ok_or("a declaration requires a position")?;
     match kind {
         "rules" | "rule" => dom.rules.push(dom::RuleDef {
+            source: Default::default(),
             deferred_emission: None,
             name: text(get(&r, "name")).into(),
             op: match text(get(&r, "op")) {
@@ -357,7 +318,6 @@ pub(crate) fn problem(value: &Json, unicode: &Unicode) -> Option<&'static str> {
 }
 
 pub(crate) use schema::declaration as declaration_problem;
-pub(crate) use schema::engine_literals;
 
 pub(crate) fn pattern_term(root: &Json, patterns: &std::collections::BTreeSet<String>) -> bool {
     let mut pending = vec![root];
