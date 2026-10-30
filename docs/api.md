@@ -64,6 +64,8 @@ An unreadable optional `data/preparsed/FAMILY.json` gives a cache miss. A tie wh
 
 The error is an exception in JavaScript and Python, and a returned error in Go and Rust. It carries a message with the document, line and column where known. A tie has no line or column.
 
+A diagnostic copies its location fields. For the same input and configuration, repeated parsing preserves the formatted diagnostic.
+
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
 Rust exposes these optional fields through `code()`, `group()`, `option()`, `expression()`, and `inheritance()` on `Error`. These accessors borrow stored data without creating a diagnostic.

@@ -888,6 +888,8 @@ Each contains its grammar copy and nothing from outside its directory. CI makes 
 
 ## Diagnostics and debugging
 
+Audit work counts every expression node that it visits, including a sequence root inspected by an erasure scan.
+
 The audit is a JavaScript library and CLI tool outside the common API. Engine references to audit notes describe that tool.
 
 The product provides these diagnostics and debugging tools:

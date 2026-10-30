@@ -66,5 +66,5 @@ class BootstrapErrors(unittest.TestCase):
                         with self.assertRaises(gencmu.GencmuError) as raised:
                             gencmu.load_pipeline_sources({"p.md": "%stage main"}, "p.md")
                     self.assertEqual(raised.exception.document, "data/preparsed/gencmu.json")
-                    self.assertTrue(raised.exception.message.startswith("data/preparsed/gencmu.json:"), raised.exception.message)
-                    self.assertEqual(str(raised.exception), raised.exception.message)
+                    self.assertTrue(str(raised.exception).startswith("data/preparsed/gencmu.json:"), str(raised.exception))
+                    self.assertFalse(raised.exception.message.startswith("data/preparsed/gencmu.json:"))

@@ -467,6 +467,7 @@
      * @param {{cause?: unknown}} [options] the error that caused this one
      */
     constructor(kind, message, where, options) {
+      where = {...where};
       const location = where?.document === undefined ? "" : [where.document, where.line, where.column].filter(part => part !== undefined).join(":");
       if (location) {
         // Some callers already include all or part of the location.
@@ -9328,7 +9329,7 @@
           const classifiers = this.classifiers(on);
           lowered = { ...new Lowering(this, on).run(), classifiers, implications: this.implications };
         } catch (error) {
-          if (error instanceof GencmuError) error.where.stage = this.stageName;
+          if (error instanceof GencmuError) throw error.withLocation({stage:this.stageName});
           throw error;
         }
         remember(this.lowered, key, lowered);
@@ -14736,7 +14737,7 @@
         families: auditFamilies(grammar),
         boundaryNotes: auditBoundaries(grammar),
       };
-      auditUnicode.set(report, pipeline.loader.unicode);
+      auditUnicode.set(report, grammar.unicode);
       return report;
     });
   }
@@ -20199,7 +20200,7 @@
           try {
             return new Stage(stage.name, new Grammar(stage.name, stage.documents.map((document) => ({ path: document.path, dom: document.dom })), this.unicode));
           } catch (error) {
-            if (error instanceof GencmuError) error.where.stage = stage.name;
+            if (error instanceof GencmuError) throw error.withLocation({stage:stage.name});
             throw error;
           }
         }), this, bootstrap.features);
@@ -20343,7 +20344,7 @@
         const source = [...(error.source || [0, 0])];
         if (error.stage === "lexical" && [...text][source[0]-1] === "@") source[0]--;
         const [line, column] = positions[source[0]] || (positions.length ? positions[positions.length - 1] : [1, 1]);
-        const ranked = error.stage === "syntax" && rankedSyntaxFailure(/** @type {Token[]} */ (run.stages[0].output),error.token ?? 0);
+        const ranked = error.stage === "syntax" && rankedSyntaxFailure(run.stages.find(stage => stage.name === "syntax")?.input ?? [],error.token ?? 0);
         const message = error.stage === "lexical" && [...text][source[0]] === "@" ? "a parameter requires @ followed directly by an ASCII letter" : ranked ? "Parenthesize the intended ranked choice, with at least two operands and one separator kind." : error.message;
         throw new GencmuError("grammar", `${path}:${line}:${column}: ${message}`, { document: path, line, column, ...(ranked ? {code:"ranked-choice-syntax"} : {}) });
       }
